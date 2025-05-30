@@ -1,0 +1,39 @@
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# dotenv environment files
+.env
+.env.*.local
+
+# Optional npm cache directory
+.npm
+
+# Logs
+logs
+*.log
+logs/**/*.log
+
+# Output of 'npm pack'
+*.tgz
+
+# Build artifacts
+dist/
+build/
+coverage/
+
+# Mac system files
+.DS_Store
+
+# IDE/project files
+.vscode/
+.idea/
+*.swp
+
+# Misc
+*.local
+*.sublime-workspace
+*.sublime-project
