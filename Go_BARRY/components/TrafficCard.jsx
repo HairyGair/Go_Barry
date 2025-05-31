@@ -1,5 +1,5 @@
 // Go_BARRY/components/TrafficCard.jsx
-// Clean version with emoji icons only - no external dependencies
+// Fixed version with better text layout and spacing
 import React, { useState } from 'react';
 import {
   View,
@@ -85,7 +85,18 @@ const TrafficCard = ({
     switch (source) {
       case 'national_highways': return 'National Highways';
       case 'streetmanager': return 'Street Manager';
+      case 'traffic_monitoring': return 'Traffic Monitoring';
+      case 'police_reports': return 'Police Reports';
       default: return authority || 'Unknown Source';
+    }
+  };
+
+  const getTypeDisplay = () => {
+    switch (type) {
+      case 'incident': return 'Traffic Incident';
+      case 'congestion': return 'Traffic Congestion';
+      case 'roadwork': return 'Roadworks';
+      default: return 'Traffic Alert';
     }
   };
 
@@ -147,22 +158,19 @@ const TrafficCard = ({
         style={styles.contentContainer}
         activeOpacity={0.7}
       >
-        {/* Header Row */}
-        <View style={styles.headerRow}>
-          <View style={styles.headerLeft}>
-            <View style={styles.titleRow}>
-              <Text style={styles.severityIcon}>{getSeverityIcon()}</Text>
-              <Text style={styles.title} numberOfLines={2}>
-                {title}
-              </Text>
-            </View>
-            
-            <Text style={styles.subtitle}>
-              {getTypeIcon()} {type === 'incident' ? 'Incident' : 'Roadworks'} • {getSourceDisplay()}
+        {/* Header Section - Fixed Layout */}
+        <View style={styles.headerSection}>
+          {/* Title Row with Better Spacing */}
+          <View style={styles.titleRow}>
+            <Text style={styles.severityIcon}>{getSeverityIcon()}</Text>
+            <Text style={styles.typeIcon}>{getTypeIcon()}</Text>
+            <Text style={styles.title} numberOfLines={2}>
+              {title}
             </Text>
           </View>
           
-          <View style={styles.headerRight}>
+          {/* Status Badge - Moved to Own Row */}
+          <View style={styles.statusRow}>
             <View style={[styles.statusBadge, { backgroundColor: colors.indicatorColor }]}>
               <Text style={styles.statusBadgeText}>
                 {status.toUpperCase()}
@@ -171,7 +179,14 @@ const TrafficCard = ({
           </View>
         </View>
 
-        {/* Location */}
+        {/* Type and Source Row - Separate from Title */}
+        <View style={styles.metaRow}>
+          <Text style={styles.typeText}>{getTypeDisplay()}</Text>
+          <Text style={styles.separator}>•</Text>
+          <Text style={styles.sourceText}>{getSourceDisplay()}</Text>
+        </View>
+
+        {/* Location Row - Improved Spacing */}
         <View style={styles.locationRow}>
           <Text style={styles.locationIcon}>📍</Text>
           <Text style={styles.locationText} numberOfLines={2}>
@@ -179,20 +194,20 @@ const TrafficCard = ({
           </Text>
         </View>
 
-        {/* Route Badges */}
+        {/* Route Badges - Better Layout */}
         {affectsRoutes && affectsRoutes.length > 0 && (
-          <View style={styles.routeContainer}>
-            <Text style={styles.routeLabel}>🚌 Affects routes:</Text>
+          <View style={styles.routeSection}>
+            <Text style={styles.routeLabel}>🚌 Affected Routes:</Text>
             <View style={styles.routeBadgeContainer}>
-              {affectsRoutes.slice(0, 8).map((route, index) => (
+              {affectsRoutes.slice(0, 6).map((route, index) => (
                 <View key={`${route}-${index}`} style={styles.routeBadge}>
                   <Text style={styles.routeBadgeText}>{route}</Text>
                 </View>
               ))}
-              {affectsRoutes.length > 8 && (
+              {affectsRoutes.length > 6 && (
                 <View style={styles.moreRoutesBadge}>
                   <Text style={styles.moreRoutesText}>
-                    +{affectsRoutes.length - 8} more
+                    +{affectsRoutes.length - 6} more
                   </Text>
                 </View>
               )}
@@ -200,7 +215,7 @@ const TrafficCard = ({
           </View>
         )}
 
-        {/* Duration/Timing */}
+        {/* Duration/Timing - Better Spacing */}
         {durationText && (
           <View style={styles.durationRow}>
             <Text style={styles.durationIcon}>⏰</Text>
@@ -210,15 +225,17 @@ const TrafficCard = ({
           </View>
         )}
 
-        {/* Description Preview */}
-        <Text 
-          style={styles.description} 
-          numberOfLines={isExpanded ? undefined : 2}
-        >
-          {description}
-        </Text>
+        {/* Description - Improved Readability */}
+        <View style={styles.descriptionSection}>
+          <Text 
+            style={styles.description} 
+            numberOfLines={isExpanded ? undefined : 3}
+          >
+            {description}
+          </Text>
+        </View>
 
-        {/* Expand Button */}
+        {/* Expand Button - Better Visual Separation */}
         <TouchableOpacity
           onPress={() => setIsExpanded(!isExpanded)}
           style={styles.expandButton}
@@ -254,7 +271,7 @@ const TrafficCard = ({
           )}
 
           {/* All Affected Routes */}
-          {affectsRoutes && affectsRoutes.length > 8 && (
+          {affectsRoutes && affectsRoutes.length > 6 && (
             <View style={styles.detailCard}>
               <Text style={styles.detailCardTitle}>🚌 All Affected Routes</Text>
               <View style={styles.allRoutesBadgeContainer}>
@@ -289,8 +306,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#1F2937',
     borderLeftWidth: 4,
-    borderRadius: 8,
-    marginVertical: 8,
+    borderRadius: 12,
+    marginVertical: 6,
     marginHorizontal: 16,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -310,6 +327,7 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     textAlign: 'center',
     padding: 16,
+    fontSize: 14,
   },
   statusBar: {
     height: 4,
@@ -317,22 +335,22 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 16,
   },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  headerLeft: {
-    flex: 1,
-    marginRight: 12,
+  
+  // FIXED: Header Section with Better Layout
+  headerSection: {
+    marginBottom: 12,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 8,
+    flexWrap: 'wrap',
   },
   severityIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  typeIcon: {
     fontSize: 16,
     marginRight: 8,
   },
@@ -341,115 +359,167 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     flex: 1,
+    lineHeight: 22,
   },
-  subtitle: {
-    color: '#D1D5DB',
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  headerRight: {
-    alignItems: 'flex-end',
+  statusRow: {
+    alignItems: 'flex-start',
   },
   statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
   },
   statusBadgeText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  locationRow: {
+  
+  // FIXED: Meta Information Row
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+    flexWrap: 'wrap',
+  },
+  typeText: {
+    color: '#D1D5DB',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  separator: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    marginHorizontal: 8,
+  },
+  sourceText: {
+    color: '#9CA3AF',
+    fontSize: 14,
+  },
+  
+  // FIXED: Location with Better Spacing
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
   },
   locationIcon: {
     fontSize: 14,
     marginRight: 8,
+    marginTop: 2,
   },
   locationText: {
     color: '#D1D5DB',
     fontSize: 14,
     flex: 1,
+    lineHeight: 20,
   },
-  routeContainer: {
+  
+  // FIXED: Route Section
+  routeSection: {
     marginBottom: 12,
   },
   routeLabel: {
     color: '#9CA3AF',
-    fontSize: 12,
-    marginBottom: 4,
+    fontSize: 13,
+    marginBottom: 6,
+    fontWeight: '500',
   },
   routeBadgeContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 4,
   },
   routeBadge: {
     backgroundColor: '#2563EB',
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 12,
     marginRight: 4,
     marginBottom: 4,
   },
   routeBadgeText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   moreRoutesBadge: {
     backgroundColor: '#6B7280',
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 12,
     marginBottom: 4,
   },
   moreRoutesText: {
     color: '#D1D5DB',
     fontSize: 12,
+    fontWeight: '500',
   },
+  
+  // FIXED: Duration Row
   durationRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    backgroundColor: '#374151',
+    borderRadius: 8,
   },
   durationIcon: {
     fontSize: 14,
     marginRight: 8,
   },
   durationText: {
-    color: '#D1D5DB',
+    color: '#FCD34D',
     fontSize: 14,
+    fontWeight: '500',
+  },
+  
+  // FIXED: Description Section
+  descriptionSection: {
+    marginBottom: 12,
   },
   description: {
     color: '#D1D5DB',
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 22,
+    backgroundColor: '#374151',
+    padding: 12,
+    borderRadius: 8,
   },
+  
+  // FIXED: Expand Button
   expandButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 12,
-    paddingTop: 12,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: '#4B5563',
+    marginTop: 8,
   },
   expandButtonText: {
     color: '#60A5FA',
     fontSize: 14,
-    marginRight: 4,
+    fontWeight: '500',
+    marginRight: 6,
   },
   expandButtonIcon: {
     fontSize: 12,
   },
+  
+  // Expanded Content Styles
   expandedContent: {
     paddingHorizontal: 16,
     paddingBottom: 16,
     borderTopWidth: 1,
     borderTopColor: '#4B5563',
+    backgroundColor: '#111827',
   },
   detailCard: {
     backgroundColor: '#374151',
@@ -460,17 +530,19 @@ const styles = StyleSheet.create({
   detailCardTitle: {
     color: '#D1D5DB',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     marginBottom: 8,
   },
   detailCardText: {
     color: '#9CA3AF',
     fontSize: 13,
     marginBottom: 4,
+    lineHeight: 18,
   },
   allRoutesBadgeContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 4,
   },
 });
 

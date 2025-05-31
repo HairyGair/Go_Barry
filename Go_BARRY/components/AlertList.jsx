@@ -1,533 +1,338 @@
 // Go_BARRY/components/AlertList.jsx
-// Enhanced AlertList with better error handling and debugging
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+// BARRY Live Alert List - Displays live alerts from all sources
+// NO SAMPLE DATA - All data comes from live APIs
+
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
-  FlatList,
-  TextInput,
-  TouchableOpacity,
-  RefreshControl,
-  StyleSheet,
-  ActivityIndicator,
-  Alert,
   ScrollView,
-  Dimensions
+  StyleSheet,
+  RefreshControl,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useBARRYapi } from './hooks/useBARRYapi';
 import TrafficCard from './TrafficCard';
 
-const { width } = Dimensions.get('window');
+const AlertList = () => {
+  const {
+    alerts,
+    statistics,
+    loading,
+    error,
+    lastUpdated,
+    refreshing,
+    refreshAllData,
+    forceRefresh,
+    getCriticalAlerts,
+    getTrafficAlerts,
+    getRoadworks,
+    hasLiveData,
+    isSystemHealthy,
+    activeSourcesCount,
+    totalSourcesCount
+  } = useBARRYapi();
 
-const AlertList = ({ 
-  baseUrl = 'https://go-barry.onrender.com',
-  onAlertPress = null,
-  style = {}
-}) => {
-  // State management
-  const [alerts, setAlerts] = useState([]);
-  const [filteredAlerts, setFilteredAlerts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState('priority');
-  const [metadata, setMetadata] = useState(null);
-  const [debugInfo, setDebugInfo] = useState(null);
-  const [showDebug, setShowDebug] = useState(false);
+  // Local state for filtering
+  const [filterType, setFilterType] = useState('all'); // all, critical, traffic, roadworks
+  const [sortBy, setSortBy] = useState('priority'); // priority, date, location
 
-  // Filter states
-  const [filters, setFilters] = useState({
-    severity: [],
-    status: [],
-    source: [],
-    type: []
-  });
+  // Filter and sort live alerts
+  const filteredAndSortedAlerts = useMemo(() => {
+    let filtered = [...alerts];
 
-  // Fetch alerts from backend with enhanced error handling
-  const fetchAlerts = useCallback(async (showRefreshSpinner = false, silent = false) => {
-    try {
-      if (showRefreshSpinner) {
-        setRefreshing(true);
-      } else if (!silent) {
-        setLoading(true);
-      }
-      setError(null);
-
-      console.log(`🔍 Fetching alerts from: ${baseUrl}/api/alerts`);
-      
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
-
-      const response = await fetch(`${baseUrl}/api/alerts`, {
-        signal: controller.signal,
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      clearTimeout(timeoutId);
-      
-      console.log(`📡 Response status: ${response.status}`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const text = await response.text();
-      console.log(`📦 Response length: ${text.length} characters`);
-      
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (parseError) {
-        console.error('📦 JSON Parse Error:', parseError);
-        throw new Error(`Invalid JSON response: ${parseError.message}`);
-      }
-      
-      console.log(`✅ Parsed data:`, {
-        success: data.success,
-        alertsCount: data.alerts?.length || 0,
-        hasMetadata: !!data.metadata
-      });
-      
-      if (data.success && data.alerts) {
-        setAlerts(data.alerts);
-        setMetadata(data.metadata);
-        
-        // Enhanced debug info
-        setDebugInfo({
-          lastFetch: new Date().toISOString(),
-          alertCount: data.alerts.length,
-          sources: data.metadata?.sources || {},
-          apiUrl: `${baseUrl}/api/alerts`,
-          responseSize: text.length,
-          processingTime: data.metadata?.processingTime || 'N/A'
-        });
-        
-        console.log(`🎯 Successfully loaded ${data.alerts.length} alerts`);
-        
-        // Log first alert for debugging
-        if (data.alerts.length > 0) {
-          const firstAlert = data.alerts[0];
-          console.log(`📍 First alert:`, {
-            id: firstAlert.id,
-            title: firstAlert.title,
-            location: firstAlert.location,
-            status: firstAlert.status,
-            severity: firstAlert.severity
-          });
-        }
-        
-      } else {
-        throw new Error(data.error || 'Invalid response format - no alerts array');
-      }
-
-    } catch (err) {
-      const errorMessage = err.name === 'AbortError' 
-        ? 'Request timeout - server may be slow' 
-        : err.message;
-        
-      setError(errorMessage);
-      console.error('❌ AlertList fetch error:', err);
-      
-      // Enhanced debug info for errors
-      setDebugInfo({
-        lastFetch: new Date().toISOString(),
-        error: errorMessage,
-        apiUrl: `${baseUrl}/api/alerts`,
-        errorType: err.name,
-        alertCount: 0
-      });
-      
-      // Show user-friendly error alert (only if not silent)
-      if (!silent) {
-        Alert.alert(
-          'Connection Error',
-          `Unable to fetch latest alerts: ${errorMessage}\n\nPlease check your internet connection and try again.`,
-          [
-            { text: 'OK' },
-            { text: 'Show Debug', onPress: () => setShowDebug(true) }
-          ]
-        );
-      }
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [baseUrl]);
-
-  // Force refresh via backend endpoint
-  const forceRefresh = useCallback(async () => {
-    try {
-      setRefreshing(true);
-      console.log('🔄 Force refreshing data...');
-      
-      // Trigger backend refresh first
-      await fetch(`${baseUrl}/api/refresh`, { timeout: 10000 });
-      
-      // Then fetch updated data
-      await fetchAlerts(false, false);
-      
-    } catch (err) {
-      console.error('Force refresh error:', err);
-      // Fallback to regular fetch
-      await fetchAlerts(false, false);
-    }
-  }, [baseUrl, fetchAlerts]);
-
-  // Filter and search logic
-  const processAlerts = useMemo(() => {
-    let processed = [...alerts];
-
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      processed = processed.filter(alert => 
-        alert.title?.toLowerCase().includes(query) ||
-        alert.description?.toLowerCase().includes(query) ||
-        alert.location?.toLowerCase().includes(query) ||
-        alert.affectsRoutes?.some(route => 
-          route.toLowerCase().includes(query)
-        )
-      );
-    }
-
-    // Apply category filters
-    if (filters.severity.length > 0) {
-      processed = processed.filter(alert => 
-        filters.severity.includes(alert.severity)
-      );
-    }
-
-    if (filters.status.length > 0) {
-      processed = processed.filter(alert => 
-        filters.status.includes(alert.status)
-      );
-    }
-
-    if (filters.source.length > 0) {
-      processed = processed.filter(alert => 
-        filters.source.includes(alert.source)
-      );
-    }
-
-    if (filters.type.length > 0) {
-      processed = processed.filter(alert => 
-        filters.type.includes(alert.type)
-      );
+    // Apply filter
+    switch (filterType) {
+      case 'critical':
+        filtered = getCriticalAlerts();
+        break;
+      case 'traffic':
+        filtered = getTrafficAlerts();
+        break;
+      case 'roadworks':
+        filtered = getRoadworks();
+        break;
+      default:
+        // 'all' - no filtering
+        break;
     }
 
     // Apply sorting
-    processed.sort((a, b) => {
+    filtered.sort((a, b) => {
       switch (sortBy) {
         case 'priority':
+          // Sort by status (red > amber > green), then severity, then congestion level
           const statusPriority = { red: 3, amber: 2, green: 1 };
           const severityPriority = { High: 3, Medium: 2, Low: 1 };
           
           const aStatusScore = statusPriority[a.status] || 0;
           const bStatusScore = statusPriority[b.status] || 0;
           
-          if (aStatusScore !== bStatusScore) {
-            return bStatusScore - aStatusScore;
-          }
+          if (aStatusScore !== bStatusScore) return bStatusScore - aStatusScore;
           
           const aSeverityScore = severityPriority[a.severity] || 0;
           const bSeverityScore = severityPriority[b.severity] || 0;
           
-          return bSeverityScore - aSeverityScore;
-
+          if (aSeverityScore !== bSeverityScore) return bSeverityScore - aSeverityScore;
+          
+          // For traffic alerts, sort by congestion level
+          const aCongestion = a.congestionLevel || 0;
+          const bCongestion = b.congestionLevel || 0;
+          
+          return bCongestion - aCongestion;
+          
         case 'date':
+          // Sort by start date, most recent first
           const aDate = new Date(a.startDate || a.lastUpdated || 0);
           const bDate = new Date(b.startDate || b.lastUpdated || 0);
           return bDate - aDate;
-
+          
         case 'location':
-          return (a.location || '').localeCompare(b.location || '');
-
+          // Sort alphabetically by location
+          const aLocation = a.location || '';
+          const bLocation = b.location || '';
+          return aLocation.localeCompare(bLocation);
+          
         default:
           return 0;
       }
     });
 
-    return processed;
-  }, [alerts, searchQuery, filters, sortBy]);
+    return filtered;
+  }, [alerts, filterType, sortBy, getCriticalAlerts, getTrafficAlerts, getRoadworks]);
 
-  // Update filtered alerts when processing changes
-  useEffect(() => {
-    setFilteredAlerts(processAlerts);
-  }, [processAlerts]);
-
-  // Initial load
-  useEffect(() => {
-    fetchAlerts(false, false);
-  }, [fetchAlerts]);
-
-  // Filter toggle functions
-  const toggleFilter = (category, value) => {
-    setFilters(prev => {
-      const current = prev[category];
-      const updated = current.includes(value)
-        ? current.filter(item => item !== value)
-        : [...current, value];
-      
-      return { ...prev, [category]: updated };
-    });
+  // Handle filter button press
+  const handleFilterPress = (type) => {
+    setFilterType(type);
   };
 
-  const clearAllFilters = () => {
-    setFilters({
-      severity: [],
-      status: [],
-      source: [],
-      type: []
-    });
-    setSearchQuery('');
-  };
+  // Handle sort button press
+  const handleSortPress = () => {
+    const sortOptions = [
+      { key: 'priority', label: 'Priority (Status & Severity)' },
+      { key: 'date', label: 'Date (Most Recent First)' },
+      { key: 'location', label: 'Location (A-Z)' }
+    ];
 
-  const getActiveFilterCount = () => {
-    return Object.values(filters).reduce((count, filterArray) => 
-      count + filterArray.length, 0
-    ) + (searchQuery.trim() ? 1 : 0);
-  };
-
-  // Render functions
-  const renderAlert = ({ item, index }) => (
-    <TrafficCard 
-      alert={item}
-      onPress={onAlertPress ? () => onAlertPress(item) : null}
-      style={{ marginHorizontal: 0 }}
-    />
-  );
-
-  const renderDebugPanel = () => {
-    if (!showDebug || !debugInfo) return null;
-    
-    return (
-      <View style={styles.debugPanel}>
-        <View style={styles.debugHeader}>
-          <Text style={styles.debugTitle}>🔧 Debug Information</Text>
-          <TouchableOpacity onPress={() => setShowDebug(false)}>
-            <Ionicons name="close" size={20} color="#9CA3AF" />
-          </TouchableOpacity>
-        </View>
-        
-        <ScrollView style={styles.debugContent}>
-          <Text style={styles.debugText}>API URL: {debugInfo.apiUrl}</Text>
-          <Text style={styles.debugText}>Last Fetch: {debugInfo.lastFetch}</Text>
-          <Text style={styles.debugText}>Alert Count: {debugInfo.alertCount}</Text>
-          <Text style={styles.debugText}>Response Size: {debugInfo.responseSize} bytes</Text>
-          <Text style={styles.debugText}>Processing Time: {debugInfo.processingTime}</Text>
-          
-          {debugInfo.error && (
-            <Text style={styles.debugError}>Error: {debugInfo.error}</Text>
-          )}
-          
-          {debugInfo.sources && (
-            <View style={styles.debugSection}>
-              <Text style={styles.debugSectionTitle}>Data Sources:</Text>
-              {Object.entries(debugInfo.sources).map(([source, info]) => (
-                <Text key={source} style={styles.debugText}>
-                  {source}: {info.success ? '✅' : '❌'} ({info.count || 0} items)
-                </Text>
-              ))}
-            </View>
-          )}
-        </ScrollView>
-      </View>
+    Alert.alert(
+      'Sort Alerts',
+      'Choose sorting method:',
+      sortOptions.map(option => ({
+        text: option.label,
+        onPress: () => setSortBy(option.key)
+      })).concat([{
+        text: 'Cancel',
+        style: 'cancel'
+      }])
     );
   };
 
+  // Handle force refresh
+  const handleForceRefresh = () => {
+    Alert.alert(
+      'Force Refresh All Sources',
+      'This will refresh Street Manager, National Highways, HERE, and MapQuest data sources. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Refresh', 
+          onPress: forceRefresh,
+          style: 'default'
+        }
+      ]
+    );
+  };
+
+  // Format last updated time
+  const formatLastUpdated = (timestamp) => {
+    if (!timestamp) return 'Unknown';
+    
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    
+    return date.toLocaleDateString();
+  };
+
+  // Render filter buttons
+  const renderFilterButtons = () => (
+    <View style={styles.filterContainer}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        {[
+          { key: 'all', label: 'All', count: alerts.length },
+          { key: 'critical', label: 'Critical', count: statistics.criticalAlerts },
+          { key: 'traffic', label: 'Traffic', count: statistics.trafficIncidents + statistics.congestionAlerts },
+          { key: 'roadworks', label: 'Roadworks', count: statistics.roadworks }
+        ].map(filter => (
+          <TouchableOpacity
+            key={filter.key}
+            style={[
+              styles.filterButton,
+              filterType === filter.key && styles.filterButtonActive
+            ]}
+            onPress={() => handleFilterPress(filter.key)}
+          >
+            <Text style={[
+              styles.filterButtonText,
+              filterType === filter.key && styles.filterButtonTextActive
+            ]}>
+              {filter.label} ({filter.count})
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
+  // Render header with system status
   const renderHeader = () => (
     <View style={styles.header}>
-      {/* Debug Panel */}
-      {renderDebugPanel()}
-      
-      {/* Connection Status */}
-      <View style={styles.connectionStatus}>
-        {error ? (
-          <View style={styles.statusRow}>
-            <Ionicons name="wifi-off" size={16} color="#EF4444" />
-            <Text style={styles.errorStatus}>Connection Error</Text>
-            <TouchableOpacity onPress={() => setShowDebug(!showDebug)}>
-              <Ionicons name="information-circle" size={16} color="#9CA3AF" />
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.statusRow}>
-            <Ionicons name="wifi" size={16} color="#10B981" />
-            <Text style={styles.onlineStatus}>Connected</Text>
-            {debugInfo && (
-              <Text style={styles.lastUpdateText}>
-                • Updated {new Date(debugInfo.lastFetch).toLocaleTimeString('en-GB', {
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-              </Text>
-            )}
-          </View>
-        )}
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#9CA3AF" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search alerts, locations, routes..."
-          placeholderTextColor="#6B7280"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          returnKeyType="search"
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close" size={20} color="#9CA3AF" />
+      <View style={styles.headerTop}>
+        <Text style={styles.headerTitle}>Live Traffic Alerts</Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={handleSortPress} style={styles.actionButton}>
+            <Ionicons name="filter" size={20} color="#ffffff" />
           </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Filter and Sort Controls */}
-      <View style={styles.controlsRow}>
-        <TouchableOpacity
-          style={[styles.controlButton, getActiveFilterCount() > 0 && styles.activeControlButton]}
-          onPress={() => setShowFilters(!showFilters)}
-        >
-          <Ionicons name="filter" size={16} color={getActiveFilterCount() > 0 ? "#FFFFFF" : "#9CA3AF"} />
-          <Text style={[styles.controlButtonText, getActiveFilterCount() > 0 && styles.activeControlButtonText]}>
-            Filter {getActiveFilterCount() > 0 && `(${getActiveFilterCount()})`}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.controlButton}
-          onPress={() => {
-            const sortOptions = ['priority', 'date', 'location'];
-            const currentIndex = sortOptions.indexOf(sortBy);
-            const nextIndex = (currentIndex + 1) % sortOptions.length;
-            setSortBy(sortOptions[nextIndex]);
-          }}
-        >
-          <Ionicons name="swap-vertical" size={16} color="#9CA3AF" />
-          <Text style={styles.controlButtonText}>
-            Sort: {sortBy === 'priority' ? 'Priority' : sortBy === 'date' ? 'Date' : 'Location'}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.controlButton}
-          onPress={forceRefresh}
-          disabled={refreshing}
-        >
-          <Ionicons name="refresh" size={16} color="#9CA3AF" />
-          <Text style={styles.controlButtonText}>Refresh</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Statistics Summary */}
-      {metadata?.statistics && (
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Ionicons name="warning" size={16} color="#EF4444" />
-            <Text style={styles.statText}>{metadata.statistics.activeAlerts || 0} Active</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Ionicons name="time" size={16} color="#F59E0B" />
-            <Text style={styles.statText}>{metadata.statistics.upcomingAlerts || 0} Upcoming</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-            <Text style={styles.statText}>{metadata.statistics.plannedAlerts || 0} Planned</Text>
-          </View>
+          <TouchableOpacity onPress={handleForceRefresh} style={styles.actionButton}>
+            <Ionicons name="refresh" size={20} color="#ffffff" />
+          </TouchableOpacity>
         </View>
-      )}
-
-      {/* Results Summary */}
-      <View style={styles.resultsHeader}>
-        <Text style={styles.resultsText}>
-          Showing {filteredAlerts.length} of {alerts.length} alerts
-        </Text>
-        {metadata?.lastUpdated && (
-          <Text style={styles.lastUpdatedText}>
-            Updated: {new Date(metadata.lastUpdated).toLocaleTimeString('en-GB', {
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
+      </View>
+      
+      <View style={styles.statusBar}>
+        <View style={styles.statusItem}>
+          <Ionicons 
+            name={isSystemHealthy ? "checkmark-circle" : "warning"} 
+            size={16} 
+            color={isSystemHealthy ? "#00ff88" : "#ff6b6b"} 
+          />
+          <Text style={styles.statusText}>
+            {activeSourcesCount}/{totalSourcesCount} Sources
           </Text>
-        )}
+        </View>
+        
+        <View style={styles.statusItem}>
+          <Ionicons name="time" size={16} color="#888" />
+          <Text style={styles.statusText}>
+            {formatLastUpdated(lastUpdated)}
+          </Text>
+        </View>
+        
+        <View style={styles.statusItem}>
+          <Ionicons 
+            name={hasLiveData ? "radio" : "radio-outline"} 
+            size={16} 
+            color={hasLiveData ? "#00ff88" : "#888"} 
+          />
+          <Text style={styles.statusText}>
+            {hasLiveData ? 'Live' : 'No Data'}
+          </Text>
+        </View>
       </View>
     </View>
   );
 
-  const renderEmpty = () => {
-    if (loading) return null;
-    
+  // Render loading state
+  if (loading && alerts.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <Ionicons name="warning" size={48} color="#6B7280" />
-        <Text style={styles.emptyTitle}>
-          {error ? 'Connection Error' : 
-           filteredAlerts.length === 0 && alerts.length > 0 
-            ? 'No matching alerts' 
-            : 'No alerts available'
-          }
-        </Text>
-        <Text style={styles.emptyText}>
-          {error ? `Unable to connect to server: ${error}` :
-           filteredAlerts.length === 0 && alerts.length > 0
-            ? 'Try adjusting your search or filter criteria'
-            : 'All clear! No traffic alerts at the moment.'
-          }
-        </Text>
-        {error && (
-          <TouchableOpacity style={styles.retryButton} onPress={() => fetchAlerts(false, false)}>
-            <Text style={styles.retryButtonText}>Retry Connection</Text>
-          </TouchableOpacity>
-        )}
-        {filteredAlerts.length === 0 && alerts.length > 0 && (
-          <TouchableOpacity style={styles.clearFiltersButton} onPress={clearAllFilters}>
-            <Text style={styles.clearFiltersText}>Clear Filters</Text>
-          </TouchableOpacity>
-        )}
+      <View style={styles.container}>
+        {renderHeader()}
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#00ff88" />
+          <Text style={styles.loadingText}>Loading live alerts...</Text>
+          <Text style={styles.loadingSubtext}>
+            Connecting to Street Manager, National Highways, HERE, and MapQuest
+          </Text>
+        </View>
       </View>
     );
-  };
-
-  const renderLoading = () => (
-    <View style={styles.loadingContainer}>
-      <ActivityIndicator size="large" color="#60A5FA" />
-      <Text style={styles.loadingText}>Loading traffic alerts...</Text>
-      <Text style={styles.loadingSubtext}>Connecting to {baseUrl}</Text>
-    </View>
-  );
-
-  if (loading && !refreshing) {
-    return renderLoading();
   }
 
+  // Render error state
+  if (error && alerts.length === 0) {
+    return (
+      <View style={styles.container}>
+        {renderHeader()}
+        <View style={styles.errorContainer}>
+          <Ionicons name="warning" size={48} color="#ff6b6b" />
+          <Text style={styles.errorTitle}>Unable to Load Live Alerts</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity 
+            style={styles.retryButton} 
+            onPress={refreshAllData}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Render empty state
+  if (!hasLiveData && !loading) {
+    return (
+      <View style={styles.container}>
+        {renderHeader()}
+        <View style={styles.emptyContainer}>
+          <Ionicons name="checkmark-circle" size={48} color="#00ff88" />
+          <Text style={styles.emptyTitle}>No Active Alerts</Text>
+          <Text style={styles.emptyText}>
+            All traffic sources are clear. Check back later for updates.
+          </Text>
+          <TouchableOpacity 
+            style={styles.refreshButton} 
+            onPress={refreshAllData}
+          >
+            <Text style={styles.refreshButtonText}>Refresh</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // Render alerts list
   return (
-    <View style={[styles.container, style]}>
-      <FlatList
-        data={filteredAlerts}
-        renderItem={renderAlert}
-        keyExtractor={(item) => item.id || Math.random().toString()}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={renderEmpty}
+    <View style={styles.container}>
+      {renderHeader()}
+      {renderFilterButtons()}
+      
+      <ScrollView
+        style={styles.scrollView}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => fetchAlerts(true, false)}
-            colors={['#60A5FA']}
-            tintColor="#60A5FA"
-            title="Updating alerts..."
-            titleColor="#9CA3AF"
+            onRefresh={refreshAllData}
+            colors={['#00ff88']}
+            tintColor="#00ff88"
           />
         }
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.listContent}
-      />
+      >
+        <View style={styles.alertsContainer}>
+          <Text style={styles.resultsText}>
+            {filteredAndSortedAlerts.length} alert{filteredAndSortedAlerts.length !== 1 ? 's' : ''} 
+            {filterType !== 'all' && ` (${filterType})`}
+            {sortBy !== 'priority' && ` sorted by ${sortBy}`}
+          </Text>
+          
+          {filteredAndSortedAlerts.map((alert, index) => (
+            <TrafficCard 
+              key={alert.id || `alert-${index}`} 
+              alert={alert} 
+              index={index}
+            />
+          ))}
+        </View>
+      </ScrollView>
     </View>
   );
 };
@@ -535,216 +340,170 @@ const AlertList = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#111827',
-  },
-  listContent: {
-    paddingBottom: 20,
+    backgroundColor: '#1a1a1a'
   },
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-  connectionStatus: {
-    marginBottom: 16,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  onlineStatus: {
-    color: '#10B981',
-    fontSize: 14,
-    fontWeight: '500',
-    marginLeft: 6,
-  },
-  errorStatus: {
-    color: '#EF4444',
-    fontSize: 14,
-    fontWeight: '500',
-    marginLeft: 6,
-    flex: 1,
-  },
-  lastUpdateText: {
-    color: '#9CA3AF',
-    fontSize: 12,
-    marginLeft: 8,
-  },
-  debugPanel: {
-    backgroundColor: '#1F2937',
-    borderRadius: 8,
-    marginBottom: 16,
-    maxHeight: 200,
-  },
-  debugHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 12,
+    backgroundColor: '#2a2a2a',
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#374151',
+    borderBottomColor: '#333'
   },
-  debugTitle: {
-    color: '#D1D5DB',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  debugContent: {
-    padding: 12,
-  },
-  debugSection: {
-    marginTop: 8,
-  },
-  debugSectionTitle: {
-    color: '#D1D5DB',
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  debugText: {
-    color: '#9CA3AF',
-    fontSize: 11,
-    fontFamily: 'monospace',
-    marginBottom: 2,
-  },
-  debugError: {
-    color: '#EF4444',
-    fontSize: 11,
-    fontFamily: 'monospace',
-    marginTop: 4,
-  },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#374151',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginBottom: 16,
-  },
-  searchInput: {
-    flex: 1,
-    height: 40,
-    color: '#FFFFFF',
-    fontSize: 16,
-    marginLeft: 8,
-  },
-  controlsRow: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    gap: 8,
-  },
-  controlButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#374151',
-    borderRadius: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  activeControlButton: {
-    backgroundColor: '#2563EB',
-  },
-  controlButtonText: {
-    color: '#9CA3AF',
-    fontSize: 12,
-    marginLeft: 4,
-  },
-  activeControlButtonText: {
-    color: '#FFFFFF',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#1F2937',
-    borderRadius: 8,
-    paddingVertical: 12,
-    marginBottom: 16,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statText: {
-    color: '#D1D5DB',
-    fontSize: 14,
-    marginLeft: 6,
-  },
-  resultsHeader: {
+  headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#ffffff'
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 10
+  },
+  actionButton: {
+    padding: 8,
+    backgroundColor: '#333',
+    borderRadius: 6
+  },
+  statusBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  statusItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4
+  },
+  statusText: {
+    fontSize: 12,
+    color: '#888'
+  },
+  filterContainer: {
+    backgroundColor: '#2a2a2a',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333'
+  },
+  filterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 10,
+    backgroundColor: '#333',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#444'
+  },
+  filterButtonActive: {
+    backgroundColor: '#00ff88',
+    borderColor: '#00ff88'
+  },
+  filterButtonText: {
+    fontSize: 12,
+    color: '#ffffff',
+    fontWeight: '500'
+  },
+  filterButtonTextActive: {
+    color: '#000000'
+  },
+  scrollView: {
+    flex: 1
+  },
+  alertsContainer: {
+    padding: 15
   },
   resultsText: {
-    color: '#9CA3AF',
     fontSize: 14,
-  },
-  lastUpdatedText: {
-    color: '#6B7280',
-    fontSize: 12,
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 32,
-  },
-  emptyTitle: {
-    color: '#D1D5DB',
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 16,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptyText: {
-    color: '#9CA3AF',
-    fontSize: 14,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: '#EF4444',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  clearFiltersButton: {
-    alignSelf: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#DC2626',
-  },
-  clearFiltersText: {
-    color: '#DC2626',
-    fontSize: 14,
-    fontWeight: '500',
+    color: '#888',
+    marginBottom: 15,
+    textAlign: 'center'
   },
   loadingContainer: {
     flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40
   },
   loadingText: {
-    color: '#9CA3AF',
-    fontSize: 16,
-    marginTop: 12,
+    fontSize: 18,
+    color: '#ffffff',
+    marginTop: 15,
+    textAlign: 'center'
   },
   loadingSubtext: {
-    color: '#6B7280',
     fontSize: 14,
-    marginTop: 4,
+    color: '#888',
+    marginTop: 5,
+    textAlign: 'center'
   },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40
+  },
+  errorTitle: {
+    fontSize: 18,
+    color: '#ff6b6b',
+    marginTop: 15,
+    textAlign: 'center',
+    fontWeight: 'bold'
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#888',
+    marginTop: 10,
+    textAlign: 'center',
+    lineHeight: 20
+  },
+  retryButton: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#ff6b6b',
+    borderRadius: 6
+  },
+  retryButtonText: {
+    color: '#ffffff',
+    fontWeight: 'bold'
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40
+  },
+  emptyTitle: {
+    fontSize: 18,
+    color: '#00ff88',
+    marginTop: 15,
+    textAlign: 'center',
+    fontWeight: 'bold'
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#888',
+    marginTop: 10,
+    textAlign: 'center',
+    lineHeight: 20
+  },
+  refreshButton: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: '#00ff88',
+    borderRadius: 6
+  },
+  refreshButtonText: {
+    color: '#000000',
+    fontWeight: 'bold'
+  }
 });
 
 export default AlertList;
