@@ -1,36 +1,29 @@
 {
-  "name": "go_barry",
-  "version": "1.0.0",
-  "main": "index.ts",
+  "name": "barry-backend",
+  "version": "3.0.0",
+  "description": "BARRY Backend - Traffic Intelligence API",
+  "type": "module",
+  "main": "index.js",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
   "dependencies": {
-    "expo": "~53.0.9",
-    "expo-status-bar": "~2.2.3",
-    "react": "19.0.0",
-    "react-native": "0.79.2",
-    "@react-navigation/native": "^7.1.9",
-    "@react-navigation/stack": "^7.3.2",
-    "axios": "^1.6.0",
-    "cors": "^2.8.5",
-    "crypto": "^1.0.1",
-    "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5",
+    "xml2js": "^0.6.2",
     "fast-xml-parser": "^4.3.2",
-    "https": "^1.0.0",
-    "node-fetch": "^3.3.2",
-    "papaparse": "^5.4.1",
-    "xml2js": "^0.6.2"
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
-    "@babel/core": "^7.25.2",
-    "@types/react": "~19.0.10",
-    "typescript": "~5.8.3",
     "nodemon": "^3.0.1"
   },
-  "private": true
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["api", "traffic", "backend", "express"],
+  "author": "Anthony Gair",
+  "license": "MIT"
 }

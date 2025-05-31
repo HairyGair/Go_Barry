@@ -27,7 +27,7 @@ import {
   BarChart3,
   Route,
   Timer
-} from 'lucide-react-native';
+} from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 

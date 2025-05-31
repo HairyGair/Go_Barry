@@ -8,14 +8,7 @@ import {
   StyleSheet,
   Dimensions
 } from 'react-native';
-import { 
-  AlertTriangle, 
-  Clock, 
-  MapPin, 
-  Info, 
-  ChevronDown, 
-  ChevronUp 
-} from 'lucide-react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
@@ -81,14 +74,13 @@ const TrafficCard = ({
   };
 
   const getSeverityIcon = () => {
-    const iconProps = { size: 16 };
     switch (severity) {
       case 'High':
-        return <AlertTriangle {...iconProps} color="#EF4444" />;
+        return <Ionicons name="warning" size={16} color="#EF4444" />;
       case 'Medium':
-        return <Info {...iconProps} color="#F59E0B" />;
+        return <Ionicons name="information-circle" size={16} color="#F59E0B" />;
       default:
-        return <Info {...iconProps} color="#10B981" />;
+        return <Ionicons name="information-circle" size={16} color="#10B981" />;
     }
   };
 
@@ -203,7 +195,7 @@ const TrafficCard = ({
 
         {/* Location */}
         <View style={styles.locationRow}>
-          <MapPin size={14} color="#9CA3AF" />
+          <Ionicons name="location" size={14} color="#9CA3AF" />
           <Text style={styles.locationText} numberOfLines={2}>
             {location}
           </Text>
@@ -233,7 +225,7 @@ const TrafficCard = ({
         {/* Duration/Timing */}
         {durationText && (
           <View style={styles.durationRow}>
-            <Clock size={14} color="#9CA3AF" />
+            <Ionicons name="time" size={14} color="#9CA3AF" />
             <Text style={styles.durationText}>
               {durationText}
             </Text>
@@ -257,9 +249,9 @@ const TrafficCard = ({
             {isExpanded ? 'Show Less' : 'Show More'}
           </Text>
           {isExpanded ? (
-            <ChevronUp size={16} color="#60A5FA" />
+            <Ionicons name="chevron-up" size={16} color="#60A5FA" />
           ) : (
-            <ChevronDown size={16} color="#60A5FA" />
+            <Ionicons name="chevron-down" size={16} color="#60A5FA" />
           )}
         </TouchableOpacity>
       </TouchableOpacity>
