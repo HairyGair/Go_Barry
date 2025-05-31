@@ -1,9 +1,9 @@
 // Go_BARRY/services/api.js
-// Complete API service for BARRY traffic intelligence with test mode
+// Working API service for BARRY traffic intelligence
 
 const API_BASE = 'https://go-barry.onrender.com/api';
 
-// 🧪 TEMPORARY: Set to true to use test data while fixing API keys
+// 🧪 TEMPORARY: Set to true to use test data
 const USE_TEST_DATA = true;
 
 // Enhanced fetch with better error handling
@@ -13,7 +13,6 @@ const fetchWithRetry = async (url, retries = 2) => {
       console.log(`📡 Fetching: ${url} (attempt ${i + 1})`);
       
       const response = await fetch(url, {
-        timeout: 15000,
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -26,7 +25,7 @@ const fetchWithRetry = async (url, retries = 2) => {
       }
 
       const data = await response.json();
-      console.log(`✅ Success: ${url} - ${data.alerts?.length || data.data?.alerts?.length || 0} alerts`);
+      console.log(`✅ Success: ${url} - ${data.alerts?.length || 0} alerts`);
       return data;
       
     } catch (err) {
@@ -95,50 +94,6 @@ export const api = {
     }
   },
 
-  // Get traffic data specifically
-  async getTraffic() {
-    try {
-      const response = await fetchWithRetry(`${API_BASE}/traffic`);
-      return response.success ? response : { success: false, traffic: [] };
-    } catch (error) {
-      console.error('🚨 getTraffic failed:', error);
-      return { success: false, traffic: [], error: error.message };
-    }
-  },
-
-  // Get traffic intelligence
-  async getTrafficIntelligence() {
-    try {
-      const response = await fetchWithRetry(`${API_BASE}/traffic-intelligence`);
-      return response.success ? response : { success: false, trafficIntelligence: null };
-    } catch (error) {
-      console.error('🚨 getTrafficIntelligence failed:', error);
-      return { success: false, trafficIntelligence: null, error: error.message };
-    }
-  },
-
-  // Get street works (Street Manager data)
-  async getStreetworks() {
-    try {
-      const response = await fetchWithRetry(`${API_BASE}/streetworks`);
-      return response.success ? response : { success: false, streetworks: [] };
-    } catch (error) {
-      console.error('🚨 getStreetworks failed:', error);
-      return { success: false, streetworks: [], error: error.message };
-    }
-  },
-
-  // Get roadworks (National Highways data) 
-  async getRoadworks() {
-    try {
-      const response = await fetchWithRetry(`${API_BASE}/roadworks`);
-      return response.success ? response : { success: false, roadworks: [] };
-    } catch (error) {
-      console.error('🚨 getRoadworks failed:', error);
-      return { success: false, roadworks: [], error: error.message };
-    }
-  },
-
   // Get system health
   async getHealth() {
     try {
@@ -162,17 +117,6 @@ export const api = {
     }
   },
 
-  // Get route delays
-  async getRouteDelays() {
-    try {
-      const response = await fetchWithRetry(`${API_BASE}/route-delays`);
-      return response.success ? response : { success: false, routeDelays: [] };
-    } catch (error) {
-      console.error('🚨 getRouteDelays failed:', error);
-      return { success: false, routeDelays: [], error: error.message };
-    }
-  },
-
   // Utility: Check if in test mode
   isTestMode() {
     return USE_TEST_DATA;
@@ -186,7 +130,6 @@ export const api = {
 
 // Legacy exports for backward compatibility
 export const fetchAlerts = api.getAlerts;
-export const fetchTraffic = api.getTraffic;
 export const fetchHealth = api.getHealth;
 
 export default api;

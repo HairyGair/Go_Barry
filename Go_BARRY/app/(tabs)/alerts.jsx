@@ -15,7 +15,7 @@ import {
   FlatList
 } from 'react-native';
 import TrafficCard from '../../components/TrafficCard';
-import { api } from '../../services/barryApi';
+import { api } from '../../services/api';
 import { Colors, getStatusColor, getSeverityColor, getTrafficTypeColor } from '../../constants/Colors';
 
 // Filter and sort options
