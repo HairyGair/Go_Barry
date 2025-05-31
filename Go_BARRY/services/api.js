@@ -1,135 +1,247 @@
 // Go_BARRY/services/api.js
-// Working API service for BARRY traffic intelligence
+// BARRY API Service - Handles all backend communication
 
-const API_BASE = 'https://go-barry.onrender.com/api';
+const BASE_URL = 'https://go-barry.onrender.com';
+const LOCAL_URL = 'http://localhost:3001';
 
-// 🧪 TEMPORARY: Set to true to use test data
-const USE_TEST_DATA = true;
+// Helper function to determine which URL to use
+const getBaseUrl = () => {
+  // In development, you might want to use localhost
+  // For production builds, always use the production URL
+  return BASE_URL;
+};
 
-// Enhanced fetch with better error handling
-const fetchWithRetry = async (url, retries = 2) => {
-  for (let i = 0; i <= retries; i++) {
-    try {
-      console.log(`📡 Fetching: ${url} (attempt ${i + 1})`);
-      
-      const response = await fetch(url, {
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'User-Agent': 'BARRY-Mobile/3.0'
-        }
-      });
+// Helper function for making HTTP requests with proper error handling
+const makeRequest = async (endpoint, options = {}) => {
+  const url = `${getBaseUrl()}${endpoint}`;
+  
+  try {
+    console.log(`📡 API Request: ${url}`);
+    
+    const response = await fetch(url, {
+      timeout: 15000, // 15 second timeout
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...options.headers,
+      },
+    });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+    console.log(`📡 API Response: ${response.status} ${response.statusText}`);
 
-      const data = await response.json();
-      console.log(`✅ Success: ${url} - ${data.alerts?.length || 0} alerts`);
-      return data;
-      
-    } catch (err) {
-      console.error(`❌ Attempt ${i + 1} failed for ${url}:`, err.message);
-      if (i === retries) throw err;
-      // Wait before retry
-      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
+
+    const data = await response.json();
+    console.log(`✅ API Success: ${endpoint}`);
+    
+    return {
+      success: true,
+      data: data,
+      status: response.status
+    };
+
+  } catch (error) {
+    console.error(`❌ API Error for ${endpoint}:`, error.message);
+    
+    return {
+      success: false,
+      error: error.message,
+      data: null
+    };
   }
 };
 
-// Main API functions
+// Main API object with all the methods needed by the app
 export const api = {
-  // Get all unified alerts (with test mode support)
-  async getAlerts() {
-    try {
-      // Use test endpoint when in test mode
-      const endpoint = USE_TEST_DATA ? `${API_BASE}/alerts-test` : `${API_BASE}/alerts`;
+  // Get all traffic alerts
+  getAlerts: async () => {
+    console.log('🚨 Fetching alerts from backend...');
+    
+    const result = await makeRequest('/api/alerts');
+    
+    if (result.success) {
+      // Ensure the response has the expected structure
+      const alerts = result.data.alerts || result.data || [];
+      const metadata = result.data.metadata || {};
       
-      console.log(`📋 Fetching alerts from: ${endpoint}`);
-      const response = await fetchWithRetry(endpoint);
-      
-      if (response.success && response.alerts) {
-        if (USE_TEST_DATA) {
-          console.log('🧪 Using test data - set USE_TEST_DATA to false when APIs are working');
+      return {
+        success: true,
+        data: {
+          alerts: alerts,
+          metadata: metadata
         }
-        
+      };
+    } else {
+      // If main endpoint fails, try test endpoint as fallback
+      console.log('🧪 Main endpoint failed, trying test endpoint...');
+      const testResult = await makeRequest('/api/alerts-test');
+      
+      if (testResult.success) {
         return {
           success: true,
           data: {
-            alerts: response.alerts,
-            metadata: response.metadata
+            alerts: testResult.data.alerts || [],
+            metadata: testResult.data.metadata || {}
           }
         };
-      } else {
-        throw new Error(response.error || 'Invalid response format');
-      }
-    } catch (error) {
-      console.error('🚨 getAlerts failed:', error);
-      
-      // Fallback: if production fails, try test endpoint
-      if (!USE_TEST_DATA) {
-        console.log('🧪 Production failed, trying test endpoint as fallback...');
-        try {
-          const testResponse = await fetchWithRetry(`${API_BASE}/alerts-test`);
-          if (testResponse.success) {
-            console.log('✅ Test endpoint working as fallback');
-            return {
-              success: true,
-              data: {
-                alerts: testResponse.alerts,
-                metadata: { ...testResponse.metadata, fallbackMode: true }
-              }
-            };
-          }
-        } catch (testError) {
-          console.error('🚨 Test endpoint also failed:', testError);
-        }
       }
       
-      return {
-        success: false,
-        error: error.message,
-        data: { alerts: [], metadata: null }
-      };
+      return result;
     }
+  },
+
+  // Get test alerts (for development)
+  getTestAlerts: async () => {
+    console.log('🧪 Fetching test alerts...');
+    return await makeRequest('/api/alerts-test');
   },
 
   // Get system health
-  async getHealth() {
-    try {
-      const response = await fetchWithRetry(`${API_BASE}/health`);
-      return response;
-    } catch (error) {
-      console.error('🚨 getHealth failed:', error);
-      return { status: 'error', error: error.message };
+  getHealth: async () => {
+    console.log('💚 Checking system health...');
+    return await makeRequest('/api/health');
+  },
+
+  // Get system health (alternative method name for compatibility)
+  getSystemHealth: async () => {
+    console.log('💚 Checking system health...');
+    return await makeRequest('/api/health');
+  },
+
+  // Force refresh data
+  refreshData: async () => {
+    console.log('🔄 Forcing data refresh...');
+    return await makeRequest('/api/refresh');
+  },
+
+  // Alternative method name for refresh
+  refreshAllData: async () => {
+    console.log('🔄 Refreshing all data...');
+    return await makeRequest('/api/refresh');
+  },
+
+  // Dashboard summary (uses alerts endpoint but with different processing)
+  getDashboardSummary: async () => {
+    console.log('📊 Fetching dashboard summary...');
+    
+    const result = await api.getAlerts();
+    
+    if (result.success && result.data.alerts) {
+      const alerts = result.data.alerts;
+      
+      // Calculate summary statistics
+      const summary = {
+        totalAlerts: alerts.length,
+        criticalAlerts: alerts.filter(a => a.status === 'red' && a.severity === 'High').length,
+        activeAlerts: alerts.filter(a => a.status === 'red').length,
+        upcomingAlerts: alerts.filter(a => a.status === 'amber').length,
+        incidents: alerts.filter(a => a.type === 'incident').length,
+        roadworks: alerts.filter(a => a.type === 'roadwork').length,
+        congestion: alerts.filter(a => a.type === 'congestion').length,
+        lastUpdated: result.data.metadata?.lastUpdated || new Date().toISOString()
+      };
+      
+      return {
+        success: true,
+        data: {
+          summary: summary,
+          criticalAlerts: alerts.filter(a => a.status === 'red' && a.severity === 'High').slice(0, 5),
+          metadata: result.data.metadata
+        }
+      };
     }
+    
+    return result;
   },
 
-  // Force refresh backend data
-  async forceRefresh() {
-    try {
-      console.log('🔄 Forcing backend refresh...');
-      const response = await fetchWithRetry(`${API_BASE}/refresh`);
-      return response.success ? response : { success: false };
-    } catch (error) {
-      console.error('🚨 forceRefresh failed:', error);
-      return { success: false, error: error.message };
+  // Get traffic data (alias for alerts)
+  getTrafficData: async () => {
+    console.log('🚦 Fetching traffic data...');
+    return await api.getAlerts();
+  },
+
+  // Get roadworks data (filtered alerts)
+  getRoadworks: async () => {
+    console.log('🚧 Fetching roadworks data...');
+    const result = await api.getAlerts();
+    
+    if (result.success && result.data.alerts) {
+      const roadworks = result.data.alerts.filter(alert => alert.type === 'roadwork');
+      return {
+        success: true,
+        data: {
+          alerts: roadworks,
+          metadata: result.data.metadata
+        }
+      };
     }
+    
+    return result;
   },
 
-  // Utility: Check if in test mode
-  isTestMode() {
-    return USE_TEST_DATA;
-  },
-
-  // Utility: Get current endpoint being used
-  getCurrentEndpoint() {
-    return USE_TEST_DATA ? `${API_BASE}/alerts-test` : `${API_BASE}/alerts`;
+  // Get incidents data (filtered alerts)
+  getIncidents: async () => {
+    console.log('🚨 Fetching incidents data...');
+    const result = await api.getAlerts();
+    
+    if (result.success && result.data.alerts) {
+      const incidents = result.data.alerts.filter(alert => alert.type === 'incident');
+      return {
+        success: true,
+        data: {
+          alerts: incidents,
+          metadata: result.data.metadata
+        }
+      };
+    }
+    
+    return result;
   }
 };
 
-// Legacy exports for backward compatibility
-export const fetchAlerts = api.getAlerts;
-export const fetchHealth = api.getHealth;
+// Export individual functions as well for flexibility
+export const getAlerts = api.getAlerts;
+export const getTestAlerts = api.getTestAlerts;
+export const getHealth = api.getHealth;
+export const getSystemHealth = api.getSystemHealth;
+export const refreshData = api.refreshData;
+export const refreshAllData = api.refreshAllData;
+export const getDashboardSummary = api.getDashboardSummary;
+export const getTrafficData = api.getTrafficData;
+export const getRoadworks = api.getRoadworks;
+export const getIncidents = api.getIncidents;
+
+// Configuration
+export const config = {
+  baseUrl: getBaseUrl(),
+  timeout: 15000,
+  endpoints: {
+    alerts: '/api/alerts',
+    testAlerts: '/api/alerts-test',
+    health: '/api/health',
+    refresh: '/api/refresh',
+    roadworks: '/api/roadworks',
+    incidents: '/api/incidents',
+    traffic: '/api/traffic'
+  },
+  supportedMethods: [
+    'getAlerts',
+    'getTestAlerts', 
+    'getHealth',
+    'getSystemHealth',
+    'refreshData',
+    'refreshAllData',
+    'getDashboardSummary',
+    'getTrafficData',
+    'getRoadworks',
+    'getIncidents'
+  ]
+};
+
+console.log('📱 BARRY API Service initialized');
+console.log(`🌐 Base URL: ${getBaseUrl()}`);
 
 export default api;

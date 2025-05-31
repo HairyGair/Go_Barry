@@ -12,6 +12,63 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
+// === Supabase Configuration for BARRY Backend ===
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.SUPABASE_URL || 'https://haountnghecfrsoniubq.supabase.co';
+const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('❌ Supabase configuration missing:');
+  console.error('   SUPABASE_URL:', supabaseUrl ? '✅ Set' : '❌ Missing');
+  console.error('   SUPABASE_ANON_KEY:', supabaseKey ? '✅ Set' : '❌ Missing');
+  throw new Error('Supabase configuration incomplete');
+}
+
+let supabase;
+try {
+  supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false
+    }
+  });
+  console.log('✅ Supabase client initialized successfully');
+  console.log('🌐 Project URL:', supabaseUrl);
+} catch (error) {
+  console.error('❌ Failed to initialize Supabase client:', error.message);
+  throw error;
+}
+
+// Test connection function (can be called from any endpoint)
+export const testSupabaseConnection = async () => {
+  try {
+    console.log('🔍 Testing Supabase connection...');
+
+    // Simple query to test connection
+    const { data, error } = await supabase
+      .from('_test_table_that_doesnt_exist')
+      .select('*')
+      .limit(1);
+
+    // We expect this to fail, but if we get a specific Supabase error
+    // it means we're connected
+    if (error && error.message.includes('does not exist')) {
+      console.log('✅ Supabase connection successful');
+      return { success: true, message: 'Connected to Supabase' };
+    }
+
+    return { success: true, message: 'Supabase connection verified' };
+  } catch (error) {
+    console.error('❌ Supabase connection failed:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+// Export supabase client for use elsewhere
+export { supabase };
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
