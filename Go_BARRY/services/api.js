@@ -1,7 +1,10 @@
 // Go_BARRY/services/api.js
-// Complete API service for BARRY traffic intelligence
+// Complete API service for BARRY traffic intelligence with test mode
 
 const API_BASE = 'https://go-barry.onrender.com/api';
+
+// 🧪 TEMPORARY: Set to true to use test data while fixing API keys
+const USE_TEST_DATA = true;
 
 // Enhanced fetch with better error handling
 const fetchWithRetry = async (url, retries = 2) => {
@@ -37,12 +40,20 @@ const fetchWithRetry = async (url, retries = 2) => {
 
 // Main API functions
 export const api = {
-  // Get all unified alerts
+  // Get all unified alerts (with test mode support)
   async getAlerts() {
     try {
-      const response = await fetchWithRetry(`${API_BASE}/alerts`);
+      // Use test endpoint when in test mode
+      const endpoint = USE_TEST_DATA ? `${API_BASE}/alerts-test` : `${API_BASE}/alerts`;
+      
+      console.log(`📋 Fetching alerts from: ${endpoint}`);
+      const response = await fetchWithRetry(endpoint);
       
       if (response.success && response.alerts) {
+        if (USE_TEST_DATA) {
+          console.log('🧪 Using test data - set USE_TEST_DATA to false when APIs are working');
+        }
+        
         return {
           success: true,
           data: {
@@ -55,6 +66,27 @@ export const api = {
       }
     } catch (error) {
       console.error('🚨 getAlerts failed:', error);
+      
+      // Fallback: if production fails, try test endpoint
+      if (!USE_TEST_DATA) {
+        console.log('🧪 Production failed, trying test endpoint as fallback...');
+        try {
+          const testResponse = await fetchWithRetry(`${API_BASE}/alerts-test`);
+          if (testResponse.success) {
+            console.log('✅ Test endpoint working as fallback');
+            return {
+              success: true,
+              data: {
+                alerts: testResponse.alerts,
+                metadata: { ...testResponse.metadata, fallbackMode: true }
+              }
+            };
+          }
+        } catch (testError) {
+          console.error('🚨 Test endpoint also failed:', testError);
+        }
+      }
+      
       return {
         success: false,
         error: error.message,
@@ -139,6 +171,16 @@ export const api = {
       console.error('🚨 getRouteDelays failed:', error);
       return { success: false, routeDelays: [], error: error.message };
     }
+  },
+
+  // Utility: Check if in test mode
+  isTestMode() {
+    return USE_TEST_DATA;
+  },
+
+  // Utility: Get current endpoint being used
+  getCurrentEndpoint() {
+    return USE_TEST_DATA ? `${API_BASE}/alerts-test` : `${API_BASE}/alerts`;
   }
 };
 
