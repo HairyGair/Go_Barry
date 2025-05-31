@@ -1,14 +1,14 @@
 {
-  "name": "barry-backend",
+  "name": "go-barry-backend",
   "version": "1.0.0",
   "description": "BARRY Traffic Intelligence Backend - Simplified for North East alerts",
   "type": "module",
-  "main": "simple-server.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node simple-server.js",
-    "dev": "nodemon simple-server.js",
+    "start": "node index.js",
+    "dev": "nodemon index.js",
     "test": "node test-api.js",
-    "complex": "node index.js",
+    "complex": "node index-complex.js",
     "health": "curl http://localhost:3001/api/health || echo 'Server not running'",
     "alerts": "curl http://localhost:3001/api/alerts | jq '.alerts | length' || echo 'No alerts or jq not installed'"
   },
