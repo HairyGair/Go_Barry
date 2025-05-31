@@ -11,23 +11,7 @@ import {
   Alert,
   Dimensions
 } from 'react-native';
-import { 
-  AlertTriangle, 
-  Clock, 
-  CheckCircle, 
-  RefreshCw,
-  Activity,
-  Wifi,
-  WifiOff,
-  Server,
-  Database,
-  MapPin,
-  TrendingUp,
-  Calendar,
-  Users,
-  Route,
-  Zap
-} from 'lucide-react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -214,9 +198,9 @@ const Dashboard = ({
           <Text style={styles.headerTitle}>🚦 BARRY Control Room</Text>
           <View style={styles.statusRow}>
             {isOnline ? (
-              <Wifi size={16} color="#10B981" />
+              <Ionicons name="wifi" size={16} color="#10B981" />
             ) : (
-              <WifiOff size={16} color="#EF4444" />
+              <Ionicons name="wifi-off" size={16} color="#EF4444" />
             )}
             <Text style={[styles.statusText, { color: isOnline ? '#10B981' : '#EF4444' }]}>
               {isOnline ? 'Online' : 'Offline'}
@@ -238,8 +222,9 @@ const Dashboard = ({
           onPress={forceRefresh}
           disabled={refreshing}
         >
-          <RefreshCw 
-            size={20} 
+          <Ionicons
+            name="refresh"
+            size={20}
             color="#60A5FA"
             style={refreshing ? { opacity: 0.5 } : {}}
           />
@@ -249,28 +234,28 @@ const Dashboard = ({
       {/* Alert Statistics Cards */}
       <View style={styles.statsGrid}>
         <View style={[styles.statCard, styles.criticalCard]}>
-          <AlertTriangle size={24} color="#EF4444" />
+          <Ionicons name="warning" size={24} color="#EF4444" />
           <Text style={styles.statNumber}>{stats.activeAlerts || 0}</Text>
           <Text style={styles.statLabel}>Active Alerts</Text>
           <Text style={styles.statSubtext}>Requiring attention</Text>
         </View>
 
         <View style={[styles.statCard, styles.warningCard]}>
-          <Clock size={24} color="#F59E0B" />
+          <Ionicons name="time" size={24} color="#F59E0B" />
           <Text style={styles.statNumber}>{stats.upcomingAlerts || 0}</Text>
           <Text style={styles.statLabel}>Upcoming</Text>
           <Text style={styles.statSubtext}>Within 7 days</Text>
         </View>
 
         <View style={[styles.statCard, styles.infoCard]}>
-          <CheckCircle size={24} color="#10B981" />
+          <Ionicons name="checkmark-circle" size={24} color="#10B981" />
           <Text style={styles.statNumber}>{stats.plannedAlerts || 0}</Text>
           <Text style={styles.statLabel}>Planned</Text>
           <Text style={styles.statSubtext}>Future works</Text>
         </View>
 
         <View style={[styles.statCard, styles.totalCard]}>
-          <Activity size={24} color="#60A5FA" />
+          <Ionicons name="pulse" size={24} color="#60A5FA" />
           <Text style={styles.statNumber}>{dashboardData?.metadata?.totalAlerts || 0}</Text>
           <Text style={styles.statLabel}>Total Alerts</Text>
           <Text style={styles.statSubtext}>All sources</Text>
@@ -305,7 +290,7 @@ const Dashboard = ({
         <View style={styles.sourcesGrid}>
           <View style={styles.sourceCard}>
             <View style={styles.sourceHeader}>
-              <Server size={20} color="#60A5FA" />
+              <Ionicons name="server" size={20} color="#60A5FA" />
               <Text style={styles.sourceTitle}>National Highways</Text>
             </View>
             <Text style={styles.sourceCount}>{sources.nationalHighways?.count || 0} alerts</Text>
@@ -323,7 +308,7 @@ const Dashboard = ({
 
           <View style={styles.sourceCard}>
             <View style={styles.sourceHeader}>
-              <Database size={20} color="#8B5CF6" />
+              <Ionicons name="database" size={20} color="#8B5CF6" />
               <Text style={styles.sourceTitle}>Street Manager</Text>
             </View>
             <Text style={styles.sourceCount}>{sources.streetManager?.count || 0} works</Text>
@@ -350,7 +335,7 @@ const Dashboard = ({
             {routeImpacts.map((routeData, index) => (
               <View key={routeData.route} style={styles.routeCard}>
                 <View style={styles.routeHeader}>
-                  <Route size={16} color="#60A5FA" />
+                  <Ionicons name="git-branch" size={16} color="#60A5FA" />
                   <Text style={styles.routeNumber}>{routeData.route}</Text>
                 </View>
                 <Text style={styles.routeAlertCount}>
@@ -370,7 +355,7 @@ const Dashboard = ({
                 </View>
                 {routeData.highSeverity > 0 && (
                   <View style={styles.highSeverityBadge}>
-                    <Zap size={12} color="#EF4444" />
+                    <Ionicons name="flash" size={12} color="#EF4444" />
                     <Text style={styles.highSeverityText}>{routeData.highSeverity} high</Text>
                   </View>
                 )}
@@ -401,7 +386,7 @@ const Dashboard = ({
               activeOpacity={0.7}
             >
               <View style={styles.criticalAlertHeader}>
-                <AlertTriangle size={16} color="#EF4444" />
+                <Ionicons name="warning" size={16} color="#EF4444" />
                 <Text style={styles.criticalAlertTitle} numberOfLines={1}>
                   {alert.title}
                 </Text>
@@ -413,7 +398,7 @@ const Dashboard = ({
                 </Text>
               </View>
               <View style={styles.criticalAlertBody}>
-                <MapPin size={12} color="#9CA3AF" />
+                <Ionicons name="location" size={12} color="#9CA3AF" />
                 <Text style={styles.criticalAlertLocation} numberOfLines={1}>
                   {alert.location}
                 </Text>
@@ -438,14 +423,14 @@ const Dashboard = ({
           <Text style={styles.sectionTitle}>System Performance</Text>
           <View style={styles.performanceGrid}>
             <View style={styles.performanceItem}>
-              <TrendingUp size={16} color="#10B981" />
+              <Ionicons name="trending-up" size={16} color="#10B981" />
               <Text style={styles.performanceLabel}>Processing Time</Text>
               <Text style={styles.performanceValue}>
                 {dashboardData.metadata.processingTime || 'N/A'}
               </Text>
             </View>
             <View style={styles.performanceItem}>
-              <Calendar size={16} color="#60A5FA" />
+              <Ionicons name="calendar" size={16} color="#60A5FA" />
               <Text style={styles.performanceLabel}>Last Updated</Text>
               <Text style={styles.performanceValue}>
                 {dashboardData.metadata.lastUpdated ? 
@@ -457,12 +442,12 @@ const Dashboard = ({
               </Text>
             </View>
             <View style={styles.performanceItem}>
-              <Users size={16} color="#8B5CF6" />
+              <Ionicons name="people" size={16} color="#8B5CF6" />
               <Text style={styles.performanceLabel}>Incidents</Text>
               <Text style={styles.performanceValue}>{stats.totalIncidents || 0}</Text>
             </View>
             <View style={styles.performanceItem}>
-              <Activity size={16} color="#F59E0B" />
+              <Ionicons name="pulse" size={16} color="#F59E0B" />
               <Text style={styles.performanceLabel}>Roadworks</Text>
               <Text style={styles.performanceValue}>{stats.totalRoadworks || 0}</Text>
             </View>
@@ -473,7 +458,7 @@ const Dashboard = ({
       {/* Error State */}
       {error && (
         <View style={styles.errorContainer}>
-          <AlertTriangle size={24} color="#EF4444" />
+          <Ionicons name="warning" size={24} color="#EF4444" />
           <Text style={styles.errorTitle}>Connection Issue</Text>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={fetchDashboardData}>

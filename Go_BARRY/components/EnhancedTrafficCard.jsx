@@ -8,19 +8,7 @@ import {
   StyleSheet,
   Animated
 } from 'react-native';
-import { 
-  AlertTriangle, 
-  Clock, 
-  MapPin, 
-  Info, 
-  ChevronDown, 
-  ChevronUp,
-  Activity,
-  Zap,
-  Construction,
-  Car,
-  Navigation
-} from 'lucide-react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 const EnhancedTrafficCard = ({ alert, onPress = null, style = {} }) => {
   const [isExpanded, setIsExpanded] = useState(false);

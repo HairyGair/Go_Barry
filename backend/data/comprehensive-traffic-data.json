@@ -1,1 +1,12 @@
-[]
+{
+  "alerts": [],
+  "metadata": {
+    "count": 0,
+    "lastUpdated": "2025-05-31T05:53:00.542Z",
+    "sources": [
+      "HERE Traffic API v7",
+      "MapQuest Traffic API v2",
+      "National Highways API"
+    ]
+  }
+}
