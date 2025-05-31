@@ -84,10 +84,12 @@ app.use(express.text({ type: 'text/plain' }));
 
 // CORS
 app.use((req, res, next) => {
+  // Allow all origins for mobile app testing
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-amz-sns-message-type');
-  
+
+  // Handle preflight requests
   if (req.method === 'OPTIONS') {
     res.sendStatus(200);
   } else {

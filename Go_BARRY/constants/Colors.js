@@ -1,145 +1,128 @@
-/**
- * Go North East Brand Colors for BARRY App
- * Based on Go North East / GoAhead Group branding
- */
+// Go_BARRY/constants/Colors.js
+// Color scheme for BARRY Traffic Intelligence App
 
 export const Colors = {
-  // Primary Brand Colors
-  primary: '#0066CC',        // Go North East Blue
-  secondary: '#FF0000',      // Go North East Red
+  // Primary brand colors
+  primary: '#007AFF',
+  primaryDark: '#005BB5',
+  primaryLight: '#4DA2FF',
   
-  // Neutral Colors
+  // Background colors
+  background: '#F8F9FA',
   white: '#FFFFFF',
   black: '#000000',
-  lightGrey: '#F5F5F5',
-  mediumGrey: '#E0E0E0',
-  darkGrey: '#333333',
-  background: '#F8F9FA',
   
-  // Status Colors
-  success: '#28A745',        // Green for success/active
-  warning: '#FFC107',        // Yellow/orange for warnings
-  danger: '#DC3545',         // Red for errors/high severity
-  info: '#17A2B8',          // Blue for information
+  // Grey scale
+  lightGrey: '#F1F3F4',
+  mediumGrey: '#9CA3AF',
+  darkGrey: '#6B7280',
   
-  // Traffic Alert Colors
+  // Status colors
+  success: '#10B981',
+  warning: '#F59E0B',
+  error: '#EF4444',
+  info: '#60A5FA',
+  
+  // Traffic alert status colors
   trafficAlert: {
-    incident: '#DC3545',      // Red for incidents
-    congestion: '#FFC107',    // Orange for congestion
-    roadwork: '#FF0000',      // Go North East red for roadworks
-    active: '#DC3545',        // Red for active alerts
-    upcoming: '#FFC107',      // Orange for upcoming
-    planned: '#28A745',       // Green for planned/future
+    active: '#EF4444',    // Red - immediate attention
+    upcoming: '#F59E0B',  // Amber - upcoming/planned
+    planned: '#10B981'    // Green - future/low priority
   },
   
-  // Route Badge Colors (for different bus routes)
-  routeBadges: {
-    primary: '#0066CC',       // Standard route color
-    express: '#FF0000',       // Express routes (X services)
-    local: '#28A745',         // Local routes
-    special: '#6F42C1',       // Special services
-    nightBus: '#343A40',      // Night services
-  },
-  
-  // Shadow and Border Colors
-  shadow: {
-    light: 'rgba(0, 0, 0, 0.1)',
-    medium: 'rgba(0, 0, 0, 0.2)',
-    dark: 'rgba(0, 0, 0, 0.3)',
-  },
-  
-  border: {
-    light: '#E9ECEF',
-    medium: '#DEE2E6',
-    dark: '#CED4DA',
-  },
-  
-  // Text Colors
+  // Text colors
   text: {
-    primary: '#212529',       // Main text
-    secondary: '#6C757D',     // Secondary text
-    muted: '#ADB5BD',        // Muted text
-    inverse: '#FFFFFF',      // White text on dark backgrounds
+    primary: '#1F2937',
+    secondary: '#6B7280',
+    light: '#9CA3AF',
+    inverse: '#FFFFFF'
   },
   
-  // Background Variants
-  backgrounds: {
-    primary: '#F8F9FA',      // Main app background
-    card: '#FFFFFF',         // Card backgrounds
-    section: '#F1F3F4',      // Section backgrounds
-    highlight: '#E3F2FD',    // Highlighted areas
+  // Border colors
+  border: {
+    light: '#E5E7EB',
+    medium: '#D1D5DB',
+    dark: '#9CA3AF'
   },
+  
+  // Background variations
+  backgrounds: {
+    section: '#F9FAFB',
+    card: '#FFFFFF',
+    highlight: '#EBF8FF',
+    overlay: 'rgba(0, 0, 0, 0.5)'
+  },
+  
+  // Traffic-specific colors
+  traffic: {
+    severe: '#DC2626',     // Severe congestion
+    moderate: '#F59E0B',   // Moderate congestion  
+    light: '#10B981',      // Light congestion
+    freeFlow: '#059669',   // Free flowing traffic
+    incident: '#EF4444',   // Traffic incidents
+    roadwork: '#8B5CF6'    // Roadworks
+  },
+  
+  // Route badge colors
+  route: {
+    background: '#2563EB',
+    text: '#FFFFFF',
+    border: '#1D4ED8'
+  },
+  
+  // Severity colors
+  severity: {
+    high: '#EF4444',
+    medium: '#F59E0B', 
+    low: '#10B981'
+  }
 };
 
-// Export individual color groups for easier importing
-export const BrandColors = {
-  primary: Colors.primary,
-  secondary: Colors.secondary,
-  white: Colors.white,
-  background: Colors.background,
-};
-
-export const StatusColors = {
-  success: Colors.success,
-  warning: Colors.warning,
-  danger: Colors.danger,
-  info: Colors.info,
-};
-
-export const TrafficColors = Colors.trafficAlert;
-
-export const RouteColors = Colors.routeBadges;
-
-// Utility function to get status color based on alert status
-export const getStatusColor = (status: string): string => {
-  switch (status?.toLowerCase()) {
+// Helper functions
+export const getStatusColor = (status) => {
+  switch (status) {
     case 'red':
-    case 'active':
-    case 'high':
       return Colors.trafficAlert.active;
     case 'amber':
-    case 'upcoming':
-    case 'medium':
       return Colors.trafficAlert.upcoming;
     case 'green':
-    case 'planned':
-    case 'low':
       return Colors.trafficAlert.planned;
     default:
       return Colors.mediumGrey;
   }
 };
 
-// Utility function to get severity color
-export const getSeverityColor = (severity: string): string => {
-  switch (severity?.toLowerCase()) {
-    case 'high':
-    case 'critical':
-      return Colors.danger;
-    case 'medium':
-    case 'moderate':
-      return Colors.warning;
-    case 'low':
-    case 'minor':
-      return Colors.success;
+export const getSeverityColor = (severity) => {
+  switch (severity) {
+    case 'High':
+      return Colors.severity.high;
+    case 'Medium':
+      return Colors.severity.medium;
+    case 'Low':
+      return Colors.severity.low;
     default:
-      return Colors.info;
+      return Colors.mediumGrey;
   }
 };
 
-// Utility function to get traffic type color
-export const getTrafficTypeColor = (type: string): string => {
-  switch (type?.toLowerCase()) {
+export const getTrafficTypeColor = (type) => {
+  switch (type) {
     case 'incident':
-      return Colors.trafficAlert.incident;
+      return Colors.traffic.incident;
     case 'congestion':
-      return Colors.trafficAlert.congestion;
+      return Colors.traffic.moderate;
     case 'roadwork':
-    case 'roadworks':
-      return Colors.trafficAlert.roadwork;
+      return Colors.traffic.roadwork;
     default:
-      return Colors.primary;
+      return Colors.mediumGrey;
   }
+};
+
+export const getCongestionColor = (level) => {
+  if (level >= 8) return Colors.traffic.severe;
+  if (level >= 6) return Colors.traffic.moderate;
+  if (level >= 3) return Colors.traffic.light;
+  return Colors.traffic.freeFlow;
 };
 
 export default Colors;

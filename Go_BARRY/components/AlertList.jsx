@@ -1,4 +1,5 @@
-// traffic-watch/components/AlertList.jsx
+// Go_BARRY/components/AlertList.jsx
+// Enhanced AlertList with better error handling and debugging
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
@@ -10,18 +11,10 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  ScrollView,
   Dimensions
 } from 'react-native';
-import { 
-  Search, 
-  Filter, 
-  SortDesc, 
-  RefreshCw,
-  AlertTriangle,
-  Clock,
-  CheckCircle,
-  X
-} from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import TrafficCard from './TrafficCard';
 
 const { width } = Dimensions.get('window');
@@ -39,52 +32,127 @@ const AlertList = ({
   const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [sortBy, setSortBy] = useState('priority'); // priority, date, location
+  const [sortBy, setSortBy] = useState('priority');
   const [metadata, setMetadata] = useState(null);
+  const [debugInfo, setDebugInfo] = useState(null);
+  const [showDebug, setShowDebug] = useState(false);
 
   // Filter states
   const [filters, setFilters] = useState({
-    severity: [], // ['High', 'Medium', 'Low']
-    status: [], // ['red', 'amber', 'green']
-    source: [], // ['national_highways', 'streetmanager']
-    type: [] // ['incident', 'roadwork']
+    severity: [],
+    status: [],
+    source: [],
+    type: []
   });
 
-  // Fetch alerts from backend
-  const fetchAlerts = useCallback(async (showRefreshSpinner = false) => {
+  // Fetch alerts from backend with enhanced error handling
+  const fetchAlerts = useCallback(async (showRefreshSpinner = false, silent = false) => {
     try {
       if (showRefreshSpinner) {
         setRefreshing(true);
-      } else {
+      } else if (!silent) {
         setLoading(true);
       }
       setError(null);
 
-      const response = await fetch(`${baseUrl}/api/alerts`);
+      console.log(`🔍 Fetching alerts from: ${baseUrl}/api/alerts`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+
+      const response = await fetch(`${baseUrl}/api/alerts`, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      console.log(`📡 Response status: ${response.status}`);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const text = await response.text();
+      console.log(`📦 Response length: ${text.length} characters`);
+      
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.error('📦 JSON Parse Error:', parseError);
+        throw new Error(`Invalid JSON response: ${parseError.message}`);
+      }
+      
+      console.log(`✅ Parsed data:`, {
+        success: data.success,
+        alertsCount: data.alerts?.length || 0,
+        hasMetadata: !!data.metadata
+      });
       
       if (data.success && data.alerts) {
         setAlerts(data.alerts);
         setMetadata(data.metadata);
+        
+        // Enhanced debug info
+        setDebugInfo({
+          lastFetch: new Date().toISOString(),
+          alertCount: data.alerts.length,
+          sources: data.metadata?.sources || {},
+          apiUrl: `${baseUrl}/api/alerts`,
+          responseSize: text.length,
+          processingTime: data.metadata?.processingTime || 'N/A'
+        });
+        
+        console.log(`🎯 Successfully loaded ${data.alerts.length} alerts`);
+        
+        // Log first alert for debugging
+        if (data.alerts.length > 0) {
+          const firstAlert = data.alerts[0];
+          console.log(`📍 First alert:`, {
+            id: firstAlert.id,
+            title: firstAlert.title,
+            location: firstAlert.location,
+            status: firstAlert.status,
+            severity: firstAlert.severity
+          });
+        }
+        
       } else {
-        throw new Error(data.error || 'Invalid response format');
+        throw new Error(data.error || 'Invalid response format - no alerts array');
       }
 
     } catch (err) {
-      setError(err.message);
-      console.error('AlertList fetch error:', err);
+      const errorMessage = err.name === 'AbortError' 
+        ? 'Request timeout - server may be slow' 
+        : err.message;
+        
+      setError(errorMessage);
+      console.error('❌ AlertList fetch error:', err);
       
-      // Show user-friendly error
-      Alert.alert(
-        'Connection Error',
-        'Unable to fetch latest alerts. Please check your connection and try again.',
-        [{ text: 'OK' }]
-      );
+      // Enhanced debug info for errors
+      setDebugInfo({
+        lastFetch: new Date().toISOString(),
+        error: errorMessage,
+        apiUrl: `${baseUrl}/api/alerts`,
+        errorType: err.name,
+        alertCount: 0
+      });
+      
+      // Show user-friendly error alert (only if not silent)
+      if (!silent) {
+        Alert.alert(
+          'Connection Error',
+          `Unable to fetch latest alerts: ${errorMessage}\n\nPlease check your internet connection and try again.`,
+          [
+            { text: 'OK' },
+            { text: 'Show Debug', onPress: () => setShowDebug(true) }
+          ]
+        );
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -95,17 +163,18 @@ const AlertList = ({
   const forceRefresh = useCallback(async () => {
     try {
       setRefreshing(true);
+      console.log('🔄 Force refreshing data...');
       
       // Trigger backend refresh first
-      await fetch(`${baseUrl}/api/refresh`);
+      await fetch(`${baseUrl}/api/refresh`, { timeout: 10000 });
       
       // Then fetch updated data
-      await fetchAlerts(false);
+      await fetchAlerts(false, false);
       
     } catch (err) {
       console.error('Force refresh error:', err);
       // Fallback to regular fetch
-      await fetchAlerts(false);
+      await fetchAlerts(false, false);
     }
   }, [baseUrl, fetchAlerts]);
 
@@ -155,7 +224,6 @@ const AlertList = ({
     processed.sort((a, b) => {
       switch (sortBy) {
         case 'priority':
-          // Sort by status (red > amber > green) then severity
           const statusPriority = { red: 3, amber: 2, green: 1 };
           const severityPriority = { High: 3, Medium: 2, Low: 1 };
           
@@ -172,13 +240,11 @@ const AlertList = ({
           return bSeverityScore - aSeverityScore;
 
         case 'date':
-          // Sort by start date, then last updated
           const aDate = new Date(a.startDate || a.lastUpdated || 0);
           const bDate = new Date(b.startDate || b.lastUpdated || 0);
           return bDate - aDate;
 
         case 'location':
-          // Alphabetical by location
           return (a.location || '').localeCompare(b.location || '');
 
         default:
@@ -196,7 +262,7 @@ const AlertList = ({
 
   // Initial load
   useEffect(() => {
-    fetchAlerts();
+    fetchAlerts(false, false);
   }, [fetchAlerts]);
 
   // Filter toggle functions
@@ -232,15 +298,82 @@ const AlertList = ({
     <TrafficCard 
       alert={item}
       onPress={onAlertPress ? () => onAlertPress(item) : null}
-      style={{ marginHorizontal: 0 }} // Remove horizontal margin for list
+      style={{ marginHorizontal: 0 }}
     />
   );
 
+  const renderDebugPanel = () => {
+    if (!showDebug || !debugInfo) return null;
+    
+    return (
+      <View style={styles.debugPanel}>
+        <View style={styles.debugHeader}>
+          <Text style={styles.debugTitle}>🔧 Debug Information</Text>
+          <TouchableOpacity onPress={() => setShowDebug(false)}>
+            <Ionicons name="close" size={20} color="#9CA3AF" />
+          </TouchableOpacity>
+        </View>
+        
+        <ScrollView style={styles.debugContent}>
+          <Text style={styles.debugText}>API URL: {debugInfo.apiUrl}</Text>
+          <Text style={styles.debugText}>Last Fetch: {debugInfo.lastFetch}</Text>
+          <Text style={styles.debugText}>Alert Count: {debugInfo.alertCount}</Text>
+          <Text style={styles.debugText}>Response Size: {debugInfo.responseSize} bytes</Text>
+          <Text style={styles.debugText}>Processing Time: {debugInfo.processingTime}</Text>
+          
+          {debugInfo.error && (
+            <Text style={styles.debugError}>Error: {debugInfo.error}</Text>
+          )}
+          
+          {debugInfo.sources && (
+            <View style={styles.debugSection}>
+              <Text style={styles.debugSectionTitle}>Data Sources:</Text>
+              {Object.entries(debugInfo.sources).map(([source, info]) => (
+                <Text key={source} style={styles.debugText}>
+                  {source}: {info.success ? '✅' : '❌'} ({info.count || 0} items)
+                </Text>
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      </View>
+    );
+  };
+
   const renderHeader = () => (
     <View style={styles.header}>
+      {/* Debug Panel */}
+      {renderDebugPanel()}
+      
+      {/* Connection Status */}
+      <View style={styles.connectionStatus}>
+        {error ? (
+          <View style={styles.statusRow}>
+            <Ionicons name="wifi-off" size={16} color="#EF4444" />
+            <Text style={styles.errorStatus}>Connection Error</Text>
+            <TouchableOpacity onPress={() => setShowDebug(!showDebug)}>
+              <Ionicons name="information-circle" size={16} color="#9CA3AF" />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.statusRow}>
+            <Ionicons name="wifi" size={16} color="#10B981" />
+            <Text style={styles.onlineStatus}>Connected</Text>
+            {debugInfo && (
+              <Text style={styles.lastUpdateText}>
+                • Updated {new Date(debugInfo.lastFetch).toLocaleTimeString('en-GB', {
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </Text>
+            )}
+          </View>
+        )}
+      </View>
+
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <Search size={20} color="#9CA3AF" />
+        <Ionicons name="search" size={20} color="#9CA3AF" />
         <TextInput
           style={styles.searchInput}
           placeholder="Search alerts, locations, routes..."
@@ -251,7 +384,7 @@ const AlertList = ({
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <X size={20} color="#9CA3AF" />
+            <Ionicons name="close" size={20} color="#9CA3AF" />
           </TouchableOpacity>
         )}
       </View>
@@ -262,7 +395,7 @@ const AlertList = ({
           style={[styles.controlButton, getActiveFilterCount() > 0 && styles.activeControlButton]}
           onPress={() => setShowFilters(!showFilters)}
         >
-          <Filter size={16} color={getActiveFilterCount() > 0 ? "#FFFFFF" : "#9CA3AF"} />
+          <Ionicons name="filter" size={16} color={getActiveFilterCount() > 0 ? "#FFFFFF" : "#9CA3AF"} />
           <Text style={[styles.controlButtonText, getActiveFilterCount() > 0 && styles.activeControlButtonText]}>
             Filter {getActiveFilterCount() > 0 && `(${getActiveFilterCount()})`}
           </Text>
@@ -271,19 +404,13 @@ const AlertList = ({
         <TouchableOpacity
           style={styles.controlButton}
           onPress={() => {
-            const sortOptions = [
-              { key: 'priority', label: 'Priority' },
-              { key: 'date', label: 'Date' },
-              { key: 'location', label: 'Location' }
-            ];
-            // In a real app, you'd show a picker modal here
-            // For now, cycle through options
-            const currentIndex = sortOptions.findIndex(opt => opt.key === sortBy);
+            const sortOptions = ['priority', 'date', 'location'];
+            const currentIndex = sortOptions.indexOf(sortBy);
             const nextIndex = (currentIndex + 1) % sortOptions.length;
-            setSortBy(sortOptions[nextIndex].key);
+            setSortBy(sortOptions[nextIndex]);
           }}
         >
-          <SortDesc size={16} color="#9CA3AF" />
+          <Ionicons name="swap-vertical" size={16} color="#9CA3AF" />
           <Text style={styles.controlButtonText}>
             Sort: {sortBy === 'priority' ? 'Priority' : sortBy === 'date' ? 'Date' : 'Location'}
           </Text>
@@ -294,7 +421,7 @@ const AlertList = ({
           onPress={forceRefresh}
           disabled={refreshing}
         >
-          <RefreshCw size={16} color="#9CA3AF" />
+          <Ionicons name="refresh" size={16} color="#9CA3AF" />
           <Text style={styles.controlButtonText}>Refresh</Text>
         </TouchableOpacity>
       </View>
@@ -303,130 +430,17 @@ const AlertList = ({
       {metadata?.statistics && (
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <AlertTriangle size={16} color="#EF4444" />
-            <Text style={styles.statText}>{metadata.statistics.activeAlerts} Active</Text>
+            <Ionicons name="warning" size={16} color="#EF4444" />
+            <Text style={styles.statText}>{metadata.statistics.activeAlerts || 0} Active</Text>
           </View>
           <View style={styles.statItem}>
-            <Clock size={16} color="#F59E0B" />
-            <Text style={styles.statText}>{metadata.statistics.upcomingAlerts} Upcoming</Text>
+            <Ionicons name="time" size={16} color="#F59E0B" />
+            <Text style={styles.statText}>{metadata.statistics.upcomingAlerts || 0} Upcoming</Text>
           </View>
           <View style={styles.statItem}>
-            <CheckCircle size={16} color="#10B981" />
-            <Text style={styles.statText}>{metadata.statistics.plannedAlerts} Planned</Text>
+            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+            <Text style={styles.statText}>{metadata.statistics.plannedAlerts || 0} Planned</Text>
           </View>
-        </View>
-      )}
-
-      {/* Filter Panel */}
-      {showFilters && (
-        <View style={styles.filterPanel}>
-          {/* Severity Filters */}
-          <View style={styles.filterGroup}>
-            <Text style={styles.filterGroupTitle}>Severity</Text>
-            <View style={styles.filterOptions}>
-              {['High', 'Medium', 'Low'].map(severity => (
-                <TouchableOpacity
-                  key={severity}
-                  style={[
-                    styles.filterChip,
-                    filters.severity.includes(severity) && styles.activeFilterChip
-                  ]}
-                  onPress={() => toggleFilter('severity', severity)}
-                >
-                  <Text style={[
-                    styles.filterChipText,
-                    filters.severity.includes(severity) && styles.activeFilterChipText
-                  ]}>
-                    {severity}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Status Filters */}
-          <View style={styles.filterGroup}>
-            <Text style={styles.filterGroupTitle}>Status</Text>
-            <View style={styles.filterOptions}>
-              {[
-                { key: 'red', label: 'Active' },
-                { key: 'amber', label: 'Upcoming' },
-                { key: 'green', label: 'Planned' }
-              ].map(status => (
-                <TouchableOpacity
-                  key={status.key}
-                  style={[
-                    styles.filterChip,
-                    filters.status.includes(status.key) && styles.activeFilterChip
-                  ]}
-                  onPress={() => toggleFilter('status', status.key)}
-                >
-                  <Text style={[
-                    styles.filterChipText,
-                    filters.status.includes(status.key) && styles.activeFilterChipText
-                  ]}>
-                    {status.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Source Filters */}
-          <View style={styles.filterGroup}>
-            <Text style={styles.filterGroupTitle}>Source</Text>
-            <View style={styles.filterOptions}>
-              {[
-                { key: 'national_highways', label: 'National Highways' },
-                { key: 'streetmanager', label: 'Street Manager' }
-              ].map(source => (
-                <TouchableOpacity
-                  key={source.key}
-                  style={[
-                    styles.filterChip,
-                    filters.source.includes(source.key) && styles.activeFilterChip
-                  ]}
-                  onPress={() => toggleFilter('source', source.key)}
-                >
-                  <Text style={[
-                    styles.filterChipText,
-                    filters.source.includes(source.key) && styles.activeFilterChipText
-                  ]}>
-                    {source.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Type Filters */}
-          <View style={styles.filterGroup}>
-            <Text style={styles.filterGroupTitle}>Type</Text>
-            <View style={styles.filterOptions}>
-              {['incident', 'roadwork'].map(type => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.filterChip,
-                    filters.type.includes(type) && styles.activeFilterChip
-                  ]}
-                  onPress={() => toggleFilter('type', type)}
-                >
-                  <Text style={[
-                    styles.filterChipText,
-                    filters.type.includes(type) && styles.activeFilterChipText
-                  ]}>
-                    {type === 'incident' ? 'Incidents' : 'Roadworks'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Clear Filters */}
-          <TouchableOpacity style={styles.clearFiltersButton} onPress={clearAllFilters}>
-            <Text style={styles.clearFiltersText}>Clear All Filters</Text>
-          </TouchableOpacity>
         </View>
       )}
 
@@ -452,19 +466,26 @@ const AlertList = ({
     
     return (
       <View style={styles.emptyContainer}>
-        <AlertTriangle size={48} color="#6B7280" />
+        <Ionicons name="warning" size={48} color="#6B7280" />
         <Text style={styles.emptyTitle}>
-          {filteredAlerts.length === 0 && alerts.length > 0 
+          {error ? 'Connection Error' : 
+           filteredAlerts.length === 0 && alerts.length > 0 
             ? 'No matching alerts' 
             : 'No alerts available'
           }
         </Text>
         <Text style={styles.emptyText}>
-          {filteredAlerts.length === 0 && alerts.length > 0
+          {error ? `Unable to connect to server: ${error}` :
+           filteredAlerts.length === 0 && alerts.length > 0
             ? 'Try adjusting your search or filter criteria'
             : 'All clear! No traffic alerts at the moment.'
           }
         </Text>
+        {error && (
+          <TouchableOpacity style={styles.retryButton} onPress={() => fetchAlerts(false, false)}>
+            <Text style={styles.retryButtonText}>Retry Connection</Text>
+          </TouchableOpacity>
+        )}
         {filteredAlerts.length === 0 && alerts.length > 0 && (
           <TouchableOpacity style={styles.clearFiltersButton} onPress={clearAllFilters}>
             <Text style={styles.clearFiltersText}>Clear Filters</Text>
@@ -478,6 +499,7 @@ const AlertList = ({
     <View style={styles.loadingContainer}>
       <ActivityIndicator size="large" color="#60A5FA" />
       <Text style={styles.loadingText}>Loading traffic alerts...</Text>
+      <Text style={styles.loadingSubtext}>Connecting to {baseUrl}</Text>
     </View>
   );
 
@@ -496,7 +518,7 @@ const AlertList = ({
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={fetchAlerts}
+            onRefresh={() => fetchAlerts(true, false)}
             colors={['#60A5FA']}
             tintColor="#60A5FA"
             title="Updating alerts..."
@@ -521,6 +543,74 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 16,
     paddingTop: 16,
+  },
+  connectionStatus: {
+    marginBottom: 16,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  onlineStatus: {
+    color: '#10B981',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  errorStatus: {
+    color: '#EF4444',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 6,
+    flex: 1,
+  },
+  lastUpdateText: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    marginLeft: 8,
+  },
+  debugPanel: {
+    backgroundColor: '#1F2937',
+    borderRadius: 8,
+    marginBottom: 16,
+    maxHeight: 200,
+  },
+  debugHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  debugTitle: {
+    color: '#D1D5DB',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  debugContent: {
+    padding: 12,
+  },
+  debugSection: {
+    marginTop: 8,
+  },
+  debugSectionTitle: {
+    color: '#D1D5DB',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  debugText: {
+    color: '#9CA3AF',
+    fontSize: 11,
+    fontFamily: 'monospace',
+    marginBottom: 2,
+  },
+  debugError: {
+    color: '#EF4444',
+    fontSize: 11,
+    fontFamily: 'monospace',
+    marginTop: 4,
   },
   searchContainer: {
     flexDirection: 'row',
@@ -580,58 +670,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginLeft: 6,
   },
-  filterPanel: {
-    backgroundColor: '#1F2937',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-  },
-  filterGroup: {
-    marginBottom: 16,
-  },
-  filterGroupTitle: {
-    color: '#D1D5DB',
-    fontSize: 14,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  filterOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  filterChip: {
-    backgroundColor: '#374151',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#4B5563',
-  },
-  activeFilterChip: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
-  },
-  filterChipText: {
-    color: '#9CA3AF',
-    fontSize: 13,
-  },
-  activeFilterChipText: {
-    color: '#FFFFFF',
-  },
-  clearFiltersButton: {
-    alignSelf: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#DC2626',
-  },
-  clearFiltersText: {
-    color: '#DC2626',
-    fontSize: 14,
-    fontWeight: '500',
-  },
   resultsHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -667,6 +705,31 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 16,
   },
+  retryButton: {
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  clearFiltersButton: {
+    alignSelf: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#DC2626',
+  },
+  clearFiltersText: {
+    color: '#DC2626',
+    fontSize: 14,
+    fontWeight: '500',
+  },
   loadingContainer: {
     flex: 1,
     alignItems: 'center',
@@ -677,6 +740,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 12,
   },
+  loadingSubtext: {
+    color: '#6B7280',
+    fontSize: 14,
+    marginTop: 4,
+  },
 });
 
-export default Aler
+export default AlertList;
