@@ -1,14 +1,13 @@
-// traffic-watch/components/TrafficCard.jsx
-import React, { useState, useRef } from 'react';
+// Go_BARRY/components/TrafficCard.jsx
+// Clean version with emoji icons only - no external dependencies
+import React, { useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
-  Animated,
   StyleSheet,
   Dimensions
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
@@ -18,18 +17,15 @@ const TrafficCard = ({
   style = {}
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const animationValue = useRef(new Animated.Value(0)).current;
 
-  // Handle missing alert prop
   if (!alert) {
     return (
       <View style={[styles.card, styles.errorCard, style]}>
-        <Text style={styles.errorText}>No alert data available</Text>
+        <Text style={styles.errorText}>❌ No alert data available</Text>
       </View>
     );
   }
 
-  // Extract data with fallbacks
   const {
     id = 'unknown',
     title = 'Traffic Alert',
@@ -46,57 +42,51 @@ const TrafficCard = ({
     lastUpdated = null
   } = alert;
 
-  // Color schemes based on status
   const getStatusColors = () => {
     switch (status) {
       case 'red':
         return {
           borderColor: '#DC2626',
           backgroundColor: 'rgba(220, 38, 38, 0.1)',
-          indicatorColor: '#DC2626',
-          textColor: '#FCA5A5'
+          indicatorColor: '#DC2626'
         };
       case 'amber':
         return {
           borderColor: '#D97706',
           backgroundColor: 'rgba(217, 119, 6, 0.1)',
-          indicatorColor: '#D97706',
-          textColor: '#FCD34D'
+          indicatorColor: '#D97706'
         };
       default:
         return {
           borderColor: '#059669',
           backgroundColor: 'rgba(5, 150, 105, 0.1)',
-          indicatorColor: '#059669',
-          textColor: '#6EE7B7'
+          indicatorColor: '#059669'
         };
     }
   };
 
   const getSeverityIcon = () => {
     switch (severity) {
-      case 'High':
-        return <Ionicons name="warning" size={16} color="#EF4444" />;
-      case 'Medium':
-        return <Ionicons name="information-circle" size={16} color="#F59E0B" />;
-      default:
-        return <Ionicons name="information-circle" size={16} color="#10B981" />;
+      case 'High': return '🔴';
+      case 'Medium': return '🟡';
+      default: return '🟢';
+    }
+  };
+
+  const getTypeIcon = () => {
+    switch (type) {
+      case 'incident': return '🚨';
+      case 'congestion': return '🚦';
+      default: return '🚧';
     }
   };
 
   const getSourceDisplay = () => {
     switch (source) {
-      case 'national_highways':
-        return 'National Highways';
-      case 'streetmanager':
-        return 'Street Manager';
-      default:
-        return authority || 'Unknown Source';
+      case 'national_highways': return 'National Highways';
+      case 'streetmanager': return 'Street Manager';
+      default: return authority || 'Unknown Source';
     }
-  };
-
-  const getTypeDisplay = () => {
-    return type === 'incident' ? 'Incident' : 'Roadworks';
   };
 
   const formatDateTime = (dateString) => {
@@ -136,18 +126,6 @@ const TrafficCard = ({
     }
   };
 
-  const toggleExpanded = () => {
-    const toValue = isExpanded ? 0 : 1;
-    
-    Animated.timing(animationValue, {
-      toValue,
-      duration: 300,
-      useNativeDriver: false,
-    }).start();
-    
-    setIsExpanded(!isExpanded);
-  };
-
   const colors = getStatusColors();
   const durationText = getDurationText();
 
@@ -165,7 +143,7 @@ const TrafficCard = ({
       
       {/* Main Content */}
       <TouchableOpacity
-        onPress={onPress || toggleExpanded}
+        onPress={onPress || (() => setIsExpanded(!isExpanded))}
         style={styles.contentContainer}
         activeOpacity={0.7}
       >
@@ -173,14 +151,14 @@ const TrafficCard = ({
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             <View style={styles.titleRow}>
-              {getSeverityIcon()}
+              <Text style={styles.severityIcon}>{getSeverityIcon()}</Text>
               <Text style={styles.title} numberOfLines={2}>
                 {title}
               </Text>
             </View>
             
             <Text style={styles.subtitle}>
-              {getTypeDisplay()} • {getSourceDisplay()}
+              {getTypeIcon()} {type === 'incident' ? 'Incident' : 'Roadworks'} • {getSourceDisplay()}
             </Text>
           </View>
           
@@ -195,7 +173,7 @@ const TrafficCard = ({
 
         {/* Location */}
         <View style={styles.locationRow}>
-          <Ionicons name="location" size={14} color="#9CA3AF" />
+          <Text style={styles.locationIcon}>📍</Text>
           <Text style={styles.locationText} numberOfLines={2}>
             {location}
           </Text>
@@ -204,7 +182,7 @@ const TrafficCard = ({
         {/* Route Badges */}
         {affectsRoutes && affectsRoutes.length > 0 && (
           <View style={styles.routeContainer}>
-            <Text style={styles.routeLabel}>Affects routes:</Text>
+            <Text style={styles.routeLabel}>🚌 Affects routes:</Text>
             <View style={styles.routeBadgeContainer}>
               {affectsRoutes.slice(0, 8).map((route, index) => (
                 <View key={`${route}-${index}`} style={styles.routeBadge}>
@@ -225,7 +203,7 @@ const TrafficCard = ({
         {/* Duration/Timing */}
         {durationText && (
           <View style={styles.durationRow}>
-            <Ionicons name="time" size={14} color="#9CA3AF" />
+            <Text style={styles.durationIcon}>⏰</Text>
             <Text style={styles.durationText}>
               {durationText}
             </Text>
@@ -242,82 +220,67 @@ const TrafficCard = ({
 
         {/* Expand Button */}
         <TouchableOpacity
-          onPress={toggleExpanded}
+          onPress={() => setIsExpanded(!isExpanded)}
           style={styles.expandButton}
         >
           <Text style={styles.expandButtonText}>
             {isExpanded ? 'Show Less' : 'Show More'}
           </Text>
-          {isExpanded ? (
-            <Ionicons name="chevron-up" size={16} color="#60A5FA" />
-          ) : (
-            <Ionicons name="chevron-down" size={16} color="#60A5FA" />
-          )}
+          <Text style={styles.expandButtonIcon}>
+            {isExpanded ? '🔼' : '🔽'}
+          </Text>
         </TouchableOpacity>
       </TouchableOpacity>
 
       {/* Expanded Details */}
-      <Animated.View
-        style={[
-          styles.expandedContainer,
-          {
-            opacity: animationValue,
-            maxHeight: animationValue.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, 500]
-            })
-          }
-        ]}
-      >
-        {isExpanded && (
-          <View style={styles.expandedContent}>
-            
-            {/* Detailed Timing */}
-            {(startDate || endDate) && (
-              <View style={styles.detailCard}>
-                <Text style={styles.detailCardTitle}>Timing Details</Text>
-                {startDate && (
-                  <Text style={styles.detailCardText}>
-                    Start: {formatDateTime(startDate)}
-                  </Text>
-                )}
-                {endDate && (
-                  <Text style={styles.detailCardText}>
-                    End: {formatDateTime(endDate)}
-                  </Text>
-                )}
-              </View>
-            )}
-
-            {/* All Affected Routes */}
-            {affectsRoutes && affectsRoutes.length > 8 && (
-              <View style={styles.detailCard}>
-                <Text style={styles.detailCardTitle}>All Affected Routes</Text>
-                <View style={styles.allRoutesBadgeContainer}>
-                  {affectsRoutes.map((route, index) => (
-                    <View key={`expanded-${route}-${index}`} style={styles.routeBadge}>
-                      <Text style={styles.routeBadgeText}>{route}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* Additional Details */}
+      {isExpanded && (
+        <View style={styles.expandedContent}>
+          
+          {/* Detailed Timing */}
+          {(startDate || endDate) && (
             <View style={styles.detailCard}>
-              <Text style={styles.detailCardTitle}>Additional Information</Text>
-              <Text style={styles.detailCardText}>Alert ID: {id}</Text>
-              <Text style={styles.detailCardText}>Severity: {severity}</Text>
-              <Text style={styles.detailCardText}>Source: {getSourceDisplay()}</Text>
-              {lastUpdated && (
+              <Text style={styles.detailCardTitle}>📅 Timing Details</Text>
+              {startDate && (
                 <Text style={styles.detailCardText}>
-                  Last Updated: {formatDateTime(lastUpdated)}
+                  Start: {formatDateTime(startDate)}
+                </Text>
+              )}
+              {endDate && (
+                <Text style={styles.detailCardText}>
+                  End: {formatDateTime(endDate)}
                 </Text>
               )}
             </View>
+          )}
+
+          {/* All Affected Routes */}
+          {affectsRoutes && affectsRoutes.length > 8 && (
+            <View style={styles.detailCard}>
+              <Text style={styles.detailCardTitle}>🚌 All Affected Routes</Text>
+              <View style={styles.allRoutesBadgeContainer}>
+                {affectsRoutes.map((route, index) => (
+                  <View key={`expanded-${route}-${index}`} style={styles.routeBadge}>
+                    <Text style={styles.routeBadgeText}>{route}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Additional Details */}
+          <View style={styles.detailCard}>
+            <Text style={styles.detailCardTitle}>ℹ️ Additional Information</Text>
+            <Text style={styles.detailCardText}>Alert ID: {id}</Text>
+            <Text style={styles.detailCardText}>Severity: {severity}</Text>
+            <Text style={styles.detailCardText}>Source: {getSourceDisplay()}</Text>
+            {lastUpdated && (
+              <Text style={styles.detailCardText}>
+                Last Updated: {formatDateTime(lastUpdated)}
+              </Text>
+            )}
           </View>
-        )}
-      </Animated.View>
+        </View>
+      )}
     </View>
   );
 };
@@ -369,11 +332,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
+  severityIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
   title: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
-    marginLeft: 8,
     flex: 1,
   },
   subtitle: {
@@ -399,10 +365,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  locationIcon: {
+    fontSize: 14,
+    marginRight: 8,
+  },
   locationText: {
     color: '#D1D5DB',
     fontSize: 14,
-    marginLeft: 8,
     flex: 1,
   },
   routeContainer: {
@@ -446,10 +415,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
   },
+  durationIcon: {
+    fontSize: 14,
+    marginRight: 8,
+  },
   durationText: {
     color: '#D1D5DB',
     fontSize: 14,
-    marginLeft: 8,
   },
   description: {
     color: '#D1D5DB',
@@ -470,8 +442,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginRight: 4,
   },
-  expandedContainer: {
-    overflow: 'hidden',
+  expandButtonIcon: {
+    fontSize: 12,
   },
   expandedContent: {
     paddingHorizontal: 16,
