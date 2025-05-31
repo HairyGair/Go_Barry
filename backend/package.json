@@ -1,29 +1,40 @@
 {
   "name": "barry-backend",
-  "version": "3.0.0",
-  "description": "BARRY Backend - Traffic Intelligence API",
+  "version": "1.0.0",
+  "description": "BARRY Traffic Intelligence Backend - Simplified for North East alerts",
   "type": "module",
-  "main": "index.js",
+  "main": "simple-server.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start": "node simple-server.js",
+    "dev": "nodemon simple-server.js",
+    "test": "node test-api.js",
+    "complex": "node index.js",
+    "health": "curl http://localhost:3001/api/health || echo 'Server not running'",
+    "alerts": "curl http://localhost:3001/api/alerts | jq '.alerts | length' || echo 'No alerts or jq not installed'"
   },
   "dependencies": {
     "express": "^4.18.2",
     "axios": "^1.6.0",
     "dotenv": "^16.3.1",
-    "cors": "^2.8.5",
-    "xml2js": "^0.6.2",
-    "fast-xml-parser": "^4.3.2",
-    "node-fetch": "^3.3.2"
+    "cors": "^2.8.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=16.0.0"
   },
-  "keywords": ["api", "traffic", "backend", "express"],
-  "author": "Anthony Gair",
-  "license": "MIT"
+  "keywords": [
+    "traffic",
+    "alerts",
+    "barry",
+    "go-north-east",
+    "transport"
+  ],
+  "author": "Go North East",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "your-repo-url"
+  }
 }
