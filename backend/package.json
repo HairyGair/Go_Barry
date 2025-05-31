@@ -1,5 +1,5 @@
 {
-  "name": "go-barry-backend",
+  "name": "barry-backend",
   "version": "1.0.0",
   "description": "BARRY Traffic Intelligence Backend - Simplified for North East alerts",
   "type": "module",
