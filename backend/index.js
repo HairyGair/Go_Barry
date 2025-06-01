@@ -243,76 +243,89 @@ async function fetchNationalHighways() {
   }
 }
 
+// Improved HERE Traffic fetch: supports both incidents and congestion, robust parsing, and NE bounding
 async function fetchHERETraffic() {
   const apiKey = process.env.HERE_API_KEY;
-  
   if (!apiKey) {
     console.warn('⚠️ HERE API key not found');
     return { success: false, data: [], error: 'API key missing' };
   }
-
   try {
     console.log('📡 Fetching HERE Traffic data...');
-    
-    // North East bounding box for HERE API
+    // North East bounding box for HERE API: "topLeft;bottomRight" (lat,lon)
     const bbox = `${NORTH_EAST_BOUNDS.north},${NORTH_EAST_BOUNDS.west};${NORTH_EAST_BOUNDS.south},${NORTH_EAST_BOUNDS.east}`;
-    
-    const response = await axios.get(`https://traffic.ls.hereapi.com/traffic/6.3/incidents.json`, {
+    const response = await axios.get('https://traffic.ls.hereapi.com/traffic/6.3/incidents.json', {
       params: {
         apikey: apiKey,
         bbox: bbox,
-        criticality: '0,1,2,3' // All severity levels
+        criticality: '0,1,2,3'
       },
-      timeout: 10000
+      timeout: 12000
     });
-    
     console.log(`📡 HERE Traffic response status: ${response.status}`);
-    
     const alerts = [];
-    
-    // Process incidents
-    if (response.data.TRAFFIC_ITEMS && response.data.TRAFFIC_ITEMS.TRAFFIC_ITEM) {
-      const incidents = Array.isArray(response.data.TRAFFIC_ITEMS.TRAFFIC_ITEM) 
-        ? response.data.TRAFFIC_ITEMS.TRAFFIC_ITEM 
-        : [response.data.TRAFFIC_ITEMS.TRAFFIC_ITEM];
-      
-      console.log(`📊 HERE Traffic found ${incidents.length} incidents`);
-      
-      incidents.forEach(incident => {
-        const location = incident.LOCATION?.DESCRIPTION?.[0]?.content || 'Unknown location';
-        
-        if (isInNorthEast(location, incident.TRAFFIC_ITEM_DETAIL?.[0]?.content)) {
-          const routes = matchRoutes(location, incident.TRAFFIC_ITEM_DETAIL?.[0]?.content || '');
-          const { status, severity } = classifyAlert({
-            type: 'incident',
-            severity: incident.CRITICALITY?.ID || 5,
-            category: incident.TRAFFIC_ITEM_TYPE?.[0]?.content
-          }, 'here_traffic');
-          
-          alerts.push({
-            id: generateAlertId('here', incident.TRAFFIC_ITEM_ID, location),
-            type: 'incident',
-            title: incident.TRAFFIC_ITEM_TYPE?.[0]?.content || 'Traffic Incident',
-            description: incident.TRAFFIC_ITEM_DETAIL?.[0]?.content || 'Traffic disruption reported',
-            location: location,
-            authority: 'HERE Traffic Intelligence',
-            source: 'here_traffic',
-            severity,
-            status,
-            criticality: incident.CRITICALITY?.ID,
-            startDate: incident.START_TIME || new Date().toISOString(),
-            endDate: incident.END_TIME || null,
-            affectsRoutes: routes,
-            lastUpdated: new Date().toISOString(),
-            dataSource: 'HERE Traffic API v6.3'
-          });
-        }
-      });
+    // Defensive: check structure
+    const items = response.data?.TRAFFIC_ITEMS?.TRAFFIC_ITEM;
+    if (!items) {
+      console.warn('⚠️ No HERE traffic items in response');
+      return { success: true, data: [], count: 0 };
     }
-    
+    const incidents = Array.isArray(items) ? items : [items];
+    console.log(`📊 HERE Traffic found ${incidents.length} incidents`);
+    for (const incident of incidents) {
+      // Defensive: try to extract fields
+      const location =
+        incident.LOCATION?.DESCRIPTION?.[0]?.content ||
+        incident.LOCATION?.GEOLOC?.ORIGIN?.DESCRIPTION?.[0]?.content ||
+        'Unknown location';
+      const description =
+        incident.TRAFFIC_ITEM_DETAIL?.[0]?.content ||
+        incident.TRAFFIC_ITEM_DESCRIPTION?.[0]?.content ||
+        '';
+      const type =
+        (incident.TRAFFIC_ITEM_TYPE?.[0]?.content || '').toLowerCase();
+      const criticality = incident.CRITICALITY?.ID || 5;
+      const startDate = incident.START_TIME || new Date().toISOString();
+      const endDate = incident.END_TIME || null;
+      // Attempt to extract geo coordinates for extra NE filtering
+      let coordinates = null;
+      const geo = incident.LOCATION?.GEOLOC;
+      if (geo && geo.ORIGIN && geo.ORIGIN.LATITUDE && geo.ORIGIN.LONGITUDE) {
+        coordinates = [parseFloat(geo.ORIGIN.LONGITUDE), parseFloat(geo.ORIGIN.LATITUDE)];
+      }
+      // Only keep if NE
+      if (!isInNorthEast(location, description, coordinates)) continue;
+      // Route match
+      const routes = matchRoutes(location, description);
+      // Classify
+      const { status, severity } = classifyAlert({
+        type: type.includes('congestion') ? 'congestion' : 'incident',
+        severity: criticality,
+        category: incident.TRAFFIC_ITEM_TYPE?.[0]?.content || ''
+      }, 'here_traffic');
+      // Compose alert
+      const alertObj = {
+        id: generateAlertId('here', incident.TRAFFIC_ITEM_ID, location),
+        type: type.includes('congestion') ? 'congestion' : 'incident',
+        title: incident.TRAFFIC_ITEM_TYPE?.[0]?.content || 'Traffic Incident',
+        description: description || 'Traffic disruption reported',
+        location: location,
+        authority: 'HERE Traffic Intelligence',
+        source: 'here_traffic',
+        severity,
+        status,
+        criticality: criticality,
+        startDate,
+        endDate,
+        affectsRoutes: routes,
+        lastUpdated: new Date().toISOString(),
+        dataSource: 'HERE Traffic API v6.3'
+      };
+      if (coordinates) alertObj.coordinates = coordinates;
+      alerts.push(alertObj);
+    }
     console.log(`✅ HERE Traffic: ${alerts.length} North East alerts`);
     return { success: true, data: alerts, count: alerts.length };
-    
   } catch (error) {
     console.error('❌ HERE Traffic API error:', error.message);
     return { success: false, data: [], error: error.message };
