@@ -288,12 +288,26 @@ async function fetchMapQuestTrafficData() {
             if (isInNorthEast(incident.shortDesc || '', incident.fullDesc || '')) {
               const routes = matchRoutes(incident.shortDesc || '', incident.fullDesc || '');
 
+              // 🔥 Improved location extraction
+              let location =
+                (incident.roadName && typeof incident.roadName === "string" && incident.roadName.length > 3)
+                  ? incident.roadName
+                  : (incident.street && typeof incident.street === "string" && incident.street.length > 3)
+                  ? incident.street
+                  : (incident.shortDesc && typeof incident.shortDesc === "string" && incident.shortDesc.length > 3)
+                  ? incident.shortDesc
+                  : (incident.fullDesc && typeof incident.fullDesc === "string" && incident.fullDesc.length > 3)
+                  ? incident.fullDesc
+                  : zone.name;
+
+              if (!location || location.trim().length < 3) location = "Unknown location";
+
               alerts.push({
                 id: `mapquest_${incident.id || Date.now()}`,
                 type: incident.type === 1 ? 'roadwork' : 'incident',
                 title: incident.shortDesc || 'Traffic Incident',
                 description: incident.fullDesc || incident.shortDesc || 'Traffic incident reported',
-                location: incident.shortDesc || zone.name,
+                location: location,
                 severity: incident.severity >= 3 ? 'High' : 
                          incident.severity >= 2 ? 'Medium' : 'Low',
                 source: 'mapquest',
