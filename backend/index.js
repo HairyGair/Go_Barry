@@ -1,9 +1,7 @@
 // backend/index.js
-// BARRY Go North East Focused Backend - Clean Version
-// Version 4.1-focused - No duplicates, enhanced data quality
+// BARRY Backend - Enhanced with Multi-Source Integration and Location Extraction
 import express from 'express';
 import axios from 'axios';
-import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -17,8 +15,8 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-console.log('🚦 BARRY Go North East Focused Backend Starting...');
-console.log('🎯 Version 4.1 - Precise GNE Areas with Enhanced Data');
+console.log('🚦 BARRY Enhanced Backend Starting...');
+console.log('🎯 Focus: Multi-source integration with proper location extraction');
 
 // Middleware
 app.use(express.json());
@@ -34,78 +32,139 @@ app.use((req, res, next) => {
   }
 });
 
+// Request logging
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} ${req.method} ${req.path}`);
   next();
 });
 
-// Go North East route mapping
+// Enhanced North East route mapping
 const LOCATION_ROUTE_MAPPING = {
-  'a1': ['X9', 'X10', '10', '11', '21', 'X21', '43', '44', '45', '47'],
-  'a19': ['X7', 'X8', '19', '35', '36', '1', '2', '308', '309', '310'],
-  'a167': ['21', '22', 'X21', '50', '6', '7', '8'],
-  'a1058': ['1', '2', '308', '309', '311', '317', '51', '52', '53', '54'],
-  'a184': ['25', '28', '29', '93', '94', '95'],
-  'a690': ['61', '62', '63', '64', '65', '71', '73'],
-  'a69': ['X84', 'X85', '602', '685', '74', '75'],
-  'a183': ['16', '18', '20', '61', '62', 'E1', 'E2', 'E6'],
-  'a1231': ['4', '61', '62', '63', '64', '65', '99'],
-  'newcastle': ['Q1', 'Q2', 'Q3', 'QUAYSIDE', '10', '11', '12', '39', '40', '41', '42'],
-  'gateshead': ['21', '25', '28', '29', '53', '54', '56', '57', '58'],
-  'sunderland': ['16', '18', '20', '61', '62', '63', '64', '65', 'E1', 'E2', 'E6'],
-  'durham': ['21', '22', 'X21', '50', '6', '7', '13', '14', '15'],
-  'washington': ['4', '8', '26', '81', '82', '83', '84', '85', '86'],
-  'tyne tunnel': ['1', '2', '308', '309', '310', '311'],
-  'coast road': ['1', '2', '308', '309', '311', '317', '51', '52', '53', '54'],
-  'central motorway': ['Q1', 'Q2', 'Q3', 'QUAYSIDE'],
-  'metrocentre': ['21', '25', '28', '29', '53', '54', '56', '57', '58'],
-  'team valley': ['25', '28', '29', '93', '94', '95']
+  'a1': ['X9', 'X10', '10', '11', '21', 'X21', '43', '44', '45'],
+  'a19': ['X7', 'X8', '19', '35', '36', '1', '2', '308', '309'],
+  'a167': ['21', '22', 'X21', '50', '6', '7'],
+  'a1058': ['1', '2', '308', '309', '311', '317'],
+  'a184': ['25', '28', '29', '93', '94'],
+  'a690': ['61', '62', '63', '64', '65'],
+  'a69': ['X84', 'X85', '602', '685'],
+  'a183': ['16', '18', '20', '61', '62'],
+  'newcastle': ['Q1', 'Q2', 'Q3', 'QUAYSIDE', '10', '11', '12', '39', '40'],
+  'gateshead': ['21', '25', '28', '29', '53', '54', '56'],
+  'sunderland': ['16', '18', '20', '61', '62', '63', '64', '65'],
+  'durham': ['21', '22', 'X21', '50', '6', '7', '13', '14'],
+  'tyne tunnel': ['1', '2', '308', '309', '311'],
+  'coast road': ['1', '2', '308', '309', '311', '317'],
+  'central motorway': ['Q1', 'Q2', 'Q3', 'QUAYSIDE']
 };
 
-// Focused Go North East boundaries
-const GNE_BOUNDS = {
-  north: 55.1,   
-  south: 54.6,   
-  east: -1.2,    
-  west: -2.0     
-};
+// Enhanced location extraction helper
+function extractLocation(apiData, source) {
+  let location = null;
+  
+  try {
+    switch (source) {
+      case 'national_highways':
+        location = apiData.properties?.location || 
+                  apiData.properties?.description || 
+                  apiData.location || 
+                  apiData.description;
+        break;
+        
+      case 'tomtom':
+        // TomTom traffic incident structure
+        location = apiData.address?.freeformAddress ||
+                  apiData.from?.address?.freeformAddress ||
+                  apiData.to?.address?.freeformAddress ||
+                  apiData.poi?.address?.freeformAddress ||
+                  apiData.description ||
+                  `${apiData.from?.position?.lat || ''}, ${apiData.from?.position?.lon || ''}`.replace(', ', '') ||
+                  null;
+        break;
+        
+      case 'mapquest':
+        // MapQuest traffic structure
+        location = apiData.street ||
+                  apiData.address ||
+                  apiData.shortDesc ||
+                  apiData.fullDesc ||
+                  `${apiData.lat || ''}, ${apiData.lng || ''}`.replace(', ', '') ||
+                  null;
+        break;
+        
+      case 'here':
+        // HERE API structure
+        location = apiData.location?.address?.label ||
+                  apiData.location?.address?.street ||
+                  apiData.location?.description ||
+                  apiData.summary ||
+                  `${apiData.location?.position?.lat || ''}, ${apiData.location?.position?.lng || ''}`.replace(', ', '') ||
+                  null;
+        break;
+        
+      case 'streetmanager':
+        location = apiData.location_description ||
+                  apiData.street_name ||
+                  apiData.area_name ||
+                  apiData.works_location_coordinates ||
+                  null;
+        break;
+        
+      default:
+        // Generic extraction attempt
+        location = apiData.location ||
+                  apiData.address ||
+                  apiData.description ||
+                  apiData.street ||
+                  apiData.place ||
+                  null;
+    }
+    
+    // Clean up the location string
+    if (location && typeof location === 'string') {
+      location = location.trim();
+      // Remove coordinates-only locations that are just "lat, lng"
+      if (/^-?\d+\.?\d*,\s*-?\d+\.?\d*$/.test(location)) {
+        location = convertCoordinatesToLocation(location);
+      }
+    }
+    
+  } catch (error) {
+    console.warn(`⚠️ Location extraction error for ${source}:`, error.message);
+  }
+  
+  return location || 'Location not specified';
+}
 
-// Go North East keywords
-const GNE_KEYWORDS = [
-  'A1', 'A19', 'A167', 'A1058', 'A184', 'A690', 'A183', 'A1231',
-  'NEWCASTLE', 'GATESHEAD', 'SUNDERLAND', 'DURHAM', 'WASHINGTON',
-  'CHESTER-LE-STREET', 'BIRTLEY', 'BLAYDON', 'CONSETT', 'STANLEY',
-  'HOUGHTON', 'HETTON', 'SEAHAM', 'PETERLEE',
-  'TYNE TUNNEL', 'COAST ROAD', 'CENTRAL MOTORWAY', 'QUAYSIDE',
-  'METROCENTRE', 'TEAM VALLEY', 'ELDON SQUARE', 'MONUMENT',
-  'HAYMARKET', 'GRAINGER STREET', 'PILGRIM STREET', 'GREY STREET',
-  'FAWCETT STREET', 'HIGH STREET', 'MARKET STREET',
-  'CENTRAL STATION', 'METRO', 'HAYMARKET BUS STATION',
-  'ELDON SQUARE BUS STATION', 'PARK LANE', 'GALLERIES',
-  'DURHAM ROAD', 'CHESTER ROAD', 'WASHINGTON HIGHWAY',
-  'WREKENTON', 'ANGEL OF THE NORTH', 'SAGE GATESHEAD'
-];
+// Convert coordinates to readable location (basic implementation)
+function convertCoordinatesToLocation(coordString) {
+  try {
+    const [lat, lng] = coordString.split(',').map(c => parseFloat(c.trim()));
+    
+    // Basic region detection for North East
+    if (lat >= 54.5 && lat <= 55.5 && lng >= -2.0 && lng <= -1.0) {
+      if (lat >= 54.9 && lat <= 55.2) return 'Newcastle area';
+      if (lat >= 54.6 && lat <= 54.9) return 'Sunderland area';
+      if (lat >= 54.7 && lat <= 54.8) return 'Durham area';
+    }
+    
+    return `Coordinates: ${lat.toFixed(3)}, ${lng.toFixed(3)}`;
+  } catch {
+    return 'Unknown location';
+  }
+}
 
-function isInGNEArea(location, description = '', coordinates = null) {
+// Helper functions
+function isInNorthEast(location, description = '') {
   const text = `${location} ${description}`.toUpperCase();
-  
-  const textMatch = GNE_KEYWORDS.some(keyword => text.includes(keyword));
-  const roadMatch = /\b(A1|A19|A167|A1058|A184|A690|A183|A1231|M1)\b/i.test(text);
-  
-  let coordMatch = false;
-  if (coordinates && coordinates.length >= 2) {
-    const [lng, lat] = coordinates;
-    coordMatch = lat >= GNE_BOUNDS.south && lat <= GNE_BOUNDS.north &&
-                 lng >= GNE_BOUNDS.west && lng <= GNE_BOUNDS.east;
-  }
-  
-  const isMatch = textMatch || roadMatch || coordMatch;
-  
-  if (isMatch) {
-    console.log(`🎯 GNE match: "${location}" (text:${textMatch}, road:${roadMatch}, coord:${coordMatch})`);
-  }
-  
-  return isMatch;
+  const keywords = [
+    'A1', 'A19', 'A69', 'A68', 'A167', 'A183', 'A184', 'A690', 'A691', 'A1058',
+    'NEWCASTLE', 'GATESHEAD', 'SUNDERLAND', 'DURHAM', 
+    'NORTHUMBERLAND', 'TYNE', 'WEAR', 'HEXHAM', 'CRAMLINGTON',
+    'WASHINGTON', 'SEAHAM', 'CHESTER-LE-STREET', 'BIRTLEY',
+    'TYNE TUNNEL', 'COAST ROAD', 'CENTRAL MOTORWAY',
+    'GOSFORTH', 'JESMOND', 'HEATON', 'WALKER', 'BENWELL'
+  ];
+  return keywords.some(keyword => text.includes(keyword));
 }
 
 function matchRoutes(location, description = '') {
@@ -118,6 +177,7 @@ function matchRoutes(location, description = '') {
     }
   }
   
+  // Check for A-road patterns
   const roadPattern = /\b(a\d+|m\d+|b\d+)\b/gi;
   let match;
   while ((match = roadPattern.exec(text)) !== null) {
@@ -130,320 +190,97 @@ function matchRoutes(location, description = '') {
   return Array.from(routes).sort();
 }
 
-function enhanceIncident(incident, source) {
-  let type = 'incident';
-  let severity = 'Medium';
-  let status = 'red';
+function classifyAlert(alert) {
+  const now = new Date();
+  let status = 'green';
   
-  const description = (incident.description || incident.ic?.d || '').toLowerCase();
-  const title = (incident.title || '').toLowerCase();
-  const combinedText = `${title} ${description}`.toLowerCase();
-  
-  if (combinedText.includes('construction') || combinedText.includes('roadwork') || 
-      combinedText.includes('maintenance') || combinedText.includes('repair')) {
-    type = 'roadwork';
-  } else if (combinedText.includes('congestion') || combinedText.includes('slow') || 
-             combinedText.includes('heavy traffic') || combinedText.includes('queue')) {
-    type = 'congestion';
-  }
-  
-  if (combinedText.includes('closed') || combinedText.includes('blocked') || 
-      combinedText.includes('severe') || combinedText.includes('major')) {
-    severity = 'High';
-  } else if (combinedText.includes('minor') || combinedText.includes('cleared') || 
-             combinedText.includes('resolved')) {
-    severity = 'Low';
-  }
-  
-  if (combinedText.includes('cleared') || combinedText.includes('resolved') || 
-      combinedText.includes('reopened')) {
-    status = 'green';
-  } else if (combinedText.includes('planned') || combinedText.includes('scheduled') || 
-             combinedText.includes('upcoming')) {
-    status = 'amber';
-  }
-  
-  return { type, severity, status };
-}
-
-function generateAlertId(source, originalId = null, location = '') {
-  const ts = Date.now();
-  const locationHash = location.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 6);
-  const randomSuffix = Math.random().toString(36).substr(2, 4);
-  
-  if (originalId) {
-    return `${source}_${originalId}_${locationHash}`;
-  }
-  return `${source}_${ts}_${locationHash}_${randomSuffix}`;
-}
-
-// HERE OAuth
-let hereAccessToken = null;
-let hereTokenExpiry = null;
-
-async function getHEREToken() {
-  const accessKeyId = process.env.HERE_ACCESS_KEY_ID;
-  const accessKeySecret = process.env.HERE_ACCESS_KEY_SECRET;
-  
-  if (!accessKeyId || !accessKeySecret) {
-    throw new Error('HERE OAuth credentials missing');
-  }
-  
-  if (hereAccessToken && hereTokenExpiry && Date.now() < hereTokenExpiry) {
-    return hereAccessToken;
-  }
-  
-  console.log('🔑 Generating HERE OAuth token...');
-  
-  const timestamp = Math.floor(Date.now() / 1000);
-  const nonce = crypto.randomBytes(16).toString('hex');
-  
-  const oauthParams = {
-    oauth_consumer_key: accessKeyId,
-    oauth_nonce: nonce,
-    oauth_signature_method: 'HMAC-SHA256',
-    oauth_timestamp: timestamp.toString(),
-    oauth_version: '1.0'
-  };
-  
-  const requestParams = { grant_type: 'client_credentials' };
-  const allParams = { ...oauthParams, ...requestParams };
-  const sortedParams = Object.keys(allParams)
-    .sort()
-    .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(allParams[key])}`)
-    .join('&');
-  
-  const baseString = [
-    'POST',
-    encodeURIComponent('https://account.api.here.com/oauth2/token'),
-    encodeURIComponent(sortedParams)
-  ].join('&');
-  
-  const signingKey = `${encodeURIComponent(accessKeySecret)}&`;
-  const signature = crypto.createHmac('sha256', signingKey).update(baseString).digest('base64');
-  
-  oauthParams.oauth_signature = signature;
-  
-  const authHeader = 'OAuth ' + Object.keys(oauthParams)
-    .map(key => `${key}="${encodeURIComponent(oauthParams[key])}"`)
-    .join(', ');
-  
-  const response = await axios.post(
-    'https://account.api.here.com/oauth2/token',
-    'grant_type=client_credentials',
-    {
-      headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      timeout: 10000
-    }
-  );
-  
-  console.log('✅ HERE OAuth token generated');
-  
-  hereAccessToken = response.data.access_token;
-  hereTokenExpiry = Date.now() + (response.data.expires_in * 1000) - 60000;
-  
-  return hereAccessToken;
-}
-
-// Enhanced TomTom with better data
-async function fetchTomTom() {
-  const apiKey = process.env.TOMTOM_API_KEY;
-  
-  if (!apiKey) {
-    return { success: false, data: [], error: 'API key missing' };
-  }
-
   try {
-    console.log('🚗 Fetching TomTom for GNE areas...');
+    const startDate = alert.startDate ? new Date(alert.startDate) : null;
+    const endDate = alert.endDate ? new Date(alert.endDate) : null;
     
-    const bbox = `${GNE_BOUNDS.south},${GNE_BOUNDS.west},${GNE_BOUNDS.north},${GNE_BOUNDS.east}`;
-    
-    const response = await axios.get(`https://api.tomtom.com/traffic/services/4/incidentDetails/s3/${bbox}/10/-1/json`, {
-      params: {
-        key: apiKey,
-        language: 'en-GB',
-        projection: 'EPSG4326'
-      },
-      timeout: 10000
-    });
-    
-    console.log(`📡 TomTom response: ${response.status}`);
-    
-    const alerts = [];
-    
-    if (response.data.tm && response.data.tm.poi && response.data.tm.poi.length > 0) {
-      console.log(`📊 TomTom found ${response.data.tm.poi.length} incidents in GNE area`);
-      
-      response.data.tm.poi.forEach(incident => {
-        const position = incident.p;
-        const roadName = position?.r || 'Road';
-        const cityName = position?.c || '';
-        const incidentDescription = incident.ic?.d || '';
-        const incidentType = incident.ic?.ty || 0;
-        const incidentLength = incident.ic?.l || 0;
-        
-        let location = roadName;
-        if (cityName && cityName !== 'Traffic point' && cityName !== roadName) {
-          location = `${roadName}, ${cityName}`;
+    if (startDate && endDate) {
+      if (startDate <= now && endDate >= now) {
+        status = 'red'; // Active
+      } else if (startDate > now) {
+        const daysUntil = Math.floor((startDate - now) / (1000 * 60 * 60 * 24));
+        if (daysUntil <= 7) {
+          status = 'amber'; // Upcoming
         }
-        
-        let title = 'Traffic Incident';
-        let enhancedDescription = '';
-        
-        if (incidentDescription) {
-          const desc = incidentDescription.toLowerCase();
-          if (desc.includes('closed') || desc.includes('closure')) {
-            title = `Road Closure - ${roadName}`;
-            enhancedDescription = `Road closure on ${location}. ${incidentDescription}`;
-          } else if (desc.includes('congestion') || desc.includes('slow') || desc.includes('heavy')) {
-            title = `Traffic Congestion - ${roadName}`;
-            enhancedDescription = `Heavy traffic congestion on ${location}. ${incidentDescription}`;
-          } else if (desc.includes('accident') || desc.includes('collision') || desc.includes('incident')) {
-            title = `Traffic Accident - ${roadName}`;
-            enhancedDescription = `Traffic accident on ${location}. ${incidentDescription}`;
-          } else if (desc.includes('roadwork') || desc.includes('construction') || desc.includes('maintenance')) {
-            title = `Roadworks - ${roadName}`;
-            enhancedDescription = `Road maintenance work on ${location}. ${incidentDescription}`;
-          } else {
-            title = `Traffic Alert - ${roadName}`;
-            enhancedDescription = `Traffic disruption on ${location}. ${incidentDescription}`;
-          }
-        } else {
-          switch (incidentType) {
-            case 1:
-              title = `Traffic Accident - ${roadName}`;
-              enhancedDescription = `Traffic accident reported on ${location}. Emergency services may be present.`;
-              break;
-            case 2:
-              title = `Road Closure - ${roadName}`;
-              enhancedDescription = `Road closure in effect on ${location}. Find alternative route.`;
-              break;
-            case 3:
-              title = `Roadworks - ${roadName}`;
-              enhancedDescription = `Road maintenance work on ${location}. Expect delays.`;
-              break;
-            case 4:
-              title = `Traffic Congestion - ${roadName}`;
-              enhancedDescription = `Heavy traffic congestion on ${location}. Allow extra time.`;
-              break;
-            default:
-              title = `Traffic Alert - ${roadName}`;
-              enhancedDescription = `Traffic disruption detected on ${location}.`;
-          }
-        }
-        
-        if (incidentLength > 0) {
-          enhancedDescription += ` Affected area: ${incidentLength} meters.`;
-        }
-        
-        const coordinates = [position?.x, position?.y];
-        
-        if (isInGNEArea(location, enhancedDescription, coordinates)) {
-          const routes = matchRoutes(location, enhancedDescription);
-          const { type, severity, status } = enhanceIncident({
-            description: enhancedDescription,
-            ic: incident.ic
-          }, 'tomtom');
-          
-          alerts.push({
-            id: generateAlertId('tt', incident.id, location),
-            type,
-            title,
-            description: enhancedDescription,
-            location,
-            authority: 'TomTom Traffic Intelligence',
-            source: 'tomtom',
-            severity,
-            status,
-            incidentLength,
-            incidentType: incidentType,
-            coordinates,
-            startDate: new Date().toISOString(),
-            affectsRoutes: routes,
-            lastUpdated: new Date().toISOString(),
-            dataSource: 'TomTom Traffic API v4 (Enhanced)',
-            roadName: roadName,
-            cityName: cityName,
-            impactLevel: incidentLength > 500 ? 'High' : incidentLength > 100 ? 'Medium' : 'Low'
-          });
-        }
-      });
+      }
+    } else if (alert.category?.toLowerCase().includes('closure') || 
+               alert.type === 'incident' || 
+               alert.severity === 'High') {
+      status = 'red'; // Assume active if it's serious
     }
-    
-    console.log(`✅ TomTom: ${alerts.length} GNE-relevant alerts processed`);
-    
-    if (alerts.length > 0) {
-      console.log('🔍 Sample GNE alerts:');
-      alerts.slice(0, 3).forEach((alert, i) => {
-        console.log(`   ${i+1}. "${alert.title}" - ${alert.location} (${alert.affectsRoutes.length} routes)`);
-      });
-    }
-    
-    return { success: true, data: alerts, count: alerts.length };
-    
   } catch (error) {
-    console.error('❌ TomTom API error:', error.message);
-    return { success: false, data: [], error: error.message };
+    console.warn('⚠️ Alert classification error:', error.message);
   }
+  
+  return status;
 }
 
+// Enhanced National Highways fetcher
 async function fetchNationalHighways() {
   const apiKey = process.env.NATIONAL_HIGHWAYS_API_KEY;
   
   if (!apiKey) {
+    console.warn('⚠️ National Highways API key not found');
     return { success: false, data: [], error: 'API key missing' };
   }
 
   try {
-    console.log('🛣️ Fetching National Highways for GNE areas...');
+    console.log('🌐 Fetching National Highways data...');
     
     const response = await axios.get('https://api.data.nationalhighways.co.uk/roads/v2.0/closures', {
       headers: {
         'Ocp-Apim-Subscription-Key': apiKey,
         'Accept': 'application/json',
-        'User-Agent': 'BARRY-GNE/4.1'
+        'User-Agent': 'BARRY-TrafficWatch/3.0'
       },
       timeout: 15000
     });
     
-    console.log(`📡 National Highways response: ${response.status}`);
-    
     if (!response.data || !response.data.features) {
-      return { success: true, data: [], count: 0, note: 'No current closures' };
+      return { success: false, data: [], error: 'No features in response' };
     }
     
-    const alerts = response.data.features
-      .filter(feature => {
-        const location = feature.properties?.location || '';
-        return isInGNEArea(location, feature.properties?.description || '');
-      })
+    const allFeatures = response.data.features;
+    console.log(`📊 Total features from National Highways: ${allFeatures.length}`);
+    
+    const northEastAlerts = allFeatures
       .map(feature => {
         const props = feature.properties;
-        const routes = matchRoutes(props.location || '', props.description || '');
+        const location = extractLocation(feature, 'national_highways');
+        
+        // Only process if it's in North East
+        if (!isInNorthEast(location, props.description || '')) {
+          return null;
+        }
+        
+        const routes = matchRoutes(location, props.description || '');
+        const status = classifyAlert(props);
         
         return {
-          id: generateAlertId('nh', props.id, props.location),
+          id: `nh_${props.id || Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
           type: 'roadwork',
-          title: props.title || `National Highways Work - ${props.location}`,
-          description: props.description || props.comment || 'Planned road maintenance or closure',
-          location: props.location || 'Major Road Network',
+          title: props.title || props.description || 'National Highways Closure',
+          description: props.description || props.comment || 'Planned closure or roadworks',
+          location: location,
           authority: 'National Highways',
           source: 'national_highways',
-          severity: 'High',
-          status: 'amber',
+          severity: props.category?.toLowerCase().includes('closure') ? 'High' : 'Medium',
+          status: status,
           startDate: props.startDate || null,
           endDate: props.endDate || null,
           affectsRoutes: routes,
           lastUpdated: new Date().toISOString(),
           dataSource: 'National Highways DATEX II API'
         };
-      });
+      })
+      .filter(alert => alert !== null);
     
-    console.log(`✅ National Highways: ${alerts.length} GNE-relevant alerts`);
-    return { success: true, data: alerts, count: alerts.length };
+    console.log(`✅ Processed ${northEastAlerts.length} North East alerts from National Highways`);
+    return { success: true, data: northEastAlerts, count: northEastAlerts.length };
     
   } catch (error) {
     console.error('❌ National Highways API error:', error.message);
@@ -451,135 +288,143 @@ async function fetchNationalHighways() {
   }
 }
 
-async function fetchHERE() {
-  try {
-    console.log('📡 Fetching HERE Traffic for GNE areas...');
-    
-    const accessToken = await getHEREToken();
-    const bbox = `circle:54.97,-1.61;r=25000`;
-    
-    const response = await axios.get('https://data.traffic.hereapi.com/v7/incidents', {
-      params: {
-        'in': bbox,
-        'locationReferencing': 'shape'
-      },
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 12000
-    });
-    
-    console.log(`📡 HERE Traffic response: ${response.status}`);
-    
-    const alerts = [];
-    
-    if (response.data.incidents && response.data.incidents.length > 0) {
-      console.log(`📊 HERE found ${response.data.incidents.length} incidents in GNE area`);
-      
-      response.data.incidents.forEach(incident => {
-        const location = incident.title || incident.summary || 'Traffic Incident';
-        const description = incident.description || incident.summary || '';
-        
-        if (isInGNEArea(location, description)) {
-          const routes = matchRoutes(location, description);
-          const { type, severity, status } = enhanceIncident(incident, 'here_traffic');
-          
-          alerts.push({
-            id: generateAlertId('here', incident.id, location),
-            type,
-            title: incident.title || 'HERE Traffic Incident',
-            description: description || 'Traffic disruption reported by HERE',
-            location: location,
-            authority: 'HERE Traffic Intelligence',
-            source: 'here_traffic',
-            severity: incident.impact === 'critical' ? 'High' : severity,
-            status,
-            impact: incident.impact,
-            startDate: incident.startTime || new Date().toISOString(),
-            endDate: incident.endTime || null,
-            coordinates: incident.geometry?.coordinates || null,
-            affectsRoutes: routes,
-            lastUpdated: new Date().toISOString(),
-            dataSource: 'HERE Traffic API v7 (OAuth)'
-          });
-        }
-      });
-    }
-    
-    console.log(`✅ HERE Traffic: ${alerts.length} GNE-relevant alerts`);
-    return { success: true, data: alerts, count: alerts.length };
-    
-  } catch (error) {
-    console.error('❌ HERE Traffic API error:', error.message);
-    return { success: false, data: [], error: error.message };
-  }
-}
-
-async function fetchMapQuest() {
-  const apiKey = process.env.MAPQUEST_API_KEY;
+// TomTom Traffic fetcher
+async function fetchTomTomTraffic() {
+  const apiKey = process.env.TOMTOM_API_KEY;
   
   if (!apiKey) {
+    console.warn('⚠️ TomTom API key not found');
     return { success: false, data: [], error: 'API key missing' };
   }
 
   try {
-    console.log('🗺️ Fetching MapQuest for GNE areas...');
+    console.log('🌐 Fetching TomTom traffic data...');
     
-    const boundingBox = `${GNE_BOUNDS.north},${GNE_BOUNDS.west},${GNE_BOUNDS.south},${GNE_BOUNDS.east}`;
-    
-    const response = await axios.get('https://www.mapquestapi.com/traffic/v2/incidents', {
+    // TomTom Traffic Incident Details API for North East bounding box
+    const bbox = '-2.0,54.5,-1.0,55.5'; // North East England
+    const response = await axios.get(`https://api.tomtom.com/traffic/services/5/incidentDetails`, {
       params: {
         key: apiKey,
-        boundingBox: boundingBox,
-        filters: 'incidents,construction,event,congestion'
+        bbox: bbox,
+        fields: '{incidents{type,geometry{type,coordinates},properties{id,iconCategory,magnitudeOfDelay,events{description,code,iconCategory},startTime,endTime,from,to,length,delay,roadNumbers,timeValidity,probabilityOfOccurrence,numberOfReports,lastModificationTime,startPositionParameterType,endPositionParameterType}}}'
       },
-      timeout: 10000
+      timeout: 15000
     });
     
-    console.log(`📡 MapQuest response: ${response.status}`);
-    
-    const alerts = [];
-    
-    if (response.data.incidents && response.data.incidents.length > 0) {
-      console.log(`📊 MapQuest found ${response.data.incidents.length} incidents in GNE area`);
-      
-      response.data.incidents.forEach(incident => {
-        const location = incident.fullDesc || incident.shortDesc || 'Traffic Incident';
-        const description = incident.fullDesc || incident.shortDesc || '';
-        
-        if (isInGNEArea(location, description, [incident.lng, incident.lat])) {
-          const routes = matchRoutes(location, description);
-          const isConstruction = incident.type === 1;
-          const { type, severity, status } = enhanceIncident({
-            description: description,
-            title: incident.shortDesc
-          }, 'mapquest');
-          
-          alerts.push({
-            id: generateAlertId('mq', incident.id, location),
-            type: isConstruction ? 'roadwork' : type,
-            title: incident.shortDesc || (isConstruction ? 'Construction Activity' : 'Traffic Incident'),
-            description: description || 'Traffic disruption reported via MapQuest',
-            location: location,
-            authority: 'MapQuest Traffic Intelligence',
-            source: 'mapquest',
-            severity,
-            status,
-            impactScore: incident.severity,
-            startDate: incident.startTime || new Date().toISOString(),
-            endDate: incident.endTime || null,
-            coordinates: [incident.lng, incident.lat],
-            affectsRoutes: routes,
-            lastUpdated: new Date().toISOString(),
-            dataSource: 'MapQuest Traffic API v2'
-          });
-        }
-      });
+    if (!response.data?.incidents) {
+      return { success: false, data: [], error: 'No incidents in response' };
     }
     
-    console.log(`✅ MapQuest: ${alerts.length} GNE-relevant alerts`);
-    return { success: true, data: alerts, count: alerts.length };
+    const incidents = response.data.incidents;
+    console.log(`📊 Total TomTom incidents: ${incidents.length}`);
+    
+    const processedAlerts = incidents
+      .map(incident => {
+        const props = incident.properties;
+        const location = extractLocation({
+          from: props.from,
+          to: props.to,
+          description: props.events?.[0]?.description,
+          roadNumbers: props.roadNumbers
+        }, 'tomtom');
+        
+        // Only process if in North East
+        if (!isInNorthEast(location)) {
+          return null;
+        }
+        
+        const routes = matchRoutes(location, props.events?.[0]?.description || '');
+        
+        return {
+          id: `tt_${props.id || Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+          type: props.iconCategory?.includes('roadwork') ? 'roadwork' : 'incident',
+          title: props.events?.[0]?.description || 'Traffic Incident',
+          description: `${props.events?.[0]?.description || 'Traffic disruption'} - Delay: ${props.delay || 0} seconds`,
+          location: location,
+          authority: 'TomTom Traffic',
+          source: 'tomtom',
+          severity: props.magnitudeOfDelay > 4 ? 'High' : (props.magnitudeOfDelay > 2 ? 'Medium' : 'Low'),
+          status: 'red', // TomTom incidents are current
+          delayMinutes: Math.round((props.delay || 0) / 60),
+          startDate: props.startTime || new Date().toISOString(),
+          endDate: props.endTime || null,
+          affectsRoutes: routes,
+          lastUpdated: props.lastModificationTime || new Date().toISOString(),
+          dataSource: 'TomTom Traffic Incident API'
+        };
+      })
+      .filter(alert => alert !== null);
+    
+    console.log(`✅ Processed ${processedAlerts.length} TomTom alerts`);
+    return { success: true, data: processedAlerts, count: processedAlerts.length };
+    
+  } catch (error) {
+    console.error('❌ TomTom API error:', error.message);
+    return { success: false, data: [], error: error.message };
+  }
+}
+
+// MapQuest Traffic fetcher  
+async function fetchMapQuestTraffic() {
+  const apiKey = process.env.MAPQUEST_API_KEY;
+  
+  if (!apiKey) {
+    console.warn('⚠️ MapQuest API key not found');
+    return { success: false, data: [], error: 'API key missing' };
+  }
+
+  try {
+    console.log('🌐 Fetching MapQuest traffic data...');
+    
+    // MapQuest Traffic API for North East
+    const response = await axios.get(`https://www.mapquestapi.com/traffic/v2/incidents`, {
+      params: {
+        key: apiKey,
+        boundingBox: '55.5,-2.0,54.5,-1.0', // North East England
+        filters: 'incidents,construction'
+      },
+      timeout: 15000
+    });
+    
+    if (!response.data?.incidents) {
+      return { success: false, data: [], error: 'No incidents in response' };
+    }
+    
+    const incidents = response.data.incidents;
+    console.log(`📊 Total MapQuest incidents: ${incidents.length}`);
+    
+    const processedAlerts = incidents
+      .map(incident => {
+        const location = extractLocation(incident, 'mapquest');
+        
+        // Only process if in North East
+        if (!isInNorthEast(location, incident.shortDesc || '')) {
+          return null;
+        }
+        
+        const routes = matchRoutes(location, incident.fullDesc || '');
+        
+        return {
+          id: `mq_${incident.id || Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+          type: incident.type?.toLowerCase().includes('construction') ? 'roadwork' : 'incident',
+          title: incident.shortDesc || 'Traffic Incident',
+          description: incident.fullDesc || incident.shortDesc || 'Traffic disruption reported',
+          location: location,
+          authority: 'MapQuest Traffic',
+          source: 'mapquest',
+          severity: incident.severity || 'Medium',
+          status: incident.type?.toLowerCase().includes('planned') ? 'amber' : 'red',
+          startDate: incident.startTime || new Date().toISOString(),
+          endDate: incident.endTime || null,
+          affectsRoutes: routes,
+          lastUpdated: new Date().toISOString(),
+          dataSource: 'MapQuest Traffic API'
+        };
+      })
+      .filter(alert => alert !== null);
+    
+    console.log(`✅ Processed ${processedAlerts.length} MapQuest alerts`);
+    return { success: true, data: processedAlerts, count: processedAlerts.length };
     
   } catch (error) {
     console.error('❌ MapQuest API error:', error.message);
@@ -587,18 +432,175 @@ async function fetchMapQuest() {
   }
 }
 
-// Cache
+// HERE Traffic fetcher
+async function fetchHERETraffic() {
+  const apiKey = process.env.HERE_API_KEY;
+  
+  if (!apiKey) {
+    console.warn('⚠️ HERE API key not found');
+    return { success: false, data: [], error: 'API key missing' };
+  }
+
+  try {
+    console.log('🌐 Fetching HERE traffic data...');
+    
+    // HERE Traffic API v7 for incidents
+    const response = await axios.get(`https://data.traffic.hereapi.com/v7/incidents`, {
+      params: {
+        apikey: apiKey,
+        in: 'bbox:-2.0,54.5,-1.0,55.5', // North East England
+        locationReferencing: 'shape'
+      },
+      timeout: 15000
+    });
+    
+    if (!response.data?.results) {
+      return { success: false, data: [], error: 'No results in response' };
+    }
+    
+    const incidents = response.data.results;
+    console.log(`📊 Total HERE incidents: ${incidents.length}`);
+    
+    const processedAlerts = incidents
+      .map(incident => {
+        const location = extractLocation(incident, 'here');
+        
+        // Only process if in North East  
+        if (!isInNorthEast(location, incident.summary || '')) {
+          return null;
+        }
+        
+        const routes = matchRoutes(location, incident.summary || '');
+        
+        return {
+          id: `here_${incident.id || Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+          type: incident.type?.toLowerCase().includes('roadwork') ? 'roadwork' : 'incident',
+          title: incident.summary || 'Traffic Incident',
+          description: incident.description || incident.summary || 'Traffic disruption reported',
+          location: location,
+          authority: 'HERE Traffic',
+          source: 'here',
+          severity: incident.criticality || 'Medium',
+          status: 'red',
+          startDate: incident.startTime || new Date().toISOString(),
+          endDate: incident.endTime || null,
+          affectsRoutes: routes,
+          lastUpdated: new Date().toISOString(),
+          dataSource: 'HERE Traffic API v7'
+        };
+      })
+      .filter(alert => alert !== null);
+    
+    console.log(`✅ Processed ${processedAlerts.length} HERE alerts`);
+    return { success: true, data: processedAlerts, count: processedAlerts.length };
+    
+  } catch (error) {
+    console.error('❌ HERE API error:', error.message);
+    return { success: false, data: [], error: error.message };
+  }
+}
+
+// Load Street Manager data from files (enhanced with location extraction)
+async function loadStreetManagerData() {
+  try {
+    console.log('📁 Loading Street Manager data from files...');
+    
+    const dataDir = path.join(__dirname, 'data');
+    const files = await fs.readdir(dataDir).catch(() => []);
+    
+    if (files.length === 0) {
+      return { success: true, data: [], count: 0 };
+    }
+    
+    const streetWorksFiles = files.filter(file => 
+      file.includes('street') && file.endsWith('.json')
+    );
+    
+    let allWorks = [];
+    
+    for (const file of streetWorksFiles) {
+      try {
+        const filePath = path.join(dataDir, file);
+        const content = await fs.readFile(filePath, 'utf8');
+        const works = JSON.parse(content);
+        
+        if (Array.isArray(works)) {
+          const processedWorks = works
+            .map(work => {
+              const location = extractLocation(work, 'streetmanager');
+              
+              if (!isInNorthEast(location)) return null;
+              
+              const routes = matchRoutes(location, work.description || '');
+              
+              return {
+                id: `sm_${work.work_reference_number || Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+                type: 'roadwork',
+                title: work.activity_type || 'Street Works',
+                description: work.description || 'Local authority roadworks',
+                location: location,
+                authority: work.promoter_organisation || 'Local Authority',
+                source: 'streetmanager',
+                severity: work.traffic_management_type?.includes('road_closure') ? 'High' : 'Medium',
+                status: classifyAlert(work),
+                startDate: work.actual_start_date || work.proposed_start_date || null,
+                endDate: work.actual_end_date || work.proposed_end_date || null,
+                affectsRoutes: routes,
+                lastUpdated: new Date().toISOString(),
+                dataSource: 'Street Manager (Local File)'
+              };
+            })
+            .filter(work => work !== null);
+            
+          allWorks.push(...processedWorks);
+        }
+      } catch (fileError) {
+        console.warn(`⚠️ Error reading ${file}:`, fileError.message);
+      }
+    }
+    
+    console.log(`📄 Loaded ${allWorks.length} street works from files`);
+    return { success: true, data: allWorks, count: allWorks.length };
+    
+  } catch (error) {
+    console.warn('⚠️ Street Manager file loading failed:', error.message);
+    return { success: true, data: [], count: 0 };
+  }
+}
+
+// Sample test data (enhanced with proper locations)
+const sampleTestAlerts = [
+  {
+    id: 'test_001',
+    type: 'incident',
+    title: 'Vehicle Breakdown - A1 Northbound',
+    description: 'Lane 1 blocked due to vehicle breakdown between J65 and J66. Recovery vehicle en route.',
+    location: 'A1 Northbound, Junction 65 (Birtley)',
+    authority: 'National Highways',
+    source: 'national_highways',
+    severity: 'High',
+    status: 'red',
+    startDate: new Date().toISOString(),
+    endDate: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+    affectsRoutes: ['21', '22', 'X21', '25', '28'],
+    lastUpdated: new Date().toISOString(),
+    dataSource: 'Test Data'
+  }
+];
+
+// Cache for alerts
 let cachedAlerts = null;
 let lastFetchTime = null;
-const CACHE_TIMEOUT = 5 * 60 * 1000;
+const CACHE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
-// Main endpoint
+// Enhanced main alerts endpoint with all data sources
 app.get('/api/alerts', async (req, res) => {
   try {
     const now = Date.now();
     
+    // Check cache
     if (cachedAlerts && lastFetchTime && (now - lastFetchTime) < CACHE_TIMEOUT) {
-      console.log('📋 Serving cached GNE alerts');
+      console.log('📋 Serving cached alerts');
       return res.json({
         success: true,
         alerts: cachedAlerts.alerts,
@@ -610,32 +612,36 @@ app.get('/api/alerts', async (req, res) => {
       });
     }
     
-    console.log('🔄 Fetching GNE-focused traffic data...');
-    const startTime = Date.now();
+    console.log('🔄 Fetching fresh alerts from all sources...');
     
-    const [nhResult, hereResult, mqResult, ttResult] = await Promise.allSettled([
+    // Fetch from all sources in parallel
+    const [nhResult, smResult, ttResult, mqResult, hereResult] = await Promise.allSettled([
       fetchNationalHighways(),
-      fetchHERE(),
-      fetchMapQuest(),
-      fetchTomTom()
+      loadStreetManagerData(),
+      fetchTomTomTraffic(),
+      fetchMapQuestTraffic(),
+      fetchHERETraffic()
     ]);
     
     const allAlerts = [];
     const sources = {};
     
-    [
-      { result: nhResult, name: 'nationalHighways' },
-      { result: hereResult, name: 'hereTraffic' },
-      { result: mqResult, name: 'mapQuest' },
-      { result: ttResult, name: 'tomTom' }
-    ].forEach(({ result, name }) => {
+    // Process all results
+    const processors = [
+      { result: nhResult, name: 'nationalHighways', method: 'Direct API' },
+      { result: smResult, name: 'streetManager', method: 'File Storage' },
+      { result: ttResult, name: 'tomtom', method: 'Direct API' },
+      { result: mqResult, name: 'mapquest', method: 'Direct API' },
+      { result: hereResult, name: 'here', method: 'Direct API' }
+    ];
+    
+    processors.forEach(({ result, name, method }) => {
       if (result.status === 'fulfilled' && result.value.success) {
         allAlerts.push(...result.value.data);
         sources[name] = {
           success: true,
           count: result.value.count,
-          method: 'Real API (GNE Focused)',
-          note: result.value.note
+          method: method
         };
       } else {
         sources[name] = {
@@ -646,178 +652,217 @@ app.get('/api/alerts', async (req, res) => {
       }
     });
     
+    // Remove duplicates and sort by priority
+    const uniqueAlerts = removeDuplicateAlerts(allAlerts);
+    const sortedAlerts = sortAlertsByPriority(uniqueAlerts);
+    
+    // Calculate statistics
     const stats = {
-      totalAlerts: allAlerts.length,
-      activeAlerts: allAlerts.filter(a => a.status === 'red').length,
-      upcomingAlerts: allAlerts.filter(a => a.status === 'amber').length,
-      resolvedAlerts: allAlerts.filter(a => a.status === 'green').length,
-      highSeverity: allAlerts.filter(a => a.severity === 'High').length,
-      mediumSeverity: allAlerts.filter(a => a.severity === 'Medium').length,
-      lowSeverity: allAlerts.filter(a => a.severity === 'Low').length,
-      totalIncidents: allAlerts.filter(a => a.type === 'incident').length,
-      totalCongestion: allAlerts.filter(a => a.type === 'congestion').length,
-      totalRoadworks: allAlerts.filter(a => a.type === 'roadwork').length,
-      routesCovered: [...new Set(allAlerts.flatMap(a => a.affectsRoutes))].length
+      totalAlerts: sortedAlerts.length,
+      activeAlerts: sortedAlerts.filter(a => a.status === 'red').length,
+      upcomingAlerts: sortedAlerts.filter(a => a.status === 'amber').length,
+      plannedAlerts: sortedAlerts.filter(a => a.status === 'green').length,
+      highSeverity: sortedAlerts.filter(a => a.severity === 'High').length,
+      mediumSeverity: sortedAlerts.filter(a => a.severity === 'Medium').length,
+      lowSeverity: sortedAlerts.filter(a => a.severity === 'Low').length,
+      totalIncidents: sortedAlerts.filter(a => a.type === 'incident').length,
+      totalCongestion: sortedAlerts.filter(a => a.type === 'congestion').length,
+      totalRoadworks: sortedAlerts.filter(a => a.type === 'roadwork').length
     };
     
-    allAlerts.sort((a, b) => {
-      const statusPriority = { red: 3, amber: 2, green: 1 };
-      const typePriority = { incident: 3, congestion: 2, roadwork: 1 };
-      const severityPriority = { High: 3, Medium: 2, Low: 1 };
-      
-      const aStatusScore = statusPriority[a.status] || 0;
-      const bStatusScore = statusPriority[b.status] || 0;
-      if (aStatusScore !== bStatusScore) return bStatusScore - aStatusScore;
-      
-      const aTypeScore = typePriority[a.type] || 0;
-      const bTypeScore = typePriority[b.type] || 0;
-      if (aTypeScore !== bTypeScore) return bTypeScore - aTypeScore;
-      
-      const aSeverityScore = severityPriority[a.severity] || 0;
-      const bSeverityScore = severityPriority[b.severity] || 0;
-      return bSeverityScore - aSeverityScore;
-    });
-    
-    const processingTime = Date.now() - startTime;
-    
+    // Cache results
     cachedAlerts = {
-      alerts: allAlerts,
+      alerts: sortedAlerts,
       metadata: {
-        totalAlerts: allAlerts.length,
+        totalAlerts: sortedAlerts.length,
         sources,
         statistics: stats,
         lastUpdated: new Date().toISOString(),
-        processingTime: `${processingTime}ms`,
-        gneFocused: true,
-        operationalArea: 'Go North East Service Areas',
-        version: '4.1-focused',
-        bounds: GNE_BOUNDS
+        processingTime: 'N/A'
       }
     };
     lastFetchTime = now;
     
-    console.log(`✅ GNE-FOCUSED: ${allAlerts.length} relevant alerts (${stats.activeAlerts} active) covering ${stats.routesCovered} routes`);
+    console.log(`✅ Serving ${sortedAlerts.length} alerts (${stats.activeAlerts} active) from ${Object.keys(sources).length} sources`);
     
     res.json({
       success: true,
-      alerts: allAlerts,
+      alerts: sortedAlerts,
       metadata: cachedAlerts.metadata
     });
     
   } catch (error) {
-    console.error('❌ GNE-focused endpoint error:', error);
+    console.error('❌ Alerts endpoint error:', error);
     res.status(500).json({
       success: false,
       error: error.message,
       alerts: [],
       metadata: {
         error: error.message,
-        timestamp: new Date().toISOString(),
-        gneFocused: true
+        timestamp: new Date().toISOString()
       }
     });
   }
 });
 
+// Helper function to remove duplicate alerts
+function removeDuplicateAlerts(alerts) {
+  const seen = new Set();
+  return alerts.filter(alert => {
+    const key = `${alert.title}-${alert.location}-${alert.type}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+// Helper function to sort alerts by priority
+function sortAlertsByPriority(alerts) {
+  return alerts.sort((a, b) => {
+    const typePriority = { incident: 5, congestion: 4, roadwork: 3 };
+    const statusPriority = { red: 3, amber: 2, green: 1 };
+    const severityPriority = { High: 3, Medium: 2, Low: 1 };
+    
+    const aTypeScore = typePriority[a.type] || 1;
+    const bTypeScore = typePriority[b.type] || 1;
+    if (aTypeScore !== bTypeScore) return bTypeScore - aTypeScore;
+    
+    const aStatusScore = statusPriority[a.status] || 0;
+    const bStatusScore = statusPriority[b.status] || 0;
+    if (aStatusScore !== bStatusScore) return bStatusScore - aStatusScore;
+    
+    const aSeverityScore = severityPriority[a.severity] || 0;
+    const bSeverityScore = severityPriority[b.severity] || 0;
+    return bSeverityScore - aSeverityScore;
+  });
+}
+
+// Test endpoint with enhanced sample data
+app.get('/api/alerts-test', async (req, res) => {
+  console.log('🧪 Serving enhanced test alerts data...');
+  
+  const testResponse = {
+    success: true,
+    alerts: sampleTestAlerts,
+    metadata: {
+      totalAlerts: sampleTestAlerts.length,
+      sources: {
+        nationalHighways: { success: true, count: 1, method: 'Test Data' },
+        tomtom: { success: true, count: 0, method: 'Test Data' },
+        mapquest: { success: true, count: 0, method: 'Test Data' },
+        here: { success: true, count: 0, method: 'Test Data' },
+        streetManager: { success: true, count: 0, method: 'Test Data' }
+      },
+      lastUpdated: new Date().toISOString(),
+      testMode: true
+    }
+  };
+  
+  res.json(testResponse);
+});
+
+// Health endpoint
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    version: '4.1-focused',
-    focus: 'Go North East Operational Areas Only',
+    version: '2.0-enhanced',
     configuration: {
       nationalHighways: !!process.env.NATIONAL_HIGHWAYS_API_KEY,
-      hereOAuth: !!(process.env.HERE_ACCESS_KEY_ID && process.env.HERE_ACCESS_KEY_SECRET),
-      mapQuest: !!process.env.MAPQUEST_API_KEY,
-      tomTom: !!process.env.TOMTOM_API_KEY
+      tomtom: !!process.env.TOMTOM_API_KEY,
+      mapquest: !!process.env.MAPQUEST_API_KEY,
+      here: !!process.env.HERE_API_KEY,
+      port: PORT
     },
-    operationalArea: GNE_BOUNDS,
-    routesMonitored: Object.keys(LOCATION_ROUTE_MAPPING).length,
-    keywordsTracked: GNE_KEYWORDS.length,
     lastFetch: lastFetchTime ? new Date(lastFetchTime).toISOString() : null,
     cachedAlerts: cachedAlerts?.alerts?.length || 0
   });
 });
 
+// Force refresh
 app.get('/api/refresh', async (req, res) => {
-  console.log('🔄 Clearing GNE-focused cache...');
-  cachedAlerts = null;
-  lastFetchTime = null;
-  hereAccessToken = null;
-  
-  res.json({
-    success: true,
-    message: 'Cache cleared - next request will fetch fresh GNE-focused data',
-    timestamp: new Date().toISOString(),
-    focus: 'Go North East operational areas only'
-  });
+  try {
+    console.log('🔄 Force refresh requested...');
+    cachedAlerts = null;
+    lastFetchTime = null;
+    
+    // Trigger fresh fetch by calling our own endpoint
+    const alertsResponse = await fetch(`http://localhost:${PORT}/api/alerts`);
+    const data = await alertsResponse.json();
+    
+    res.json({
+      success: true,
+      message: 'Cache cleared and data refreshed from all sources',
+      timestamp: new Date().toISOString(),
+      alerts: data.alerts?.length || 0,
+      sources: Object.keys(data.metadata?.sources || {})
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
+// Root endpoint
 app.get('/', (req, res) => {
   res.json({
-    message: '🚦 BARRY Go North East Focused Backend',
-    version: '4.1-focused',
-    focus: 'Precise GNE operational areas with enhanced traffic data',
-    features: [
-      '✅ Focused on Go North East service areas',
-      '✅ Enhanced incident descriptions and titles',
-      '✅ Better road name extraction',
-      '✅ Accurate route impact mapping',
-      '✅ Reduced noise - only relevant alerts',
-      '✅ Real-time traffic intelligence'
-    ],
-    coverage: {
-      primaryAreas: ['Newcastle', 'Gateshead', 'Sunderland', 'Durham', 'Washington'],
-      majorRoutes: ['A1', 'A19', 'A167', 'A1058', 'A184', 'A690', 'A183'],
-      busRoutes: Object.values(LOCATION_ROUTE_MAPPING).flat().length + ' services'
+    message: '🚦 BARRY Enhanced Backend - Multi-Source Traffic Intelligence',
+    version: '2.0',
+    status: 'healthy',
+    endpoints: {
+      alerts: '/api/alerts (Multi-source with location extraction)',
+      'alerts-test': '/api/alerts-test',
+      health: '/api/health',
+      refresh: '/api/refresh'
+    },
+    dataSources: {
+      nationalHighways: !!process.env.NATIONAL_HIGHWAYS_API_KEY,
+      tomtom: !!process.env.TOMTOM_API_KEY,
+      mapquest: !!process.env.MAPQUEST_API_KEY,
+      here: !!process.env.HERE_API_KEY
     }
   });
 });
 
+// Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🚦 BARRY Go North East Focused Backend Started!`);
-  console.log(`🎯 Focus: GNE Operational Areas with Enhanced Data`);
-  console.log(`📡 Server: https://go-barry.onrender.com`);
-  console.log(`\n🏢 Go North East Coverage:`);
-  console.log(`   📍 Primary Areas: Newcastle, Gateshead, Sunderland, Durham, Washington`);
-  console.log(`   🛣️ Key Routes: A1, A19, A167, A1058, A184, A690, A183`);
-  console.log(`   🚌 Bus Services: ${Object.values(LOCATION_ROUTE_MAPPING).flat().length} routes monitored`);
-  console.log(`   🔍 Keywords: ${GNE_KEYWORDS.length} location terms`);
+  console.log(`\n🚦 BARRY Enhanced Backend Started`);
+  console.log(`📡 Server: http://localhost:${PORT}`);
+  console.log(`🌐 Public: https://go-barry.onrender.com`);
+  console.log(`\n📊 Data Sources Configuration:`);
+  console.log(`   🛣️  National Highways: ${process.env.NATIONAL_HIGHWAYS_API_KEY ? 'Configured' : 'Missing'}`);
+  console.log(`   🚗 TomTom Traffic: ${process.env.TOMTOM_API_KEY ? 'Configured' : 'Missing'}`);
+  console.log(`   🗺️  MapQuest Traffic: ${process.env.MAPQUEST_API_KEY ? 'Configured' : 'Missing'}`);
+  console.log(`   📡 HERE Traffic: ${process.env.HERE_API_KEY ? 'Configured' : 'Missing'}`);
+  console.log(`\n🎯 Enhanced Features:`);
+  console.log(`   📍 Multi-source location extraction`);
+  console.log(`   🔄 Duplicate detection and removal`);  
+  console.log(`   📊 Priority-based alert sorting`);
+  console.log(`   🌍 North East region filtering`);
   
+  // Initial data load
   setTimeout(async () => {
-    console.log('\n🧪 Testing GNE-focused APIs...');
-    const results = await Promise.allSettled([
-      fetchNationalHighways(),
-      fetchHERE(),
-      fetchMapQuest(),
-      fetchTomTom()
-    ]);
-    
-    const sources = ['National Highways', 'HERE Traffic', 'MapQuest', 'TomTom'];
-    let totalGNEAlerts = 0;
-    
-    results.forEach((result, index) => {
-      if (result.status === 'fulfilled' && result.value.success) {
-        console.log(`   ✅ ${sources[index]}: ${result.value.count} GNE-relevant alerts`);
-        totalGNEAlerts += result.value.count;
-      } else {
-        const error = result.status === 'rejected' ? result.reason.message : result.value.error;
-        console.log(`   ❌ ${sources[index]}: ${error}`);
-      }
-    });
-    
-    console.log(`\n📊 Total GNE-relevant alerts: ${totalGNEAlerts}`);
-    console.log(`🎉 Enhanced data quality with better incident details!`);
+    try {
+      console.log('\n🔄 Loading initial data from all sources...');
+      cachedAlerts = null;
+      lastFetchTime = null;
+      
+      // Trigger initial load
+      const response = await axios.get(`http://localhost:${PORT}/api/alerts`);
+      const data = response.data;
+      
+      console.log(`✅ Initial load complete: ${data.alerts?.length || 0} alerts`);
+      console.log(`📊 Active sources: ${Object.keys(data.metadata?.sources || {}).join(', ')}`);
+    } catch (error) {
+      console.log(`❌ Initial load error: ${error.message}`);
+    }
   }, 3000);
-});
-
-process.on('uncaughtException', (error) => {
-  console.error('❌ Uncaught Exception:', error);
-});
-
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection:', reason);
 });
 
 export default app;
