@@ -10,11 +10,28 @@ import {
   ActivityIndicator,
   Alert
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Modal, TextInput } from 'react-native';
+
+const DUTIES = [
+  { key: '100', label: 'Duty 100 (6am-3:30pm)', password: null },
+  { key: '200', label: 'Duty 200 (7:30am-5pm)', password: null },
+  { key: '400', label: 'Duty 400 (12:30pm-10pm)', password: null },
+  { key: '500', label: 'Duty 500 (2:45pm-12:15am)', password: null },
+  { key: 'service', label: 'Service Delivery Controller', password: 'Barry123' }
+];
 
 export default function HomeScreen() {
   const [systemStatus, setSystemStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(null);
+
+  // Duty state
+  const [currentDuty, setCurrentDuty] = useState(null);
+  const [showDutyModal, setShowDutyModal] = useState(false);
+  const [selectedDuty, setSelectedDuty] = useState(null);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [dutyError, setDutyError] = useState('');
 
   const baseUrl = 'https://go-barry.onrender.com';
 
@@ -56,7 +73,33 @@ export default function HomeScreen() {
 
   useEffect(() => {
     fetchSystemStatus();
+    AsyncStorage.getItem('barry_duty').then(duty => {
+      if (duty) setCurrentDuty(JSON.parse(duty));
+      else setShowDutyModal(true);
+    });
   }, []);
+  // Duty handlers
+  const handleDutySelect = (duty) => {
+    setSelectedDuty(duty);
+    setPasswordInput('');
+    setDutyError('');
+    if (!duty.password) handleDutyConfirm(duty, '');
+  };
+
+  const handleDutyConfirm = (duty, password) => {
+    if (duty.password && password !== duty.password) {
+      setDutyError('Incorrect password');
+      return;
+    }
+    setCurrentDuty(duty);
+    AsyncStorage.setItem('barry_duty', JSON.stringify(duty));
+    setShowDutyModal(false);
+    setSelectedDuty(null);
+    setPasswordInput('');
+    setDutyError('');
+  };
+
+  const handleChangeDuty = () => setShowDutyModal(true);
 
   const handleQuickAction = async (action) => {
     try {
@@ -128,6 +171,17 @@ export default function HomeScreen() {
           )}
         </View>
       </View>
+
+      {/* Duty status display */}
+      {currentDuty && (
+        <View style={{ backgroundColor: '#222d3a', padding: 14, borderRadius: 8, margin: 16, alignItems: 'center' }}>
+          <Text style={{ color: '#aaa', fontSize: 14 }}>Current Duty:</Text>
+          <Text style={{ color: '#60A5FA', fontWeight: '600', fontSize: 16, marginBottom: 6 }}>{currentDuty.label}</Text>
+          <TouchableOpacity onPress={handleChangeDuty} style={{ backgroundColor: '#2563eb', padding: 8, borderRadius: 6 }}>
+            <Text style={{ color: '#fff', fontWeight: 'bold' }}>Change Duty</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* System Overview */}
       {systemStatus && (
@@ -299,6 +353,50 @@ export default function HomeScreen() {
           </Text>
         </View>
       </View>
+
+      {/* Duty modal */}
+      <Modal visible={showDutyModal} transparent animationType="slide">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 14, padding: 24, minWidth: 300, alignItems: 'center' }}>
+            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 18 }}>Sign in for your duty</Text>
+            {DUTIES.map((duty) => (
+              <TouchableOpacity
+                key={duty.key}
+                style={{
+                  padding: 12,
+                  marginBottom: 10,
+                  backgroundColor: selectedDuty && selectedDuty.key === duty.key ? '#60A5FA' : '#eee',
+                  borderRadius: 8,
+                  width: '100%',
+                  alignItems: 'center'
+                }}
+                onPress={() => handleDutySelect(duty)}
+              >
+                <Text style={{ fontSize: 16 }}>{duty.label}</Text>
+              </TouchableOpacity>
+            ))}
+            {selectedDuty && selectedDuty.password && (
+              <View style={{ marginTop: 14, width: '100%', alignItems: 'center' }}>
+                <TextInput
+                  style={{ width: '100%', borderColor: '#ccc', borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 10 }}
+                  value={passwordInput}
+                  onChangeText={setPasswordInput}
+                  placeholder="Password"
+                  placeholderTextColor="#999"
+                  secureTextEntry
+                />
+                <TouchableOpacity
+                  onPress={() => handleDutyConfirm(selectedDuty, passwordInput)}
+                  style={{ backgroundColor: '#2563eb', padding: 10, borderRadius: 8, width: '100%', alignItems: 'center' }}
+                >
+                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Confirm</Text>
+                </TouchableOpacity>
+                {dutyError ? <Text style={{ color: 'red', marginTop: 8 }}>{dutyError}</Text> : null}
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }

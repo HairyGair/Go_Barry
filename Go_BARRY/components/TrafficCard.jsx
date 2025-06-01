@@ -6,8 +6,10 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Dimensions
+  Dimensions,
+  Share,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
@@ -161,6 +163,21 @@ const TrafficCard = ({
   const colors = getStatusColors();
   const durationText = getDurationText();
 
+  // Share handler
+  const handleShare = () => {
+    const shareText = [
+      `🚦 BARRY Alert: ${title}`,
+      description && `Details: ${description}`,
+      location && `Location: ${location}`,
+      affectsRoutes?.length ? `Routes: ${affectsRoutes.join(', ')}` : '',
+      status ? `Status: ${status}` : '',
+      severity ? `Severity: ${severity}` : '',
+      authority ? `Source: ${authority}` : '',
+      '\nSent from BARRY App'
+    ].filter(Boolean).join('\n');
+    Share.share({ message: shareText });
+  };
+
   return (
     <View style={[
       styles.card,
@@ -197,6 +214,10 @@ const TrafficCard = ({
             <Text style={styles.title} numberOfLines={2}>
               {title}
             </Text>
+            {/* Share Button */}
+            <TouchableOpacity onPress={handleShare} style={{ marginLeft: 8 }}>
+              <Ionicons name="share-social-outline" size={20} color="#60A5FA" />
+            </TouchableOpacity>
           </View>
           
           {/* Status Badge - Moved to Own Row */}

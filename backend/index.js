@@ -28,6 +28,19 @@ try {
   console.error('❌ Failed to load routes.txt:', err);
 }
 
+// --- Acknowledged alerts persistence ---
+const ACK_FILE = path.join(__dirname, 'data/acknowledged.json');
+let acknowledgedAlerts = {};
+(async () => {
+  try {
+    const raw = await fs.readFile(ACK_FILE, 'utf-8');
+    acknowledgedAlerts = JSON.parse(raw);
+    console.log(`✅ Loaded ${Object.keys(acknowledgedAlerts).length} acknowledged alerts`);
+  } catch {
+    acknowledgedAlerts = {};
+  }
+})();
+
 // Helper for filtering only GTFS route-matching alerts
 function alertAffectsGTFSRoute(alert) {
   if (!alert.affectsRoutes || !Array.isArray(alert.affectsRoutes)) return false;
@@ -650,6 +663,11 @@ app.get('/api/alerts', async (req, res) => {
       alert.source !== 'sample'
     );
 
+    // Inject acknowledged status for each alert
+    for (const alert of filteredAlerts) {
+      alert.acknowledged = acknowledgedAlerts[alert.id] || null;
+    }
+
     // If nothing matches, do NOT include test data—just show empty array and a message
     if (filteredAlerts.length === 0) {
       console.log('✅ No current alerts affecting Go North East routes.');
@@ -777,6 +795,19 @@ app.get('/api/refresh', async (req, res) => {
   }
 });
 
+// --- POST /api/acknowledge ---
+app.post('/api/acknowledge', async (req, res) => {
+  const { alertId, duty } = req.body;
+  if (!alertId || !duty) {
+    return res.status(400).json({ success: false, error: 'alertId and duty required' });
+  }
+  const timestamp = new Date().toISOString();
+  acknowledgedAlerts[alertId] = { duty, time: timestamp };
+  // Save to disk
+  await fs.writeFile(ACK_FILE, JSON.stringify(acknowledgedAlerts, null, 2));
+  res.json({ success: true });
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({
@@ -787,7 +818,8 @@ app.get('/', (req, res) => {
       alerts: '/api/alerts (fixed authentication)',
       'alerts-test': '/api/alerts-test',
       health: '/api/health',
-      refresh: '/api/refresh'
+      refresh: '/api/refresh',
+      acknowledge: '/api/acknowledge (POST)'
     },
     fixes: [
       'HERE API: Using apikey query parameter',
