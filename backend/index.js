@@ -138,76 +138,86 @@ function deduplicateAlerts(alerts) {
   return deduped;
 }
 
-// FIXED: TomTom Traffic API with multi-bounding box querying
+// ENHANCED: TomTom Traffic API with improved location extraction
 async function fetchTomTomTraffic() {
   const apiKey = process.env.TOMTOM_API_KEY;
   if (!apiKey) {
     console.warn('⚠️ TomTom API key not found');
     return { success: false, data: [], error: 'API key missing' };
   }
+
   try {
-    console.log('🚗 Fetching TomTom traffic data (multi-bounding box)...');
-    let allIncidents = [];
-    for (const bbox of NORTH_EAST_BBOXES) {
-      try {
-        const response = await axios.get('https://api.tomtom.com/traffic/services/5/incidentDetails', {
-          params: {
-            key: apiKey,
-            bbox: bbox,
-            fields: '{incidents{type,geometry{type,coordinates},properties{iconCategory,magnitudeOfDelay,events{description,code,iconCategory}}}}',
-            language: 'en-US',
-            projection: 'EPSG4326'
-          },
-          timeout: 15000
-        });
-        if (response.data && Array.isArray(response.data.incidents)) {
-          allIncidents.push(...response.data.incidents);
+    console.log('🚗 Fetching TomTom traffic incidents...');
+    const northEastBBox = '54.0,-2.5,55.5,-0.5';
+    const response = await axios.get(
+      `https://api.tomtom.com/traffic/services/5/incidentDetails/s3/${northEastBBox}/10/1335294634919/json`,
+      {
+        params: {
+          key: apiKey,
+          expandCluster: false,
+          projection: 'EPSG4326'
+        },
+        timeout: 15000,
+        headers: {
+          'User-Agent': 'BARRY-TrafficWatch/3.0'
         }
-      } catch (err) {
-        console.warn(`⚠️ TomTom bbox ${bbox} error:`, err.message);
       }
+    );
+    console.log(`✅ TomTom: HTTP ${response.status}`);
+    if (!response.data || !response.data.tm || !response.data.tm.poi) {
+      console.log('📊 TomTom: No incidents found');
+      return { success: true, data: [], count: 0 };
     }
-    // Deduplicate incidents by TomTom's id/location/description
-    // TomTom incidents have a unique id field
-    const seenTomTomIds = new Set();
-    const uniqueIncidents = [];
-    for (const inc of allIncidents) {
-      // Use incident id if present, else hash geometry+description
-      const ttid = inc.id
-        ? `tt_${inc.id}`
-        : JSON.stringify(inc.geometry) + '|' + (inc.properties?.events?.[0]?.description || '');
-      if (!seenTomTomIds.has(ttid)) {
-        seenTomTomIds.add(ttid);
-        uniqueIncidents.push(inc);
+    const incidents = response.data.tm.poi;
+    console.log(`📊 TomTom: ${incidents.length} total incidents found`);
+    const alerts = [];
+    incidents.forEach(incident => {
+      // Enhanced location extraction
+      let location = null;
+      if (incident.r && typeof incident.r === 'string' && incident.r.trim().length > 0) {
+        location = incident.r;
+      } else if (incident.f && incident.t) {
+        location = `Between ${incident.f} and ${incident.t}`;
+      } else if (incident.f) {
+        location = incident.f;
+      } else if (incident.d) {
+        // Try to extract plausible road from description
+        const match = (incident.d || '').match(/\b([AM][0-9]{1,4}|B[0-9]{1,4}|Junction \d+|[A-Z][a-z]+ (Road|Street|Lane|Way|Avenue|Drive|Boulevard|Bypass)|Coast Road|Central Motorway)\b/);
+        if (match) {
+          location = match[0];
+        } else {
+          location = incident.d.substring(0, 50);
+        }
+      } else {
+        location = 'TomTom reported location';
       }
-    }
-    console.log(`📊 TomTom: ${allIncidents.length} incidents fetched, ${uniqueIncidents.length} unique after deduplication`);
-    // Debug: log how many unique incidents
-    // console.log('RAW TomTom incidents:', JSON.stringify(uniqueIncidents, null, 2));
-    const alerts = uniqueIncidents.map(incident => {
-      const props = incident.properties || {};
-      const event = props.events?.[0] || {};
-      const description = event.description || 'Traffic incident';
-      const routes = matchRoutes(description);
-      return {
-        id: `tomtom_${incident.id || Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-        type: 'incident',
-        title: description.split('.')[0] || 'Traffic Incident',
-        description: description,
-        location: 'TomTom reported location',
-        authority: 'TomTom Traffic',
-        source: 'tomtom',
-        severity: props.magnitudeOfDelay > 5 ? 'High' : 'Medium',
-        status: 'red',
-        affectsRoutes: routes,
-        lastUpdated: new Date().toISOString(),
-        dataSource: 'TomTom Traffic API'
-      };
+      const description = incident.d || 'Traffic incident';
+      // Check if it's in North East
+      if (isInNorthEast(location, description)) {
+        const routes = matchRoutes(location, description);
+        alerts.push({
+          id: `tomtom_${incident.id || Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+          type: mapTomTomIncidentType(incident.ic),
+          title: `${mapTomTomCategory(incident.ic)}${location ? ' - ' + location : ''}`,
+          description: description,
+          location: location,
+          authority: 'TomTom Traffic',
+          source: 'tomtom',
+          severity: mapTomTomSeverity(incident.ty),
+          status: 'red',
+          affectsRoutes: routes,
+          coordinates: incident.p ? { lat: incident.p.y, lng: incident.p.x } : null,
+          lastUpdated: new Date().toISOString(),
+          dataSource: 'TomTom Traffic API v5',
+          tomtomCategory: incident.ic,
+          tomtomMagnitude: incident.ty,
+          clusterSize: incident.cs,
+          delay: incident.dl
+        });
+      }
     });
-    // Deduplicate alerts by id/location/description
-    const dedupedAlerts = deduplicateAlerts(alerts);
-    console.log(`✅ TomTom: ${dedupedAlerts.length} unique North East alerts processed`);
-    return { success: true, data: dedupedAlerts, count: dedupedAlerts.length };
+    console.log(`✅ TomTom: ${alerts.length} North East alerts processed`);
+    return { success: true, data: alerts, count: alerts.length };
   } catch (error) {
     console.error('❌ TomTom API error:', error.message);
     if (error.response) {
@@ -218,70 +228,127 @@ async function fetchTomTomTraffic() {
   }
 }
 
-// FIXED: HERE Traffic API
+// Enhanced helper function to map TomTom incident codes to types with type safety and logging
+function mapTomTomIncidentType(code) {
+  const typeMap = {
+    0: 'incident',  // Unknown
+    1: 'incident',  // Accident
+    2: 'incident',  // Fog
+    3: 'incident',  // Dangerous Conditions
+    4: 'incident',  // Rain
+    5: 'incident',  // Ice
+    6: 'incident',  // Snow
+    7: 'incident',  // Wind
+    8: 'roadwork',  // Construction
+    9: 'roadwork',  // Road Works
+    10: 'incident', // Road Closed
+    11: 'incident', // Road Blocked
+    14: 'incident'  // Broken Down Vehicle
+  };
+  if (!(code in typeMap)) {
+    console.warn(`Unknown TomTom incident type code: ${code}`);
+  }
+  return typeMap[code] || 'incident';
+}
+
+// Enhanced helper function to map TomTom incident category to readable text with type safety and logging
+function mapTomTomCategory(code) {
+  const categoryMap = {
+    0: 'Traffic Incident',
+    1: 'Accident',
+    2: 'Fog Hazard',
+    3: 'Dangerous Conditions',
+    4: 'Heavy Rain',
+    5: 'Ice on Road',
+    6: 'Snow on Road',
+    7: 'High Winds',
+    8: 'Construction',
+    9: 'Road Works',
+    10: 'Road Closed',
+    11: 'Road Blocked',
+    14: 'Broken Down Vehicle'
+  };
+  if (!(code in categoryMap)) {
+    console.warn(`Unknown TomTom category code: ${code}`);
+  }
+  return categoryMap[code] || 'Traffic Incident';
+}
+
+// Enhanced helper function to map TomTom magnitude to severity with type safety
+function mapTomTomSeverity(magnitude) {
+  if (typeof magnitude !== 'number') return 'Low';
+  if (magnitude >= 3) return 'High';
+  if (magnitude >= 2) return 'Medium';
+  return 'Low';
+}
+
+// ENHANCED: HERE Traffic API with improved location extraction
 async function fetchHERETraffic() {
-  // NOTE: Make sure HERE_API_KEY in your .env file is valid and active for this API!
   const apiKey = process.env.HERE_API_KEY;
-  
   if (!apiKey) {
     console.warn('⚠️ HERE API key not found');
     return { success: false, data: [], error: 'API key missing' };
   }
-
   try {
     console.log('📡 Fetching HERE traffic data...');
-    
-    // Newcastle city center coordinates
     const lat = 54.9783;
     const lng = -1.6178;
-    const radius = 20000; // 20km radius
-    
+    const radius = 20000;
     const response = await axios.get('https://data.traffic.hereapi.com/v7/incidents', {
       params: {
-        apikey: apiKey, // FIXED: Use correct parameter name
+        apikey: apiKey,
         in: `circle:${lat},${lng};r=${radius}`,
         locationReferencing: 'olr'
       },
       timeout: 15000
     });
-    
     console.log(`✅ HERE: HTTP ${response.status}`);
-    
     if (!response.data || !response.data.results) {
       console.log('📊 HERE: No incidents found');
       return { success: true, data: [], count: 0 };
     }
-    
     const incidents = response.data.results;
     console.log(`📊 HERE: ${incidents.length} incidents found`);
-    console.log('RAW HERE data:', JSON.stringify(response.data, null, 2));
-
-    const alerts = incidents
-      .filter(() => true)
-      .map(incident => {
-        const location = incident.location?.description?.value || 'HERE reported location';
-        const summary = incident.summary?.value || 'Traffic incident';
-        const routes = matchRoutes(location, summary);
-
-        return {
-          id: `here_${incident.id || Date.now()}`,
-          type: 'incident',
-          title: summary,
-          description: incident.description?.value || summary,
-          location: location,
-          authority: 'HERE Traffic',
-          source: 'here',
-          severity: incident.criticality >= 2 ? 'High' : 'Medium',
-          status: 'red',
-          affectsRoutes: routes,
-          lastUpdated: new Date().toISOString(),
-          dataSource: 'HERE Traffic API'
-        };
-      });
-
+    // Enhanced location extraction
+    const alerts = incidents.map(incident => {
+      // Try to extract a plausible location string
+      let location = null;
+      // Prefer location description if present and not generic
+      if (incident.location?.description?.value && incident.location.description.value.trim().length > 0) {
+        location = incident.location.description.value;
+      }
+      // If not, try to extract from summary or description
+      if (!location || location.toLowerCase().includes('reported location')) {
+        const desc = (incident.summary?.value || incident.description?.value || '');
+        const match = desc.match(/\b([AM][0-9]{1,4}|B[0-9]{1,4}|Junction \d+|[A-Z][a-z]+ (Road|Street|Lane|Way|Avenue|Drive|Boulevard|Bypass)|Coast Road|Central Motorway)\b/);
+        if (match) {
+          location = match[0];
+        } else if (desc.trim().length > 0) {
+          location = desc.substring(0, 50);
+        } else {
+          location = 'HERE reported location';
+        }
+      }
+      const summary = incident.summary?.value || 'Traffic incident';
+      const description = incident.description?.value || summary;
+      const routes = matchRoutes(location, description);
+      return {
+        id: `here_${incident.id || Date.now()}`,
+        type: 'incident',
+        title: summary,
+        description: description,
+        location: location,
+        authority: 'HERE Traffic',
+        source: 'here',
+        severity: incident.criticality >= 2 ? 'High' : 'Medium',
+        status: 'red',
+        affectsRoutes: routes,
+        lastUpdated: new Date().toISOString(),
+        dataSource: 'HERE Traffic API'
+      };
+    });
     console.log(`✅ HERE: ${alerts.length} alerts processed`);
     return { success: true, data: alerts, count: alerts.length };
-    
   } catch (error) {
     console.error('❌ HERE API error:', error.message);
     if (error.response) {
@@ -292,7 +359,7 @@ async function fetchHERETraffic() {
   }
 }
 
-// FIXED: MapQuest Traffic API with multi-bounding box querying
+// ENHANCED: MapQuest Traffic API with improved location extraction
 async function fetchMapQuestTraffic() {
   const apiKey = process.env.MAPQUEST_API_KEY;
   if (!apiKey) {
@@ -303,9 +370,6 @@ async function fetchMapQuestTraffic() {
     console.log('🗺️ Fetching MapQuest traffic data (multi-bounding box)...');
     let allIncidents = [];
     for (const bbox of NORTH_EAST_BBOXES) {
-      // MapQuest expects topLeftLat,topLeftLng,bottomRightLat,bottomRightLng
-      // Our bboxes are in minLat,minLng,maxLat,maxLng, so reformat:
-      // '54.8,-1.7,55.1,-1.4' -> topLeftLat=55.1, topLeftLng=-1.7, bottomRightLat=54.8, bottomRightLng=-1.4
       const [minLat, minLng, maxLat, maxLng] = bbox.split(',').map(Number);
       const mqBbox = `${maxLat},${minLng},${minLat},${maxLng}`;
       try {
@@ -338,16 +402,39 @@ async function fetchMapQuestTraffic() {
       }
     }
     console.log(`📊 MapQuest: ${allIncidents.length} incidents fetched, ${uniqueIncidents.length} unique after deduplication`);
-    // console.log('RAW MapQuest unique incidents:', JSON.stringify(uniqueIncidents, null, 2));
+    // Enhanced location extraction for MapQuest
     const alerts = uniqueIncidents.map(incident => {
+      // Try to extract a plausible road/location from shortDesc/fullDesc
+      let location = null;
+      if (incident.road && incident.road.trim().length > 0) {
+        location = incident.road;
+      } else if (incident.shortDesc && incident.shortDesc.trim().length > 0) {
+        // Try to extract a road from shortDesc
+        const match = incident.shortDesc.match(/\b([AM][0-9]{1,4}|B[0-9]{1,4}|Junction \d+|[A-Z][a-z]+ (Road|Street|Lane|Way|Avenue|Drive|Boulevard|Bypass)|Coast Road|Central Motorway)\b/);
+        if (match) {
+          location = match[0];
+        } else {
+          location = incident.shortDesc.substring(0, 50);
+        }
+      } else if (incident.fullDesc && incident.fullDesc.trim().length > 0) {
+        // Try to extract a road from fullDesc
+        const match = incident.fullDesc.match(/\b([AM][0-9]{1,4}|B[0-9]{1,4}|Junction \d+|[A-Z][a-z]+ (Road|Street|Lane|Way|Avenue|Drive|Boulevard|Bypass)|Coast Road|Central Motorway)\b/);
+        if (match) {
+          location = match[0];
+        } else {
+          location = incident.fullDesc.substring(0, 50);
+        }
+      } else {
+        location = 'MapQuest reported location';
+      }
       const description = incident.fullDesc || incident.shortDesc || 'Traffic incident';
-      const routes = matchRoutes(description);
+      const routes = matchRoutes(location, description);
       return {
         id: `mapquest_${incident.id || Date.now()}`,
         type: incident.type === 'construction' ? 'roadwork' : 'incident',
         title: incident.shortDesc || 'Traffic Alert',
         description: description,
-        location: 'MapQuest reported location',
+        location: location,
         authority: 'MapQuest Traffic',
         source: 'mapquest',
         severity: incident.severity >= 3 ? 'High' : 'Medium',
