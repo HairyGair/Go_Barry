@@ -2,11 +2,13 @@
   "alerts": [],
   "metadata": {
     "count": 0,
-    "lastUpdated": "2025-06-01T10:48:22.685Z",
+    "lastUpdated": "2025-06-01T12:02:57.172Z",
     "sources": [
-      "HERE Traffic API v7",
-      "MapQuest Traffic API v2",
-      "National Highways API"
-    ]
+      "TomTom Traffic Flow",
+      "MapQuest Traffic API",
+      "National Highways API",
+      "HERE Traffic API"
+    ],
+    "approach": "simple_single_calls"
   }
 }
