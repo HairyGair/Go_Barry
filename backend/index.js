@@ -524,78 +524,84 @@ async function fetchMapQuestTraffic() {
   }
 }
 
+// Enhanced TomTom processing
 async function fetchTomTomTraffic() {
   const apiKey = process.env.TOMTOM_API_KEY;
-  
   if (!apiKey) {
     console.warn('⚠️ TomTom API key not found');
     return { success: false, data: [], error: 'API key missing' };
   }
-
   try {
     console.log('🚗 Fetching TomTom Traffic REAL data...');
-    
-    // Very generous bounding box
+    // Use a very generous bounding box for North East
     const bbox = `${NORTH_EAST_BOUNDS.south},${NORTH_EAST_BOUNDS.west},${NORTH_EAST_BOUNDS.north},${NORTH_EAST_BOUNDS.east}`;
-    
-    const response = await axios.get(`https://api.tomtom.com/traffic/services/4/incidentDetails/s3/${bbox}/10/-1/json`, {
-      params: {
-        key: apiKey,
-        language: 'en-GB',
-        projection: 'EPSG4326'
-      },
-      timeout: 10000
-    });
-    
+    const response = await axios.get(
+      `https://api.tomtom.com/traffic/services/4/incidentDetails/s3/${bbox}/10/-1/json`,
+      {
+        params: {
+          key: apiKey,
+          language: 'en-GB',
+          projection: 'EPSG4326'
+        },
+        timeout: 12000
+      }
+    );
     console.log(`📡 TomTom response: ${response.status}`);
-    console.log(`📊 TomTom response structure:`, Object.keys(response.data || {}));
-    
-    const alerts = [];
-    
-    if (response.data.tm && response.data.tm.poi && response.data.tm.poi.length > 0) {
-      console.log(`📊 TomTom found ${response.data.tm.poi.length} total incidents`);
-      
-      response.data.tm.poi.forEach(incident => {
-        const position = incident.p;
-        const roadName = position?.r || 'Unknown Road';
-        const location = `${roadName} - ${position?.c || 'Traffic point'}`;
-        const description = incident.ic?.d || '';
-        
-        // VERY generous filtering - accept almost anything in the UK
-        const coordinates = [position?.x, position?.y];
-        if (isInNorthEast(location, description, coordinates)) {
-          const routes = matchRoutes(location, description);
-          const { status, severity } = classifyAlert({
-            type: 'incident',
-            severity: incident.ic?.ty || 5
-          }, 'tomtom');
-          
-          alerts.push({
-            id: generateAlertId('tt', incident.id, location),
-            type: 'incident',
-            title: incident.ic?.d || 'TomTom Traffic Incident',
-            description: `${description || 'Traffic disruption detected'}. Length: ${incident.ic?.l || 'Unknown'} meters.`,
-            location: location,
-            authority: 'TomTom Traffic',
-            source: 'tomtom',
-            severity,
-            status,
-            incidentLength: incident.ic?.l,
-            coordinates: coordinates,
-            startDate: new Date().toISOString(),
-            affectsRoutes: routes,
-            lastUpdated: new Date().toISOString(),
-            dataSource: 'TomTom Traffic API v4'
-          });
-        }
-      });
-    } else {
+    if (!response.data?.tm?.poi?.length) {
       console.log('📍 TomTom: No incidents found in response');
+      return { success: true, data: [], count: 0, note: 'No incidents found' };
     }
-    
+    const alerts = [];
+    for (const incident of response.data.tm.poi) {
+      // Defensive checks for structure
+      const position = incident.p || {};
+      const roadName = position.r || 'Unknown Road';
+      const cityOrCrossing = position.c || '';
+      const location = `${roadName}${cityOrCrossing ? ' - ' + cityOrCrossing : ''}`;
+      const description = incident.ic?.d || '';
+      // TomTom gives x (longitude), y (latitude)
+      const coordinates = [position.x, position.y];
+      // Enhanced: Accept even if coordinates are slightly out, if text matches
+      if (isInNorthEast(location, description, coordinates)) {
+        const routes = matchRoutes(location, description);
+        // TomTom incident categories:
+        // ic.ty: type, ic.l: length, ic.d: description, ic.s: severity
+        // Use ic.s (severity: 1=minor, 2=major, 3=critical)
+        let severityLevel = 'Low';
+        if (incident.ic?.s === 3) severityLevel = 'High';
+        else if (incident.ic?.s === 2) severityLevel = 'Medium';
+        // Use classifyAlert for status
+        const { status } = classifyAlert(
+          {
+            type: 'incident',
+            severity: incident.ic?.s || 2,
+            category: incident.ic?.d || ''
+          },
+          'tomtom'
+        );
+        alerts.push({
+          id: generateAlertId('tt', incident.id, location),
+          type: 'incident',
+          title: incident.ic?.d || 'TomTom Traffic Incident',
+          description:
+            (description || 'Traffic disruption detected') +
+            (incident.ic?.l ? `. Length: ${incident.ic.l} meters.` : ''),
+          location: location,
+          authority: 'TomTom Traffic',
+          source: 'tomtom',
+          severity: severityLevel,
+          status,
+          incidentLength: incident.ic?.l,
+          coordinates: coordinates,
+          startDate: new Date().toISOString(),
+          affectsRoutes: routes,
+          lastUpdated: new Date().toISOString(),
+          dataSource: 'TomTom Traffic API v4'
+        });
+      }
+    }
     console.log(`✅ TomTom: ${alerts.length} North East alerts found`);
     return { success: true, data: alerts, count: alerts.length };
-    
   } catch (error) {
     console.error('❌ TomTom API error:', error.message);
     if (error.response) {
