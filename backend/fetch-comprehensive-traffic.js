@@ -416,18 +416,104 @@ async function fetchEnhancedNationalHighwaysData() {
   return { success: true, alerts, apiCalls };
 }
 
-// Main comprehensive traffic data fetcher
+// TomTom Traffic API fetcher (as per user-provided template)
+async function fetchTomTomTrafficData() {
+  if (!process.env.TOMTOM_API_KEY) {
+    console.warn('⚠️ TomTom API not configured');
+    return { success: false, alerts: [], apiCalls: 0 };
+  }
+
+  console.log('🗺️ Fetching TomTom Traffic data (incidents)...');
+
+  const alerts = [];
+  let apiCalls = 0;
+
+  // TomTom API details
+  const TOMTOM_API_KEY = process.env.TOMTOM_API_KEY;
+  const BASE_URL = 'https://api.tomtom.com/traffic/services/5/incidentDetails';
+  const EXT = 'json';
+  const FIELDS = 'id,geometry,properties';
+
+  try {
+    for (const [zoneKey, zone] of Object.entries(NORTH_EAST_ZONES)) {
+      try {
+        // TomTom uses bbox: minLat,minLon,maxLat,maxLon
+        const bbox = `${zone.bbox.south},${zone.bbox.west},${zone.bbox.north},${zone.bbox.east}`;
+        const url = `${BASE_URL}/${EXT}`;
+        const params = {
+          key: TOMTOM_API_KEY,
+          bbox: bbox,
+          fields: FIELDS,
+          language: 'en-GB'
+        };
+
+        const response = await axios.get(url, {
+          params,
+          timeout: 10000,
+          headers: {
+            'User-Agent': 'BARRY-TrafficWatch/3.0',
+            'Accept': 'application/json'
+          }
+        });
+
+        apiCalls++;
+
+        if (response.data && response.data.incidents) {
+          response.data.incidents.forEach(incident => {
+            if (isInNorthEast(incident.properties?.eventCode || '', incident.properties?.description || '')) {
+              const routes = matchRoutes(incident.properties?.roadNumbers?.join(' ') || '', incident.properties?.description || '');
+
+              alerts.push({
+                id: `tomtom_${incident.id || Date.now()}`,
+                type: incident.properties?.iconCategory === 2 ? 'roadwork' :
+                      incident.properties?.iconCategory === 3 ? 'congestion' : 'incident',
+                title: incident.properties?.eventCode ? `TomTom Event ${incident.properties.eventCode}` : 'TomTom Traffic Incident',
+                description: incident.properties?.description || 'Traffic incident reported',
+                location: incident.properties?.from || zone.name,
+                severity: incident.properties?.magnitudeOfDelay >= 3 ? 'High' :
+                         incident.properties?.magnitudeOfDelay >= 2 ? 'Medium' : 'Low',
+                source: 'tomtom',
+                startDate: incident.properties?.startTime ? new Date(incident.properties.startTime).toISOString() : null,
+                endDate: incident.properties?.endTime ? new Date(incident.properties.endTime).toISOString() : null,
+                affectsRoutes: routes,
+                coordinates: incident.geometry || null,
+                lastUpdated: new Date().toISOString(),
+                dataSource: 'TomTom Traffic API v5'
+              });
+            }
+          });
+        }
+
+        // Small delay to respect rate limits
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+      } catch (zoneError) {
+        console.warn(`⚠️ TomTom API error for zone ${zoneKey}:`, zoneError.message);
+      }
+    }
+
+    console.log(`✅ TomTom: ${alerts.length} traffic alerts from ${apiCalls} API calls`);
+    return { success: true, alerts, apiCalls };
+
+  } catch (error) {
+    console.error('❌ TomTom Traffic API failed:', error.message);
+    return { success: false, alerts: [], apiCalls, error: error.message };
+  }
+}
+
+// Main comprehensive traffic data fetcher (with TomTom integration)
 export async function fetchComprehensiveTrafficData() {
   const startTime = Date.now();
-  
+
   console.log('🚦 BARRY Comprehensive Traffic Intelligence System Starting...');
-  console.log('📊 Fetching from: Street Manager + National Highways + HERE + MapQuest');
+  console.log('📊 Fetching from: Street Manager + National Highways + HERE + MapQuest + TomTom');
 
   // Fetch from all sources in parallel
-  const [hereResult, mapquestResult, nationalHighwaysResult] = await Promise.allSettled([
+  const [hereResult, mapquestResult, nationalHighwaysResult, tomtomResult] = await Promise.allSettled([
     fetchHERETrafficData(),
     fetchMapQuestTrafficData(),
-    fetchEnhancedNationalHighwaysData()
+    fetchEnhancedNationalHighwaysData(),
+    fetchTomTomTrafficData()
   ]);
 
   // Combine all alerts
@@ -440,7 +526,7 @@ export async function fetchComprehensiveTrafficData() {
     totalApiCalls += hereResult.value.apiCalls;
   }
 
-  // Process MapQuest results  
+  // Process MapQuest results
   if (mapquestResult.status === 'fulfilled' && mapquestResult.value.success) {
     allAlerts.push(...mapquestResult.value.alerts);
     totalApiCalls += mapquestResult.value.apiCalls;
@@ -452,22 +538,28 @@ export async function fetchComprehensiveTrafficData() {
     totalApiCalls += nationalHighwaysResult.value.apiCalls;
   }
 
+  // Process TomTom results
+  if (tomtomResult.status === 'fulfilled' && tomtomResult.value.success) {
+    allAlerts.push(...tomtomResult.value.alerts);
+    totalApiCalls += tomtomResult.value.apiCalls;
+  }
+
   // Remove duplicates and sort by priority
   const uniqueAlerts = removeDuplicateAlerts(allAlerts);
-  
+
   // Sort: incidents > congestion > roadworks, then by severity
   uniqueAlerts.sort((a, b) => {
     const typePriority = { incident: 3, congestion: 2, roadwork: 1 };
     const severityPriority = { High: 3, Medium: 2, Low: 1 };
-    
+
     const aTypeScore = typePriority[a.type] || 0;
     const bTypeScore = typePriority[b.type] || 0;
-    
+
     if (aTypeScore !== bTypeScore) return bTypeScore - aTypeScore;
-    
+
     const aSeverityScore = severityPriority[a.severity] || 0;
     const bSeverityScore = severityPriority[b.severity] || 0;
-    
+
     return bSeverityScore - aSeverityScore;
   });
 
@@ -485,14 +577,21 @@ export async function fetchComprehensiveTrafficData() {
     sources: {
       here: uniqueAlerts.filter(a => a.source === 'here').length,
       mapquest: uniqueAlerts.filter(a => a.source === 'mapquest').length,
-      nationalHighways: uniqueAlerts.filter(a => a.source === 'national_highways').length
+      nationalHighways: uniqueAlerts.filter(a => a.source === 'national_highways').length,
+      tomtom: uniqueAlerts.filter(a => a.source === 'tomtom').length
     }
   };
 
   console.log('💾 Saved', uniqueAlerts.length, 'traffic alerts to comprehensive-traffic-data.json');
   console.log('🎯 Comprehensive Traffic Summary:');
   console.log(`   📊 Total Alerts: ${statistics.totalAlerts}`);
-  console.log(`   ✅ Successful Sources: ${[hereResult, mapquestResult, nationalHighwaysResult].filter(r => r.status === 'fulfilled' && r.value.success).length}/3`);
+  console.log(
+    `   ✅ Successful Sources: ${
+      [hereResult, mapquestResult, nationalHighwaysResult, tomtomResult].filter(
+        r => r.status === 'fulfilled' && r.value.success
+      ).length
+    }/4`
+  );
   console.log(`   📞 Total API Calls: ${totalApiCalls}`);
   console.log(`   ⏱️ Processing Time: ${processingTime}ms`);
 
@@ -506,22 +605,45 @@ export async function fetchComprehensiveTrafficData() {
           success: hereResult.status === 'fulfilled' && hereResult.value.success,
           count: hereResult.status === 'fulfilled' ? hereResult.value.alerts.length : 0,
           apiCalls: hereResult.status === 'fulfilled' ? hereResult.value.apiCalls : 0,
-          error: hereResult.status === 'rejected' ? hereResult.reason.message : 
-                 (hereResult.status === 'fulfilled' && !hereResult.value.success ? hereResult.value.error : null)
+          error:
+            hereResult.status === 'rejected'
+              ? hereResult.reason.message
+              : hereResult.status === 'fulfilled' && !hereResult.value.success
+              ? hereResult.value.error
+              : null
         },
         mapquest: {
           success: mapquestResult.status === 'fulfilled' && mapquestResult.value.success,
           count: mapquestResult.status === 'fulfilled' ? mapquestResult.value.alerts.length : 0,
           apiCalls: mapquestResult.status === 'fulfilled' ? mapquestResult.value.apiCalls : 0,
-          error: mapquestResult.status === 'rejected' ? mapquestResult.reason.message :
-                 (mapquestResult.status === 'fulfilled' && !mapquestResult.value.success ? mapquestResult.value.error : null)
+          error:
+            mapquestResult.status === 'rejected'
+              ? mapquestResult.reason.message
+              : mapquestResult.status === 'fulfilled' && !mapquestResult.value.success
+              ? mapquestResult.value.error
+              : null
         },
         nationalHighways: {
           success: nationalHighwaysResult.status === 'fulfilled' && nationalHighwaysResult.value.success,
           count: nationalHighwaysResult.status === 'fulfilled' ? nationalHighwaysResult.value.alerts.length : 0,
           apiCalls: nationalHighwaysResult.status === 'fulfilled' ? nationalHighwaysResult.value.apiCalls : 0,
-          error: nationalHighwaysResult.status === 'rejected' ? nationalHighwaysResult.reason.message :
-                 (nationalHighwaysResult.status === 'fulfilled' && !nationalHighwaysResult.value.success ? nationalHighwaysResult.value.error : null)
+          error:
+            nationalHighwaysResult.status === 'rejected'
+              ? nationalHighwaysResult.reason.message
+              : nationalHighwaysResult.status === 'fulfilled' && !nationalHighwaysResult.value.success
+              ? nationalHighwaysResult.value.error
+              : null
+        },
+        tomtom: {
+          success: tomtomResult.status === 'fulfilled' && tomtomResult.value.success,
+          count: tomtomResult.status === 'fulfilled' ? tomtomResult.value.alerts.length : 0,
+          apiCalls: tomtomResult.status === 'fulfilled' ? tomtomResult.value.apiCalls : 0,
+          error:
+            tomtomResult.status === 'rejected'
+              ? tomtomResult.reason.message
+              : tomtomResult.status === 'fulfilled' && !tomtomResult.value.success
+              ? tomtomResult.value.error
+              : null
         }
       },
       apiUsage: {
@@ -532,6 +654,10 @@ export async function fetchComprehensiveTrafficData() {
         mapquest: {
           used: mapquestResult.status === 'fulfilled' ? mapquestResult.value.apiCalls : 0,
           limit: TRAFFIC_CONFIG.mapquest.limits.monthly
+        },
+        tomtom: {
+          used: tomtomResult.status === 'fulfilled' ? tomtomResult.value.apiCalls : 0,
+          limit: 10000 // Example: set a default or from config if available
         }
       },
       processingTime: `${processingTime}ms`,
