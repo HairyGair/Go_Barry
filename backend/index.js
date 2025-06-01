@@ -6,11 +6,33 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import csvParse from 'csv-parse/sync';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config();
+
+// Load GTFS routes.txt into a Set of valid route_short_names
+let GTFS_ROUTES = new Set();
+try {
+  const routesTxt = await fs.readFile(path.join(__dirname, 'data/routes.txt'), 'utf-8');
+  const records = csvParse.parse(routesTxt, { columns: true, skip_empty_lines: true });
+  for (const rec of records) {
+    if (rec.route_short_name) {
+      GTFS_ROUTES.add(rec.route_short_name.trim());
+    }
+  }
+  console.log(`🚌 Loaded ${GTFS_ROUTES.size} GTFS routes for filtering:`, [...GTFS_ROUTES].join(', '));
+} catch (err) {
+  console.error('❌ Failed to load routes.txt:', err);
+}
+
+// Helper for filtering only GTFS route-matching alerts
+function alertAffectsGTFSRoute(alert) {
+  if (!alert.affectsRoutes || !Array.isArray(alert.affectsRoutes)) return false;
+  return alert.affectsRoutes.some(route => GTFS_ROUTES.has(String(route).trim()));
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -578,7 +600,6 @@ const CACHE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 app.get('/api/alerts', async (req, res) => {
   try {
     const now = Date.now();
-    
     // Check cache
     if (cachedAlerts && lastFetchTime && (now - lastFetchTime) < CACHE_TIMEOUT) {
       console.log('📋 Serving cached alerts');
@@ -592,9 +613,8 @@ app.get('/api/alerts', async (req, res) => {
         }
       });
     }
-    
+
     console.log('🔄 Fetching fresh alerts with fixed authentication...');
-    
     // Fetch from all sources with fixed authentication
     const [tomtomResult, hereResult, mapquestResult, nhResult] = await Promise.allSettled([
       fetchTomTomTraffic(),
@@ -602,10 +622,9 @@ app.get('/api/alerts', async (req, res) => {
       fetchMapQuestTraffic(),
       fetchNationalHighways()
     ]);
-    
+
     const allAlerts = [];
     const sources = {};
-    
     // Process results
     const results = [
       { name: 'tomtom', result: tomtomResult },
@@ -613,7 +632,6 @@ app.get('/api/alerts', async (req, res) => {
       { name: 'mapquest', result: mapquestResult },
       { name: 'nationalHighways', result: nhResult }
     ];
-    
     for (const { name, result } of results) {
       if (result.status === 'fulfilled' && result.value.success) {
         allAlerts.push(...result.value.data);
@@ -632,29 +650,52 @@ app.get('/api/alerts', async (req, res) => {
         console.log(`❌ ${name}: ${sources[name].error}`);
       }
     }
-    
-    // If no live data, include test data
-    if (allAlerts.length === 0) {
-      console.log('📋 No live data - including test alerts');
-      allAlerts.push(...sampleTestAlerts);
+
+    // Filter: Only alerts that affect GTFS routes and are not test/sample
+    let filteredAlerts = allAlerts.filter(alert =>
+      alertAffectsGTFSRoute(alert) &&
+      alert.source !== 'test_data' &&
+      alert.source !== 'sample'
+    );
+
+    // If nothing matches, do NOT include test data—just show empty array and a message
+    if (filteredAlerts.length === 0) {
+      console.log('✅ No current alerts affecting Go North East routes.');
+      cachedAlerts = {
+        alerts: [],
+        metadata: {
+          totalAlerts: 0,
+          sources,
+          statistics: {},
+          lastUpdated: new Date().toISOString(),
+          authenticationFixed: true,
+          note: "No current alerts affecting Go North East routes."
+        }
+      };
+      lastFetchTime = now;
+      return res.json({
+        success: true,
+        alerts: [],
+        metadata: cachedAlerts.metadata
+      });
     }
-    
+
     // Calculate statistics
     const stats = {
-      totalAlerts: allAlerts.length,
-      activeAlerts: allAlerts.filter(a => a.status === 'red').length,
-      upcomingAlerts: allAlerts.filter(a => a.status === 'amber').length,
-      plannedAlerts: allAlerts.filter(a => a.status === 'green').length,
-      incidents: allAlerts.filter(a => a.type === 'incident').length,
-      roadworks: allAlerts.filter(a => a.type === 'roadwork').length,
-      congestion: allAlerts.filter(a => a.type === 'congestion').length
+      totalAlerts: filteredAlerts.length,
+      activeAlerts: filteredAlerts.filter(a => a.status === 'red').length,
+      upcomingAlerts: filteredAlerts.filter(a => a.status === 'amber').length,
+      plannedAlerts: filteredAlerts.filter(a => a.status === 'green').length,
+      incidents: filteredAlerts.filter(a => a.type === 'incident').length,
+      roadworks: filteredAlerts.filter(a => a.type === 'roadwork').length,
+      congestion: filteredAlerts.filter(a => a.type === 'congestion').length
     };
-    
+
     // Cache results
     cachedAlerts = {
-      alerts: allAlerts,
+      alerts: filteredAlerts,
       metadata: {
-        totalAlerts: allAlerts.length,
+        totalAlerts: filteredAlerts.length,
         sources,
         statistics: stats,
         lastUpdated: new Date().toISOString(),
@@ -662,21 +703,20 @@ app.get('/api/alerts', async (req, res) => {
       }
     };
     lastFetchTime = now;
-    
-    console.log(`✅ Serving ${allAlerts.length} alerts (${stats.activeAlerts} active)`);
-    
+
+    console.log(`✅ Serving ${filteredAlerts.length} GTFS route-matching alerts (${stats.activeAlerts} active)`);
+
     res.json({
       success: true,
-      alerts: allAlerts,
+      alerts: filteredAlerts,
       metadata: cachedAlerts.metadata
     });
-    
   } catch (error) {
     console.error('❌ Alerts endpoint error:', error);
     res.status(500).json({
       success: false,
       error: error.message,
-      alerts: sampleTestAlerts, // Fallback to test data
+      alerts: [],
       metadata: {
         error: error.message,
         timestamp: new Date().toISOString(),
