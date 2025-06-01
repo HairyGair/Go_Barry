@@ -6,7 +6,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-import csvParse from 'csv-parse/sync';
+import pkg from 'csv-parse/sync';
+const { parse } = pkg;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,7 +18,7 @@ dotenv.config();
 let GTFS_ROUTES = new Set();
 try {
   const routesTxt = await fs.readFile(path.join(__dirname, 'data/routes.txt'), 'utf-8');
-  const records = csvParse.parse(routesTxt, { columns: true, skip_empty_lines: true });
+  const records = parse(routesTxt, { columns: true, skip_empty_lines: true });
   for (const rec of records) {
     if (rec.route_short_name) {
       GTFS_ROUTES.add(rec.route_short_name.trim());
