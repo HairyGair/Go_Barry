@@ -243,7 +243,7 @@ async function fetchNationalHighways() {
   }
 }
 
-// Improved HERE Traffic fetch: supports both incidents and congestion, robust parsing, and NE bounding
+// HERE Traffic fetch v7: improved parsing, criticality, and robust error handling
 async function fetchHERETraffic() {
   const apiKey = process.env.HERE_API_KEY;
   if (!apiKey) {
@@ -251,7 +251,7 @@ async function fetchHERETraffic() {
     return { success: false, data: [], error: 'API key missing' };
   }
   try {
-    console.log('📡 Fetching HERE Traffic data...');
+    console.log('📡 Fetching HERE Traffic data (v7)...');
     // North East bounding box for HERE API: "topLeft;bottomRight" (lat,lon)
     const bbox = `${NORTH_EAST_BOUNDS.north},${NORTH_EAST_BOUNDS.west};${NORTH_EAST_BOUNDS.south},${NORTH_EAST_BOUNDS.east}`;
     const response = await axios.get('https://traffic.ls.hereapi.com/traffic/6.3/incidents.json', {
@@ -279,12 +279,15 @@ async function fetchHERETraffic() {
         incident.LOCATION?.GEOLOC?.ORIGIN?.DESCRIPTION?.[0]?.content ||
         'Unknown location';
       const description =
-        incident.TRAFFIC_ITEM_DETAIL?.[0]?.content ||
         incident.TRAFFIC_ITEM_DESCRIPTION?.[0]?.content ||
+        incident.TRAFFIC_ITEM_DETAIL?.[0]?.content ||
         '';
       const type =
         (incident.TRAFFIC_ITEM_TYPE?.[0]?.content || '').toLowerCase();
-      const criticality = incident.CRITICALITY?.ID || 5;
+      // HERE criticality: 0=critical, 1=major, 2=minor, 3=low-impact
+      const criticality = (typeof incident.CRITICALITY?.ID !== 'undefined')
+        ? Number(incident.CRITICALITY.ID)
+        : 5;
       const startDate = incident.START_TIME || new Date().toISOString();
       const endDate = incident.END_TIME || null;
       // Attempt to extract geo coordinates for extra NE filtering
@@ -297,12 +300,22 @@ async function fetchHERETraffic() {
       if (!isInNorthEast(location, description, coordinates)) continue;
       // Route match
       const routes = matchRoutes(location, description);
-      // Classify
-      const { status, severity } = classifyAlert({
-        type: type.includes('congestion') ? 'congestion' : 'incident',
-        severity: criticality,
-        category: incident.TRAFFIC_ITEM_TYPE?.[0]?.content || ''
-      }, 'here_traffic');
+      // Classify: map HERE criticality to severity
+      let severity = 'Medium';
+      if (criticality === 0 || criticality === 1) severity = 'High';
+      else if (criticality === 2) severity = 'Medium';
+      else severity = 'Low';
+      // Status: active if now within start/end
+      let status = 'red';
+      try {
+        const now = new Date();
+        const s = new Date(startDate);
+        const e = endDate ? new Date(endDate) : null;
+        if (s && now < s) status = 'amber';
+        else if (e && now > e) status = 'green';
+      } catch {
+        status = 'red';
+      }
       // Compose alert
       const alertObj = {
         id: generateAlertId('here', incident.TRAFFIC_ITEM_ID, location),
