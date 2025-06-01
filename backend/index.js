@@ -160,14 +160,13 @@ function deduplicateAlerts(alerts) {
   return deduped;
 }
 
-// ENHANCED: TomTom Traffic API with improved location extraction
+// ENHANCED: TomTom Traffic API with improved location extraction and filtering
 async function fetchTomTomTraffic() {
   const apiKey = process.env.TOMTOM_API_KEY;
   if (!apiKey) {
     console.warn('⚠️ TomTom API key not found');
     return { success: false, data: [], error: 'API key missing' };
   }
-
   try {
     console.log('🚗 Fetching TomTom traffic incidents...');
     const response = await axios.get(
@@ -192,8 +191,8 @@ async function fetchTomTomTraffic() {
     const incidents = response.data.tm.poi;
     console.log(`📊 TomTom: ${incidents.length} total incidents found`);
     const alerts = [];
-    incidents.forEach(incident => {
-      // Enhanced location extraction
+    for (const incident of incidents) {
+      // Improved location extraction logic
       let location = null;
       if (incident.r && typeof incident.r === 'string' && incident.r.trim().length > 0) {
         location = incident.r;
@@ -202,43 +201,46 @@ async function fetchTomTomTraffic() {
       } else if (incident.f) {
         location = incident.f;
       } else if (incident.d) {
-        // Try to extract plausible road from description
+        // Extract plausible road from description
         const match = (incident.d || '').match(/\b([AM][0-9]{1,4}|B[0-9]{1,4}|Junction \d+|[A-Z][a-z]+ (Road|Street|Lane|Way|Avenue|Drive|Boulevard|Bypass)|Coast Road|Central Motorway)\b/);
         if (match) {
           location = match[0];
         } else {
-          location = incident.d.substring(0, 50);
+          location = null; // Discard if not a real location
         }
-      } else {
-        location = 'TomTom reported location';
+      }
+      // Strict filter: Only alerts with recognisable locations
+      if (!location || location.trim() === '' || location === 'TomTom reported location') {
+        continue;
       }
       const description = incident.d || 'Traffic incident';
       // Check if it's in North East
-      if (isInNorthEast(location, description)) {
-        const routes = matchRoutes(location, description);
-        alerts.push({
-          id: `tomtom_${incident.id || Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-          type: mapTomTomIncidentType(incident.ic),
-          title: `${mapTomTomCategory(incident.ic)}${location ? ' - ' + location : ''}`,
-          description: description,
-          location: location,
-          authority: 'TomTom Traffic',
-          source: 'tomtom',
-          severity: mapTomTomSeverity(incident.ty),
-          status: 'red',
-          affectsRoutes: routes,
-          coordinates: incident.p ? { lat: incident.p.y, lng: incident.p.x } : null,
-          lastUpdated: new Date().toISOString(),
-          dataSource: 'TomTom Traffic API v5',
-          tomtomCategory: incident.ic,
-          tomtomMagnitude: incident.ty,
-          clusterSize: incident.cs,
-          delay: incident.dl
-        });
-      }
-    });
-    console.log(`✅ TomTom: ${alerts.length} North East alerts processed`);
-    return { success: true, data: alerts, count: alerts.length };
+      if (!isInNorthEast(location, description)) continue;
+      const routes = matchRoutes(location, description);
+      alerts.push({
+        id: `tomtom_${incident.id || Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        type: mapTomTomIncidentType(incident.ic),
+        title: `${mapTomTomCategory(incident.ic)}${location ? ' - ' + location : ''}`,
+        description: description,
+        location: location,
+        authority: 'TomTom Traffic',
+        source: 'tomtom',
+        severity: mapTomTomSeverity(incident.ty),
+        status: 'red',
+        affectsRoutes: routes,
+        coordinates: incident.p ? { lat: incident.p.y, lng: incident.p.x } : null,
+        lastUpdated: new Date().toISOString(),
+        dataSource: 'TomTom Traffic API v5',
+        tomtomCategory: incident.ic,
+        tomtomMagnitude: incident.ty,
+        clusterSize: incident.cs,
+        delay: incident.dl
+      });
+    }
+    // Deduplicate by id/location/description
+    const dedupedAlerts = deduplicateAlerts(alerts);
+    console.log(`✅ TomTom: ${dedupedAlerts.length} North East alerts processed`);
+    return { success: true, data: dedupedAlerts, count: dedupedAlerts.length };
   } catch (error) {
     console.error('❌ TomTom API error:', error.message);
     if (error.response) {
@@ -380,7 +382,7 @@ async function fetchHERETraffic() {
   }
 }
 
-// ENHANCED: MapQuest Traffic API with improved location extraction
+// ENHANCED: MapQuest Traffic API with aggressive filtering and improved location logic
 async function fetchMapQuestTraffic() {
   const apiKey = process.env.MAPQUEST_API_KEY;
   if (!apiKey) {
@@ -426,7 +428,6 @@ async function fetchMapQuestTraffic() {
     // Only keep currently active incidents
     const now = new Date();
     const currentlyActiveIncidents = uniqueIncidents.filter(incident => {
-      // Only keep currently active
       let active = true;
       if (incident.startTime) {
         const start = new Date(incident.startTime);
@@ -436,14 +437,13 @@ async function fetchMapQuestTraffic() {
         const end = new Date(incident.endTime);
         if (end < now) active = false;
       }
-      // If "status" field exists, prefer "ACTIVE"
       if (typeof incident.status === 'string' && incident.status.toUpperCase() !== 'ACTIVE') active = false;
       return active;
     });
-    // Enhanced location extraction for MapQuest with strict filtering for recognisable locations
+    // Aggressive filtering: require recognisable North East location (road, town, or NE region keyword)
     const alerts = currentlyActiveIncidents
       .map(incident => {
-        // Try to extract a plausible road/location from shortDesc/fullDesc
+        // Improved location extraction
         let location = null;
         if (incident.road && incident.road.trim().length > 0) {
           location = incident.road;
@@ -451,25 +451,17 @@ async function fetchMapQuestTraffic() {
           const match = incident.shortDesc.match(/\b([AM][0-9]{1,4}|B[0-9]{1,4}|Junction \d+|[A-Z][a-z]+ (Road|Street|Lane|Way|Avenue|Drive|Boulevard|Bypass)|Coast Road|Central Motorway)\b/);
           if (match) {
             location = match[0];
-          } else {
-            location = null; // Discard if not a real location
           }
         } else if (incident.fullDesc && incident.fullDesc.trim().length > 0) {
           const match = incident.fullDesc.match(/\b([AM][0-9]{1,4}|B[0-9]{1,4}|Junction \d+|[A-Z][a-z]+ (Road|Street|Lane|Way|Avenue|Drive|Boulevard|Bypass)|Coast Road|Central Motorway)\b/);
           if (match) {
             location = match[0];
-          } else {
-            location = null;
           }
-        } else {
-          location = null;
         }
-
-        // Strict filter: Only return alert if location is recognisable
-        if (!location || location.trim() === '' || location === 'MapQuest reported location') {
+        // Only keep if location is recognisable and is in North East
+        if (!location || !isInNorthEast(location, incident.fullDesc || incident.shortDesc || '')) {
           return null;
         }
-
         const description = incident.fullDesc || incident.shortDesc || 'Traffic incident';
         const routes = matchRoutes(location, description);
         return {
@@ -487,7 +479,7 @@ async function fetchMapQuestTraffic() {
           dataSource: 'MapQuest Traffic API'
         };
       })
-      .filter(Boolean); // Remove nulls for discarded alerts
+      .filter(Boolean);
     // Deduplicate alerts by id/location/description
     const dedupedAlerts = deduplicateAlerts(alerts);
     console.log(`✅ MapQuest: ${dedupedAlerts.length} unique North East alerts processed`);
