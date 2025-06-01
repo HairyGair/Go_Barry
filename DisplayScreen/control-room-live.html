@@ -379,10 +379,49 @@
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
+        .scroll-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .scroll-indicator {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-right: 8px;
+        }
+
+        .scroll-button {
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glass);
+            color: var(--text-secondary);
+            padding: 4px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 12px;
+        }
+
+        .scroll-button:hover {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: var(--accent-blue);
+            color: var(--text-primary);
+        }
+
+        .scroll-button.active {
+            background: var(--accent-blue);
+            color: white;
+        }
+
         .alerts-container {
             height: calc(100% - 80px);
             overflow-y: auto;
             padding-right: 8px;
+            scroll-behavior: smooth;
+        }
+
+        .alerts-container.auto-scrolling {
+            scroll-behavior: smooth;
         }
 
         .sidebar {
@@ -774,9 +813,15 @@
                     <i class="fas fa-satellite-dish"></i>
                     <span>Live Traffic Intelligence</span>
                 </div>
-                <div class="alert-count" id="alert-count">0</div>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <div class="scroll-controls">
+                        <span class="scroll-indicator" id="scroll-status">Auto-scroll: ON</span>
+                        <button class="scroll-button active" id="auto-scroll-toggle">Pause</button>
+                    </div>
+                    <div class="alert-count" id="alert-count">0</div>
+                </div>
             </div>
-            <div class="alerts-container" id="alerts-container">
+            <div class="alerts-container auto-scrolling" id="alerts-container">
                 <div class="loading">
                     <div class="spinner"></div>
                     <span>Initializing enhanced traffic intelligence...</span>
@@ -820,6 +865,11 @@
             routes: Array(20).fill(0),
             load: Array(20).fill(20)
         };
+
+        // Auto-scroll configuration
+        let autoScrollEnabled = true;
+        let scrollInterval = null;
+        let currentScrollPosition = 0;
 
         // Initialize Chart.js with enhanced configurations
         function initializeCharts() {
@@ -1052,6 +1102,103 @@
             `;
         }
 
+        // Sort alerts by severity
+        function sortAlertsBySeverity(alerts) {
+            const statusPriority = { red: 3, amber: 2, green: 1 };
+            const severityPriority = { High: 3, Medium: 2, Low: 1 };
+            const typePriority = { incident: 3, congestion: 2, roadwork: 1 };
+            
+            return alerts.sort((a, b) => {
+                // First by status
+                const aStatusScore = statusPriority[a.status] || 0;
+                const bStatusScore = statusPriority[b.status] || 0;
+                if (aStatusScore !== bStatusScore) return bStatusScore - aStatusScore;
+                
+                // Then by severity
+                const aSeverityScore = severityPriority[a.severity] || 0;
+                const bSeverityScore = severityPriority[b.severity] || 0;
+                if (aSeverityScore !== bSeverityScore) return bSeverityScore - aSeverityScore;
+                
+                // Finally by type
+                const aTypeScore = typePriority[a.type] || 0;
+                const bTypeScore = typePriority[b.type] || 0;
+                return bTypeScore - aTypeScore;
+            });
+        }
+
+        // Auto-scroll functionality
+        function setupAutoScroll() {
+            const container = document.getElementById('alerts-container');
+            const toggle = document.getElementById('auto-scroll-toggle');
+            const status = document.getElementById('scroll-status');
+
+            toggle.addEventListener('click', () => {
+                autoScrollEnabled = !autoScrollEnabled;
+                
+                if (autoScrollEnabled) {
+                    toggle.textContent = 'Pause';
+                    toggle.classList.add('active');
+                    status.textContent = 'Auto-scroll: ON';
+                    container.classList.add('auto-scrolling');
+                    startAutoScroll();
+                } else {
+                    toggle.textContent = 'Play';
+                    toggle.classList.remove('active');
+                    status.textContent = 'Auto-scroll: OFF';
+                    container.classList.remove('auto-scrolling');
+                    stopAutoScroll();
+                }
+            });
+
+            // Start auto-scroll if enabled
+            if (autoScrollEnabled) {
+                startAutoScroll();
+            }
+        }
+
+        function startAutoScroll() {
+            const container = document.getElementById('alerts-container');
+            
+            // Clear any existing interval
+            stopAutoScroll();
+            
+            // Set up new interval
+            scrollInterval = setInterval(() => {
+                if (!autoScrollEnabled) return;
+                
+                const alertCards = container.querySelectorAll('.alert-card');
+                if (alertCards.length === 0) return;
+                
+                const cardHeight = alertCards[0].offsetHeight + 16; // Include margin
+                const containerHeight = container.offsetHeight;
+                const scrollHeight = container.scrollHeight;
+                
+                // If content fits in container, no need to scroll
+                if (scrollHeight <= containerHeight) return;
+                
+                // Calculate next scroll position
+                currentScrollPosition += cardHeight;
+                
+                // Reset to top if we've reached the bottom
+                if (currentScrollPosition + containerHeight >= scrollHeight) {
+                    currentScrollPosition = 0;
+                }
+                
+                // Smooth scroll to position
+                container.scrollTo({
+                    top: currentScrollPosition,
+                    behavior: 'smooth'
+                });
+            }, 10000); // Scroll every 10 seconds
+        }
+
+        function stopAutoScroll() {
+            if (scrollInterval) {
+                clearInterval(scrollInterval);
+                scrollInterval = null;
+            }
+        }
+
         // Enhanced data fetching with performance tracking
         async function fetchAlerts() {
             const startTime = performance.now();
@@ -1075,6 +1222,9 @@
                     const lastUpdate = document.getElementById('last-update');
                     lastUpdate.textContent = `Last Update: ${new Date().toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit' })}`;
                     
+                    // Reset scroll position when new data arrives
+                    currentScrollPosition = 0;
+                    
                 } else {
                     throw new Error(data.error || 'Failed to fetch alerts');
                 }
@@ -1087,18 +1237,39 @@
         // Update analytic cards with real data
         function updateAnalyticCards(data) {
             const stats = data.metadata?.statistics || {};
+            const alerts = data.alerts || [];
             
-            document.getElementById('critical-count').textContent = stats.totalIncidents || 0;
-            document.getElementById('affected-routes').textContent = (stats.mostAffectedRoutes || []).length;
+            // Count critical incidents (high severity or red status)
+            const criticalCount = alerts.filter(a => 
+                a.type === 'incident' || a.severity === 'High' || a.status === 'red'
+            ).length;
+            
+            document.getElementById('critical-count').textContent = criticalCount;
+            
+            // Calculate affected routes
+            const affectedRoutesSet = new Set();
+            alerts.forEach(alert => {
+                if (alert.affectsRoutes && alert.affectsRoutes.length > 0) {
+                    alert.affectsRoutes.forEach(route => affectedRoutesSet.add(route));
+                }
+            });
+            document.getElementById('affected-routes').textContent = affectedRoutesSet.size;
             
             // Calculate average delay
-            const totalDelay = data.alerts.reduce((sum, alert) => sum + (alert.delayMinutes || 0), 0);
-            const avgDelay = data.alerts.length > 0 ? Math.round(totalDelay / data.alerts.length) : 0;
+            const delayAlerts = alerts.filter(a => a.delayMinutes && a.delayMinutes > 0);
+            const avgDelay = delayAlerts.length > 0 
+                ? Math.round(delayAlerts.reduce((sum, a) => sum + a.delayMinutes, 0) / delayAlerts.length)
+                : 0;
             document.getElementById('delay-time').textContent = avgDelay + ' min';
             
             // System load based on alert volume
-            const loadLevel = data.alerts.length > 20 ? 'High' : data.alerts.length > 10 ? 'Medium' : 'Low';
+            const loadLevel = alerts.length > 20 ? 'High' : alerts.length > 10 ? 'Medium' : 'Low';
             document.getElementById('system-load').textContent = loadLevel;
+            
+            // Update load chart
+            const loadPercentage = Math.min(100, (alerts.length / 30) * 100);
+            charts.load.data.datasets[0].data = [loadPercentage, 100 - loadPercentage];
+            charts.load.update('none');
         }
 
         // Update all charts with new data
@@ -1115,12 +1286,34 @@
             performanceData.routes.shift();
             performanceData.routes.push(new Set(alerts.flatMap(a => a.affectsRoutes || [])).size);
             
-            // Update all charts
-            Object.values(charts).forEach(chart => {
-                if (chart && chart.data) {
-                    chart.update('none');
-                }
+            // Update charts
+            charts.incidents.data.datasets[0].data = performanceData.incidents;
+            charts.incidents.update('none');
+            
+            charts.delay.data.datasets[0].data = performanceData.delays;
+            charts.delay.update('none');
+            
+            charts.routes.data.datasets[0].data = performanceData.routes;
+            charts.routes.update('none');
+            
+            // Update geographic distribution
+            const geoCounts = {
+                'Newcastle': 0,
+                'Gateshead': 0,
+                'Sunderland': 0,
+                'Durham': 0
+            };
+            
+            alerts.forEach(alert => {
+                const location = alert.location?.toLowerCase() || '';
+                if (location.includes('newcastle')) geoCounts['Newcastle']++;
+                else if (location.includes('gateshead')) geoCounts['Gateshead']++;
+                else if (location.includes('sunderland')) geoCounts['Sunderland']++;
+                else if (location.includes('durham')) geoCounts['Durham']++;
             });
+            
+            charts.geographic.data.datasets[0].data = Object.values(geoCounts);
+            charts.geographic.update('none');
         }
 
         // Update alerts display
@@ -1139,17 +1332,8 @@
                     </div>
                 `;
             } else {
-                const sortedAlerts = alerts.sort((a, b) => {
-                    const statusPriority = { red: 3, amber: 2, green: 1 };
-                    const typePriority = { incident: 3, congestion: 2, roadwork: 1 };
-                    
-                    if (statusPriority[a.status] !== statusPriority[b.status]) {
-                        return statusPriority[b.status] - statusPriority[a.status];
-                    }
-                    
-                    return typePriority[b.type] - typePriority[a.type];
-                });
-
+                // Sort alerts by severity
+                const sortedAlerts = sortAlertsBySeverity(alerts);
                 alertsContainer.innerHTML = sortedAlerts.map(createAlertCard).join('');
             }
         }
@@ -1179,6 +1363,7 @@
             setInterval(updateClock, 1000);
             
             initializeCharts();
+            setupAutoScroll();
             fetchAlerts();
             
             // Set up auto-refresh
@@ -1194,6 +1379,11 @@
         document.addEventListener('visibilitychange', () => {
             if (!document.hidden) {
                 fetchAlerts();
+                if (autoScrollEnabled) {
+                    startAutoScroll();
+                }
+            } else {
+                stopAutoScroll();
             }
         });
 
@@ -1208,6 +1398,10 @@
                     case 'f':
                         event.preventDefault();
                         document.documentElement.requestFullscreen();
+                        break;
+                    case ' ':
+                        event.preventDefault();
+                        document.getElementById('auto-scroll-toggle').click();
                         break;
                 }
             }

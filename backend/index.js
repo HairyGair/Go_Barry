@@ -109,72 +109,105 @@ function classifyAlert(alert) {
   return status;
 }
 
-// FIXED: TomTom Traffic API
+// North East bounding boxes for multi-query
+const NORTH_EAST_BBOXES = [
+  '54.8,-1.7,55.1,-1.4', // Newcastle/Gateshead
+  '54.8,-1.5,55.1,-1.1', // North Tyneside to Coast
+  '54.7,-1.6,54.9,-1.3', // Sunderland/Washington
+  '54.5,-1.6,54.7,-1.2', // Durham/Chester-le-Street
+  '54.5,-1.4,54.7,-1.0', // Seaham/Peterlee
+  '54.6,-1.7,54.8,-1.3', // Consett/Stanley/Derwentside
+  '54.4,-1.4,54.6,-1.0', // Hartlepool/Teesside
+  '55.0,-1.8,55.3,-1.4'  // Northumberland South (Cramlington, Blyth)
+];
+
+// Helper for deduplication of alerts/incidents by id/location/description
+function deduplicateAlerts(alerts) {
+  const seen = new Set();
+  const deduped = [];
+  for (const alert of alerts) {
+    // Use id if present, else use location+description
+    const key = alert.id
+      ? alert.id
+      : `${alert.location || ''}|${alert.description || ''}|${alert.title || ''}`.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(alert);
+    }
+  }
+  return deduped;
+}
+
+// FIXED: TomTom Traffic API with multi-bounding box querying
 async function fetchTomTomTraffic() {
   const apiKey = process.env.TOMTOM_API_KEY;
-  
   if (!apiKey) {
     console.warn('⚠️ TomTom API key not found');
     return { success: false, data: [], error: 'API key missing' };
   }
-
   try {
-    console.log('🚗 Fetching TomTom traffic data...');
-    
-    // North East bounding box
-    const boundingBox = '54.5,-2.5,55.5,-0.5'; // Newcastle area
-    
-    const response = await axios.get('https://api.tomtom.com/traffic/services/5/incidentDetails', {
-      params: {
-        key: apiKey, // FIXED: Use query parameter
-        bbox: boundingBox,
-        fields: '{incidents{type,geometry{type,coordinates},properties{iconCategory,magnitudeOfDelay,events{description,code,iconCategory}}}}',
-        language: 'en-US',
-        projection: 'EPSG4326'
-      },
-      timeout: 15000
-    });
-    
-    console.log(`✅ TomTom: HTTP ${response.status}`);
-    
-    if (!response.data || !response.data.incidents) {
-      console.log('📊 TomTom: No incidents found');
-      return { success: true, data: [], count: 0 };
+    console.log('🚗 Fetching TomTom traffic data (multi-bounding box)...');
+    let allIncidents = [];
+    for (const bbox of NORTH_EAST_BBOXES) {
+      try {
+        const response = await axios.get('https://api.tomtom.com/traffic/services/5/incidentDetails', {
+          params: {
+            key: apiKey,
+            bbox: bbox,
+            fields: '{incidents{type,geometry{type,coordinates},properties{iconCategory,magnitudeOfDelay,events{description,code,iconCategory}}}}',
+            language: 'en-US',
+            projection: 'EPSG4326'
+          },
+          timeout: 15000
+        });
+        if (response.data && Array.isArray(response.data.incidents)) {
+          allIncidents.push(...response.data.incidents);
+        }
+      } catch (err) {
+        console.warn(`⚠️ TomTom bbox ${bbox} error:`, err.message);
+      }
     }
-    
-    const incidents = response.data.incidents;
-    console.log(`📊 TomTom: ${incidents.length} incidents found`);
-    
-    const alerts = incidents
-      .filter(incident => {
-        const description = incident.properties?.events?.[0]?.description || '';
-        return isInNorthEast(description);
-      })
-      .map(incident => {
-        const props = incident.properties || {};
-        const event = props.events?.[0] || {};
-        const description = event.description || 'Traffic incident';
-        const routes = matchRoutes(description);
-        
-        return {
-          id: `tomtom_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-          type: 'incident',
-          title: description.split('.')[0] || 'Traffic Incident',
-          description: description,
-          location: 'TomTom reported location',
-          authority: 'TomTom Traffic',
-          source: 'tomtom',
-          severity: props.magnitudeOfDelay > 5 ? 'High' : 'Medium',
-          status: 'red',
-          affectsRoutes: routes,
-          lastUpdated: new Date().toISOString(),
-          dataSource: 'TomTom Traffic API'
-        };
-      });
-    
-    console.log(`✅ TomTom: ${alerts.length} North East alerts processed`);
-    return { success: true, data: alerts, count: alerts.length };
-    
+    // Deduplicate incidents by TomTom's id/location/description
+    // TomTom incidents have a unique id field
+    const seenTomTomIds = new Set();
+    const uniqueIncidents = [];
+    for (const inc of allIncidents) {
+      // Use incident id if present, else hash geometry+description
+      const ttid = inc.id
+        ? `tt_${inc.id}`
+        : JSON.stringify(inc.geometry) + '|' + (inc.properties?.events?.[0]?.description || '');
+      if (!seenTomTomIds.has(ttid)) {
+        seenTomTomIds.add(ttid);
+        uniqueIncidents.push(inc);
+      }
+    }
+    console.log(`📊 TomTom: ${allIncidents.length} incidents fetched, ${uniqueIncidents.length} unique after deduplication`);
+    // Debug: log how many unique incidents
+    // console.log('RAW TomTom incidents:', JSON.stringify(uniqueIncidents, null, 2));
+    const alerts = uniqueIncidents.map(incident => {
+      const props = incident.properties || {};
+      const event = props.events?.[0] || {};
+      const description = event.description || 'Traffic incident';
+      const routes = matchRoutes(description);
+      return {
+        id: `tomtom_${incident.id || Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        type: 'incident',
+        title: description.split('.')[0] || 'Traffic Incident',
+        description: description,
+        location: 'TomTom reported location',
+        authority: 'TomTom Traffic',
+        source: 'tomtom',
+        severity: props.magnitudeOfDelay > 5 ? 'High' : 'Medium',
+        status: 'red',
+        affectsRoutes: routes,
+        lastUpdated: new Date().toISOString(),
+        dataSource: 'TomTom Traffic API'
+      };
+    });
+    // Deduplicate alerts by id/location/description
+    const dedupedAlerts = deduplicateAlerts(alerts);
+    console.log(`✅ TomTom: ${dedupedAlerts.length} unique North East alerts processed`);
+    return { success: true, data: dedupedAlerts, count: dedupedAlerts.length };
   } catch (error) {
     console.error('❌ TomTom API error:', error.message);
     if (error.response) {
@@ -187,6 +220,7 @@ async function fetchTomTomTraffic() {
 
 // FIXED: HERE Traffic API
 async function fetchHERETraffic() {
+  // NOTE: Make sure HERE_API_KEY in your .env file is valid and active for this API!
   const apiKey = process.env.HERE_API_KEY;
   
   if (!apiKey) {
@@ -220,28 +254,31 @@ async function fetchHERETraffic() {
     
     const incidents = response.data.results;
     console.log(`📊 HERE: ${incidents.length} incidents found`);
-    
-    const alerts = incidents.map(incident => {
-      const location = incident.location?.description?.value || 'HERE reported location';
-      const summary = incident.summary?.value || 'Traffic incident';
-      const routes = matchRoutes(location, summary);
-      
-      return {
-        id: `here_${incident.id || Date.now()}`,
-        type: 'incident',
-        title: summary,
-        description: incident.description?.value || summary,
-        location: location,
-        authority: 'HERE Traffic',
-        source: 'here',
-        severity: incident.criticality >= 2 ? 'High' : 'Medium',
-        status: 'red',
-        affectsRoutes: routes,
-        lastUpdated: new Date().toISOString(),
-        dataSource: 'HERE Traffic API'
-      };
-    });
-    
+    console.log('RAW HERE data:', JSON.stringify(response.data, null, 2));
+
+    const alerts = incidents
+      .filter(() => true)
+      .map(incident => {
+        const location = incident.location?.description?.value || 'HERE reported location';
+        const summary = incident.summary?.value || 'Traffic incident';
+        const routes = matchRoutes(location, summary);
+
+        return {
+          id: `here_${incident.id || Date.now()}`,
+          type: 'incident',
+          title: summary,
+          description: incident.description?.value || summary,
+          location: location,
+          authority: 'HERE Traffic',
+          source: 'here',
+          severity: incident.criticality >= 2 ? 'High' : 'Medium',
+          status: 'red',
+          affectsRoutes: routes,
+          lastUpdated: new Date().toISOString(),
+          dataSource: 'HERE Traffic API'
+        };
+      });
+
     console.log(`✅ HERE: ${alerts.length} alerts processed`);
     return { success: true, data: alerts, count: alerts.length };
     
@@ -255,69 +292,75 @@ async function fetchHERETraffic() {
   }
 }
 
-// FIXED: MapQuest Traffic API
+// FIXED: MapQuest Traffic API with multi-bounding box querying
 async function fetchMapQuestTraffic() {
   const apiKey = process.env.MAPQUEST_API_KEY;
-  
   if (!apiKey) {
     console.warn('⚠️ MapQuest API key not found');
     return { success: false, data: [], error: 'API key missing' };
   }
-
   try {
-    console.log('🗺️ Fetching MapQuest traffic data...');
-    
-    // Newcastle bounding box
-    const boundingBox = '54.5,-2.5,55.5,-0.5';
-    
-    const response = await axios.get('https://www.mapquestapi.com/traffic/v2/incidents', {
-      params: {
-        key: apiKey, // FIXED: Use correct parameter name
-        boundingBox: boundingBox,
-        filters: 'incidents,construction',
-        outFormat: 'json'
-      },
-      timeout: 15000
-    });
-    
-    console.log(`✅ MapQuest: HTTP ${response.status}`);
-    
-    if (!response.data || !response.data.incidents) {
-      console.log('📊 MapQuest: No incidents found');
-      return { success: true, data: [], count: 0 };
+    console.log('🗺️ Fetching MapQuest traffic data (multi-bounding box)...');
+    let allIncidents = [];
+    for (const bbox of NORTH_EAST_BBOXES) {
+      // MapQuest expects topLeftLat,topLeftLng,bottomRightLat,bottomRightLng
+      // Our bboxes are in minLat,minLng,maxLat,maxLng, so reformat:
+      // '54.8,-1.7,55.1,-1.4' -> topLeftLat=55.1, topLeftLng=-1.7, bottomRightLat=54.8, bottomRightLng=-1.4
+      const [minLat, minLng, maxLat, maxLng] = bbox.split(',').map(Number);
+      const mqBbox = `${maxLat},${minLng},${minLat},${maxLng}`;
+      try {
+        const response = await axios.get('https://www.mapquestapi.com/traffic/v2/incidents', {
+          params: {
+            key: apiKey,
+            boundingBox: mqBbox,
+            filters: 'incidents,construction',
+            outFormat: 'json'
+          },
+          timeout: 15000
+        });
+        if (response.data && Array.isArray(response.data.incidents)) {
+          allIncidents.push(...response.data.incidents);
+        }
+      } catch (err) {
+        console.warn(`⚠️ MapQuest bbox ${mqBbox} error:`, err.message);
+      }
     }
-    
-    const incidents = response.data.incidents;
-    console.log(`📊 MapQuest: ${incidents.length} incidents found`);
-    
-    const alerts = incidents
-      .filter(incident => {
-        const fullText = incident.fullDesc || incident.shortDesc || '';
-        return isInNorthEast(fullText);
-      })
-      .map(incident => {
-        const description = incident.fullDesc || incident.shortDesc || 'Traffic incident';
-        const routes = matchRoutes(description);
-        
-        return {
-          id: `mapquest_${incident.id || Date.now()}`,
-          type: incident.type === 'construction' ? 'roadwork' : 'incident',
-          title: incident.shortDesc || 'Traffic Alert',
-          description: description,
-          location: 'MapQuest reported location',
-          authority: 'MapQuest Traffic',
-          source: 'mapquest',
-          severity: incident.severity >= 3 ? 'High' : 'Medium',
-          status: 'red',
-          affectsRoutes: routes,
-          lastUpdated: new Date().toISOString(),
-          dataSource: 'MapQuest Traffic API'
-        };
-      });
-    
-    console.log(`✅ MapQuest: ${alerts.length} North East alerts processed`);
-    return { success: true, data: alerts, count: alerts.length };
-    
+    // Deduplicate MapQuest incidents by id/location/description
+    const seenMQ = new Set();
+    const uniqueIncidents = [];
+    for (const inc of allIncidents) {
+      const key = inc.id
+        ? `mq_${inc.id}`
+        : `${inc.lat || ''},${inc.lng || ''}|${inc.shortDesc || ''}|${inc.fullDesc || ''}`.toLowerCase();
+      if (!seenMQ.has(key)) {
+        seenMQ.add(key);
+        uniqueIncidents.push(inc);
+      }
+    }
+    console.log(`📊 MapQuest: ${allIncidents.length} incidents fetched, ${uniqueIncidents.length} unique after deduplication`);
+    // console.log('RAW MapQuest unique incidents:', JSON.stringify(uniqueIncidents, null, 2));
+    const alerts = uniqueIncidents.map(incident => {
+      const description = incident.fullDesc || incident.shortDesc || 'Traffic incident';
+      const routes = matchRoutes(description);
+      return {
+        id: `mapquest_${incident.id || Date.now()}`,
+        type: incident.type === 'construction' ? 'roadwork' : 'incident',
+        title: incident.shortDesc || 'Traffic Alert',
+        description: description,
+        location: 'MapQuest reported location',
+        authority: 'MapQuest Traffic',
+        source: 'mapquest',
+        severity: incident.severity >= 3 ? 'High' : 'Medium',
+        status: 'red',
+        affectsRoutes: routes,
+        lastUpdated: new Date().toISOString(),
+        dataSource: 'MapQuest Traffic API'
+      };
+    });
+    // Deduplicate alerts by id/location/description
+    const dedupedAlerts = deduplicateAlerts(alerts);
+    console.log(`✅ MapQuest: ${dedupedAlerts.length} unique North East alerts processed`);
+    return { success: true, data: dedupedAlerts, count: dedupedAlerts.length };
   } catch (error) {
     console.error('❌ MapQuest API error:', error.message);
     if (error.response) {
@@ -358,22 +401,16 @@ async function fetchNationalHighways() {
     
     const allFeatures = response.data.features;
     console.log(`📊 Total features from National Highways: ${allFeatures.length}`);
-    
+    console.log('RAW NationalHighways data:', JSON.stringify(response.data, null, 2));
+
     // Filter for North East and process
     const northEastAlerts = allFeatures
-      .filter(feature => {
-        const location = feature.properties?.location || feature.properties?.description || '';
-        const isNE = isInNorthEast(location, feature.properties?.comment || '');
-        if (isNE) {
-          console.log(`✅ North East match: ${location}`);
-        }
-        return isNE;
-      })
+      .filter(() => true)
       .map(feature => {
         const props = feature.properties;
         const routes = matchRoutes(props.location || '', props.description || '');
         const status = classifyAlert(props);
-        
+
         return {
           id: `nh_${props.id || Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
           type: 'roadwork',
@@ -391,7 +428,7 @@ async function fetchNationalHighways() {
           dataSource: 'National Highways DATEX II API'
         };
       });
-    
+
     console.log(`✅ Processed ${northEastAlerts.length} North East alerts`);
     return { success: true, data: northEastAlerts, count: northEastAlerts.length };
     
