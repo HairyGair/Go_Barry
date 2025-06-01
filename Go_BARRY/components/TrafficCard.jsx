@@ -1,5 +1,5 @@
 // Go_BARRY/components/TrafficCard.jsx
-// Fixed version with better text layout and spacing
+// Fixed version with better text layout and spacing and light theme adjustments
 import React, { useState } from 'react';
 import {
   View,
@@ -137,6 +137,27 @@ const TrafficCard = ({
     }
   };
 
+  // New function to determine primary location display
+  const getPrimaryLocation = () => {
+    const genericLocations = ['MapQuest reported location', 'Location not specified', 'Unknown', ''];
+    if (location && !genericLocations.includes(location.trim())) {
+      return location;
+    }
+    // Check if title contains a road number or street name (simple regex for road numbers or common road words)
+    const roadRegex = /\b([A-Z]{1,3}\s?\d{1,4}|[A-Z][a-z]*\s(Road|Street|Ave|Avenue|Lane|Drive|Way|Boulevard|Blvd|Highway|Hwy|Court|Ct|Place|Pl|Terrace|Ter|Close|Crescent|Cres))\b/;
+    if (title && roadRegex.test(title)) {
+      return title;
+    }
+    // Extract first capitalized phrase from description as fallback
+    if (description) {
+      const descMatch = description.match(/([A-Z][a-z]*(?:\s[A-Z][a-z]*)*)/);
+      if (descMatch && descMatch[0].length > 2) {
+        return descMatch[0];
+      }
+    }
+    return 'Unknown location';
+  };
+
   const colors = getStatusColors();
   const durationText = getDurationText();
 
@@ -145,7 +166,7 @@ const TrafficCard = ({
       styles.card,
       { 
         borderLeftColor: colors.borderColor,
-        backgroundColor: colors.backgroundColor 
+        backgroundColor: '#F3F4F6',
       },
       style
     ]}>
@@ -158,7 +179,16 @@ const TrafficCard = ({
         style={styles.contentContainer}
         activeOpacity={0.7}
       >
-        {/* Header Section - Fixed Layout */}
+        {/* Location at Top */}
+        <Text style={styles.locationMain} numberOfLines={2}>
+          {getPrimaryLocation()}
+        </Text>
+        {/* Start Time below Location */}
+        <Text style={styles.startTimeMain}>
+          {formatDateTime(startDate) || 'Start time unknown'}
+        </Text>
+
+        {/* Header Section - Title/Type/Severity/Status */}
         <View style={styles.headerSection}>
           {/* Title Row with Better Spacing */}
           <View style={styles.titleRow}>
@@ -177,21 +207,6 @@ const TrafficCard = ({
               </Text>
             </View>
           </View>
-        </View>
-
-        {/* Type and Source Row - Separate from Title */}
-        <View style={styles.metaRow}>
-          <Text style={styles.typeText}>{getTypeDisplay()}</Text>
-          <Text style={styles.separator}>•</Text>
-          <Text style={styles.sourceText}>{getSourceDisplay()}</Text>
-        </View>
-
-        {/* Location Row - Improved Spacing */}
-        <View style={styles.locationRow}>
-          <Text style={styles.locationIcon}>📍</Text>
-          <Text style={styles.locationText} numberOfLines={2}>
-            {location}
-          </Text>
         </View>
 
         {/* Route Badges - Better Layout */}
@@ -214,26 +229,6 @@ const TrafficCard = ({
             </View>
           </View>
         )}
-
-        {/* Duration/Timing - Better Spacing */}
-        {durationText && (
-          <View style={styles.durationRow}>
-            <Text style={styles.durationIcon}>⏰</Text>
-            <Text style={styles.durationText}>
-              {durationText}
-            </Text>
-          </View>
-        )}
-
-        {/* Description - Improved Readability */}
-        <View style={styles.descriptionSection}>
-          <Text 
-            style={styles.description} 
-            numberOfLines={isExpanded ? undefined : 3}
-          >
-            {description}
-          </Text>
-        </View>
 
         {/* Expand Button - Better Visual Separation */}
         <TouchableOpacity
@@ -295,6 +290,10 @@ const TrafficCard = ({
                 Last Updated: {formatDateTime(lastUpdated)}
               </Text>
             )}
+            {/* Description moved here */}
+            <Text style={[styles.detailCardText, { marginTop: 8 }]}>
+              {description}
+            </Text>
           </View>
         </View>
       )}
@@ -304,7 +303,7 @@ const TrafficCard = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#F3F4F6',
     borderLeftWidth: 4,
     borderRadius: 12,
     marginVertical: 6,
@@ -315,16 +314,16 @@ const styles = StyleSheet.create({
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.15,
     shadowRadius: 3.84,
     elevation: 5,
   },
   errorCard: {
     borderLeftColor: '#6B7280',
-    backgroundColor: '#374151',
+    backgroundColor: '#E5E7EB',
   },
   errorText: {
-    color: '#9CA3AF',
+    color: '#6B7280',
     textAlign: 'center',
     padding: 16,
     fontSize: 14,
@@ -334,9 +333,24 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
+    paddingTop: 12,
   },
   
-  // FIXED: Header Section with Better Layout
+  // Location main text at top
+  locationMain: {
+    color: '#1A202C',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  startTimeMain: {
+    color: '#374151',
+    fontSize: 15,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+
+  // Header Section with Better Layout
   headerSection: {
     marginBottom: 12,
   },
@@ -349,13 +363,15 @@ const styles = StyleSheet.create({
   severityIcon: {
     fontSize: 16,
     marginRight: 6,
+    color: '#1A202C',
   },
   typeIcon: {
     fontSize: 16,
     marginRight: 8,
+    color: '#1A202C',
   },
   title: {
-    color: '#FFFFFF',
+    color: '#1A202C',
     fontSize: 16,
     fontWeight: '600',
     flex: 1,
@@ -376,55 +392,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   
-  // FIXED: Meta Information Row
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    flexWrap: 'wrap',
-  },
-  typeText: {
-    color: '#D1D5DB',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  separator: {
-    color: '#9CA3AF',
-    fontSize: 14,
-    marginHorizontal: 8,
-  },
-  sourceText: {
-    color: '#9CA3AF',
-    fontSize: 14,
-  },
-  
-  // FIXED: Location with Better Spacing
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#374151',
-  },
-  locationIcon: {
-    fontSize: 14,
-    marginRight: 8,
-    marginTop: 2,
-  },
-  locationText: {
-    color: '#D1D5DB',
-    fontSize: 14,
-    flex: 1,
-    lineHeight: 20,
-  },
-  
-  // FIXED: Route Section
+  // Route Section
   routeSection: {
     marginBottom: 12,
   },
   routeLabel: {
-    color: '#9CA3AF',
+    color: '#374151',
     fontSize: 13,
     marginBottom: 6,
     fontWeight: '500',
@@ -460,57 +433,27 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   
-  // FIXED: Duration Row
-  durationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    backgroundColor: '#374151',
-    borderRadius: 8,
-  },
-  durationIcon: {
-    fontSize: 14,
-    marginRight: 8,
-  },
-  durationText: {
-    color: '#FCD34D',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  
-  // FIXED: Description Section
-  descriptionSection: {
-    marginBottom: 12,
-  },
-  description: {
-    color: '#D1D5DB',
-    fontSize: 14,
-    lineHeight: 22,
-    backgroundColor: '#374151',
-    padding: 12,
-    borderRadius: 8,
-  },
-  
-  // FIXED: Expand Button
+  // Description Section removed from main card as per instructions
+
+  // Expand Button
   expandButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#4B5563',
+    borderTopColor: '#D1D5DB',
     marginTop: 8,
   },
   expandButtonText: {
-    color: '#60A5FA',
+    color: '#2563EB',
     fontSize: 14,
     fontWeight: '500',
     marginRight: 6,
   },
   expandButtonIcon: {
     fontSize: 12,
+    color: '#2563EB',
   },
   
   // Expanded Content Styles
@@ -518,23 +461,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
     borderTopWidth: 1,
-    borderTopColor: '#4B5563',
-    backgroundColor: '#111827',
+    borderTopColor: '#D1D5DB',
+    backgroundColor: '#F9FAFB',
   },
   detailCard: {
-    backgroundColor: '#374151',
+    backgroundColor: '#E5E7EB',
     borderRadius: 8,
     padding: 12,
     marginTop: 12,
   },
   detailCardTitle: {
-    color: '#D1D5DB',
+    color: '#374151',
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
   },
   detailCardText: {
-    color: '#9CA3AF',
+    color: '#4B5563',
     fontSize: 13,
     marginBottom: 4,
     lineHeight: 18,
