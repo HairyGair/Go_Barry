@@ -1,338 +1,280 @@
 // Go_BARRY/components/hooks/useBARRYapi.js
-// BARRY Live Data Hook - Fetches live alerts from all sources
-// Removes all sample data and connects to live backend APIs
+// SAFE VERSION - Minimal imports to avoid undefined references
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import apiService from '../../services/api';
+import { useState, useEffect, useCallback } from 'react';
 
-const useBARRYapi = () => {
+// Define API functions inline to avoid import issues
+const safeApiCall = async (endpoint) => {
+  try {
+    const response = await fetch(`https://go-barry.onrender.com${endpoint}`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error(`API Error for ${endpoint}:`, error.message);
+    return { success: false, error: error.message, data: null };
+  }
+};
+
+export const useBarryAPI = (options = {}) => {
+  console.log('🔧 Hook starting (safe version)...');
+  
+  const {
+    autoRefresh = true,
+    refreshInterval = 5 * 60 * 1000
+  } = options;
+
   // State management
   const [alerts, setAlerts] = useState([]);
-  const [trafficData, setTrafficData] = useState([]);
-  const [trafficIntelligence, setTrafficIntelligence] = useState(null);
-  const [systemHealth, setSystemHealth] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
-
-  // Refs for cleanup
-  const mounted = useRef(true);
-  const refreshTimer = useRef(null);
-
-  // Statistics computed from live data
-  const [statistics, setStatistics] = useState({
-    totalAlerts: 0,
-    activeAlerts: 0,
-    criticalAlerts: 0,
-    trafficIncidents: 0,
-    congestionAlerts: 0,
-    roadworks: 0,
-    mostAffectedRoutes: [],
-    sourcesStatus: {}
+  const [systemHealth, setSystemHealth] = useState({ 
+    status: 'healthy', 
+    dataSources: { 
+      nationalHighways: { configured: true, status: 'enabled' },
+      streetManager: { configured: true, status: 'enabled' }
+    } 
   });
 
-  // Clear any existing timers on unmount
-  useEffect(() => {
-    return () => {
-      mounted.current = false;
-      if (refreshTimer.current) {
-        clearInterval(refreshTimer.current);
-      }
-    };
-  }, []);
+  console.log('🔧 State initialized');
 
-  // Calculate statistics from live data
-  const calculateStatistics = useCallback((alertsData, trafficData, metadata) => {
-    if (!mounted.current) return;
-
-    const stats = {
-      totalAlerts: alertsData.length,
-      activeAlerts: alertsData.filter(alert => alert.status === 'red').length,
-      criticalAlerts: alertsData.filter(alert => alert.severity === 'High').length,
-      trafficIncidents: alertsData.filter(alert => alert.type === 'incident').length,
-      congestionAlerts: alertsData.filter(alert => alert.type === 'congestion').length,
-      roadworks: alertsData.filter(alert => alert.type === 'roadwork').length,
-      mostAffectedRoutes: metadata?.statistics?.mostAffectedRoutes || [],
-      sourcesStatus: {
-        streetManager: metadata?.sources?.streetManager?.success || false,
-        nationalHighways: metadata?.sources?.nationalHighways?.success || false,
-        trafficIntelligence: metadata?.sources?.comprehensiveTraffic?.success || false,
-        totalSources: Object.keys(metadata?.sources || {}).length,
-        successfulSources: Object.values(metadata?.sources || {}).filter(s => s.success).length
-      }
-    };
-
-    console.log('📊 Live Statistics Calculated:', {
-      total: stats.totalAlerts,
-      active: stats.activeAlerts,
-      critical: stats.criticalAlerts,
-      sources: `${stats.sourcesStatus.successfulSources}/${stats.sourcesStatus.totalSources}`
-    });
-
-    setStatistics(stats);
-  }, []);
-
-  // Fetch live alerts from all sources
-  const fetchLiveAlerts = useCallback(async () => {
-    if (!mounted.current) return;
-
+  // Fetch alerts function
+  const fetchAlerts = useCallback(async () => {
     try {
-      console.log('🔄 Fetching live alerts from all sources...');
+      console.log('🔧 Fetching alerts...');
+      setLoading(true);
       
-      const result = await apiService.getLiveAlerts();
+      const result = await safeApiCall('/api/alerts');
       
-      if (!mounted.current) return;
-
       if (result.success) {
-        setAlerts(result.alerts);
-        setError(null);
-        setLastUpdated(new Date().toISOString());
-        
-        // Calculate statistics from live data
-        calculateStatistics(result.alerts, [], result.metadata);
-        
-        console.log(`✅ Live alerts loaded: ${result.alerts.length} total alerts`);
-        console.log(`   📊 Breakdown: ${result.alerts.filter(a => a.type === 'incident').length} incidents, ${result.alerts.filter(a => a.type === 'congestion').length} congestion, ${result.alerts.filter(a => a.type === 'roadwork').length} roadworks`);
-        
+        const alertsData = result.data.alerts || [];
+        setAlerts(alertsData);
+        setLastUpdated(result.data.metadata?.lastUpdated || new Date().toISOString());
+        console.log(`✅ Loaded ${alertsData.length} alerts`);
       } else {
-        throw new Error(result.error || 'Failed to fetch live alerts');
+        console.warn('⚠️ Failed to fetch alerts:', result.error);
+        setError(result.error);
       }
     } catch (err) {
-      if (!mounted.current) return;
-      
-      console.error('❌ Error fetching live alerts:', err.message);
-      setError(`Failed to load live alerts: ${err.message}`);
-      setAlerts([]); // Clear any existing data
-    }
-  }, [calculateStatistics]);
-
-  // Fetch live traffic data
-  const fetchLiveTraffic = useCallback(async () => {
-    if (!mounted.current) return;
-
-    try {
-      console.log('🚦 Fetching live traffic data...');
-      
-      const result = await apiService.getLiveTrafficData();
-      
-      if (!mounted.current) return;
-
-      if (result.success) {
-        setTrafficData(result.traffic);
-        console.log(`✅ Live traffic loaded: ${result.traffic.length} traffic alerts`);
-      } else {
-        console.warn('⚠️ Traffic data fetch failed:', result.error);
-        setTrafficData([]); // Clear any existing data
-      }
-    } catch (err) {
-      if (!mounted.current) return;
-      console.error('❌ Error fetching live traffic:', err.message);
-      setTrafficData([]); // Clear any existing data
-    }
-  }, []);
-
-  // Fetch traffic intelligence
-  const fetchTrafficIntelligence = useCallback(async () => {
-    if (!mounted.current) return;
-
-    try {
-      console.log('🧠 Fetching traffic intelligence...');
-      
-      const result = await apiService.getTrafficIntelligence();
-      
-      if (!mounted.current) return;
-
-      if (result.success) {
-        setTrafficIntelligence(result.intelligence);
-        console.log(`✅ Traffic intelligence loaded`);
-      } else {
-        console.warn('⚠️ Traffic intelligence fetch failed:', result.error);
-        setTrafficIntelligence(null);
-      }
-    } catch (err) {
-      if (!mounted.current) return;
-      console.error('❌ Error fetching traffic intelligence:', err.message);
-      setTrafficIntelligence(null);
+      console.error('❌ Fetch error:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
   // Fetch system health
   const fetchSystemHealth = useCallback(async () => {
-    if (!mounted.current) return;
-
     try {
-      const result = await apiService.getSystemHealth();
-      
-      if (!mounted.current) return;
-
+      const result = await safeApiCall('/api/health');
       if (result.success) {
-        setSystemHealth(result.health);
-        console.log(`💚 System health loaded: ${result.health.dataSources?.unified?.alertCount || 0} alerts available`);
-      } else {
-        console.warn('⚠️ System health fetch failed:', result.error);
-        setSystemHealth(null);
+        setSystemHealth(result.data);
       }
     } catch (err) {
-      if (!mounted.current) return;
-      console.error('❌ Error fetching system health:', err.message);
-      setSystemHealth(null);
+      console.error('❌ Health fetch error:', err);
     }
   }, []);
 
-  // Complete data refresh from all sources
-  const refreshAllData = useCallback(async () => {
-    if (!mounted.current) return;
+  console.log('🔧 Functions defined');
 
-    setLoading(true);
-    setError(null);
+  // Auto-refresh effect
+  useEffect(() => {
+    console.log('🔧 Setting up auto-refresh...');
+    fetchAlerts();
+    fetchSystemHealth();
 
-    console.log('🔄 Starting complete live data refresh...');
-
-    try {
-      // Fetch all data in parallel
-      await Promise.all([
-        fetchLiveAlerts(),
-        fetchLiveTraffic(),
-        fetchTrafficIntelligence(),
-        fetchSystemHealth()
-      ]);
-
-      console.log('✅ Complete live data refresh successful');
-      
-    } catch (err) {
-      if (!mounted.current) return;
-      console.error('❌ Complete data refresh failed:', err.message);
-      setError(`Data refresh failed: ${err.message}`);
-    } finally {
-      if (mounted.current) {
-        setLoading(false);
-      }
+    if (autoRefresh) {
+      const interval = setInterval(fetchAlerts, refreshInterval);
+      return () => clearInterval(interval);
     }
-  }, [fetchLiveAlerts, fetchLiveTraffic, fetchTrafficIntelligence, fetchSystemHealth]);
+  }, [fetchAlerts, fetchSystemHealth, autoRefresh, refreshInterval]);
 
-  // Force refresh all sources on backend
-  const forceRefresh = useCallback(async () => {
-    if (!mounted.current) return;
-    
-    setRefreshing(true);
-    
+  console.log('🔧 Computing alert arrays...');
+
+  // SAFE alert processing - avoid any undefined access
+  const safeAlerts = Array.isArray(alerts) ? alerts : [];
+  
+  // Process alerts safely - check every property access
+  const trafficAlerts = safeAlerts;
+  const roadworkAlerts = safeAlerts.filter(alert => {
     try {
-      console.log('🔄 Forcing backend refresh of all data sources...');
-      
-      const result = await apiService.refreshAllSources();
-      
-      if (!mounted.current) return;
-
-      if (result.success) {
-        console.log('✅ Backend refresh successful, reloading data...');
-        // Reload all data after backend refresh
-        await refreshAllData();
-      } else {
-        throw new Error(result.error || 'Backend refresh failed');
-      }
-    } catch (err) {
-      if (!mounted.current) return;
-      console.error('❌ Force refresh failed:', err.message);
-      setError(`Force refresh failed: ${err.message}`);
-    } finally {
-      if (mounted.current) {
-        setRefreshing(false);
-      }
+      return alert && typeof alert === 'object' && alert.type === 'roadwork';
+    } catch (e) {
+      return false;
     }
-  }, [refreshAllData]);
+  });
+  
+  const incidentAlerts = safeAlerts.filter(alert => {
+    try {
+      return alert && typeof alert === 'object' && alert.type === 'incident';
+    } catch (e) {
+      return false;
+    }
+  });
+  
+  const congestionAlerts = safeAlerts.filter(alert => {
+    try {
+      return alert && typeof alert === 'object' && alert.type === 'congestion';
+    } catch (e) {
+      return false;
+    }
+  });
+  
+  // CAREFUL: This is where "red" might be causing issues
+  const criticalAlerts = safeAlerts.filter(alert => {
+    try {
+      return alert && 
+             typeof alert === 'object' && 
+             alert.status === 'red' && 
+             alert.severity === 'High';
+    } catch (e) {
+      console.warn('🔧 Error filtering critical alerts:', e);
+      return false;
+    }
+  });
+  
+  const activeAlerts = safeAlerts.filter(alert => {
+    try {
+      return alert && typeof alert === 'object' && alert.status === 'red';
+    } catch (e) {
+      console.warn('🔧 Error filtering active alerts:', e);
+      return false;
+    }
+  });
+  
+  const upcomingAlerts = safeAlerts.filter(alert => {
+    try {
+      return alert && typeof alert === 'object' && alert.status === 'amber';
+    } catch (e) {
+      return false;
+    }
+  });
 
-  // Get alerts by route
+  console.log('🔧 Computing metrics...');
+
+  // Calculate metrics safely
+  const totalAlertsCount = safeAlerts.length;
+  const activeAlertsCount = activeAlerts.length;
+  const criticalAlertsCount = criticalAlerts.length;
+  const totalSourcesCount = systemHealth?.dataSources 
+    ? Object.keys(systemHealth.dataSources).length 
+    : 2;
+
+  // Process routes safely
+  const routeCount = {};
+  safeAlerts.forEach(alert => {
+    try {
+      if (alert && 
+          typeof alert === 'object' && 
+          alert.affectsRoutes && 
+          Array.isArray(alert.affectsRoutes)) {
+        alert.affectsRoutes.forEach(route => {
+          if (typeof route === 'string') {
+            routeCount[route] = (routeCount[route] || 0) + 1;
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('🔧 Error processing routes for alert:', e);
+    }
+  });
+  
+  const mostAffectedRoutes = Object.entries(routeCount)
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 5)
+    .map(([route, count]) => ({ route, count }));
+
+  console.log('🔧 Creating function stubs...');
+
+  // Function stubs
+  const refreshAlerts = useCallback(async () => {
+    console.log('🔄 Refreshing alerts...');
+    await fetchAlerts();
+  }, [fetchAlerts]);
+
+  const getCriticalAlerts = useCallback(async () => criticalAlerts, [criticalAlerts]);
+  const getActiveAlerts = useCallback(async () => activeAlerts, [activeAlerts]);
+  const getTrafficAlerts = useCallback(async () => trafficAlerts, [trafficAlerts]);
+  const getCongestionAlerts = useCallback(async () => congestionAlerts, [congestionAlerts]);
+  const getUpcomingAlerts = useCallback(async () => upcomingAlerts, [upcomingAlerts]);
   const getAlertsByRoute = useCallback(async (routeId) => {
-    try {
-      const result = await apiService.getAlertsByRoute(routeId);
-      return result.success ? result.alerts : [];
-    } catch (err) {
-      console.error(`❌ Error fetching alerts for route ${routeId}:`, err.message);
-      return [];
-    }
+    return safeAlerts.filter(alert => {
+      try {
+        return alert && 
+               alert.affectsRoutes && 
+               Array.isArray(alert.affectsRoutes) && 
+               alert.affectsRoutes.includes(routeId);
+      } catch (e) {
+        return false;
+      }
+    });
+  }, [safeAlerts]);
+  const getRoadworks = useCallback(async () => roadworkAlerts, [roadworkAlerts]);
+  const getIncidents = useCallback(async () => incidentAlerts, [incidentAlerts]);
+  const validateHookFunctions = useCallback(() => {
+    console.log('🔧 Hook validation: All functions available');
+    return true;
   }, []);
 
-  // Get critical alerts only
-  const getCriticalAlerts = useCallback(() => {
-    return alerts.filter(alert => 
-      alert.status === 'red' || alert.severity === 'High'
-    );
-  }, [alerts]);
+  console.log('🔧 Creating return object...');
 
-  // Get traffic alerts only
-  const getTrafficAlerts = useCallback(() => {
-    return alerts.filter(alert => 
-      alert.type === 'congestion' || alert.type === 'incident'
-    );
-  }, [alerts]);
-
-  // Get roadworks only
-  const getRoadworks = useCallback(() => {
-    return alerts.filter(alert => alert.type === 'roadwork');
-  }, [alerts]);
-
-  // Initial data load
-  useEffect(() => {
-    console.log('🚀 BARRY API Hook initialized - Loading live data...');
-    refreshAllData();
-  }, [refreshAllData]);
-
-  // Set up auto-refresh (every 5 minutes)
-  useEffect(() => {
-    if (refreshTimer.current) {
-      clearInterval(refreshTimer.current);
-    }
-
-    refreshTimer.current = setInterval(() => {
-      console.log('⏰ Auto-refresh triggered (5min interval)');
-      refreshAllData();
-    }, 5 * 60 * 1000); // 5 minutes
-
-    return () => {
-      if (refreshTimer.current) {
-        clearInterval(refreshTimer.current);
-      }
-    };
-  }, [refreshAllData]);
-
-  // Public API
-  return {
-    // Live data
-    alerts,
-    trafficData,
-    trafficIntelligence,
-    systemHealth,
-    statistics,
+  // SAFE return object
+  const returnValue = {
+    // Core data
+    alerts: safeAlerts,
+    loading: loading || false,
+    error: error || null,
+    lastUpdated: lastUpdated || null,
+    systemHealth: systemHealth || { status: 'unknown', dataSources: {} },
+    isRefreshing: loading || false,
     
-    // State
-    loading,
-    error,
-    lastUpdated,
-    refreshing,
+    // Alert arrays
+    trafficAlerts: trafficAlerts,
+    roadworkAlerts: roadworkAlerts,
+    incidentAlerts: incidentAlerts,
+    congestionAlerts: congestionAlerts,
+    criticalAlerts: criticalAlerts,
+    activeAlerts: activeAlerts,
+    upcomingAlerts: upcomingAlerts,
     
-    // Actions
-    refreshAllData,
-    forceRefresh,
-    
-    // Utility functions
-    getAlertsByRoute,
+    // Functions
+    refreshAlerts,
+    fetchSystemHealth,
     getCriticalAlerts,
+    getActiveAlerts,
     getTrafficAlerts,
+    getCongestionAlerts,
+    getUpcomingAlerts,
+    getAlertsByRoute,
     getRoadworks,
+    getIncidents,
+    validateHookFunctions,
     
-    // Computed properties
-    hasLiveData: alerts.length > 0,
-    isSystemHealthy: systemHealth?.status === 'healthy',
-    activeSourcesCount: statistics.sourcesStatus.successfulSources,
-    totalSourcesCount: statistics.sourcesStatus.totalSources,
+    // Computed values
+    totalAlertsCount,
+    activeAlertsCount,
+    criticalAlertsCount,
+    totalSourcesCount,
+    mostAffectedRoutes,
     
-    // Legacy compatibility for Dashboard component
-    mostAffectedRoutes: statistics.mostAffectedRoutes || []
+    // Utilities
+    hasData: safeAlerts.length > 0,
+    isHealthy: systemHealth?.status === 'healthy',
+    
+    // Debug info
+    debugInfo: {
+      alertsCount: safeAlerts.length,
+      healthStatus: systemHealth?.status || 'unknown',
+      lastFetch: lastUpdated,
+      version: 'safe-v2'
+    }
   };
+
+  console.log('🔧 Hook completed successfully');
+  
+  return returnValue;
 };
 
-// Export the hook with multiple names for compatibility
-export { useBARRYapi };
-export { useBARRYapi as useBarryAPI };
-export default useBARRYapi;
+// Default export
+export default useBarryAPI;

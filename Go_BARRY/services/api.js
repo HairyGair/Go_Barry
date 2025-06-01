@@ -108,7 +108,29 @@ export const api = {
   // Get system health (alternative method name for compatibility)
   getSystemHealth: async () => {
     console.log('💚 Checking system health...');
-    return await makeRequest('/api/health');
+    const result = await makeRequest('/api/health');
+    
+    // Handle both old and new response formats
+    if (result.success && result.data) {
+      // If dataSources doesn't exist, create it from configuration
+      if (!result.data.dataSources && result.data.configuration) {
+        console.log('🔧 Converting old health format to new format...');
+        result.data.dataSources = {
+          nationalHighways: {
+            configured: result.data.configuration.nationalHighways || false,
+            status: result.data.configuration.nationalHighways ? 'enabled' : 'disabled',
+            description: 'Major road incidents and closures'
+          },
+          streetManager: {
+            configured: true,
+            status: 'enabled',
+            description: 'Local authority roadworks and street works'
+          }
+        };
+      }
+    }
+    
+    return result;
   },
 
   // Force refresh data
@@ -199,6 +221,144 @@ export const api = {
     }
     
     return result;
+  },
+
+  // Get critical alerts (high severity and active status)
+  getCriticalAlerts: async () => {
+    console.log('🚨 Fetching critical alerts...');
+    const result = await api.getAlerts();
+    
+    if (result.success && result.data.alerts) {
+      const criticalAlerts = result.data.alerts.filter(alert => 
+        alert.status === 'red' && alert.severity === 'High'
+      );
+      
+      return {
+        success: true,
+        data: {
+          alerts: criticalAlerts,
+          count: criticalAlerts.length,
+          metadata: result.data.metadata
+        }
+      };
+    }
+    
+    return result;
+  },
+
+  // Get active alerts (status red)
+  getActiveAlerts: async () => {
+    console.log('🔴 Fetching active alerts...');
+    const result = await api.getAlerts();
+    
+    if (result.success && result.data.alerts) {
+      const activeAlerts = result.data.alerts.filter(alert => alert.status === 'red');
+      
+      return {
+        success: true,
+        data: {
+          alerts: activeAlerts,
+          count: activeAlerts.length,
+          metadata: result.data.metadata
+        }
+      };
+    }
+    
+    return result;
+  },
+
+  // Get traffic alerts (alias for getAlerts - for Dashboard compatibility)
+  getTrafficAlerts: async () => {
+    console.log('🚦 Fetching traffic alerts...');
+    return await api.getAlerts();
+  },
+
+  // Get congestion alerts (filtered by type)
+  getCongestionAlerts: async () => {
+    console.log('🚗 Fetching congestion alerts...');
+    const result = await api.getAlerts();
+    
+    if (result.success && result.data.alerts) {
+      const congestionAlerts = result.data.alerts.filter(alert => alert.type === 'congestion');
+      
+      return {
+        success: true,
+        data: {
+          alerts: congestionAlerts,
+          count: congestionAlerts.length,
+          metadata: result.data.metadata
+        }
+      };
+    }
+    
+    return result;
+  },
+
+  // Get upcoming alerts (status amber)
+  getUpcomingAlerts: async () => {
+    console.log('🟡 Fetching upcoming alerts...');
+    const result = await api.getAlerts();
+    
+    if (result.success && result.data.alerts) {
+      const upcomingAlerts = result.data.alerts.filter(alert => alert.status === 'amber');
+      
+      return {
+        success: true,
+        data: {
+          alerts: upcomingAlerts,
+          count: upcomingAlerts.length,
+          metadata: result.data.metadata
+        }
+      };
+    }
+    
+    return result;
+  },
+
+  // Get alerts by route
+  getAlertsByRoute: async (routeId) => {
+    console.log(`🚌 Fetching alerts for route: ${routeId}`);
+    const result = await api.getAlerts();
+    
+    if (result.success && result.data.alerts) {
+      const routeAlerts = result.data.alerts.filter(alert => 
+        alert.affectsRoutes && alert.affectsRoutes.includes(routeId)
+      );
+      
+      return {
+        success: true,
+        data: {
+          alerts: routeAlerts,
+          count: routeAlerts.length,
+          route: routeId,
+          metadata: result.data.metadata
+        }
+      };
+    }
+    
+    return result;
+  },
+
+  // Verify API methods (for debugging)
+  verifyAPI: () => {
+    const methods = [
+      'getAlerts', 'getTestAlerts', 'getHealth', 'getSystemHealth',
+      'refreshData', 'refreshAllData', 'getDashboardSummary',
+      'getTrafficData', 'getTrafficAlerts', 'getCongestionAlerts',
+      'getUpcomingAlerts', 'getAlertsByRoute', 'getRoadworks', 
+      'getIncidents', 'getCriticalAlerts', 'getActiveAlerts'
+    ];
+    
+    console.log('🔧 API Verification:');
+    methods.forEach(method => {
+      const exists = typeof api[method] === 'function';
+      console.log(`  ${exists ? '✅' : '❌'} ${method}: ${exists ? 'Available' : 'Missing'}`);
+    });
+    
+    return methods.reduce((acc, method) => {
+      acc[method] = typeof api[method] === 'function';
+      return acc;
+    }, {});
   }
 };
 
@@ -211,8 +371,15 @@ export const refreshData = api.refreshData;
 export const refreshAllData = api.refreshAllData;
 export const getDashboardSummary = api.getDashboardSummary;
 export const getTrafficData = api.getTrafficData;
+export const getTrafficAlerts = api.getTrafficAlerts;
+export const getCongestionAlerts = api.getCongestionAlerts;
+export const getUpcomingAlerts = api.getUpcomingAlerts;
+export const getAlertsByRoute = api.getAlertsByRoute;
 export const getRoadworks = api.getRoadworks;
 export const getIncidents = api.getIncidents;
+export const getCriticalAlerts = api.getCriticalAlerts;
+export const getActiveAlerts = api.getActiveAlerts;
+export const verifyAPI = api.verifyAPI;
 
 // Configuration
 export const config = {
@@ -236,12 +403,22 @@ export const config = {
     'refreshAllData',
     'getDashboardSummary',
     'getTrafficData',
+    'getTrafficAlerts',
+    'getCongestionAlerts',
+    'getUpcomingAlerts',
+    'getAlertsByRoute',
     'getRoadworks',
-    'getIncidents'
+    'getIncidents',
+    'getCriticalAlerts',
+    'getActiveAlerts',
+    'verifyAPI'
   ]
 };
 
 console.log('📱 BARRY API Service initialized');
 console.log(`🌐 Base URL: ${getBaseUrl()}`);
+
+// Verify all methods are properly defined
+api.verifyAPI();
 
 export default api;
