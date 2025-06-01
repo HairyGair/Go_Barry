@@ -148,14 +148,13 @@ async function fetchTomTomTraffic() {
 
   try {
     console.log('🚗 Fetching TomTom traffic incidents...');
-    const northEastBBox = '54.0,-2.5,55.5,-0.5';
     const response = await axios.get(
-      `https://api.tomtom.com/traffic/services/5/incidentDetails/s3/${northEastBBox}/10/1335294634919/json`,
+      'https://api.tomtom.com/traffic/services/5/incidentDetails',
       {
         params: {
           key: apiKey,
-          expandCluster: false,
-          projection: 'EPSG4326'
+          bbox: '54.0,-2.5,55.5,-0.5',
+          language: 'en-GB'
         },
         timeout: 15000,
         headers: {
