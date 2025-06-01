@@ -119,16 +119,30 @@ function processTrafficData(rawData, source) {
 
 function processTomTomData(data) {
   const alerts = [];
-  
-  // Process TomTom incidents
+
   if (data.tm && data.tm.poi) {
     data.tm.poi.forEach(incident => {
+      // Improved fallback logic for location field
+      let locationText = "";
+      if (incident.rdN && incident.f) {
+        locationText = `${incident.rdN} - ${incident.f}`;
+      } else if (incident.rdN) {
+        locationText = incident.rdN;
+      } else if (incident.f) {
+        locationText = incident.f;
+      } else if (incident.p && typeof incident.p.y === 'number' && typeof incident.p.x === 'number') {
+        // Use coordinates as fallback
+        locationText = `(${incident.p.y.toFixed(4)}, ${incident.p.x.toFixed(4)})`;
+      } else {
+        locationText = "Unknown location";
+      }
+
       const alert = {
         id: `tomtom_${incident.id}`,
         type: getIncidentType(incident.ic),
         title: `${incident.ty} - ${incident.rdN || 'Traffic Incident'}`,
         description: incident.d || 'Traffic incident reported',
-        location: `${incident.rdN || 'Unknown Road'} - ${incident.f || 'Location not specified'}`,
+        location: locationText,
         coordinates: [incident.p.y, incident.p.x], // [lat, lng]
         severity: mapTomTomSeverity(incident.ic),
         status: 'red', // TomTom incidents are active
@@ -140,17 +154,17 @@ function processTomTomData(data) {
         endTime: incident.ed ? new Date(incident.ed).toISOString() : null,
         affectsRoutes: matchRoutesToLocation(incident.rdN, incident.f),
         lastUpdated: new Date().toISOString(),
-        
+
         // TomTom specific data
         tomtomCategory: incident.ic,
         tomtomMagnitude: incident.ty,
         tomtomDelay: incident.dl
       };
-      
+
       alerts.push(alert);
     });
   }
-  
+
   return alerts;
 }
 
