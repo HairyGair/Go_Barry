@@ -154,7 +154,7 @@ async function fetchTomTomTraffic() {
         params: {
           key: apiKey,
           bbox: '54.0,-2.5,55.5,-0.5',
-          language: 'en-GB'
+          fields: 'poi'
         },
         timeout: 15000,
         headers: {
@@ -401,48 +401,71 @@ async function fetchMapQuestTraffic() {
       }
     }
     console.log(`📊 MapQuest: ${allIncidents.length} incidents fetched, ${uniqueIncidents.length} unique after deduplication`);
-    // Enhanced location extraction for MapQuest
-    const alerts = uniqueIncidents.map(incident => {
-      // Try to extract a plausible road/location from shortDesc/fullDesc
-      let location = null;
-      if (incident.road && incident.road.trim().length > 0) {
-        location = incident.road;
-      } else if (incident.shortDesc && incident.shortDesc.trim().length > 0) {
-        // Try to extract a road from shortDesc
-        const match = incident.shortDesc.match(/\b([AM][0-9]{1,4}|B[0-9]{1,4}|Junction \d+|[A-Z][a-z]+ (Road|Street|Lane|Way|Avenue|Drive|Boulevard|Bypass)|Coast Road|Central Motorway)\b/);
-        if (match) {
-          location = match[0];
-        } else {
-          location = incident.shortDesc.substring(0, 50);
-        }
-      } else if (incident.fullDesc && incident.fullDesc.trim().length > 0) {
-        // Try to extract a road from fullDesc
-        const match = incident.fullDesc.match(/\b([AM][0-9]{1,4}|B[0-9]{1,4}|Junction \d+|[A-Z][a-z]+ (Road|Street|Lane|Way|Avenue|Drive|Boulevard|Bypass)|Coast Road|Central Motorway)\b/);
-        if (match) {
-          location = match[0];
-        } else {
-          location = incident.fullDesc.substring(0, 50);
-        }
-      } else {
-        location = 'MapQuest reported location';
+    // Only keep currently active incidents
+    const now = new Date();
+    const currentlyActiveIncidents = uniqueIncidents.filter(incident => {
+      // Only keep currently active
+      let active = true;
+      if (incident.startTime) {
+        const start = new Date(incident.startTime);
+        if (start > now) active = false;
       }
-      const description = incident.fullDesc || incident.shortDesc || 'Traffic incident';
-      const routes = matchRoutes(location, description);
-      return {
-        id: `mapquest_${incident.id || Date.now()}`,
-        type: incident.type === 'construction' ? 'roadwork' : 'incident',
-        title: incident.shortDesc || 'Traffic Alert',
-        description: description,
-        location: location,
-        authority: 'MapQuest Traffic',
-        source: 'mapquest',
-        severity: incident.severity >= 3 ? 'High' : 'Medium',
-        status: 'red',
-        affectsRoutes: routes,
-        lastUpdated: new Date().toISOString(),
-        dataSource: 'MapQuest Traffic API'
-      };
+      if (incident.endTime) {
+        const end = new Date(incident.endTime);
+        if (end < now) active = false;
+      }
+      // If "status" field exists, prefer "ACTIVE"
+      if (typeof incident.status === 'string' && incident.status.toUpperCase() !== 'ACTIVE') active = false;
+      return active;
     });
+    // Enhanced location extraction for MapQuest with strict filtering for recognisable locations
+    const alerts = currentlyActiveIncidents
+      .map(incident => {
+        // Try to extract a plausible road/location from shortDesc/fullDesc
+        let location = null;
+        if (incident.road && incident.road.trim().length > 0) {
+          location = incident.road;
+        } else if (incident.shortDesc && incident.shortDesc.trim().length > 0) {
+          const match = incident.shortDesc.match(/\b([AM][0-9]{1,4}|B[0-9]{1,4}|Junction \d+|[A-Z][a-z]+ (Road|Street|Lane|Way|Avenue|Drive|Boulevard|Bypass)|Coast Road|Central Motorway)\b/);
+          if (match) {
+            location = match[0];
+          } else {
+            location = null; // Discard if not a real location
+          }
+        } else if (incident.fullDesc && incident.fullDesc.trim().length > 0) {
+          const match = incident.fullDesc.match(/\b([AM][0-9]{1,4}|B[0-9]{1,4}|Junction \d+|[A-Z][a-z]+ (Road|Street|Lane|Way|Avenue|Drive|Boulevard|Bypass)|Coast Road|Central Motorway)\b/);
+          if (match) {
+            location = match[0];
+          } else {
+            location = null;
+          }
+        } else {
+          location = null;
+        }
+
+        // Strict filter: Only return alert if location is recognisable
+        if (!location || location.trim() === '' || location === 'MapQuest reported location') {
+          return null;
+        }
+
+        const description = incident.fullDesc || incident.shortDesc || 'Traffic incident';
+        const routes = matchRoutes(location, description);
+        return {
+          id: `mapquest_${incident.id || Date.now()}`,
+          type: incident.type === 'construction' ? 'roadwork' : 'incident',
+          title: incident.shortDesc || 'Traffic Alert',
+          description: description,
+          location: location,
+          authority: 'MapQuest Traffic',
+          source: 'mapquest',
+          severity: incident.severity >= 3 ? 'High' : 'Medium',
+          status: 'red',
+          affectsRoutes: routes,
+          lastUpdated: new Date().toISOString(),
+          dataSource: 'MapQuest Traffic API'
+        };
+      })
+      .filter(Boolean); // Remove nulls for discarded alerts
     // Deduplicate alerts by id/location/description
     const dedupedAlerts = deduplicateAlerts(alerts);
     console.log(`✅ MapQuest: ${dedupedAlerts.length} unique North East alerts processed`);
