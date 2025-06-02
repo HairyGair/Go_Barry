@@ -16,17 +16,23 @@ import {
   enhanceLocationWithGTFSOptimized
 } from './gtfs-location-enhancer-optimized.js';
 
-// Optimized TomTom fetcher using GTFS enhancements (Simple enhancement version)
-async function fetchTomTomTrafficOptimized() {
+// --- BEGIN fetchTomTomTrafficFiltered and helpers ---
+// Helper: get all possible GTFS routes from TomTom coordinates using GTFS stops/routes
+async function getRoutesFromCoordinates(lat, lng) {
+  // This is a placeholder for actual spatial lookup to GTFS stops/routes
+  // For now, just return empty array
+  return [];
+}
+
+// New filtered TomTom fetch function
+async function fetchTomTomTrafficFiltered() {
   const apiKey = process.env.TOMTOM_API_KEY;
   if (!apiKey) {
     console.warn('⚠️ TomTom API key not found');
     return { success: false, data: [], error: 'API key missing' };
   }
   try {
-    console.log('🚗 [OPTIMIZED] Fetching TomTom incidents (simple GTFS enhancement)...');
-    // Fetch TomTom incidents for North East England via bounding box (Newcastle & surrounds)
-    // See: https://developer.tomtom.com/traffic-api/traffic-api-documentation-incidents/traffic-incidents-service
+    console.log('🚗 [FILTERED] Fetching TomTom incidents (filtered to GTFS routes)...');
     const bbox = '54.8,-1.7,55.1,-1.4'; // Newcastle/Gateshead
     const url = 'https://api.tomtom.com/traffic/services/5/incidentDetails';
     const params = {
@@ -38,53 +44,66 @@ async function fetchTomTomTrafficOptimized() {
     const response = await axios.get(url, { params, timeout: 15000 });
     if (!response.data || !response.data.incidents) {
       console.log('⚠️ TomTom: No incidents in response');
-      return { success: true, data: [], enhancement: 'Optimized GTFS', count: 0 };
+      return { success: true, data: [], enhancement: 'Filtered GTFS', count: 0 };
     }
     const incidents = response.data.incidents;
     console.log(`✅ TomTom: ${incidents.length} incidents fetched`);
     // Parse incidents into alert objects
-    let alerts = incidents.map(inc => {
-      // Compose basic location string
-      let location = '';
-      if (inc.geometry?.type === 'Point' && Array.isArray(inc.geometry.coordinates)) {
-        location = `(${inc.geometry.coordinates[1].toFixed(5)}, ${inc.geometry.coordinates[0].toFixed(5)})`;
-      } else if (inc.properties?.from && inc.properties?.to) {
-        location = `${inc.properties.from} to ${inc.properties.to}`;
-      } else if (inc.properties?.from) {
-        location = inc.properties.from;
-      }
-      const description = inc.properties?.eventDescription || inc.properties?.description || '';
-      // Use route keyword matcher
-      const routes = matchRoutes(location, description);
-      return {
-        id: `tomtom_${inc.id || Date.now()}`,
-        type: mapTomTomIncidentType(inc.properties?.eventCode),
-        title: inc.properties?.eventDescription || inc.properties?.category || 'Traffic incident',
-        description: description,
-        location: location,
-        authority: 'TomTom Traffic',
-        source: 'tomtom',
-        severity: mapTomTomSeverity(inc.properties?.magnitudeOfDelay),
-        status: 'red',
-        affectsRoutes: routes,
-        lastUpdated: new Date().toISOString(),
-        dataSource: 'TomTom Incidents API',
-        coordinates: (inc.geometry?.type === 'Point' && Array.isArray(inc.geometry.coordinates))
-          ? { lat: inc.geometry.coordinates[1], lng: inc.geometry.coordinates[0] }
-          : null
-      };
-    });
+    let alerts = await Promise.all(
+      incidents.map(async inc => {
+        let location = '';
+        let lat = null, lng = null;
+        if (inc.geometry?.type === 'Point' && Array.isArray(inc.geometry.coordinates)) {
+          lat = inc.geometry.coordinates[1];
+          lng = inc.geometry.coordinates[0];
+          location = `(${lat.toFixed(5)}, ${lng.toFixed(5)})`;
+        } else if (inc.properties?.from && inc.properties?.to) {
+          location = `${inc.properties.from} to ${inc.properties.to}`;
+        } else if (inc.properties?.from) {
+          location = inc.properties.from;
+        }
+        const description = inc.properties?.eventDescription || inc.properties?.description || '';
+        // Use route keyword matcher
+        let routes = matchRoutes(location, description);
+        // Optionally, get routes from coordinates (stubbed)
+        if (lat && lng) {
+          const spatialRoutes = await getRoutesFromCoordinates(lat, lng);
+          if (Array.isArray(spatialRoutes)) {
+            spatialRoutes.forEach(r => routes.push(r));
+          }
+        }
+        routes = Array.from(new Set(routes));
+        return {
+          id: `tomtom_${inc.id || Date.now()}`,
+          type: mapTomTomIncidentType(inc.properties?.eventCode),
+          title: inc.properties?.eventDescription || inc.properties?.category || 'Traffic incident',
+          description: description,
+          location: location,
+          authority: 'TomTom Traffic',
+          source: 'tomtom',
+          severity: mapTomTomSeverity(inc.properties?.magnitudeOfDelay),
+          status: 'red',
+          affectsRoutes: routes,
+          lastUpdated: new Date().toISOString(),
+          dataSource: 'TomTom Incidents API',
+          coordinates: (lat && lng) ? { lat, lng } : null
+        };
+      })
+    );
     // Enhance location with GTFS stops (memory-optimized)
     alerts = await enhanceLocationWithGTFSOptimized(alerts);
-    return { success: true, data: alerts, enhancement: 'Optimized GTFS', count: alerts.length };
+    // Filter only alerts affecting GTFS routes
+    alerts = alerts.filter(alert => alertAffectsGTFSRoute(alert));
+    return { success: true, data: alerts, enhancement: 'Filtered GTFS', count: alerts.length };
   } catch (error) {
-    console.error('❌ [OPTIMIZED] TomTom error:', error.message);
+    console.error('❌ [FILTERED] TomTom error:', error.message);
     if (error.response) {
       console.error('TomTom response:', error.response.status, error.response.data);
     }
     return { success: false, data: [], error: error.message };
   }
 }
+// --- END fetchTomTomTrafficFiltered and helpers ---
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -924,18 +943,18 @@ app.get('/api/alerts', async (req, res) => {
 
     console.log('🔄 Fetching fresh alerts with fixed authentication...');
 
-    // --- TOMTOM GEOJSON LOGIC ---
+    // --- TOMTOM FILTERED LOGIC ---
     const allAlerts = [];
     const sources = {};
-    // Fetch enhanced TomTom data with working API
-    const tomtomResult = await fetchTomTomTrafficWorking();
+    // Fetch TomTom data with filtered GTFS logic
+    const tomtomResult = await fetchTomTomTrafficFiltered();
 
     if (tomtomResult.success) {
       allAlerts.push(...tomtomResult.data);
       sources.tomtom = {
         success: true,
         count: tomtomResult.data.length,
-        method: 'Working GeoJSON API',
+        method: 'Filtered GTFS API',
         area: 'Newcastle'
       };
     } else {
@@ -1294,5 +1313,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   🔄 Refresh: /api/refresh`);
 });
 
-export { fetchTomTomTrafficOptimized, initializeGTFS, getGTFSStats };
+export { fetchTomTomTrafficFiltered as fetchTomTomTrafficOptimized, initializeGTFS, getGTFSStats };
 export default app;
