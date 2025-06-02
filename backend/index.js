@@ -17,64 +17,145 @@ import {
   enhanceLocationWithGTFSOptimized
 } from './gtfs-location-enhancer-optimized.js';
 
-// --- BEGIN fetchTomTomTrafficSimple ---
-// Simple working TomTom fetcher (roadworks only, no filtering)
-async function fetchTomTomTrafficSimple() {
+// --- BEGIN fetchTomTomTrafficWithStreetNames ---
+// Enhanced TomTom with street names
+async function fetchTomTomTrafficWithStreetNames() {
   if (!process.env.TOMTOM_API_KEY) {
     return { success: false, data: [], error: 'API key missing' };
   }
   
   try {
-    console.log('🚗 Fetching TomTom traffic (simple working version)...');
+    console.log('🚗 Fetching TomTom traffic with street name enhancement...');
+    
     const response = await axios.get('https://api.tomtom.com/traffic/services/5/incidentDetails', {
       params: {
         key: process.env.TOMTOM_API_KEY,
-        bbox: '-1.8,54.8,-1.4,55.1',
+        bbox: '-1.8,54.8,-1.4,55.1', // Newcastle area
         zoom: 10
       },
-      timeout: 15000
+      timeout: 15000,
+      headers: {
+        'User-Agent': 'BARRY-TrafficWatch/3.0-Enhanced',
+        'Accept': 'application/json'
+      }
     });
-    console.log(`✅ TomTom simple: ${response.status}, incidents: ${response.data?.incidents?.length || 0}`);
+    
+    console.log(`📡 TomTom: ${response.status}, incidents: ${response.data?.incidents?.length || 0}`);
+    
     const alerts = [];
+    
     if (response.data?.incidents) {
-      response.data.incidents.slice(0, 10).forEach((feature, index) => {
+      // Process incidents with enhanced locations
+      const realTrafficIncidents = response.data.incidents.filter(feature => {
         const props = feature.properties || {};
-        if (props.iconCategory === 6 || props.iconCategory === 7) {
-          let lat = null, lng = null;
-          if (feature.geometry?.coordinates) {
-            if (feature.geometry.type === 'Point') {
-              [lng, lat] = feature.geometry.coordinates;
-            } else if (feature.geometry.type === 'LineString') {
-              [lng, lat] = feature.geometry.coordinates[0];
-            }
-          }
-          if (lat && lng) {
-            alerts.push({
-              id: `tomtom_simple_${index}`,
-              type: 'roadwork',
-              title: props.iconCategory === 6 ? 'Road Closure' : 'Road Works',
-              description: 'TomTom reported roadwork',
-              location: `Newcastle Area (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
-              coordinates: [lat, lng],
-              severity: 'Medium',
-              status: 'red',
-              source: 'tomtom',
-              affectsRoutes: [],
-              lastUpdated: new Date().toISOString(),
-              dataSource: 'TomTom Simple Working Version'
-            });
+        // Only real traffic incidents (6=Road Closure, 7=Road Works)
+        return props.iconCategory === 6 || props.iconCategory === 7;
+      });
+      
+      console.log(`🔍 Found ${realTrafficIncidents.length} real traffic incidents (filtered from ${response.data.incidents.length})`);
+      
+      for (const [index, feature] of realTrafficIncidents.entries()) {
+        if (index >= 8) break; // Limit to 8 to avoid too many geocoding calls
+        
+        const props = feature.properties || {};
+        
+        // Extract coordinates
+        let lat = null, lng = null;
+        if (feature.geometry?.coordinates) {
+          if (feature.geometry.type === 'Point') {
+            [lng, lat] = feature.geometry.coordinates;
+          } else if (feature.geometry.type === 'LineString' && feature.geometry.coordinates.length > 0) {
+            [lng, lat] = feature.geometry.coordinates[0];
           }
         }
-      });
+        
+        if (!lat || !lng) continue;
+        
+        // ENHANCED: Get real street name from coordinates
+        console.log(`🗺️ Enhancing TomTom location ${index + 1}/${realTrafficIncidents.length}...`);
+        const enhancedLocation = await enhanceLocationWithNames(
+          lat, 
+          lng, 
+          props.roadName || `Traffic incident`
+        );
+        
+        // Enhanced route matching
+        const affectedRoutes = getTomTomRoutesFromCoordinates(lat, lng);
+        
+        // Map incident types
+        const incidentInfo = {
+          6: { type: 'roadwork', severity: 'Medium', desc: 'Road Closure' },
+          7: { type: 'roadwork', severity: 'High', desc: 'Road Works' }
+        }[props.iconCategory] || { type: 'roadwork', severity: 'Medium', desc: 'Road Work' };
+        
+        const alert = {
+          id: `tomtom_enhanced_${Date.now()}_${index}`,
+          type: incidentInfo.type,
+          title: `${incidentInfo.desc} - ${enhancedLocation}`,
+          description: incidentInfo.desc,
+          location: enhancedLocation, // ← REAL STREET NAMES!
+          coordinates: [lat, lng],
+          severity: incidentInfo.severity,
+          status: 'red',
+          source: 'tomtom',
+          affectsRoutes: affectedRoutes,
+          iconCategory: props.iconCategory,
+          lastUpdated: new Date().toISOString(),
+          dataSource: 'TomTom Traffic API v5 + OpenStreetMap Street Names'
+        };
+        
+        alerts.push(alert);
+        
+        console.log(`✨ TomTom enhanced: "${props.roadName || 'coordinates'}" → "${enhancedLocation}"`);
+      }
     }
-    console.log(`✅ TomTom simple: ${alerts.length} roadworks processed`);
-    return { success: true, data: alerts };
+    
+    console.log(`✅ TomTom enhanced: ${alerts.length} alerts with real street names`);
+    return { success: true, data: alerts, method: 'Enhanced with Street Names' };
+    
   } catch (error) {
-    console.error('❌ TomTom simple failed:', error.message);
+    console.error('❌ Enhanced TomTom fetch failed:', error.message);
     return { success: false, data: [], error: error.message };
   }
 }
-// --- END fetchTomTomTrafficSimple ---
+// --- END fetchTomTomTrafficWithStreetNames ---
+
+// Enhanced TomTom route matching
+function getTomTomRoutesFromCoordinates(lat, lng) {
+  const routes = [];
+  
+  // A1 corridor (major north-south route)
+  if (lng >= -1.7 && lng <= -1.5 && lat >= 54.8 && lat <= 55.2) {
+    routes.push('21', 'X21', '10', '11');
+  }
+  
+  // A19 corridor (Tyne Tunnel area)
+  if (lng >= -1.5 && lng <= -1.3 && lat >= 54.9 && lat <= 55.1) {
+    routes.push('1', '2', '308', '309');
+  }
+  
+  // Newcastle city center
+  if (lng >= -1.65 && lng <= -1.55 && lat >= 54.95 && lat <= 55.0) {
+    routes.push('Q1', 'Q2', 'Q3', '10', '11', '12');
+  }
+  
+  // Coast Road area
+  if (lng >= -1.5 && lng <= -1.3 && lat >= 55.0 && lat <= 55.1) {
+    routes.push('1', '2', '308', '309', '317');
+  }
+  
+  // A167 Durham Road corridor
+  if (lng >= -1.65 && lng <= -1.45 && lat >= 54.85 && lat <= 54.95) {
+    routes.push('21', '22', 'X21', '6', '7');
+  }
+  
+  // A69 (west of Newcastle)
+  if (lng >= -2.0 && lng <= -1.6 && lat >= 54.9 && lat <= 55.1) {
+    routes.push('X84', 'X85', '602', '685');
+  }
+  
+  return [...new Set(routes)].sort();
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -982,19 +1063,17 @@ app.get('/api/alerts', async (req, res) => {
 
     console.log('🔄 Fetching fresh alerts with fixed authentication...');
 
-    // --- TOMTOM SIMPLE LOGIC ---
+    // Enhanced TomTom with street names
     const allAlerts = [];
     const sources = {};
-    // Fetch TomTom data with simple working version
-    const tomtomResult = await fetchTomTomTrafficSimple();
+    const tomtomResult = await fetchTomTomTrafficWithStreetNames();
 
     if (tomtomResult.success) {
       allAlerts.push(...tomtomResult.data);
       sources.tomtom = {
         success: true,
         count: tomtomResult.data.length,
-        method: 'Filtered GTFS API',
-        area: 'Newcastle'
+        method: 'Enhanced with OpenStreetMap Street Names'
       };
     } else {
       sources.tomtom = {
@@ -1352,7 +1431,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   🔄 Refresh: /api/refresh`);
 });
 
-export { fetchTomTomTrafficSimple as fetchTomTomTrafficOptimized, initializeGTFS, getGTFSStats };
+export { fetchTomTomTrafficWithStreetNames as fetchTomTomTrafficOptimized, initializeGTFS, getGTFSStats };
 export default app;
 
 // --- Enhanced MapQuest fetcher with OpenStreetMap street names ---
