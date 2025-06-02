@@ -5,6 +5,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+// Note: You'll need to install papaparse first: npm install papaparse
 import Papa from 'papaparse';
 
 const __filename = fileURLToPath(import.meta.url);
