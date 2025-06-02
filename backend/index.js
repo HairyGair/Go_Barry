@@ -10,6 +10,208 @@ import { parse } from 'csv-parse/sync';
 
 import fetchTomTomTrafficGeoJSON from './tomtom-fixed-implementation.js';
 import enhanceLocationWithNames from './location-enhancer.js';
+// --- Enhanced Location & Timing Functions (START) ---
+
+// Enhanced location fallback with multiple strategies
+async function getEnhancedLocationWithFallbacks(lat, lng, originalLocation = '', context = '') {
+  if (originalLocation && originalLocation.trim() && 
+      !originalLocation.includes('coordinate') && 
+      !originalLocation.includes('54.') && 
+      !originalLocation.includes('55.') &&
+      originalLocation.length > 5) {
+    console.log(`🎯 Using original location: ${originalLocation}`);
+    return originalLocation;
+  }
+  if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+    try {
+      console.log(`🗺️ Attempting enhanced geocoding for ${lat}, ${lng}...`);
+      const enhancedLocation = await getLocationNameWithTimeout(lat, lng, 3000);
+      if (enhancedLocation && enhancedLocation.length > 3) {
+        console.log(`✅ Enhanced location: ${enhancedLocation}`);
+        return enhancedLocation;
+      }
+    } catch (error) {
+      console.warn(`⚠️ Geocoding failed: ${error.message}`);
+    }
+    const regionLocation = getRegionFromCoordinates(lat, lng);
+    if (regionLocation) {
+      console.log(`📍 Using region detection: ${regionLocation}`);
+      return regionLocation;
+    }
+    const coordLocation = getCoordinateDescription(lat, lng);
+    console.log(`📐 Using coordinate description: ${coordLocation}`);
+    return coordLocation;
+  }
+  if (context && context.trim() && context.length > 3) {
+    console.log(`📄 Using context: ${context}`);
+    return context;
+  }
+  console.log(`⚠️ Using generic fallback location`);
+  return 'North East England - Location being determined';
+}
+
+// OpenStreetMap with timeout control
+async function getLocationNameWithTimeout(lat, lng, timeout = 3000) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    const response = await axios.get('https://nominatim.openstreetmap.org/reverse', {
+      params: {
+        lat: lat,
+        lon: lng,
+        format: 'json',
+        addressdetails: 1
+      },
+      headers: {
+        'User-Agent': 'BARRY-TrafficWatch/3.0'
+      },
+      timeout: timeout,
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (response.data && response.data.address) {
+      const addr = response.data.address;
+      console.log(`📍 OSM response for ${lat}, ${lng}:`, {
+        road: addr.road,
+        neighbourhood: addr.neighbourhood,
+        suburb: addr.suburb,
+        town: addr.town,
+        city: addr.city
+      });
+      let location = '';
+      if (addr.road) {
+        location = addr.road;
+      } else if (addr.pedestrian) {
+        location = addr.pedestrian;
+      } else if (addr.neighbourhood) {
+        location = addr.neighbourhood;
+      }
+      if (addr.suburb) {
+        location += location ? `, ${addr.suburb}` : addr.suburb;
+      } else if (addr.neighbourhood && !location.includes(addr.neighbourhood)) {
+        location += location ? `, ${addr.neighbourhood}` : addr.neighbourhood;
+      }
+      if (addr.town) {
+        location += location ? `, ${addr.town}` : addr.town;
+      } else if (addr.city) {
+        location += location ? `, ${addr.city}` : addr.city;
+      }
+      return location || response.data.display_name?.split(',')[0] || null;
+    }
+    return null;
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.warn(`⚠️ Geocoding timeout after ${timeout}ms`);
+    } else {
+      console.warn(`⚠️ Geocoding error: ${error.message}`);
+    }
+    return null;
+  }
+}
+
+// Geographic region detection from coordinates
+function getRegionFromCoordinates(lat, lng) {
+  if (lat >= 54.9 && lat <= 55.1 && lng >= -1.7 && lng <= -1.4) {
+    if (lat >= 54.95 && lng >= -1.65 && lng <= -1.55) {
+      return 'Newcastle City Centre';
+    } else if (lng >= -1.5 && lng <= -1.3 && lat >= 55.0) {
+      return 'Newcastle Coast Road Area';
+    } else if (lat <= 54.97 && lng >= -1.65) {
+      return 'Gateshead Area';
+    }
+    return 'Newcastle upon Tyne Area';
+  }
+  if (lat >= 54.85 && lat <= 54.95 && lng >= -1.5 && lng <= -1.2) {
+    return 'Sunderland Area';
+  }
+  if (lat >= 54.7 && lat <= 54.85 && lng >= -1.7 && lng <= -1.4) {
+    return 'Durham Area';
+  }
+  if (lat >= 55.1 && lat <= 55.5 && lng >= -2.0 && lng <= -1.0) {
+    return 'Northumberland';
+  }
+  if (lat >= 54.5 && lat <= 55.5 && lng >= -2.5 && lng <= -1.0) {
+    return 'North East England';
+  }
+  return null;
+}
+
+// Coordinate description with road detection
+function getCoordinateDescription(lat, lng) {
+  const region = getRegionFromCoordinates(lat, lng) || 'North East England';
+  let roadHint = '';
+  if (lng >= -1.7 && lng <= -1.5 && lat >= 54.8 && lat <= 55.2) {
+    roadHint = ' (A1 Corridor)';
+  }
+  else if (lng >= -1.5 && lng <= -1.3 && lat >= 54.9 && lat <= 55.1) {
+    roadHint = ' (A19 Corridor)';
+  }
+  else if (lng >= -1.65 && lng <= -1.45 && lat >= 54.8 && lat <= 54.95) {
+    roadHint = ' (A167 Corridor)';
+  }
+  return `${region}${roadHint} (${lat.toFixed(3)}, ${lng.toFixed(3)})`;
+}
+
+// Enhanced start time generation
+function generateStartTime(alert, incidentData = {}) {
+  const now = new Date();
+  if (alert.startDate || incidentData.startDate || incidentData.startTime) {
+    return alert.startDate || incidentData.startDate || incidentData.startTime;
+  }
+  if (alert.status === 'red' || alert.severity === 'High') {
+    const startTime = new Date(now.getTime() - (Math.random() * 2 * 60 * 60 * 1000));
+    return startTime.toISOString();
+  }
+  if (alert.type === 'roadwork') {
+    const startTime = new Date(now);
+    startTime.setHours(6, 0, 0, 0);
+    return startTime.toISOString();
+  }
+  const startTime = new Date(now.getTime() - (30 * 60 * 1000));
+  return startTime.toISOString();
+}
+
+// Enhanced end time generation
+function generateEndTime(alert, incidentData = {}) {
+  const now = new Date();
+  const startTime = new Date(alert.startDate || now);
+  if (alert.endDate || incidentData.endDate || incidentData.endTime) {
+    return alert.endDate || incidentData.endDate || incidentData.endTime;
+  }
+  if (alert.type === 'incident') {
+    let durationMinutes = 60;
+    if (alert.severity === 'High') {
+      durationMinutes = 120;
+    } else if (alert.severity === 'Low') {
+      durationMinutes = 30;
+    }
+    const endTime = new Date(startTime.getTime() + (durationMinutes * 60 * 1000));
+    return endTime.toISOString();
+  }
+  if (alert.type === 'roadwork') {
+    const endTime = new Date(startTime);
+    endTime.setDate(endTime.getDate() + 3);
+    endTime.setHours(18, 0, 0, 0);
+    return endTime.toISOString();
+  }
+  const endTime = new Date(startTime.getTime() + (2 * 60 * 60 * 1000));
+  return endTime.toISOString();
+}
+
+// Enhanced alert processing function
+function enhanceAlertWithTimesAndLocation(alert, originalData = {}) {
+  if (!alert.startDate) {
+    alert.startDate = generateStartTime(alert, originalData);
+  }
+  if (!alert.endDate) {
+    alert.endDate = generateEndTime(alert, originalData);
+  }
+  alert.estimatedTimes = !originalData.startDate && !originalData.endDate;
+  alert.lastUpdated = new Date().toISOString();
+  return alert;
+}
+
+// --- Enhanced Location & Timing Functions (END) ---
 import findGTFSRoutesNearCoordinates from './gtfs-route-matcher.js';
 
 // GTFS Route Matching Cache
@@ -163,14 +365,14 @@ import {
 } from './gtfs-location-enhancer-optimized.js';
 
 // --- BEGIN fetchTomTomTrafficWithStreetNames ---
-// Enhanced TomTom with street names and GTFS route matching
+// Enhanced TomTom traffic fetcher with improved location handling and timing
 async function fetchTomTomTrafficWithStreetNames() {
   if (!process.env.TOMTOM_API_KEY) {
     return { success: false, data: [], error: 'API key missing' };
   }
   
   try {
-    console.log('🚗 Fetching TomTom traffic with street name enhancement...');
+    console.log('🚗 Fetching TomTom traffic with enhanced location processing...');
     
     const response = await axios.get('https://api.tomtom.com/traffic/services/5/incidentDetails', {
       params: {
@@ -193,72 +395,110 @@ async function fetchTomTomTrafficWithStreetNames() {
       // Process incidents with enhanced locations
       const realTrafficIncidents = response.data.incidents.filter(feature => {
         const props = feature.properties || {};
-        // Only real traffic incidents (6=Road Closure, 7=Road Works)
-        return props.iconCategory === 6 || props.iconCategory === 7;
+        // Include more incident types for better coverage
+        return props.iconCategory >= 1 && props.iconCategory <= 14;
       });
       
-      console.log(`🔍 Found ${realTrafficIncidents.length} real traffic incidents (filtered from ${response.data.incidents.length})`);
+      console.log(`🔍 Processing ${realTrafficIncidents.length} traffic incidents (filtered from ${response.data.incidents.length})`);
       
       for (const [index, feature] of realTrafficIncidents.entries()) {
-        if (index >= 8) break; // Limit to 8 to avoid too many geocoding calls
+        if (index >= 12) break; // Increased limit to 12 for better coverage
         
         const props = feature.properties || {};
         
-        // Extract coordinates
+        // Extract coordinates with better error handling
         let lat = null, lng = null;
-        if (feature.geometry?.coordinates) {
-          if (feature.geometry.type === 'Point') {
-            [lng, lat] = feature.geometry.coordinates;
-          } else if (feature.geometry.type === 'LineString' && feature.geometry.coordinates.length > 0) {
-            [lng, lat] = feature.geometry.coordinates[0];
+        try {
+          if (feature.geometry?.coordinates) {
+            if (feature.geometry.type === 'Point') {
+              [lng, lat] = feature.geometry.coordinates;
+            } else if (feature.geometry.type === 'LineString' && feature.geometry.coordinates.length > 0) {
+              [lng, lat] = feature.geometry.coordinates[0];
+            }
           }
+        } catch (coordError) {
+          console.warn(`⚠️ Error extracting coordinates for incident ${index}:`, coordError.message);
+        }
+
+        // ENHANCED: Get location with multiple fallback strategies
+        console.log(`🗺️ Processing location for incident ${index + 1}/${realTrafficIncidents.length}...`);
+        
+        let enhancedLocation;
+        try {
+          enhancedLocation = await getEnhancedLocationWithFallbacks(
+            lat, 
+            lng, 
+            props.roadName || props.description || '',
+            `TomTom incident ${props.iconCategory}`
+          );
+        } catch (locationError) {
+          console.warn(`⚠️ Location enhancement failed for incident ${index}:`, locationError.message);
+          enhancedLocation = getCoordinateDescription(lat, lng);
         }
         
-        if (!lat || !lng) continue;
+        // Enhanced GTFS route matching with error handling
+        let affectedRoutes = [];
+        try {
+          if (lat && lng) {
+            console.log(`🗺️ Finding GTFS routes for incident at ${lat}, ${lng}...`);
+            affectedRoutes = await findRoutesNearCoordinate(lat, lng, 150);
+          }
+        } catch (routeError) {
+          console.warn(`⚠️ GTFS route matching failed for incident ${index}:`, routeError.message);
+          // Fallback to text-based route matching
+          affectedRoutes = matchRoutes(enhancedLocation, props.description || '');
+        }
         
-        // ENHANCED: Get real street name from coordinates
-        console.log(`🗺️ Enhancing TomTom location ${index + 1}/${realTrafficIncidents.length}...`);
-        const enhancedLocation = await enhanceLocationWithNames(
-          lat, 
-          lng, 
-          props.roadName || `Traffic incident`
-        );
+        // Map incident types with better categorization
+        const getIncidentInfo = (iconCategory) => {
+          const categoryMap = {
+            1: { type: 'incident', severity: 'High', desc: 'Accident' },
+            2: { type: 'incident', severity: 'Medium', desc: 'Dangerous Conditions' },
+            3: { type: 'incident', severity: 'Low', desc: 'Weather Conditions' },
+            4: { type: 'incident', severity: 'Medium', desc: 'Road Hazard' },
+            5: { type: 'incident', severity: 'Low', desc: 'Vehicle Breakdown' },
+            6: { type: 'roadwork', severity: 'Medium', desc: 'Road Closure' },
+            7: { type: 'roadwork', severity: 'High', desc: 'Road Works' },
+            8: { type: 'incident', severity: 'Low', desc: 'Mass Transit Issue' },
+            9: { type: 'incident', severity: 'Medium', desc: 'Traffic Incident' },
+            10: { type: 'roadwork', severity: 'High', desc: 'Road Blocked' },
+            11: { type: 'roadwork', severity: 'High', desc: 'Road Blocked' },
+            14: { type: 'incident', severity: 'Medium', desc: 'Broken Down Vehicle' }
+          };
+          return categoryMap[iconCategory] || { type: 'incident', severity: 'Medium', desc: 'Traffic Incident' };
+        };
         
-        // Enhanced GTFS route matching
-        console.log(`🗺️ Finding GTFS routes for incident at ${lat}, ${lng}...`);
-        const affectedRoutes = await findRoutesNearCoordinate(lat, lng, 100); // Use new GTFS matcher
+        const incidentInfo = getIncidentInfo(props.iconCategory);
         
-        // Map incident types
-        const incidentInfo = {
-          6: { type: 'roadwork', severity: 'Medium', desc: 'Road Closure' },
-          7: { type: 'roadwork', severity: 'High', desc: 'Road Works' }
-        }[props.iconCategory] || { type: 'roadwork', severity: 'Medium', desc: 'Road Work' };
-        
-        const alert = {
+        // Create base alert
+        let alert = {
           id: `tomtom_enhanced_${Date.now()}_${index}`,
           type: incidentInfo.type,
           title: `${incidentInfo.desc} - ${enhancedLocation}`,
-          description: incidentInfo.desc,
-          location: enhancedLocation, // ← REAL STREET NAMES!
-          coordinates: [lat, lng],
+          description: props.description || incidentInfo.desc,
+          location: enhancedLocation,
+          coordinates: lat && lng ? [lat, lng] : null,
           severity: incidentInfo.severity,
           status: 'red',
           source: 'tomtom',
           affectsRoutes: affectedRoutes,
-          routeMatchMethod: 'GTFS Shapes (100% Accurate)',
+          routeMatchMethod: affectedRoutes.length > 0 ? 'GTFS Shapes' : 'Text Pattern',
           iconCategory: props.iconCategory,
           lastUpdated: new Date().toISOString(),
-          dataSource: 'TomTom Traffic API v5 + OpenStreetMap Street Names'
+          dataSource: 'TomTom Traffic API v5 + Enhanced Location Processing'
         };
+
+        // ENHANCED: Add start and end times
+        alert = enhanceAlertWithTimesAndLocation(alert, props);
         
         alerts.push(alert);
         
-        console.log(`✨ TomTom enhanced: "${props.roadName || 'coordinates'}" → "${enhancedLocation}"`);
+        console.log(`✨ Enhanced incident: "${props.roadName || 'coordinates'}" → "${enhancedLocation}" (${affectedRoutes.length} routes)`);
       }
     }
     
-    console.log(`✅ TomTom enhanced: ${alerts.length} alerts with real street names`);
-    return { success: true, data: alerts, method: 'Enhanced with Street Names' };
+    console.log(`✅ TomTom enhanced: ${alerts.length} alerts with locations and timing`);
+    return { success: true, data: alerts, method: 'Enhanced with Location Fallbacks' };
     
   } catch (error) {
     console.error('❌ Enhanced TomTom fetch failed:', error.message);
@@ -1581,14 +1821,15 @@ app.listen(PORT, '0.0.0.0', () => {
 export { fetchTomTomTrafficWithStreetNames as fetchTomTomTrafficOptimized, initializeGTFS, getGTFSStats };
 export default app;
 
-// --- Enhanced MapQuest fetcher with OpenStreetMap street names and GTFS route matching ---
+// Enhanced MapQuest traffic fetcher with improved location handling and timing
 async function fetchMapQuestTrafficWithStreetNames() {
   try {
-    console.log('🗺️ Fetching MapQuest traffic with OpenStreetMap street names...');
+    console.log('🗺️ Fetching MapQuest traffic with enhanced location processing...');
+    
     const response = await axios.get('https://www.mapquestapi.com/traffic/v2/incidents', {
       params: {
         key: process.env.MAPQUEST_API_KEY,
-        boundingBox: `55.0,-2.0,54.5,-1.0`,
+        boundingBox: `55.0,-2.0,54.5,-1.0`, // North East bounding box
         filters: 'incidents,construction'
       },
       timeout: 20000,
@@ -1597,25 +1838,56 @@ async function fetchMapQuestTrafficWithStreetNames() {
         'Accept': 'application/json'
       }
     });
+    
     console.log(`📡 MapQuest: ${response.status}, incidents: ${response.data?.incidents?.length || 0}`);
+    
     const alerts = [];
+    
     if (response.data?.incidents) {
-      // Limit to 10 to avoid too many API calls
-      for (const [index, incident] of response.data.incidents.entries()) {
-        if (index >= 10) break;
+      // Process incidents with enhanced location handling
+      const incidentsToProcess = response.data.incidents.slice(0, 12); // Increased to 12
+      
+      for (const [index, incident] of incidentsToProcess.entries()) {
         const lat = incident.lat;
         const lng = incident.lng;
-        if (!lat || !lng) continue;
-        // ENHANCED: Get real street name instead of coordinates
-        const enhancedLocation = await enhanceLocationWithNames(
-          lat,
-          lng,
-          incident.street || `Newcastle area (${lat.toFixed(3)}, ${lng.toFixed(3)})`
-        );
+        
+        // ENHANCED: Process even incidents without coordinates
+        console.log(`🗺️ Processing MapQuest incident ${index + 1}/${incidentsToProcess.length}...`);
+        
+        let enhancedLocation;
+        try {
+          // Use enhanced location processing with multiple fallbacks
+          enhancedLocation = await getEnhancedLocationWithFallbacks(
+            lat,
+            lng,
+            incident.street || incident.shortDesc || '',
+            `MapQuest ${incident.type === 1 ? 'roadwork' : 'incident'}`
+          );
+        } catch (locationError) {
+          console.warn(`⚠️ Location enhancement failed for MapQuest incident ${index}:`, locationError.message);
+          // Fallback to available data
+          enhancedLocation = incident.street || incident.shortDesc || 'North East England - Location being determined';
+        }
+        
         // Enhanced GTFS route matching
-        console.log(`🗺️ Finding GTFS routes for incident at ${lat}, ${lng}...`);
-        const affectedRoutes = await findRoutesNearCoordinate(lat, lng, 100); // Use new GTFS matcher
-        const alert = {
+        let affectedRoutes = [];
+        try {
+          if (lat && lng) {
+            console.log(`🗺️ Finding GTFS routes for MapQuest incident at ${lat}, ${lng}...`);
+            affectedRoutes = await findRoutesNearCoordinate(lat, lng, 150);
+          }
+          
+          // Fallback to text-based matching if coordinate matching failed
+          if (affectedRoutes.length === 0) {
+            affectedRoutes = matchRoutes(enhancedLocation, incident.fullDesc || incident.shortDesc || '');
+          }
+        } catch (routeError) {
+          console.warn(`⚠️ Route matching failed for MapQuest incident ${index}:`, routeError.message);
+          affectedRoutes = [];
+        }
+        
+        // Create base alert
+        let alert = {
           id: `mapquest_enhanced_${incident.id || Date.now()}_${index}`,
           type: incident.type === 1 ? 'roadwork' : 'incident',
           title: incident.shortDesc || 'Traffic Incident',
@@ -1626,17 +1898,24 @@ async function fetchMapQuestTrafficWithStreetNames() {
           severity: incident.severity >= 3 ? 'High' : incident.severity >= 2 ? 'Medium' : 'Low',
           status: 'red',
           affectsRoutes: affectedRoutes,
-          routeMatchMethod: 'GTFS Shapes (100% Accurate)',
+          routeMatchMethod: affectedRoutes.length > 0 ? 'GTFS Shapes' : 'Text Pattern',
+          coordinates: lat && lng ? { lat, lng } : null,
           lastUpdated: new Date().toISOString(),
-          dataSource: 'MapQuest Traffic API + OpenStreetMap Geocoding',
-          coordinates: { lat, lng }
+          dataSource: 'MapQuest Traffic API + Enhanced Location Processing'
         };
+
+        // ENHANCED: Add start and end times
+        alert = enhanceAlertWithTimesAndLocation(alert, incident);
+        
         alerts.push(alert);
-        console.log(`✨ Enhanced: ${incident.street || 'coordinates'} → ${enhancedLocation}`);
+        
+        console.log(`✨ Enhanced MapQuest: "${incident.street || 'no location'}" → "${enhancedLocation}" (${affectedRoutes.length} routes)`);
       }
     }
-    console.log(`✅ MapQuest enhanced: ${alerts.length} alerts with street names`);
-    return { success: true, data: alerts };
+    
+    console.log(`✅ MapQuest enhanced: ${alerts.length} alerts with locations and timing`);
+    return { success: true, data: alerts, method: 'Enhanced with Location Fallbacks' };
+    
   } catch (error) {
     console.error('❌ Enhanced MapQuest fetch failed:', error.message);
     return { success: false, data: [], error: error.message };
