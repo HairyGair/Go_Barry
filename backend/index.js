@@ -8,6 +8,9 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { parse } from 'csv-parse/sync';
 
+import { initializeGTFS, getGTFSStats } from './gtfs-location-enhancer.js';
+import fetchTomTomTrafficWithGTFS from './enhanced-tomtom-processor.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -64,6 +67,94 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 console.log('🚦 BARRY Backend Starting with Fixed API Authentication...');
+// --- GTFS Location Enhancement Initialization ---
+console.log('🗺️ Initializing GTFS location enhancement...');
+setTimeout(async () => {
+  try {
+    console.log('🔄 Loading GTFS data for enhanced location accuracy...');
+    const gtfsSuccess = await initializeGTFS();
+    if (gtfsSuccess) {
+      const stats = getGTFSStats();
+      console.log('✅ GTFS Enhancement Ready:');
+      console.log(`   📍 ${stats.stops} bus stops loaded`);
+      console.log(`   🚌 ${stats.routes} routes mapped`);
+      console.log(`   🗺️ ${stats.spatialGridCells} spatial grid cells`);
+      console.log(`   🧩 ${stats.routeSegments} route segments indexed`);
+      console.log('   ✨ TomTom alerts will now have precise location descriptions');
+    } else {
+      console.log('❌ GTFS initialization failed - using basic location processing');
+    }
+  } catch (error) {
+    console.log(`❌ GTFS initialization error: ${error.message}`);
+  }
+}, 3000);
+// --- Enhanced Alerts Endpoint with GTFS Location Accuracy ---
+app.get('/api/alerts-enhanced', async (req, res) => {
+  try {
+    console.log('🚀 Fetching enhanced alerts with GTFS location accuracy...');
+    const tomtomResult = await fetchTomTomTrafficWithGTFS();
+    const allAlerts = [];
+    const sources = {};
+    if (tomtomResult.success) {
+      allAlerts.push(...tomtomResult.data);
+      sources.tomtom = {
+        success: true,
+        count: tomtomResult.data.length,
+        method: 'Enhanced with GTFS',
+        enhancement: tomtomResult.enhancement
+      };
+    } else {
+      sources.tomtom = {
+        success: false,
+        count: 0,
+        error: tomtomResult.error
+      };
+    }
+    const stats = {
+      totalAlerts: allAlerts.length,
+      activeAlerts: allAlerts.filter(a => a.status === 'red').length,
+      enhancedAlerts: allAlerts.filter(a => a.locationAccuracy === 'high').length,
+      alertsWithRoutes: allAlerts.filter(a => a.affectsRoutes && a.affectsRoutes.length > 0).length,
+      averageRoutesPerAlert: allAlerts.length > 0 ?
+        (allAlerts.reduce((sum, a) => sum + (a.affectsRoutes?.length || 0), 0) / allAlerts.length).toFixed(1) : 0
+    };
+    res.json({
+      success: true,
+      alerts: allAlerts,
+      metadata: {
+        totalAlerts: allAlerts.length,
+        sources,
+        statistics: stats,
+        gtfsStats: getGTFSStats(),
+        lastUpdated: new Date().toISOString(),
+        enhancement: 'GTFS location accuracy enabled'
+      }
+    });
+  } catch (error) {
+    console.error('❌ Enhanced alerts endpoint error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      alerts: [],
+      metadata: {
+        error: error.message,
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+// --- GTFS Status Endpoint ---
+app.get('/api/gtfs-status', (req, res) => {
+  const stats = getGTFSStats();
+  res.json({
+    status: stats.isLoaded ? 'loaded' : 'not_loaded',
+    ...stats,
+    enhancement_ready: stats.isLoaded,
+    last_load_hours_ago: stats.lastLoaded ?
+      Math.round((Date.now() - new Date(stats.lastLoaded)) / (1000 * 60 * 60)) : null
+  });
+});
 
 // Middleware
 app.use(express.json());
@@ -442,18 +533,21 @@ async function fetchMapQuestTraffic() {
       if (!location) {
         location = 'Newcastle area'; // Default to Newcastle since we queried that bbox
       }
-      
+
+      const description = incident.fullDesc || incident.shortDesc || 'Traffic incident reported by MapQuest';
+      const routes = matchRoutes(location, description);
+
       return {
         id: `mapquest_${incident.id || Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
         type: incident.type === 'construction' ? 'roadwork' : 'incident',
         title: incident.shortDesc || 'Traffic Alert',
-        description: incident.fullDesc || incident.shortDesc || 'Traffic incident reported by MapQuest',
+        description: description,
         location: location,
         authority: 'MapQuest Traffic',
         source: 'mapquest',
         severity: incident.severity >= 3 ? 'High' : incident.severity >= 2 ? 'Medium' : 'Low',
         status: 'red',
-        affectsRoutes: [], // Empty for now
+        affectsRoutes: routes,
         lastUpdated: new Date().toISOString(),
         dataSource: 'MapQuest Traffic API',
         // Add coordinates if available

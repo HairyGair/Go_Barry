@@ -595,5 +595,137 @@ async function saveTrafficData(alerts) {
   }
 }
 
+
 // Export for use in main server
 export default fetchAllTrafficData;
+
+
+// --- Enhanced TomTom + GTFS Integration ---
+// This function fetches TomTom traffic incidents and enriches them with GTFS-based route/stop matching.
+// Place your GTFS stop/route data in a suitable structure and provide matching logic as needed.
+
+/**
+ * Example: Load GTFS stops/routes mapping from file or DB
+ * Replace this with your actual GTFS integration.
+ */
+let GTFS_STOPS = []; // [{ stop_id, stop_name, lat, lon, routes: [...] }]
+let GTFS_ROUTES = []; // [{ route_id, route_short_name, stops: [...] }]
+
+// Example loader (replace with actual DB/file/remote fetch as needed)
+async function loadGTFSData() {
+  if (GTFS_STOPS.length && GTFS_ROUTES.length) return;
+  try {
+    const stopsPath = path.join(__dirname, 'data', 'gtfs_stops.json');
+    const routesPath = path.join(__dirname, 'data', 'gtfs_routes.json');
+    const [stopsRaw, routesRaw] = await Promise.all([
+      fs.readFile(stopsPath, 'utf-8'),
+      fs.readFile(routesPath, 'utf-8')
+    ]);
+    GTFS_STOPS = JSON.parse(stopsRaw);
+    GTFS_ROUTES = JSON.parse(routesRaw);
+    console.log(`✅ Loaded GTFS data: ${GTFS_STOPS.length} stops, ${GTFS_ROUTES.length} routes`);
+  } catch (err) {
+    console.warn('⚠️ Could not load GTFS data:', err.message);
+    GTFS_STOPS = [];
+    GTFS_ROUTES = [];
+  }
+}
+
+/**
+ * Find GTFS stops within a radius (meters) of a given point.
+ */
+function findNearbyStops(lat, lon, radiusMeters = 300) {
+  if (!GTFS_STOPS.length) return [];
+  const toRad = deg => (deg * Math.PI) / 180;
+  const EARTH_RADIUS = 6371000; // meters
+  return GTFS_STOPS.filter(stop => {
+    const dLat = toRad(stop.lat - lat);
+    const dLon = toRad(stop.lon - lon);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat)) * Math.cos(toRad(stop.lat)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const d = EARTH_RADIUS * c;
+    return d <= radiusMeters;
+  });
+}
+
+/**
+ * Find GTFS routes serving a list of stops.
+ */
+function findRoutesForStops(stops) {
+  if (!GTFS_ROUTES.length || !stops.length) return [];
+  const stopIds = new Set(stops.map(s => s.stop_id));
+  const routes = new Set();
+  for (const route of GTFS_ROUTES) {
+    if (route.stops.some(stopId => stopIds.has(stopId))) {
+      routes.add(route.route_short_name || route.route_id);
+    }
+  }
+  return Array.from(routes).sort();
+}
+
+/**
+ * Fetch TomTom traffic incidents and enrich with GTFS stop/route info.
+ * Returns array of alerts, each with additional fields: nearbyStops, gtfsRoutes.
+ */
+export async function fetchTomTomTrafficWithGTFS() {
+  await loadGTFSData();
+  if (!API_CONFIGS.tomtom.apiKey) {
+    console.warn('⚠️ TomTom API key not configured');
+    return { success: false, data: [], error: 'API key missing' };
+  }
+  try {
+    console.log('🚦 Fetching TomTom traffic data with GTFS integration...');
+    // North East England bounding box
+    const boundingBox = '54.5,-2.0,55.5,-1.0';
+    const response = await axios.get(
+      `${API_CONFIGS.tomtom.baseUrl}${API_CONFIGS.tomtom.endpoints.incidents}/s4/${boundingBox}/10/1364226111`,
+      {
+        params: { key: API_CONFIGS.tomtom.apiKey },
+        timeout: 15000
+      }
+    );
+    const rawAlerts = processTomTomData(response.data);
+    // Enrich each alert with GTFS stops/routes
+    const enrichedAlerts = rawAlerts.map(alert => {
+      let nearbyStops = [];
+      let gtfsRoutes = [];
+      if (alert.coordinates && Array.isArray(alert.coordinates) && alert.coordinates.length === 2) {
+        nearbyStops = findNearbyStops(alert.coordinates[0], alert.coordinates[1]);
+        gtfsRoutes = findRoutesForStops(nearbyStops);
+      }
+      return {
+        ...alert,
+        nearbyStops: nearbyStops.map(s => ({
+          stop_id: s.stop_id,
+          stop_name: s.stop_name,
+          lat: s.lat,
+          lon: s.lon
+        })),
+        gtfsRoutes
+      };
+    });
+    console.log(`✅ TomTom+GTFS: ${enrichedAlerts.length} traffic alerts processed`);
+    return { success: true, data: enrichedAlerts, source: 'TomTom+GTFS' };
+  } catch (error) {
+    console.error('❌ TomTom+GTFS traffic fetch failed:', error.message);
+    return { success: false, data: [], error: error.message };
+  }
+}
+
+// --- Usage Notes ---
+/**
+ * Usage:
+ *   import fetchAllTrafficData, { fetchTomTomTrafficWithGTFS } from './fetch-traffic-flow.js';
+ *
+ *   // To get all traffic data from all sources:
+ *   const result = await fetchAllTrafficData();
+ *
+ *   // To get TomTom traffic incidents enriched with GTFS route/stop info:
+ *   const tomtomGtfsResult = await fetchTomTomTrafficWithGTFS();
+ *
+ * GTFS integration expects 'data/gtfs_stops.json' and 'data/gtfs_routes.json' to exist and contain
+ * arrays of stops and routes, respectively, with fields as shown above.
+ */
