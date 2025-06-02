@@ -25,12 +25,12 @@ let gtfsCache = {
   lastLoaded: null
 };
 
-// Expanded North East bounding box (was too restrictive)
+// Much more generous bounding box to capture all Go North East stops
 const NORTH_EAST_BOUNDS = {
-  north: 55.8,   // Extended north
-  south: 53.8,   // Extended south  
-  east: -0.3,    // Extended east
-  west: -2.8     // Extended west
+  north: 56.5,   // Much further north (covers all of Northumberland)
+  south: 53.0,   // Further south (covers Teesside)
+  east: 0.5,     // Further east (covers coast)
+  west: -3.5     // Further west (covers Cumbria border)
 };
 
 function calculateDistance(lat1, lng1, lat2, lng2) {
