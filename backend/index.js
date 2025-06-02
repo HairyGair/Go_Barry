@@ -105,16 +105,34 @@ const LOCATION_ROUTE_MAPPING = {
 };
 
 // Helper functions
+// Updated helper function - less restrictive
 function isInNorthEast(location, description = '') {
+  // If no location info at all, assume it's relevant
+  if (!location && !description) return true;
+  
   const text = `${location} ${description}`.toUpperCase();
+  
+  // If it mentions coordinates or lat/lng, accept it
+  if (text.includes('LAT') || text.includes('LNG') || text.includes('54.') || text.includes('55.')) {
+    return true;
+  }
+  
+  // Simplified keyword list - just major identifiers
   const keywords = [
-    'A1', 'A19', 'A69', 'A68', 'A167', 'A183', 'A184', 'A690', 'A691', 'A1058',
-    'NEWCASTLE', 'GATESHEAD', 'SUNDERLAND', 'DURHAM', 
-    'NORTHUMBERLAND', 'TYNE', 'WEAR', 'HEXHAM', 'CRAMLINGTON',
-    'WASHINGTON', 'SEAHAM', 'CHESTER-LE-STREET', 'BIRTLEY',
-    'TYNE TUNNEL', 'COAST ROAD', 'CENTRAL MOTORWAY'
+    'A1', 'A19', 'A69', 'A167', 'A184', 'A690', 'A1058',
+    'NEWCASTLE', 'GATESHEAD', 'SUNDERLAND', 'DURHAM',
+    'NORTHUMBERLAND', 'TYNE', 'WEAR'
   ];
-  return keywords.some(keyword => text.includes(keyword));
+  
+  // If ANY keyword matches, include it
+  const hasKeyword = keywords.some(keyword => text.includes(keyword));
+  
+  // If we already filtered by bounding box (MapQuest), trust that filtering
+  if (!hasKeyword && description.includes('MAPQUEST')) {
+    return true; // Trust MapQuest's geographic filtering
+  }
+  
+  return hasKeyword;
 }
 
 function matchRoutes(location, description = '') {
@@ -412,23 +430,37 @@ async function fetchMapQuestTraffic() {
     
     // Take first 10 incidents for testing
     const testIncidents = response.data.incidents.slice(0, 10);
-    
+
     const alerts = testIncidents.map(incident => {
       console.log(`Processing incident: ${incident.shortDesc || 'No description'}`);
+      
+      // Extract better location info
+      let location = incident.street || '';
+      if (!location && incident.lat && incident.lng) {
+        location = `Newcastle area (${incident.lat.toFixed(3)}, ${incident.lng.toFixed(3)})`;
+      }
+      if (!location) {
+        location = 'Newcastle area'; // Default to Newcastle since we queried that bbox
+      }
       
       return {
         id: `mapquest_${incident.id || Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
         type: incident.type === 'construction' ? 'roadwork' : 'incident',
-        title: incident.shortDesc || 'MapQuest Traffic Alert',
-        description: incident.fullDesc || incident.shortDesc || 'Traffic incident',
-        location: incident.street || `Lat ${incident.lat}, Lng ${incident.lng}`,
+        title: incident.shortDesc || 'Traffic Alert',
+        description: incident.fullDesc || incident.shortDesc || 'Traffic incident reported by MapQuest',
+        location: location,
         authority: 'MapQuest Traffic',
         source: 'mapquest',
-        severity: incident.severity >= 3 ? 'High' : 'Medium',
+        severity: incident.severity >= 3 ? 'High' : incident.severity >= 2 ? 'Medium' : 'Low',
         status: 'red',
-        affectsRoutes: [],
+        affectsRoutes: [], // Empty for now
         lastUpdated: new Date().toISOString(),
-        dataSource: 'MapQuest Traffic API'
+        dataSource: 'MapQuest Traffic API',
+        // Add coordinates if available
+        coordinates: incident.lat && incident.lng ? { 
+          lat: parseFloat(incident.lat), 
+          lng: parseFloat(incident.lng) 
+        } : null
       };
     });
     
