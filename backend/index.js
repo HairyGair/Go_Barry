@@ -8,8 +8,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { parse } from 'csv-parse/sync';
 
-// import { initializeGTFS, getGTFSStats } from './gtfs-location-enhancer-optimized.js.js';
-// import fetchTomTomTrafficWithGTFS from './enhanced-tomtom-processor.js';
+import fetchTomTomTrafficGeoJSON from './tomtom-fixed-implementation.js';
 
 import {
   initializeGTFSOptimized as initializeGTFS,
@@ -379,68 +378,227 @@ function deduplicateAlerts(alerts) {
   return deduped;
 }
 
-// SIMPLIFIED: TomTom Traffic API
-async function fetchTomTomTraffic() {
-  const apiKey = process.env.TOMTOM_API_KEY;
-  if (!apiKey) {
-    console.warn('⚠️ TomTom API key not found');
+// Fixed TomTom function for your backend
+async function fetchTomTomTrafficFixed() {
+  if (!process.env.TOMTOM_API_KEY) {
     return { success: false, data: [], error: 'API key missing' };
   }
-
+  
   try {
-    console.log('🚗 Fetching TomTom traffic (SIMPLIFIED)...');
+    console.log('🚗 Fetching TomTom traffic (FIXED API format)...');
     
-    // Use the flow endpoint instead which is more reliable
-    const response = await axios.get('https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json', {
+    // Small Newcastle area (under 10,000km² limit)
+    const response = await axios.get('https://api.tomtom.com/traffic/services/5/incidentDetails', {
       params: {
-        key: apiKey,
-        point: '54.9783,-1.6178', // Newcastle center
-        unit: 'KMPH'
+        key: process.env.TOMTOM_API_KEY,
+        bbox: '-1.8,54.8,-1.4,55.1', // Newcastle area bbox
+        zoom: 10
       },
-      timeout: 10000
+      timeout: 15000,
+      headers: {
+        'User-Agent': 'BARRY-TrafficWatch/3.0-Fixed',
+        'Accept': 'application/json'
+      }
     });
     
-    console.log(`✅ TomTom Flow API: HTTP ${response.status}`);
+    console.log(`📡 TomTom Fixed API: ${response.status}, incidents: ${response.data?.tm?.poi?.length || 0}`);
     
     const alerts = [];
     
-    // Create a test alert from flow data
-    if (response.data && response.data.flowSegmentData) {
-      const flow = response.data.flowSegmentData;
-      const currentSpeed = flow.currentSpeed || 0;
-      const freeFlowSpeed = flow.freeFlowSpeed || 60;
-      const reduction = ((freeFlowSpeed - currentSpeed) / freeFlowSpeed) * 100;
-      
-      if (reduction > 10) { // Any slowdown
-        alerts.push({
-          id: `tomtom_flow_${Date.now()}`,
-          type: 'congestion',
-          title: 'Traffic Flow - Newcastle',
-          description: `Traffic speed: ${Math.round(currentSpeed)}km/h (normal: ${Math.round(freeFlowSpeed)}km/h)`,
-          location: 'Newcastle City Centre',
-          authority: 'TomTom Traffic',
-          source: 'tomtom',
-          severity: reduction > 50 ? 'High' : reduction > 25 ? 'Medium' : 'Low',
+    if (response.data?.tm?.poi) {
+      response.data.tm.poi.forEach(incident => {
+        // Process incidents into your alert format
+        const lat = incident.p?.y;
+        const lng = incident.p?.x;
+        
+        if (!lat || !lng) return;
+        
+        // Enhanced location with GTFS if available
+        const basicLocation = incident.rdN || incident.f || 'Traffic Location';
+        const enhancedLocation = enhanceLocationWithGTFSOptimized 
+          ? enhanceLocationWithGTFSOptimized(lat, lng, basicLocation, incident.rdN)
+          : basicLocation;
+        
+        const alert = {
+          id: `tomtom_fixed_${incident.id}`,
+          type: incident.ic === 8 ? 'roadwork' : 'incident',
+          title: `${incident.ty || 'Traffic Incident'} - ${incident.rdN || 'Road Network'}`,
+          description: incident.d || 'Traffic incident reported',
+          location: enhancedLocation,
+          coordinates: [lat, lng],
+          severity: incident.ic <= 2 ? 'High' : incident.ic <= 5 ? 'Medium' : 'Low',
           status: 'red',
-          affectsRoutes: ['Q1', 'Q2', 'Q3', '10', '11'],
+          source: 'tomtom',
+          incidentType: incident.ty,
+          delay: incident.dl || 0,
           lastUpdated: new Date().toISOString(),
-          dataSource: 'TomTom Flow API'
-        });
-      }
-      
-      console.log(`✅ TomTom: Created ${alerts.length} flow alerts`);
+          dataSource: 'TomTom Traffic API v5 (Fixed Format)'
+        };
+        
+        alerts.push(alert);
+      });
     }
     
-    return { success: true, data: alerts, count: alerts.length };
+    console.log(`✅ TomTom Fixed: ${alerts.length} alerts processed`);
+    return { success: true, data: alerts };
     
   } catch (error) {
-    console.error('❌ TomTom error:', error.message);
-    if (error.response) {
-      console.error('Response:', error.response.status, error.response.data);
-    }
+    console.error('❌ TomTom Fixed API failed:', error.message);
     return { success: false, data: [], error: error.message };
   }
 }
+
+// --- BEGIN fetchTomTomTrafficWorking and helpers ---
+async function fetchTomTomTrafficWorking() {
+  if (!process.env.TOMTOM_API_KEY) {
+    console.warn('⚠️ TomTom API key not configured');
+    return { success: false, data: [], error: 'API key missing' };
+  }
+  
+  try {
+    console.log('🚗 Fetching TomTom traffic (working GeoJSON format)...');
+    
+    const response = await axios.get('https://api.tomtom.com/traffic/services/5/incidentDetails', {
+      params: {
+        key: process.env.TOMTOM_API_KEY,
+        bbox: '-1.8,54.8,-1.4,55.1', // Newcastle area
+        zoom: 10
+      },
+      timeout: 15000,
+      headers: {
+        'User-Agent': 'BARRY-TrafficWatch/3.0-Working',
+        'Accept': 'application/json'
+      }
+    });
+    
+    console.log(`📡 TomTom Working API: ${response.status}, incidents: ${response.data?.incidents?.length || 0}`);
+    
+    const alerts = [];
+    
+    if (response.data?.incidents) {
+      response.data.incidents.forEach((feature, index) => {
+        try {
+          // Extract coordinates
+          let lat = null, lng = null;
+          if (feature.geometry?.coordinates) {
+            if (feature.geometry.type === 'Point') {
+              [lng, lat] = feature.geometry.coordinates;
+            } else if (feature.geometry.type === 'LineString' && feature.geometry.coordinates.length > 0) {
+              [lng, lat] = feature.geometry.coordinates[0];
+            }
+          }
+          
+          if (!lat || !lng) return;
+          
+          const props = feature.properties || {};
+          
+          // Enhanced location using GTFS if available
+          let location = `Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+          if (typeof enhanceLocationWithGTFSOptimized === 'function') {
+            location = enhanceLocationWithGTFSOptimized(lat, lng, '', '');
+          }
+          
+          // Route matching based on coordinates and location
+          const affectedRoutes = matchRoutesToLocation(location, lat, lng);
+          
+          // Map incident categories
+          const getIncidentInfo = (iconCategory) => {
+            const categoryMap = {
+              1: { type: 'incident', severity: 'High', desc: 'Accident' },
+              2: { type: 'incident', severity: 'Medium', desc: 'Dangerous Conditions' },
+              3: { type: 'incident', severity: 'Low', desc: 'Weather' },
+              4: { type: 'incident', severity: 'Medium', desc: 'Road Hazard' },
+              5: { type: 'incident', severity: 'Low', desc: 'Vehicle Breakdown' },
+              6: { type: 'roadwork', severity: 'Medium', desc: 'Road Closure' },
+              7: { type: 'roadwork', severity: 'High', desc: 'Road Works' },
+              8: { type: 'incident', severity: 'Low', desc: 'Mass Transit' },
+              9: { type: 'incident', severity: 'Medium', desc: 'Traffic Incident' },
+              14: { type: 'incident', severity: 'Medium', desc: 'Broken Down Vehicle' }
+            };
+            return categoryMap[iconCategory] || { type: 'incident', severity: 'Low', desc: 'Traffic Incident' };
+          };
+          
+          const incidentInfo = getIncidentInfo(props.iconCategory);
+          
+          const alert = {
+            id: `tomtom_working_${Date.now()}_${index}`,
+            type: incidentInfo.type,
+            title: `${incidentInfo.desc} - Newcastle Area`,
+            description: incidentInfo.desc,
+            location: location, // Enhanced with GTFS
+            coordinates: [lat, lng],
+            severity: incidentInfo.severity,
+            status: 'red',
+            source: 'tomtom',
+            affectsRoutes: affectedRoutes,
+            iconCategory: props.iconCategory,
+            lastUpdated: new Date().toISOString(),
+            dataSource: 'TomTom Traffic API v5 (Working Implementation)'
+          };
+          
+          alerts.push(alert);
+          
+        } catch (error) {
+          console.warn(`⚠️ Error processing TomTom incident ${index}:`, error.message);
+        }
+      });
+    }
+    
+    console.log(`✅ TomTom Working: ${alerts.length} alerts processed from Newcastle`);
+    return { success: true, data: alerts, source: 'TomTom Working API' };
+    
+  } catch (error) {
+    console.error('❌ TomTom Working API failed:', error.message);
+    return { success: false, data: [], error: error.message };
+  }
+}
+
+// Enhanced route matching function
+function matchRoutesToLocation(location, lat, lng) {
+  const routes = new Set();
+  
+  // Check if coordinates fall within specific route corridors
+  if (lat && lng) {
+    // A1 corridor (major north-south route)
+    if (lng >= -1.7 && lng <= -1.5 && lat >= 54.8 && lat <= 55.2) {
+      routes.add('21'); routes.add('X21'); routes.add('10'); routes.add('11');
+    }
+    
+    // A19 corridor (through Tyne Tunnel)
+    if (lng >= -1.5 && lng <= -1.3 && lat >= 54.9 && lat <= 55.1) {
+      routes.add('1'); routes.add('2'); routes.add('308'); routes.add('309');
+    }
+    
+    // Newcastle city center
+    if (lng >= -1.65 && lng <= -1.55 && lat >= 54.95 && lat <= 55.0) {
+      routes.add('Q1'); routes.add('Q2'); routes.add('Q3'); routes.add('10'); routes.add('11');
+    }
+    
+    // Coast Road area
+    if (lng >= -1.5 && lng <= -1.3 && lat >= 55.0 && lat <= 55.1) {
+      routes.add('1'); routes.add('2'); routes.add('308'); routes.add('309'); routes.add('317');
+    }
+  }
+  
+  // Text-based matching as fallback
+  const text = location.toLowerCase();
+  const routePatterns = {
+    'a1': ['21', 'X21', '10', '11'],
+    'a19': ['1', '2', '308', '309'],
+    'newcastle': ['Q1', 'Q2', 'Q3', '10', '11', '12'],
+    'coast': ['1', '2', '308', '309', '317'],
+    'tyne tunnel': ['1', '2', '308', '309']
+  };
+  
+  for (const [pattern, routeList] of Object.entries(routePatterns)) {
+    if (text.includes(pattern)) {
+      routeList.forEach(route => routes.add(route));
+    }
+  }
+  
+  return Array.from(routes).sort();
+}
+// --- END fetchTomTomTrafficWorking and helpers ---
 
 // Enhanced helper function to map TomTom incident codes to types with type safety and logging
 function mapTomTomIncidentType(code) {
@@ -765,46 +923,91 @@ app.get('/api/alerts', async (req, res) => {
     }
 
     console.log('🔄 Fetching fresh alerts with fixed authentication...');
-    // Fetch from all sources with fixed authentication
-    const [tomtomResult, hereResult, mapquestResult, nhResult] = await Promise.allSettled([
-      fetchTomTomTraffic(),
+
+    // --- TOMTOM GEOJSON LOGIC ---
+    const allAlerts = [];
+    const sources = {};
+    // Fetch enhanced TomTom data with working API
+    const tomtomResult = await fetchTomTomTrafficWorking();
+
+    if (tomtomResult.success) {
+      allAlerts.push(...tomtomResult.data);
+      sources.tomtom = {
+        success: true,
+        count: tomtomResult.data.length,
+        method: 'Working GeoJSON API',
+        area: 'Newcastle'
+      };
+    } else {
+      sources.tomtom = {
+        success: false,
+        count: 0,
+        error: tomtomResult.error
+      };
+    }
+
+    // --- Fetch other sources as before ---
+    const [hereResult, mapquestResult, nhResult] = await Promise.allSettled([
       fetchHERETraffic(),
       fetchMapQuestTraffic(),
       fetchNationalHighways()
     ]);
 
-    const allAlerts = [];
-    const sources = {};
-    // Process results
-    const results = [
-      { name: 'tomtom', result: tomtomResult },
-      { name: 'here', result: hereResult },
-      { name: 'mapquest', result: mapquestResult },
-      { name: 'nationalHighways', result: nhResult }
-    ];
-    for (const { name, result } of results) {
-      if (result.status === 'fulfilled' && result.value.success) {
-        allAlerts.push(...result.value.data);
-        sources[name] = {
-          success: true,
-          count: result.value.count,
-          method: 'Fixed API Authentication'
-        };
-        console.log(`✅ ${name}: ${result.value.count} alerts`);
-      } else {
-        sources[name] = {
-          success: false,
-          count: 0,
-          error: result.status === 'rejected' ? result.reason.message : result.value.error
-        };
-        console.log(`❌ ${name}: ${sources[name].error}`);
-      }
+    // Here
+    if (hereResult.status === 'fulfilled' && hereResult.value.success) {
+      allAlerts.push(...hereResult.value.data);
+      sources.here = {
+        success: true,
+        count: hereResult.value.count,
+        method: 'Fixed API Authentication'
+      };
+      console.log(`✅ here: ${hereResult.value.count} alerts`);
+    } else {
+      sources.here = {
+        success: false,
+        count: 0,
+        error: hereResult.status === 'rejected' ? hereResult.reason.message : hereResult.value.error
+      };
+      console.log(`❌ here: ${sources.here.error}`);
+    }
+    // MapQuest
+    if (mapquestResult.status === 'fulfilled' && mapquestResult.value.success) {
+      allAlerts.push(...mapquestResult.value.data);
+      sources.mapquest = {
+        success: true,
+        count: mapquestResult.value.count,
+        method: 'Fixed API Authentication'
+      };
+      console.log(`✅ mapquest: ${mapquestResult.value.count} alerts`);
+    } else {
+      sources.mapquest = {
+        success: false,
+        count: 0,
+        error: mapquestResult.status === 'rejected' ? mapquestResult.reason.message : mapquestResult.value.error
+      };
+      console.log(`❌ mapquest: ${sources.mapquest.error}`);
+    }
+    // National Highways
+    if (nhResult.status === 'fulfilled' && nhResult.value.success) {
+      allAlerts.push(...nhResult.value.data);
+      sources.nationalHighways = {
+        success: true,
+        count: nhResult.value.count,
+        method: 'Fixed API Authentication'
+      };
+      console.log(`✅ nationalHighways: ${nhResult.value.count} alerts`);
+    } else {
+      sources.nationalHighways = {
+        success: false,
+        count: 0,
+        error: nhResult.status === 'rejected' ? nhResult.reason.message : nhResult.value.error
+      };
+      console.log(`❌ nationalHighways: ${sources.nationalHighways.error}`);
     }
 
     // If no alerts at all, add some test data
     if (allAlerts.length === 0) {
       console.log('⚠️ No live alerts found - adding diagnostic test data');
-      
       allAlerts.push({
         id: 'test_diagnostic_001',
         type: 'incident',
@@ -819,7 +1022,6 @@ app.get('/api/alerts', async (req, res) => {
         lastUpdated: new Date().toISOString(),
         dataSource: 'Diagnostic Test Data'
       });
-      
       allAlerts.push({
         id: 'test_diagnostic_002',
         type: 'roadwork',
@@ -1036,7 +1238,7 @@ app.get('/api/debug-traffic', async (req, res) => {
   
   // Test each API individually
   console.log('\n--- Testing TomTom ---');
-  const tomtom = await fetchTomTomTraffic();
+  const tomtom = await fetchTomTomTrafficFixed();
   results.apis.tomtom = {
     success: tomtom.success,
     count: tomtom.data?.length || 0,
