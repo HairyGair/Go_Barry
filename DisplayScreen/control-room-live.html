@@ -14,10 +14,10 @@
             --bg-card: rgba(17, 24, 39, 0.8);
             --bg-glass: rgba(255, 255, 255, 0.05);
             --border-glass: rgba(255, 255, 255, 0.1);
-            --text-primary: #ffffff;
-            --text-secondary: #e2e8f0;
-            --text-muted: #94a3b8;
-            --text-bright: #f1f5f9;
+            --text-primary: #161616;
+            --text-secondary: #222222;
+            --text-muted: #444444;
+            --text-bright: #161616;
             --accent-blue: #3b82f6;
             --accent-cyan: #06b6d4;
             --accent-purple: #8b5cf6;
@@ -370,7 +370,7 @@
 
         .alert-count {
             background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
-            color: white;
+            color: var(--text-bright);
             padding: 6px 16px;
             border-radius: 20px;
             font-size: 13px;
@@ -410,18 +410,16 @@
 
         .scroll-button.active {
             background: var(--accent-blue);
-            color: white;
+            color: var(--text-bright);
         }
 
         .alerts-container {
             height: calc(100% - 80px);
-            overflow-y: auto;
-            padding-right: 8px;
-            scroll-behavior: smooth;
-        }
-
-        .alerts-container.auto-scrolling {
-            scroll-behavior: smooth;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            overflow: hidden;
         }
 
         .sidebar {
@@ -474,12 +472,20 @@
             backdrop-filter: blur(10px);
             border: 1px solid var(--border-glass);
             border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 16px;
+            padding: 60px 40px;
+            min-height: 460px;
+            font-size: 32px;
+            margin-bottom: 0;
             border-left: 4px solid var(--text-muted);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             overflow: hidden;
+            width: 100%;
+            max-width: 900px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
 
         .alert-card::before {
@@ -524,10 +530,11 @@
         }
 
         .alert-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: var(--text-primary);
-            line-height: 1.4;
+            font-size: 48px;
+            font-weight: 900;
+            margin-bottom: 40px;
+            color: #161616;
+            line-height: 1.15;
             flex: 1;
             margin-right: 16px;
         }
@@ -552,56 +559,54 @@
 
         .badge.type-incident {
             background: linear-gradient(135deg, var(--status-critical), #dc2626);
-            color: white;
+            color: var(--text-bright);
         }
 
         .badge.type-congestion {
             background: linear-gradient(135deg, var(--status-warning), #ea580c);
-            color: white;
+            color: var(--text-bright);
         }
 
         .badge.type-roadwork {
             background: linear-gradient(135deg, var(--status-info), #1d4ed8);
-            color: white;
+            color: var(--text-bright);
         }
 
         .alert-location {
-            font-size: 13px;
-            color: var(--text-secondary);
-            margin-bottom: 8px;
+            font-size: 34px;
+            margin-bottom: 30px;
+            color: #333;
+            font-weight: 700;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 12px;
         }
 
         .alert-description {
-            font-size: 14px;
-            color: var(--text-secondary);
-            line-height: 1.5;
-            margin-bottom: 12px;
+            font-size: 36px;
+            margin-bottom: 30px;
+            color: #444;
+            font-weight: 600;
+            line-height: 1.2;
         }
 
         .alert-routes {
+            margin-top: 16px;
             display: flex;
             flex-wrap: wrap;
-            gap: 6px;
-            margin-bottom: 12px;
+            gap: 10px;
         }
 
         .route-badge {
-            background: linear-gradient(135deg, var(--accent-purple), #7c3aed);
-            color: white;
-            padding: 4px 10px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 700;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s ease;
-        }
-
-        .route-badge:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+          background: #3b82f6;
+          color: #fff;
+          padding: 8px 20px;
+          border-radius: 16px;
+          font-size: 24px;
+          font-weight: 900;
+          border: 2px solid #fff;
+          margin: 0 8px 8px 0;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
         .alert-meta {
@@ -814,14 +819,10 @@
                     <span>Live Traffic Intelligence</span>
                 </div>
                 <div style="display: flex; align-items: center; gap: 16px;">
-                    <div class="scroll-controls">
-                        <span class="scroll-indicator" id="scroll-status">Auto-scroll: ON</span>
-                        <button class="scroll-button active" id="auto-scroll-toggle">Pause</button>
-                    </div>
                     <div class="alert-count" id="alert-count">0</div>
                 </div>
             </div>
-            <div class="alerts-container auto-scrolling" id="alerts-container">
+            <div class="alerts-container" id="alerts-container">
                 <div class="loading">
                     <div class="spinner"></div>
                     <span>Initializing enhanced traffic intelligence...</span>
@@ -951,7 +952,10 @@
         }
     }
 
-    // Update alerts display + auto-scroll
+    // ---- SINGLE-ALERT CYCLING DISPLAY ----
+    let alertIndex = 0;
+    let alertCycleTimer = null;
+
     function updateAlertsDisplay(alerts) {
         const alertsContainer = document.getElementById('alerts-container');
         const alertCount = document.getElementById('alert-count');
@@ -964,41 +968,40 @@
                     <p>No active traffic alerts detected across all monitored sources</p>
                 </div>
             `;
-            stopAutoScroll();
+            clearAlertCycle();
             return;
         }
-        alertsContainer.innerHTML = alerts.map(createAlertCard).join('');
-        startAutoScroll();
+        // Show only one alert at a time, cycling every 5 seconds
+        currentAlerts = alerts;
+        alertIndex = 0;
+        renderCurrentAlert();
+        startAlertCycle();
     }
 
-    // ---- AUTO-SCROLL HANDLING ----
-    function startAutoScroll() {
-        stopAutoScroll(); // Clear any existing timer
-        const container = document.getElementById('alerts-container');
-        const maxScroll = container.scrollHeight - container.clientHeight;
-        if (maxScroll <= 0) return; // No scroll needed
-        let position = 0;
-        scrollDirection = 1;
-        autoScrollTimer = setInterval(() => {
-            if (container.scrollHeight - container.clientHeight <= 0) return;
-            position += 2 * scrollDirection; // scroll by 2px per frame
-            if (position >= maxScroll) {
-                scrollDirection = -1;
-                position = maxScroll;
-            } else if (position <= 0) {
-                scrollDirection = 1;
-                position = 0;
-            }
-            container.scrollTo({ top: position, behavior: 'smooth' });
-        }, 50); // scroll every 50ms for smoothness
-    }
-    function stopAutoScroll() {
-        if (autoScrollTimer) {
-            clearInterval(autoScrollTimer);
-            autoScrollTimer = null;
+    function renderCurrentAlert() {
+        const alertsContainer = document.getElementById('alerts-container');
+        if (!currentAlerts || currentAlerts.length === 0) {
+            alertsContainer.innerHTML = '';
+            return;
         }
-        // reset scroll position to top on update
-        document.getElementById('alerts-container').scrollTo({ top: 0 });
+        const alert = currentAlerts[alertIndex % currentAlerts.length];
+        alertsContainer.innerHTML = createAlertCard(alert);
+    }
+
+    function startAlertCycle() {
+        clearAlertCycle();
+        if (!currentAlerts || currentAlerts.length <= 1) return;
+        alertCycleTimer = setInterval(() => {
+            alertIndex = (alertIndex + 1) % currentAlerts.length;
+            renderCurrentAlert();
+        }, 15000);
+    }
+
+    function clearAlertCycle() {
+        if (alertCycleTimer) {
+            clearInterval(alertCycleTimer);
+            alertCycleTimer = null;
+        }
     }
 
     // ---- CHART/ANALYTICS FUNCTIONS ----

@@ -17,28 +17,72 @@ import {
   enhanceLocationWithGTFSOptimized
 } from './gtfs-location-enhancer-optimized.js';
 
-// Optimized TomTom fetcher using GTFS enhancements with memory optimizations
+// Optimized TomTom fetcher using GTFS enhancements (Simple enhancement version)
 async function fetchTomTomTrafficOptimized() {
-  // This should mirror the logic in fetchTomTomTrafficWithGTFS, but use the optimized enhancer
-  // and memory-saving approaches.
   const apiKey = process.env.TOMTOM_API_KEY;
   if (!apiKey) {
     console.warn('⚠️ TomTom API key not found');
     return { success: false, data: [], error: 'API key missing' };
   }
   try {
-    console.log('🚗 [OPTIMIZED] Fetching TomTom traffic with GTFS memory optimizations...');
-    // Example: fetch incidents from TomTom and enhance using the optimized enhancer.
-    // This is a placeholder for your actual fetching logic.
-    // You may wish to adapt this to your actual optimized code.
-    // For demonstration, we just call the enhancer with empty data.
-    // In practice, fetch incidents and pass them to enhanceLocationWithGTFSOptimized.
-    // Replace with your optimized implementation as needed.
-    const incidents = []; // TODO: fetch TomTom incidents as needed
-    const enhanced = await enhanceLocationWithGTFSOptimized(incidents);
-    return { success: true, data: enhanced, enhancement: 'Optimized GTFS' };
+    console.log('🚗 [OPTIMIZED] Fetching TomTom incidents (simple GTFS enhancement)...');
+    // Fetch TomTom incidents for North East England via bounding box (Newcastle & surrounds)
+    // See: https://developer.tomtom.com/traffic-api/traffic-api-documentation-incidents/traffic-incidents-service
+    const bbox = '54.8,-1.7,55.1,-1.4'; // Newcastle/Gateshead
+    const url = 'https://api.tomtom.com/traffic/services/5/incidentDetails';
+    const params = {
+      bbox,
+      key: apiKey,
+      fields: 'id,type,geometry,properties',
+      language: 'en-GB'
+    };
+    const response = await axios.get(url, { params, timeout: 15000 });
+    if (!response.data || !response.data.incidents) {
+      console.log('⚠️ TomTom: No incidents in response');
+      return { success: true, data: [], enhancement: 'Optimized GTFS', count: 0 };
+    }
+    const incidents = response.data.incidents;
+    console.log(`✅ TomTom: ${incidents.length} incidents fetched`);
+    // Parse incidents into alert objects
+    let alerts = incidents.map(inc => {
+      // Compose basic location string
+      let location = '';
+      if (inc.geometry?.type === 'Point' && Array.isArray(inc.geometry.coordinates)) {
+        location = `(${inc.geometry.coordinates[1].toFixed(5)}, ${inc.geometry.coordinates[0].toFixed(5)})`;
+      } else if (inc.properties?.from && inc.properties?.to) {
+        location = `${inc.properties.from} to ${inc.properties.to}`;
+      } else if (inc.properties?.from) {
+        location = inc.properties.from;
+      }
+      const description = inc.properties?.eventDescription || inc.properties?.description || '';
+      // Use route keyword matcher
+      const routes = matchRoutes(location, description);
+      return {
+        id: `tomtom_${inc.id || Date.now()}`,
+        type: mapTomTomIncidentType(inc.properties?.eventCode),
+        title: inc.properties?.eventDescription || inc.properties?.category || 'Traffic incident',
+        description: description,
+        location: location,
+        authority: 'TomTom Traffic',
+        source: 'tomtom',
+        severity: mapTomTomSeverity(inc.properties?.magnitudeOfDelay),
+        status: 'red',
+        affectsRoutes: routes,
+        lastUpdated: new Date().toISOString(),
+        dataSource: 'TomTom Incidents API',
+        coordinates: (inc.geometry?.type === 'Point' && Array.isArray(inc.geometry.coordinates))
+          ? { lat: inc.geometry.coordinates[1], lng: inc.geometry.coordinates[0] }
+          : null
+      };
+    });
+    // Enhance location with GTFS stops (memory-optimized)
+    alerts = await enhanceLocationWithGTFSOptimized(alerts);
+    return { success: true, data: alerts, enhancement: 'Optimized GTFS', count: alerts.length };
   } catch (error) {
     console.error('❌ [OPTIMIZED] TomTom error:', error.message);
+    if (error.response) {
+      console.error('TomTom response:', error.response.status, error.response.data);
+    }
     return { success: false, data: [], error: error.message };
   }
 }
