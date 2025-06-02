@@ -9,6 +9,7 @@ import dotenv from 'dotenv';
 import { parse } from 'csv-parse/sync';
 
 import fetchTomTomTrafficGeoJSON from './tomtom-fixed-implementation.js';
+import enhanceLocationWithNames from './location-enhancer.js';
 
 import {
   initializeGTFSOptimized as initializeGTFS,
@@ -761,83 +762,110 @@ async function fetchHERETraffic() {
   }
 }
 
-// DIAGNOSTIC VERSION: MapQuest with minimal filtering
+// Enhanced MapQuest with street names
 async function fetchMapQuestTraffic() {
-  const apiKey = process.env.MAPQUEST_API_KEY;
-  if (!apiKey) {
-    console.warn('⚠️ MapQuest API key not found');
-    return { success: false, data: [], error: 'API key missing' };
-  }
-  
   try {
-    console.log('🗺️ Fetching MapQuest traffic data (DIAGNOSTIC MODE)...');
+    console.log('🗺️ Fetching MapQuest traffic with street name enhancement...');
     
-    // Just one bbox for Newcastle area
     const response = await axios.get('https://www.mapquestapi.com/traffic/v2/incidents', {
       params: {
-        key: apiKey,
-        boundingBox: '55.1,-1.7,54.8,-1.4', // Newcastle/Gateshead
-        filters: 'incidents,construction',
-        outFormat: 'json'
+        key: process.env.MAPQUEST_API_KEY,
+        boundingBox: `55.0,-2.0,54.5,-1.0`,
+        filters: 'incidents,construction'
       },
-      timeout: 15000
+      timeout: 20000,
+      headers: {
+        'User-Agent': 'BARRY-TrafficWatch/3.0',
+        'Accept': 'application/json'
+      }
     });
     
-    console.log(`📡 MapQuest response status: ${response.status}`);
-    console.log(`📊 MapQuest incidents found: ${response.data?.incidents?.length || 0}`);
+    console.log(`📡 MapQuest: ${response.status}, incidents: ${response.data?.incidents?.length || 0}`);
     
-    if (!response.data || !response.data.incidents || response.data.incidents.length === 0) {
-      console.log('❌ MapQuest: No incidents in response');
-      return { success: true, data: [], count: 0 };
+    const alerts = [];
+    
+    if (response.data?.incidents) {
+      // Process first 8 incidents to avoid too many geocoding calls
+      const incidentsToProcess = response.data.incidents.slice(0, 8);
+      
+      for (const [index, incident] of incidentsToProcess.entries()) {
+        const lat = incident.lat;
+        const lng = incident.lng;
+        
+        if (!lat || !lng) continue;
+        
+        // ENHANCED: Get real street name
+        console.log(`🗺️ Enhancing location ${index + 1}/${incidentsToProcess.length}...`);
+        const enhancedLocation = await enhanceLocationWithNames(
+          lat, 
+          lng, 
+          incident.street || `Traffic incident`
+        );
+        
+        // Enhanced route matching based on coordinates
+        const affectedRoutes = getRoutesFromCoordinates(lat, lng);
+        
+        const alert = {
+          id: `mapquest_enhanced_${incident.id || Date.now()}_${index}`,
+          type: incident.type === 1 ? 'roadwork' : 'incident',
+          title: incident.shortDesc || 'Traffic Incident',
+          description: incident.fullDesc || incident.shortDesc || 'Traffic incident reported',
+          location: enhancedLocation, // ← REAL STREET NAMES!
+          authority: 'MapQuest Traffic',
+          source: 'mapquest',
+          severity: incident.severity >= 3 ? 'High' : incident.severity >= 2 ? 'Medium' : 'Low',
+          status: 'red',
+          affectsRoutes: affectedRoutes,
+          coordinates: { lat, lng },
+          lastUpdated: new Date().toISOString(),
+          dataSource: 'MapQuest Traffic API + OpenStreetMap Street Names'
+        };
+        
+        alerts.push(alert);
+        
+        console.log(`✨ Enhanced: "${incident.street || 'coordinates'}" → "${enhancedLocation}"`);
+      }
     }
     
-    // Take first 10 incidents for testing
-    const testIncidents = response.data.incidents.slice(0, 10);
-
-    const alerts = testIncidents.map(incident => {
-      console.log(`Processing incident: ${incident.shortDesc || 'No description'}`);
-      
-      // Extract better location info
-      let location = incident.street || '';
-      if (!location && incident.lat && incident.lng) {
-        location = `Newcastle area (${incident.lat.toFixed(3)}, ${incident.lng.toFixed(3)})`;
-      }
-      if (!location) {
-        location = 'Newcastle area'; // Default to Newcastle since we queried that bbox
-      }
-
-      const description = incident.fullDesc || incident.shortDesc || 'Traffic incident reported by MapQuest';
-      const routes = matchRoutes(location, description);
-
-      return {
-        id: `mapquest_${incident.id || Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-        type: incident.type === 'construction' ? 'roadwork' : 'incident',
-        title: incident.shortDesc || 'Traffic Alert',
-        description: description,
-        location: location,
-        authority: 'MapQuest Traffic',
-        source: 'mapquest',
-        severity: incident.severity >= 3 ? 'High' : incident.severity >= 2 ? 'Medium' : 'Low',
-        status: 'red',
-        affectsRoutes: routes,
-        lastUpdated: new Date().toISOString(),
-        dataSource: 'MapQuest Traffic API',
-        // Add coordinates if available
-        coordinates: incident.lat && incident.lng ? { 
-          lat: parseFloat(incident.lat), 
-          lng: parseFloat(incident.lng) 
-        } : null
-      };
-    });
-    
-    console.log(`✅ MapQuest: Returning ${alerts.length} test alerts`);
-    return { success: true, data: alerts, count: alerts.length };
+    console.log(`✅ MapQuest enhanced: ${alerts.length} alerts with real street names`);
+    return { success: true, data: alerts, method: 'Enhanced with Street Names' };
     
   } catch (error) {
-    console.error('❌ MapQuest API error:', error.message);
-    console.error('Full error:', error);
+    console.error('❌ Enhanced MapQuest fetch failed:', error.message);
     return { success: false, data: [], error: error.message };
   }
+}
+
+// Enhanced route matching function
+function getRoutesFromCoordinates(lat, lng) {
+  const routes = [];
+  
+  // A1 corridor (major north-south route)
+  if (lng >= -1.7 && lng <= -1.5 && lat >= 54.8 && lat <= 55.2) {
+    routes.push('21', 'X21', '10', '11');
+  }
+  
+  // A19 corridor (Tyne Tunnel area)
+  if (lng >= -1.5 && lng <= -1.3 && lat >= 54.9 && lat <= 55.1) {
+    routes.push('1', '2', '308', '309');
+  }
+  
+  // Newcastle city center
+  if (lng >= -1.65 && lng <= -1.55 && lat >= 54.95 && lat <= 55.0) {
+    routes.push('Q1', 'Q2', 'Q3', '10', '11', '12');
+  }
+  
+  // Coast Road area
+  if (lng >= -1.5 && lng <= -1.3 && lat >= 55.0 && lat <= 55.1) {
+    routes.push('1', '2', '308', '309', '317');
+  }
+  
+  // A167 Durham Road corridor
+  if (lng >= -1.65 && lng <= -1.45 && lat >= 54.85 && lat <= 54.95) {
+    routes.push('21', '22', 'X21', '6', '7');
+  }
+  
+  return [...new Set(routes)].sort();
 }
 
 // Fetch National Highways data (already working)
@@ -976,14 +1004,14 @@ app.get('/api/alerts', async (req, res) => {
       };
     }
 
-    // --- Fetch other sources as before ---
-    const [hereResult, mapquestResult, nhResult] = await Promise.allSettled([
+    // --- Enhanced parallel fetch with improved MapQuest street names ---
+    const [hereResult, nhResult] = await Promise.allSettled([
       fetchHERETraffic(),
-      fetchMapQuestTraffic(),
       fetchNationalHighways()
     ]);
+    const mapquestResult = await fetchMapQuestTrafficWithStreetNames();
 
-    // Here
+    // HERE
     if (hereResult.status === 'fulfilled' && hereResult.value.success) {
       allAlerts.push(...hereResult.value.data);
       sources.here = {
@@ -1000,20 +1028,20 @@ app.get('/api/alerts', async (req, res) => {
       };
       console.log(`❌ here: ${sources.here.error}`);
     }
-    // MapQuest
-    if (mapquestResult.status === 'fulfilled' && mapquestResult.value.success) {
-      allAlerts.push(...mapquestResult.value.data);
+    // MapQuest (Enhanced with OpenStreetMap Street Names)
+    if (mapquestResult.success) {
+      allAlerts.push(...mapquestResult.data);
       sources.mapquest = {
         success: true,
-        count: mapquestResult.value.count,
-        method: 'Fixed API Authentication'
+        count: mapquestResult.data.length,
+        method: 'Enhanced with OpenStreetMap Street Names'
       };
-      console.log(`✅ mapquest: ${mapquestResult.value.count} alerts`);
+      console.log(`✅ mapquest: ${mapquestResult.data.length} alerts`);
     } else {
       sources.mapquest = {
         success: false,
         count: 0,
-        error: mapquestResult.status === 'rejected' ? mapquestResult.reason.message : mapquestResult.value.error
+        error: mapquestResult.error
       };
       console.log(`❌ mapquest: ${sources.mapquest.error}`);
     }
@@ -1326,3 +1354,63 @@ app.listen(PORT, '0.0.0.0', () => {
 
 export { fetchTomTomTrafficSimple as fetchTomTomTrafficOptimized, initializeGTFS, getGTFSStats };
 export default app;
+
+// --- Enhanced MapQuest fetcher with OpenStreetMap street names ---
+async function fetchMapQuestTrafficWithStreetNames() {
+  try {
+    console.log('🗺️ Fetching MapQuest traffic with OpenStreetMap street names...');
+    const response = await axios.get('https://www.mapquestapi.com/traffic/v2/incidents', {
+      params: {
+        key: process.env.MAPQUEST_API_KEY,
+        boundingBox: `55.0,-2.0,54.5,-1.0`,
+        filters: 'incidents,construction'
+      },
+      timeout: 20000,
+      headers: {
+        'User-Agent': 'BARRY-TrafficWatch/3.0',
+        'Accept': 'application/json'
+      }
+    });
+    console.log(`📡 MapQuest: ${response.status}, incidents: ${response.data?.incidents?.length || 0}`);
+    const alerts = [];
+    if (response.data?.incidents) {
+      // Limit to 10 to avoid too many API calls
+      for (const [index, incident] of response.data.incidents.entries()) {
+        if (index >= 10) break;
+        const lat = incident.lat;
+        const lng = incident.lng;
+        if (!lat || !lng) continue;
+        // ENHANCED: Get real street name instead of coordinates
+        const enhancedLocation = await enhanceLocationWithNames(
+          lat,
+          lng,
+          incident.street || `Newcastle area (${lat.toFixed(3)}, ${lng.toFixed(3)})`
+        );
+        // Enhanced route matching
+        const affectedRoutes = getRoutesFromCoordinates(lat, lng);
+        const alert = {
+          id: `mapquest_enhanced_${incident.id || Date.now()}_${index}`,
+          type: incident.type === 1 ? 'roadwork' : 'incident',
+          title: incident.shortDesc || 'Traffic Incident',
+          description: incident.fullDesc || incident.shortDesc || 'Traffic incident reported',
+          location: enhancedLocation,
+          authority: 'MapQuest Traffic',
+          source: 'mapquest',
+          severity: incident.severity >= 3 ? 'High' : incident.severity >= 2 ? 'Medium' : 'Low',
+          status: 'red',
+          affectsRoutes: affectedRoutes,
+          lastUpdated: new Date().toISOString(),
+          dataSource: 'MapQuest Traffic API + OpenStreetMap Geocoding',
+          coordinates: { lat, lng }
+        };
+        alerts.push(alert);
+        console.log(`✨ Enhanced: ${incident.street || 'coordinates'} → ${enhancedLocation}`);
+      }
+    }
+    console.log(`✅ MapQuest enhanced: ${alerts.length} alerts with street names`);
+    return { success: true, data: alerts };
+  } catch (error) {
+    console.error('❌ Enhanced MapQuest fetch failed:', error.message);
+    return { success: false, data: [], error: error.message };
+  }
+}
