@@ -16,94 +16,64 @@ import {
   enhanceLocationWithGTFSOptimized
 } from './gtfs-location-enhancer-optimized.js';
 
-// --- BEGIN fetchTomTomTrafficFiltered and helpers ---
-// Helper: get all possible GTFS routes from TomTom coordinates using GTFS stops/routes
-async function getRoutesFromCoordinates(lat, lng) {
-  // This is a placeholder for actual spatial lookup to GTFS stops/routes
-  // For now, just return empty array
-  return [];
-}
-
-// New filtered TomTom fetch function
-async function fetchTomTomTrafficFiltered() {
-  const apiKey = process.env.TOMTOM_API_KEY;
-  if (!apiKey) {
-    console.warn('⚠️ TomTom API key not found');
+// --- BEGIN fetchTomTomTrafficSimple ---
+// Simple working TomTom fetcher (roadworks only, no filtering)
+async function fetchTomTomTrafficSimple() {
+  if (!process.env.TOMTOM_API_KEY) {
     return { success: false, data: [], error: 'API key missing' };
   }
+  
   try {
-    console.log('🚗 [FILTERED] Fetching TomTom incidents (filtered to GTFS routes)...');
-    const bbox = '54.8,-1.7,55.1,-1.4'; // Newcastle/Gateshead
-    const url = 'https://api.tomtom.com/traffic/services/5/incidentDetails';
-    const params = {
-      bbox,
-      key: apiKey,
-      fields: 'id,type,geometry,properties',
-      language: 'en-GB'
-    };
-    const response = await axios.get(url, { params, timeout: 15000 });
-    if (!response.data || !response.data.incidents) {
-      console.log('⚠️ TomTom: No incidents in response');
-      return { success: true, data: [], enhancement: 'Filtered GTFS', count: 0 };
-    }
-    const incidents = response.data.incidents;
-    console.log(`✅ TomTom: ${incidents.length} incidents fetched`);
-    // Parse incidents into alert objects
-    let alerts = await Promise.all(
-      incidents.map(async inc => {
-        let location = '';
-        let lat = null, lng = null;
-        if (inc.geometry?.type === 'Point' && Array.isArray(inc.geometry.coordinates)) {
-          lat = inc.geometry.coordinates[1];
-          lng = inc.geometry.coordinates[0];
-          location = `(${lat.toFixed(5)}, ${lng.toFixed(5)})`;
-        } else if (inc.properties?.from && inc.properties?.to) {
-          location = `${inc.properties.from} to ${inc.properties.to}`;
-        } else if (inc.properties?.from) {
-          location = inc.properties.from;
-        }
-        const description = inc.properties?.eventDescription || inc.properties?.description || '';
-        // Use route keyword matcher
-        let routes = matchRoutes(location, description);
-        // Optionally, get routes from coordinates (stubbed)
-        if (lat && lng) {
-          const spatialRoutes = await getRoutesFromCoordinates(lat, lng);
-          if (Array.isArray(spatialRoutes)) {
-            spatialRoutes.forEach(r => routes.push(r));
+    console.log('🚗 Fetching TomTom traffic (simple working version)...');
+    const response = await axios.get('https://api.tomtom.com/traffic/services/5/incidentDetails', {
+      params: {
+        key: process.env.TOMTOM_API_KEY,
+        bbox: '-1.8,54.8,-1.4,55.1',
+        zoom: 10
+      },
+      timeout: 15000
+    });
+    console.log(`✅ TomTom simple: ${response.status}, incidents: ${response.data?.incidents?.length || 0}`);
+    const alerts = [];
+    if (response.data?.incidents) {
+      response.data.incidents.slice(0, 10).forEach((feature, index) => {
+        const props = feature.properties || {};
+        if (props.iconCategory === 6 || props.iconCategory === 7) {
+          let lat = null, lng = null;
+          if (feature.geometry?.coordinates) {
+            if (feature.geometry.type === 'Point') {
+              [lng, lat] = feature.geometry.coordinates;
+            } else if (feature.geometry.type === 'LineString') {
+              [lng, lat] = feature.geometry.coordinates[0];
+            }
+          }
+          if (lat && lng) {
+            alerts.push({
+              id: `tomtom_simple_${index}`,
+              type: 'roadwork',
+              title: props.iconCategory === 6 ? 'Road Closure' : 'Road Works',
+              description: 'TomTom reported roadwork',
+              location: `Newcastle Area (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
+              coordinates: [lat, lng],
+              severity: 'Medium',
+              status: 'red',
+              source: 'tomtom',
+              affectsRoutes: [],
+              lastUpdated: new Date().toISOString(),
+              dataSource: 'TomTom Simple Working Version'
+            });
           }
         }
-        routes = Array.from(new Set(routes));
-        return {
-          id: `tomtom_${inc.id || Date.now()}`,
-          type: mapTomTomIncidentType(inc.properties?.eventCode),
-          title: inc.properties?.eventDescription || inc.properties?.category || 'Traffic incident',
-          description: description,
-          location: location,
-          authority: 'TomTom Traffic',
-          source: 'tomtom',
-          severity: mapTomTomSeverity(inc.properties?.magnitudeOfDelay),
-          status: 'red',
-          affectsRoutes: routes,
-          lastUpdated: new Date().toISOString(),
-          dataSource: 'TomTom Incidents API',
-          coordinates: (lat && lng) ? { lat, lng } : null
-        };
-      })
-    );
-    // Enhance location with GTFS stops (memory-optimized)
-    alerts = await enhanceLocationWithGTFSOptimized(alerts);
-    // Filter only alerts affecting GTFS routes
-    alerts = alerts.filter(alert => alertAffectsGTFSRoute(alert));
-    return { success: true, data: alerts, enhancement: 'Filtered GTFS', count: alerts.length };
-  } catch (error) {
-    console.error('❌ [FILTERED] TomTom error:', error.message);
-    if (error.response) {
-      console.error('TomTom response:', error.response.status, error.response.data);
+      });
     }
+    console.log(`✅ TomTom simple: ${alerts.length} roadworks processed`);
+    return { success: true, data: alerts };
+  } catch (error) {
+    console.error('❌ TomTom simple failed:', error.message);
     return { success: false, data: [], error: error.message };
   }
 }
-// --- END fetchTomTomTrafficFiltered and helpers ---
+// --- END fetchTomTomTrafficSimple ---
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -943,11 +913,11 @@ app.get('/api/alerts', async (req, res) => {
 
     console.log('🔄 Fetching fresh alerts with fixed authentication...');
 
-    // --- TOMTOM FILTERED LOGIC ---
+    // --- TOMTOM SIMPLE LOGIC ---
     const allAlerts = [];
     const sources = {};
-    // Fetch TomTom data with filtered GTFS logic
-    const tomtomResult = await fetchTomTomTrafficFiltered();
+    // Fetch TomTom data with simple working version
+    const tomtomResult = await fetchTomTomTrafficSimple();
 
     if (tomtomResult.success) {
       allAlerts.push(...tomtomResult.data);
