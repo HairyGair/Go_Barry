@@ -6,7 +6,7 @@ import enhanceLocationWithGTFS, {
   findNearbyStops, 
   findIntersectingRoutes,
   getGTFSStats 
-} from './gtfs-location-enhancer-optimized.js.js';
+} from './gtfs-location-enhancer-optimized.js';
 
 // Enhanced TomTom data processing with GTFS integration
 function processTomTomDataWithGTFS(data) {
