@@ -338,6 +338,47 @@ function classifyAlert(alert) {
   return status;
 }
 
+// --- BEGIN getLocationName helper ---
+// Reverse geocode coordinates to a human-friendly location name using OpenStreetMap
+async function getLocationName(lat, lng) {
+  try {
+    const response = await axios.get('https://nominatim.openstreetmap.org/reverse', {
+      params: {
+        lat: lat,
+        lon: lng,
+        format: 'json',
+        addressdetails: 1
+      },
+      headers: {
+        'User-Agent': 'BARRY-TrafficWatch/3.0'
+      },
+      timeout: 5000
+    });
+
+    if (response.data && response.data.display_name) {
+      const addr = response.data.address || {};
+      // Build a nice location description
+      let location = '';
+      if (addr.road) {
+        location = addr.road;
+      } else if (addr.pedestrian) {
+        location = addr.pedestrian;
+      } else if (addr.neighbourhood) {
+        location = addr.neighbourhood;
+      }
+      if (addr.suburb || addr.town || addr.city) {
+        location += `, ${addr.suburb || addr.town || addr.city}`;
+      }
+      return location || response.data.display_name.split(',')[0];
+    }
+    return null;
+  } catch (error) {
+    console.warn('⚠️ Reverse geocoding failed:', error.message);
+    return null;
+  }
+}
+// --- END getLocationName helper ---
+
 // North East bounding boxes for multi-query
 const NORTH_EAST_BBOXES = [
   '54.8,-1.7,55.1,-1.4', // Newcastle/Gateshead
