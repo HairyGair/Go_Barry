@@ -1283,5 +1283,5 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   🔄 Refresh: /api/refresh`);
 });
 
-export { fetchTomTomTrafficFiltered as fetchTomTomTrafficOptimized, initializeGTFS, getGTFSStats };
+export { fetchTomTomTrafficSimple as fetchTomTomTrafficOptimized, initializeGTFS, getGTFSStats };
 export default app;
