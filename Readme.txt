@@ -101,14 +101,47 @@ Mobile Application:
 Backend Server:
 1. Navigate to backend directory
 2. Run: npm install
-3. Configure environment variables in .env file
+3. Configure environment variables in .env file (see below)
 4. Run: node index.js
 
 Environment Configuration:
-Create backend/.env file with:
-NATIONAL_HIGHWAYS_API_KEY=your_api_key_here
-HERE_API_KEY=your_api_key_here
-MAPQUEST_API_KEY=your_api_key_here
+==========================
+
+Create backend/.env file with the following configuration:
+
+# Server Configuration
+PORT=3001
+NODE_ENV=development
+
+# National Highways API Keys
+NATIONAL_HIGHWAYS_API_KEY=622f1fc448714ca59bd1e6f0ffc8580c
+NATIONAL_HIGHWAYS_API_PRIMARY_KEY=622f1fc448714ca59bd1e6f0ffc8580c
+NATIONAL_HIGHWAYS_API_SECONDARY_KEY=9328175a500c44df89846cf97cca4d7d
+
+# Supabase Configuration
+SUPABASE_URL=https://haountnghecfrsoniubq.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhb3VudG5naGVjZnJzb25pdWJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzM2MTM0MTAsImV4cCI6MjA0ODIxMzQxMH0.WJxIiwicm9sZUimFub241LCJpYXQiOjE3MzM2MTM0NDksImV4cCI6MjA0ODIxMzQxMH0.xtjxeGkxG3cx67IypI4XxEp
+
+# TomTom API
+TOMTOM_API_KEY=p1RBk8dOAhAuipgt7zxplRBro4V5rmyh
+
+# HERE Traffic API
+HERE_API_KEY=kw-aCK-LeVViMkZh9C_bK-Km-GjUtv_303waROHLL5Q
+
+# MapQuest API
+MAPQUEST_API_KEY=OeLAVWPNlgnBjW66iam0yiD5kEecJIoN
+
+# API URLs
+NATIONAL_HIGHWAYS_API_URL=https://api.data.nationalhighways.co.uk/roads/v2.0/closures
+
+# Logging Level
+LOG_LEVEL=info
+
+# CORS Settings
+CORS_ORIGIN=http://localhost:8081
+RENDER_BACKEND_URL=https://barry-backend.onrender.com
+
+⚠️ SECURITY WARNING: These are live API keys. Do not commit this file to public repositories.
 
 API ENDPOINTS
 =============

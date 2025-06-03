@@ -1,13 +1,15 @@
 // Go_BARRY/components/TrafficCard.jsx
-// Clean version with emoji icons only - no external dependencies
+// Fixed version with better text layout and spacing and light theme adjustments
 import React, { useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  Dimensions
+  Dimensions,
+  Share,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
@@ -85,7 +87,18 @@ const TrafficCard = ({
     switch (source) {
       case 'national_highways': return 'National Highways';
       case 'streetmanager': return 'Street Manager';
+      case 'traffic_monitoring': return 'Traffic Monitoring';
+      case 'police_reports': return 'Police Reports';
       default: return authority || 'Unknown Source';
+    }
+  };
+
+  const getTypeDisplay = () => {
+    switch (type) {
+      case 'incident': return 'Traffic Incident';
+      case 'congestion': return 'Traffic Congestion';
+      case 'roadwork': return 'Roadworks';
+      default: return 'Traffic Alert';
     }
   };
 
@@ -126,15 +139,51 @@ const TrafficCard = ({
     }
   };
 
+  // New function to determine primary location display
+  const getPrimaryLocation = () => {
+    const genericLocations = ['MapQuest reported location', 'Location not specified', 'Unknown', ''];
+    if (location && !genericLocations.includes(location.trim())) {
+      return location;
+    }
+    // Check if title contains a road number or street name (simple regex for road numbers or common road words)
+    const roadRegex = /\b([A-Z]{1,3}\s?\d{1,4}|[A-Z][a-z]*\s(Road|Street|Ave|Avenue|Lane|Drive|Way|Boulevard|Blvd|Highway|Hwy|Court|Ct|Place|Pl|Terrace|Ter|Close|Crescent|Cres))\b/;
+    if (title && roadRegex.test(title)) {
+      return title;
+    }
+    // Extract first capitalized phrase from description as fallback
+    if (description) {
+      const descMatch = description.match(/([A-Z][a-z]*(?:\s[A-Z][a-z]*)*)/);
+      if (descMatch && descMatch[0].length > 2) {
+        return descMatch[0];
+      }
+    }
+    return 'Unknown location';
+  };
+
   const colors = getStatusColors();
   const durationText = getDurationText();
+
+  // Share handler
+  const handleShare = () => {
+    const shareText = [
+      `🚦 BARRY Alert: ${title}`,
+      description && `Details: ${description}`,
+      location && `Location: ${location}`,
+      affectsRoutes?.length ? `Routes: ${affectsRoutes.join(', ')}` : '',
+      status ? `Status: ${status}` : '',
+      severity ? `Severity: ${severity}` : '',
+      authority ? `Source: ${authority}` : '',
+      '\nSent from BARRY App'
+    ].filter(Boolean).join('\n');
+    Share.share({ message: shareText });
+  };
 
   return (
     <View style={[
       styles.card,
       { 
         borderLeftColor: colors.borderColor,
-        backgroundColor: colors.backgroundColor 
+        backgroundColor: '#F3F4F6',
       },
       style
     ]}>
@@ -147,22 +196,32 @@ const TrafficCard = ({
         style={styles.contentContainer}
         activeOpacity={0.7}
       >
-        {/* Header Row */}
-        <View style={styles.headerRow}>
-          <View style={styles.headerLeft}>
-            <View style={styles.titleRow}>
-              <Text style={styles.severityIcon}>{getSeverityIcon()}</Text>
-              <Text style={styles.title} numberOfLines={2}>
-                {title}
-              </Text>
-            </View>
-            
-            <Text style={styles.subtitle}>
-              {getTypeIcon()} {type === 'incident' ? 'Incident' : 'Roadworks'} • {getSourceDisplay()}
+        {/* Location at Top */}
+        <Text style={styles.locationMain} numberOfLines={2}>
+          {getPrimaryLocation()}
+        </Text>
+        {/* Start Time below Location */}
+        <Text style={styles.startTimeMain}>
+          {formatDateTime(startDate) || 'Start time unknown'}
+        </Text>
+
+        {/* Header Section - Title/Type/Severity/Status */}
+        <View style={styles.headerSection}>
+          {/* Title Row with Better Spacing */}
+          <View style={styles.titleRow}>
+            <Text style={styles.severityIcon}>{getSeverityIcon()}</Text>
+            <Text style={styles.typeIcon}>{getTypeIcon()}</Text>
+            <Text style={styles.title} numberOfLines={2}>
+              {title}
             </Text>
+            {/* Share Button */}
+            <TouchableOpacity onPress={handleShare} style={{ marginLeft: 8 }}>
+              <Ionicons name="share-social-outline" size={20} color="#60A5FA" />
+            </TouchableOpacity>
           </View>
           
-          <View style={styles.headerRight}>
+          {/* Status Badge - Moved to Own Row */}
+          <View style={styles.statusRow}>
             <View style={[styles.statusBadge, { backgroundColor: colors.indicatorColor }]}>
               <Text style={styles.statusBadgeText}>
                 {status.toUpperCase()}
@@ -171,28 +230,20 @@ const TrafficCard = ({
           </View>
         </View>
 
-        {/* Location */}
-        <View style={styles.locationRow}>
-          <Text style={styles.locationIcon}>📍</Text>
-          <Text style={styles.locationText} numberOfLines={2}>
-            {location}
-          </Text>
-        </View>
-
-        {/* Route Badges */}
+        {/* Route Badges - Better Layout */}
         {affectsRoutes && affectsRoutes.length > 0 && (
-          <View style={styles.routeContainer}>
-            <Text style={styles.routeLabel}>🚌 Affects routes:</Text>
+          <View style={styles.routeSection}>
+            <Text style={styles.routeLabel}>🚌 Affected Routes:</Text>
             <View style={styles.routeBadgeContainer}>
-              {affectsRoutes.slice(0, 8).map((route, index) => (
+              {affectsRoutes.slice(0, 6).map((route, index) => (
                 <View key={`${route}-${index}`} style={styles.routeBadge}>
                   <Text style={styles.routeBadgeText}>{route}</Text>
                 </View>
               ))}
-              {affectsRoutes.length > 8 && (
+              {affectsRoutes.length > 6 && (
                 <View style={styles.moreRoutesBadge}>
                   <Text style={styles.moreRoutesText}>
-                    +{affectsRoutes.length - 8} more
+                    +{affectsRoutes.length - 6} more
                   </Text>
                 </View>
               )}
@@ -200,25 +251,7 @@ const TrafficCard = ({
           </View>
         )}
 
-        {/* Duration/Timing */}
-        {durationText && (
-          <View style={styles.durationRow}>
-            <Text style={styles.durationIcon}>⏰</Text>
-            <Text style={styles.durationText}>
-              {durationText}
-            </Text>
-          </View>
-        )}
-
-        {/* Description Preview */}
-        <Text 
-          style={styles.description} 
-          numberOfLines={isExpanded ? undefined : 2}
-        >
-          {description}
-        </Text>
-
-        {/* Expand Button */}
+        {/* Expand Button - Better Visual Separation */}
         <TouchableOpacity
           onPress={() => setIsExpanded(!isExpanded)}
           style={styles.expandButton}
@@ -254,7 +287,7 @@ const TrafficCard = ({
           )}
 
           {/* All Affected Routes */}
-          {affectsRoutes && affectsRoutes.length > 8 && (
+          {affectsRoutes && affectsRoutes.length > 6 && (
             <View style={styles.detailCard}>
               <Text style={styles.detailCardTitle}>🚌 All Affected Routes</Text>
               <View style={styles.allRoutesBadgeContainer}>
@@ -278,6 +311,10 @@ const TrafficCard = ({
                 Last Updated: {formatDateTime(lastUpdated)}
               </Text>
             )}
+            {/* Description moved here */}
+            <Text style={[styles.detailCardText, { marginTop: 8 }]}>
+              {description}
+            </Text>
           </View>
         </View>
       )}
@@ -287,10 +324,10 @@ const TrafficCard = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#1F2937',
+    backgroundColor: '#F3F4F6',
     borderLeftWidth: 4,
-    borderRadius: 8,
-    marginVertical: 8,
+    borderRadius: 12,
+    marginVertical: 6,
     marginHorizontal: 16,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -298,179 +335,178 @@ const styles = StyleSheet.create({
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.15,
     shadowRadius: 3.84,
     elevation: 5,
   },
   errorCard: {
     borderLeftColor: '#6B7280',
-    backgroundColor: '#374151',
+    backgroundColor: '#E5E7EB',
   },
   errorText: {
-    color: '#9CA3AF',
+    color: '#6B7280',
     textAlign: 'center',
     padding: 16,
+    fontSize: 14,
   },
   statusBar: {
     height: 4,
   },
   contentContainer: {
     padding: 16,
+    paddingTop: 12,
   },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+  
+  // Location main text at top
+  locationMain: {
+    color: '#1A202C',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  startTimeMain: {
+    color: '#374151',
+    fontSize: 15,
+    fontWeight: '600',
     marginBottom: 8,
   },
-  headerLeft: {
-    flex: 1,
-    marginRight: 12,
+
+  // Header Section with Better Layout
+  headerSection: {
+    marginBottom: 12,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: 8,
+    flexWrap: 'wrap',
   },
   severityIcon: {
     fontSize: 16,
+    marginRight: 6,
+    color: '#1A202C',
+  },
+  typeIcon: {
+    fontSize: 16,
     marginRight: 8,
+    color: '#1A202C',
   },
   title: {
-    color: '#FFFFFF',
+    color: '#1A202C',
     fontSize: 16,
     fontWeight: '600',
     flex: 1,
+    lineHeight: 22,
   },
-  subtitle: {
-    color: '#D1D5DB',
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  headerRight: {
-    alignItems: 'flex-end',
+  statusRow: {
+    alignItems: 'flex-start',
   },
   statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    alignSelf: 'flex-start',
   },
   statusBadgeText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  locationIcon: {
-    fontSize: 14,
-    marginRight: 8,
-  },
-  locationText: {
-    color: '#D1D5DB',
-    fontSize: 14,
-    flex: 1,
-  },
-  routeContainer: {
+  
+  // Route Section
+  routeSection: {
     marginBottom: 12,
   },
   routeLabel: {
-    color: '#9CA3AF',
-    fontSize: 12,
-    marginBottom: 4,
+    color: '#374151',
+    fontSize: 13,
+    marginBottom: 6,
+    fontWeight: '500',
   },
   routeBadgeContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 4,
   },
   routeBadge: {
     backgroundColor: '#2563EB',
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 12,
     marginRight: 4,
     marginBottom: 4,
   },
   routeBadgeText: {
     color: '#FFFFFF',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   moreRoutesBadge: {
     backgroundColor: '#6B7280',
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 12,
     marginBottom: 4,
   },
   moreRoutesText: {
     color: '#D1D5DB',
     fontSize: 12,
+    fontWeight: '500',
   },
-  durationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  durationIcon: {
-    fontSize: 14,
-    marginRight: 8,
-  },
-  durationText: {
-    color: '#D1D5DB',
-    fontSize: 14,
-  },
-  description: {
-    color: '#D1D5DB',
-    fontSize: 14,
-    lineHeight: 20,
-  },
+  
+  // Description Section removed from main card as per instructions
+
+  // Expand Button
   expandButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 12,
-    paddingTop: 12,
+    paddingVertical: 12,
     borderTopWidth: 1,
-    borderTopColor: '#4B5563',
+    borderTopColor: '#D1D5DB',
+    marginTop: 8,
   },
   expandButtonText: {
-    color: '#60A5FA',
+    color: '#2563EB',
     fontSize: 14,
-    marginRight: 4,
+    fontWeight: '500',
+    marginRight: 6,
   },
   expandButtonIcon: {
     fontSize: 12,
+    color: '#2563EB',
   },
+  
+  // Expanded Content Styles
   expandedContent: {
     paddingHorizontal: 16,
     paddingBottom: 16,
     borderTopWidth: 1,
-    borderTopColor: '#4B5563',
+    borderTopColor: '#D1D5DB',
+    backgroundColor: '#F9FAFB',
   },
   detailCard: {
-    backgroundColor: '#374151',
+    backgroundColor: '#E5E7EB',
     borderRadius: 8,
     padding: 12,
     marginTop: 12,
   },
   detailCardTitle: {
-    color: '#D1D5DB',
+    color: '#374151',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     marginBottom: 8,
   },
   detailCardText: {
-    color: '#9CA3AF',
+    color: '#4B5563',
     fontSize: 13,
     marginBottom: 4,
+    lineHeight: 18,
   },
   allRoutesBadgeContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: 4,
   },
 });
 

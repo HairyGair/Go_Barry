@@ -1,120 +1,134 @@
+# BARRY - .gitignore (Security-First)
+# CRITICAL: Prevents API keys and sensitive data from being committed
+
+# Environment Variables (MOST IMPORTANT - CONTAINS API KEYS!)
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+*/.env
+*/.env.*
+
 # Dependencies
 node_modules/
+*/node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Expo
+# React Native / Expo
 .expo/
 .expo-shared/
 dist/
 web-build/
 
-# Native
-*.orig.*
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
+# iOS
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata
+*.xccheckout
+*.moved-aside
+DerivedData
+*.hmap
+*.ipa
+*.xcuserstate
+ios/.xcode.env.local
 
-# Metro
-.metro-health-check*
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+local.properties
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
 
-# Debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
+# Android/IntelliJ
+*.iml
+.idea
+.gradle
+build/
+captures/
+.externalNativeBuild
+.cxx/
 
-# macOS
-.DS_Store
-*.pem
-
-# local env files
-.env*.local
-
-# Temporary folders
-tmp/
-temp/
-
-# Logs
+# Backend Data & Logs
+backend/logs/
+backend/data/*.json
+!backend/data/routes.txt
+logs/
 *.log
 
-# Runtime data
+# Cache & Runtime
+.cache/
+.parcel-cache/
+.nyc_output
 pids
 *.pid
 *.seed
 *.pid.lock
 
-# Coverage directory used by tools like istanbul
-coverage
+# Coverage & Testing
+coverage/
 *.lcov
 
-# nyc test coverage
-.nyc_output
+# OS Files
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*~
 
-# Compiled binary addons (https://nodejs.org/api/addons.html)
-build/Release
+# Editor directories
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
-# Dependency directories
-jspm_packages/
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
 
-# Optional npm cache directory
-.npm
+# Database files
+*.db
+*.sqlite
+*.sqlite3
 
-# Optional eslint cache
-.eslintcache
+# Build artifacts
+build/
+dist/
+.next/
+out/
 
-# Optional REPL history
-.node_repl_history
+# Package manager files
+package-lock.json
+yarn.lock
 
-# Output of 'npm pack'
-*.tgz
+# BARRY Specific exclusions
+backend/servers/
+tree.txt
 
-# Yarn Integrity file
-.yarn-integrity
-
-# parcel-bundler cache (https://parceljs.org/)
-.cache
-.parcel-cache
-
-# next.js build output
-.next
-
-# nuxt.js build output
-.nuxt
-
-# vuepress build output
-.vuepress/dist
-
-# Serverless directories
-.serverless
-
-# FuseBox cache
-.fusebox/
-
-# DynamoDB Local files
-.dynamodb/
-
-# TernJS port file
-.tern-port
-
-# Stores VSCode versions used for testing VSCode extensions
-.vscode-test
-
-# iOS
-ios/
-Pods/
-
-# Android
-android/
-*.keystore
-
-# Backend specific
-backend/data/*.json
-backend/logs/
-backend/.env
-
-# BARRY specific
-Go_BARRY/ios/
-Go_BARRY/android/
+# API Keys reminder comment
+# Remember: NEVER commit .env files with real API keys!

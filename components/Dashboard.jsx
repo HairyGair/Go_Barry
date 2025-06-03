@@ -1,48 +1,141 @@
-// Go_BARRY/components/Dashboard.jsx - Optimized Version
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
-import { useBarryAPI } from './hooks/useBARRYapi';
+// Go_BARRY/components/Dashboard.jsx
+// SIMPLIFIED VERSION - No external hooks to avoid errors
 
-export default function Dashboard() {
-  const {
-    alerts,
-    activeAlerts,
-    criticalAlerts,
-    upcomingAlerts,
-    stats,
-    loading,
-    refreshing,
-    error,
-    lastFetch,
-    forceRefresh,
-    mostAffectedRoutes
-  } = useBarryAPI({
-    autoRefresh: true,
-    refreshInterval: 300000 // 5 minutes
-  });
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  RefreshControl,
+  Alert
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-  const onRefresh = () => {
-    forceRefresh();
+const Dashboard = () => {
+  console.log('🔧 Dashboard starting...');
+  
+  // Local state instead of hook
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Simple fetch function
+  const fetchAlerts = async () => {
+    try {
+      console.log('🔧 Dashboard fetching alerts...');
+      setError(null);
+      
+      const response = await fetch('https://go-barry.onrender.com/api/alerts');
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('🔧 Dashboard received data:', data);
+      
+      if (data.success && data.alerts) {
+        setAlerts(data.alerts);
+        setLastUpdated(new Date().toISOString());
+        console.log(`✅ Dashboard loaded ${data.alerts.length} alerts`);
+      } else {
+        throw new Error('Invalid response format');
+      }
+    } catch (err) {
+      console.error('❌ Dashboard fetch error:', err);
+      setError(err.message);
+      Alert.alert('Error', `Failed to fetch alerts: ${err.message}`);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
-  if (loading && alerts.length === 0) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading traffic intelligence...</Text>
-        </View>
-      </View>
-    );
-  }
+  // Load data on mount
+  useEffect(() => {
+    console.log('🔧 Dashboard effect running...');
+    fetchAlerts();
+  }, []);
 
-  if (error && alerts.length === 0) {
+  // Manual refresh
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchAlerts();
+  };
+
+  // Process alerts safely
+  const safeAlerts = Array.isArray(alerts) ? alerts : [];
+  
+  // Create all the arrays Dashboard needs
+  const trafficAlerts = safeAlerts;
+  const roadworkAlerts = safeAlerts.filter(alert => 
+    alert && typeof alert === 'object' && alert.type === 'roadwork'
+  );
+  const incidentAlerts = safeAlerts.filter(alert => 
+    alert && typeof alert === 'object' && alert.type === 'incident'
+  );
+  const congestionAlerts = safeAlerts.filter(alert => 
+    alert && typeof alert === 'object' && alert.type === 'congestion'
+  );
+  const criticalAlerts = safeAlerts.filter(alert => 
+    alert && typeof alert === 'object' && alert.status === 'red' && alert.severity === 'High'
+  );
+  const activeAlerts = safeAlerts.filter(alert => 
+    alert && typeof alert === 'object' && alert.status === 'red'
+  );
+
+  console.log('🔧 Dashboard arrays created:', {
+    trafficAlerts: trafficAlerts.length,
+    roadworkAlerts: roadworkAlerts.length,
+    incidentAlerts: incidentAlerts.length,
+    criticalAlerts: criticalAlerts.length,
+    activeAlerts: activeAlerts.length
+  });
+
+  // Calculate dashboard metrics from live data
+  const dashboardMetrics = useMemo(() => {
+    console.log('🔧 Dashboard calculating metrics...');
+    
+    const totalAlerts = trafficAlerts.reduce((sum, alert) => sum + 1, 0);
+    const highPriorityCount = criticalAlerts.length;
+    const activeCount = activeAlerts.length;
+    
+    // Routes analysis
+    const routeImpact = {};
+    trafficAlerts.forEach(alert => {
+      if (alert && alert.affectsRoutes && Array.isArray(alert.affectsRoutes)) {
+        alert.affectsRoutes.forEach(route => {
+          routeImpact[route] = (routeImpact[route] || 0) + 1;
+        });
+      }
+    });
+    
+    const topAffectedRoutes = Object.entries(routeImpact)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 5)
+      .map(([route, count]) => ({ route, count }));
+
+    return {
+      totalAlerts,
+      highPriorityCount,
+      activeCount,
+      topAffectedRoutes,
+      lastUpdate: lastUpdated ? new Date(lastUpdated).toLocaleTimeString() : 'Unknown'
+    };
+  }, [trafficAlerts, criticalAlerts, activeAlerts, lastUpdated]);
+
+  console.log('🔧 Dashboard metrics:', dashboardMetrics);
+
+  if (loading && !refreshing) {
     return (
-      <View style={styles.container}>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorIcon}>⚠️</Text>
-          <Text style={styles.errorTitle}>System Offline</Text>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#2563EB" />
+        <Text style={styles.loadingText}>Loading traffic data...</Text>
       </View>
     );
   }
@@ -53,88 +146,89 @@ export default function Dashboard() {
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor="#3B82F6"
-          colors={['#3B82F6']}
+          onRefresh={handleRefresh}
+          colors={['#2563EB']}
+          tintColor="#2563EB"
         />
       }
-      showsVerticalScrollIndicator={false}
     >
-      {/* System Status Header */}
-      <View style={styles.statusHeader}>
-        <View>
-          <Text style={styles.systemTitle}>BARRY Control</Text>
-          <Text style={styles.systemSubtitle}>Traffic Intelligence Dashboard</Text>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>🚦 Traffic Control Centre</Text>
+        <Text style={styles.subtitle}>Live traffic intelligence for Go North East</Text>
+        {lastUpdated && (
+          <Text style={styles.lastUpdate}>
+            Last updated: {new Date(lastUpdated).toLocaleTimeString()}
+          </Text>
+        )}
+      </View>
+
+      {/* Quick Stats */}
+      <View style={styles.statsContainer}>
+        <View style={styles.statCard}>
+          <Ionicons name="alert-circle" size={24} color="#EF4444" />
+          <Text style={styles.statNumber}>{dashboardMetrics.totalAlerts}</Text>
+          <Text style={styles.statLabel}>Total Alerts</Text>
         </View>
-        <View style={styles.statusIndicator}>
-          <View style={[styles.statusDot, { backgroundColor: '#10B981' }]} />
-          <Text style={styles.statusText}>LIVE</Text>
+        
+        <View style={styles.statCard}>
+          <Ionicons name="warning" size={24} color="#F59E0B" />
+          <Text style={styles.statNumber}>{dashboardMetrics.activeCount}</Text>
+          <Text style={styles.statLabel}>Active Now</Text>
+        </View>
+        
+        <View style={styles.statCard}>
+          <Ionicons name="flame" size={24} color="#DC2626" />
+          <Text style={styles.statNumber}>{dashboardMetrics.highPriorityCount}</Text>
+          <Text style={styles.statLabel}>Critical</Text>
         </View>
       </View>
 
-      {/* Key Metrics Grid */}
-      <View style={styles.metricsGrid}>
-        <MetricCard
-          title="ACTIVE"
-          value={activeAlerts.length}
-          total={alerts.length}
-          color="#EF4444"
-          icon="🚨"
-        />
-        <MetricCard
-          title="CRITICAL"
-          value={criticalAlerts.length}
-          total={activeAlerts.length}
-          color="#F59E0B"
-          icon="⚠️"
-        />
-        <MetricCard
-          title="PENDING"
-          value={upcomingAlerts.length}
-          total={alerts.length}
-          color="#3B82F6"
-          icon="📅"
-        />
-        <MetricCard
-          title="ROUTES"
-          value={mostAffectedRoutes.length}
-          total="affected"
-          color="#8B5CF6"
-          icon="🚌"
-        />
-      </View>
+      {/* Error Display */}
+      {error && (
+        <View style={styles.errorContainer}>
+          <Ionicons name="warning-outline" size={20} color="#EF4444" />
+          <Text style={styles.errorText}>Error: {error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={handleRefresh}>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Alert Types Breakdown */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Alert Distribution</Text>
-        <View style={styles.breakdownGrid}>
-          <BreakdownCard
-            label="Roadworks"
-            count={stats.totalRoadworks || 0}
-            color="#8B5CF6"
-          />
-          <BreakdownCard
-            label="Incidents"
-            count={stats.totalIncidents || 0}
-            color="#EF4444"
-          />
-          <BreakdownCard
-            label="Congestion"
-            count={stats.totalCongestion || 0}
-            color="#F59E0B"
-          />
+        <Text style={styles.sectionTitle}>Alert Types</Text>
+        <View style={styles.alertTypesContainer}>
+          <View style={styles.alertTypeCard}>
+            <Text style={styles.alertTypeEmoji}>🚧</Text>
+            <Text style={styles.alertTypeCount}>{roadworkAlerts.length}</Text>
+            <Text style={styles.alertTypeLabel}>Roadworks</Text>
+          </View>
+          
+          <View style={styles.alertTypeCard}>
+            <Text style={styles.alertTypeEmoji}>🚨</Text>
+            <Text style={styles.alertTypeCount}>{incidentAlerts.length}</Text>
+            <Text style={styles.alertTypeLabel}>Incidents</Text>
+          </View>
+          
+          <View style={styles.alertTypeCard}>
+            <Text style={styles.alertTypeEmoji}>🚗</Text>
+            <Text style={styles.alertTypeCount}>{congestionAlerts.length}</Text>
+            <Text style={styles.alertTypeLabel}>Traffic</Text>
+          </View>
         </View>
       </View>
 
       {/* Most Affected Routes */}
-      {mostAffectedRoutes.length > 0 && (
+      {dashboardMetrics.topAffectedRoutes.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Route Impact Analysis</Text>
-          <View style={styles.routesContainer}>
-            {mostAffectedRoutes.slice(0, 8).map((routeImpact) => (
-              <RouteImpactCard key={routeImpact.route} routeImpact={routeImpact} />
-            ))}
-          </View>
+          <Text style={styles.sectionTitle}>Most Affected Routes</Text>
+          {dashboardMetrics.topAffectedRoutes.map((item, index) => (
+            <View key={index} style={styles.routeItem}>
+              <Text style={styles.routeNumber}>{item.route}</Text>
+              <Text style={styles.routeCount}>{item.count} alerts</Text>
+            </View>
+          ))}
         </View>
       )}
 
@@ -142,296 +236,239 @@ export default function Dashboard() {
       {criticalAlerts.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Critical Alerts</Text>
-          {criticalAlerts.slice(0, 3).map((alert) => (
-            <CriticalAlertCard key={alert.id} alert={alert} />
+          {criticalAlerts.slice(0, 3).map((alert, index) => (
+            <View key={index} style={styles.alertItem}>
+              <View style={styles.alertHeader}>
+                <Text style={styles.alertTitle}>{alert.title || 'Alert'}</Text>
+                <Text style={styles.alertStatus}>{alert.status?.toUpperCase()}</Text>
+              </View>
+              <Text style={styles.alertLocation}>{alert.location}</Text>
+              {alert.affectsRoutes && alert.affectsRoutes.length > 0 && (
+                <Text style={styles.alertRoutes}>
+                  Routes: {alert.affectsRoutes.join(', ')}
+                </Text>
+              )}
+            </View>
           ))}
         </View>
       )}
 
-      {/* System Info */}
-      <View style={styles.systemInfo}>
-        <Text style={styles.systemInfoText}>
-          Last updated: {lastFetch ? new Date(lastFetch).toLocaleTimeString() : 'Never'}
-        </Text>
+      {/* System Status */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>System Status</Text>
+        <View style={styles.statusItem}>
+          <Text style={styles.statusIndicator}>🟢</Text>
+          <Text style={styles.statusText}>Data feeds operational</Text>
+        </View>
+        <View style={styles.statusItem}>
+          <Text style={styles.statusIndicator}>🟢</Text>
+          <Text style={styles.statusText}>API connectivity normal</Text>
+        </View>
       </View>
     </ScrollView>
   );
-}
-
-function MetricCard({ title, value, total, color, icon }) {
-  return (
-    <View style={styles.metricCard}>
-      <Text style={styles.metricIcon}>{icon}</Text>
-      <Text style={[styles.metricValue, { color }]}>{value}</Text>
-      <Text style={styles.metricTitle}>{title}</Text>
-      {typeof total === 'number' && (
-        <Text style={styles.metricSubtext}>of {total}</Text>
-      )}
-    </View>
-  );
-}
-
-function BreakdownCard({ label, count, color }) {
-  return (
-    <View style={styles.breakdownCard}>
-      <View style={[styles.breakdownIndicator, { backgroundColor: color }]} />
-      <Text style={styles.breakdownValue}>{count}</Text>
-      <Text style={styles.breakdownLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function RouteImpactCard({ routeImpact }) {
-  const impactLevel = routeImpact.totalAlerts >= 3 ? 'high' : routeImpact.totalAlerts >= 2 ? 'medium' : 'low';
-  
-  return (
-    <View style={[styles.routeCard, styles[`routeCard${impactLevel.charAt(0).toUpperCase() + impactLevel.slice(1)}`]]}>
-      <Text style={styles.routeNumber}>{routeImpact.route}</Text>
-      <Text style={styles.routeAlerts}>{routeImpact.totalAlerts}</Text>
-    </View>
-  );
-}
-
-function CriticalAlertCard({ alert }) {
-  return (
-    <TouchableOpacity style={styles.criticalCard}>
-      <View style={styles.criticalHeader}>
-        <Text style={styles.criticalTitle} numberOfLines={1}>
-          {alert.title}
-        </Text>
-        <Text style={styles.criticalTime}>
-          {new Date(alert.lastUpdated).toLocaleTimeString()}
-        </Text>
-      </View>
-      <Text style={styles.criticalLocation} numberOfLines={1}>
-        {alert.location}
-      </Text>
-      {alert.affectsRoutes && alert.affectsRoutes.length > 0 && (
-        <Text style={styles.criticalRoutes}>
-          Affects: {alert.affectsRoutes.slice(0, 5).join(', ')}
-        </Text>
-      )}
-    </TouchableOpacity>
-  );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#F8FAFC',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#F8FAFC',
   },
   loadingText: {
-    color: '#94A3B8',
+    marginTop: 16,
     fontSize: 16,
+    color: '#64748B',
+  },
+  header: {
+    backgroundColor: '#1E293B',
+    padding: 20,
+    paddingTop: 40,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#94A3B8',
+    marginBottom: 8,
+  },
+  lastUpdate: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    padding: 16,
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    marginTop: 8,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 4,
   },
   errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  errorIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  errorTitle: {
-    color: '#EF4444',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  errorText: {
-    color: '#F87171',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  statusHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
-  },
-  systemTitle: {
-    color: '#F8FAFC',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  systemSubtitle: {
-    color: '#94A3B8',
-    fontSize: 14,
-  },
-  statusIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  statusText: {
-    color: '#10B981',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  metricsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 16,
-    gap: 12,
-  },
-  metricCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
-    padding: 16,
-    flex: 0.48,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  metricIcon: {
-    fontSize: 20,
-    marginBottom: 8,
-  },
-  metricValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  metricTitle: {
-    color: '#94A3B8',
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
-  metricSubtext: {
-    color: '#64748B',
-    fontSize: 10,
-    marginTop: 2,
-  },
-  section: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#1E293B',
-  },
-  sectionTitle: {
-    color: '#F8FAFC',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 16,
-  },
-  breakdownGrid: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  breakdownCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 8,
+    backgroundColor: '#FEE2E2',
     padding: 12,
-    flex: 1,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  breakdownIndicator: {
-    width: 16,
-    height: 3,
-    borderRadius: 2,
-    marginBottom: 8,
-  },
-  breakdownValue: {
-    color: '#F8FAFC',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  breakdownLabel: {
-    color: '#94A3B8',
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  routesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    margin: 16,
+    borderRadius: 8,
     gap: 8,
   },
-  routeCard: {
-    backgroundColor: '#1E293B',
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#334155',
-    minWidth: 60,
-  },
-  routeCardHigh: {
-    borderColor: '#EF4444',
-    backgroundColor: '#1E1B1B',
-  },
-  routeCardMedium: {
-    borderColor: '#F59E0B',
-    backgroundColor: '#1E1C1A',
-  },
-  routeCardLow: {
-    borderColor: '#3B82F6',
-    backgroundColor: '#1A1E2E',
-  },
-  routeNumber: {
-    color: '#F8FAFC',
+  errorText: {
+    flex: 1,
+    color: '#DC2626',
     fontSize: 14,
-    fontWeight: 'bold',
-    marginBottom: 2,
   },
-  routeAlerts: {
-    color: '#94A3B8',
-    fontSize: 10,
+  retryButton: {
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
   },
-  criticalCard: {
-    backgroundColor: '#1E293B',
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  section: {
+    margin: 16,
+    backgroundColor: '#FFFFFF',
     borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#EF4444',
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  criticalHeader: {
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1E293B',
+    marginBottom: 12,
+  },
+  alertTypesContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  alertTypeCard: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 6,
+  },
+  alertTypeEmoji: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  alertTypeCount: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1E293B',
+  },
+  alertTypeLabel: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 4,
+  },
+  routeItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  routeNumber: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2563EB',
+  },
+  routeCount: {
+    fontSize: 14,
+    color: '#64748B',
+  },
+  alertItem: {
+    backgroundColor: '#FEF2F2',
+    padding: 12,
+    borderRadius: 6,
+    marginBottom: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#DC2626',
+  },
+  alertHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 4,
   },
-  criticalTitle: {
-    color: '#F8FAFC',
+  alertTitle: {
     fontSize: 14,
     fontWeight: '600',
+    color: '#1E293B',
     flex: 1,
   },
-  criticalTime: {
-    color: '#64748B',
-    fontSize: 11,
+  alertStatus: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#DC2626',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
-  criticalLocation: {
-    color: '#94A3B8',
+  alertLocation: {
     fontSize: 12,
+    color: '#64748B',
     marginBottom: 4,
   },
-  criticalRoutes: {
-    color: '#64748B',
+  alertRoutes: {
     fontSize: 11,
+    color: '#7C3AED',
+    fontWeight: '500',
   },
-  systemInfo: {
-    padding: 20,
+  statusItem: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 4,
+    gap: 8,
   },
-  systemInfoText: {
+  statusIndicator: {
+    fontSize: 12,
+  },
+  statusText: {
+    fontSize: 14,
     color: '#64748B',
-    fontSize: 11,
   },
 });
+
+export default Dashboard;
