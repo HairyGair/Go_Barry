@@ -507,42 +507,7 @@ async function fetchTomTomTrafficWithStreetNames() {
 }
 // --- END fetchTomTomTrafficWithStreetNames ---
 
-// Enhanced TomTom route matching
-function getTomTomRoutesFromCoordinates(lat, lng) {
-  const routes = [];
-  
-  // A1 corridor (major north-south route)
-  if (lng >= -1.7 && lng <= -1.5 && lat >= 54.8 && lat <= 55.2) {
-    routes.push('21', 'X21', '10', '11');
-  }
-  
-  // A19 corridor (Tyne Tunnel area)
-  if (lng >= -1.5 && lng <= -1.3 && lat >= 54.9 && lat <= 55.1) {
-    routes.push('1', '2', '308', '309');
-  }
-  
-  // Newcastle city center
-  if (lng >= -1.65 && lng <= -1.55 && lat >= 54.95 && lat <= 55.0) {
-    routes.push('Q1', 'Q2', 'Q3', '10', '11', '12');
-  }
-  
-  // Coast Road area
-  if (lng >= -1.5 && lng <= -1.3 && lat >= 55.0 && lat <= 55.1) {
-    routes.push('1', '2', '308', '309', '317');
-  }
-  
-  // A167 Durham Road corridor
-  if (lng >= -1.65 && lng <= -1.45 && lat >= 54.85 && lat <= 54.95) {
-    routes.push('21', '22', 'X21', '6', '7');
-  }
-  
-  // A69 (west of Newcastle)
-  if (lng >= -2.0 && lng <= -1.6 && lat >= 54.9 && lat <= 55.1) {
-    routes.push('X84', 'X85', '602', '685');
-  }
-  
-  return [...new Set(routes)].sort();
-}
+// Enhanced TomTom route matching (CURRENT version only)
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -717,23 +682,74 @@ app.use((req, res, next) => {
   next();
 });
 
-// Enhanced North East route mapping
+// --- Go North East Regions & Route Mapping (UPDATED) ---
+const GO_NORTH_EAST_REGIONS = [
+  {
+    name: 'Newcastle/Gateshead Core',
+    bbox: '-1.8,54.8,-1.4,55.1',
+    center: { lat: 54.9783, lng: -1.6178 },
+    routes: ['Q3', 'Q3X', '10', '10A', '10B', '12', '21', '22', '28', '28B', '29', '47', '53', '54', '56', '57', '58', '27']
+  },
+  {
+    name: 'North Tyneside/Coast',
+    bbox: '-1.6,54.9,-1.1,55.3',
+    center: { lat: 55.0174, lng: -1.4234 },
+    routes: ['1', '2', '307', '309', '317', '327', '352', '354', '355', '356']
+  },
+  {
+    name: 'Sunderland/Washington',
+    bbox: '-1.6,54.7,-1.2,55.0',
+    center: { lat: 54.9069, lng: -1.3838 },
+    routes: ['16', '20', '24', '35', '36', '56', '61', '62', '63', '700', '701', '9']
+  },
+  {
+    name: 'Durham/Chester-le-Street',
+    bbox: '-1.8,54.5,-1.2,54.9',
+    center: { lat: 54.7761, lng: -1.5756 },
+    routes: ['21', '22', 'X21', '6', '50']
+  },
+  {
+    name: 'Northumberland/Cramlington',
+    bbox: '-1.9,55.0,-1.3,55.4',
+    center: { lat: 55.1500, lng: -1.6000 },
+    routes: ['43', '44', '45', '52', '57', '58']
+  },
+  {
+    name: 'West Newcastle/Consett',
+    bbox: '-2.1,54.6,-1.5,55.0',
+    center: { lat: 54.8500, lng: -1.8000 },
+    routes: ['X30', 'X31', 'X70', 'X71', 'X71A', '74', '84', '85']
+  },
+  {
+    name: 'Hexham/West Northumberland',
+    bbox: '-2.3,54.8,-1.8,55.2',
+    center: { lat: 54.9722, lng: -2.1000 },
+    routes: ['X85', '684']
+  },
+  {
+    name: 'Extended Network',
+    bbox: '-1.8,54.3,-1.0,54.7',
+    center: { lat: 54.5000, lng: -1.4000 },
+    routes: ['X1', 'X1A', 'X10', 'X39', 'X45', 'X72', 'X73', 'X75']
+  }
+];
+
 const LOCATION_ROUTE_MAPPING = {
-  'a1': ['X9', 'X10', '10', '11', '21', 'X21', '43', '44', '45'],
-  'a19': ['X7', 'X8', '19', '35', '36', '1', '2', '308', '309'],
-  'a167': ['21', '22', 'X21', '50', '6', '7'],
-  'a1058': ['1', '2', '308', '309', '311', '317'],
-  'a184': ['25', '28', '29', '93', '94'],
-  'a690': ['61', '62', '63', '64', '65'],
-  'a69': ['X84', 'X85', '602', '685'],
-  'a183': ['16', '18', '20', '61', '62'],
-  'newcastle': ['Q1', 'Q2', 'Q3', 'QUAYSIDE', '10', '11', '12', '39', '40'],
-  'gateshead': ['21', '25', '28', '29', '53', '54', '56'],
-  'sunderland': ['16', '18', '20', '61', '62', '63', '64', '65'],
-  'durham': ['21', '22', 'X21', '50', '6', '7', '13', '14'],
-  'tyne tunnel': ['1', '2', '308', '309', '311'],
-  'coast road': ['1', '2', '308', '309', '311', '317'],
-  'central motorway': ['Q1', 'Q2', 'Q3', 'QUAYSIDE']
+  'a1': ['21', 'X21', '43', '44', '45'], // Current A1 routes - removed outdated X9, X10, 11
+  'a19': ['1', '2', '35', '36', '307', '309'], // Current A19 routes - removed outdated X7, X8, 19
+  'a167': ['21', '22', 'X21', '50', '6'], // Current A167 routes - removed 7
+  'a1058': ['1', '2', '307', '309', '317'], // Current Coast Road routes - removed 308, 311
+  'a184': ['25', '28', '29'], // Current A184 routes - removed 93, 94
+  'a690': ['61', '62', '63'], // Current A690 routes - removed 64, 65
+  'a69': ['X85', '684'], // Current A69 routes - removed X84, 602, 685
+  'a183': ['16', '20', '61', '62'], // Current A183 routes - removed 18
+  'newcastle': ['Q3', 'Q3X', '10', '10A', '10B', '12', '21', '22', '27', '28', '29', '47'], // CURRENT Newcastle routes only
+  'gateshead': ['21', '27', '28', '29', '51', '52', '53', '54', '56', '57', '58'], // CURRENT Gateshead routes
+  'sunderland': ['16', '20', '24', '35', '36', '56', '61', '62', '63', '700', '701', '9'], // CURRENT Sunderland routes
+  'durham': ['21', '22', 'X21', '50', '6'], // CURRENT Durham routes - removed 13, 14
+  'tyne tunnel': ['1', '2', '307', '309'], // CURRENT tunnel routes - removed 308, 311
+  'coast road': ['1', '2', '307', '309', '317'], // CURRENT coast routes - removed 308, 311
+  'central motorway': ['Q3', 'Q3X', '10', '12', '21', '22'] // CURRENT city routes - removed Q1, Q2, QUAYSIDE
 };
 
 // Helper functions
@@ -767,16 +783,15 @@ function isInNorthEast(location, description = '') {
   return hasKeyword;
 }
 
+// Updated route-matching using LOCATION_ROUTE_MAPPING (only one version should exist)
 function matchRoutes(location, description = '') {
   const routes = new Set();
   const text = `${location} ${description}`.toLowerCase();
-  
   for (const [pattern, routeList] of Object.entries(LOCATION_ROUTE_MAPPING)) {
     if (text.includes(pattern.toLowerCase())) {
       routeList.forEach(route => routes.add(route));
     }
   }
-  
   return Array.from(routes).sort();
 }
 
@@ -1052,49 +1067,35 @@ async function fetchTomTomTrafficWorking() {
   }
 }
 
-// Enhanced route matching function
+// Enhanced route matching function (ONLY CURRENT VERSION BELOW)
 function matchRoutesToLocation(location, lat, lng) {
   const routes = new Set();
-  
+
   // Check if coordinates fall within specific route corridors
   if (lat && lng) {
-    // A1 corridor (major north-south route)
-    if (lng >= -1.7 && lng <= -1.5 && lat >= 54.8 && lat <= 55.2) {
-      routes.add('21'); routes.add('X21'); routes.add('10'); routes.add('11');
-    }
-    
-    // A19 corridor (through Tyne Tunnel)
-    if (lng >= -1.5 && lng <= -1.3 && lat >= 54.9 && lat <= 55.1) {
-      routes.add('1'); routes.add('2'); routes.add('308'); routes.add('309');
-    }
-    
-    // Newcastle city center
-    if (lng >= -1.65 && lng <= -1.55 && lat >= 54.95 && lat <= 55.0) {
-      routes.add('Q1'); routes.add('Q2'); routes.add('Q3'); routes.add('10'); routes.add('11');
-    }
-    
-    // Coast Road area
-    if (lng >= -1.5 && lng <= -1.3 && lat >= 55.0 && lat <= 55.1) {
-      routes.add('1'); routes.add('2'); routes.add('308'); routes.add('309'); routes.add('317');
-    }
+    const coordRoutes = getCurrentRoutesFromCoordinates(lat, lng);
+    coordRoutes.forEach(route => routes.add(route));
   }
-  
-  // Text-based matching as fallback
+
+  // Text-based matching as fallback using current routes
   const text = location.toLowerCase();
   const routePatterns = {
-    'a1': ['21', 'X21', '10', '11'],
-    'a19': ['1', '2', '308', '309'],
-    'newcastle': ['Q1', 'Q2', 'Q3', '10', '11', '12'],
-    'coast': ['1', '2', '308', '309', '317'],
-    'tyne tunnel': ['1', '2', '308', '309']
+    'a1': ['21', 'X21', '43', '44', '45'],
+    'a19': ['1', '2', '307', '309'],
+    'newcastle': ['Q3', 'Q3X', '10', '10A', '10B', '12'],
+    'coast': ['1', '2', '307', '309', '317'],
+    'tyne tunnel': ['1', '2', '307', '309'],
+    'sunderland': ['16', '20', '24', '35', '36', '61', '62', '63'],
+    'durham': ['21', '22', 'X21', '6'],
+    'gateshead': ['21', '27', '28', '29', '53', '54', '56']
   };
-  
+
   for (const [pattern, routeList] of Object.entries(routePatterns)) {
     if (text.includes(pattern)) {
       routeList.forEach(route => routes.add(route));
     }
   }
-  
+
   return Array.from(routes).sort();
 }
 // --- END fetchTomTomTrafficWorking and helpers ---
@@ -1304,36 +1305,74 @@ async function fetchMapQuestTraffic() {
   }
 }
 
-// Enhanced route matching function
-function getRoutesFromCoordinates(lat, lng) {
+// --- Updated coordinate-based route matching (Go North East) ---
+function getCurrentRoutesFromCoordinates(lat, lng) {
   const routes = [];
-  
-  // A1 corridor (major north-south route)
   if (lng >= -1.7 && lng <= -1.5 && lat >= 54.8 && lat <= 55.2) {
-    routes.push('21', 'X21', '10', '11');
+    routes.push('21', 'X21', '43', '44', '45');
   }
-  
-  // A19 corridor (Tyne Tunnel area)
   if (lng >= -1.5 && lng <= -1.3 && lat >= 54.9 && lat <= 55.1) {
-    routes.push('1', '2', '308', '309');
+    routes.push('1', '2', '307', '309');
   }
-  
-  // Newcastle city center
   if (lng >= -1.65 && lng <= -1.55 && lat >= 54.95 && lat <= 55.0) {
-    routes.push('Q1', 'Q2', 'Q3', '10', '11', '12');
+    routes.push('Q3', 'Q3X', '10', '10A', '10B', '12');
   }
-  
-  // Coast Road area
   if (lng >= -1.5 && lng <= -1.3 && lat >= 55.0 && lat <= 55.1) {
-    routes.push('1', '2', '308', '309', '317');
+    routes.push('1', '2', '307', '309', '317');
   }
-  
-  // A167 Durham Road corridor
   if (lng >= -1.65 && lng <= -1.45 && lat >= 54.85 && lat <= 54.95) {
-    routes.push('21', '22', 'X21', '6', '7');
+    routes.push('21', '22', 'X21', '6');
+  }
+  if (lng >= -1.5 && lng <= -1.2 && lat >= 54.85 && lat <= 54.95) {
+    routes.push('16', '20', '24', '35', '36', '61', '62', '63');
+  }
+  if (lng >= -2.0 && lng <= -1.6 && lat >= 54.8 && lat <= 55.1) {
+    routes.push('X30', 'X31', 'X70', 'X71', 'X85');
+  }
+  return [...new Set(routes)].sort();
+}
+
+function getRegionalRoutes(lat, lng, region) {
+  // Try coordinate-based matching first with current routes
+  const coordRoutes = getCurrentRoutesFromCoordinates(lat, lng);
+  if (coordRoutes.length > 0) {
+    return coordRoutes;
   }
   
-  return [...new Set(routes)].sort();
+  // Fallback to regional routes (current only)
+  return region?.routes?.slice(0, 3) || [];
+}
+
+function getCurrentRoutesFromText(text, region) {
+  const routes = new Set();
+  const lowerText = text.toLowerCase();
+  for (const [pattern, routeList] of Object.entries(CURRENT_LOCATION_ROUTE_MAPPING || {})) {
+    if (lowerText.includes(pattern.toLowerCase())) {
+      routeList.forEach(route => routes.add(route));
+    }
+  }
+  if (routes.size === 0 && region?.routes) {
+    region.routes.slice(0, 2).forEach(route => routes.add(route));
+  }
+  return Array.from(routes).sort();
+}
+
+function getRegionalRoutesFromText(text, region) {
+  const routes = getCurrentRoutesFromText(text, region);
+  if (routes.length > 0) {
+    return routes;
+  }
+  
+  // Fallback to regional routes
+  return region?.routes?.slice(0, 2) || [];
+}
+
+function getTomTomRoutesFromCoordinates(lat, lng) {
+  return getCurrentRoutesFromCoordinates(lat, lng);
+}
+
+function getRoutesFromCoordinates(lat, lng) {
+  return getCurrentRoutesFromCoordinates(lat, lng);
 }
 
 // Fetch National Highways data (already working)
