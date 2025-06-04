@@ -1,0 +1,38 @@
+services:
+  # Backend API Service
+  - type: web
+    name: barry-backend
+    env: node
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      # Add your API keys here
+      - key: TOMTOM_API_KEY
+        sync: false
+      - key: MAPQUEST_API_KEY
+        sync: false
+      - key: HERE_API_KEY
+        sync: false
+      - key: NATIONAL_HIGHWAYS_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+    autoDeploy: false
+
+  # Frontend Web App
+  - type: static
+    name: barry-frontend
+    buildCommand: cd Go_BARRY && npm install && npm run build:web
+    staticPublishPath: Go_BARRY/dist
+    plan: free
+    envVars:
+      - key: EXPO_PUBLIC_API_BASE_URL
+        value: https://barry-backend.onrender.com
+    autoDeploy: false

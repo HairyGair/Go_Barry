@@ -1,7 +1,9 @@
-// traffic-watch/app/(tabs)/dashboard.jsx
+// Go_BARRY/app/(tabs)/dashboard.jsx
+// Updated to use centralized API configuration
 import React from 'react';
 import { View, StyleSheet, StatusBar } from 'react-native';
-import Dashboard from '../../components/Dashboard';
+import EnhancedDashboard from '../../components/EnhancedDashboard';
+import { API_CONFIG } from '../../config/api';
 
 export default function DashboardScreen({ navigation }) {
   const handleAlertPress = (alert) => {
@@ -19,11 +21,11 @@ export default function DashboardScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#111827" />
-      <Dashboard 
-        baseUrl="https://go-barry.onrender.com"
+      <EnhancedDashboard 
+        baseUrl={API_CONFIG.baseURL}
         onAlertPress={handleAlertPress}
         onViewAllPress={handleViewAllPress}
-        autoRefreshInterval={30000} // 30 seconds for control room
+        autoRefreshInterval={API_CONFIG.refreshIntervals.dashboard}
       />
     </View>
   );

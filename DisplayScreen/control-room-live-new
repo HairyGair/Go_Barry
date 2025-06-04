@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BARRY Enhanced Control Room - Traffic Intelligence Hub</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.min.js"></script>
+    <!-- MapBox GL JS -->
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js'></script>
+    <style>
+        :root {
+            --bg-primary: #0a0e16;
+            --bg-secondary: #111827;
+            --bg-card: rgba(17, 24, 39, 0.8);
+            --bg-glass: rgba(255, 255, 255, 0.05);
+            --border-glass: rgba(255, 255, 255, 0.1);
+            --text-primary: #161616;
+            --text-secondary: #222222;
+            --text-muted: #444444;
+            --text-bright: #161616;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-purple: #8b5cf6;
+            --accent-emerald: #10b981;
+            --status-critical: #ef4444;
+            --status-warning: #f59e0b;
+            --status-success: #10b981;
+            --status-info: #3b82f6;
+            --shadow-glow: 0 0 30px rgba(59, 130, 246, 0.1);
+            --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, #1a202c 100%);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            font-size: 14px;
+            position: relative;
+        }
+
+        /* FASTER animations for snappier feel */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 50%);
+            animation: float 15s ease-in-out infinite; /* FASTER: 15s instead of 30s */
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.7; }
+            25% { transform: translateY(-5px) rotate(22deg); opacity: 1; }
+            50% { transform: translateY(-10px) rotate(45deg); opacity: 0.8; }
+            75% { transform: translateY(-5px) rotate(67deg); opacity: 1; }
+        }
+
+        .header {
+            background: rgba(17, 24, 39, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-glass);
+            padding: 12px 24px; /* SMALLER padding for more space */
+            display: grid;
+            grid-template-columns: auto 1fr auto auto;
+            gap: 24px;
+            align-items: center;
+            box-shadow: var(--shadow-card);
+            position: relative;
+            z-index: 100;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan), var(--accent-purple), var(--accent-emerald));
+            animation: rainbow-flow 2s ease-in-out infinite; /* FASTER: 2s instead of 5s */
+        }
+
+        @keyframes rainbow-flow {
+            0%, 100% { opacity: 0.7; transform: translateX(-10%); }
+            50% { opacity: 1; transform: translateX(10%); }
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 24px; /* SMALLER for more space */
+            font-weight: 800;
+            color: var(--text-bright);
+            text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+
+        .logo i {
+            color: var(--accent-blue);
+            animation: pulse-glow 2s ease-in-out infinite; /* FASTER: 2s instead of 3s */
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { 
+                filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.5));
+                transform: scale(1);
+            }
+            50% { 
+                filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.9));
+                transform: scale(1.02); /* LESS dramatic scaling */
+            }
+        }
+
+        .system-health {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .health-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-glass);
+            border-radius: 10px;
+            transition: all 0.2s ease; /* FASTER: 0.2s instead of 0.3s */
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--status-success);
+            position: relative;
+            animation: status-pulse 1.5s infinite; /* FASTER: 1.5s instead of 2s */
+        }
+
+        .clock-section {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 2px;
+        }
+
+        .clock {
+            font-size: 20px; /* SMALLER for more space */
+            font-weight: 700;
+            color: var(--text-bright);
+            letter-spacing: 1px;
+            font-variant-numeric: tabular-nums;
+            text-shadow: 0 0 15px rgba(248, 250, 252, 0.6);
+        }
+
+        .last-update {
+            color: var(--text-secondary);
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .main-content {
+            height: calc(100vh - 100px); /* ADJUSTED for smaller header */
+            display: grid;
+            grid-template-columns: 1fr 380px 320px; /* THREE COLUMNS: alerts, analytics, map */
+            grid-template-rows: 160px 1fr; /* SMALLER analytics strip */
+            gap: 16px;
+            padding: 16px 24px;
+        }
+
+        .analytics-strip {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+
+        .analytics-card {
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 12px;
+            padding: 16px; /* SMALLER padding */
+            box-shadow: var(--shadow-card);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.2s ease; /* FASTER transitions */
+        }
+
+        .analytics-card:hover {
+            transform: translateY(-2px); /* LESS dramatic hover */
+            box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 80px; /* SMALLER charts */
+            margin-top: 8px;
+        }
+
+        .chart-value {
+            font-size: 24px; /* SMALLER values */
+            font-weight: 800;
+            color: var(--accent-blue);
+            text-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ALERTS SECTION - MUCH FASTER LOADING */
+        .alerts-section {
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: var(--shadow-card);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .alert-count {
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            color: var(--text-bright);
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 700;
+            animation: count-update 0.2s ease; /* FASTER count updates */
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .alerts-container {
+            height: calc(100% - 70px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        /* MUCH FASTER ALERT TRANSITIONS */
+        .alert-card {
+            background: rgba(24, 35, 54, 0.55);
+            backdrop-filter: blur(22px) saturate(1.5);
+            border-radius: 20px;
+            border: 2px solid rgba(255,255,255,0.18);
+            box-shadow: 0 8px 40px 0 rgba(30, 58, 138, 0.22);
+            padding: 32px;
+            margin-bottom: 24px;
+            border-left: 6px solid var(--status-critical);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); /* FASTER, smoother transitions */
+            animation: slideInAlert 0.4s ease-out; /* FAST slide-in animation */
+        }
+
+        @keyframes slideInAlert {
+            0% { 
+                opacity: 0; 
+                transform: translateY(30px) scale(0.95);
+            }
+            100% { 
+                opacity: 1; 
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .alert-card.critical { border-left-color: var(--status-critical); }
+        .alert-card.warning { border-left-color: var(--status-warning); }
+        .alert-card.success { border-left-color: var(--status-success); }
+
+        .alert-title,
+        .alert-location,
+        .alert-description {
+            color: #fff !important;
+            text-shadow: 0 4px 18px #23272f, 0 1px 2px #000;
+        }
+
+        .alert-title { 
+            font-size: 2.2em; /* SLIGHTLY smaller for better fit */
+            font-weight: 900; 
+            margin-bottom: 24px; 
+            line-height: 1.1;
+        }
+        .alert-location { 
+            font-size: 1.3em; 
+            font-weight: 700; 
+            margin-bottom: 16px; 
+        }
+        .alert-description { 
+            font-size: 1.2em; 
+            font-weight: 600; 
+            margin-bottom: 14px; 
+            line-height: 1.3;
+        }
+
+        .badge {
+            background: linear-gradient(135deg, rgba(59,130,246,0.92), rgba(59,130,246,0.60));
+            color: #fff !important;
+            border-radius: 14px;
+            font-weight: 800;
+            font-size: 0.9em;
+            padding: 4px 14px;
+            box-shadow: 0 0 10px 2px rgba(59,130,246,0.25);
+            text-shadow: 0 2px 8px #212534;
+            border: 1.5px solid rgba(255,255,255,0.13);
+            letter-spacing: 0.02em;
+        }
+
+        .badge.type-incident { background: linear-gradient(135deg, #ef4444, #f87171); }
+        .badge.type-congestion { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+        .badge.type-roadwork { background: linear-gradient(135deg, #2563eb, #38bdf8); }
+
+        .route-badge {
+            background: #3b82f6;
+            color: #fff;
+            padding: 6px 16px;
+            border-radius: 12px;
+            font-size: 20px;
+            font-weight: 900;
+            border: 2px solid #fff;
+            margin: 0 6px 6px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        /* MAP SECTION */
+        .map-section {
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-glass);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: var(--shadow-card);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .map-container {
+            height: calc(100% - 50px);
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #traffic-map {
+            width: 100%;
+            height: 100%;
+            border-radius: 12px;
+        }
+
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        .map-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .map-legend {
+            display: flex;
+            gap: 8px;
+            font-size: 10px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .legend-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .legend-dot.incident { background: var(--status-critical); }
+        .legend-dot.roadwork { background: var(--status-info); }
+        .legend-dot.congestion { background: var(--status-warning); }
+
+        /* LOADING OPTIMIZATIONS */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: var(--text-muted);
+            gap: 12px;
+        }
+
+        .spinner {
+            width: 28px;
+            height: 28px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite; /* FASTER spinner */
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .no-alerts {
+            text-align: center;
+            padding: 40px 16px;
+            color: var(--text-muted);
+        }
+
+        .no-alerts i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: var(--status-success);
+            animation: success-pulse 2s ease-in-out infinite; /* FASTER pulse */
+        }
+
+        @keyframes success-pulse {
+            0%, 100% { 
+                transform: scale(1);
+                filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.4));
+            }
+            50% { 
+                transform: scale(1.05);
+                filter: drop-shadow(0 0 24px rgba(16, 185, 129, 0.7));
+            }
+        }
+
+        /* RESPONSIVE OPTIMIZATIONS */
+        @media (max-width: 1600px) {
+            .main-content {
+                grid-template-columns: 1fr 300px 280px;
+                gap: 12px;
+                padding: 12px 20px;
+            }
+        }
+
+        /* Accessibility improvements */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.1s !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.1s !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo-section">
+            <div class="logo">
+                <i class="fas fa-traffic-light"></i>
+                <span>BARRY Control</span>
+            </div>
+        </div>
+        
+        <div class="system-health">
+            <div class="health-indicator">
+                <div class="status-dot"></div>
+                <span id="system-status-text">OPERATIONAL</span>
+            </div>
+        </div>
+
+        <div class="performance-metrics">
+            <div class="metric">
+                <div class="metric-value" id="response-time">--</div>
+                <div class="metric-label">Response</div>
+            </div>
+            <div class="metric">
+                <div class="metric-value" id="data-points">--</div>
+                <div class="metric-label">Data Points</div>
+            </div>
+        </div>
+
+        <div class="clock-section">
+            <div class="clock" id="clock">--:--:--</div>
+            <div class="last-update" id="last-update">Last Update: --:--</div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="analytics-strip">
+            <div class="analytics-card">
+                <div class="chart-title">
+                    <i class="fas fa-exclamation-triangle" style="color: var(--status-critical);"></i>
+                    Critical Incidents
+                </div>
+                <div class="chart-value" id="critical-count">0</div>
+                <div class="chart-container">
+                    <canvas id="incidents-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="chart-title">
+                    <i class="fas fa-clock" style="color: var(--status-warning);"></i>
+                    Avg Delay
+                </div>
+                <div class="chart-value" id="delay-time">0 min</div>
+                <div class="chart-container">
+                    <canvas id="delay-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="chart-title">
+                    <i class="fas fa-route" style="color: var(--accent-cyan);"></i>
+                    Routes Affected
+                </div>
+                <div class="chart-value" id="affected-routes">0</div>
+                <div class="chart-container">
+                    <canvas id="routes-chart"></canvas>
+                </div>
+            </div>
+
+            <div class="analytics-card">
+                <div class="chart-title">
+                    <i class="fas fa-thermometer-half" style="color: var(--accent-emerald);"></i>
+                    System Load
+                </div>
+                <div class="chart-value" id="system-load">Low</div>
+                <div class="chart-container">
+                    <canvas id="load-chart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="alerts-section">
+            <div class="section-header">
+                <div class="section-title">
+                    <i class="fas fa-satellite-dish"></i>
+                    <span>Live Traffic Intelligence</span>
+                </div>
+                <div class="alert-count" id="alert-count">0</div>
+            </div>
+            <div class="alerts-container" id="alerts-container">
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <span>Loading traffic intelligence...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="map-section">
+            <div class="map-header">
+                <div class="map-title">
+                    <i class="fas fa-map"></i>
+                    <span>North East Traffic Map</span>
+                </div>
+                <div class="map-legend">
+                    <div class="legend-item">
+                        <div class="legend-dot incident"></div>
+                        <span>Incidents</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot roadwork"></div>
+                        <span>Roadworks</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-dot congestion"></div>
+                        <span>Congestion</span>
+                    </div>
+                </div>
+            </div>
+            <div class="map-container">
+                <div id="traffic-map"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const API_BASE_URL = window.location.hostname === 'localhost'
+        ? 'http://localhost:3001'
+        : 'https://go-barry.onrender.com';
+
+    // MAPBOX CONFIGURATION - Loaded from backend
+    let mapboxToken = null;
+
+    let currentAlerts = [];
+    let map = null;
+    let alertMarkers = [];
+    let charts = {};
+    let performanceData = {
+        incidents: Array(20).fill(0),
+        delays: Array(20).fill(0),
+        routes: Array(20).fill(0),
+        load: Array(20).fill(20)
+    };
+
+    // FASTER alert cycling
+    let alertIndex = 0;
+    let alertCycleTimer = null;
+
+    function onlyLiveAlerts(alerts) {
+        return alerts.filter(
+            alert =>
+                ['incident', 'congestion', 'roadwork'].includes(alert.type) &&
+                alert.source !== 'test_data' && alert.source !== 'sample'
+        );
+    }
+
+    // FASTER alert card creation
+    function createAlertCard(alert) {
+        const alertClass = alert.status === 'red' ? 'critical' :
+                        alert.status === 'amber' ? 'warning' : 'success';
+        const routeBadges = alert.affectsRoutes && alert.affectsRoutes.length > 0
+            ? alert.affectsRoutes.slice(0, 8).map(route => `<span class="route-badge">${route}</span>`).join('')
+            : '<span class="route-badge" style="opacity: 0.6;">No routes identified</span>';
+        const delayInfo = alert.delayMinutes && alert.delayMinutes > 0
+            ? `<span style="color: var(--status-warning); font-weight: 600;">+${alert.delayMinutes}min delay</span>`
+            : '';
+        return `
+            <div class="alert-card ${alertClass}">
+                <div class="alert-header">
+                    <div class="alert-title">${alert.title || ''}</div>
+                    <div class="alert-badges">
+                        <span class="badge type-${alert.type}">${alert.type}</span>
+                        ${alert.severity ? `<span class="badge">${alert.severity}</span>` : ''}
+                    </div>
+                </div>
+                <div class="alert-location">
+                    <i class="fas fa-map-marker-alt"></i>
+                    ${alert.location || ''}
+                </div>
+                <div class="alert-description">${alert.description || ''}</div>
+                <div class="alert-routes">${routeBadges}</div>
+                <div class="alert-meta">
+                    <div>Source: ${alert.dataSource || alert.source} ${delayInfo}</div>
+                    <div>${alert.startDate ? new Date(alert.startDate).toLocaleString('en-GB', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}</div>
+                </div>
+            </div>
+        `;
+    }
+
+    // ENHANCED data fetching with FASTER performance tracking
+    async function fetchAlerts() {
+        const startTime = performance.now();
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/alerts`);
+            const data = await response.json();
+            const endTime = Math.round(performance.now() - startTime);
+
+            let liveAlerts = onlyLiveAlerts(data.alerts);
+
+            if (liveAlerts.length === 0) {
+                updateAlertsDisplay([]);
+                updateMapMarkers([]);
+            } else {
+                liveAlerts = liveAlerts.sort((a, b) => {
+                    const statusPriority = { red: 3, amber: 2, green: 1 };
+                    const typePriority = { incident: 3, congestion: 2, roadwork: 1 };
+                    if (statusPriority[a.status] !== statusPriority[b.status]) {
+                        return statusPriority[b.status] - statusPriority[a.status];
+                    }
+                    return typePriority[b.type] - typePriority[a.type];
+                });
+                updateAlertsDisplay(liveAlerts);
+                updateMapMarkers(liveAlerts);
+            }
+            
+            updateAnalyticCards({ alerts: liveAlerts, metadata: data.metadata || {} });
+            updateCharts(liveAlerts);
+            updatePerformanceMetrics(endTime, liveAlerts.length);
+
+            const lastUpdate = document.getElementById('last-update');
+            lastUpdate.textContent = `Last Update: ${new Date().toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit' })}`;
+        } catch (error) {
+            console.error('Error fetching alerts:', error);
+            showErrorState();
+        }
+    }
+
+    // FASTER alert cycling - reduced from 15s to 8s
+    function updateAlertsDisplay(alerts) {
+        const alertsContainer = document.getElementById('alerts-container');
+        const alertCount = document.getElementById('alert-count');
+        alertCount.textContent = alerts.length;
+        
+        if (alerts.length === 0) {
+            alertsContainer.innerHTML = `
+                <div class="no-alerts">
+                    <i class="fas fa-shield-check"></i>
+                    <h3>All Systems Clear</h3>
+                    <p>No active traffic alerts detected</p>
+                </div>
+            `;
+            clearAlertCycle();
+            return;
+        }
+        
+        currentAlerts = alerts;
+        alertIndex = 0;
+        renderCurrentAlert();
+        startAlertCycle();
+    }
+
+    function renderCurrentAlert() {
+        const alertsContainer = document.getElementById('alerts-container');
+        if (!currentAlerts || currentAlerts.length === 0) {
+            alertsContainer.innerHTML = '';
+            return;
+        }
+        const alert = currentAlerts[alertIndex % currentAlerts.length];
+        alertsContainer.innerHTML = createAlertCard(alert);
+    }
+
+    function startAlertCycle() {
+        clearAlertCycle();
+        if (!currentAlerts || currentAlerts.length <= 1) return;
+        // FASTER cycling: 8 seconds instead of 15
+        alertCycleTimer = setInterval(() => {
+            alertIndex = (alertIndex + 1) % currentAlerts.length;
+            renderCurrentAlert();
+        }, 8000);
+    }
+
+    function clearAlertCycle() {
+        if (alertCycleTimer) {
+            clearInterval(alertCycleTimer);
+            alertCycleTimer = null;
+        }
+    }
+
+    // MAPBOX INTEGRATION - Loads token from backend
+    async function loadMapboxConfig() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/config`);
+            const config = await response.json();
+            
+            if (config.mapbox?.accessToken) {
+                mapboxToken = config.mapbox.accessToken;
+                mapboxgl.accessToken = mapboxToken;
+                console.log('✅ MapBox token loaded from backend');
+                return true;
+            } else {
+                console.warn('⚠️ No MapBox token available in backend config');
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ Failed to load MapBox config:', error);
+            return false;
+        }
+    }
+
+    async function initializeMap() {
+        // First load the token from backend
+        const tokenLoaded = await loadMapboxConfig();
+        
+        if (!tokenLoaded) {
+            document.getElementById('traffic-map').innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #9CA3AF;">
+                    <div style="text-align: center;">
+                        <i class="fas fa-key" style="font-size: 32px; margin-bottom: 12px;"></i>
+                        <p>MapBox token not configured<br><small>Check backend .env file</small></p>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        try {
+            map = new mapboxgl.Map({
+                container: 'traffic-map',
+                style: 'mapbox://styles/mapbox/dark-v11', // Dark theme for control room
+                center: [-1.6178, 54.9783], // Newcastle upon Tyne
+                zoom: 10,
+                pitch: 0,
+                bearing: 0
+            });
+
+            map.on('load', function() {
+                console.log('🗺️ MapBox map loaded successfully');
+                
+                // Add North East region boundary
+                map.addLayer({
+                    'id': 'north-east-boundary',
+                    'type': 'line',
+                    'source': {
+                        'type': 'geojson',
+                        'data': {
+                            'type': 'Feature',
+                            'geometry': {
+                                'type': 'Polygon',
+                                'coordinates': [[
+                                    [-1.8, 54.8], [-1.4, 54.8], 
+                                    [-1.4, 55.1], [-1.8, 55.1], 
+                                    [-1.8, 54.8]
+                                ]]
+                            }
+                        }
+                    },
+                    'paint': {
+                        'line-color': '#3b82f6',
+                        'line-width': 2,
+                        'line-opacity': 0.6
+                    }
+                });
+
+                // Add Go North East bus routes overlay (if available)
+                addBusRoutesLayer();
+            });
+
+            map.on('error', function(e) {
+                console.error('❌ MapBox error:', e);
+                document.getElementById('traffic-map').innerHTML = `
+                    <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #9CA3AF;">
+                        <div style="text-align: center;">
+                            <i class="fas fa-exclamation-triangle" style="font-size: 32px; margin-bottom: 12px;"></i>
+                            <p>Map unavailable<br><small>Check MapBox token validity</small></p>
+                        </div>
+                    </div>
+                `;
+            });
+
+        } catch (error) {
+            console.error('❌ MapBox initialization failed:', error);
+            document.getElementById('traffic-map').innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #9CA3AF;">
+                    <div style="text-align: center;">
+                        <i class="fas fa-map" style="font-size: 32px; margin-bottom: 12px;"></i>
+                        <p>Map initialization failed<br><small>Check console for details</small></p>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    function addBusRoutesLayer() {
+        // Optional: Add bus route visualization
+        // This could show major Go North East routes as colored lines
+        try {
+            // Add major bus corridors
+            const busCorridors = [
+                { name: 'A1 Corridor', routes: ['21', 'X21'], coordinates: [[-1.7, 54.8], [-1.6, 55.0]] },
+                { name: 'Coast Road', routes: ['1', '2'], coordinates: [[-1.6, 55.0], [-1.4, 55.0]] },
+                { name: 'A19 Corridor', routes: ['307', '309'], coordinates: [[-1.5, 54.9], [-1.4, 55.0]] }
+            ];
+
+            busCorridors.forEach((corridor, index) => {
+                map.addLayer({
+                    'id': `bus-corridor-${index}`,
+                    'type': 'line',
+                    'source': {
+                        'type': 'geojson',
+                        'data': {
+                            'type': 'Feature',
+                            'properties': {
+                                'name': corridor.name,
+                                'routes': corridor.routes.join(', ')
+                            },
+                            'geometry': {
+                                'type': 'LineString',
+                                'coordinates': corridor.coordinates
+                            }
+                        }
+                    },
+                    'paint': {
+                        'line-color': '#10b981',
+                        'line-width': 3,
+                        'line-opacity': 0.4
+                    }
+                });
+            });
+
+            console.log('✅ Bus route corridors added to map');
+        } catch (error) {
+            console.warn('⚠️ Could not add bus routes layer:', error);
+        }
+    }
+
+    function updateMapMarkers(alerts) {
+        if (!map) return;
+
+        // Clear existing markers
+        alertMarkers.forEach(marker => marker.remove());
+        alertMarkers = [];
+
+        // Add new markers for alerts with coordinates
+        alerts.forEach(alert => {
+            if (alert.coordinates && Array.isArray(alert.coordinates)) {
+                const [lat, lng] = alert.coordinates;
+                if (lat && lng) {
+                    const color = alert.type === 'incident' ? '#ef4444' : 
+                                alert.type === 'roadwork' ? '#3b82f6' : '#f59e0b';
+                    
+                    const marker = new mapboxgl.Marker({ color: color })
+                        .setLngLat([lng, lat])
+                        .setPopup(new mapboxgl.Popup().setHTML(`
+                            <div style="color: #1f2937;">
+                                <strong>${alert.title}</strong><br>
+                                <small>${alert.location}</small><br>
+                                <em>Routes: ${alert.affectsRoutes?.join(', ') || 'None'}</em>
+                            </div>
+                        `))
+                        .addTo(map);
+                    
+                    alertMarkers.push(marker);
+                }
+            }
+        });
+
+        console.log(`🗺️ Updated map with ${alertMarkers.length} alert markers`);
+    }
+
+    // SIMPLIFIED chart functions for performance
+    function initializeCharts() {
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { 
+                x: { display: false }, 
+                y: { display: false } 
+            },
+            animation: { duration: 200 } // FASTER animations
+        };
+
+        ['incidents-chart', 'delay-chart', 'routes-chart', 'load-chart'].forEach(id => {
+            const canvas = document.getElementById(id);
+            if (canvas) {
+                charts[id] = new Chart(canvas, {
+                    type: 'line',
+                    data: {
+                        labels: Array(10).fill(''),
+                        datasets: [{
+                            data: Array(10).fill(0),
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            pointRadius: 0
+                        }]
+                    },
+                    options: chartOptions
+                });
+            }
+        });
+    }
+
+    function updateAnalyticCards(data) {
+        const alerts = data.alerts || [];
+        const critical = alerts.filter(a => a.status === 'red').length;
+        const totalRoutes = new Set(alerts.flatMap(a => a.affectsRoutes || [])).size;
+        const avgDelay = alerts.length > 0 ? 
+            Math.round(alerts.reduce((sum, a) => sum + (a.delayMinutes || 0), 0) / alerts.length) : 0;
+
+        document.getElementById('critical-count').textContent = critical;
+        document.getElementById('affected-routes').textContent = totalRoutes;
+        document.getElementById('delay-time').textContent = `${avgDelay} min`;
+        document.getElementById('system-load').textContent = alerts.length > 10 ? 'High' : alerts.length > 5 ? 'Medium' : 'Low';
+    }
+
+    function updateCharts(alerts) {
+        // Simple chart updates for performance
+        performanceData.incidents.push(alerts.filter(a => a.type === 'incident').length);
+        performanceData.incidents = performanceData.incidents.slice(-10);
+        
+        if (charts['incidents-chart']) {
+            charts['incidents-chart'].data.datasets[0].data = performanceData.incidents;
+            charts['incidents-chart'].update('none'); // No animation for speed
+        }
+    }
+
+    function updatePerformanceMetrics(responseTime, dataPoints) {
+        document.getElementById('response-time').textContent = `${responseTime}ms`;
+        document.getElementById('data-points').textContent = dataPoints;
+    }
+
+    function showErrorState() {
+        document.getElementById('alerts-container').innerHTML = `
+            <div class="loading">
+                <i class="fas fa-exclamation-triangle" style="color: var(--status-critical);"></i>
+                <span>Connection error - retrying...</span>
+            </div>
+        `;
+    }
+
+    function updateClock() {
+        document.getElementById('clock').textContent = 
+            new Date().toLocaleTimeString('en-GB', { hour12: false });
+    }
+
+    // MAIN INITIALIZATION - FASTER REFRESH
+    async function init() {
+        console.log('🚦 BARRY Enhanced Control Room Initializing...');
+        updateClock();
+        setInterval(updateClock, 1000);
+        initializeCharts();
+        await initializeMap(); // Wait for map token to load
+        fetchAlerts();
+        // FASTER refresh: 20 seconds instead of 30
+        setInterval(fetchAlerts, 20000); 
+        console.log('✅ BARRY Enhanced Control Room Ready (20s refresh)');
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) fetchAlerts();
+    });
+    document.addEventListener('keydown', (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'r') {
+            event.preventDefault();
+            fetchAlerts();
+        }
+    });
+    </script>
+</body>
+</html>

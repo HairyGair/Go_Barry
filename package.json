@@ -1,0 +1,33 @@
+{
+  "name": "barry-traffic-intelligence",
+  "version": "3.0.0",
+  "description": "BARRY - Real-time Traffic Intelligence Platform for Go North East",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && cd backend && npm install && cd ../Go_BARRY && npm install",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd Go_BARRY && expo start",
+    "build:backend": "cd backend && npm install",
+    "build:frontend": "cd Go_BARRY && npm install && npm run build:web",
+    "start:backend": "cd backend && npm start",
+    "deploy:render": "git add . && git commit -m 'Deploy to Render' && git push origin main"
+  },
+  "dependencies": {
+    "mapbox-gl": "^3.12.0"
+  },
+  "keywords": [
+    "traffic",
+    "alerts",
+    "go-north-east",
+    "transport",
+    "real-time",
+    "node.js",
+    "react-native",
+    "expo"
+  ],
+  "author": "Anthony Gair",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

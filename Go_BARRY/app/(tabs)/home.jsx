@@ -1,5 +1,5 @@
 // Go_BARRY/app/(tabs)/home.jsx
-// Clean version with no external icon dependencies
+// EMERGENCY SAFE VERSION - Minimal imports to avoid errors
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -8,10 +8,11 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert
+  Alert,
+  Modal,
+  TextInput
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Modal, TextInput } from 'react-native';
 
 const DUTIES = [
   { key: '100', label: 'Duty 100 (6am-3:30pm)', password: null },
@@ -20,6 +21,9 @@ const DUTIES = [
   { key: '500', label: 'Duty 500 (2:45pm-12:15am)', password: null },
   { key: 'service', label: 'Service Delivery Controller', password: 'Barry123' }
 ];
+
+// EMERGENCY: Simple direct API URL to avoid config import issues
+const API_BASE_URL = 'https://go-barry.onrender.com';
 
 export default function HomeScreen() {
   const [systemStatus, setSystemStatus] = useState(null);
@@ -33,14 +37,12 @@ export default function HomeScreen() {
   const [passwordInput, setPasswordInput] = useState('');
   const [dutyError, setDutyError] = useState('');
 
-  const baseUrl = 'https://go-barry.onrender.com';
-
   const fetchSystemStatus = async () => {
     try {
       setLoading(true);
-      console.log('🔍 Fetching system status from:', `${baseUrl}/api/health`);
+      console.log('🔍 Fetching system status from:', API_BASE_URL);
       
-      const response = await fetch(`${baseUrl}/api/health`, {
+      const response = await fetch(`${API_BASE_URL}/api/health`, {
         timeout: 10000
       });
       
@@ -60,7 +62,7 @@ export default function HomeScreen() {
       console.error('❌ Health check failed:', error);
       Alert.alert(
         'Connection Error',
-        `Unable to connect to BARRY backend:\n\n${error.message}\n\nBackend: ${baseUrl}`,
+        `Unable to connect to BARRY backend:\n\n${error.message}\n\nBackend: ${API_BASE_URL}`,
         [
           { text: 'OK' },
           { text: 'Retry', onPress: fetchSystemStatus }
@@ -78,6 +80,7 @@ export default function HomeScreen() {
       else setShowDutyModal(true);
     });
   }, []);
+
   // Duty handlers
   const handleDutySelect = (duty) => {
     setSelectedDuty(duty);
@@ -108,18 +111,18 @@ export default function HomeScreen() {
       switch (action) {
         case 'refresh':
           console.log('🔄 Refreshing data...');
-          await fetch(`${baseUrl}/api/refresh`);
+          await fetch(`${API_BASE_URL}/api/refresh`);
           await fetchSystemStatus();
           Alert.alert('Success', 'Data refreshed successfully');
           break;
           
         case 'test':
           console.log('🧪 Testing alerts API...');
-          const response = await fetch(`${baseUrl}/api/alerts`);
+          const response = await fetch(`${API_BASE_URL}/api/alerts`);
           const data = await response.json();
           Alert.alert(
             'API Test Results', 
-            `Status: ${data.success ? '✅ Success' : '❌ Failed'}\nAlerts Found: ${data.alerts?.length || 0}\n\nBackend: ${baseUrl}`,
+            `Status: ${data.success ? '✅ Success' : '❌ Failed'}\nAlerts Found: ${data.alerts?.length || 0}\n\nBackend: ${API_BASE_URL}`,
             [{ text: 'OK' }]
           );
           break;
@@ -136,7 +139,7 @@ export default function HomeScreen() {
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#60A5FA" />
         <Text style={styles.loadingText}>Connecting to BARRY...</Text>
-        <Text style={styles.loadingSubtext}>{baseUrl}</Text>
+        <Text style={styles.loadingSubtext}>{API_BASE_URL}</Text>
       </View>
     );
   }
@@ -174,11 +177,11 @@ export default function HomeScreen() {
 
       {/* Duty status display */}
       {currentDuty && (
-        <View style={{ backgroundColor: '#222d3a', padding: 14, borderRadius: 8, margin: 16, alignItems: 'center' }}>
-          <Text style={{ color: '#aaa', fontSize: 14 }}>Current Duty:</Text>
-          <Text style={{ color: '#60A5FA', fontWeight: '600', fontSize: 16, marginBottom: 6 }}>{currentDuty.label}</Text>
-          <TouchableOpacity onPress={handleChangeDuty} style={{ backgroundColor: '#2563eb', padding: 8, borderRadius: 6 }}>
-            <Text style={{ color: '#fff', fontWeight: 'bold' }}>Change Duty</Text>
+        <View style={styles.dutyContainer}>
+          <Text style={styles.dutyLabel}>Current Duty:</Text>
+          <Text style={styles.dutyText}>{currentDuty.label}</Text>
+          <TouchableOpacity onPress={handleChangeDuty} style={styles.changeDutyButton}>
+            <Text style={styles.changeDutyText}>Change Duty</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -225,38 +228,6 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* Data Sources */}
-      {systemStatus?.configuration && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Data Sources</Text>
-          
-          <View style={styles.sourceCard}>
-            <View style={styles.sourceHeader}>
-              <Text style={styles.sourceIndicator}>
-                {systemStatus.configuration.nationalHighways ? '🟢' : '🔴'}
-              </Text>
-              <Text style={styles.sourceName}>National Highways</Text>
-            </View>
-            <Text style={styles.sourceDescription}>
-              {systemStatus.configuration.nationalHighways 
-                ? 'API configured - Major road incidents and closures'
-                : 'Not configured - Missing API key'
-              }
-            </Text>
-          </View>
-
-          <View style={styles.sourceCard}>
-            <View style={styles.sourceHeader}>
-              <Text style={styles.sourceIndicator}>🟡</Text>
-              <Text style={styles.sourceName}>Street Manager</Text>
-            </View>
-            <Text style={styles.sourceDescription}>
-              Webhook integration - Local authority roadworks
-            </Text>
-          </View>
-        </View>
-      )}
-
       {/* Quick Actions */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -280,105 +251,49 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* API Information */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>API Information</Text>
-        
-        <View style={styles.infoCard}>
-          <Text style={styles.infoLabel}>Backend URL:</Text>
-          <Text style={styles.infoValue}>{baseUrl}</Text>
-        </View>
-
-        <View style={styles.infoCard}>
-          <Text style={styles.infoLabel}>Main Endpoint:</Text>
-          <Text style={styles.infoValue}>{baseUrl}/api/alerts</Text>
-        </View>
-
-        {systemStatus?.uptime && (
-          <View style={styles.infoCard}>
-            <Text style={styles.infoLabel}>Uptime:</Text>
-            <Text style={styles.infoValue}>
-              {Math.floor(systemStatus.uptime / 3600)}h {Math.floor((systemStatus.uptime % 3600) / 60)}m
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* Instructions */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Getting Started</Text>
-        
-        <View style={styles.instructionCard}>
-          <Text style={styles.instructionStep}>1️⃣</Text>
-          <Text style={styles.instructionText}>
-            Check the Dashboard tab for traffic overview
-          </Text>
-        </View>
-
-        <View style={styles.instructionCard}>
-          <Text style={styles.instructionStep}>2️⃣</Text>
-          <Text style={styles.instructionText}>
-            View detailed alerts in the Alerts tab
-          </Text>
-        </View>
-
-        <View style={styles.instructionCard}>
-          <Text style={styles.instructionStep}>3️⃣</Text>
-          <Text style={styles.instructionText}>
-            Configure settings and data sources in Settings
-          </Text>
-        </View>
-      </View>
-
       {/* Debug Information */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Debug Info</Text>
+        <Text style={styles.sectionTitle}>System Info</Text>
         
         <View style={styles.debugCard}>
-          <Text style={styles.debugLabel}>Last Status Check:</Text>
-          <Text style={styles.debugValue}>
-            {lastUpdate ? lastUpdate.toLocaleString('en-GB') : 'Never'}
-          </Text>
+          <Text style={styles.debugLabel}>Backend URL:</Text>
+          <Text style={styles.debugValue}>{API_BASE_URL}</Text>
         </View>
 
         <View style={styles.debugCard}>
-          <Text style={styles.debugLabel}>App Mode:</Text>
-          <Text style={styles.debugValue}>Mobile Production</Text>
-        </View>
-
-        <View style={styles.debugCard}>
-          <Text style={styles.debugLabel}>Backend Status:</Text>
+          <Text style={styles.debugLabel}>Status:</Text>
           <Text style={styles.debugValue}>
             {systemStatus ? 'Connected' : 'Not Connected'}
           </Text>
+        </View>
+
+        <View style={styles.debugCard}>
+          <Text style={styles.debugLabel}>App Version:</Text>
+          <Text style={styles.debugValue}>Emergency Safe Mode</Text>
         </View>
       </View>
 
       {/* Duty modal */}
       <Modal visible={showDutyModal} transparent animationType="slide">
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' }}>
-          <View style={{ backgroundColor: '#fff', borderRadius: 14, padding: 24, minWidth: 300, alignItems: 'center' }}>
-            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 18 }}>Sign in for your duty</Text>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Sign in for your duty</Text>
             {DUTIES.map((duty) => (
               <TouchableOpacity
                 key={duty.key}
-                style={{
-                  padding: 12,
-                  marginBottom: 10,
-                  backgroundColor: selectedDuty && selectedDuty.key === duty.key ? '#60A5FA' : '#eee',
-                  borderRadius: 8,
-                  width: '100%',
-                  alignItems: 'center'
-                }}
+                style={[
+                  styles.dutyOption,
+                  selectedDuty && selectedDuty.key === duty.key && styles.dutyOptionSelected
+                ]}
                 onPress={() => handleDutySelect(duty)}
               >
-                <Text style={{ fontSize: 16 }}>{duty.label}</Text>
+                <Text style={styles.dutyOptionText}>{duty.label}</Text>
               </TouchableOpacity>
             ))}
             {selectedDuty && selectedDuty.password && (
-              <View style={{ marginTop: 14, width: '100%', alignItems: 'center' }}>
+              <View style={styles.passwordContainer}>
                 <TextInput
-                  style={{ width: '100%', borderColor: '#ccc', borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 10 }}
+                  style={styles.passwordInput}
                   value={passwordInput}
                   onChangeText={setPasswordInput}
                   placeholder="Password"
@@ -387,11 +302,11 @@ export default function HomeScreen() {
                 />
                 <TouchableOpacity
                   onPress={() => handleDutyConfirm(selectedDuty, passwordInput)}
-                  style={{ backgroundColor: '#2563eb', padding: 10, borderRadius: 8, width: '100%', alignItems: 'center' }}
+                  style={styles.confirmButton}
                 >
-                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Confirm</Text>
+                  <Text style={styles.confirmButtonText}>Confirm</Text>
                 </TouchableOpacity>
-                {dutyError ? <Text style={{ color: 'red', marginTop: 8 }}>{dutyError}</Text> : null}
+                {dutyError ? <Text style={styles.dutyErrorText}>{dutyError}</Text> : null}
               </View>
             )}
           </View>
@@ -462,6 +377,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginLeft: 8,
   },
+  dutyContainer: {
+    backgroundColor: '#1F2937',
+    padding: 16,
+    borderRadius: 8,
+    margin: 16,
+    alignItems: 'center',
+  },
+  dutyLabel: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    marginBottom: 4,
+  },
+  dutyText: {
+    color: '#60A5FA',
+    fontWeight: '600',
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  changeDutyButton: {
+    backgroundColor: '#2563EB',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  changeDutyText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+    fontSize: 14,
+  },
   section: {
     padding: 20,
   },
@@ -503,31 +447,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
   },
-  sourceCard: {
-    backgroundColor: '#1F2937',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-  },
-  sourceHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  sourceIndicator: {
-    fontSize: 16,
-    marginRight: 12,
-  },
-  sourceName: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  sourceDescription: {
-    color: '#9CA3AF',
-    fontSize: 14,
-    lineHeight: 20,
-  },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -554,41 +473,6 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: '#60A5FA',
   },
-  infoCard: {
-    backgroundColor: '#1F2937',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-  },
-  infoLabel: {
-    color: '#9CA3AF',
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  infoValue: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'monospace',
-  },
-  instructionCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#1F2937',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
-  },
-  instructionStep: {
-    fontSize: 18,
-    marginRight: 12,
-    minWidth: 30,
-  },
-  instructionText: {
-    color: '#D1D5DB',
-    fontSize: 16,
-    lineHeight: 24,
-    flex: 1,
-  },
   debugCard: {
     backgroundColor: '#1F2937',
     borderRadius: 8,
@@ -604,5 +488,70 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontFamily: 'monospace',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 24,
+    minWidth: 300,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontWeight: 'bold',
+    fontSize: 18,
+    marginBottom: 18,
+    color: '#1F2937',
+  },
+  dutyOption: {
+    padding: 12,
+    marginBottom: 10,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+  },
+  dutyOptionSelected: {
+    backgroundColor: '#60A5FA',
+  },
+  dutyOptionText: {
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  passwordContainer: {
+    marginTop: 14,
+    width: '100%',
+    alignItems: 'center',
+  },
+  passwordInput: {
+    width: '100%',
+    borderColor: '#D1D5DB',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+    fontSize: 16,
+  },
+  confirmButton: {
+    backgroundColor: '#2563EB',
+    padding: 10,
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  dutyErrorText: {
+    color: '#EF4444',
+    marginTop: 8,
+    fontSize: 14,
   },
 });

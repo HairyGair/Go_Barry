@@ -147,8 +147,8 @@ class SimpleSupabaseClient {
 }
 
 // Configuration - replace with your actual SupaBase details
-const SUPABASE_URL = 'https://haountnqhecfrsonivbq.supabase.co'; // Your project URL
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhb3VudG5naGVjZnJzb25pdWJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc2NzgxNDksImV4cCI6MjA2MzI1NDE0OX0.xtjxeGkxG3cx67IvpI4XxEpWewLG9Bh6bfyQenfTILs'; // Your anon public key
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://haountnqhecfrsonivbq.supabase.co';
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'fallback-key-here';
 
 // Simple traffic service for React Native
 class SimpleSupabaseTrafficService {
