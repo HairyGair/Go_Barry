@@ -164,7 +164,7 @@ ROUTE_MATCHING: Coordinate + text-based
 ```javascript
 // API endpoints
 LOCAL: 'http://192.168.1.132:3001'
-PRODUCTION: 'https://barry-backend.onrender.com'
+PRODUCTION: 'https://go-barry.onrender.com'  // Your existing backend
 ```
 
 ## 🛠️ Development

@@ -86,8 +86,8 @@ The frontend will be deployed as a **Static Site** using Expo Web.
 ### 🌍 Production URLs
 
 After deployment, your services will be available at:
-- **Backend API**: `https://barry-backend.onrender.com`
-- **Frontend Web App**: `https://barry-frontend.onrender.com`
+- **Backend API**: `https://go-barry.onrender.com` (your existing deployment)
+- **Frontend Web App**: `https://barry-frontend.onrender.com` (new static site)
 
 ### 📱 Mobile App
 
@@ -100,9 +100,9 @@ expo start
 ### 🔍 API Endpoints
 
 Once deployed, test these endpoints:
-- Health: `https://barry-backend.onrender.com/api/health`
-- Alerts: `https://barry-backend.onrender.com/api/alerts-enhanced`
-- Config: `https://barry-backend.onrender.com/api/config`
+- Health: `https://go-barry.onrender.com/api/health`
+- Alerts: `https://go-barry.onrender.com/api/alerts-enhanced`
+- Config: `https://go-barry.onrender.com/api/config`
 
 ### 🛠️ Local Development
 

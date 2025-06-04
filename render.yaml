@@ -1,7 +1,7 @@
 services:
-  # Backend API Service
+  # Backend API Service (existing deployment)
   - type: web
-    name: barry-backend
+    name: go-barry
     env: node
     buildCommand: cd backend && npm install
     startCommand: cd backend && npm start
@@ -34,5 +34,5 @@ services:
     plan: free
     envVars:
       - key: EXPO_PUBLIC_API_BASE_URL
-        value: https://barry-backend.onrender.com
+        value: https://go-barry.onrender.com
     autoDeploy: false

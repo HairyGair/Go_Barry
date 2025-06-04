@@ -44,7 +44,7 @@ const EnhancedDashboard = () => {
   // Enhanced API endpoint for supervisor integration
   const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || (__DEV__ 
     ? 'http://192.168.1.132:3001'  // Your Mac's IP address for local development
-    : 'https://barry-backend.onrender.com'); // Production URL
+    : 'https://go-barry.onrender.com'); // Your existing production URL
 
   // Enhanced fetch function with supervisor awareness
   const fetchAlerts = async () => {
