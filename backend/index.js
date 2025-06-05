@@ -529,7 +529,7 @@ async function fetchTomTomTrafficFixed() {
     const alerts = [];
     
     if (response.data?.tm?.poi) {
-      response.data.tm.poi.forEach(incident => {
+      response.data.tm.poi.forEach(async incident => {
         // Process incidents into your alert format
         const lat = incident.p?.y;
         const lng = incident.p?.x;
