@@ -896,6 +896,10 @@ export function setupAPIRoutes(app, globalState) {
   app.post('/api/streetmanager/webhook', (req, res) => {
     try {
       console.log('📨 StreetManager webhook received');
+      console.log('📋 Request headers:', JSON.stringify(req.headers, null, 2));
+      console.log('📋 Request body type:', typeof req.body);
+      console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
+      
       const result = handleWebhookMessage(req.body);
       
       if (result.error) {
