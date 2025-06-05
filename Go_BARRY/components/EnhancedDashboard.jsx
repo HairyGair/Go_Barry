@@ -46,26 +46,58 @@ const EnhancedDashboard = () => {
     ? 'http://192.168.1.132:3001'  // Your Mac's IP address for local development
     : 'https://go-barry.onrender.com'); // Your existing production URL
 
-  // Enhanced fetch function with supervisor awareness
+  // Enhanced fetch function with supervisor awareness and FALLBACK STRATEGY
   const fetchAlerts = async () => {
     try {
       console.log('🔧 Enhanced Dashboard fetching alerts...');
       setError(null);
       
-      // Use enhanced endpoint that filters dismissed alerts
-      const response = await fetch(`${API_BASE_URL}/api/alerts-enhanced`);
+      // STRATEGY: Try enhanced endpoint first, fallback to main alerts endpoint
+      let response;
+      let endpoint;
+      let fallbackUsed = false;
       
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      try {
+        // Try enhanced endpoint first
+        endpoint = '/api/alerts-enhanced';
+        console.log(`🎯 Trying enhanced endpoint: ${API_BASE_URL}${endpoint}`);
+        response = await fetch(`${API_BASE_URL}${endpoint}`);
+        
+        if (!response.ok) {
+          throw new Error(`Enhanced endpoint failed: HTTP ${response.status}`);
+        }
+        console.log('✅ Enhanced endpoint successful');
+      } catch (enhancedError) {
+        console.warn('⚠️ Enhanced endpoint failed, trying fallback:', enhancedError.message);
+        
+        // Fallback to main alerts endpoint
+        endpoint = '/api/alerts';
+        console.log(`🔄 Fallback to main endpoint: ${API_BASE_URL}${endpoint}`);
+        response = await fetch(`${API_BASE_URL}${endpoint}`);
+        fallbackUsed = true;
+        
+        if (!response.ok) {
+          throw new Error(`Main endpoint also failed: HTTP ${response.status}`);
+        }
+        console.log('✅ Fallback endpoint successful');
       }
       
       const data = await response.json();
-      console.log('🔧 Enhanced Dashboard received data:', data);
+      console.log('🔧 Enhanced Dashboard received data:', {
+        success: data.success,
+        alertsCount: data.alerts?.length || 0,
+        endpoint: endpoint,
+        fallbackUsed: fallbackUsed
+      });
       
       if (data.success && data.alerts) {
         setAlerts(data.alerts);
         setLastUpdated(new Date().toISOString());
-        console.log(`✅ Enhanced Dashboard loaded ${data.alerts.length} alerts`);
+        console.log(`✅ Enhanced Dashboard loaded ${data.alerts.length} alerts from ${endpoint}`);
+        
+        if (fallbackUsed) {
+          console.log('ℹ️ Using fallback endpoint - enhanced features may be limited');
+        }
         
         // Show enhanced features in metadata
         if (data.metadata) {
@@ -78,7 +110,11 @@ const EnhancedDashboard = () => {
     } catch (err) {
       console.error('❌ Enhanced Dashboard fetch error:', err);
       setError(err.message);
-      Alert.alert('Error', `Failed to fetch alerts: ${err.message}`);
+      
+      // Don't show alert for expected 404 errors during development
+      if (!err.message.includes('404')) {
+        Alert.alert('Error', `Failed to fetch alerts: ${err.message}`);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
