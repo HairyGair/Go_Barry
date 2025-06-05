@@ -839,23 +839,7 @@ let cachedAlerts = null;
 let lastFetchTime = null;
 const CACHE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
-// Sample test data for development
-const sampleTestAlerts = [
-  {
-    id: 'test_001',
-    type: 'incident',
-    title: 'Vehicle Breakdown - A1 Northbound',
-    description: 'Lane 1 blocked due to vehicle breakdown between J65 and J66. Recovery vehicle en route.',
-    location: 'A1 Northbound, Junction 65 (Birtley)',
-    authority: 'National Highways',
-    source: 'test_data',
-    severity: 'High',
-    status: 'red',
-    affectsRoutes: ['21', '22', 'X21', '25', '28'],
-    lastUpdated: new Date().toISOString(),
-    dataSource: 'Test Data'
-  }
-];
+// Sample test data removed - using live data only
 
 
 
@@ -890,7 +874,6 @@ app.listen(PORT, '0.0.0.0', () => {
 const globalState = {
   acknowledgedAlerts,
   alertNotes, 
-  sampleTestAlerts,
   GTFS_ROUTES,
   NORTH_EAST_BBOXES,
   ACK_FILE,

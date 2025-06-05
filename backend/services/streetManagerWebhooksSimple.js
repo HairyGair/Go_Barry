@@ -6,6 +6,16 @@ let webhookActivities = [];
 let webhookPermits = [];
 
 /**
+ * Clear all stored webhook data - no samples allowed
+ */
+export function clearAllWebhookData() {
+  webhookActivities = [];
+  webhookPermits = [];
+  console.log('✨ All webhook data cleared - live data only');
+  return { status: 'cleared', message: 'All sample data removed' };
+}
+
+/**
  * Handle StreetManager webhook data with BULLETPROOF debugging
  */
 export function handleWebhookMessage(message) {
@@ -220,24 +230,11 @@ export function getWebhookPermits() {
 }
 
 /**
- * Add test data (for development)
+ * Test endpoint removed - no sample data in production
  */
 export function addTestData() {
-  const testActivity = {
-    id: 'activity_TEST123',
-    event_type: 'ACTIVITY_CREATED',
-    object_type: 'ACTIVITY',
-    object_data: {
-      activity_reference_number: 'TEST123',
-      activity_name: 'Test Road Works',
-      street_name: 'Grey Street',
-      area_name: 'Newcastle upon Tyne'
-    },
-    receivedAt: new Date().toISOString()
-  };
-  
-  webhookActivities.push(testActivity);
-  console.log('🧪 Added test StreetManager data');
+  console.log('⚠️ Test data function disabled - use live data only');
+  return { status: 'disabled', message: 'Sample data removed - live data only' };
 }
 
 /**
@@ -267,5 +264,6 @@ export default {
   getWebhookActivities,
   getWebhookPermits,
   addTestData,
-  getWebhookStatus
+  getWebhookStatus,
+  clearAllWebhookData
 };

@@ -10,12 +10,13 @@ import { fetchNationalHighways } from "../services/nationalHighways.js";
 // import { fetchStreetManagerActivities, ... } from "../services/streetManager.js";
 
 // NEW WEBHOOK SERVICE:
-import { 
-  handleWebhookMessage,
-  getWebhookActivities,
-  getWebhookPermits,
-  addTestData,
-  getWebhookStatus
+import {
+handleWebhookMessage,
+getWebhookActivities,
+getWebhookPermits,
+addTestData,
+getWebhookStatus,
+  clearAllWebhookData
 } from "../services/streetManagerWebhooksSimple.js";
 import { 
   getLocationNameWithTimeout,
@@ -52,32 +53,33 @@ export function setupAPIRoutes(app, globalState) {
     alertsCache, 
     GTFS_ROUTES,
     NORTH_EAST_BBOXES,
-    sampleTestAlerts,
     ACK_FILE,
     NOTES_FILE,
     cachedAlerts,
     lastFetchTime
   } = globalState;
 
-  // Enhanced alerts endpoint with GTFS location accuracy
+  // Enhanced alerts endpoint with GTFS location accuracy - LIVE DATA ONLY
   app.get('/api/alerts-enhanced', async (req, res) => {
     try {
-      console.log('🚀 Fetching enhanced alerts with GTFS location accuracy...');
+      console.log('🚀 Fetching LIVE enhanced alerts only (no sample data)...');
       
-      // Fetch from multiple sources including StreetManager
+      // Fetch ONLY from live sources - NO SAMPLE DATA
       const tomtomResult = await fetchTomTomTrafficWithStreetNames();
       const mapquestResult = await fetchMapQuestTrafficWithStreetNames();
-      // StreetManager webhook data (using webhook service)
+      
+      // StreetManager webhook data (using webhook service) - live only
       const streetManagerActivities = getWebhookActivities();
       const streetManagerPermits = getWebhookPermits();
       const streetManagerResult = {
         success: true,
         data: [...streetManagerActivities.data, ...streetManagerPermits.data],
         metadata: {
-          source: 'StreetManager Webhooks',
+          source: 'StreetManager Webhooks (Live Only)',
           activities: streetManagerActivities.data.length,
           permits: streetManagerPermits.data.length,
-          method: 'webhook_storage'
+          method: 'webhook_storage',
+          mode: 'live_data_only'
         }
       };
       
@@ -90,14 +92,16 @@ export function setupAPIRoutes(app, globalState) {
         sources.tomtom = {
           success: true,
           count: tomtomResult.data.length,
-          method: 'Enhanced with GTFS',
-          enhancement: tomtomResult.enhancement
+          method: 'Enhanced with GTFS (Live Data)',
+          enhancement: tomtomResult.enhancement,
+          mode: 'live'
         };
       } else {
         sources.tomtom = {
           success: false,
           count: 0,
-          error: tomtomResult.error
+          error: tomtomResult.error,
+          mode: 'live'
         };
       }
       
@@ -107,13 +111,15 @@ export function setupAPIRoutes(app, globalState) {
         sources.mapquest = {
           success: true,
           count: mapquestResult.data.length,
-          method: 'Enhanced with Location Processing'
+          method: 'Enhanced with Location Processing (Live Data)',
+          mode: 'live'
         };
       } else {
         sources.mapquest = {
           success: false,
           count: 0,
-          error: mapquestResult.error
+          error: mapquestResult.error,
+          mode: 'live'
         };
       }
       
@@ -123,14 +129,16 @@ export function setupAPIRoutes(app, globalState) {
         sources.streetmanager = {
           success: true,
           count: streetManagerResult.data.length,
-          method: 'Official UK Roadworks Data',
-          official: true
+          method: 'Official UK Roadworks Data (Live Only)',
+          official: true,
+          mode: 'live'
         };
       } else {
         sources.streetmanager = {
           success: false,
           count: 0,
-          error: streetManagerResult.error
+          error: streetManagerResult.error,
+          mode: 'live'
         };
       }
       
@@ -155,6 +163,8 @@ export function setupAPIRoutes(app, globalState) {
           statistics: stats,
           lastUpdated: new Date().toISOString(),
           enhancement: 'GTFS location accuracy enabled',
+          mode: 'live_data_only',
+          sampleData: 'removed',
           supervisor: {
             dismissalEnabled: true,
             accountabilityActive: true
@@ -169,7 +179,9 @@ export function setupAPIRoutes(app, globalState) {
         alerts: [],
         metadata: {
           error: error.message,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          mode: 'live_data_only',
+          sampleData: 'removed'
         }
       });
     }
@@ -248,15 +260,33 @@ export function setupAPIRoutes(app, globalState) {
     }
   });
 
-  // Test alerts endpoint
+  // Test alerts endpoint - returns live data sample
   app.get('/api/alerts-test', async (req, res) => {
-    res.json({
-      metadata: {
-        count: sampleTestAlerts.length,
-        source: 'sampleTestAlerts',
-      },
-      alerts: sampleTestAlerts,
-    });
+    try {
+      // Return a small sample of live data for testing
+      const tomtomResult = await fetchTomTomTrafficWithStreetNames();
+      const testAlerts = tomtomResult.success ? tomtomResult.data.slice(0, 2) : [];
+      
+      res.json({
+        success: true,
+        metadata: {
+          count: testAlerts.length,
+          source: 'live_data_sample',
+          note: 'Sample test data removed - showing live data sample'
+        },
+        alerts: testAlerts,
+      });
+    } catch (error) {
+      res.json({
+        success: false,
+        metadata: {
+          count: 0,
+          source: 'live_data_sample',
+          error: error.message
+        },
+        alerts: [],
+      });
+    }
   });
 
   // Configuration endpoint
@@ -267,6 +297,41 @@ export function setupAPIRoutes(app, globalState) {
       cacheEnabled: true,
       enhancedLocationEnabled: true
     });
+  });
+
+  // Clear all sample data endpoint - force live data only
+  app.post('/api/clear-sample-data', (req, res) => {
+    try {
+      console.log('✨ Clearing all sample data - forcing live data only mode');
+      
+      // Clear webhook data
+      const webhookResult = clearAllWebhookData();
+      
+      // Clear any cached alerts
+      globalState.cachedAlerts = null;
+      globalState.lastFetchTime = null;
+      
+      console.log('✅ All sample data cleared successfully');
+      
+      res.json({
+        success: true,
+        message: 'All sample data cleared - live data only',
+        cleared: {
+          webhookData: webhookResult.status,
+          alertsCache: 'cleared',
+          sampleAlerts: 'removed'
+        },
+        mode: 'live_data_only',
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('❌ Error clearing sample data:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to clear sample data',
+        details: error.message
+      });
+    }
   });
 
   // Cache refresh endpoint
@@ -321,23 +386,118 @@ export function setupAPIRoutes(app, globalState) {
     }
   });
 
-  // Debug traffic endpoint
+  // Debug traffic endpoint - comprehensive debugging
   app.get('/api/debug-traffic', async (req, res) => {
     try {
-      const tomTomData = await fetchTomTomTrafficWithStreetNames();
-      const mapquestData = await fetchMapQuestTrafficWithStreetNames();
+      console.log('🔍 Running comprehensive traffic debug...');
       
-      console.log('TomTom Traffic Data:', tomTomData);
-      console.log('MapQuest Traffic Data:', mapquestData);
+      // Check environment variables
+      const apiKeys = {
+        tomtom: !!process.env.TOMTOM_API_KEY,
+        mapquest: !!process.env.MAPQUEST_API_KEY,
+        here: !!process.env.HERE_API_KEY
+      };
+      
+      console.log('🔑 API Keys available:', apiKeys);
+      
+      const results = {};
+      
+      // Test TomTom
+      console.log('🚗 Testing TomTom API...');
+      try {
+        const tomTomData = await fetchTomTomTrafficWithStreetNames();
+        results.tomtom = {
+          success: tomTomData.success,
+          dataCount: tomTomData.data ? tomTomData.data.length : 0,
+          error: tomTomData.error || null,
+          sample: tomTomData.data && tomTomData.data.length > 0 ? tomTomData.data[0] : null
+        };
+        console.log('✅ TomTom test result:', results.tomtom.success ? 'SUCCESS' : 'FAILED');
+      } catch (error) {
+        results.tomtom = { success: false, error: error.message, dataCount: 0 };
+        console.error('❌ TomTom test error:', error.message);
+      }
+      
+      // Test MapQuest
+      console.log('🗺️ Testing MapQuest API...');
+      try {
+        const mapquestData = await fetchMapQuestTrafficWithStreetNames();
+        results.mapquest = {
+          success: mapquestData.success,
+          dataCount: mapquestData.data ? mapquestData.data.length : 0,
+          error: mapquestData.error || null,
+          sample: mapquestData.data && mapquestData.data.length > 0 ? mapquestData.data[0] : null
+        };
+        console.log('✅ MapQuest test result:', results.mapquest.success ? 'SUCCESS' : 'FAILED');
+      } catch (error) {
+        results.mapquest = { success: false, error: error.message, dataCount: 0 };
+        console.error('❌ MapQuest test error:', error.message);
+      }
+      
+      console.log('📊 Debug results summary:', {
+        tomtom: results.tomtom?.success || false,
+        mapquest: results.mapquest?.success || false,
+        totalAlerts: (results.tomtom?.dataCount || 0) + (results.mapquest?.dataCount || 0)
+      });
       
       res.json({
-        tomTom: tomTomData,
-        mapquest: mapquestData,
+        success: true,
+        debug: {
+          timestamp: new Date().toISOString(),
+          apiKeys,
+          results,
+          environment: {
+            nodeEnv: process.env.NODE_ENV,
+            port: process.env.PORT
+          }
+        }
+      });
+    } catch (error) {
+      console.error('❌ Debug endpoint error:', error);
+      res.status(500).json({ 
+        success: false,
+        error: 'Debug endpoint failed', 
+        details: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  // Verify no sample data endpoint
+  app.get('/api/verify-no-samples', async (req, res) => {
+    try {
+      console.log('🔍 Verifying no sample data in system...');
+      
+      // Check webhook storage
+      const activities = getWebhookActivities();
+      const permits = getWebhookPermits();
+      
+      // Check for any test data
+      const hasTestData = {
+        webhookActivities: activities.data.some(a => a.id && a.id.includes('TEST')),
+        webhookPermits: permits.data.some(p => p.id && p.id.includes('TEST')),
+        cachedAlerts: !!globalState.cachedAlerts
+      };
+      
+      const sampleDataFound = Object.values(hasTestData).some(Boolean);
+      
+      res.json({
+        success: true,
+        sampleDataFound,
+        details: hasTestData,
+        counts: {
+          webhookActivities: activities.data.length,
+          webhookPermits: permits.data.length,
+          cachedAlerts: globalState.cachedAlerts ? globalState.cachedAlerts.alerts?.length || 0 : 0
+        },
+        mode: sampleDataFound ? 'sample_data_detected' : 'live_data_only',
         timestamp: new Date().toISOString()
       });
     } catch (error) {
-      console.error('Error fetching traffic data:', error);
-      res.status(500).json({ error: 'Failed to fetch traffic data' });
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
     }
   });
 
@@ -348,12 +508,28 @@ export function setupAPIRoutes(app, globalState) {
 
   // Health check endpoint (simple version - detailed health is in health.js)
   app.get('/api/status', (req, res) => {
+    const apiKeysConfigured = {
+      tomtom: !!process.env.TOMTOM_API_KEY,
+      mapquest: !!process.env.MAPQUEST_API_KEY,
+      here: !!process.env.HERE_API_KEY
+    };
+    
+    const configuredCount = Object.values(apiKeysConfigured).filter(Boolean).length;
+    
     res.json({
       status: 'operational',
       timestamp: new Date().toISOString(),
       services: {
         api: 'online',
         gtfs: 'online'
+      },
+      apiKeys: {
+        configured: configuredCount,
+        total: 3,
+        details: apiKeysConfigured
+      },
+      dataFeeds: {
+        live: configuredCount > 0 ? 'available' : 'no_keys_configured'
       }
     });
   });
@@ -1087,14 +1263,14 @@ export function setupAPIRoutes(app, globalState) {
     }
   });
 
-  // Test endpoint to add sample data
+  // Test endpoint disabled - no sample data in production
   app.post('/api/streetmanager/test', (req, res) => {
-    try {
-      addTestData();
-      res.json({ status: 'test_data_added', timestamp: new Date().toISOString() });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
+    console.log('⚠️ StreetManager test endpoint called - disabled in production');
+    res.json({ 
+      status: 'disabled', 
+      message: 'Test endpoint disabled - use live data only',
+      timestamp: new Date().toISOString() 
+    });
   });
 
   // ==============================

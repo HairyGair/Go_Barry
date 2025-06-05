@@ -662,52 +662,7 @@
             }
         }
 
-        /* Map specific styles */
-        .leaflet-popup-content-wrapper {
-            background: rgba(17, 24, 39, 0.95) !important;
-            backdrop-filter: blur(10px) !important;
-            border-radius: 12px !important;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
-        }
-
-        .leaflet-popup-content {
-            color: #fff !important;
-            margin: 16px !important;
-        }
-
-        .leaflet-popup-tip {
-            background: rgba(17, 24, 39, 0.95) !important;
-        }
-
-        .map-alert-popup {
-            max-width: 300px;
-        }
-
-        .map-alert-popup h3 {
-            color: var(--accent-blue);
-            margin-bottom: 8px;
-            font-size: 16px;
-            font-weight: 700;
-        }
-
-        .map-alert-popup p {
-            margin-bottom: 6px;
-            font-size: 14px;
-        }
-
-        .map-alert-popup .routes {
-            margin-top: 8px;
-        }
-
-        .map-alert-popup .route-tag {
-            background: var(--accent-blue);
-            color: white;
-            padding: 2px 8px;
-            border-radius: 8px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-right: 4px;
-        }
+        /* Map specific styles - popup styles removed for cleaner display */
 
         /* Responsive adjustments */
         @media (max-width: 1400px) {
@@ -950,8 +905,6 @@
                 fillOpacity: 0.1
             }).addTo(map);
 
-            northEastBoundary.bindPopup('<b>BARRY Coverage Area</b><br>North East England Traffic Monitoring');
-
             console.log('✅ Map initialized with North East England coverage');
         }
 
@@ -976,7 +929,8 @@
             alertMarkers = [];
         }
 
-        // Add alert markers to map
+        // Add alert markers to map (simple pins, no popups)
+        // Future enhancement: Could integrate traffic flow data here
         function addAlertToMap(alert, index) {
             if (!alert.coordinates || alert.coordinates.length !== 2) return;
 
@@ -1008,29 +962,7 @@
 
             const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map);
             
-            // Create popup content
-            const routeBadges = (alert.affectsRoutes || []).map(route => 
-                `<span class="route-tag">${route}</span>`
-            ).join('');
-
-            const popupContent = `
-                <div class="map-alert-popup">
-                    <h3>${alert.title || 'Traffic Alert'}</h3>
-                    <p><strong>Location:</strong> ${alert.location || 'Location not specified'}</p>
-                    <p><strong>Severity:</strong> ${alert.severity || 'Unknown'}</p>
-                    <p><strong>Type:</strong> ${alert.type || 'Unknown'}</p>
-                    ${alert.description ? `<p><strong>Details:</strong> ${alert.description}</p>` : ''}
-                    ${routeBadges ? `<div class="routes"><strong>Routes:</strong> ${routeBadges}</div>` : ''}
-                    <p style="font-size: 12px; color: #94a3b8; margin-top: 8px;">
-                        Source: ${alert.source || 'Unknown'} | 
-                        Updated: ${alert.lastUpdated ? new Date(alert.lastUpdated).toLocaleTimeString() : 'Unknown'}
-                    </p>
-                </div>
-            `;
-
-            marker.bindPopup(popupContent);
-            
-            // Add click event to cycle to this alert
+            // Add click event to cycle to this alert (no popup overlay)
             marker.on('click', () => {
                 alertIndex = index;
                 renderCurrentAlert();
@@ -1255,13 +1187,6 @@
             if (alert.coordinates && alert.coordinates.length === 2) {
                 const [lat, lng] = alert.coordinates;
                 map.setView([lat, lng], 14, { animate: true, duration: 1 });
-                
-                // Open popup for current alert
-                setTimeout(() => {
-                    if (alertMarkers[alertIndex]) {
-                        alertMarkers[alertIndex].openPopup();
-                    }
-                }, 1000);
             }
         }
 
@@ -1272,7 +1197,7 @@
             alertCycleTimer = setInterval(() => {
                 alertIndex = (alertIndex + 1) % currentAlerts.length;
                 renderCurrentAlert();
-            }, 25000); // 25 seconds per alert for detailed viewing
+            }, 20000); // 20 seconds per alert for detailed viewing
         }
 
         function clearAlertCycle() {
