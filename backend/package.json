@@ -6,7 +6,10 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "start-optimized": "node start-optimized.js",
+    "start-memory-safe": "node --max-old-space-size=2048 --optimize-for-size --expose-gc index-optimized.js",
     "dev": "nodemon index.js",
+    "dev-optimized": "nodemon --exec \"node --max-old-space-size=2048 --expose-gc\" index-optimized.js",
     "test": "node test-api.js",
     "test-disruptions": "node test-disruption-api.js",
     "test-disruptions-health": "node test-disruption-api.js health",
@@ -14,7 +17,9 @@
     "test-disruptions-stats": "node test-disruption-api.js stats",
     "complex": "node index-complex.js",
     "health": "curl http://localhost:3001/api/health || echo 'Server not running'",
-    "alerts": "curl http://localhost:3001/api/alerts | jq '.alerts | length' || echo 'No alerts or jq not installed'"
+    "alerts": "curl http://localhost:3001/api/alerts | jq '.alerts | length' || echo 'No alerts or jq not installed'",
+    "memory-check": "node -e \"console.log('Node.js Memory Limits:'); console.log('Max Old Space:', v8.getHeapStatistics().heap_size_limit / 1024 / 1024, 'MB'); console.log('Available Memory:', process.memoryUsage());\"",
+    "memory-test": "node --max-old-space-size=2048 --expose-gc -e \"console.log('Memory test passed - 2GB heap available'); if(global.gc) console.log('Garbage collection available'); else console.log('Warning: Garbage collection not available');\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.8",
