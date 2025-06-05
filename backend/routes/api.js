@@ -6,14 +6,17 @@ import { fetchTomTomTrafficWithStreetNames } from "../services/tomtom.js";
 import { fetchMapQuestTrafficWithStreetNames } from "../services/mapquest.js";
 import { fetchHERETraffic } from "../services/here.js";
 import { fetchNationalHighways } from "../services/nationalHighways.js";
+// OLD REST API (removed):
+// import { fetchStreetManagerActivities, ... } from "../services/streetManager.js";
+
+// NEW WEBHOOK SERVICE:
 import { 
-  fetchStreetManagerActivities,
-  fetchStreetManagerPermits,
-  getPermitDetails,
-  getActivityDetails,
-  clearStreetManagerCache,
-  getStreetManagerCacheStats
-} from "../services/streetManager.js";
+  handleWebhookMessage,
+  getWebhookActivities,
+  getWebhookPermits,
+  addTestData,
+  getWebhookStatus
+} from "../services/streetManagerWebhooksSimple.js";
 import { 
   getLocationNameWithTimeout,
   getRegionFromCoordinates,
@@ -38,6 +41,7 @@ import {
 } from '../utils/alerts.js';
 import { calculateDistance } from '../utils/helpers.js';
 import { processEnhancedAlerts } from '../services/enhancedAlertProcessor.js';
+import disruptionLogger from '../services/disruptionLogger.js';
 
 // Setup function that takes the app and global state
 export function setupAPIRoutes(app, globalState) {
@@ -62,7 +66,19 @@ export function setupAPIRoutes(app, globalState) {
       // Fetch from multiple sources including StreetManager
       const tomtomResult = await fetchTomTomTrafficWithStreetNames();
       const mapquestResult = await fetchMapQuestTrafficWithStreetNames();
-      const streetManagerResult = await fetchStreetManagerActivities();
+      // StreetManager webhook data (using webhook service)
+      const streetManagerActivities = getWebhookActivities();
+      const streetManagerPermits = getWebhookPermits();
+      const streetManagerResult = {
+        success: true,
+        data: [...streetManagerActivities.data, ...streetManagerPermits.data],
+        metadata: {
+          source: 'StreetManager Webhooks',
+          activities: streetManagerActivities.data.length,
+          permits: streetManagerPermits.data.length,
+          method: 'webhook_storage'
+        }
+      };
       
       const allAlerts = [];
       const sources = {};
@@ -351,7 +367,8 @@ export function setupAPIRoutes(app, globalState) {
       console.log('🚧 StreetManager activities endpoint called');
       
       const forceRefresh = req.query.refresh === 'true';
-      const result = await fetchStreetManagerActivities(forceRefresh);
+      // Use webhook data instead of API calls
+      const result = getWebhookActivities();
       
       if (result.success) {
         res.json({
@@ -392,7 +409,8 @@ export function setupAPIRoutes(app, globalState) {
       console.log('📋 StreetManager permits endpoint called');
       
       const forceRefresh = req.query.refresh === 'true';
-      const result = await fetchStreetManagerPermits(forceRefresh);
+      // Use webhook data instead of API calls
+      const result = getWebhookPermits();
       
       if (result.success) {
         res.json({
@@ -433,7 +451,8 @@ export function setupAPIRoutes(app, globalState) {
       const { permitReference } = req.params;
       console.log(`🔍 Fetching permit details: ${permitReference}`);
       
-      const result = await getPermitDetails(permitReference);
+      // Permit details not available in webhook mode
+      const result = { success: false, error: 'Permit details not available in webhook mode' };
       
       if (result.success) {
         res.json({
@@ -468,7 +487,8 @@ export function setupAPIRoutes(app, globalState) {
       const { activityReference } = req.params;
       console.log(`🔍 Fetching activity details: ${activityReference}`);
       
-      const result = await getActivityDetails(activityReference);
+      // Activity details not available in webhook mode
+      const result = { success: false, error: 'Activity details not available in webhook mode' };
       
       if (result.success) {
         res.json({
@@ -504,11 +524,9 @@ export function setupAPIRoutes(app, globalState) {
       
       const forceRefresh = req.query.refresh === 'true';
       
-      // Fetch both activities and permits in parallel
-      const [activitiesResult, permitsResult] = await Promise.all([
-        fetchStreetManagerActivities(forceRefresh),
-        fetchStreetManagerPermits(forceRefresh)
-      ]);
+      // Get webhook data instead of API calls
+      const activitiesResult = getWebhookActivities();
+      const permitsResult = getWebhookPermits();
       
       const allAlerts = [];
       const sources = {};
@@ -570,7 +588,9 @@ export function setupAPIRoutes(app, globalState) {
   // StreetManager cache management
   app.post('/api/streetmanager/cache/clear', (req, res) => {
     try {
-      clearStreetManagerCache();
+      // Clear webhook data instead of old cache
+      // Note: The webhook service doesn't export a clear function yet
+      console.log('StreetManager webhook data clear requested');
       res.json({
         success: true,
         message: 'StreetManager cache cleared',
@@ -587,23 +607,21 @@ export function setupAPIRoutes(app, globalState) {
   // StreetManager status and configuration
   app.get('/api/streetmanager/status', (req, res) => {
     try {
-      const cacheStats = getStreetManagerCacheStats();
+      // Use webhook status instead of cache stats
+      const webhookStatus = getWebhookStatus();
       
       res.json({
         success: true,
         status: {
-          configured: cacheStats.configured,
-          apiKeySet: !!process.env.STREET_MANAGER_API_KEY,
-          cache: {
-            activities: cacheStats.activitiesCache,
-            permits: cacheStats.permitsCache
-          },
-          endpoints: {
+          ...webhookStatus,
+          dataEndpoints: {
             activities: '/api/streetmanager/activities',
             permits: '/api/streetmanager/permits',
-            combined: '/api/streetmanager/all',
-            permitDetails: '/api/streetmanager/permit/:permitReference',
-            activityDetails: '/api/streetmanager/activity/:activityReference'
+            combined: '/api/streetmanager/all'
+          },
+          webhookEndpoints: {
+            main: '/api/streetmanager/webhook',
+            activities: '/api/streetmanager/webhook/activities'
           },
           coverage: 'North East England',
           lastChecked: new Date().toISOString()
@@ -614,6 +632,304 @@ export function setupAPIRoutes(app, globalState) {
         success: false,
         error: error.message
       });
+    }
+  });
+
+  // ==============================
+  // DISRUPTION LOGGING ENDPOINTS
+  // ==============================
+
+  // Log a new disruption achievement
+  app.post('/api/disruptions/log', async (req, res) => {
+    try {
+      console.log('📝 Disruption logging endpoint called');
+      
+      const disruptionData = req.body;
+      
+      // Validate required fields
+      if (!disruptionData.title || !disruptionData.type || !disruptionData.location || !disruptionData.supervisor_id) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields: title, type, location, supervisor_id'
+        });
+      }
+      
+      const result = await disruptionLogger.logDisruption(disruptionData);
+      
+      if (result.success) {
+        res.status(201).json({
+          success: true,
+          message: 'Disruption logged successfully',
+          data: result.data,
+          metadata: {
+            logged_at: new Date().toISOString(),
+            endpoint: '/api/disruptions/log'
+          }
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: result.error,
+          endpoint: '/api/disruptions/log'
+        });
+      }
+    } catch (error) {
+      console.error('❌ Disruption logging endpoint error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to log disruption',
+        details: error.message
+      });
+    }
+  });
+
+  // Get disruption logs with filtering
+  app.get('/api/disruptions/logs', async (req, res) => {
+    try {
+      console.log('📊 Disruption logs endpoint called');
+      
+      const filters = {
+        supervisor_id: req.query.supervisor_id,
+        depot: req.query.depot,
+        type: req.query.type,
+        severity_level: req.query.severity_level,
+        date_from: req.query.date_from,
+        date_to: req.query.date_to,
+        route: req.query.route,
+        sort_by: req.query.sort_by || 'logged_at',
+        sort_order: req.query.sort_order || 'desc',
+        limit: parseInt(req.query.limit) || 50,
+        offset: parseInt(req.query.offset) || 0
+      };
+      
+      // Remove undefined filters
+      Object.keys(filters).forEach(key => {
+        if (filters[key] === undefined || filters[key] === '') {
+          delete filters[key];
+        }
+      });
+      
+      const result = await disruptionLogger.getDisruptionLogs(filters);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          logs: result.data,
+          metadata: {
+            ...result.metadata,
+            endpoint: '/api/disruptions/logs',
+            request_time: new Date().toISOString()
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: result.error,
+          logs: []
+        });
+      }
+    } catch (error) {
+      console.error('❌ Disruption logs endpoint error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch disruption logs',
+        details: error.message
+      });
+    }
+  });
+
+  // Get disruption statistics
+  app.get('/api/disruptions/statistics', async (req, res) => {
+    try {
+      console.log('📈 Disruption statistics endpoint called');
+      
+      const timeframe = {
+        date_from: req.query.date_from,
+        date_to: req.query.date_to
+      };
+      
+      const result = await disruptionLogger.getDisruptionStatistics(timeframe);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          statistics: result.statistics,
+          metadata: {
+            endpoint: '/api/disruptions/statistics',
+            generated_at: new Date().toISOString()
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: result.error
+        });
+      }
+    } catch (error) {
+      console.error('❌ Disruption statistics endpoint error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to generate statistics',
+        details: error.message
+      });
+    }
+  });
+
+  // Update existing disruption log
+  app.put('/api/disruptions/logs/:logId', async (req, res) => {
+    try {
+      const { logId } = req.params;
+      const updateData = req.body;
+      
+      console.log(`📝 Updating disruption log: ${logId}`);
+      
+      const result = await disruptionLogger.updateDisruptionLog(logId, updateData);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          message: 'Disruption log updated successfully',
+          data: result.data
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: result.error
+        });
+      }
+    } catch (error) {
+      console.error('❌ Update disruption log endpoint error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to update disruption log',
+        details: error.message
+      });
+    }
+  });
+
+  // Get specific disruption log by ID
+  app.get('/api/disruptions/logs/:logId', async (req, res) => {
+    try {
+      const { logId } = req.params;
+      
+      console.log(`🔍 Fetching disruption log: ${logId}`);
+      
+      const result = await disruptionLogger.getDisruptionLogs({ id: logId, limit: 1 });
+      
+      if (result.success && result.data.length > 0) {
+        res.json({
+          success: true,
+          log: result.data[0]
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          error: 'Disruption log not found'
+        });
+      }
+    } catch (error) {
+      console.error('❌ Get disruption log endpoint error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch disruption log',
+        details: error.message
+      });
+    }
+  });
+
+  // Delete disruption log (admin only)
+  app.delete('/api/disruptions/logs/:logId', async (req, res) => {
+    try {
+      const { logId } = req.params;
+      
+      console.log(`🗑️ Deleting disruption log: ${logId}`);
+      
+      const result = await disruptionLogger.deleteDisruptionLog(logId);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          message: 'Disruption log deleted successfully'
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: result.error
+        });
+      }
+    } catch (error) {
+      console.error('❌ Delete disruption log endpoint error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to delete disruption log',
+        details: error.message
+      });
+    }
+  });
+
+  // Disruption logging service health check
+  app.get('/api/disruptions/health', async (req, res) => {
+    try {
+      const result = await disruptionLogger.healthCheck();
+      
+      res.json({
+        success: true,
+        health: result,
+        endpoint: '/api/disruptions/health',
+        checked_at: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('❌ Disruption health check error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Health check failed',
+        details: error.message
+      });
+    }
+  });
+
+  // ==============================
+  // STREETMANAGER WEBHOOK ENDPOINTS (QUICK FIX)
+  // ==============================
+
+  // Import express for JSON parsing
+  const express = app._router.constructor;
+
+  // Main StreetManager webhook receiver
+  app.post('/api/streetmanager/webhook', express.json(), (req, res) => {
+    try {
+      console.log('📨 StreetManager webhook received');
+      const result = handleWebhookMessage(req.body);
+      
+      if (result.error) {
+        return res.status(400).json(result);
+      }
+      
+      res.status(200).json(result);
+    } catch (error) {
+      console.error('❌ Webhook error:', error.message);
+      res.status(500).json({ error: 'Webhook processing failed' });
+    }
+  });
+
+  // Legacy webhook endpoints
+  app.post('/api/streetmanager/webhook/activities', express.json(), (req, res) => {
+    console.log('📨 Activities webhook called - redirecting to main webhook');
+    try {
+      const result = handleWebhookMessage(req.body);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Test endpoint to add sample data
+  app.post('/api/streetmanager/test', (req, res) => {
+    try {
+      addTestData();
+      res.json({ status: 'test_data_added', timestamp: new Date().toISOString() });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
   });
 

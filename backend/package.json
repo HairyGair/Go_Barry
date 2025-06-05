@@ -8,6 +8,10 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "test": "node test-api.js",
+    "test-disruptions": "node test-disruption-api.js",
+    "test-disruptions-health": "node test-disruption-api.js health",
+    "test-disruptions-log": "node test-disruption-api.js log",
+    "test-disruptions-stats": "node test-disruption-api.js stats",
     "complex": "node index-complex.js",
     "health": "curl http://localhost:3001/api/health || echo 'Server not running'",
     "alerts": "curl http://localhost:3001/api/alerts | jq '.alerts | length' || echo 'No alerts or jq not installed'"
