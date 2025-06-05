@@ -5,10 +5,12 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "start": "node --max-old-space-size=2048 --optimize-for-size --expose-gc index-optimized.js",
+    "start": "node index-simple.js",
     "start-original": "node index.js",
     "start-optimized": "node start-optimized.js",
     "start-memory-safe": "node --max-old-space-size=2048 --optimize-for-size --expose-gc index-optimized.js",
+    "start-minimal": "node --max-old-space-size=2048 --optimize-for-size --expose-gc index-minimal.js",
+    "start-simple": "node index-simple.js",
     "dev": "nodemon index.js",
     "dev-optimized": "nodemon --exec \"node --max-old-space-size=2048 --expose-gc\" index-optimized.js",
     "test": "node test-api.js",
