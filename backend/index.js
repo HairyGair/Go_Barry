@@ -222,23 +222,24 @@ dotenv.config();
 
 // Load GTFS routes.txt into a Set of valid route_short_names
 let GTFS_ROUTES = new Set();
-try {
-  const routesTxt = await fs.readFile(path.join(__dirname, 'data/routes.txt'), 'utf-8');
-  const records = parse(routesTxt, { columns: true, skip_empty_lines: true });
-  for (const rec of records) {
-    if (rec.route_short_name) {
-      GTFS_ROUTES.add(rec.route_short_name.trim());
-    }
-  }
-  console.log(`🚌 Loaded ${GTFS_ROUTES.size} GTFS routes for filtering:`, [...GTFS_ROUTES].join(', '));
-} catch (err) {
-  console.error('❌ Failed to load routes.txt:', err);
-}
-
-// --- Acknowledged alerts persistence ---
 const ACK_FILE = path.join(__dirname, 'data/acknowledged.json');
 let acknowledgedAlerts = {};
+const NOTES_FILE = path.join(__dirname, 'data/notes.json');
+let alertNotes = {};
+// --- GTFS_ROUTES, acknowledgedAlerts, alertNotes initial loading ---
 (async () => {
+  try {
+    const routesTxt = await fs.readFile(path.join(__dirname, 'data/routes.txt'), 'utf-8');
+    const records = parse(routesTxt, { columns: true, skip_empty_lines: true });
+    for (const rec of records) {
+      if (rec.route_short_name) {
+        GTFS_ROUTES.add(rec.route_short_name.trim());
+      }
+    }
+    console.log(`🚌 Loaded ${GTFS_ROUTES.size} GTFS routes for filtering:`, [...GTFS_ROUTES].join(', '));
+  } catch (err) {
+    console.error('❌ Failed to load routes.txt:', err);
+  }
   try {
     const raw = await fs.readFile(ACK_FILE, 'utf-8');
     acknowledgedAlerts = JSON.parse(raw);
@@ -246,12 +247,6 @@ let acknowledgedAlerts = {};
   } catch {
     acknowledgedAlerts = {};
   }
-})();
-
-// --- Staff notes persistence ---
-const NOTES_FILE = path.join(__dirname, 'data/notes.json');
-let alertNotes = {};
-(async () => {
   try {
     const raw = await fs.readFile(NOTES_FILE, 'utf-8');
     alertNotes = JSON.parse(raw);
@@ -529,7 +524,7 @@ async function fetchTomTomTrafficFixed() {
     const alerts = [];
     
     if (response.data?.tm?.poi) {
-      response.data.tm.poi.forEach(incident => {
+      response.data.tm.poi.forEach(async incident => {
         // Process incidents into your alert format
         const lat = incident.p?.y;
         const lng = incident.p?.x;
@@ -880,21 +875,6 @@ const globalState = {
 
 setupAPIRoutes(app, globalState);
 
-// ---- BEGIN: Enhance alerts with coordinates at startup ----
-(async () => {
-  try {
-    const alertsToEnhance = []; // ← This should be whatever array or single alert you're enhancing
-
-    for (const alert of alertsToEnhance) {
-      await enhanceAlertWithCoordinates(alert);
-    }
-
-    console.log('✅ Alerts enhanced with coordinates');
-  } catch (err) {
-    console.error('❌ Error enhancing alerts:', err);
-  }
-})();
-// ---- END: Enhance alerts with coordinates at startup ----
 
 export { fetchTomTomTrafficWithStreetNames as fetchTomTomTrafficOptimized, initializeGTFS, getGTFSStats };
 export default app;
