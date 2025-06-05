@@ -559,6 +559,7 @@ async function fetchTomTomTrafficFixed() {
         };
         
         // Enhance with geocoding if location name available but coordinates missing precision
+        // OK: We can use await here because fetchTomTomTrafficFixed is async
         if (!alert.coordinates || (Array.isArray(alert.coordinates) && alert.coordinates.length < 2)) {
           await enhanceAlertWithCoordinates(alert);
         }
