@@ -892,11 +892,8 @@ export function setupAPIRoutes(app, globalState) {
   // STREETMANAGER WEBHOOK ENDPOINTS (QUICK FIX)
   // ==============================
 
-  // Import express for JSON parsing
-  const express = app._router.constructor;
-
   // Main StreetManager webhook receiver
-  app.post('/api/streetmanager/webhook', express.json(), (req, res) => {
+  app.post('/api/streetmanager/webhook', (req, res) => {
     try {
       console.log('📨 StreetManager webhook received');
       const result = handleWebhookMessage(req.body);
@@ -913,7 +910,7 @@ export function setupAPIRoutes(app, globalState) {
   });
 
   // Legacy webhook endpoints
-  app.post('/api/streetmanager/webhook/activities', express.json(), (req, res) => {
+  app.post('/api/streetmanager/webhook/activities', (req, res) => {
     console.log('📨 Activities webhook called - redirecting to main webhook');
     try {
       const result = handleWebhookMessage(req.body);

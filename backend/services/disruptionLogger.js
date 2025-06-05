@@ -11,16 +11,27 @@ dotenv.config();
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-  console.error('❌ Missing Supabase configuration for DisruptionLogger');
-}
+let supabase = null;
+let supabaseConfigured = false;
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false
+if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+  console.warn('⚠️ Missing Supabase configuration for DisruptionLogger - running in offline mode');
+  supabaseConfigured = false;
+} else {
+  try {
+    supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
+    supabaseConfigured = true;
+    console.log('✅ DisruptionLogger: Supabase connected');
+  } catch (error) {
+    console.error('❌ DisruptionLogger: Supabase connection failed:', error.message);
+    supabaseConfigured = false;
   }
-});
+}
 
 /**
  * DisruptionLogger Service
@@ -37,6 +48,16 @@ class DisruptionLogger {
    * @returns {Object} Result object with success status
    */
   async logDisruption(disruptionData) {
+    // Check if Supabase is configured
+    if (!supabaseConfigured) {
+      console.log('📋 DisruptionLogger: Offline mode - would log:', disruptionData.title);
+      return {
+        success: true,
+        data: { id: 'offline_' + Date.now(), ...disruptionData },
+        message: 'Disruption logged in offline mode (Supabase not configured)'
+      };
+    }
+
     try {
       console.log('📝 Logging disruption achievement:', disruptionData.title);
 
@@ -152,6 +173,21 @@ class DisruptionLogger {
    * @returns {Object} Result with disruption logs
    */
   async getDisruptionLogs(filters = {}) {
+    // Check if Supabase is configured
+    if (!supabaseConfigured) {
+      console.log('📋 DisruptionLogger: Offline mode - returning empty logs');
+      return {
+        success: true,
+        data: [],
+        metadata: {
+          total_returned: 0,
+          filters_applied: filters,
+          fetched_at: new Date().toISOString(),
+          offline_mode: true
+        }
+      };
+    }
+
     try {
       console.log('📊 Fetching disruption logs with filters:', filters);
 
@@ -233,6 +269,19 @@ class DisruptionLogger {
    * @returns {Object} Statistics summary
    */
   async getDisruptionStatistics(timeframe = {}) {
+    // Check if Supabase is configured
+    if (!supabaseConfigured) {
+      console.log('📋 DisruptionLogger: Offline mode - returning empty statistics');
+      return {
+        success: true,
+        statistics: {
+          total_disruptions: 0,
+          offline_mode: true,
+          message: 'Statistics not available - Supabase not configured'
+        }
+      };
+    }
+
     try {
       console.log('📈 Generating disruption statistics');
 
@@ -308,6 +357,15 @@ class DisruptionLogger {
    * @returns {Object} Result object
    */
   async updateDisruptionLog(logId, updateData) {
+    // Check if Supabase is configured
+    if (!supabaseConfigured) {
+      console.log('📋 DisruptionLogger: Offline mode - cannot update log:', logId);
+      return {
+        success: false,
+        error: 'Cannot update disruption log - Supabase not configured (offline mode)'
+      };
+    }
+
     try {
       console.log(`📝 Updating disruption log: ${logId}`);
 
@@ -349,6 +407,15 @@ class DisruptionLogger {
    * @returns {Object} Result object
    */
   async deleteDisruptionLog(logId) {
+    // Check if Supabase is configured
+    if (!supabaseConfigured) {
+      console.log('📋 DisruptionLogger: Offline mode - cannot delete log:', logId);
+      return {
+        success: false,
+        error: 'Cannot delete disruption log - Supabase not configured (offline mode)'
+      };
+    }
+
     try {
       console.log(`🗑️ Deleting disruption log: ${logId}`);
 
@@ -404,6 +471,18 @@ class DisruptionLogger {
    * @returns {Object} Health status
    */
   async healthCheck() {
+    if (!supabaseConfigured) {
+      return {
+        service: 'DisruptionLogger',
+        status: 'offline',
+        connected: false,
+        table_accessible: false,
+        error: 'Supabase not configured - running in offline mode',
+        offline_mode: true,
+        timestamp: new Date().toISOString()
+      };
+    }
+
     try {
       const { data, error } = await supabase
         .from(this.tableName)
