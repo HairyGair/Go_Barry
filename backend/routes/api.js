@@ -28,6 +28,10 @@ import {
   initializeGTFSOptimized
 } from '../gtfs-location-enhancer-optimized.js';
 import { 
+  initializeEnhancedGTFS,
+  getEnhancedGTFSStats
+} from '../enhanced-gtfs-route-matcher.js';
+import { 
   alertAffectsGTFSRoute,
   classifyAlert,
   deduplicateAlerts
@@ -611,6 +615,18 @@ export function setupAPIRoutes(app, globalState) {
         error: error.message
       });
     }
+  });
+
+  // Initialize enhanced GTFS system on startup
+  console.log('🚀 Initializing Enhanced GTFS Route Matcher...');
+  initializeEnhancedGTFS().then((success) => {
+    if (success) {
+      console.log('✅ Enhanced GTFS Route Matcher ready');
+    } else {
+      console.log('❌ Enhanced GTFS Route Matcher failed to initialize');
+    }
+  }).catch(error => {
+    console.error('❌ Enhanced GTFS initialization error:', error.message);
   });
 }
 

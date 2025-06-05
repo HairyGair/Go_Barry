@@ -1,8 +1,10 @@
 // backend/services/enhancedAlertProcessor.js
 // Enhanced Alert Processing with Better Location Accuracy and Route Matching
+// Now integrated with Enhanced GTFS Route Matcher for maximum accuracy
 
 import axios from 'axios';
 import { isAlertDismissed, getAlertDismissalInfo } from './supervisorManager.js';
+import { enhancedRouteMatching } from '../enhanced-gtfs-route-matcher.js';
 
 // Enhanced geocoding with multiple fallbacks
 export async function getEnhancedLocation(lat, lng, fallbackDescription = '') {
@@ -99,132 +101,77 @@ export async function getEnhancedLocation(lat, lng, fallbackDescription = '') {
   return fallbackDescription || `Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 }
 
-// Enhanced route matching using GTFS data and smart patterns
-export function getEnhancedRouteMatching(location, description, coordinates) {
-  const routes = new Set();
+// Enhanced route matching using the new Enhanced GTFS Route Matcher
+export async function getEnhancedRouteMatching(location, description, coordinates) {
+  console.log(`🚌 Getting enhanced route matching for: "${location}"`);
   
-  // GTFS coordinate-based matching if coordinates available
-  if (coordinates && coordinates.lat && coordinates.lng) {
-    const gtfsRoutes = findNearbyGTFSRoutes(coordinates.lat, coordinates.lng);
-    gtfsRoutes.forEach(route => routes.add(route));
+  try {
+    // Use the new enhanced route matching system
+    const result = await enhancedRouteMatching(location, coordinates, description);
+    
+    if (result.success && result.routes.length > 0) {
+      console.log(`✅ Enhanced route matching found ${result.routes.length} routes: ${result.routes.join(', ')}`);
+      console.log(`📊 Accuracy: ${result.accuracy}, Confidence: ${result.confidence.toFixed(2)}, Method: ${result.method}`);
+      
+      return {
+        routes: result.routes,
+        accuracy: result.accuracy,
+        confidence: result.confidence,
+        method: result.method,
+        methodDetails: result.methodDetails
+      };
+    } else {
+      console.log(`❌ Enhanced route matching found no routes for: "${location}"`);
+      return {
+        routes: [],
+        accuracy: 'none',
+        confidence: 0,
+        method: 'none'
+      };
+    }
+  } catch (error) {
+    console.error(`❌ Enhanced route matching error for "${location}":`, error.message);
+    
+    // Fallback to basic route matching
+    return getFallbackRouteMatching(location, description, coordinates);
   }
-  
-  // Enhanced text-based route matching
-  const textContent = `${location} ${description}`.toLowerCase();
-  
-  // Go North East route patterns (enhanced with common variations)
-  const routePatterns = {
-    // Main routes
-    'X21': ['x21', 'x-21', 'x 21', 'durham road', 'newcastle to bishop auckland'],
-    'X1': ['x1', 'x-1', 'x 1', 'easington', 'peterlee', 'newcastle to middlesbrough'],
-    'Q3': ['q3', 'q-3', 'q 3', 'metrocentre', 'newcastle quayside'],
-    '21': ['route 21', ' 21 ', '21,', 'chester le street', 'durham'],
-    '22': ['route 22', ' 22 ', '22,', 'sunderland'],
-    '10': ['route 10', ' 10 ', '10,', 'hexham', 'corbridge'],
-    '56': ['route 56', ' 56 ', '56,', 'sunderland', 'concord'],
-    
-    // Major corridors
-    'X30': ['x30', 'consett', 'stanley', 'metrocentre'],
-    'X31': ['x31', 'consett', 'shotley bridge'],
-    'X70': ['x70', 'durham', 'stanley', 'consett'],
-    'X71': ['x71', 'durham', 'consett'],
-    
-    // Coast routes
-    '1': ['route 1', ' 1 ', 'tynemouth', 'whitley bay', 'blyth'],
-    '2': ['route 2', ' 2 ', 'ashington', 'cramlington'],
-    
-    // Newcastle city routes
-    '12': ['route 12', ' 12 ', 'newcastle', 'wallsend'],
-    '39': ['route 39', ' 39 ', 'newcastle', 'dinnington'],
-    '40': ['route 40', ' 40 ', 'newcastle', 'gateshead'],
-    
-    // Sunderland routes
-    '61': ['route 61', ' 61 ', 'sunderland', 'murton'],
-    '62': ['route 62', ' 62 ', 'sunderland', 'seaham'],
-    '9': ['route 9', ' 9 ', 'sunderland', 'south shields']
-  };
-
-  // Road-based route inference
-  const roadRouteMapping = {
-    'a1': ['X1', '21', '22', 'X21'],
-    'a19': ['1', '2', '9', '56'],
-    'a167': ['21', '22', 'X21'],
-    'a184': ['9', '56'],
-    'a693': ['X30', 'X31', 'X70', 'X71'],
-    'durham road': ['21', '22', 'X21'],
-    'chester road': ['21', '22'],
-    'newcastle road': ['1', '2', '10'],
-    'coast road': ['1', '309', '310'],
-    'wrekenton': ['21', '25', '28'],
-    'team valley': ['21', '25', '28'],
-    'metrocentre': ['Q3', '10', '100'],
-    'gateshead': ['21', '25', '28', 'Q3'],
-    'heworth': ['21', '25', '28']
-  };
-
-  // Apply pattern matching
-  Object.entries(routePatterns).forEach(([route, patterns]) => {
-    patterns.forEach(pattern => {
-      if (textContent.includes(pattern)) {
-        routes.add(route);
-      }
-    });
-  });
-
-  // Apply road-based matching
-  Object.entries(roadRouteMapping).forEach(([road, routeList]) => {
-    if (textContent.includes(road)) {
-      routeList.forEach(route => routes.add(route));
-    }
-  });
-
-  // Area-based route matching for better accuracy
-  const areaRoutes = {
-    // Newcastle areas
-    'newcastle': ['Q3', '10', '12', '21', '22', '39', '40'],
-    'wallsend': ['12', '22', '39'],
-    'gosforth': ['43', '44', '45'],
-    'jesmond': ['Q3', '31', '32'],
-    
-    // Gateshead areas
-    'gateshead': ['21', '25', '28', 'Q3'],
-    'felling': ['25', '28'],
-    'whickham': ['28B', '29'],
-    'blaydon': ['10', '10A', '10B'],
-    
-    // Sunderland areas
-    'sunderland': ['9', '20', '35', '36', '56', '61', '62'],
-    'washington': ['4', '8', '50'],
-    'houghton': ['35', '55'],
-    
-    // Durham areas
-    'durham': ['21', '22', 'X21', 'X12'],
-    'chester le street': ['21', '25', '28'],
-    'stanley': ['X30', 'X31', 'X70', 'X71'],
-    'consett': ['X30', 'X31', 'X70', 'X71'],
-    
-    // Coast areas
-    'south shields': ['9', 'E1', 'E2', 'E6'],
-    'tynemouth': ['1', '306', '308'],
-    'whitley bay': ['1', '306', '308'],
-    'blyth': ['1', '2', '308'],
-    'cramlington': ['43', '44', '45', '52']
-  };
-
-  Object.entries(areaRoutes).forEach(([area, routeList]) => {
-    if (textContent.includes(area)) {
-      routeList.forEach(route => routes.add(route));
-    }
-  });
-
-  return Array.from(routes).sort();
 }
 
-// Simplified GTFS route finder (would integrate with real GTFS data)
-function findNearbyGTFSRoutes(lat, lng, radiusMeters = 200) {
-  // This would integrate with the existing GTFS processing
-  // For now, return empty array as fallback
-  return [];
+// Fallback route matching if enhanced system fails
+function getFallbackRouteMatching(location, description, coordinates) {
+  console.log(`🔄 Using fallback route matching for: "${location}"`);
+  
+  const routes = new Set();
+  const textContent = `${location} ${description}`.toLowerCase();
+  
+  // Basic fallback patterns
+  const basicPatterns = {
+    'newcastle': ['Q1', 'Q2', 'Q3', '10', '11', '12'],
+    'gateshead': ['21', '25', '28', '29'],
+    'sunderland': ['16', '18', '20', '61', '62'],
+    'durham': ['21', '22', 'X21', '6', '7'],
+    'coast road': ['1', '2', '308', '309'],
+    'a1': ['21', 'X21', '10', '11'],
+    'a19': ['1', '2', '308', '309'],
+    'a167': ['21', '22', 'X21']
+  };
+
+  // Apply basic patterns
+  Object.entries(basicPatterns).forEach(([pattern, routeList]) => {
+    if (textContent.includes(pattern)) {
+      routeList.forEach(route => routes.add(route));
+    }
+  });
+
+  const foundRoutes = Array.from(routes).sort();
+  console.log(`🔄 Fallback found ${foundRoutes.length} routes: ${foundRoutes.join(', ')}`);
+  
+  return {
+    routes: foundRoutes,
+    accuracy: 'low',
+    confidence: 0.3,
+    method: 'fallback'
+  };
 }
 
 // Enhanced alert severity calculation
@@ -239,10 +186,15 @@ export function calculateAlertSeverity(alert) {
   };
   severityScore += baseSeverity[alert.severity] || 1;
   
-  // Route impact multiplier
+  // Route impact multiplier (enhanced with accuracy consideration)
   const routeCount = alert.affectsRoutes?.length || 0;
-  if (routeCount > 5) severityScore += 2;
-  else if (routeCount > 2) severityScore += 1;
+  const routeAccuracy = alert.routeMatchingAccuracy || 'low';
+  
+  if (routeCount > 5) {
+    severityScore += routeAccuracy === 'high' ? 2 : 1.5;
+  } else if (routeCount > 2) {
+    severityScore += routeAccuracy === 'high' ? 1 : 0.7;
+  }
   
   // Type-based adjustment
   const typeMultiplier = {
@@ -259,6 +211,11 @@ export function calculateAlertSeverity(alert) {
     severityScore += 1;
   }
   
+  // Location accuracy bonus
+  if (alert.locationAccuracy === 'high') {
+    severityScore *= 1.1;
+  }
+  
   // Time-based adjustment (rush hours)
   const now = new Date();
   const hour = now.getHours();
@@ -268,14 +225,23 @@ export function calculateAlertSeverity(alert) {
   }
   
   // Convert score back to severity level
-  if (severityScore >= 4) return 'High';
+  if (severityScore >= 4.5) return 'High';
   if (severityScore >= 2.5) return 'Medium';
   return 'Low';
 }
 
 // Process and enhance alerts with all improvements
 export async function processEnhancedAlerts(rawAlerts) {
+  console.log(`🔄 Processing ${rawAlerts.length} alerts with enhanced route matching...`);
+  
   const enhancedAlerts = [];
+  let enhancedCount = 0;
+  let routeMatchingStats = {
+    high: 0,
+    medium: 0,
+    low: 0,
+    none: 0
+  };
   
   for (const alert of rawAlerts) {
     try {
@@ -295,20 +261,35 @@ export async function processEnhancedAlerts(rawAlerts) {
         );
         enhancedAlert.location = enhancedLocation;
         enhancedAlert.locationAccuracy = 'high';
+      } else if (alert.coordinates && Array.isArray(alert.coordinates) && alert.coordinates.length >= 2) {
+        const [lat, lng] = alert.coordinates;
+        const enhancedLocation = await getEnhancedLocation(lat, lng, alert.location);
+        enhancedAlert.location = enhancedLocation;
+        enhancedAlert.locationAccuracy = 'high';
       } else {
         enhancedAlert.locationAccuracy = 'low';
       }
       
-      // Enhanced route matching
-      const enhancedRoutes = getEnhancedRouteMatching(
+      // Enhanced route matching using the new system
+      const routeResult = await getEnhancedRouteMatching(
         enhancedAlert.location,
         enhancedAlert.description,
         alert.coordinates
       );
       
-      if (enhancedRoutes.length > 0) {
-        enhancedAlert.affectsRoutes = enhancedRoutes;
-        enhancedAlert.routeMatchMethod = 'enhanced';
+      if (routeResult.routes.length > 0) {
+        enhancedAlert.affectsRoutes = routeResult.routes;
+        enhancedAlert.routeMatchingAccuracy = routeResult.accuracy;
+        enhancedAlert.routeMatchingConfidence = routeResult.confidence;
+        enhancedAlert.routeMatchMethod = routeResult.method;
+        enhancedAlert.routeMatchDetails = routeResult.methodDetails;
+        
+        // Update stats
+        routeMatchingStats[routeResult.accuracy]++;
+        enhancedCount++;
+      } else {
+        enhancedAlert.routeMatchingAccuracy = 'none';
+        routeMatchingStats.none++;
       }
       
       // Recalculate severity with enhanced data
@@ -324,8 +305,10 @@ export async function processEnhancedAlerts(rawAlerts) {
       enhancedAlert.processed = {
         enhancedAt: new Date().toISOString(),
         locationEnhanced: enhancedAlert.locationAccuracy === 'high',
-        routesEnhanced: enhancedRoutes.length > 0,
-        severityRecalculated: true
+        routesEnhanced: routeResult.routes.length > 0,
+        severityRecalculated: true,
+        enhancedRouteMatching: true,
+        routeMatchingVersion: 'enhanced-gtfs-v1'
       };
       
       enhancedAlerts.push(enhancedAlert);
@@ -353,13 +336,25 @@ export async function processEnhancedAlerts(rawAlerts) {
       // Route count (more affected routes = higher priority)
       score += (alert.affectsRoutes?.length || 0);
       
+      // Route matching accuracy bonus
+      const accuracyBonus = {
+        high: 5,
+        medium: 3,
+        low: 1,
+        none: 0
+      };
+      score += accuracyBonus[alert.routeMatchingAccuracy] || 0;
+      
       return score;
     };
     
     return priorityScore(b) - priorityScore(a);
   });
   
-  console.log(`✅ Enhanced ${enhancedAlerts.length} alerts with improved locations and route matching`);
+  console.log(`✅ Enhanced ${enhancedAlerts.length} alerts with improved route matching`);
+  console.log(`📊 Route matching accuracy: High: ${routeMatchingStats.high}, Medium: ${routeMatchingStats.medium}, Low: ${routeMatchingStats.low}, None: ${routeMatchingStats.none}`);
+  console.log(`🎯 Enhanced ${enhancedCount}/${rawAlerts.length} alerts (${(enhancedCount/rawAlerts.length*100).toFixed(1)}%)`);
+  
   return enhancedAlerts;
 }
 
