@@ -1053,6 +1053,7 @@
             <div class="last-update" id="last-update">Last Update: --:--</div>
         </div>
     </div>
+    <div id="supervisor-indicator" style="position:fixed;top:14px;right:20px;z-index:1200;pointer-events:none;"></div>
 
     <!-- Main Content -->
     <div class="main-content">
@@ -1552,6 +1553,16 @@
             </form>
         </div>
     </div>
+    
+// --- Supervisor Session Enforcement (MANDATORY) ---
+function requireSupervisorSession() {
+    if (!supervisorSession) {
+        alert("Please log in as a supervisor to use this feature.");
+        showLoginModal();
+        return false;
+    }
+    return true;
+}
 
     <script>
         // Global variables
@@ -1673,6 +1684,14 @@
 
         // Handle supervisor selection change to show/hide password field
         document.addEventListener('DOMContentLoaded', function() {
+document.querySelectorAll('.nav-tab').forEach(tab => {
+    tab.addEventListener('click', function(event) {
+        if (!requireSupervisorSession()) {
+            event.preventDefault();
+            return false;
+        }
+    });
+});
             const supervisorSelect = document.getElementById('supervisorId');
             if (supervisorSelect) {
                 supervisorSelect.addEventListener('change', function() {
@@ -1840,9 +1859,38 @@
                 
                 updateDismissButtons();
             }
+            updateSupervisorIndicator();
+        }
+
+        // Supervisor Indicator
+        function updateSupervisorIndicator() {
+            const ind = document.getElementById('supervisor-indicator');
+            if (supervisorSession && supervisorSession.supervisor) {
+                ind.innerHTML = '<div style="background:rgba(59,130,246,0.95);color:white;padding:8px 16px;border-radius:16px;box-shadow:0 2px 10px rgba(59,130,246,0.25);font-size:13px;font-weight:600;letter-spacing:0.5px;">' +
+                    'Supervisor: ' + supervisorSession.supervisor.name +
+                    ' <span style="font-weight:400;opacity:0.7;">(' + supervisorSession.supervisor.role + ')</span>' +
+                    '</div>';
+            } else {
+                ind.innerHTML = '';
+            }
         }
 
         function updateDismissButtons() {
+            // Update .dismiss-button, .acknowledge-button, .map-button to wrap onclick with requireSupervisorSession
+            ['.dismiss-button', '.acknowledge-button', '.map-button'].forEach(selector => {
+                document.querySelectorAll(selector).forEach(button => {
+                    // Only update if not already wrapped
+                    if (button.hasAttribute('data-supervisor-handler')) return;
+                    let origOnclick = button.getAttribute('onclick');
+                    if (origOnclick && !origOnclick.trim().startsWith('if(requireSupervisorSession())')) {
+                        // Remove any previous wrapping for safety (idempotent)
+                        origOnclick = origOnclick.replace(/^if\(requireSupervisorSession\(\)\)\s*/, '');
+                        button.setAttribute('onclick', `if(requireSupervisorSession()) ${origOnclick}`);
+                        button.setAttribute('data-supervisor-handler', '1');
+                    }
+                });
+            });
+            // Also update enabled/disabled state for dismiss buttons
             const dismissButtons = document.querySelectorAll('.dismiss-button');
             dismissButtons.forEach(button => {
                 button.disabled = !supervisorSession;
