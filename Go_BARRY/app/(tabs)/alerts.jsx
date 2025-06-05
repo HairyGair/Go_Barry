@@ -57,12 +57,23 @@ export default function AlertsScreen() {
   const {
     alerts,
     loading,
+    error,
     refreshAlerts,
     lastUpdated,
     isRefreshing
   } = useBarryAPI({
     autoRefresh: true,
     refreshInterval: 3 * 60 * 1000 // 3 minutes for operational view
+  });
+  
+  // Debug logging
+  console.log('🔍 Debug - Alerts data:', {
+    alertsCount: alerts?.length || 0,
+    loading,
+    lastUpdated,
+    isRefreshing,
+    alertsPreview: alerts?.slice(0, 2), // First 2 alerts for debugging
+    error: error || 'None'
   });
   
   // Supervisor session
@@ -228,7 +239,12 @@ export default function AlertsScreen() {
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.primary} />
           <Text style={styles.loadingText}>Loading enhanced alerts...</Text>
-          <Text style={styles.loadingSubtext}>Fetching latest traffic intelligence with location accuracy</Text>
+          <Text style={styles.loadingSubtext}>
+            Fetching from TomTom, MapQuest, HERE & National Highways
+          </Text>
+          <Text style={styles.debugText}>
+            Debug: {alerts?.length || 0} alerts loaded, Loading: {loading ? 'Yes' : 'No'}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -532,6 +548,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.text.secondary,
     textAlign: 'center',
+  },
+  debugText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: Colors.warning,
+    textAlign: 'center',
+    fontFamily: 'monospace',
+  },
+  errorIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: Colors.error,
+    marginBottom: 8,
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  retryButtonText: {
+    color: Colors.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
   header: {
     backgroundColor: Colors.white,

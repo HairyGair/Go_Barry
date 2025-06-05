@@ -7,6 +7,14 @@ import { fetchMapQuestTrafficWithStreetNames } from "../services/mapquest.js";
 import { fetchHERETraffic } from "../services/here.js";
 import { fetchNationalHighways } from "../services/nationalHighways.js";
 import { 
+  fetchStreetManagerActivities,
+  fetchStreetManagerPermits,
+  getPermitDetails,
+  getActivityDetails,
+  clearStreetManagerCache,
+  getStreetManagerCacheStats
+} from "../services/streetManager.js";
+import { 
   getLocationNameWithTimeout,
   getRegionFromCoordinates,
   getCoordinateDescription,
@@ -47,9 +55,10 @@ export function setupAPIRoutes(app, globalState) {
     try {
       console.log('🚀 Fetching enhanced alerts with GTFS location accuracy...');
       
-      // Fetch from multiple sources
+      // Fetch from multiple sources including StreetManager
       const tomtomResult = await fetchTomTomTrafficWithStreetNames();
       const mapquestResult = await fetchMapQuestTrafficWithStreetNames();
+      const streetManagerResult = await fetchStreetManagerActivities();
       
       const allAlerts = [];
       const sources = {};
@@ -84,6 +93,23 @@ export function setupAPIRoutes(app, globalState) {
           success: false,
           count: 0,
           error: mapquestResult.error
+        };
+      }
+      
+      // Process StreetManager results
+      if (streetManagerResult.success) {
+        allAlerts.push(...streetManagerResult.data);
+        sources.streetmanager = {
+          success: true,
+          count: streetManagerResult.data.length,
+          method: 'Official UK Roadworks Data',
+          official: true
+        };
+      } else {
+        sources.streetmanager = {
+          success: false,
+          count: 0,
+          error: streetManagerResult.error
         };
       }
       
@@ -309,6 +335,282 @@ export function setupAPIRoutes(app, globalState) {
         gtfs: 'online'
       }
     });
+  });
+
+  // ==============================
+  // STREETMANAGER ENDPOINTS
+  // ==============================
+
+  // StreetManager Activities Endpoint - Live roadworks and activities
+  app.get('/api/streetmanager/activities', async (req, res) => {
+    try {
+      console.log('🚧 StreetManager activities endpoint called');
+      
+      const forceRefresh = req.query.refresh === 'true';
+      const result = await fetchStreetManagerActivities(forceRefresh);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          activities: result.data,
+          metadata: {
+            ...result.metadata,
+            endpoint: '/api/streetmanager/activities',
+            requestTime: new Date().toISOString()
+          }
+        });
+      } else {
+        res.status(502).json({
+          success: false,
+          error: result.error,
+          activities: [],
+          metadata: {
+            source: 'StreetManager Activities',
+            error: result.error,
+            endpoint: '/api/streetmanager/activities',
+            requestTime: new Date().toISOString()
+          }
+        });
+      }
+    } catch (error) {
+      console.error('❌ StreetManager activities endpoint error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        activities: []
+      });
+    }
+  });
+
+  // StreetManager Permits Endpoint - Planned roadworks permits
+  app.get('/api/streetmanager/permits', async (req, res) => {
+    try {
+      console.log('📋 StreetManager permits endpoint called');
+      
+      const forceRefresh = req.query.refresh === 'true';
+      const result = await fetchStreetManagerPermits(forceRefresh);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          permits: result.data,
+          metadata: {
+            ...result.metadata,
+            endpoint: '/api/streetmanager/permits',
+            requestTime: new Date().toISOString()
+          }
+        });
+      } else {
+        res.status(502).json({
+          success: false,
+          error: result.error,
+          permits: [],
+          metadata: {
+            source: 'StreetManager Permits',
+            error: result.error,
+            endpoint: '/api/streetmanager/permits',
+            requestTime: new Date().toISOString()
+          }
+        });
+      }
+    } catch (error) {
+      console.error('❌ StreetManager permits endpoint error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        permits: []
+      });
+    }
+  });
+
+  // Get specific permit details by reference number
+  app.get('/api/streetmanager/permit/:permitReference', async (req, res) => {
+    try {
+      const { permitReference } = req.params;
+      console.log(`🔍 Fetching permit details: ${permitReference}`);
+      
+      const result = await getPermitDetails(permitReference);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          permit: result.data,
+          metadata: {
+            ...result.metadata,
+            endpoint: `/api/streetmanager/permit/${permitReference}`,
+            requestTime: new Date().toISOString()
+          }
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          error: result.error || 'Permit not found',
+          permit: null
+        });
+      }
+    } catch (error) {
+      console.error('❌ Permit details endpoint error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        permit: null
+      });
+    }
+  });
+
+  // Get specific activity details by reference number
+  app.get('/api/streetmanager/activity/:activityReference', async (req, res) => {
+    try {
+      const { activityReference } = req.params;
+      console.log(`🔍 Fetching activity details: ${activityReference}`);
+      
+      const result = await getActivityDetails(activityReference);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          activity: result.data,
+          metadata: {
+            ...result.metadata,
+            endpoint: `/api/streetmanager/activity/${activityReference}`,
+            requestTime: new Date().toISOString()
+          }
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          error: result.error || 'Activity not found',
+          activity: null
+        });
+      }
+    } catch (error) {
+      console.error('❌ Activity details endpoint error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        activity: null
+      });
+    }
+  });
+
+  // StreetManager combined endpoint - Both activities and permits
+  app.get('/api/streetmanager/all', async (req, res) => {
+    try {
+      console.log('🔄 StreetManager combined endpoint called');
+      
+      const forceRefresh = req.query.refresh === 'true';
+      
+      // Fetch both activities and permits in parallel
+      const [activitiesResult, permitsResult] = await Promise.all([
+        fetchStreetManagerActivities(forceRefresh),
+        fetchStreetManagerPermits(forceRefresh)
+      ]);
+      
+      const allAlerts = [];
+      const sources = {};
+      
+      // Process activities
+      if (activitiesResult.success) {
+        allAlerts.push(...activitiesResult.data);
+        sources.activities = {
+          success: true,
+          count: activitiesResult.data.length,
+          lastUpdated: activitiesResult.metadata.lastUpdated
+        };
+      } else {
+        sources.activities = {
+          success: false,
+          error: activitiesResult.error,
+          count: 0
+        };
+      }
+      
+      // Process permits
+      if (permitsResult.success) {
+        allAlerts.push(...permitsResult.data);
+        sources.permits = {
+          success: true,
+          count: permitsResult.data.length,
+          lastUpdated: permitsResult.metadata.lastUpdated
+        };
+      } else {
+        sources.permits = {
+          success: false,
+          error: permitsResult.error,
+          count: 0
+        };
+      }
+      
+      res.json({
+        success: true,
+        alerts: allAlerts,
+        metadata: {
+          totalAlerts: allAlerts.length,
+          sources,
+          endpoint: '/api/streetmanager/all',
+          requestTime: new Date().toISOString(),
+          coverage: 'North East England',
+          official: true
+        }
+      });
+    } catch (error) {
+      console.error('❌ StreetManager combined endpoint error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        alerts: []
+      });
+    }
+  });
+
+  // StreetManager cache management
+  app.post('/api/streetmanager/cache/clear', (req, res) => {
+    try {
+      clearStreetManagerCache();
+      res.json({
+        success: true,
+        message: 'StreetManager cache cleared',
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // StreetManager status and configuration
+  app.get('/api/streetmanager/status', (req, res) => {
+    try {
+      const cacheStats = getStreetManagerCacheStats();
+      
+      res.json({
+        success: true,
+        status: {
+          configured: cacheStats.configured,
+          apiKeySet: !!process.env.STREET_MANAGER_API_KEY,
+          cache: {
+            activities: cacheStats.activitiesCache,
+            permits: cacheStats.permitsCache
+          },
+          endpoints: {
+            activities: '/api/streetmanager/activities',
+            permits: '/api/streetmanager/permits',
+            combined: '/api/streetmanager/all',
+            permitDetails: '/api/streetmanager/permit/:permitReference',
+            activityDetails: '/api/streetmanager/activity/:activityReference'
+          },
+          coverage: 'North East England',
+          lastChecked: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
   });
 }
 

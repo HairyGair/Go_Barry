@@ -485,6 +485,42 @@
             padding-top: 24px;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
         }
+        
+        /* Alert action buttons */
+        .alert-actions {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            display: flex;
+            gap: 12px;
+            z-index: 10;
+        }
+        
+        .alert-action-btn {
+            padding: 12px 16px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: white;
+            text-decoration: none;
+        }
+        
+        .map-action-btn {
+            background: rgba(59, 130, 246, 0.9);
+            border: 2px solid rgba(59, 130, 246, 0.5);
+        }
+        
+        .map-action-btn:hover {
+            background: rgba(59, 130, 246, 1);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+        }
 
         /* Right Side - Map and Statistics */
         .right-side {
@@ -1055,8 +1091,18 @@
             const authority = alert.authority || alert.source || 'Unknown authority';
             const incidentType = alert.type === 'roadwork' ? 'Road Works' : 'Traffic Incident';
             
+            // Map button for external maps
+            const mapButton = `
+                <div class="alert-actions">
+                    <button class="alert-action-btn map-action-btn" onclick="openExternalMap('${alert.id}', '${(alert.location || '').replace(/'/g, '\\\'')}')">
+                        <i class="fas fa-external-link-alt"></i> Open in Maps
+                    </button>
+                </div>
+            `;
+            
             return `
                 <div class="alert-card">
+                    ${mapButton}
                     <div class="alert-card-title">${alert.title || 'Traffic Alert'}</div>
                     <div class="alert-card-location">
                         <i class="fas fa-map-marker-alt"></i>
@@ -1294,6 +1340,49 @@
             ).join('');
             
             recentActivity.innerHTML = activityHTML;
+        }
+        
+        // Open external map for alert
+        function openExternalMap(alertId, location) {
+            console.log(`🗺️ Opening external map for alert: ${alertId} at location: ${location}`);
+            
+            try {
+                // Find the alert in currentAlerts array
+                const alert = currentAlerts.find(a => a.id === alertId);
+                let latitude, longitude;
+                
+                // Check if alert has coordinates
+                if (alert && alert.coordinates) {
+                    if (Array.isArray(alert.coordinates) && alert.coordinates.length >= 2) {
+                        [latitude, longitude] = alert.coordinates;
+                    } else if (alert.coordinates.lat && alert.coordinates.lng) {
+                        latitude = alert.coordinates.lat;
+                        longitude = alert.coordinates.lng;
+                    }
+                }
+                
+                // If we have coordinates, use them
+                if (latitude && longitude) {
+                    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}&zoom=15`;
+                    console.log(`🗺️ Opening Google Maps at coordinates: ${latitude}, ${longitude}`);
+                    window.open(googleMapsUrl, '_blank');
+                } else if (location && location !== 'Location not specified') {
+                    // Fallback to location search
+                    const searchQuery = encodeURIComponent(location + ', North East England, UK');
+                    const googleMapsUrl = `https://www.google.com/maps/search/${searchQuery}`;
+                    console.log(`🗺️ Opening Google Maps search for: ${location}`);
+                    window.open(googleMapsUrl, '_blank');
+                } else {
+                    // Fallback to general North East England map
+                    const fallbackUrl = 'https://www.google.com/maps/@54.9783,-1.6178,11z';
+                    console.log(`⚠️ No coordinates available for alert ${alertId}, opening North East England map`);
+                    window.open(fallbackUrl, '_blank');
+                }
+                
+            } catch (error) {
+                console.error('❌ Error opening external map:', error);
+                alert('Unable to open external map. Please try again.');
+            }
         }
 
         // Clock update

@@ -1,17 +1,18 @@
-// Go_BARRY/services/geocoding.js
-// Enhanced geocoding service using MapBox API with intelligent fallbacks
+// backend/services/geocoding.js
+// Backend Mapbox Geocoding Service for Traffic Alert Enhancement
 
-import Constants from 'expo-constants';
+import dotenv from 'dotenv';
+import axios from 'axios';
+
+dotenv.config();
 
 // Get MapBox token from environment variables
-const MAPBOX_TOKEN = Constants.expoConfig?.extra?.EXPO_PUBLIC_MAPBOX_TOKEN || 
-                     process.env.EXPO_PUBLIC_MAPBOX_TOKEN ||
-                     __DEV__ ? 'pk.eyJ1IjoiaGFpcnlnYWlyMDAiLCJhIjoiY21iZ29hOHJsMDB4djJtc2I5c2trbXA3dSJ9.1WxDF7rvXOycZyC5EwNS0A' : null;
+const MAPBOX_TOKEN = process.env.MAPBOX_TOKEN;
 
 // MapBox Geocoding API endpoint
 const MAPBOX_GEOCODING_URL = 'https://api.mapbox.com/geocoding/v5/mapbox.places';
 
-// Predefined coordinates for major North East locations (high-speed fallback)
+// Known North East locations for instant response (matches mobile app)
 const KNOWN_LOCATIONS = {
   // Major Roads
   'a1': { latitude: 54.9783, longitude: -1.6178, name: 'A1 (General)' },
@@ -55,11 +56,13 @@ const KNOWN_LOCATIONS = {
   'a19 cobalt': { latitude: 55.0450, longitude: -1.4750, name: 'A19 Cobalt Business Park' }
 };
 
-// Cache and rate limiting
+// Cache for geocoded locations
 let geocodeCache = new Map();
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+// Rate limiting
 let requestQueue = [];
 let isProcessingQueue = false;
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 const MAX_REQUESTS_PER_SECOND = 10;
 const REQUEST_DELAY = 1000 / MAX_REQUESTS_PER_SECOND; // 100ms between requests
 
@@ -150,33 +153,33 @@ function getKnownLocationCoords(location) {
 }
 
 /**
- * Check if alert already has coordinates from backend
+ * Check cache for existing geocoded location
  */
-function getAlertCoordinates(alert) {
-  if (!alert) return null;
+function getCachedLocation(location) {
+  const cacheKey = normalizeLocation(location);
+  const cached = geocodeCache.get(cacheKey);
   
-  // Check if the alert already has coordinates from backend processing
-  if (alert.coordinates) {
-    if (Array.isArray(alert.coordinates) && alert.coordinates.length >= 2) {
-      return {
-        latitude: alert.coordinates[0],
-        longitude: alert.coordinates[1],
-        name: alert.location || 'Traffic Location',
-        confidence: 'high',
-        source: 'backend_processing'
-      };
-    } else if (alert.coordinates.lat && alert.coordinates.lng) {
-      return {
-        latitude: alert.coordinates.lat,
-        longitude: alert.coordinates.lng,
-        name: alert.location || 'Traffic Location',
-        confidence: 'high',
-        source: 'backend_processing'
-      };
-    }
+  if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+    return cached.data;
+  }
+  
+  // Remove expired entry
+  if (cached) {
+    geocodeCache.delete(cacheKey);
   }
   
   return null;
+}
+
+/**
+ * Cache geocoded location result
+ */
+function cacheLocation(location, result) {
+  const cacheKey = normalizeLocation(location);
+  geocodeCache.set(cacheKey, {
+    data: result,
+    timestamp: Date.now()
+  });
 }
 
 /**
@@ -229,23 +232,17 @@ async function makeMapBoxRequest(location, options = {}) {
   
   const url = `${MAPBOX_GEOCODING_URL}/${encodeURIComponent(searchQuery)}.json?${params}`;
   
-  console.log(`🗺️ MapBox geocoding: "${location}"`);
+  console.log(`🗺️ Backend MapBox geocoding: "${location}"`);
   
-  const response = await fetch(url, {
-    method: 'GET',
+  const response = await axios.get(url, {
+    timeout: 10000,
     headers: {
-      'User-Agent': 'BARRY-TrafficWatch/3.0'
+      'User-Agent': 'BARRY-Backend/3.0'
     }
   });
   
-  if (!response.ok) {
-    throw new Error(`MapBox API error: ${response.status} ${response.statusText}`);
-  }
-  
-  const data = await response.json();
-  
-  if (data.features && data.features.length > 0) {
-    const feature = data.features[0];
+  if (response.data.features && response.data.features.length > 0) {
+    const feature = response.data.features[0];
     const [longitude, latitude] = feature.center;
     
     return {
@@ -273,44 +270,14 @@ function queueMapBoxRequest(location, options = {}) {
 }
 
 /**
- * Check cache for existing geocoded location
- */
-function getCachedLocation(location) {
-  const cacheKey = normalizeLocation(location);
-  const cached = geocodeCache.get(cacheKey);
-  
-  if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
-    return cached.data;
-  }
-  
-  // Remove expired entry
-  if (cached) {
-    geocodeCache.delete(cacheKey);
-  }
-  
-  return null;
-}
-
-/**
- * Cache geocoded location result
- */
-function cacheLocation(location, result) {
-  const cacheKey = normalizeLocation(location);
-  geocodeCache.set(cacheKey, {
-    data: result,
-    timestamp: Date.now()
-  });
-}
-
-/**
  * Main geocoding function with intelligent fallback strategy
  */
-export async function geocodeLocation(location, alert = null) {
+export async function geocodeLocation(location) {
   if (!location || typeof location !== 'string') {
     return null;
   }
   
-  console.log(`🗺️ Geocoding location: "${location}"`);
+  console.log(`🗺️ Backend geocoding location: "${location}"`);
   
   // Priority 1: Check cache first
   const cached = getCachedLocation(location);
@@ -319,16 +286,7 @@ export async function geocodeLocation(location, alert = null) {
     return cached;
   }
   
-  // Priority 2: Check if alert already has coordinates from backend
-  if (alert) {
-    const backendCoords = getAlertCoordinates(alert);
-    if (backendCoords) {
-      cacheLocation(location, backendCoords);
-      return backendCoords;
-    }
-  }
-  
-  // Priority 3: Try known locations (instant, high accuracy for common places)
+  // Priority 2: Try known locations (instant, high accuracy for common places)
   const knownLocation = getKnownLocationCoords(location);
   if (knownLocation) {
     console.log(`✅ Known location hit for "${location}"`);
@@ -336,7 +294,7 @@ export async function geocodeLocation(location, alert = null) {
     return knownLocation;
   }
   
-  // Priority 4: Use MapBox API for unknown locations
+  // Priority 3: Use MapBox API for unknown locations
   let result = null;
   
   try {
@@ -351,7 +309,7 @@ export async function geocodeLocation(location, alert = null) {
     console.warn(`⚠️ MapBox geocoding failed for "${location}":`, error.message);
   }
   
-  // Priority 5: Default to Newcastle city center if all else fails
+  // Priority 4: Default to Newcastle city center if all else fails
   console.warn(`⚠️ Could not geocode location: ${location}, using Newcastle default`);
   result = {
     latitude: 54.9783,
@@ -366,19 +324,54 @@ export async function geocodeLocation(location, alert = null) {
 }
 
 /**
+ * Reverse geocoding - get location name from coordinates
+ */
+export async function reverseGeocode(latitude, longitude) {
+  if (!MAPBOX_TOKEN) {
+    console.warn('⚠️ MapBox token not configured for reverse geocoding');
+    return `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+  }
+  
+  try {
+    const url = `${MAPBOX_GEOCODING_URL}/${longitude},${latitude}.json`;
+    const params = new URLSearchParams({
+      access_token: MAPBOX_TOKEN,
+      types: 'address,poi,place',
+      limit: 1
+    });
+    
+    const response = await axios.get(`${url}?${params}`, {
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'BARRY-Backend/3.0'
+      }
+    });
+    
+    if (response.data.features && response.data.features.length > 0) {
+      return response.data.features[0].place_name;
+    }
+    
+    return `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+    
+  } catch (error) {
+    console.warn(`⚠️ Reverse geocoding failed for ${latitude}, ${longitude}:`, error.message);
+    return `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+  }
+}
+
+/**
  * Batch geocode multiple locations efficiently
  */
-export async function batchGeocode(locations, alerts = []) {
+export async function batchGeocode(locations) {
   const results = [];
   
-  console.log(`🗺️ Batch geocoding ${locations.length} locations...`);
+  console.log(`🗺️ Backend batch geocoding ${locations.length} locations...`);
   
   for (let i = 0; i < locations.length; i++) {
     const location = locations[i];
-    const correspondingAlert = alerts[i];
     
     try {
-      const coords = await geocodeLocation(location, correspondingAlert);
+      const coords = await geocodeLocation(location);
       results.push({
         location: location,
         coords: coords,
@@ -394,20 +387,41 @@ export async function batchGeocode(locations, alerts = []) {
     }
   }
   
-  console.log(`✅ Batch geocoding complete: ${results.filter(r => r.coords).length}/${results.length} successful`);
+  console.log(`✅ Backend batch geocoding complete: ${results.filter(r => r.coords).length}/${results.length} successful`);
   return results;
 }
 
 /**
- * Get the default map region for North East England
+ * Enhance traffic alert with coordinates
  */
-export function getNorthEastRegion() {
-  return {
-    latitude: 54.9783, // Newcastle center
-    longitude: -1.6178,
-    latitudeDelta: 0.8, // Show roughly from Hexham to Sunderland
-    longitudeDelta: 0.8
-  };
+export async function enhanceAlertWithCoordinates(alert) {
+  if (!alert) return alert;
+  
+  // Skip if alert already has valid coordinates
+  if (alert.coordinates && Array.isArray(alert.coordinates) && alert.coordinates.length >= 2) {
+    return alert;
+  }
+  
+  if (alert.coordinates && alert.coordinates.lat && alert.coordinates.lng) {
+    return alert;
+  }
+  
+  // Try to geocode the location
+  if (alert.location) {
+    const coords = await geocodeLocation(alert.location);
+    if (coords) {
+      alert.coordinates = [coords.latitude, coords.longitude];
+      alert.geocodingSource = coords.source;
+      alert.geocodingConfidence = coords.confidence;
+      
+      // If we got a better location name, optionally update it
+      if (coords.source === 'mapbox' && coords.confidence === 'high') {
+        alert.enhancedLocation = coords.name;
+      }
+    }
+  }
+  
+  return alert;
 }
 
 /**
@@ -429,11 +443,23 @@ export function isInNorthEastRegion(latitude, longitude) {
 }
 
 /**
+ * Get the default map region for North East England
+ */
+export function getNorthEastRegion() {
+  return {
+    latitude: 54.9783, // Newcastle center
+    longitude: -1.6178,
+    latitudeDelta: 0.8, // Show roughly from Hexham to Sunderland
+    longitudeDelta: 0.8
+  };
+}
+
+/**
  * Clear the geocoding cache (useful for testing or memory management)
  */
 export function clearGeocodeCache() {
   geocodeCache.clear();
-  console.log('🗑️ Geocoding cache cleared');
+  console.log('🗑️ Backend geocoding cache cleared');
 }
 
 /**
@@ -457,7 +483,7 @@ export function getCacheStats() {
  * Test geocoding functionality
  */
 export async function testGeocoding() {
-  console.log('🧪 Testing geocoding functionality...');
+  console.log('🧪 Testing backend geocoding functionality...');
   
   const testLocations = [
     'A1 Newcastle',
@@ -477,5 +503,17 @@ export async function testGeocoding() {
   }
   
   const stats = getCacheStats();
-  console.log('📊 Cache stats:', stats);
+  console.log('📊 Backend cache stats:', stats);
 }
+
+export default {
+  geocodeLocation,
+  reverseGeocode,
+  batchGeocode,
+  enhanceAlertWithCoordinates,
+  isInNorthEastRegion,
+  getNorthEastRegion,
+  clearGeocodeCache,
+  getCacheStats,
+  testGeocoding
+};

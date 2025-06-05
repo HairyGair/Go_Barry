@@ -14,6 +14,14 @@ import { fetchTomTomTrafficWithStreetNames } from './services/tomtom.js';
 import { fetchMapQuestTrafficWithStreetNames } from './services/mapquest.js';
 import { fetchHERETraffic } from './services/here.js';
 import { fetchNationalHighways } from './services/nationalHighways.js';
+import geocodingService, { 
+  geocodeLocation, 
+  enhanceAlertWithCoordinates, 
+  reverseGeocode, 
+  batchGeocode,
+  getCacheStats as getGeocodingCacheStats,
+  testGeocoding 
+} from './services/geocoding.js';
 import {
   getLocationNameWithTimeout,
   getRegionFromCoordinates,
@@ -257,7 +265,18 @@ let alertNotes = {};
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-console.log('🚦 BARRY Backend Starting with Fixed API Authentication...');
+console.log('🚦 BARRY Backend Starting with Enhanced Geocoding...');
+console.log('🗺️ Initializing Mapbox Geocoding Service...');
+try {
+  const geocodingStats = getGeocodingCacheStats();
+  console.log(`✅ Geocoding Service Ready:`);
+  console.log(`   🗺️ Mapbox configured: ${geocodingStats.mapboxConfigured}`);
+  console.log(`   💾 Cache initialized`);
+  console.log(`   🎯 Coverage: North East England`);
+  console.log(`   📋 Intelligent fallbacks enabled`);
+} catch (error) {
+  console.error('❌ Geocoding initialization error:', error.message);
+}
 // --- GTFS Location Enhancement Initialization ---
 console.log('🗺️ Initializing GTFS location enhancement...');
 setTimeout(async () => {
@@ -314,6 +333,105 @@ app.use('/api/health', healthRoutes);
 
 // Supervisor management routes
 app.use('/api/supervisor', supervisorAPI);
+
+// Geocoding API endpoints
+app.get('/api/geocode/:location', async (req, res) => {
+  try {
+    const location = decodeURIComponent(req.params.location);
+    const result = await geocodeLocation(location);
+    
+    if (result) {
+      res.json({
+        success: true,
+        location: location,
+        coordinates: {
+          latitude: result.latitude,
+          longitude: result.longitude
+        },
+        name: result.name,
+        confidence: result.confidence,
+        source: result.source
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        error: 'Location not found',
+        location: location
+      });
+    }
+  } catch (error) {
+    console.error('❌ Geocoding API error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Reverse geocoding endpoint
+app.get('/api/reverse-geocode/:lat/:lng', async (req, res) => {
+  try {
+    const lat = parseFloat(req.params.lat);
+    const lng = parseFloat(req.params.lng);
+    
+    if (isNaN(lat) || isNaN(lng)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid coordinates'
+      });
+    }
+    
+    const locationName = await reverseGeocode(lat, lng);
+    
+    res.json({
+      success: true,
+      coordinates: { latitude: lat, longitude: lng },
+      location: locationName
+    });
+  } catch (error) {
+    console.error('❌ Reverse geocoding API error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Geocoding cache stats endpoint
+app.get('/api/geocoding/stats', (req, res) => {
+  try {
+    const stats = getGeocodingCacheStats();
+    res.json({
+      success: true,
+      stats: stats
+    });
+  } catch (error) {
+    console.error('❌ Geocoding stats error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Test geocoding endpoint
+app.get('/api/geocoding/test', async (req, res) => {
+  try {
+    await testGeocoding();
+    const stats = getGeocodingCacheStats();
+    res.json({
+      success: true,
+      message: 'Geocoding test completed',
+      stats: stats
+    });
+  } catch (error) {
+    console.error('❌ Geocoding test error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 // --- Go North East Regions & Route Mapping (UPDATED) ---
 const GO_NORTH_EAST_REGIONS = [
@@ -439,6 +557,11 @@ async function fetchTomTomTrafficFixed() {
           lastUpdated: new Date().toISOString(),
           dataSource: 'TomTom Traffic API v5 (Fixed Format)'
         };
+        
+        // Enhance with geocoding if location name available but coordinates missing precision
+        if (!alert.coordinates || (Array.isArray(alert.coordinates) && alert.coordinates.length < 2)) {
+          await enhanceAlertWithCoordinates(alert);
+        }
         
         alerts.push(alert);
       });
@@ -723,7 +846,7 @@ const fetchTomTomTrafficOptimized = fetchTomTomTrafficWithStreetNames;
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🚦 BARRY Backend Started with Fixed Authentication`);
+  console.log(`\n🚦 BARRY Backend Started with Enhanced Geocoding`);
   console.log(`📡 Server: http://localhost:${PORT}`);
   console.log(`🌐 Public: https://go-barry.onrender.com`);
   console.log(`\n🔧 API Authentication Fixes:`);

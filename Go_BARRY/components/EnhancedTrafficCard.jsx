@@ -13,8 +13,11 @@ import {
   Modal,
   TextInput,
   ScrollView,
+  Linking,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { geocodeLocation } from '../services/geocoding';
 
 const { width } = Dimensions.get('window');
 
@@ -166,6 +169,81 @@ const EnhancedTrafficCard = ({
     Alert.alert('Acknowledged', 'Alert has been acknowledged.');
   };
 
+  const handleOpenMap = async () => {
+    try {
+      let latitude, longitude;
+      
+      // Check if alert already has coordinates
+      if (alert.coordinates && Array.isArray(alert.coordinates) && alert.coordinates.length >= 2) {
+        [latitude, longitude] = alert.coordinates;
+      } else if (alert.coordinates && alert.coordinates.lat && alert.coordinates.lng) {
+        latitude = alert.coordinates.lat;
+        longitude = alert.coordinates.lng;
+      } else if (location && location !== 'Location not specified') {
+        // Try to geocode the location
+        const geocodedLocation = await geocodeLocation(location, alert);
+        if (geocodedLocation) {
+          latitude = geocodedLocation.latitude;
+          longitude = geocodedLocation.longitude;
+        }
+      }
+      
+      if (!latitude || !longitude) {
+        Alert.alert(
+          'Location Not Available',
+          'Unable to determine the exact coordinates for this alert. The location may be too general or geocoding failed.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      const alertTitle = encodeURIComponent(title || 'Traffic Alert');
+      const alertLocation = encodeURIComponent(location || 'Traffic Location');
+      
+      // Create map URLs for different platforms
+      const mapUrls = {
+        // Apple Maps (iOS)
+        appleMaps: `maps://maps.apple.com/?q=${alertTitle}&ll=${latitude},${longitude}&z=15`,
+        // Google Maps (Android/iOS)
+        googleMaps: `https://maps.google.com/maps?q=${latitude},${longitude}&z=15`,
+        // Google Maps App (if installed)
+        googleMapsApp: `comgooglemaps://?q=${latitude},${longitude}&zoom=15`,
+        // Web fallback
+        webMaps: `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}&zoom=15`
+      };
+      
+      let mapUrl;
+      
+      if (Platform.OS === 'ios') {
+        // Try Apple Maps first on iOS, then Google Maps
+        const canOpenAppleMaps = await Linking.canOpenURL(mapUrls.appleMaps);
+        if (canOpenAppleMaps) {
+          mapUrl = mapUrls.appleMaps;
+        } else {
+          const canOpenGoogleMaps = await Linking.canOpenURL(mapUrls.googleMapsApp);
+          mapUrl = canOpenGoogleMaps ? mapUrls.googleMapsApp : mapUrls.webMaps;
+        }
+      } else {
+        // Try Google Maps app first on Android, then web
+        const canOpenGoogleMaps = await Linking.canOpenURL(mapUrls.googleMapsApp);
+        mapUrl = canOpenGoogleMaps ? mapUrls.googleMapsApp : mapUrls.webMaps;
+      }
+      
+      console.log(`🗺️ Opening map for alert: ${title} at ${latitude}, ${longitude}`);
+      console.log(`🗺️ Using URL: ${mapUrl}`);
+      
+      await Linking.openURL(mapUrl);
+      
+    } catch (error) {
+      console.error('❌ Error opening map:', error);
+      Alert.alert(
+        'Unable to Open Map',
+        'There was an error opening the map app. Please make sure you have a maps app installed.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
   const colors = getStatusColors();
   const severityInfo = getSeverityIcon();
   const typeInfo = getTypeInfo();
@@ -225,6 +303,10 @@ const EnhancedTrafficCard = ({
             <View style={styles.actionButtons}>
               <TouchableOpacity onPress={handleShare} style={styles.shareButton}>
                 <Ionicons name="share-social-outline" size={20} color="#3B82F6" />
+              </TouchableOpacity>
+              
+              <TouchableOpacity onPress={handleOpenMap} style={styles.mapButton}>
+                <Ionicons name="map" size={18} color="#FFFFFF" />
               </TouchableOpacity>
               
               {supervisorSession && (
@@ -567,6 +649,12 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
     backgroundColor: '#F3F4F6',
+  },
+  mapButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#3B82F6',
   },
   dismissButton: {
     paddingHorizontal: 12,

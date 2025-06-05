@@ -19,7 +19,7 @@ const DUTIES = [
   { key: '200', label: 'Duty 200 (7:30am-5pm)', password: null },
   { key: '400', label: 'Duty 400 (12:30pm-10pm)', password: null },
   { key: '500', label: 'Duty 500 (2:45pm-12:15am)', password: null },
-  { key: 'service', label: 'Service Delivery Controller', password: 'Barry123' }
+  { key: 'xops', label: 'XOps', password: null }
 ];
 
 // EMERGENCY: Simple direct API URL to avoid config import issues

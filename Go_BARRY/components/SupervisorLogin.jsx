@@ -20,44 +20,99 @@ import { useSupervisorSession } from './hooks/useSupervisorSession';
 
 const SupervisorLogin = ({ visible, onClose }) => {
   const [supervisorId, setSupervisorId] = useState('');
-  const [badge, setBadge] = useState('');
-  const [showBadgeInput, setShowBadgeInput] = useState(false);
+  const [password, setPassword] = useState('');
+  const [selectedDuty, setSelectedDuty] = useState('');
+  const [currentStep, setCurrentStep] = useState('supervisor'); // 'supervisor', 'password', 'duty'
   const { login, isLoading, error } = useSupervisorSession();
 
-  // Predefined supervisors (would normally come from API)
+  // Predefined supervisors
   const supervisors = [
-    { id: 'supervisor001', name: 'John Smith', badge: 'JS001', role: 'Senior Supervisor' },
-    { id: 'supervisor002', name: 'Sarah Johnson', badge: 'SJ002', role: 'Traffic Controller' },
+    { id: 'alex_woodcock', name: 'Alex Woodcock', role: 'Supervisor', requiresPassword: false },
+    { id: 'andrew_cowley', name: 'Andrew Cowley', role: 'Supervisor', requiresPassword: false },
+    { id: 'anthony_gair', name: 'Anthony Gair', role: 'Supervisor', requiresPassword: false },
+    { id: 'claire_fiddler', name: 'Claire Fiddler', role: 'Supervisor', requiresPassword: false },
+    { id: 'david_hall', name: 'David Hall', role: 'Supervisor', requiresPassword: false },
+    { id: 'james_daglish', name: 'James Daglish', role: 'Supervisor', requiresPassword: false },
+    { id: 'john_paterson', name: 'John Paterson', role: 'Supervisor', requiresPassword: false },
+    { id: 'simon_glass', name: 'Simon Glass', role: 'Supervisor', requiresPassword: false },
+    { id: 'barry_perryman', name: 'Barry Perryman', role: 'Service Delivery Controller - Line Manager', requiresPassword: true, password: 'Barry123', isAdmin: true },
+  ];
+
+  // Duty options for supervisors
+  const dutyOptions = [
+    { id: '100', name: 'Duty 100 (6am-3:30pm)' },
+    { id: '200', name: 'Duty 200 (7:30am-5pm)' },
+    { id: '400', name: 'Duty 400 (12:30pm-10pm)' },
+    { id: '500', name: 'Duty 500 (2:45pm-12:15am)' },
+    { id: 'xops', name: 'XOps' },
   ];
 
   const selectedSupervisor = supervisors.find(s => s.id === supervisorId);
 
   const handleSupervisorSelect = (supervisor) => {
     setSupervisorId(supervisor.id);
-    setShowBadgeInput(true);
+    if (supervisor.requiresPassword) {
+      setCurrentStep('password');
+    } else {
+      setCurrentStep('duty');
+    }
   };
 
-  const handleLogin = async () => {
-    if (!supervisorId || !badge.trim()) {
-      Alert.alert('Error', 'Please select a supervisor and enter your badge number.');
-      return;
+  const handlePasswordSubmit = () => {
+    // Check password for Barry if required
+    if (selectedSupervisor.requiresPassword) {
+      if (!password || password !== selectedSupervisor.password) {
+        Alert.alert('Error', 'Incorrect password for Line Manager access.');
+        return;
+      }
     }
 
-    const result = await login(supervisorId, badge.trim());
+    setCurrentStep('duty');
+  };
+
+  const handleDutySelect = async (duty) => {
+    setSelectedDuty(duty.id);
+    
+    // Create login data with duty
+    const loginData = {
+      supervisorId,
+      password: selectedSupervisor.requiresPassword ? password : undefined,
+      duty: duty,
+      isAdmin: selectedSupervisor.isAdmin || false
+    };
+
+    const result = await login(loginData);
     
     if (result.success) {
-      setSupervisorId('');
-      setBadge('');
-      setShowBadgeInput(false);
+      resetForm();
       onClose();
     }
   };
 
-  const handleClose = () => {
+  const resetForm = () => {
     setSupervisorId('');
-    setBadge('');
-    setShowBadgeInput(false);
+    setPassword('');
+    setSelectedDuty('');
+    setCurrentStep('supervisor');
+  };
+
+  const handleClose = () => {
+    resetForm();
     onClose();
+  };
+
+  const handleBack = () => {
+    if (currentStep === 'password') {
+      setCurrentStep('supervisor');
+      setPassword('');
+    } else if (currentStep === 'duty') {
+      if (selectedSupervisor.requiresPassword) {
+        setCurrentStep('password');
+      } else {
+        setCurrentStep('supervisor');
+      }
+      setSelectedDuty('');
+    }
   };
 
   return (
@@ -98,7 +153,7 @@ const SupervisorLogin = ({ visible, onClose }) => {
             )}
 
             {/* Step 1: Supervisor Selection */}
-            {!showBadgeInput && (
+            {currentStep === 'supervisor' && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Select Your Profile</Text>
                 <Text style={styles.sectionDescription}>
@@ -136,12 +191,15 @@ const SupervisorLogin = ({ visible, onClose }) => {
                           ]}>
                             {supervisor.role}
                           </Text>
-                          <Text style={[
-                            styles.supervisorBadge,
-                            supervisorId === supervisor.id && styles.supervisorBadgeSelected
-                          ]}>
-                            Badge: {supervisor.badge}
-                          </Text>
+                          {supervisor.isAdmin && (
+                            <Text style={[
+                              styles.supervisorBadge,
+                              supervisorId === supervisor.id && styles.supervisorBadgeSelected,
+                              { color: '#F59E0B', fontWeight: '600' }
+                            ]}>
+                              ⭐ Admin Access
+                            </Text>
+                          )}
                         </View>
                       </View>
                       {supervisorId === supervisor.id && (
@@ -153,11 +211,11 @@ const SupervisorLogin = ({ visible, onClose }) => {
               </View>
             )}
 
-            {/* Step 2: Badge Verification */}
-            {showBadgeInput && selectedSupervisor && (
+            {/* Step 2: Password Verification (Only for Barry) */}
+            {currentStep === 'password' && selectedSupervisor && (
               <View style={styles.section}>
                 <TouchableOpacity 
-                  onPress={() => setShowBadgeInput(false)}
+                  onPress={handleBack}
                   style={styles.backButton}
                 >
                   <Ionicons name="arrow-back" size={20} color="#3B82F6" />
@@ -180,28 +238,28 @@ const SupervisorLogin = ({ visible, onClose }) => {
                   </View>
                 </View>
 
-                <Text style={styles.sectionTitle}>Verify Your Identity</Text>
+                <Text style={styles.sectionTitle}>Line Manager Authentication</Text>
                 <Text style={styles.sectionDescription}>
-                  Enter your badge number to complete authentication
+                  Enter your password to access Line Manager functions
                 </Text>
 
+                {/* Password input for Barry */}
                 <View style={styles.inputContainer}>
-                  <Text style={styles.inputLabel}>Badge Number</Text>
+                  <Text style={styles.inputLabel}>Password</Text>
                   <View style={styles.inputWrapper}>
-                    <Ionicons name="card" size={20} color="#6B7280" style={styles.inputIcon} />
+                    <Ionicons name="lock-closed" size={20} color="#6B7280" style={styles.inputIcon} />
                     <TextInput
                       style={styles.textInput}
-                      placeholder={`Expected: ${selectedSupervisor.badge}`}
+                      placeholder="Enter Line Manager password"
                       placeholderTextColor="#9CA3AF"
-                      value={badge}
-                      onChangeText={setBadge}
-                      autoCapitalize="characters"
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry
                       autoCorrect={false}
-                      maxLength={10}
                     />
                   </View>
                   <Text style={styles.inputHelper}>
-                    Enter the badge number shown on your supervisor ID card
+                    Required for Line Manager access and admin functions
                   </Text>
                 </View>
 
@@ -209,18 +267,92 @@ const SupervisorLogin = ({ visible, onClose }) => {
                 <View style={styles.securityNotice}>
                   <Ionicons name="shield-checkmark" size={16} color="#10B981" />
                   <Text style={styles.securityNoticeText}>
-                    All supervisor actions are logged for accountability and audit purposes
+                    All Line Manager actions are logged for accountability and audit purposes
                   </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Step 3: Duty Selection */}
+            {currentStep === 'duty' && (
+              <View style={styles.section}>
+                <TouchableOpacity 
+                  onPress={handleBack}
+                  style={styles.backButton}
+                >
+                  <Ionicons name="arrow-back" size={20} color="#3B82F6" />
+                  <Text style={styles.backButtonText}>Back</Text>
+                </TouchableOpacity>
+
+                <View style={styles.selectedSupervisorCard}>
+                  <View style={styles.selectedSupervisorInfo}>
+                    <View style={styles.selectedSupervisorAvatar}>
+                      <Ionicons name="person" size={24} color="#FFFFFF" />
+                    </View>
+                    <View>
+                      <Text style={styles.selectedSupervisorName}>
+                        {selectedSupervisor.name}
+                      </Text>
+                      <Text style={styles.selectedSupervisorRole}>
+                        {selectedSupervisor.role}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                <Text style={styles.sectionTitle}>Select Your Duty</Text>
+                <Text style={styles.sectionDescription}>
+                  Choose which duty you are performing today
+                </Text>
+
+                <View style={styles.dutyList}>
+                  {dutyOptions.map((duty) => (
+                    <TouchableOpacity
+                      key={duty.id}
+                      style={[
+                        styles.dutyCard,
+                        selectedDuty === duty.id && styles.dutyCardSelected
+                      ]}
+                      onPress={() => handleDutySelect(duty)}
+                      disabled={isLoading}
+                    >
+                      <View style={styles.dutyInfo}>
+                        <Text style={[
+                          styles.dutyName,
+                          selectedDuty === duty.id && styles.dutyNameSelected
+                        ]}>
+                          {duty.name}
+                        </Text>
+                      </View>
+                      {isLoading && selectedDuty === duty.id ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      ) : (
+                        <Ionicons 
+                          name="chevron-forward" 
+                          size={20} 
+                          color={selectedDuty === duty.id ? '#FFFFFF' : '#9CA3AF'} 
+                        />
+                      )}
+                    </TouchableOpacity>
+                  ))}
                 </View>
               </View>
             )}
 
             {/* Action Buttons */}
             <View style={styles.actions}>
-              {!showBadgeInput ? (
+              {currentStep === 'supervisor' ? (
                 <TouchableOpacity
                   style={[styles.continueButton, !supervisorId && styles.continueButtonDisabled]}
-                  onPress={() => setShowBadgeInput(true)}
+                  onPress={() => {
+                    if (selectedSupervisor) {
+                      if (selectedSupervisor.requiresPassword) {
+                        setCurrentStep('password');
+                      } else {
+                        setCurrentStep('duty');
+                      }
+                    }
+                  }}
                   disabled={!supervisorId}
                 >
                   <Text style={[styles.continueButtonText, !supervisorId && styles.continueButtonTextDisabled]}>
@@ -232,22 +364,28 @@ const SupervisorLogin = ({ visible, onClose }) => {
                     color={supervisorId ? "#FFFFFF" : "#9CA3AF"} 
                   />
                 </TouchableOpacity>
-              ) : (
+              ) : currentStep === 'password' ? (
                 <TouchableOpacity
-                  style={[styles.loginButton, (!badge.trim() || isLoading) && styles.loginButtonDisabled]}
-                  onPress={handleLogin}
-                  disabled={!badge.trim() || isLoading}
+                  style={[
+                    styles.continueButton, 
+                    !password && styles.continueButtonDisabled
+                  ]}
+                  onPress={handlePasswordSubmit}
+                  disabled={!password}
                 >
-                  {isLoading ? (
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  ) : (
-                    <>
-                      <Ionicons name="log-in" size={20} color="#FFFFFF" />
-                      <Text style={styles.loginButtonText}>Sign In</Text>
-                    </>
-                  )}
+                  <Text style={[
+                    styles.continueButtonText, 
+                    !password && styles.continueButtonTextDisabled
+                  ]}>
+                    Continue to Duty Selection
+                  </Text>
+                  <Ionicons 
+                    name="arrow-forward" 
+                    size={20} 
+                    color={password ? "#FFFFFF" : "#9CA3AF"} 
+                  />
                 </TouchableOpacity>
-              )}
+              ) : null}
             </View>
 
             {/* Help Section */}
@@ -552,6 +690,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     lineHeight: 16,
+  },
+  dutyList: {
+    gap: 12,
+  },
+  dutyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FAFAFA',
+  },
+  dutyCardSelected: {
+    borderColor: '#10B981',
+    backgroundColor: '#10B981',
+  },
+  dutyInfo: {
+    flex: 1,
+  },
+  dutyName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  dutyNameSelected: {
+    color: '#FFFFFF',
   },
 });
 

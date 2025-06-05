@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBARRYapi } from './hooks/useBARRYapi';
-import TrafficCard from './TrafficCard';
+import EnhancedTrafficCard from './EnhancedTrafficCard';
 
 const AlertList = () => {
   const {
@@ -325,7 +325,7 @@ const AlertList = () => {
           </Text>
           
           {filteredAndSortedAlerts.map((alert, index) => (
-            <TrafficCard 
+            <EnhancedTrafficCard 
               key={alert.id || `alert-${index}`} 
               alert={alert} 
               index={index}

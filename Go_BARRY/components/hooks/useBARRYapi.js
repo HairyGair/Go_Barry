@@ -5,12 +5,35 @@ import { useState, useEffect, useCallback } from 'react';
 // Define API functions inline to avoid import issues
 const safeApiCall = async (endpoint) => {
   try {
-    const response = await fetch(`https://go-barry.onrender.com${endpoint}`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const API_BASE_URL = 'https://go-barry.onrender.com';
+    const url = `${API_BASE_URL}${endpoint}`;
+    
+    console.log(`🚀 API Call: ${url}`);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'BARRY-Mobile/3.0'
+      },
+      timeout: 15000 // 15 second timeout
+    });
+    
+    console.log(`📊 API Response: ${response.status} ${response.statusText}`);
+    
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    
     const data = await response.json();
+    console.log(`✅ API Success:`, {
+      endpoint,
+      alertCount: data?.alerts?.length || 0,
+      success: data?.success,
+      hasMetadata: !!data?.metadata
+    });
+    
     return { success: true, data };
   } catch (error) {
-    console.error(`API Error for ${endpoint}:`, error.message);
+    console.error(`❌ API Error for ${endpoint}:`, error.message);
     return { success: false, error: error.message, data: null };
   }
 };
@@ -39,13 +62,13 @@ export const useBarryAPI = (options = {}) => {
     try {
       setLoading(true);
       
-      const result = await safeApiCall('/api/alerts');
+      const result = await safeApiCall('/api/alerts-enhanced');
       
       if (result.success) {
         const alertsData = result.data.alerts || [];
         setAlerts(alertsData);
         setLastUpdated(result.data.metadata?.lastUpdated || new Date().toISOString());
-        console.log(`✅ Loaded ${alertsData.length} alerts`);
+        console.log(`✅ Loaded ${alertsData.length} enhanced alerts from multiple sources`);
       } else {
         throw new Error(result.error);
       }
@@ -71,12 +94,18 @@ export const useBarryAPI = (options = {}) => {
 
   // Auto-refresh effect
   useEffect(() => {
+    console.log('🔄 useBarryAPI initializing...');
+    
     fetchAlerts();
     fetchSystemHealth();
 
     if (autoRefresh) {
+      console.log(`⏰ Setting up auto-refresh every ${refreshInterval / 1000}s`);
       const interval = setInterval(fetchAlerts, refreshInterval);
-      return () => clearInterval(interval);
+      return () => {
+        console.log('💵 Clearing auto-refresh interval');
+        clearInterval(interval);
+      };
     }
   }, [fetchAlerts, fetchSystemHealth, autoRefresh, refreshInterval]);
 

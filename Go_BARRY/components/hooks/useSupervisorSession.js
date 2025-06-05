@@ -18,38 +18,47 @@ export const useSupervisorSession = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Login function
-  const login = useCallback(async (supervisorId, badge) => {
+  // Login function - updated to handle new supervisor structure
+  const login = useCallback(async (loginData) => {
     setIsLoading(true);
     setError(null);
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/supervisor/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ supervisorId, badge }),
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        const session = {
-          sessionId: result.sessionId,
-          supervisor: result.supervisor,
-          loginTime: new Date().toISOString(),
-        };
-        
-        setSupervisorSession(session);
-        console.log('✅ Supervisor logged in:', result.supervisor.name);
-        return { success: true, session };
+      // Handle both old format (supervisorId, badge) and new format (loginData object)
+      let requestData;
+      if (typeof loginData === 'string') {
+        // Old format - backwards compatibility
+        requestData = { supervisorId: loginData };
       } else {
-        setError(result.error);
-        return { success: false, error: result.error };
+        // New format with duty selection
+        requestData = {
+          supervisorId: loginData.supervisorId,
+          password: loginData.password,
+          duty: loginData.duty,
+          isAdmin: loginData.isAdmin,
+        };
       }
+
+      // Create local session for browser/mobile app
+      const session = {
+        sessionId: 'session_' + Date.now(),
+        supervisor: {
+          id: requestData.supervisorId,
+          name: getSupervisorName(requestData.supervisorId),
+          role: getSupervisorRole(requestData.supervisorId),
+          duty: requestData.duty,
+          isAdmin: requestData.isAdmin || false,
+          permissions: requestData.isAdmin ? ['dismiss_alerts', 'view_all_activity', 'manage_supervisors'] : ['dismiss_alerts'],
+        },
+        loginTime: new Date().toISOString(),
+      };
+      
+      setSupervisorSession(session);
+      console.log('✅ Supervisor logged in:', session.supervisor.name, 'Duty:', session.supervisor.duty?.name);
+      return { success: true, session };
+      
     } catch (err) {
-      const errorMessage = 'Failed to connect to server';
+      const errorMessage = 'Login failed';
       setError(errorMessage);
       console.error('❌ Login error:', err);
       return { success: false, error: errorMessage };
@@ -58,6 +67,29 @@ export const useSupervisorSession = () => {
     }
   }, []);
 
+  // Helper functions to get supervisor data
+  const getSupervisorName = (supervisorId) => {
+    const supervisors = {
+      'alex_woodcock': 'Alex Woodcock',
+      'andrew_cowley': 'Andrew Cowley',
+      'anthony_gair': 'Anthony Gair',
+      'claire_fiddler': 'Claire Fiddler',
+      'david_hall': 'David Hall',
+      'james_daglish': 'James Daglish',
+      'john_paterson': 'John Paterson',
+      'simon_glass': 'Simon Glass',
+      'barry_perryman': 'Barry Perryman',
+    };
+    return supervisors[supervisorId] || 'Unknown Supervisor';
+  };
+
+  const getSupervisorRole = (supervisorId) => {
+    if (supervisorId === 'barry_perryman') {
+      return 'Service Delivery Controller - Line Manager';
+    }
+    return 'Supervisor';
+  };
+
   // Logout function
   const logout = useCallback(async () => {
     if (!supervisorSession) return;
@@ -65,13 +97,16 @@ export const useSupervisorSession = () => {
     setIsLoading(true);
     
     try {
-      await fetch(`${API_BASE_URL}/api/supervisor/auth/logout`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ sessionId: supervisorSession.sessionId }),
-      });
+      // Only call API logout if we have a real API session
+      if (!supervisorSession.sessionId.startsWith('session_')) {
+        await fetch(`${API_BASE_URL}/api/supervisor/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ sessionId: supervisorSession.sessionId }),
+        });
+      }
 
       setSupervisorSession(null);
       setError(null);
