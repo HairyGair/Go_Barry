@@ -66,6 +66,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="disruption"
+        options={{
+          title: 'AI Control',
+          headerTitle: 'Disruption Management',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons 
+              name={focused ? "bulb" : "bulb-outline"} 
+              size={size} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="alerts"
         options={{
           title: 'Alerts',

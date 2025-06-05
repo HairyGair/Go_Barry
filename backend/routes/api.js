@@ -42,6 +42,7 @@ import {
 import { calculateDistance } from '../utils/helpers.js';
 import { processEnhancedAlerts } from '../services/enhancedAlertProcessor.js';
 import disruptionLogger from '../services/disruptionLogger.js';
+import disruptionWorkflowRouter from './disruptionWorkflowAPI.js';
 
 // Setup function that takes the app and global state
 export function setupAPIRoutes(app, globalState) {
@@ -360,6 +361,17 @@ export function setupAPIRoutes(app, globalState) {
   // ==============================
   // STREETMANAGER ENDPOINTS
   // ==============================
+
+  // Webhook monitoring - catch any webhooks that might be hitting different endpoints
+  app.use('/api/streetmanager*', (req, res, next) => {
+    if (req.method === 'POST' && req.path.includes('webhook')) {
+      console.log(`🔍 WEBHOOK MONITOR: ${req.method} ${req.path}`);
+      console.log(`🔍 Headers:`, JSON.stringify(req.headers, null, 2));
+      console.log(`🔍 Body type:`, typeof req.body);
+      console.log(`🔍 Body content:`, JSON.stringify(req.body, null, 2));
+    }
+    next();
+  });
 
   // StreetManager Activities Endpoint - Live roadworks and activities
   app.get('/api/streetmanager/activities', async (req, res) => {
@@ -892,61 +904,175 @@ export function setupAPIRoutes(app, globalState) {
   // STREETMANAGER WEBHOOK ENDPOINTS (QUICK FIX)
   // ==============================
 
-  // Main StreetManager webhook receiver
+  // Main StreetManager webhook receiver with BULLETPROOF error handling
   app.post('/api/streetmanager/webhook', (req, res) => {
+    const requestId = Date.now();
     try {
-      console.log('📨 StreetManager webhook received');
-      console.log('📋 Request headers:', JSON.stringify(req.headers, null, 2));
-      console.log('📋 Request body type:', typeof req.body);
-      console.log('📋 Request body structure:', Object.keys(req.body || {}));
-      console.log('📋 Full request body:', JSON.stringify(req.body, null, 2));
+      console.log(`📨 [${requestId}] StreetManager webhook received`);
+      console.log(`📋 [${requestId}] Content-Type:`, req.headers['content-type']);
+      console.log(`📋 [${requestId}] Request body type:`, typeof req.body);
+      console.log(`📋 [${requestId}] Request body exists:`, !!req.body);
+      console.log(`📋 [${requestId}] Request body is null:`, req.body === null);
+      console.log(`📋 [${requestId}] Request body is undefined:`, req.body === undefined);
+      console.log(`📋 [${requestId}] Request body length:`, req.body ? (typeof req.body === 'string' ? req.body.length : Object.keys(req.body).length) : 'N/A');
+      console.log(`📋 [${requestId}] Full request body:`, JSON.stringify(req.body, null, 2));
       
-      // Check if it's AWS SNS format or direct JSON
+      // BULLETPROOF message format detection
       let messageToProcess;
+      let detectionMethod = 'unknown';
       
-      if (req.body && req.body.Type) {
-        // Standard AWS SNS format
-        console.log('✅ Standard AWS SNS format detected');
+      // Case 1: Completely empty body
+      if (req.body === null || req.body === undefined) {
+        console.log(`⚠️ [${requestId}] NULL/UNDEFINED body detected`);
+        messageToProcess = {
+          Type: 'EmptyRequest',
+          Message: 'Request body is null or undefined',
+          raw: req.body,
+          debug: { case: 'null_undefined' }
+        };
+        detectionMethod = 'null_undefined';
+      }
+      // Case 2: Empty object
+      else if (typeof req.body === 'object' && Object.keys(req.body).length === 0) {
+        console.log(`⚠️ [${requestId}] EMPTY OBJECT detected`);
+        messageToProcess = {
+          Type: 'EmptyObject',
+          Message: 'Request body is empty object',
+          raw: req.body,
+          debug: { case: 'empty_object' }
+        };
+        detectionMethod = 'empty_object';
+      }
+      // Case 3: Standard AWS SNS with Type field
+      else if (req.body && typeof req.body === 'object' && req.body.Type) {
+        console.log(`✅ [${requestId}] AWS SNS format - Type:`, req.body.Type);
         messageToProcess = req.body;
-      } else if (req.body && req.body.Message) {
-        // Message is nested
-        console.log('✅ Nested message format detected');
+        detectionMethod = 'aws_sns_standard';
+      }
+      // Case 4: Has Message field but no Type
+      else if (req.body && typeof req.body === 'object' && req.body.Message) {
+        console.log(`✅ [${requestId}] Message field detected`);
         messageToProcess = {
           Type: 'Notification',
-          Message: typeof req.body.Message === 'string' ? req.body.Message : JSON.stringify(req.body.Message)
+          Message: typeof req.body.Message === 'string' ? req.body.Message : JSON.stringify(req.body.Message),
+          raw: req.body,
+          debug: { case: 'message_field' }
         };
-      } else if (typeof req.body === 'string') {
-        // Raw string - try to parse
-        console.log('✅ String payload detected, parsing...');
-        try {
-          const parsed = JSON.parse(req.body);
-          messageToProcess = parsed;
-        } catch (e) {
-          console.error('❌ Failed to parse string payload:', e.message);
-          return res.status(400).json({ error: 'Invalid JSON payload' });
+        detectionMethod = 'message_field';
+      }
+      // Case 5: String payload
+      else if (typeof req.body === 'string') {
+        console.log(`✅ [${requestId}] String payload, length:`, req.body.length);
+        if (req.body.trim() === '') {
+          messageToProcess = {
+            Type: 'EmptyString',
+            Message: 'Empty string payload',
+            raw: req.body,
+            debug: { case: 'empty_string' }
+          };
+          detectionMethod = 'empty_string';
+        } else {
+          try {
+            const parsed = JSON.parse(req.body);
+            console.log(`✅ [${requestId}] String parsed successfully`);
+            messageToProcess = parsed.Type ? parsed : {
+              Type: 'Notification',
+              Message: req.body,
+              raw: parsed,
+              debug: { case: 'string_parsed' }
+            };
+            detectionMethod = 'string_parsed';
+          } catch (e) {
+            console.error(`❌ [${requestId}] String parse failed:`, e.message);
+            messageToProcess = {
+              Type: 'InvalidJSON',
+              Message: req.body,
+              parseError: e.message,
+              debug: { case: 'string_parse_failed' }
+            };
+            detectionMethod = 'string_parse_failed';
+          }
         }
-      } else {
-        // Direct object - assume it's the message content
-        console.log('✅ Direct object format - treating as notification content');
+      }
+      // Case 6: Regular object without Type or Message
+      else if (req.body && typeof req.body === 'object') {
+        console.log(`✅ [${requestId}] Regular object detected, keys:`, Object.keys(req.body));
         messageToProcess = {
-          Type: 'Notification',
-          Message: JSON.stringify(req.body)
+          Type: 'DirectObject',
+          Message: JSON.stringify(req.body),
+          raw: req.body,
+          debug: { case: 'direct_object', keys: Object.keys(req.body) }
         };
+        detectionMethod = 'direct_object';
+      }
+      // Case 7: Fallback for anything else
+      else {
+        console.log(`⚠️ [${requestId}] UNKNOWN format, type:`, typeof req.body);
+        messageToProcess = {
+          Type: 'Unknown',
+          Message: String(req.body),
+          raw: req.body,
+          debug: { case: 'unknown_fallback', bodyType: typeof req.body }
+        };
+        detectionMethod = 'unknown_fallback';
       }
       
-      console.log('📨 Processing StreetManager webhook:', messageToProcess.Type);
+      // ABSOLUTE GUARANTEE that Type exists
+      if (!messageToProcess || !messageToProcess.Type) {
+        console.error(`❌ [${requestId}] CRITICAL: Type field missing after processing!`);
+        messageToProcess = {
+          Type: 'CriticalError',
+          Message: 'Type field was missing after processing',
+          raw: req.body,
+          debug: { case: 'critical_error', originalMessage: messageToProcess }
+        };
+        detectionMethod = 'critical_error';
+      }
+      
+      console.log(`📨 [${requestId}] FINAL Type:`, messageToProcess.Type);
+      console.log(`📨 [${requestId}] Detection method:`, detectionMethod);
+      console.log(`📨 [${requestId}] Processing message...`);
+      
       const result = handleWebhookMessage(messageToProcess);
       
       if (result.error) {
-        console.error('❌ Webhook processing error:', result.error);
-        return res.status(400).json(result);
+        console.error(`❌ [${requestId}] Webhook processing error:`, result.error);
+        return res.status(400).json({
+          ...result,
+          debug: {
+            requestId,
+            receivedType: messageToProcess.Type,
+            detectionMethod,
+            bodyType: typeof req.body,
+            hasBody: !!req.body,
+            messageKeys: messageToProcess ? Object.keys(messageToProcess) : 'none'
+          }
+        });
       }
       
-      console.log('✅ Webhook processed successfully:', result.status);
-      res.status(200).json(result);
+      console.log(`✅ [${requestId}] Webhook processed successfully:`, result.status);
+      res.status(200).json({
+        ...result,
+        processed: {
+          requestId,
+          type: messageToProcess.Type,
+          detectionMethod,
+          timestamp: new Date().toISOString()
+        }
+      });
     } catch (error) {
-      console.error('❌ Webhook error:', error.message);
-      res.status(500).json({ error: 'Webhook processing failed' });
+      console.error(`❌ [${requestId}] CRITICAL webhook error:`, error.message);
+      console.error(`❌ [${requestId}] Error stack:`, error.stack);
+      res.status(500).json({ 
+        error: 'Critical webhook processing failure',
+        details: error.message,
+        requestId,
+        debug: {
+          bodyType: typeof req.body,
+          hasBody: !!req.body,
+          timestamp: new Date().toISOString()
+        }
+      });
     }
   });
 
@@ -970,6 +1096,13 @@ export function setupAPIRoutes(app, globalState) {
       res.status(500).json({ error: error.message });
     }
   });
+
+  // ==============================
+  // AI-POWERED DISRUPTION WORKFLOW ENDPOINTS
+  // ==============================
+  
+  // Mount the disruption workflow router
+  app.use('/api/disruption', disruptionWorkflowRouter);
 
   // Initialize enhanced GTFS system on startup
   console.log('🚀 Initializing Enhanced GTFS Route Matcher...');

@@ -9,10 +9,10 @@ dotenv.config();
 
 // SupaBase configuration - use service role key for write access
 const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY; // Service role key, not anon key
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY; // Service role key, not anon key
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-  console.error('❌ Missing SupaBase configuration. Please set SUPABASE_URL and SUPABASE_SERVICE_KEY in .env');
+  console.error('❌ Missing SupaBase configuration. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env');
   process.exit(1);
 }
 
@@ -409,8 +409,8 @@ Usage:
   node supabase-sync.js cleanup  - Clean up old alerts
 
 Environment variables required:
-  SUPABASE_URL           - Your SupaBase project URL
-  SUPABASE_SERVICE_KEY   - Your SupaBase service role key
+  SUPABASE_URL               - Your SupaBase project URL
+  SUPABASE_SERVICE_ROLE_KEY  - Your SupaBase service role key
   NATIONAL_HIGHWAYS_API_KEY - National Highways API key
   HERE_API_KEY          - HERE Traffic API key
   MAPQUEST_API_KEY      - MapQuest API key

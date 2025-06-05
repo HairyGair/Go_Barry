@@ -293,6 +293,23 @@ setTimeout(async () => {
   }
 }, 3000);
 
+// --- Route Visualization Initialization ---
+console.log('🗺️ Initializing Route Visualization System...');
+import { initializeRouteVisualization } from './services/routeVisualizationService.js';
+setTimeout(async () => {
+  try {
+    console.log('🔄 Loading route visualization data...');
+    const vizSuccess = await initializeRouteVisualization();
+    if (vizSuccess) {
+      console.log('✅ Route Visualization System Ready for Control Room Operations');
+    } else {
+      console.log('❌ Route visualization initialization failed');
+    }
+  } catch (error) {
+    console.log(`❌ Route visualization error: ${error.message}`);
+  }
+}, 5000);
+
 console.log(`
 🔧 MEMORY OPTIMIZATION APPLIED:
    ✅ Skips 34MB shapes processing
@@ -305,6 +322,11 @@ console.log(`
 
 // Middleware
 app.use(express.json());
+
+// Additional middleware for AWS SNS webhooks that might send text/plain
+app.use('/api/streetmanager/webhook', express.text({ type: 'text/plain' }));
+app.use('/api/streetmanager/webhook', express.raw({ type: 'application/octet-stream' }));
+
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -328,6 +350,10 @@ app.use('/api/health', healthRoutes);
 
 // Supervisor management routes
 app.use('/api/supervisor', supervisorAPI);
+
+// Route Management and Visualization API
+import routeManagementAPI from './routes/routeManagementAPI.js';
+app.use('/api/routes', routeManagementAPI);
 
 // Geocoding API endpoints
 app.get('/api/geocode/:location', async (req, res) => {

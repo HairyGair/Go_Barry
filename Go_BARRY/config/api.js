@@ -21,7 +21,39 @@ export const API_CONFIG = {
     acknowledge: '/api/acknowledge',
     note: '/api/note',
     config: '/api/config',
-    debugTraffic: '/api/debug-traffic'
+    debugTraffic: '/api/debug-traffic',
+    
+    // Route Management & Visualization
+    routes: '/api/routes',
+    routeVisualization: '/api/routes/:routeNumber/visualization',
+    routeInfo: '/api/routes/:routeNumber/info',
+    routeStops: '/api/routes/:routeNumber/stops',
+    routesInArea: '/api/routes/area',
+    routeSearch: '/api/routes/search',
+    
+    // Service Frequency Analysis
+    frequencyDashboard: '/api/routes/frequency/dashboard',
+    frequencyDashboardSummary: '/api/routes/frequency/dashboard-summary',
+    breakdownAlerts: '/api/routes/frequency/breakdown-alerts',
+    frequencyTrends: '/api/routes/frequency/trends',
+    frequencyNetwork: '/api/routes/frequency/network',
+    frequencyStats: '/api/routes/frequency/stats',
+    
+    // AI Disruption Management
+    disruptionAIInit: '/api/disruption/ai/initialize',
+    disruptionSuggest: '/api/disruption/ai/suggest-diversion',
+    disruptionPassengerImpact: '/api/disruption/ai/passenger-impact',
+    disruptionNetworkInsights: '/api/disruption/ai/network-insights',
+    
+    // Message Generation
+    messagesGenerate: '/api/disruption/messages/generate',
+    messagesPlatform: '/api/disruption/messages/platform/:platform',
+    
+    // Complete Workflow
+    disruptionWorkflow: '/api/disruption/workflow/complete',
+    disruptionStats: '/api/disruption/stats',
+    disruptionHealth: '/api/disruption/health',
+    disruptionExamples: '/api/disruption/examples'
   },
   
   // Request timeouts (in milliseconds)
