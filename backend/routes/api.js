@@ -898,14 +898,51 @@ export function setupAPIRoutes(app, globalState) {
       console.log('📨 StreetManager webhook received');
       console.log('📋 Request headers:', JSON.stringify(req.headers, null, 2));
       console.log('📋 Request body type:', typeof req.body);
-      console.log('📋 Request body:', JSON.stringify(req.body, null, 2));
+      console.log('📋 Request body structure:', Object.keys(req.body || {}));
+      console.log('📋 Full request body:', JSON.stringify(req.body, null, 2));
       
-      const result = handleWebhookMessage(req.body);
+      // Check if it's AWS SNS format or direct JSON
+      let messageToProcess;
+      
+      if (req.body && req.body.Type) {
+        // Standard AWS SNS format
+        console.log('✅ Standard AWS SNS format detected');
+        messageToProcess = req.body;
+      } else if (req.body && req.body.Message) {
+        // Message is nested
+        console.log('✅ Nested message format detected');
+        messageToProcess = {
+          Type: 'Notification',
+          Message: typeof req.body.Message === 'string' ? req.body.Message : JSON.stringify(req.body.Message)
+        };
+      } else if (typeof req.body === 'string') {
+        // Raw string - try to parse
+        console.log('✅ String payload detected, parsing...');
+        try {
+          const parsed = JSON.parse(req.body);
+          messageToProcess = parsed;
+        } catch (e) {
+          console.error('❌ Failed to parse string payload:', e.message);
+          return res.status(400).json({ error: 'Invalid JSON payload' });
+        }
+      } else {
+        // Direct object - assume it's the message content
+        console.log('✅ Direct object format - treating as notification content');
+        messageToProcess = {
+          Type: 'Notification',
+          Message: JSON.stringify(req.body)
+        };
+      }
+      
+      console.log('📨 Processing StreetManager webhook:', messageToProcess.Type);
+      const result = handleWebhookMessage(messageToProcess);
       
       if (result.error) {
+        console.error('❌ Webhook processing error:', result.error);
         return res.status(400).json(result);
       }
       
+      console.log('✅ Webhook processed successfully:', result.status);
       res.status(200).json(result);
     } catch (error) {
       console.error('❌ Webhook error:', error.message);
