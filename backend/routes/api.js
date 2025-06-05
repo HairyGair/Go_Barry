@@ -44,6 +44,15 @@ import { calculateDistance } from '../utils/helpers.js';
 import { processEnhancedAlerts } from '../services/enhancedAlertProcessor.js';
 import disruptionLogger from '../services/disruptionLogger.js';
 import disruptionWorkflowRouter from './disruptionWorkflowAPI.js';
+import {
+  initializeServiceFrequency,
+  analyzeServiceFrequency,
+  getNetworkServiceStatus,
+  getServiceGapsDashboard,
+  getBreakdownAlerts,
+  getServiceTrends,
+  getFrequencyStats
+} from '../services/serviceFrequencyService.js';
 
 // Setup function that takes the app and global state
 export function setupAPIRoutes(app, globalState) {
@@ -532,6 +541,261 @@ export function setupAPIRoutes(app, globalState) {
         live: configuredCount > 0 ? 'available' : 'no_keys_configured'
       }
     });
+  });
+
+  // ==============================
+  // SERVICE FREQUENCY & BREAKDOWN DETECTION ENDPOINTS
+  // ==============================
+
+  // Service frequency dashboard - main dashboard data
+  app.get('/api/service-frequency/dashboard', async (req, res) => {
+    try {
+      console.log('📊 Fetching service frequency dashboard...');
+      
+      const options = {
+        currentTime: req.query.time ? new Date(req.query.time) : new Date(),
+        includeAllRoutes: req.query.all === 'true'
+      };
+      
+      const result = await getServiceGapsDashboard(options);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          dashboard: result.dashboard,
+          metadata: {
+            endpoint: '/api/service-frequency/dashboard',
+            requestTime: new Date().toISOString(),
+            dataSource: 'GTFS + Real-time Analysis'
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: result.error,
+          endpoint: '/api/service-frequency/dashboard'
+        });
+      }
+    } catch (error) {
+      console.error('❌ Service frequency dashboard error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Dashboard fetch failed',
+        details: error.message
+      });
+    }
+  });
+
+  // Network service status - overall network health
+  app.get('/api/service-frequency/network-status', async (req, res) => {
+    try {
+      console.log('🌐 Fetching network service status...');
+      
+      const currentTime = req.query.time ? new Date(req.query.time) : new Date();
+      const result = await getNetworkServiceStatus(currentTime);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          networkStatus: result.networkStatus,
+          routes: result.routes,
+          metadata: {
+            endpoint: '/api/service-frequency/network-status',
+            timestamp: result.timestamp
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: 'Network status fetch failed'
+        });
+      }
+    } catch (error) {
+      console.error('❌ Network status error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Network status fetch failed',
+        details: error.message
+      });
+    }
+  });
+
+  // Breakdown detection alerts
+  app.get('/api/service-frequency/breakdown-alerts', async (req, res) => {
+    try {
+      console.log('🚨 Checking for breakdown alerts...');
+      
+      const options = {
+        currentTime: req.query.time ? new Date(req.query.time) : new Date(),
+        alertThreshold: req.query.threshold ? parseInt(req.query.threshold) : undefined
+      };
+      
+      const result = await getBreakdownAlerts(options);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          alertCount: result.alertCount,
+          criticalAlerts: result.criticalAlerts,
+          warningAlerts: result.warningAlerts,
+          alerts: result.alerts,
+          metadata: {
+            endpoint: '/api/service-frequency/breakdown-alerts',
+            timestamp: result.timestamp
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: result.error
+        });
+      }
+    } catch (error) {
+      console.error('❌ Breakdown alerts error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Breakdown alerts fetch failed',
+        details: error.message
+      });
+    }
+  });
+
+  // Analyze specific route frequency
+  app.get('/api/service-frequency/route/:routeNumber', async (req, res) => {
+    try {
+      const { routeNumber } = req.params;
+      const currentTime = req.query.time ? new Date(req.query.time) : new Date();
+      
+      console.log(`🚌 Analyzing route ${routeNumber} frequency...`);
+      
+      const result = await analyzeServiceFrequency(routeNumber, currentTime);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          route: result.route,
+          analysis: result.analysis,
+          recommendations: result.recommendations,
+          metadata: {
+            endpoint: `/api/service-frequency/route/${routeNumber}`,
+            timestamp: result.timestamp
+          }
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          error: result.error,
+          availableRoutes: result.availableRoutes
+        });
+      }
+    } catch (error) {
+      console.error(`❌ Route analysis error for ${req.params.routeNumber}:`, error);
+      res.status(500).json({
+        success: false,
+        error: 'Route analysis failed',
+        details: error.message
+      });
+    }
+  });
+
+  // Service trends analysis
+  app.get('/api/service-frequency/trends', async (req, res) => {
+    try {
+      const timeframe = req.query.timeframe || 'today';
+      const options = {
+        includeHistorical: req.query.historical === 'true'
+      };
+      
+      console.log(`📈 Fetching service trends for ${timeframe}...`);
+      
+      const result = await getServiceTrends(timeframe, options);
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          trends: result.trends,
+          metadata: {
+            endpoint: '/api/service-frequency/trends',
+            timeframe: timeframe,
+            generatedAt: new Date().toISOString()
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: result.error
+        });
+      }
+    } catch (error) {
+      console.error('❌ Service trends error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Trends analysis failed',
+        details: error.message
+      });
+    }
+  });
+
+  // Service frequency system status
+  app.get('/api/service-frequency/status', (req, res) => {
+    try {
+      const stats = getFrequencyStats();
+      
+      res.json({
+        success: true,
+        status: {
+          systemInitialized: stats.initialized,
+          routesWithData: stats.routesWithFrequencyData,
+          servicePatterns: stats.servicePatterns,
+          routeAlternatives: stats.routeAlternatives,
+          thresholds: stats.thresholds,
+          peakHours: stats.peakHours,
+          memoryUsage: stats.memoryUsage
+        },
+        metadata: {
+          endpoint: '/api/service-frequency/status',
+          timestamp: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      console.error('❌ Service frequency status error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Status fetch failed',
+        details: error.message
+      });
+    }
+  });
+
+  // Initialize service frequency system
+  app.post('/api/service-frequency/initialize', async (req, res) => {
+    try {
+      console.log('🚀 Initializing service frequency system...');
+      
+      const success = await initializeServiceFrequency();
+      
+      if (success) {
+        const stats = getFrequencyStats();
+        res.json({
+          success: true,
+          message: 'Service frequency system initialized',
+          stats: stats,
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: 'Service frequency initialization failed'
+        });
+      }
+    } catch (error) {
+      console.error('❌ Service frequency initialization error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Initialization failed',
+        details: error.message
+      });
+    }
   });
 
   // ==============================
@@ -1290,6 +1554,18 @@ export function setupAPIRoutes(app, globalState) {
     }
   }).catch(error => {
     console.error('❌ Enhanced GTFS initialization error:', error.message);
+  });
+
+  // Initialize service frequency system on startup
+  console.log('⏱️ Initializing Service Frequency System...');
+  initializeServiceFrequency().then((success) => {
+    if (success) {
+      console.log('✅ Service Frequency System ready');
+    } else {
+      console.log('❌ Service Frequency System failed to initialize');
+    }
+  }).catch(error => {
+    console.error('❌ Service Frequency initialization error:', error.message);
   });
 }
 
