@@ -835,22 +835,6 @@ const sampleTestAlerts = [
   }
 ];
 
-// ---- BEGIN: Enhance alerts with coordinates at startup ----
-(async () => {
-  try {
-    // Temporarily collect and process any alerts that need enhancement
-    const alertsToEnhance = []; // ← This should be whatever array or single alert you're enhancing
-
-    for (const alert of alertsToEnhance) {
-      await enhanceAlertWithCoordinates(alert);
-    }
-
-    console.log('✅ Alerts enhanced with coordinates');
-  } catch (err) {
-    console.error('❌ Error enhancing alerts:', err);
-  }
-})();
-// ---- END: Enhance alerts with coordinates at startup ----
 
 
 
@@ -894,6 +878,22 @@ const globalState = {
 };
 
 setupAPIRoutes(app, globalState);
+
+// ---- BEGIN: Enhance alerts with coordinates at startup ----
+(async () => {
+  try {
+    const alertsToEnhance = []; // ← This should be whatever array or single alert you're enhancing
+
+    for (const alert of alertsToEnhance) {
+      await enhanceAlertWithCoordinates(alert);
+    }
+
+    console.log('✅ Alerts enhanced with coordinates');
+  } catch (err) {
+    console.error('❌ Error enhancing alerts:', err);
+  }
+})();
+// ---- END: Enhance alerts with coordinates at startup ----
 
 export { fetchTomTomTrafficWithStreetNames as fetchTomTomTrafficOptimized, initializeGTFS, getGTFSStats };
 export default app;
