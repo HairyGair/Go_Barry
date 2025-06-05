@@ -4,11 +4,13 @@ services:
     name: go-barry
     env: node
     buildCommand: cd backend && npm install
-    startCommand: cd backend && npm start
+    startCommand: cd backend && npm run start-optimized
     plan: free
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=2048 --optimize-for-size
       - key: PORT
         value: 10000
       # Add your API keys here

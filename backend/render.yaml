@@ -3,10 +3,12 @@ services:
     name: barry-backend
     env: node
     buildCommand: npm install
-    startCommand: npm start
+    startCommand: npm run start-optimized
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_OPTIONS
+        value: --max-old-space-size=2048 --optimize-for-size
       - key: PORT
         value: 10000
     autoDeploy: false
