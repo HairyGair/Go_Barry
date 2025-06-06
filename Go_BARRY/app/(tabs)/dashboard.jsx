@@ -1,7 +1,8 @@
 // Go_BARRY/app/(tabs)/dashboard.jsx
-// Updated to use centralized API configuration and enhanced browser compatibility
+// Updated to use optimized mobile dashboard with enhanced performance and touch interactions
 import React from 'react';
 import { View, StyleSheet, StatusBar, Platform } from 'react-native';
+import OptimizedMobileDashboard from '../../components/mobile/OptimizedMobileDashboard';
 import EnhancedDashboard from '../../components/EnhancedDashboard';
 import { API_CONFIG } from '../../config/api';
 
@@ -23,12 +24,23 @@ export default function DashboardScreen({ navigation }) {
   return (
     <View style={styles.container}>
       {!isWeb && <StatusBar barStyle="light-content" backgroundColor="#111827" />}
-      <EnhancedDashboard 
-        baseUrl={API_CONFIG.baseURL}
-        onAlertPress={handleAlertPress}
-        onViewAllPress={handleViewAllPress}
-        autoRefreshInterval={API_CONFIG.refreshIntervals.dashboard}
-      />
+      
+      {/* Use optimized mobile dashboard for better performance */}
+      {Platform.OS !== 'web' ? (
+        <OptimizedMobileDashboard 
+          baseUrl={API_CONFIG.baseURL}
+          onAlertPress={handleAlertPress}
+          onViewAllPress={handleViewAllPress}
+          autoRefreshInterval={API_CONFIG.refreshIntervals.dashboard}
+        />
+      ) : (
+        <EnhancedDashboard 
+          baseUrl={API_CONFIG.baseURL}
+          onAlertPress={handleAlertPress}
+          onViewAllPress={handleViewAllPress}
+          autoRefreshInterval={API_CONFIG.refreshIntervals.dashboard}
+        />
+      )}
     </View>
   );
 }

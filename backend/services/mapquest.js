@@ -70,23 +70,68 @@ function matchRoutes(location, description = '') {
   return routes;
 }
 
-// Enhanced MapQuest traffic fetcher with improved location handling and timing
+// Enhanced MapQuest traffic fetcher with improved authentication and location handling
 async function fetchMapQuestTrafficWithStreetNames() {
+  if (!process.env.MAPQUEST_API_KEY) {
+    console.warn('⚠️ MapQuest API key not configured');
+    return { success: false, data: [], error: 'API key missing' };
+  }
+
   try {
-    console.log('🗺️ Fetching MapQuest traffic with enhanced location processing...');
+    console.log('🗺️ Fetching MapQuest traffic with enhanced authentication...');
     
-    const response = await axios.get('https://www.mapquestapi.com/traffic/v2/incidents', {
-      params: {
-        key: process.env.MAPQUEST_API_KEY,
-        boundingBox: `55.0,-2.0,54.5,-1.0`, // North East bounding box
-        filters: 'incidents,construction'
+    // Try multiple endpoint configurations for better compatibility
+    const endpoints = [
+      {
+        url: 'https://www.mapquestapi.com/traffic/v2/incidents',
+        params: {
+          key: process.env.MAPQUEST_API_KEY,
+          boundingBox: '54.8,-1.8,55.2,-1.2', // Optimized North East bounding box
+          filters: 'incidents,construction',
+          format: 'json'
+        }
       },
-      timeout: 20000,
-      headers: {
-        'User-Agent': 'BARRY-TrafficWatch/3.0',
-        'Accept': 'application/json'
+      {
+        url: 'https://www.mapquestapi.com/traffic/v2/incidents',
+        params: {
+          key: process.env.MAPQUEST_API_KEY,
+          bbox: '54.8,-1.8,55.2,-1.2', // Alternative parameter name
+          incidentTypes: 'incidents,construction'
+        }
       }
-    });
+    ];
+
+    let response = null;
+    let lastError = null;
+
+    // Try each endpoint configuration
+    for (const [index, endpoint] of endpoints.entries()) {
+      try {
+        console.log(`🔄 Trying MapQuest endpoint configuration ${index + 1}...`);
+        
+        response = await axios.get(endpoint.url, {
+          params: endpoint.params,
+          timeout: 20000,
+          headers: {
+            'User-Agent': 'BARRY-TrafficWatch/3.0-Enhanced',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        console.log(`✅ MapQuest endpoint ${index + 1} successful!`);
+        break;
+        
+      } catch (endpointError) {
+        console.warn(`⚠️ MapQuest endpoint ${index + 1} failed: ${endpointError.message}`);
+        lastError = endpointError;
+        continue;
+      }
+    }
+
+    if (!response) {
+      throw lastError || new Error('All MapQuest endpoints failed');
+    }
     
     console.log(`📡 MapQuest: ${response.status}, incidents: ${response.data?.incidents?.length || 0}`);
     
