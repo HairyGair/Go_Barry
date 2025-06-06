@@ -34,5 +34,5 @@ services:
     plan: free
     envVars:
       - key: EXPO_PUBLIC_API_BASE_URL
-        value: https://go-barry.onrender.com
+        value: https://api.gobarry.co.uk
     autoDeploy: false

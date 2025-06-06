@@ -34,8 +34,7 @@
     ],
     "plugins": [
       "expo-font",
-      "expo-router",
-      "expo-maps"
+      "expo-router"
     ],
     "updates": {
       "url": "https://u.expo.dev/e9b36505-8da3-4f82-9d5f-8c3b4d5e6f7a"

@@ -5,15 +5,28 @@
   "private": true,
   "scripts": {
     "install:all": "npm install && cd backend && npm install && cd ../Go_BARRY && npm install",
+    "dev": "npm run dev:browser",
+    "dev:browser": "cd Go_BARRY && expo start --web",
     "dev:backend": "cd backend && npm run dev",
-    "dev:frontend": "cd Go_BARRY && expo start",
+    "dev:frontend": "cd Go_BARRY && expo start --web",
+    "dev:mobile": "cd Go_BARRY && expo start",
+    "dev:full": "concurrently \"npm run dev:backend\" \"npm run dev:browser\"",
+    "build": "npm run build:browser",
+    "build:browser": "cd Go_BARRY && NODE_ENV=production npm run build:web:production",
     "build:backend": "cd backend && npm install",
     "build:frontend": "cd Go_BARRY && npm install && npm run build:web",
     "start:backend": "cd backend && npm start",
-    "deploy:render": "git add . && git commit -m 'Deploy to Render' && git push origin main"
+    "preview": "cd Go_BARRY && npm run deploy:preview",
+    "deploy:render": "git add . && git commit -m 'Deploy to Render' && git push origin main",
+    "deploy:gobarry": "./deploy-to-gobarry-domain.sh",
+    "configure:domain": "echo 'Configuring for gobarry.co.uk domain...' && npm run deploy:gobarry"
   },
   "dependencies": {
     "mapbox-gl": "^3.12.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0",
+    "serve": "^14.2.0"
   },
   "keywords": [
     "traffic",

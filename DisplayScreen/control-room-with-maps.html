@@ -191,14 +191,14 @@
 
         .system-metrics {
             display: flex;
-            gap: 24px;
+            gap: 32px;
             font-size: 16px;
             color: rgba(255, 255, 255, 0.9);
         }
 
         .system-metric {
             text-align: center;
-            min-width: 80px;
+            min-width: 90px;
         }
 
         .metric-value {
@@ -238,77 +238,16 @@
             font-weight: 500;
         }
 
-        /* New Layout - Alert Full Left, Map Right */
+        /* Simplified Layout - Alert Left, Full Map Right */
         .main-content {
             height: calc(100vh - 120px);
             display: grid;
-            grid-template-columns: 1fr 550px;
-            grid-template-rows: 160px 1fr;
-            gap: 20px;
+            grid-template-columns: 1fr 650px;
+            gap: 24px;
             padding: 20px 32px;
         }
 
-        /* Analytics strip styles */
-        .analytics-strip {
-            grid-column: 1 / -1;
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-        }
-
-        .analytics-card {
-            background: var(--bg-glass);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--border-glass);
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: var(--shadow-card);
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-
-        .analytics-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan));
-            opacity: 0.8;
-        }
-
-        .analytics-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .chart-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .chart-value {
-            font-size: 28px;
-            font-weight: 800;
-            color: var(--accent-blue);
-            text-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
-            font-variant-numeric: tabular-nums;
-        }
-
-        .chart-subtitle {
-            font-size: 11px;
-            color: var(--text-muted);
-            margin-top: 4px;
-            font-weight: 500;
-        }
+        /* Removed analytics strip - data moved to header */
 
         /* Alert Display Section - Full Height Left Side */
         .alert-display-section {
@@ -488,14 +427,8 @@
         
         /* Display Screen - No Interactive Elements */
 
-        /* Right Side - Map and Statistics */
-        .right-side {
-            display: grid;
-            grid-template-rows: 1fr 300px;
-            gap: 20px;
-        }
-
-        .map-container {
+        /* Full Height Map Container */
+        .full-map-container {
             background: var(--bg-glass);
             backdrop-filter: blur(20px);
             border: 1px solid var(--border-glass);
@@ -505,6 +438,8 @@
             position: relative;
             overflow: hidden;
         }
+
+        /* Map container styles now handled by full-map-container */
 
         .map-header {
             display: flex;
@@ -529,90 +464,17 @@
             gap: 12px;
         }
 
-        .map-control-btn {
-            background: var(--bg-glass);
-            border: 1px solid var(--border-glass);
-            color: var(--text-bright);
-            padding: 8px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 12px;
-            transition: all 0.3s ease;
-        }
-
-        .map-control-btn:hover {
-            background: var(--accent-blue);
-            transform: translateY(-2px);
-        }
+        /* Remove interactive map controls for display-only mode */
 
         #map {
-            height: calc(100% - 60px);
-            border-radius: 12px;
+            height: calc(100% - 80px);
+            border-radius: 16px;
             border: 2px solid rgba(255, 255, 255, 0.1);
             position: relative;
             z-index: 1;
         }
 
-        /* Statistics Section */
-        .stats-section {
-            background: var(--bg-glass);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--border-glass);
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: var(--shadow-card);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stats-section::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, var(--accent-purple), var(--accent-emerald));
-            opacity: 0.7;
-        }
-
-        .card-title {
-            font-size: 16px;
-            font-weight: 700;
-            color: var(--text-bright);
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
-
-        .stat-item {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 12px 16px;
-            border-radius: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .stat-label {
-            font-size: 13px;
-            color: var(--text-muted);
-            font-weight: 500;
-        }
-
-        .stat-value {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--accent-blue);
-        }
+        /* Removed statistics section - data moved to header */
 
         /* Loading and No Alerts States */
         .loading {
@@ -664,26 +526,25 @@
 
         /* Map specific styles - popup styles removed for cleaner display */
 
-        /* Responsive adjustments */
+        /* Responsive adjustments for simplified layout */
         @media (max-width: 1400px) {
             .main-content {
-                grid-template-columns: 1fr 500px;
+                grid-template-columns: 1fr 550px;
             }
         }
 
         @media (max-width: 1200px) {
-            .analytics-strip {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
             .main-content {
                 grid-template-columns: 1fr;
-                grid-template-rows: 160px 500px 1fr;
+                grid-template-rows: 60vh 40vh;
             }
             
-            .right-side {
-                grid-template-columns: 1fr 350px;
-                grid-template-rows: 1fr;
+            .system-metrics {
+                gap: 24px;
+            }
+            
+            .system-metric {
+                min-width: 70px;
             }
         }
     </style>
@@ -710,16 +571,24 @@
             </div>
             <div class="system-metrics">
                 <div class="system-metric">
-                    <div class="metric-value" id="header-response-time">--</div>
-                    <div class="metric-label">Avg Response</div>
+                    <div class="metric-value" id="header-total-alerts">0</div>
+                    <div class="metric-label">Total Alerts</div>
+                </div>
+                <div class="system-metric">
+                    <div class="metric-value" id="header-critical">0</div>
+                    <div class="metric-label">Critical</div>
+                </div>
+                <div class="system-metric">
+                    <div class="metric-value" id="header-routes">0</div>
+                    <div class="metric-label">Routes Affected</div>
+                </div>
+                <div class="system-metric">
+                    <div class="metric-value" id="header-map-alerts">0</div>
+                    <div class="metric-label">On Map</div>
                 </div>
                 <div class="system-metric">
                     <div class="metric-value" id="header-supervisors">0</div>
                     <div class="metric-label">Supervisors</div>
-                </div>
-                <div class="system-metric">
-                    <div class="metric-value" id="header-map-alerts">0</div>
-                    <div class="metric-label">Map Alerts</div>
                 </div>
             </div>
         </div>
@@ -731,41 +600,7 @@
     </div>
 
     <div class="main-content">
-        <div class="analytics-strip">
-            <div class="analytics-card">
-                <div class="chart-title">
-                    <i class="fas fa-exclamation-triangle" style="color: var(--status-critical);"></i>
-                    Critical Incidents
-                </div>
-                <div class="chart-value" id="critical-count">0</div>
-            </div>
-
-            <div class="analytics-card">
-                <div class="chart-title">
-                    <i class="fas fa-user-shield" style="color: var(--gne-red);"></i>
-                    Supervisors Connected
-                </div>
-                <div class="chart-value" id="supervisors-count">0</div>
-                <div class="chart-subtitle" id="supervisors-list">No active sessions</div>
-            </div>
-
-            <div class="analytics-card">
-                <div class="chart-title">
-                    <i class="fas fa-route" style="color: var(--accent-cyan);"></i>
-                    Affected Routes
-                </div>
-                <div class="chart-value" id="affected-routes">0</div>
-            </div>
-
-            <div class="analytics-card">
-                <div class="chart-title">
-                    <i class="fas fa-satellite-dish" style="color: var(--accent-purple);"></i>
-                    Data Sources
-                </div>
-                <div class="chart-value" id="data-sources">3</div>
-                <div class="chart-subtitle" id="data-sources-list">TomTom • MapQuest • HERE</div>
-            </div>
-        </div>
+        <!-- Analytics strip removed - data moved to header -->
 
         <div class="alert-display-section">
             <div class="alert-header">
@@ -783,57 +618,15 @@
             </div>
         </div>
 
-        <div class="right-side">
-            <div class="map-container">
-                <div class="map-header">
-                    <div class="map-title">
-                        <i class="fas fa-map"></i>
-                        <span>Live Traffic Map</span>
-                    </div>
-                    <div class="map-controls">
-                        <button class="map-control-btn" onclick="centerMapOnNorthEast()">
-                            <i class="fas fa-home"></i> Center
-                        </button>
-                        <button class="map-control-btn" onclick="toggleMapLayer()">
-                            <i class="fas fa-layer-group"></i> Layer
-                        </button>
-                        <button class="map-control-btn" onclick="refreshMapAlerts()">
-                            <i class="fas fa-sync-alt"></i> Refresh
-                        </button>
-                    </div>
+        <div class="full-map-container">
+            <div class="map-header">
+                <div class="map-title">
+                    <i class="fas fa-map"></i>
+                    <span>Live Traffic Map - North East England</span>
                 </div>
-                <div id="map"></div>
+                <!-- Controls removed for display-only mode -->
             </div>
-
-            <div class="stats-section">
-                <div class="card-title">
-                    <i class="fas fa-chart-bar"></i>
-                    Live Statistics & Recent Activity
-                </div>
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <span class="stat-label">Total Alerts:</span>
-                        <span class="stat-value" id="stats-total">0</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">On Map:</span>
-                        <span class="stat-value" id="stats-mapped">0</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">Routes Affected:</span>
-                        <span class="stat-value" id="stats-routes">0</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-label">High Priority:</span>
-                        <span class="stat-value" id="stats-high-priority">0</span>
-                    </div>
-                </div>
-                <div id="recent-activity" style="margin-top: 16px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px;">
-                    <div style="color: var(--text-muted); text-align: center; font-size: 12px;">
-                        Loading recent activity...
-                    </div>
-                </div>
-            </div>
+            <div id="map"></div>
         </div>
     </div>
 
@@ -880,7 +673,7 @@
         const NORTH_EAST_BOUNDS = {
             center: [54.9783, -1.6178], // Newcastle center
             bounds: [[53.5, -3.0], [56.0, -0.5]], // Rough North East bounds
-            zoom: 10
+            zoom: 12 // Increased from 10 to show more street detail
         };
 
         // Initialize map
@@ -908,20 +701,7 @@
             console.log('✅ Map initialized with North East England coverage');
         }
 
-        // Map control functions
-        function centerMapOnNorthEast() {
-            map.setView(NORTH_EAST_BOUNDS.center, NORTH_EAST_BOUNDS.zoom);
-        }
-
-        function toggleMapLayer() {
-            mapLayer = mapLayer === 'streets' ? 'satellite' : 'streets';
-            console.log(`🗺️ Map layer toggled to: ${mapLayer}`);
-        }
-
-        function refreshMapAlerts() {
-            clearMapMarkers();
-            fetchAlerts();
-        }
+        // Display-only map functions (interactive controls removed)
 
         // Clear existing markers
         function clearMapMarkers() {
@@ -929,8 +709,7 @@
             alertMarkers = [];
         }
 
-        // Add alert markers to map (simple pins, no popups)
-        // Future enhancement: Could integrate traffic flow data here
+        // Add alert markers to map (display-only, no popups)
         function addAlertToMap(alert, index) {
             if (!alert.coordinates || alert.coordinates.length !== 2) return;
 
@@ -962,12 +741,7 @@
 
             const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map);
             
-            // Add click event to cycle to this alert (no popup overlay)
-            marker.on('click', () => {
-                alertIndex = index;
-                renderCurrentAlert();
-            });
-
+            // Display-only: No interactive popups
             alertMarkers.push(marker);
         }
 
@@ -1040,7 +814,6 @@
                     updateAlertsDisplay(currentAlerts);
                     updateMapWithAlerts(currentAlerts);
                     updateAnalytics(data.metadata);
-                    updateActivityLog();
                     
                     // Update last update time
                     const lastUpdate = document.getElementById('last-update');
@@ -1077,17 +850,8 @@
         function updateSupervisorDisplay(supervisors) {
             const count = supervisors.length;
             document.getElementById('header-supervisors').textContent = count;
-            document.getElementById('supervisors-count').textContent = count;
             
             if (count > 0) {
-                // Create display names with role indicators
-                const displayNames = supervisors.map(s => getSupervisorDisplayName(s));
-                const names = displayNames.join(' • ');
-                
-                // Show full names if they fit, otherwise truncate
-                document.getElementById('supervisors-list').textContent = names.length > 60 ? 
-                    names.substring(0, 57) + '...' : names;
-                    
                 // Check if Barry Perryman (Service Delivery Controller) is connected
                 const hasController = supervisors.some(s => {
                     const supervisorData = supervisorRoles[s.id] || supervisorRoles[s.supervisorId];
@@ -1097,8 +861,6 @@
                 if (hasController) {
                     console.log('✅ Service Delivery Controller (Barry Perryman) is connected');
                 }
-            } else {
-                document.getElementById('supervisors-list').textContent = 'No active sessions';
             }
         }
 
@@ -1114,30 +876,26 @@
                 addAlertToMap(alert, alerts.indexOf(alert));
             });
             
+            // Update header with map alerts count
             document.getElementById('header-map-alerts').textContent = mappableAlerts.length;
-            document.getElementById('stats-mapped').textContent = mappableAlerts.length;
             
             console.log(`🗺️ Added ${mappableAlerts.length} alerts to map`);
         }
 
-        // Update analytics display
+        // Update header analytics display
         function updateAnalytics(metadata) {
             const criticalCount = currentAlerts.filter(a => a.status === 'red' && a.severity === 'High').length;
             const affectedRoutesCount = new Set(currentAlerts.flatMap(a => a.affectsRoutes || [])).size;
-            const highPriorityCount = currentAlerts.filter(a => a.severity === 'High').length;
-            
-            // Update analytics cards
-            document.getElementById('critical-count').textContent = criticalCount;
-            document.getElementById('affected-routes').textContent = affectedRoutesCount;
-            document.getElementById('alert-count').textContent = currentAlerts.length;
+            const mappableAlerts = currentAlerts.filter(alert => 
+                alert.coordinates && alert.coordinates.length === 2
+            ).length;
             
             // Update header metrics
-            document.getElementById('header-response-time').textContent = '2.3min'; // Placeholder
-            
-            // Update stats section
-            document.getElementById('stats-total').textContent = currentAlerts.length;
-            document.getElementById('stats-routes').textContent = affectedRoutesCount;
-            document.getElementById('stats-high-priority').textContent = highPriorityCount;
+            document.getElementById('header-total-alerts').textContent = currentAlerts.length;
+            document.getElementById('header-critical').textContent = criticalCount;
+            document.getElementById('header-routes').textContent = affectedRoutesCount;
+            document.getElementById('header-map-alerts').textContent = mappableAlerts;
+            document.getElementById('alert-count').textContent = currentAlerts.length;
         }
 
         function showErrorState() {
@@ -1186,7 +944,7 @@
             // Zoom map to current alert if coordinates available
             if (alert.coordinates && alert.coordinates.length === 2) {
                 const [lat, lng] = alert.coordinates;
-                map.setView([lat, lng], 14, { animate: true, duration: 1 });
+                map.setView([lat, lng], 16, { animate: true, duration: 1 }); // Increased from 14 to 16 for street detail
             }
         }
 
@@ -1207,21 +965,7 @@
             }
         }
 
-        // Update activity log
-        function updateActivityLog() {
-            const recentActivity = document.getElementById('recent-activity');
-            const activities = [
-                `${new Date().toLocaleTimeString('en-GB', {hour12: false, hour: '2-digit', minute: '2-digit'})}: Map updated - ${currentAlerts.length} alerts`,
-                `${new Date(Date.now() - 30000).toLocaleTimeString('en-GB', {hour12: false, hour: '2-digit', minute: '2-digit'})}: Data refresh completed`,
-                `${new Date(Date.now() - 60000).toLocaleTimeString('en-GB', {hour12: false, hour: '2-digit', minute: '2-digit'})}: Alert cycle active`,
-            ];
-            
-            const activityHTML = activities.map(activity => 
-                `<div style="font-size: 11px; margin-bottom: 6px; color: var(--text-muted);">${activity}</div>`
-            ).join('');
-            
-            recentActivity.innerHTML = activityHTML;
-        }
+        // Activity log removed - statistics moved to header
         // Display Screen - View Only (No External Map Function)
 
         // Clock update
@@ -1254,15 +998,13 @@
         // Event listeners
         document.addEventListener('DOMContentLoaded', init);
         
-        // Keyboard shortcuts
+        // Keyboard shortcuts (display-only)
         document.addEventListener('keydown', (event) => {
             if ((event.ctrlKey || event.metaKey) && event.key === 'r') {
                 event.preventDefault();
                 fetchAlerts();
             }
-            if (event.key === 'm') {
-                centerMapOnNorthEast();
-            }
+            // Alert navigation for display purposes
             if (event.key === 'ArrowLeft' && currentAlerts.length > 1) {
                 alertIndex = (alertIndex - 1 + currentAlerts.length) % currentAlerts.length;
                 renderCurrentAlert();

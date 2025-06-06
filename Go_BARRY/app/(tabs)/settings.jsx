@@ -1,4 +1,529 @@
 // Go_BARRY/app/(tabs)/settings.jsx
 // Enhanced Settings with System Health and Training Access
 
-import React, { useState } from 'react';\nimport {\n  View,\n  Text,\n  StyleSheet,\n  ScrollView,\n  TouchableOpacity,\n  Switch,\n  Alert,\n  Platform\n} from 'react-native';\nimport { Ionicons } from '@expo/vector-icons';\nimport { useSupervisorSession } from '../../components/hooks/useSupervisorSession';\nimport SystemHealthMonitor from '../../components/SystemHealthMonitor';\nimport TrainingHelpSystem from '../../components/TrainingHelpSystem';\nimport { API_CONFIG } from '../../config/api';\n\nconst isWeb = Platform.OS === 'web';\n\nexport default function SettingsScreen() {\n  const { \n    isLoggedIn, \n    supervisorName, \n    supervisorRole, \n    isAdmin,\n    logout \n  } = useSupervisorSession();\n\n  const [activeView, setActiveView] = useState('settings');\n  const [settings, setSettings] = useState({\n    notifications: true,\n    autoRefresh: true,\n    soundAlerts: false,\n    darkMode: false,\n    showAdvanced: false\n  });\n\n  const handleSettingChange = (key, value) => {\n    setSettings(prev => ({ ...prev, [key]: value }));\n    \n    // In production, save to backend/storage\n    console.log(`Setting ${key} changed to:`, value);\n  };\n\n  const handleLogout = async () => {\n    const confirmLogout = isWeb \n      ? window.confirm('Are you sure you want to log out?')\n      : await new Promise(resolve => {\n          Alert.alert(\n            'Logout',\n            'Are you sure you want to log out?',\n            [\n              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },\n              { text: 'Logout', style: 'destructive', onPress: () => resolve(true) }\n            ]\n          );\n        });\n\n    if (confirmLogout) {\n      await logout();\n    }\n  };\n\n  const clearCache = () => {\n    const message = 'Cache cleared successfully';\n    if (isWeb) {\n      alert(message);\n    } else {\n      Alert.alert('Cache Cleared', message);\n    }\n  };\n\n  if (activeView === 'health') {\n    return (\n      <View style={styles.container}>\n        <View style={styles.backHeader}>\n          <TouchableOpacity \n            style={styles.backButton}\n            onPress={() => setActiveView('settings')}\n          >\n            <Ionicons name=\"arrow-back\" size={24} color=\"#3B82F6\" />\n            <Text style={styles.backButtonText}>Back to Settings</Text>\n          </TouchableOpacity>\n        </View>\n        <SystemHealthMonitor baseUrl={API_CONFIG.baseURL} />\n      </View>\n    );\n  }\n\n  if (activeView === 'training') {\n    return (\n      <View style={styles.container}>\n        <View style={styles.backHeader}>\n          <TouchableOpacity \n            style={styles.backButton}\n            onPress={() => setActiveView('settings')}\n          >\n            <Ionicons name=\"arrow-back\" size={24} color=\"#3B82F6\" />\n            <Text style={styles.backButtonText}>Back to Settings</Text>\n          </TouchableOpacity>\n        </View>\n        <TrainingHelpSystem />\n      </View>\n    );\n  }\n\n  return (\n    <View style={styles.container}>\n      {/* Header */}\n      <View style={styles.header}>\n        <Text style={styles.title}>⚙️ Settings</Text>\n        <Text style={styles.subtitle}>Customize your BARRY experience</Text>\n      </View>\n\n      <ScrollView style={styles.content}>\n        {/* Supervisor Info */}\n        {isLoggedIn && (\n          <View style={styles.section}>\n            <Text style={styles.sectionTitle}>Supervisor Information</Text>\n            <View style={styles.supervisorCard}>\n              <View style={styles.supervisorInfo}>\n                <Ionicons name=\"person-circle\" size={48} color=\"#3B82F6\" />\n                <View style={styles.supervisorDetails}>\n                  <Text style={styles.supervisorName}>{supervisorName}</Text>\n                  <Text style={styles.supervisorRole}>{supervisorRole}</Text>\n                  {isAdmin && (\n                    <Text style={styles.adminBadge}>⭐ Administrator</Text>\n                  )}\n                </View>\n              </View>\n              <TouchableOpacity \n                style={styles.logoutButton}\n                onPress={handleLogout}\n              >\n                <Ionicons name=\"log-out\" size={20} color=\"#EF4444\" />\n                <Text style={styles.logoutButtonText}>Logout</Text>\n              </TouchableOpacity>\n            </View>\n          </View>\n        )}\n\n        {/* Quick Access */}\n        <View style={styles.section}>\n          <Text style={styles.sectionTitle}>Quick Access</Text>\n          <View style={styles.quickAccessGrid}>\n            <TouchableOpacity \n              style={styles.quickAccessCard}\n              onPress={() => setActiveView('health')}\n            >\n              <Ionicons name=\"medical\" size={32} color=\"#EF4444\" />\n              <Text style={styles.quickAccessTitle}>System Health</Text>\n              <Text style={styles.quickAccessDesc}>Monitor performance</Text>\n            </TouchableOpacity>\n            \n            <TouchableOpacity \n              style={styles.quickAccessCard}\n              onPress={() => setActiveView('training')}\n            >\n              <Ionicons name=\"school\" size={32} color=\"#6B5B95\" />\n              <Text style={styles.quickAccessTitle}>Training & Help</Text>\n              <Text style={styles.quickAccessDesc}>Learn & get support</Text>\n            </TouchableOpacity>\n          </View>\n        </View>\n\n        {/* App Settings */}\n        <View style={styles.section}>\n          <Text style={styles.sectionTitle}>App Settings</Text>\n          \n          <View style={styles.settingRow}>\n            <View style={styles.settingInfo}>\n              <Text style={styles.settingTitle}>Push Notifications</Text>\n              <Text style={styles.settingDesc}>Receive alert notifications</Text>\n            </View>\n            <Switch\n              value={settings.notifications}\n              onValueChange={(value) => handleSettingChange('notifications', value)}\n              trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}\n              thumbColor=\"#FFFFFF\"\n            />\n          </View>\n\n          <View style={styles.settingRow}>\n            <View style={styles.settingInfo}>\n              <Text style={styles.settingTitle}>Auto Refresh</Text>\n              <Text style={styles.settingDesc}>Automatically refresh data</Text>\n            </View>\n            <Switch\n              value={settings.autoRefresh}\n              onValueChange={(value) => handleSettingChange('autoRefresh', value)}\n              trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}\n              thumbColor=\"#FFFFFF\"\n            />\n          </View>\n\n          <View style={styles.settingRow}>\n            <View style={styles.settingInfo}>\n              <Text style={styles.settingTitle}>Sound Alerts</Text>\n              <Text style={styles.settingDesc}>Play sounds for critical alerts</Text>\n            </View>\n            <Switch\n              value={settings.soundAlerts}\n              onValueChange={(value) => handleSettingChange('soundAlerts', value)}\n              trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}\n              thumbColor=\"#FFFFFF\"\n            />\n          </View>\n\n          <View style={styles.settingRow}>\n            <View style={styles.settingInfo}>\n              <Text style={styles.settingTitle}>Dark Mode</Text>\n              <Text style={styles.settingDesc}>Use dark theme (Coming Soon)</Text>\n            </View>\n            <Switch\n              value={settings.darkMode}\n              onValueChange={(value) => handleSettingChange('darkMode', value)}\n              trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}\n              thumbColor=\"#FFFFFF\"\n              disabled\n            />\n          </View>\n        </View>\n\n        {/* Advanced Settings */}\n        {isAdmin && (\n          <View style={styles.section}>\n            <Text style={styles.sectionTitle}>Advanced Settings (Admin)</Text>\n            \n            <TouchableOpacity style={styles.advancedButton}>\n              <Ionicons name=\"server\" size={20} color=\"#6B7280\" />\n              <Text style={styles.advancedButtonText}>Server Configuration</Text>\n              <Ionicons name=\"chevron-forward\" size={20} color=\"#9CA3AF\" />\n            </TouchableOpacity>\n            \n            <TouchableOpacity style={styles.advancedButton}>\n              <Ionicons name=\"people\" size={20} color=\"#6B7280\" />\n              <Text style={styles.advancedButtonText}>User Management</Text>\n              <Ionicons name=\"chevron-forward\" size={20} color=\"#9CA3AF\" />\n            </TouchableOpacity>\n            \n            <TouchableOpacity style={styles.advancedButton}>\n              <Ionicons name=\"shield\" size={20} color=\"#6B7280\" />\n              <Text style={styles.advancedButtonText}>Security Settings</Text>\n              <Ionicons name=\"chevron-forward\" size={20} color=\"#9CA3AF\" />\n            </TouchableOpacity>\n          </View>\n        )}\n\n        {/* System Information */}\n        <View style={styles.section}>\n          <Text style={styles.sectionTitle}>System Information</Text>\n          \n          <View style={styles.infoRow}>\n            <Text style={styles.infoLabel}>Version:</Text>\n            <Text style={styles.infoValue}>3.0.0</Text>\n          </View>\n          \n          <View style={styles.infoRow}>\n            <Text style={styles.infoLabel}>Environment:</Text>\n            <Text style={styles.infoValue}>\n              {isWeb ? 'Browser' : 'Mobile'} ({__DEV__ ? 'Development' : 'Production'})\n            </Text>\n          </View>\n          \n          <View style={styles.infoRow}>\n            <Text style={styles.infoLabel}>API Endpoint:</Text>\n            <Text style={styles.infoValue}>{API_CONFIG.baseURL}</Text>\n          </View>\n          \n          <View style={styles.infoRow}>\n            <Text style={styles.infoLabel}>Platform:</Text>\n            <Text style={styles.infoValue}>{Platform.OS}</Text>\n          </View>\n        </View>\n\n        {/* Actions */}\n        <View style={styles.section}>\n          <Text style={styles.sectionTitle}>Actions</Text>\n          \n          <TouchableOpacity \n            style={styles.actionButton}\n            onPress={clearCache}\n          >\n            <Ionicons name=\"refresh\" size={20} color=\"#3B82F6\" />\n            <Text style={styles.actionButtonText}>Clear Cache</Text>\n          </TouchableOpacity>\n          \n          <TouchableOpacity style={styles.actionButton}>\n            <Ionicons name=\"download\" size={20} color=\"#3B82F6\" />\n            <Text style={styles.actionButtonText}>Export Data</Text>\n          </TouchableOpacity>\n          \n          <TouchableOpacity style={styles.actionButton}>\n            <Ionicons name=\"bug\" size={20} color=\"#3B82F6\" />\n            <Text style={styles.actionButtonText}>Report Bug</Text>\n          </TouchableOpacity>\n        </View>\n\n        {/* About */}\n        <View style={styles.section}>\n          <Text style={styles.sectionTitle}>About BARRY</Text>\n          <Text style={styles.aboutText}>\n            BARRY (Bus Alert Real-time Reporting Yield) is Go North East's advanced \n            traffic intelligence system. Version 3.0 introduces AI-powered disruption \n            management, enhanced GTFS integration, and multi-channel messaging capabilities.\n          </Text>\n          <Text style={styles.aboutCopyright}>\n            © 2024 Go North East. All rights reserved.\n          </Text>\n        </View>\n      </ScrollView>\n    </View>\n  );\n}\n\nconst styles = StyleSheet.create({\n  container: {\n    flex: 1,\n    backgroundColor: '#F8FAFC',\n  },\n  header: {\n    backgroundColor: '#FFFFFF',\n    padding: 20,\n    paddingTop: 40,\n    borderBottomWidth: 1,\n    borderBottomColor: '#E5E7EB',\n  },\n  title: {\n    fontSize: 24,\n    fontWeight: 'bold',\n    color: '#1F2937',\n    marginBottom: 4,\n  },\n  subtitle: {\n    fontSize: 14,\n    color: '#6B7280',\n  },\n  backHeader: {\n    backgroundColor: '#FFFFFF',\n    padding: 16,\n    borderBottomWidth: 1,\n    borderBottomColor: '#E5E7EB',\n  },\n  backButton: {\n    flexDirection: 'row',\n    alignItems: 'center',\n    gap: 8,\n  },\n  backButtonText: {\n    fontSize: 16,\n    color: '#3B82F6',\n    fontWeight: '500',\n  },\n  content: {\n    flex: 1,\n  },\n  section: {\n    margin: 16,\n    backgroundColor: '#FFFFFF',\n    borderRadius: 12,\n    padding: 16,\n    shadowColor: '#000',\n    shadowOffset: { width: 0, height: 2 },\n    shadowOpacity: 0.1,\n    shadowRadius: 4,\n    elevation: 3,\n  },\n  sectionTitle: {\n    fontSize: 18,\n    fontWeight: '600',\n    color: '#1F2937',\n    marginBottom: 16,\n  },\n  supervisorCard: {\n    backgroundColor: '#F9FAFB',\n    borderRadius: 8,\n    padding: 16,\n    borderWidth: 1,\n    borderColor: '#E5E7EB',\n  },\n  supervisorInfo: {\n    flexDirection: 'row',\n    alignItems: 'center',\n    marginBottom: 16,\n    gap: 16,\n  },\n  supervisorDetails: {\n    flex: 1,\n  },\n  supervisorName: {\n    fontSize: 18,\n    fontWeight: '600',\n    color: '#1F2937',\n    marginBottom: 4,\n  },\n  supervisorRole: {\n    fontSize: 14,\n    color: '#6B7280',\n    marginBottom: 4,\n  },\n  adminBadge: {\n    fontSize: 12,\n    color: '#F59E0B',\n    fontWeight: '600',\n  },\n  logoutButton: {\n    flexDirection: 'row',\n    alignItems: 'center',\n    backgroundColor: '#FEE2E2',\n    paddingHorizontal: 16,\n    paddingVertical: 10,\n    borderRadius: 8,\n    borderWidth: 1,\n    borderColor: '#FECACA',\n    gap: 8,\n  },\n  logoutButtonText: {\n    color: '#EF4444',\n    fontWeight: '600',\n    fontSize: 14,\n  },\n  quickAccessGrid: {\n    flexDirection: 'row',\n    gap: 12,\n  },\n  quickAccessCard: {\n    flex: 1,\n    backgroundColor: '#F9FAFB',\n    borderRadius: 8,\n    padding: 16,\n    alignItems: 'center',\n    borderWidth: 1,\n    borderColor: '#E5E7EB',\n  },\n  quickAccessTitle: {\n    fontSize: 14,\n    fontWeight: '600',\n    color: '#374151',\n    marginTop: 8,\n    marginBottom: 4,\n    textAlign: 'center',\n  },\n  quickAccessDesc: {\n    fontSize: 12,\n    color: '#6B7280',\n    textAlign: 'center',\n  },\n  settingRow: {\n    flexDirection: 'row',\n    justifyContent: 'space-between',\n    alignItems: 'center',\n    paddingVertical: 12,\n    borderBottomWidth: 1,\n    borderBottomColor: '#F3F4F6',\n  },\n  settingInfo: {\n    flex: 1,\n  },\n  settingTitle: {\n    fontSize: 16,\n    fontWeight: '600',\n    color: '#374151',\n    marginBottom: 2,\n  },\n  settingDesc: {\n    fontSize: 14,\n    color: '#6B7280',\n  },\n  advancedButton: {\n    flexDirection: 'row',\n    alignItems: 'center',\n    paddingVertical: 12,\n    borderBottomWidth: 1,\n    borderBottomColor: '#F3F4F6',\n    gap: 12,\n  },\n  advancedButtonText: {\n    flex: 1,\n    fontSize: 16,\n    color: '#374151',\n    fontWeight: '500',\n  },\n  infoRow: {\n    flexDirection: 'row',\n    justifyContent: 'space-between',\n    alignItems: 'center',\n    paddingVertical: 8,\n    borderBottomWidth: 1,\n    borderBottomColor: '#F3F4F6',\n  },\n  infoLabel: {\n    fontSize: 14,\n    color: '#374151',\n    fontWeight: '500',\n  },\n  infoValue: {\n    fontSize: 14,\n    color: '#6B7280',\n    flex: 1,\n    textAlign: 'right',\n  },\n  actionButton: {\n    flexDirection: 'row',\n    alignItems: 'center',\n    paddingVertical: 12,\n    borderBottomWidth: 1,\n    borderBottomColor: '#F3F4F6',\n    gap: 12,\n  },\n  actionButtonText: {\n    fontSize: 16,\n    color: '#3B82F6',\n    fontWeight: '500',\n  },\n  aboutText: {\n    fontSize: 14,\n    color: '#374151',\n    lineHeight: 20,\n    marginBottom: 12,\n  },\n  aboutCopyright: {\n    fontSize: 12,\n    color: '#6B7280',\n    textAlign: 'center',\n  },\n});"
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Switch,
+  Alert,
+  Platform
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSupervisorSession } from '../../components/hooks/useSupervisorSession';
+import SystemHealthMonitor from '../../components/SystemHealthMonitor';
+import TrainingHelpSystem from '../../components/TrainingHelpSystem';
+import { API_CONFIG } from '../../config/api';
+
+const isWeb = Platform.OS === 'web';
+
+export default function SettingsScreen() {
+  const { 
+    isLoggedIn, 
+    supervisorName, 
+    supervisorRole, 
+    isAdmin,
+    logout 
+  } = useSupervisorSession();
+
+  const [activeView, setActiveView] = useState('settings');
+  const [settings, setSettings] = useState({
+    notifications: true,
+    autoRefresh: true,
+    soundAlerts: false,
+    darkMode: false,
+    showAdvanced: false
+  });
+
+  const handleSettingChange = (key, value) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+    
+    // In production, save to backend/storage
+    console.log(`Setting ${key} changed to:`, value);
+  };
+
+  const handleLogout = async () => {
+    const confirmLogout = isWeb 
+      ? window.confirm('Are you sure you want to log out?')
+      : await new Promise(resolve => {
+          Alert.alert(
+            'Logout',
+            'Are you sure you want to log out?',
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Logout', style: 'destructive', onPress: () => resolve(true) }
+            ]
+          );
+        });
+
+    if (confirmLogout) {
+      await logout();
+    }
+  };
+
+  const clearCache = () => {
+    const message = 'Cache cleared successfully';
+    if (isWeb) {
+      alert(message);
+    } else {
+      Alert.alert('Cache Cleared', message);
+    }
+  };
+
+  if (activeView === 'health') {
+    return (
+      <View style={styles.container}>
+        <View style={styles.backHeader}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => setActiveView('settings')}
+          >
+            <Ionicons name="arrow-back" size={24} color="#3B82F6" />
+            <Text style={styles.backButtonText}>Back to Settings</Text>
+          </TouchableOpacity>
+        </View>
+        <SystemHealthMonitor baseUrl={API_CONFIG.baseURL} />
+      </View>
+    );
+  }
+
+  if (activeView === 'training') {
+    return (
+      <View style={styles.container}>
+        <View style={styles.backHeader}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => setActiveView('settings')}
+          >
+            <Ionicons name="arrow-back" size={24} color="#3B82F6" />
+            <Text style={styles.backButtonText}>Back to Settings</Text>
+          </TouchableOpacity>
+        </View>
+        <TrainingHelpSystem />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>⚙️ Settings</Text>
+        <Text style={styles.subtitle}>Customize your BARRY experience</Text>
+      </View>
+
+      <ScrollView style={styles.content}>
+        {/* Supervisor Info */}
+        {isLoggedIn && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Supervisor Information</Text>
+            <View style={styles.supervisorCard}>
+              <View style={styles.supervisorInfo}>
+                <Ionicons name="person-circle" size={48} color="#3B82F6" />
+                <View style={styles.supervisorDetails}>
+                  <Text style={styles.supervisorName}>{supervisorName}</Text>
+                  <Text style={styles.supervisorRole}>{supervisorRole}</Text>
+                  {isAdmin && (
+                    <Text style={styles.adminBadge}>⭐ Administrator</Text>
+                  )}
+                </View>
+              </View>
+              <TouchableOpacity 
+                style={styles.logoutButton}
+                onPress={handleLogout}
+              >
+                <Ionicons name="log-out" size={20} color="#EF4444" />
+                <Text style={styles.logoutButtonText}>Logout</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Quick Access */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Access</Text>
+          <View style={styles.quickAccessGrid}>
+            <TouchableOpacity 
+              style={styles.quickAccessCard}
+              onPress={() => setActiveView('health')}
+            >
+              <Ionicons name="medical" size={32} color="#EF4444" />
+              <Text style={styles.quickAccessTitle}>System Health</Text>
+              <Text style={styles.quickAccessDesc}>Monitor performance</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.quickAccessCard}
+              onPress={() => setActiveView('training')}
+            >
+              <Ionicons name="school" size={32} color="#6B5B95" />
+              <Text style={styles.quickAccessTitle}>Training & Help</Text>
+              <Text style={styles.quickAccessDesc}>Learn & get support</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* App Settings */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>App Settings</Text>
+          
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingTitle}>Push Notifications</Text>
+              <Text style={styles.settingDesc}>Receive alert notifications</Text>
+            </View>
+            <Switch
+              value={settings.notifications}
+              onValueChange={(value) => handleSettingChange('notifications', value)}
+              trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingTitle}>Auto Refresh</Text>
+              <Text style={styles.settingDesc}>Automatically refresh data</Text>
+            </View>
+            <Switch
+              value={settings.autoRefresh}
+              onValueChange={(value) => handleSettingChange('autoRefresh', value)}
+              trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingTitle}>Sound Alerts</Text>
+              <Text style={styles.settingDesc}>Play sounds for critical alerts</Text>
+            </View>
+            <Switch
+              value={settings.soundAlerts}
+              onValueChange={(value) => handleSettingChange('soundAlerts', value)}
+              trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={styles.settingTitle}>Dark Mode</Text>
+              <Text style={styles.settingDesc}>Use dark theme (Coming Soon)</Text>
+            </View>
+            <Switch
+              value={settings.darkMode}
+              onValueChange={(value) => handleSettingChange('darkMode', value)}
+              trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}
+              thumbColor="#FFFFFF"
+              disabled
+            />
+          </View>
+        </View>
+
+        {/* Advanced Settings */}
+        {isAdmin && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Advanced Settings (Admin)</Text>
+            
+            <TouchableOpacity style={styles.advancedButton}>
+              <Ionicons name="server" size={20} color="#6B7280" />
+              <Text style={styles.advancedButtonText}>Server Configuration</Text>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.advancedButton}>
+              <Ionicons name="people" size={20} color="#6B7280" />
+              <Text style={styles.advancedButtonText}>User Management</Text>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.advancedButton}>
+              <Ionicons name="shield" size={20} color="#6B7280" />
+              <Text style={styles.advancedButtonText}>Security Settings</Text>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* System Information */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>System Information</Text>
+          
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Version:</Text>
+            <Text style={styles.infoValue}>3.0.0</Text>
+          </View>
+          
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Environment:</Text>
+            <Text style={styles.infoValue}>
+              {isWeb ? 'Browser' : 'Mobile'} ({__DEV__ ? 'Development' : 'Production'})
+            </Text>
+          </View>
+          
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>API Endpoint:</Text>
+            <Text style={styles.infoValue}>{API_CONFIG.baseURL}</Text>
+          </View>
+          
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Platform:</Text>
+            <Text style={styles.infoValue}>{Platform.OS}</Text>
+          </View>
+        </View>
+
+        {/* Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Actions</Text>
+          
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={clearCache}
+          >
+            <Ionicons name="refresh" size={20} color="#3B82F6" />
+            <Text style={styles.actionButtonText}>Clear Cache</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.actionButton}>
+            <Ionicons name="download" size={20} color="#3B82F6" />
+            <Text style={styles.actionButtonText}>Export Data</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.actionButton}>
+            <Ionicons name="bug" size={20} color="#3B82F6" />
+            <Text style={styles.actionButtonText}>Report Bug</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* About */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>About BARRY</Text>
+          <Text style={styles.aboutText}>
+            BARRY (Bus Alert Real-time Reporting Yield) is Go North East's advanced 
+            traffic intelligence system. Version 3.0 introduces AI-powered disruption 
+            management, enhanced GTFS integration, and multi-channel messaging capabilities.
+          </Text>
+          <Text style={styles.aboutCopyright}>
+            © 2024 Go North East. All rights reserved.
+          </Text>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  header: {
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    paddingTop: 40,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  backHeader: {
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#3B82F6',
+    fontWeight: '500',
+  },
+  content: {
+    flex: 1,
+  },
+  section: {
+    margin: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 16,
+  },
+  supervisorCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  supervisorInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 16,
+  },
+  supervisorDetails: {
+    flex: 1,
+  },
+  supervisorName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  supervisorRole: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  adminBadge: {
+    fontSize: 12,
+    color: '#F59E0B',
+    fontWeight: '600',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    gap: 8,
+  },
+  logoutButtonText: {
+    color: '#EF4444',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  quickAccessGrid: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  quickAccessCard: {
+    flex: 1,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  quickAccessTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 8,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  quickAccessDesc: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  settingInfo: {
+    flex: 1,
+  },
+  settingTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 2,
+  },
+  settingDesc: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  advancedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    gap: 12,
+  },
+  advancedButtonText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  infoLabel: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  infoValue: {
+    fontSize: 14,
+    color: '#6B7280',
+    flex: 1,
+    textAlign: 'right',
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    gap: 12,
+  },
+  actionButtonText: {
+    fontSize: 16,
+    color: '#3B82F6',
+    fontWeight: '500',
+  },
+  aboutText: {
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  aboutCopyright: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+});
