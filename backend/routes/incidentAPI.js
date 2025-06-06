@@ -2,8 +2,8 @@
 // Phase 2: GTFS-Powered Incident Management API Routes
 
 import express from 'express';
-import { enhanceLocationWithCoordinates } from '../services/geocoding.js';
-import { findGTFSRoutesNearCoordinates } from '../gtfs-route-matcher.js';
+import geocodingService, { geocodeLocation } from '../services/geocoding.js';
+import findGTFSRoutesNearCoordinates from '../gtfs-route-matcher.js';
 
 const router = express.Router();
 
@@ -63,9 +63,12 @@ router.post('/', async (req, res) => {
     let enhancedCoordinates = coordinates;
     if (!coordinates && location) {
       try {
-        const locationData = await enhanceLocationWithCoordinates({ location });
-        if (locationData.coordinates) {
-          enhancedCoordinates = locationData.coordinates;
+        const locationData = await geocodeLocation(location);
+        if (locationData) {
+          enhancedCoordinates = {
+            latitude: locationData.latitude,
+            longitude: locationData.longitude
+          };
         }
       } catch (error) {
         console.warn('Failed to enhance location:', error.message);
