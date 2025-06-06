@@ -8,7 +8,8 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity
+  TouchableOpacity,
+  Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBarryAPI } from './hooks/useBARRYapi';
@@ -73,8 +74,15 @@ const DisplayScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.systemTitle}>🚦 GO NORTH EAST CONTROL ROOM</Text>
-          <Text style={styles.displayTitle}>24/7 TRAFFIC MONITORING DISPLAY</Text>
+          <View style={styles.logoContainer}>
+            <View style={styles.logoPlaceholder}>
+              <Text style={styles.logoText}>GO BARRY</Text>
+            </View>
+            <View style={styles.titleContainer}>
+              <Text style={styles.systemTitle}>GO NORTH EAST CONTROL ROOM</Text>
+              <Text style={styles.displayTitle}>24/7 TRAFFIC MONITORING DISPLAY</Text>
+            </View>
+          </View>
         </View>
         
         <View style={styles.headerCenter}>
@@ -284,6 +292,31 @@ const styles = StyleSheet.create({
     borderBottomColor: '#DC2626',
   },
   headerLeft: {
+    flex: 1,
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  logoPlaceholder: {
+    width: 60,
+    height: 60,
+    backgroundColor: '#E31E24',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  logoText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    letterSpacing: 1,
+  },
+  titleContainer: {
     flex: 1,
   },
   systemTitle: {

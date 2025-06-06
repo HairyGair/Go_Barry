@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go Barry Display - Debug Mode</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+        }
+        .debug-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status { padding: 10px; margin: 5px 0; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>🚦 Go Barry Display - Debug Mode</h1>
+    
+    <div class="debug-panel">
+        <h2>System Checks</h2>
+        <div id="js-check" class="status info">⏳ Checking JavaScript...</div>
+        <div id="location-check" class="status info">⏳ Checking location...</div>
+        <div id="backend-check" class="status info">⏳ Checking backend connection...</div>
+        <div id="css-check" class="status info">⏳ Checking CSS loading...</div>
+    </div>
+
+    <div class="debug-panel">
+        <h2>Connection Tests</h2>
+        <button onclick="testBackend()">Test Backend API</button>
+        <button onclick="testAlerts()">Test Alerts Endpoint</button>
+        <button onclick="clearConsole()">Clear Console</button>
+        <div id="test-results"></div>
+    </div>
+
+    <div class="debug-panel">
+        <h2>Browser Information</h2>
+        <div id="browser-info"></div>
+    </div>
+
+    <div class="debug-panel">
+        <h2>Console Log</h2>
+        <pre id="console-log"></pre>
+    </div>
+
+    <div class="debug-panel">
+        <h2>Manual Display Test</h2>
+        <button onclick="loadMainDisplay()">Load Main Display</button>
+        <div id="display-container" style="margin-top: 20px;"></div>
+    </div>
+
+    <script>
+        // Capture console logs
+        const originalLog = console.log;
+        const originalError = console.error;
+        const logs = [];
+
+        function addLog(type, message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logs.push(`[${timestamp}] ${type}: ${message}`);
+            updateConsoleDisplay();
+        }
+
+        console.log = function(...args) {
+            addLog('LOG', args.join(' '));
+            originalLog.apply(console, args);
+        };
+
+        console.error = function(...args) {
+            addLog('ERROR', args.join(' '));
+            originalError.apply(console, args);
+        };
+
+        function updateConsoleDisplay() {
+            document.getElementById('console-log').textContent = logs.join('\n');
+        }
+
+        function setStatus(id, status, message) {
+            const element = document.getElementById(id);
+            element.className = `status ${status}`;
+            element.textContent = message;
+        }
+
+        function clearConsole() {
+            logs.length = 0;
+            updateConsoleDisplay();
+        }
+
+        // System checks
+        function runSystemChecks() {
+            // JavaScript check
+            setStatus('js-check', 'success', '✅ JavaScript is working');
+
+            // Location check
+            const hostname = window.location.hostname;
+            const isLocal = hostname === 'localhost' || hostname === '127.0.0.1';
+            const isGoBarry = hostname === 'gobarry.co.uk';
+            
+            if (isGoBarry) {
+                setStatus('location-check', 'success', `✅ Running on gobarry.co.uk`);
+            } else if (isLocal) {
+                setStatus('location-check', 'warning', `⚠️ Running locally (${hostname})`);
+            } else {
+                setStatus('location-check', 'warning', `⚠️ Running on: ${hostname}`);
+            }
+
+            // CSS check
+            const hasStyles = window.getComputedStyle(document.body).fontFamily.includes('Arial');
+            if (hasStyles) {
+                setStatus('css-check', 'success', '✅ CSS is loading');
+            } else {
+                setStatus('css-check', 'error', '❌ CSS may not be loading properly');
+            }
+
+            // Backend check - will be done async
+            checkBackend();
+        }
+
+        async function checkBackend() {
+            const API_BASE_URL = window.location.hostname === 'localhost' 
+                ? 'http://localhost:3001' 
+                : 'https://go-barry.onrender.com';
+
+            try {
+                console.log('Testing backend connection to:', API_BASE_URL);
+                const response = await fetch(`${API_BASE_URL}/api/status`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    setStatus('backend-check', 'success', `✅ Backend connected: ${data.status || 'operational'}`);
+                    console.log('Backend response:', data);
+                } else {
+                    setStatus('backend-check', 'error', `❌ Backend error: HTTP ${response.status}`);
+                    console.error('Backend HTTP error:', response.status);
+                }
+            } catch (error) {
+                setStatus('backend-check', 'error', `❌ Backend connection failed: ${error.message}`);
+                console.error('Backend connection error:', error);
+            }
+        }
+
+        async function testBackend() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '<div class="status info">⏳ Testing backend...</div>';
+
+            const API_BASE_URL = 'https://go-barry.onrender.com';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/status`);
+                const data = await response.json();
+                
+                resultsDiv.innerHTML = `
+                    <div class="status success">✅ Backend Test Successful</div>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="status error">❌ Backend Test Failed</div>
+                    <pre>Error: ${error.message}</pre>
+                `;
+            }
+        }
+
+        async function testAlerts() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '<div class="status info">⏳ Testing alerts endpoint...</div>';
+
+            const API_BASE_URL = 'https://go-barry.onrender.com';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/alerts-enhanced`);
+                const data = await response.json();
+                
+                resultsDiv.innerHTML = `
+                    <div class="status success">✅ Alerts Test Successful</div>
+                    <div>Found ${data.alerts ? data.alerts.length : 0} alerts</div>
+                    <pre>${JSON.stringify(data, null, 2).substring(0, 1000)}...</pre>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="status error">❌ Alerts Test Failed</div>
+                    <pre>Error: ${error.message}</pre>
+                `;
+            }
+        }
+
+        function loadMainDisplay() {
+            const container = document.getElementById('display-container');
+            container.innerHTML = `
+                <div style="background: #E31E24; color: white; padding: 20px; border-radius: 8px; text-align: center;">
+                    <h2>🚦 GO BARRY Control Room</h2>
+                    <p>If you can see this, the basic display is working!</p>
+                    <p>The main display should load external resources (maps, etc.)</p>
+                </div>
+            `;
+        }
+
+        function updateBrowserInfo() {
+            document.getElementById('browser-info').innerHTML = `
+                <div><strong>User Agent:</strong> ${navigator.userAgent}</div>
+                <div><strong>URL:</strong> ${window.location.href}</div>
+                <div><strong>Protocol:</strong> ${window.location.protocol}</div>
+                <div><strong>Host:</strong> ${window.location.host}</div>
+                <div><strong>JavaScript Enabled:</strong> ✅ Yes</div>
+                <div><strong>Local Storage Available:</strong> ${typeof(Storage) !== "undefined" ? '✅ Yes' : '❌ No'}</div>
+                <div><strong>Console Available:</strong> ${typeof(console) !== "undefined" ? '✅ Yes' : '❌ No'}</div>
+            `;
+        }
+
+        // Run checks when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚦 Go Barry Debug Mode loaded');
+            runSystemChecks();
+            updateBrowserInfo();
+        });
+
+        // Also run checks immediately
+        runSystemChecks();
+        updateBrowserInfo();
+    </script>
+</body>
+</html>

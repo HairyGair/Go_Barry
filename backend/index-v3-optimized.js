@@ -38,6 +38,21 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.text({ type: 'text/plain' }));
 app.use(express.raw({ type: 'application/octet-stream' }));
 
+// Serve static files (HTML displays, images, etc.)
+app.use(express.static(__dirname, {
+  dotfiles: 'ignore',
+  etag: false,
+  extensions: ['html', 'png', 'jpg', 'css', 'js'],
+  index: false,
+  maxAge: '1h',
+  redirect: false,
+  setHeaders: function (res, path, stat) {
+    res.set('x-timestamp', Date.now());
+  }
+}));
+
+console.log('📁 Static file serving enabled for HTML displays');
+
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -302,7 +317,8 @@ app.get('/api/status', (req, res) => {
       messageDistribution: "/api/messaging", 
       routeManagement: "/api/routes",
       supervisorAuth: "/api/supervisor",
-      systemHealth: "/api/health"
+      systemHealth: "/api/health",
+      controlRoomDisplay: "/control-room-display-screen.html"
     },
     endpoints: [
       "/api/health",
@@ -313,8 +329,25 @@ app.get('/api/status', (req, res) => {
       "/api/routes/gtfs-stats",
       "/api/supervisor",
       "/api/geocode",
-      "/api/status"
+      "/api/status",
+      "/control-room-display-screen.html"
     ]
+  });
+});
+
+// Control Room Display route info
+app.get('/api/control-room', (req, res) => {
+  res.json({
+    success: true,
+    displayUrl: '/control-room-display-screen.html',
+    description: 'Go Barry Control Room Display Screen',
+    features: [
+      'Real-time traffic alerts',
+      'Live map integration', 
+      'Supervisor monitoring',
+      'Go Barry branding'
+    ],
+    note: 'Open /control-room-display-screen.html in browser for full display'
   });
 });
 
@@ -331,7 +364,8 @@ app.use('*', (req, res) => {
       "/api/messaging/channels",
       "/api/routes/gtfs-stats",
       "/api/supervisor",
-      "/api/status"
+      "/api/status",
+      "/control-room-display-screen.html"
     ],
     tip: "Use /api/status for full endpoint list"
   });

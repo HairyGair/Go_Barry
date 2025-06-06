@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="0; url=./display.html">
+    <title>Go Barry Control Room Display</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0a0e16;
+            color: white;
+            text-align: center;
+            padding: 50px;
+        }
+        .loading {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        .redirect-link {
+            color: #3b82f6;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .redirect-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading">🚦 Loading Go Barry Control Room Display...</div>
+    <p>If you are not redirected automatically, <a href="./display.html" class="redirect-link">click here to open the display</a>.</p>
+    
+    <script>
+        // Backup redirect in case meta refresh doesn't work
+        setTimeout(function() {
+            window.location.href = './display.html';
+        }, 1000);
+    </script>
+</body>
+</html>
