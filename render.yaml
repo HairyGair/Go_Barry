@@ -10,10 +10,10 @@ services:
       - key: NODE_ENV
         value: production
       - key: NODE_OPTIONS
-        value: --max-old-space-size=2048 --optimize-for-size
+        value: --max-old-space-size=2048
       - key: PORT
         value: 10000
-      # API Keys (set these in Render dashboard)
+      # API Keys and Environment
       - key: TOMTOM_API_KEY
         sync: false
       - key: MAPQUEST_API_KEY  
@@ -24,6 +24,11 @@ services:
         sync: false
       - key: NATIONAL_HIGHWAYS_API_KEY
         sync: false
+      # CORS Configuration for your domain
+      - key: CORS_ORIGIN
+        value: https://www.gobarry.co.uk,https://gobarry.co.uk
+      - key: PRODUCTION_DOMAIN
+        value: gobarry.co.uk
     autoDeploy: false
 
   # Frontend Web App - Go Barry v3.0 Dashboard  

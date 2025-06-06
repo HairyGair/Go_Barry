@@ -7,7 +7,7 @@ import { ThemeProvider } from './components/theme/ThemeContext';
 import BrowserMainApp from './app/browser-main';
 
 export default function App() {
-  // For web platforms, use the browser-optimized interface
+  // For web platforms, use the supervisor browser interface
   if (Platform.OS === 'web') {
     return (
       <ThemeProvider>
@@ -18,7 +18,7 @@ export default function App() {
     );
   }
 
-  // For mobile platforms, use the traditional expo-router
+  // For mobile/device platforms, use the touch-optimized interface
   return (
     <ThemeProvider>
       <SupervisorProvider>

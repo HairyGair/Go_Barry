@@ -260,7 +260,7 @@ const BrowserMainApp = () => {
                   <Text style={styles.logoEmoji}>🚦</Text>
                   <Text style={styles.appTitle}>BARRY</Text>
                 </View>
-                <Text style={styles.appVersion}>v3.0 Pro • Traffic Intelligence</Text>
+                <Text style={styles.appVersion}>v3.0 Pro • Supervisor Browser</Text>
               </View>
             )}
           </View>

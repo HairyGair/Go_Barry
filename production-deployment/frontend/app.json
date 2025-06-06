@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "BARRY Traffic Intelligence",
+    "slug": "barry-traffic",
+    "version": "3.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gonortheast.barry",
+      "buildNumber": "1"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "package": "com.gonortheast.barry",
+      "versionCode": 1
+    },
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "plugins": [
+      "expo-font",
+      "expo-router"
+    ],
+    "updates": {
+      "url": "https://u.expo.dev/e9b36505-8da3-4f82-9d5f-8c3b4d5e6f7a"
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "91f518a7-75a8-4de0-be94-f73e314c0424"
+      }
+    }
+  }
+}

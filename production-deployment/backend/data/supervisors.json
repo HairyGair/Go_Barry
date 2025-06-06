@@ -1,0 +1,50 @@
+{
+  "supervisor001": {
+    "id": "supervisor001",
+    "name": "John Smith",
+    "badge": "JS001",
+    "role": "Senior Supervisor",
+    "shift": "Day",
+    "permissions": ["view-alerts", "dismiss-alerts", "view-reports"],
+    "active": true,
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "department": "Traffic Control",
+    "email": "j.smith@gonortheast.co.uk"
+  },
+  "supervisor002": {
+    "id": "supervisor002",
+    "name": "Sarah Johnson",
+    "badge": "SJ002",
+    "role": "Traffic Controller",
+    "shift": "Night",
+    "permissions": ["view-alerts", "dismiss-alerts"],
+    "active": true,
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "department": "Traffic Control",
+    "email": "s.johnson@gonortheast.co.uk"
+  },
+  "supervisor003": {
+    "id": "supervisor003",
+    "name": "Michael Brown",
+    "badge": "MB003",
+    "role": "Operations Manager",
+    "shift": "Day",
+    "permissions": ["view-alerts", "dismiss-alerts", "view-reports", "manage-supervisors"],
+    "active": true,
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "department": "Operations",
+    "email": "m.brown@gonortheast.co.uk"
+  },
+  "supervisor004": {
+    "id": "supervisor004",
+    "name": "Emma Wilson",
+    "badge": "EW004",
+    "role": "Traffic Controller",
+    "shift": "Evening",
+    "permissions": ["view-alerts", "dismiss-alerts"],
+    "active": true,
+    "createdAt": "2025-01-01T00:00:00.000Z",
+    "department": "Traffic Control",
+    "email": "e.wilson@gonortheast.co.uk"
+  }
+}

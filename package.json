@@ -18,8 +18,9 @@
     "start:backend": "cd backend && npm start",
     "preview": "cd Go_BARRY && npm run deploy:preview",
     "deploy:render": "git add . && git commit -m 'Deploy to Render' && git push origin main",
-    "deploy:gobarry": "./deploy-to-gobarry-domain.sh",
-    "configure:domain": "echo 'Configuring for gobarry.co.uk domain...' && npm run deploy:gobarry"
+    "deploy:cpanel": "./deploy-to-cpanel.sh",
+    "deploy:cpanel:test": "cd Go_BARRY && npm run serve:cpanel",
+    "configure:cpanel": "echo 'Configuring for cPanel deployment with gobarry.co.uk...' && npm run deploy:cpanel"
   },
   "dependencies": {
     "mapbox-gl": "^3.12.0"

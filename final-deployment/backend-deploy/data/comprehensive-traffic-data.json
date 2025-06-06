@@ -1,0 +1,14 @@
+{
+  "alerts": [],
+  "metadata": {
+    "count": 0,
+    "lastUpdated": "2025-06-01T12:02:57.172Z",
+    "sources": [
+      "TomTom Traffic Flow",
+      "MapQuest Traffic API",
+      "National Highways API",
+      "HERE Traffic API"
+    ],
+    "approach": "simple_single_calls"
+  }
+}

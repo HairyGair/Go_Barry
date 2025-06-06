@@ -1,4 +1,4 @@
-// Go_BARRY/app/(tabs)/_layout.jsx - Theme-Aware Navigation System
+// Go_BARRY/app/(tabs)/_layout.jsx - Mobile/Device Interface Navigation
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../components/theme/ThemeContext';
@@ -55,7 +55,7 @@ export default function TabLayout() {
         name="dashboard"
         options={{
           title: 'Dashboard',
-          headerTitle: 'BARRY Control',
+          headerTitle: 'BARRY Mobile Interface',
           tabBarIcon: ({ color, size, focused }) => (
             <Ionicons 
               name={focused ? "stats-chart" : "stats-chart-outline"} 
