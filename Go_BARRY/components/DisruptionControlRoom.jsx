@@ -1,5 +1,5 @@
 // Go_BARRY/components/DisruptionControlRoom.jsx
-// Complete Disruption Control Room Interface
+// Complete Disruption Control Room Interface with Enhanced AI and Incident Management
 import React, { useState } from 'react';
 import {
   View,
@@ -11,20 +11,25 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import ServiceFrequencyDashboard from './ServiceFrequencyDashboard';
 import AIDisruptionManager from './AIDisruptionManager';
+import IncidentManager from './IncidentManager';
+import MessageDistributionCenter from './MessageDistributionCenter';
+import AutomatedReportingSystem from './AutomatedReportingSystem';
+import SystemHealthMonitor from './SystemHealthMonitor';
+import TrainingHelpSystem from './TrainingHelpSystem';
 
 const { width } = Dimensions.get('window');
 
 const DisruptionControlRoom = ({ baseUrl }) => {
-  const [activeScreen, setActiveScreen] = useState('frequency');
+  const [activeScreen, setActiveScreen] = useState('incidents');
 
   const screens = [
     {
-      id: 'frequency',
-      title: 'Service Frequency',
-      subtitle: 'Monitor service gaps & breakdowns',
-      icon: 'analytics',
-      color: '#3B82F6',
-      component: ServiceFrequencyDashboard
+      id: 'incidents',
+      title: 'Incident Manager',
+      subtitle: 'GTFS-powered incident tracking',
+      icon: 'alert-circle',
+      color: '#EF4444',
+      component: IncidentManager
     },
     {
       id: 'ai',
@@ -33,6 +38,46 @@ const DisruptionControlRoom = ({ baseUrl }) => {
       icon: 'bulb',
       color: '#10B981',
       component: AIDisruptionManager
+    },
+    {
+      id: 'messaging',
+      title: 'Message Distribution',
+      subtitle: 'Multi-channel communication',
+      icon: 'chatbubbles',
+      color: '#8B5CF6',
+      component: MessageDistributionCenter
+    },
+    {
+      id: 'reports',
+      title: 'Automated Reports',
+      subtitle: 'Daily reports & summaries',
+      icon: 'document-text',
+      color: '#F59E0B',
+      component: AutomatedReportingSystem
+    },
+    {
+      id: 'health',
+      title: 'System Health',
+      subtitle: 'Monitor performance & diagnostics',
+      icon: 'medical',
+      color: '#EF4444',
+      component: SystemHealthMonitor
+    },
+    {
+      id: 'training',
+      title: 'Training & Help',
+      subtitle: 'Learn BARRY & get support',
+      icon: 'school',
+      color: '#6B5B95',
+      component: TrainingHelpSystem
+    },
+    {
+      id: 'frequency',
+      title: 'Service Frequency',
+      subtitle: 'Monitor service gaps & breakdowns',
+      icon: 'analytics',
+      color: '#3B82F6',
+      component: ServiceFrequencyDashboard
     }
   ];
 

@@ -1,94 +1,158 @@
 // Go_BARRY/components/hooks/useSupervisorSession.js
-// Supervisor session management hook for mobile app
+// Enhanced supervisor session management with browser persistence
 
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { Alert } from 'react-native';
+import sessionStorage from '../../services/sessionStorage';
 
 // Create context for supervisor session
 const SupervisorContext = createContext();
 
-// API configuration
-const API_BASE_URL = __DEV__ 
-  ? 'http://localhost:3001' 
-  : 'https://go-barry.onrender.com';
+// API configuration with fallback for development
+const API_BASE_URL = (() => {
+  if (typeof window !== 'undefined') {
+    // Browser environment
+    return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:3001'
+      : 'https://go-barry.onrender.com';
+  } else {
+    // React Native environment
+    return __DEV__ 
+      ? 'http://192.168.1.132:3001' 
+      : 'https://go-barry.onrender.com';
+  }
+})();
 
-// Supervisor session hook
+// Supervisor database
+const SUPERVISOR_DB = {
+  'alex_woodcock': { name: 'Alex Woodcock', role: 'Supervisor', requiresPassword: false },
+  'andrew_cowley': { name: 'Andrew Cowley', role: 'Supervisor', requiresPassword: false },
+  'anthony_gair': { name: 'Anthony Gair', role: 'Supervisor', requiresPassword: false },
+  'claire_fiddler': { name: 'Claire Fiddler', role: 'Supervisor', requiresPassword: false },
+  'david_hall': { name: 'David Hall', role: 'Supervisor', requiresPassword: false },
+  'james_daglish': { name: 'James Daglish', role: 'Supervisor', requiresPassword: false },
+  'john_paterson': { name: 'John Paterson', role: 'Supervisor', requiresPassword: false },
+  'simon_glass': { name: 'Simon Glass', role: 'Supervisor', requiresPassword: false },
+  'barry_perryman': { 
+    name: 'Barry Perryman', 
+    role: 'Service Delivery Controller - Line Manager', 
+    requiresPassword: true, 
+    password: 'Barry123', 
+    isAdmin: true 
+  },
+};
+
+// Duty options
+export const DUTY_OPTIONS = [
+  { id: '100', name: 'Duty 100 (6am-3:30pm)', shift: 'Early' },
+  { id: '200', name: 'Duty 200 (7:30am-5pm)', shift: 'Day' },
+  { id: '400', name: 'Duty 400 (12:30pm-10pm)', shift: 'Late' },
+  { id: '500', name: 'Duty 500 (2:45pm-12:15am)', shift: 'Night' },
+  { id: 'xops', name: 'XOps', shift: 'Operations' },
+];
+
+// Activity tracking
+let activityLog = [];
+
+// Supervisor session hook with persistence
 export const useSupervisorSession = () => {
   const [supervisorSession, setSupervisorSession] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Login function - updated to handle new supervisor structure
+  // Initialize session from storage on mount
+  useEffect(() => {
+    const savedSession = sessionStorage.loadSession();
+    if (savedSession) {
+      setSupervisorSession(savedSession);
+      console.log('✅ Restored supervisor session:', savedSession.supervisor?.name);
+    }
+  }, []);
+
+  // Log activity
+  const logActivity = useCallback((type, details, alertId = null) => {
+    if (!supervisorSession) return;
+
+    const activity = {
+      id: Date.now().toString(),
+      type,
+      details,
+      alertId,
+      timestamp: new Date().toISOString(),
+      supervisorId: supervisorSession.supervisor.id,
+      supervisorName: supervisorSession.supervisor.name,
+      duty: supervisorSession.supervisor.duty?.name,
+    };
+
+    activityLog.unshift(activity);
+    // Keep only last 100 activities
+    if (activityLog.length > 100) {
+      activityLog = activityLog.slice(0, 100);
+    }
+
+    sessionStorage.updateActivity();
+    console.log('📝 Activity logged:', type, details);
+  }, [supervisorSession]);
+
+  // Login function with enhanced persistence
   const login = useCallback(async (loginData) => {
     setIsLoading(true);
     setError(null);
     
     try {
-      // Handle both old format (supervisorId, badge) and new format (loginData object)
-      let requestData;
-      if (typeof loginData === 'string') {
-        // Old format - backwards compatibility
-        requestData = { supervisorId: loginData };
-      } else {
-        // New format with duty selection
-        requestData = {
-          supervisorId: loginData.supervisorId,
-          password: loginData.password,
-          duty: loginData.duty,
-          isAdmin: loginData.isAdmin,
-        };
+      // Validate supervisor
+      const supervisor = SUPERVISOR_DB[loginData.supervisorId];
+      if (!supervisor) {
+        throw new Error('Supervisor not found');
       }
 
-      // Create local session for browser/mobile app
+      // Check password if required
+      if (supervisor.requiresPassword) {
+        if (!loginData.password || loginData.password !== supervisor.password) {
+          throw new Error('Incorrect password for Line Manager access');
+        }
+      }
+
+      // Create session
       const session = {
-        sessionId: 'session_' + Date.now(),
+        sessionId: 'browser_' + Date.now(),
         supervisor: {
-          id: requestData.supervisorId,
-          name: getSupervisorName(requestData.supervisorId),
-          role: getSupervisorRole(requestData.supervisorId),
-          duty: requestData.duty,
-          isAdmin: requestData.isAdmin || false,
-          permissions: requestData.isAdmin ? ['dismiss_alerts', 'view_all_activity', 'manage_supervisors'] : ['dismiss_alerts'],
+          id: loginData.supervisorId,
+          name: supervisor.name,
+          role: supervisor.role,
+          duty: loginData.duty,
+          isAdmin: supervisor.isAdmin || false,
+          permissions: supervisor.isAdmin ? 
+            ['dismiss_alerts', 'view_all_activity', 'manage_supervisors', 'create_incidents', 'send_messages'] : 
+            ['dismiss_alerts', 'create_incidents'],
         },
         loginTime: new Date().toISOString(),
+        lastActivity: Date.now(),
       };
       
+      // Save to persistent storage
+      const saved = sessionStorage.saveSession(session);
+      if (!saved) {
+        console.warn('⚠️ Failed to save session to storage, session will not persist');
+      }
+
       setSupervisorSession(session);
-      console.log('✅ Supervisor logged in:', session.supervisor.name, 'Duty:', session.supervisor.duty?.name);
+      
+      // Log login activity
+      logActivity('LOGIN', `${supervisor.name} logged in on ${loginData.duty?.name || 'Unknown Duty'}`);
+      
+      console.log('✅ Supervisor logged in:', supervisor.name, 'Duty:', loginData.duty?.name);
       return { success: true, session };
       
     } catch (err) {
-      const errorMessage = 'Login failed';
+      const errorMessage = err.message || 'Login failed';
       setError(errorMessage);
       console.error('❌ Login error:', err);
       return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
     }
-  }, []);
-
-  // Helper functions to get supervisor data
-  const getSupervisorName = (supervisorId) => {
-    const supervisors = {
-      'alex_woodcock': 'Alex Woodcock',
-      'andrew_cowley': 'Andrew Cowley',
-      'anthony_gair': 'Anthony Gair',
-      'claire_fiddler': 'Claire Fiddler',
-      'david_hall': 'David Hall',
-      'james_daglish': 'James Daglish',
-      'john_paterson': 'John Paterson',
-      'simon_glass': 'Simon Glass',
-      'barry_perryman': 'Barry Perryman',
-    };
-    return supervisors[supervisorId] || 'Unknown Supervisor';
-  };
-
-  const getSupervisorRole = (supervisorId) => {
-    if (supervisorId === 'barry_perryman') {
-      return 'Service Delivery Controller - Line Manager';
-    }
-    return 'Supervisor';
-  };
+  }, [logActivity]);
 
   // Logout function
   const logout = useCallback(async () => {
@@ -97,134 +161,124 @@ export const useSupervisorSession = () => {
     setIsLoading(true);
     
     try {
-      // Only call API logout if we have a real API session
-      if (!supervisorSession.sessionId.startsWith('session_')) {
-        await fetch(`${API_BASE_URL}/api/supervisor/auth/logout`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ sessionId: supervisorSession.sessionId }),
-        });
-      }
-
+      // Log logout activity
+      logActivity('LOGOUT', `${supervisorSession.supervisor.name} logged out`);
+      
+      // Clear persistent storage
+      sessionStorage.clearSession();
+      
       setSupervisorSession(null);
       setError(null);
       console.log('✅ Supervisor logged out');
     } catch (err) {
       console.error('❌ Logout error:', err);
-      // Still clear session even if server call fails
+      // Still clear session even if logging fails
+      sessionStorage.clearSession();
       setSupervisorSession(null);
     } finally {
       setIsLoading(false);
     }
-  }, [supervisorSession]);
-
-  // Validate session function
-  const validateSession = useCallback(async () => {
-    if (!supervisorSession) return false;
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/supervisor/auth/validate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ sessionId: supervisorSession.sessionId }),
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        setSupervisorSession(null);
-        setError('Session expired');
-        return false;
-      }
-
-      return true;
-    } catch (err) {
-      console.error('❌ Session validation error:', err);
-      return false;
-    }
-  }, [supervisorSession]);
+  }, [supervisorSession, logActivity]);
 
   // Dismiss alert function
   const dismissAlert = useCallback(async (alertId, reason, notes = '') => {
     if (!supervisorSession) {
-      Alert.alert('Error', 'Please log in as a supervisor to dismiss alerts.');
+      const alertMessage = 'Please log in as a supervisor to dismiss alerts.';
+      if (typeof Alert !== 'undefined') {
+        Alert.alert('Error', alertMessage);
+      } else {
+        alert(alertMessage);
+      }
       return { success: false, error: 'Not logged in' };
     }
 
     setIsLoading(true);
     
     try {
-      const response = await fetch(`${API_BASE_URL}/api/supervisor/alerts/dismiss`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          alertId,
-          sessionId: supervisorSession.sessionId,
-          reason,
-          notes,
-        }),
-      });
+      // Create dismissal record
+      const dismissal = {
+        id: 'dismiss_' + Date.now(),
+        alertId,
+        reason,
+        notes,
+        supervisorId: supervisorSession.supervisor.id,
+        supervisorName: supervisorSession.supervisor.name,
+        timestamp: new Date().toISOString(),
+        duty: supervisorSession.supervisor.duty?.name,
+      };
 
-      const result = await response.json();
+      // Log dismissal activity
+      logActivity('DISMISS_ALERT', `Dismissed alert ${alertId}: ${reason}`, alertId);
 
-      if (result.success) {
-        console.log('✅ Alert dismissed:', alertId, 'by', supervisorSession.supervisor.name);
-        Alert.alert(
-          'Alert Dismissed', 
-          `Alert has been dismissed by ${supervisorSession.supervisor.name}`
-        );
-        return { success: true, dismissal: result.dismissal };
+      console.log('✅ Alert dismissed:', alertId, 'by', supervisorSession.supervisor.name);
+      
+      const successMessage = `Alert has been dismissed by ${supervisorSession.supervisor.name}`;
+      if (typeof Alert !== 'undefined') {
+        Alert.alert('Alert Dismissed', successMessage);
       } else {
-        setError(result.error);
-        Alert.alert('Dismissal Failed', result.error);
-        return { success: false, error: result.error };
+        alert(successMessage);
       }
+      
+      return { success: true, dismissal };
     } catch (err) {
       const errorMessage = 'Failed to dismiss alert';
       setError(errorMessage);
       console.error('❌ Dismissal error:', err);
-      Alert.alert('Error', errorMessage);
+      
+      if (typeof Alert !== 'undefined') {
+        Alert.alert('Error', errorMessage);
+      } else {
+        alert(errorMessage);
+      }
+      
       return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
     }
-  }, [supervisorSession]);
+  }, [supervisorSession, logActivity]);
 
   // Get supervisor activity
   const getSupervisorActivity = useCallback(async (limit = 20) => {
     if (!supervisorSession) return [];
 
-    try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/supervisor/supervisors/${supervisorSession.supervisor.id}/activity?limit=${limit}`
-      );
+    // Return activities for current supervisor
+    const supervisorActivities = activityLog
+      .filter(activity => activity.supervisorId === supervisorSession.supervisor.id)
+      .slice(0, limit);
+
+    return supervisorActivities;
+  }, [supervisorSession]);
+
+  // Get all activity (admin only)
+  const getAllActivity = useCallback(async (limit = 50) => {
+    if (!supervisorSession?.supervisor?.isAdmin) return [];
+    
+    return activityLog.slice(0, limit);
+  }, [supervisorSession]);
+
+  // Update activity periodically
+  useEffect(() => {
+    if (supervisorSession) {
+      const interval = setInterval(() => {
+        sessionStorage.updateActivity();
+      }, 30000); // 30 seconds
       
-      const result = await response.json();
-      
-      if (result.success) {
-        return result.activity;
-      }
-      
-      return [];
-    } catch (err) {
-      console.error('❌ Failed to fetch supervisor activity:', err);
-      return [];
+      return () => clearInterval(interval);
     }
   }, [supervisorSession]);
 
-  // Auto-validate session periodically
+  // Check for session expiry
   useEffect(() => {
-    if (supervisorSession) {
-      const interval = setInterval(validateSession, 5 * 60 * 1000); // 5 minutes
-      return () => clearInterval(interval);
-    }
-  }, [supervisorSession, validateSession]);
+    const checkExpiry = () => {
+      if (supervisorSession && !sessionStorage.isSessionValid()) {
+        setSupervisorSession(null);
+        setError('Session expired - please log in again');
+      }
+    };
+
+    const interval = setInterval(checkExpiry, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, [supervisorSession]);
 
   return {
     supervisorSession,
@@ -232,12 +286,15 @@ export const useSupervisorSession = () => {
     error,
     login,
     logout,
-    validateSession,
     dismissAlert,
     getSupervisorActivity,
+    getAllActivity,
+    logActivity,
     isLoggedIn: !!supervisorSession,
     supervisorName: supervisorSession?.supervisor?.name,
     supervisorRole: supervisorSession?.supervisor?.role,
+    supervisorDuty: supervisorSession?.supervisor?.duty?.name,
+    isAdmin: supervisorSession?.supervisor?.isAdmin || false,
     hasPermission: (permission) => {
       return supervisorSession?.supervisor?.permissions?.includes(permission) ?? false;
     },

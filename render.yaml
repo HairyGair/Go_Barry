@@ -1,10 +1,10 @@
 services:
-  # Backend API Service (existing deployment)
+  # Backend API Service - Go Barry v3.0
   - type: web
     name: go-barry
     env: node
     buildCommand: cd backend && npm install
-    startCommand: cd backend && npm run start-optimized
+    startCommand: cd backend && npm start
     plan: free
     envVars:
       - key: NODE_ENV
@@ -13,24 +13,20 @@ services:
         value: --max-old-space-size=2048 --optimize-for-size
       - key: PORT
         value: 10000
-      # Add your API keys here
+      # API Keys (set these in Render dashboard)
       - key: TOMTOM_API_KEY
         sync: false
-      - key: MAPQUEST_API_KEY
+      - key: MAPQUEST_API_KEY  
         sync: false
       - key: HERE_API_KEY
         sync: false
+      - key: MAPBOX_API_KEY
+        sync: false
       - key: NATIONAL_HIGHWAYS_API_KEY
-        sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_ANON_KEY
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
     autoDeploy: false
 
-  # Frontend Web App
+  # Frontend Web App - Go Barry v3.0 Dashboard  
   - type: static
     name: barry-frontend
     buildCommand: cd Go_BARRY && npm install && npm run build:web

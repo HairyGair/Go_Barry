@@ -1,19 +1,18 @@
 // Go_BARRY/app/(tabs)/disruption.jsx
-// AI-Powered Disruption Management Screen
+// AI-Powered Disruption Management Screen with Enhanced Browser Compatibility
 import React from 'react';
-import { View, StyleSheet, StatusBar } from 'react-native';
+import { View, StyleSheet, StatusBar, Platform } from 'react-native';
 import DisruptionControlRoom from '../../components/DisruptionControlRoom';
 import { API_CONFIG } from '../../config/api';
+
+const isWeb = Platform.OS === 'web';
 
 export default function DisruptionScreen() {
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#111827" />
+      {!isWeb && <StatusBar barStyle="light-content" backgroundColor="#111827" />}
       <DisruptionControlRoom 
-        baseUrl={API_CONFIG?.baseURL || (__DEV__ 
-          ? 'http://192.168.1.132:3001'
-          : 'https://go-barry.onrender.com'
-        )}
+        baseUrl={API_CONFIG.baseURL}
       />
     </View>
   );

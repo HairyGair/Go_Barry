@@ -355,6 +355,14 @@ app.use('/api/supervisor', supervisorAPI);
 import routeManagementAPI from './routes/routeManagementAPI.js';
 app.use('/api/routes', routeManagementAPI);
 
+// Incident Management API (Phase 2)
+import incidentAPI from './routes/incidentAPI.js';
+app.use('/api/incidents', incidentAPI);
+
+// Messaging Distribution API (Phase 4) 
+import messagingAPI from './routes/messagingAPI.js';
+app.use('/api/messaging', messagingAPI);
+
 // Geocoding API endpoints
 app.get('/api/geocode/:location', async (req, res) => {
   try {

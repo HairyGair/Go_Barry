@@ -41,10 +41,20 @@ const EnhancedDashboard = () => {
   const [showSupervisorLogin, setShowSupervisorLogin] = useState(false);
   const [supervisorActivity, setSupervisorActivity] = useState([]);
 
-  // Enhanced API endpoint for supervisor integration
-  const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || (__DEV__ 
-    ? 'http://192.168.1.132:3001'  // Your Mac's IP address for local development
-    : 'https://go-barry.onrender.com'); // Your existing production URL
+  // Enhanced API endpoint for supervisor integration with browser fallback
+  const API_BASE_URL = (() => {
+    if (typeof window !== 'undefined') {
+      // Browser environment
+      return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+        ? 'http://localhost:3001'
+        : 'https://go-barry.onrender.com';
+    } else {
+      // React Native environment
+      return process.env.EXPO_PUBLIC_API_BASE_URL || (__DEV__ 
+        ? 'http://192.168.1.132:3001'
+        : 'https://go-barry.onrender.com');
+    }
+  })();
 
   // Enhanced fetch function with supervisor awareness and FALLBACK STRATEGY
   const fetchAlerts = async () => {
