@@ -648,16 +648,18 @@
 
         // Supervisor data structure with Go North East team
         const supervisorRoles = {
-            'anthony-gair': { name: 'Anthony Gair', role: 'Service Delivery Supervisor', badge: 'AG001' },
-            'andrew-cowley': { name: 'Andrew Cowley', role: 'Service Delivery Supervisor', badge: 'AC002' },
-            'claire-fiddler': { name: 'Claire Fiddler', role: 'Service Delivery Supervisor', badge: 'CF003' },
-            'alex-woodcock': { name: 'Alex Woodcock', role: 'Service Delivery Supervisor', badge: 'AW004' },
-            'john-paterson': { name: 'John Paterson', role: 'Service Delivery Supervisor', badge: 'JP005' },
-            'simon-glass': { name: 'Simon Glass', role: 'Service Delivery Supervisor', badge: 'SG006' },
-            'david-hall': { name: 'David Hall', role: 'Service Delivery Supervisor', badge: 'DH007' },
-            'james-daglish': { name: 'James Daglish', role: 'Service Delivery Supervisor', badge: 'JD008' },
-            'barry-perryman': { name: 'Barry Perryman', role: 'Service Delivery Controller', badge: 'BP001' }
+            'anthony-gair': { name: 'Anthony Gair', role: 'Service Delivery Supervisor' },
+            'andrew-cowley': { name: 'Andrew Cowley', role: 'Service Delivery Supervisor' },
+            'claire-fiddler': { name: 'Claire Fiddler', role: 'Service Delivery Supervisor' },
+            'alex-woodcock': { name: 'Alex Woodcock', role: 'Service Delivery Supervisor' },
+            'john-paterson': { name: 'John Paterson', role: 'Service Delivery Supervisor' },
+            'simon-glass': { name: 'Simon Glass', role: 'Service Delivery Supervisor' },
+            'david-hall': { name: 'David Hall', role: 'Service Delivery Supervisor' },
+            'james-daglish': { name: 'James Daglish', role: 'Service Delivery Supervisor' },
+            'barry-perryman': { name: 'Barry Perryman', role: 'Service Delivery Controller' }
         };
+
+        let activeSupervisors = [];
 
         // Get supervisor display name with role indicator
         function getSupervisorDisplayName(supervisor) {
@@ -990,7 +992,7 @@
             fetchAlerts();
             fetchSupervisors();
             setInterval(fetchAlerts, 30000); // 30 seconds
-            setInterval(fetchSupervisors, 60000); // 60 seconds
+            setInterval(fetchSupervisors, 15000); // 15 seconds - more frequent for supervisor updates
             
             console.log('✅ BARRY Control Room with Maps Ready');
         }

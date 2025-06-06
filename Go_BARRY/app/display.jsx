@@ -1,1 +1,29 @@
-// Go_BARRY/app/display.jsx\n// Dedicated Display Screen Application for Control Room 24/7 Monitoring\n// This runs independently for large control room displays\n\nimport React from 'react';\nimport { View, StyleSheet, StatusBar } from 'react-native';\nimport DisplayScreen from '../components/DisplayScreen';\n\nconst DisplayApp = () => {\n  return (\n    <View style={styles.container}>\n      <StatusBar \n        barStyle=\"light-content\" \n        backgroundColor=\"#000000\" \n        hidden={true} // Hide status bar for fullscreen control room display\n      />\n      <DisplayScreen />\n    </View>\n  );\n};\n\nconst styles = StyleSheet.create({\n  container: {\n    flex: 1,\n    backgroundColor: '#000000',\n  },\n});\n\nexport default DisplayApp;\n
+// Go_BARRY/app/display.jsx
+// Dedicated Display Screen Application for Control Room 24/7 Monitoring
+// This runs independently for large control room displays
+
+import React from 'react';
+import { View, StyleSheet, StatusBar } from 'react-native';
+import DisplayScreen from '../components/DisplayScreen';
+
+const DisplayApp = () => {
+  return (
+    <View style={styles.container}>
+      <StatusBar 
+        barStyle="light-content" 
+        backgroundColor="#000000" 
+        hidden={true} // Hide status bar for fullscreen control room display
+      />
+      <DisplayScreen />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000000',
+  },
+});
+
+export default DisplayApp;

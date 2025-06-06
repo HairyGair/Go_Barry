@@ -1,6 +1,6 @@
 // Go_BARRY/components/DisplayScreen.jsx
-// Large Display Screen Component for Control Room Monitors
-// Optimized for 55"+ displays and wall-mounted screens
+// 24/7 Control Room Display Screen for Traffic Monitoring
+// Designed for supervisors monitoring traffic alerts that require attention
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -8,56 +8,32 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Dimensions,
   TouchableOpacity
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBarryAPI } from './hooks/useBARRYapi';
-import EnhancedTrafficCard from './EnhancedTrafficCard';
-import { Colors } from '../constants/Colors';
-
-const { width, height } = Dimensions.get('window');
 
 const DisplayScreen = () => {
   const {
     alerts,
-    activeAlerts,
-    criticalAlerts,
     loading,
     lastUpdated,
     refreshAlerts
   } = useBarryAPI({
     autoRefresh: true,
-    refreshInterval: 30000 // 30 seconds for display screen
+    refreshInterval: 15000 // 15 seconds for critical monitoring
   });
 
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [displayMode, setDisplayMode] = useState('overview'); // overview, alerts, critical
-  const [autoRotate, setAutoRotate] = useState(true);
-  const [rotationInterval, setRotationInterval] = useState(15000); // 15 seconds
+  const [acknowledgedAlerts, setAcknowledgedAlerts] = useState(new Set());
 
-  // Update time every second for display screen
+  // Update time every second
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
-
-  // Auto-rotation between display modes
-  useEffect(() => {
-    if (!autoRotate) return;
-
-    const modes = ['overview', 'alerts', 'critical'];
-    let currentIndex = modes.indexOf(displayMode);
-
-    const rotationTimer = setInterval(() => {
-      currentIndex = (currentIndex + 1) % modes.length;
-      setDisplayMode(modes[currentIndex]);
-    }, rotationInterval);
-
-    return () => clearInterval(rotationTimer);
-  }, [autoRotate, displayMode, rotationInterval]);
 
   const formatTime = (date) => {
     return date.toLocaleTimeString('en-GB', {
@@ -71,168 +47,25 @@ const DisplayScreen = () => {
   const formatDate = (date) => {
     return date.toLocaleDateString('en-GB', {
       weekday: 'long',
-      year: 'numeric',
+      day: 'numeric',
       month: 'long',
-      day: 'numeric'
+      year: 'numeric'
     });
   };
 
-  const getStatusColor = (severity) => {
-    switch (severity) {
-      case 'High': return '#EF4444';
-      case 'Medium': return '#F59E0B';
-      case 'Low': return '#10B981';
-      default: return '#6B7280';
-    }
+  const acknowledgeAlert = (alertId) => {
+    setAcknowledgedAlerts(prev => new Set([...prev, alertId]));
   };
 
-  const renderOverviewMode = () => (
-    <View style={styles.overviewContainer}>
-      {/* Statistics Cards */}
-      <View style={styles.statsGrid}>
-        <View style={[styles.statCard, { borderColor: '#EF4444' }]}>
-          <Text style={styles.statNumber}>{criticalAlerts.length}</Text>
-          <Text style={styles.statLabel}>Critical Alerts</Text>
-          <Ionicons name="alert-circle" size={32} color="#EF4444" />
-        </View>
-        
-        <View style={[styles.statCard, { borderColor: '#F59E0B' }]}>
-          <Text style={styles.statNumber}>{activeAlerts.length}</Text>
-          <Text style={styles.statLabel}>Active Alerts</Text>
-          <Ionicons name="warning" size={32} color="#F59E0B" />
-        </View>
-        
-        <View style={[styles.statCard, { borderColor: '#3B82F6' }]}>
-          <Text style={styles.statNumber}>{alerts.length}</Text>
-          <Text style={styles.statLabel}>Total Alerts</Text>
-          <Ionicons name="list" size={32} color="#3B82F6" />
-        </View>
-        
-        <View style={[styles.statCard, { borderColor: '#10B981' }]}>
-          <Text style={styles.statNumber}>
-            {alerts.filter(a => a.source === 'streetmanager').length}
-          </Text>
-          <Text style={styles.statLabel}>Roadworks</Text>
-          <Ionicons name="construct" size={32} color="#10B981" />
-        </View>
-      </View>
-
-      {/* Recent Critical Alerts */}
-      <View style={styles.criticalSection}>
-        <Text style={styles.sectionTitle}>⚠️ Critical Alerts</Text>
-        {criticalAlerts.length > 0 ? (
-          <ScrollView style={styles.alertsList} showsVerticalScrollIndicator={false}>
-            {criticalAlerts.slice(0, 4).map((alert, index) => (
-              <View key={alert.id || index} style={styles.displayAlert}>
-                <View style={[styles.alertIndicator, { backgroundColor: getStatusColor(alert.severity) }]} />
-                <View style={styles.alertContent}>
-                  <Text style={styles.alertTitle}>{alert.title}</Text>
-                  <Text style={styles.alertLocation}>{alert.location}</Text>
-                  <Text style={styles.alertTime}>
-                    {new Date(alert.lastUpdated || alert.timestamp).toLocaleTimeString('en-GB')}
-                  </Text>
-                </View>
-                <View style={styles.alertMeta}>
-                  <Text style={[styles.alertSeverity, { color: getStatusColor(alert.severity) }]}>
-                    {alert.severity?.toUpperCase()}
-                  </Text>
-                  {alert.affectsRoutes && alert.affectsRoutes.length > 0 && (
-                    <Text style={styles.alertRoutes}>
-                      Routes: {alert.affectsRoutes.slice(0, 3).join(', ')}
-                    </Text>
-                  )}
-                </View>
-              </View>
-            ))}
-          </ScrollView>
-        ) : (
-          <View style={styles.noAlertsContainer}>
-            <Ionicons name="checkmark-circle" size={48} color="#10B981" />
-            <Text style={styles.noAlertsText}>No Critical Alerts</Text>
-            <Text style={styles.noAlertsSubtext}>All systems operating normally</Text>
-          </View>
-        )}
-      </View>
-    </View>
+  const criticalAlerts = alerts.filter(alert => 
+    alert.severity === 'High' || 
+    (alert.affectsRoutes && alert.affectsRoutes.length >= 3)
   );
 
-  const renderAlertsMode = () => (
-    <View style={styles.alertsContainer}>
-      <Text style={styles.sectionTitle}>🚨 All Active Alerts</Text>
-      {activeAlerts.length > 0 ? (
-        <ScrollView style={styles.alertsList} showsVerticalScrollIndicator={false}>
-          {activeAlerts.slice(0, 8).map((alert, index) => (
-            <View key={alert.id || index} style={styles.displayAlert}>
-              <View style={[styles.alertIndicator, { backgroundColor: getStatusColor(alert.severity) }]} />
-              <View style={styles.alertContent}>
-                <Text style={styles.alertTitle}>{alert.title}</Text>
-                <Text style={styles.alertLocation}>{alert.location}</Text>
-                <Text style={styles.alertDescription} numberOfLines={2}>
-                  {alert.description}
-                </Text>
-                <Text style={styles.alertTime}>
-                  {new Date(alert.lastUpdated || alert.timestamp).toLocaleTimeString('en-GB')}
-                </Text>
-              </View>
-              <View style={styles.alertMeta}>
-                <Text style={[styles.alertSeverity, { color: getStatusColor(alert.severity) }]}>
-                  {alert.severity?.toUpperCase()}
-                </Text>
-                <Text style={styles.alertSource}>{alert.source?.toUpperCase()}</Text>
-                {alert.affectsRoutes && alert.affectsRoutes.length > 0 && (
-                  <Text style={styles.alertRoutes}>
-                    {alert.affectsRoutes.slice(0, 5).join(', ')}
-                  </Text>
-                )}
-              </View>
-            </View>
-          ))}
-        </ScrollView>
-      ) : (
-        <View style={styles.noAlertsContainer}>
-          <Ionicons name="checkmark-circle" size={64} color="#10B981" />
-          <Text style={styles.noAlertsText}>No Active Alerts</Text>
-          <Text style={styles.noAlertsSubtext}>Traffic flowing normally across the network</Text>
-        </View>
-      )}
-    </View>
-  );
-
-  const renderCriticalMode = () => (
-    <View style={styles.criticalContainer}>
-      <Text style={styles.sectionTitle}>🔴 Critical Incidents</Text>
-      {criticalAlerts.length > 0 ? (
-        <ScrollView style={styles.alertsList} showsVerticalScrollIndicator={false}>
-          {criticalAlerts.map((alert, index) => (
-            <View key={alert.id || index} style={styles.criticalAlert}>
-              <View style={styles.criticalHeader}>
-                <Ionicons name="alert-circle" size={32} color="#EF4444" />
-                <Text style={styles.criticalTitle}>{alert.title}</Text>
-                <Text style={styles.criticalTime}>
-                  {new Date(alert.lastUpdated || alert.timestamp).toLocaleTimeString('en-GB')}
-                </Text>
-              </View>
-              <Text style={styles.criticalLocation}>{alert.location}</Text>
-              <Text style={styles.criticalDescription}>{alert.description}</Text>
-              {alert.affectsRoutes && alert.affectsRoutes.length > 0 && (
-                <View style={styles.criticalRoutes}>
-                  <Text style={styles.criticalRoutesLabel}>Affected Routes:</Text>
-                  <Text style={styles.criticalRoutesText}>
-                    {alert.affectsRoutes.join(', ')}
-                  </Text>
-                </View>
-              )}
-            </View>
-          ))}
-        </ScrollView>
-      ) : (
-        <View style={styles.noAlertsContainer}>
-          <Ionicons name="shield-checkmark" size={80} color="#10B981" />
-          <Text style={styles.noAlertsText}>No Critical Incidents</Text>
-          <Text style={styles.noAlertsSubtext}>Network operating within normal parameters</Text>
-        </View>
-      )}
-    </View>
+  const urgentAlerts = alerts.filter(alert => 
+    alert.severity === 'Medium' && 
+    alert.affectsRoutes && 
+    alert.affectsRoutes.length > 0
   );
 
   return (
@@ -240,8 +73,8 @@ const DisplayScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>🚦 BARRY Traffic Intelligence</Text>
-          <Text style={styles.headerSubtitle}>Go North East Control Room Display</Text>
+          <Text style={styles.systemTitle}>🚦 GO NORTH EAST CONTROL ROOM</Text>
+          <Text style={styles.displayTitle}>24/7 TRAFFIC MONITORING DISPLAY</Text>
         </View>
         
         <View style={styles.headerCenter}>
@@ -251,71 +84,196 @@ const DisplayScreen = () => {
         
         <View style={styles.headerRight}>
           <View style={styles.statusIndicator}>
-            <View style={[styles.statusDot, { backgroundColor: loading ? '#F59E0B' : '#10B981' }]} />
             <Text style={styles.statusText}>
-              {loading ? 'UPDATING' : 'LIVE'}
+              {loading ? 'UPDATING' : 'LIVE MONITORING'}
             </Text>
           </View>
-          <Text style={styles.lastUpdated}>
-            Last: {lastUpdated ? new Date(lastUpdated).toLocaleTimeString('en-GB') : 'Never'}
+          <Text style={styles.lastUpdate}>
+            Last Update: {lastUpdated ? new Date(lastUpdated).toLocaleTimeString('en-GB') : 'Never'}
           </Text>
         </View>
       </View>
 
-      {/* Mode Controls */}
-      <View style={styles.modeControls}>
-        {['overview', 'alerts', 'critical'].map(mode => (
-          <TouchableOpacity
-            key={mode}
-            style={[styles.modeButton, displayMode === mode && styles.modeButtonActive]}
-            onPress={() => {
-              setDisplayMode(mode);
-              setAutoRotate(false); // Disable auto-rotation when manually switching
-            }}
-          >
-            <Text style={[
-              styles.modeButtonText,
-              displayMode === mode && styles.modeButtonTextActive
-            ]}>
-              {mode.charAt(0).toUpperCase() + mode.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-        
-        <TouchableOpacity
-          style={[styles.autoRotateButton, autoRotate && styles.autoRotateActive]}
-          onPress={() => setAutoRotate(!autoRotate)}
-        >
-          <Ionicons name="refresh" size={16} color={autoRotate ? '#FFFFFF' : '#6B7280'} />
-          <Text style={[
-            styles.autoRotateText,
-            autoRotate && styles.autoRotateTextActive
-          ]}>
-            Auto
+      {/* Priority Summary */}
+      <View style={styles.prioritySummary}>
+        <View style={[styles.priorityCount, { backgroundColor: '#FEE2E2' }]}>
+          <Text style={[styles.priorityNumber, { color: '#DC2626' }]}>
+            {criticalAlerts.length}
           </Text>
+          <Text style={[styles.priorityLabel, { color: '#DC2626' }]}>
+            CRITICAL
+          </Text>
+        </View>
+        
+        <View style={[styles.priorityCount, { backgroundColor: '#FED7AA' }]}>
+          <Text style={[styles.priorityNumber, { color: '#EA580C' }]}>
+            {urgentAlerts.length}
+          </Text>
+          <Text style={[styles.priorityLabel, { color: '#EA580C' }]}>
+            URGENT
+          </Text>
+        </View>
+        
+        <View style={[styles.priorityCount, { backgroundColor: '#FEF3C7' }]}>
+          <Text style={[styles.priorityNumber, { color: '#CA8A04' }]}>
+            {alerts.length - criticalAlerts.length - urgentAlerts.length}
+          </Text>
+          <Text style={[styles.priorityLabel, { color: '#CA8A04' }]}>
+            MONITOR
+          </Text>
+        </View>
+        
+        <TouchableOpacity 
+          style={styles.refreshButton}
+          onPress={refreshAlerts}
+        >
+          <Ionicons name="refresh" size={20} color="#FFFFFF" />
+          <Text style={styles.refreshText}>REFRESH</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Content */}
-      <View style={styles.content}>
-        {displayMode === 'overview' && renderOverviewMode()}
-        {displayMode === 'alerts' && renderAlertsMode()}
-        {displayMode === 'critical' && renderCriticalMode()}
-      </View>
+      {/* Alerts Feed */}
+      <ScrollView style={styles.alertsFeed} showsVerticalScrollIndicator={false}>
+        {alerts.length > 0 ? (
+          alerts.map((alert, index) => {
+            const isCritical = criticalAlerts.includes(alert);
+            const isUrgent = urgentAlerts.includes(alert);
+            const isAcknowledged = acknowledgedAlerts.has(alert.id);
+            
+            let priority = 'MONITOR';
+            let priorityColor = '#CA8A04';
+            if (isCritical) {
+              priority = 'CRITICAL';
+              priorityColor = '#DC2626';
+            } else if (isUrgent) {
+              priority = 'URGENT';
+              priorityColor = '#EA580C';
+            }
+
+            return (
+              <TouchableOpacity
+                key={alert.id || index}
+                style={[
+                  styles.alertCard,
+                  { borderLeftColor: priorityColor },
+                  isAcknowledged && styles.alertCardAcknowledged
+                ]}
+                onPress={() => acknowledgeAlert(alert.id)}
+              >
+                {/* Priority Banner */}
+                <View style={[styles.priorityBanner, { backgroundColor: priorityColor }]}>
+                  <Text style={styles.priorityText}>{priority}</Text>
+                  {isCritical && (
+                    <Ionicons name="warning" size={16} color="#FFFFFF" />
+                  )}
+                </View>
+
+                {/* Alert Content */}
+                <View style={styles.alertContent}>
+                  <View style={styles.alertHeader}>
+                    <Ionicons 
+                      name={alert.type === 'incident' ? 'alert-circle' : 'construct'} 
+                      size={24} 
+                      color={priorityColor}
+                    />
+                    <Text style={styles.alertTitle}>{alert.title}</Text>
+                  </View>
+                  
+                  <Text style={styles.alertLocation}>{alert.location}</Text>
+                  <Text style={styles.alertDescription} numberOfLines={3}>
+                    {alert.description}
+                  </Text>
+
+                  {/* Service Impact */}
+                  {alert.affectsRoutes && alert.affectsRoutes.length > 0 && (
+                    <View style={styles.serviceImpact}>
+                      <Text style={styles.serviceImpactLabel}>AFFECTED SERVICES:</Text>
+                      <View style={styles.routesList}>
+                        {alert.affectsRoutes.slice(0, 6).map((route, idx) => (
+                          <View key={idx} style={[styles.routeBadge, { borderColor: priorityColor }]}>
+                            <Text style={[styles.routeText, { color: priorityColor }]}>
+                              {route}
+                            </Text>
+                          </View>
+                        ))}
+                        {alert.affectsRoutes.length > 6 && (
+                          <Text style={styles.moreRoutes}>
+                            +{alert.affectsRoutes.length - 6} more
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Supervisor Action */}
+                  <View style={styles.supervisorActions}>
+                    <Text style={styles.actionPrompt}>
+                      {isCritical && 'IMMEDIATE: Check service status and consider diversions'}
+                      {isUrgent && !isCritical && 'URGENT: Review affected routes and passenger impact'}
+                      {!isCritical && !isUrgent && 'MONITOR: Keep watching for service disruption'}
+                    </Text>
+                    
+                    {!isAcknowledged && (isCritical || isUrgent) && (
+                      <View style={styles.acknowledgementPrompt}>
+                        <Ionicons name="hand-left" size={16} color={priorityColor} />
+                        <Text style={[styles.ackText, { color: priorityColor }]}>
+                          TAP TO ACKNOWLEDGE
+                        </Text>
+                      </View>
+                    )}
+                    
+                    {isAcknowledged && (
+                      <View style={styles.acknowledgedBadge}>
+                        <Ionicons name="checkmark-circle" size={16} color="#059669" />
+                        <Text style={styles.acknowledgedText}>ACKNOWLEDGED</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Source Info */}
+                  <View style={styles.alertFooter}>
+                    <Text style={styles.sourceText}>
+                      Source: {alert.source?.toUpperCase() || 'SYSTEM'} • 
+                      Severity: {alert.severity?.toUpperCase() || 'UNKNOWN'}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })
+        ) : (
+          <View style={styles.noAlertsContainer}>
+            <Ionicons name="shield-checkmark" size={64} color="#059669" />
+            <Text style={styles.noAlertsTitle}>ALL CLEAR</Text>
+            <Text style={styles.noAlertsText}>
+              No traffic alerts requiring supervisor attention
+            </Text>
+            <Text style={styles.noAlertsSubtext}>
+              Services operating normally across the network
+            </Text>
+          </View>
+        )}
+      </ScrollView>
 
       {/* Footer */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          Go North East • Real-time Traffic Intelligence • Display Screen Mode
+          Go North East Control Room • 24/7 Traffic Intelligence • Supervisor Display
         </Text>
+        <Text style={styles.instructionText}>
+          TAP alerts to acknowledge • Critical alerts require immediate supervisor review
+        </Text>
+      </View>
+    </View>
+  );
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000', // Black background for control room
+    backgroundColor: '#000000',
     minHeight: '100vh',
   },
-  
-  // Header Styles
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -349,7 +307,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
     fontFamily: 'monospace',
-    textShadow: '0 0 10px #3B82F6',
   },
   dateDisplay: {
     fontSize: 14,
@@ -360,14 +317,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'flex-end',
   },
-  statusPanel: {
-    alignItems: 'flex-end',
-  },
   statusIndicator: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
     marginBottom: 8,
+    backgroundColor: '#059669',
   },
   statusText: {
     fontSize: 12,
@@ -380,8 +335,6 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     fontFamily: 'monospace',
   },
-
-  // Priority Summary
   prioritySummary: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -422,8 +375,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     letterSpacing: 1,
   },
-
-  // Alerts Feed
   alertsFeed: {
     flex: 1,
     padding: 16,
@@ -439,18 +390,10 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  alertCardBlink: {
-    shadowColor: '#DC2626',
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 8,
-  },
   alertCardAcknowledged: {
     opacity: 0.7,
     backgroundColor: '#F9FAFB',
   },
-
-  // Priority Banner
   priorityBanner: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -464,33 +407,20 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     letterSpacing: 1,
   },
-
-  // Alert Content
-  alertHeader: {
+  alertContent: {
     padding: 16,
-    paddingBottom: 8,
   },
-  alertTitleRow: {
+  alertHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: 12,
+    marginBottom: 12,
   },
   alertTitle: {
     flex: 1,
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1F2937',
-    lineHeight: 24,
-  },
-  alertTime: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontFamily: 'monospace',
-    fontWeight: '600',
-  },
-  alertContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
   },
   alertLocation: {
     fontSize: 16,
@@ -502,12 +432,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#4B5563',
     lineHeight: 20,
+    marginBottom: 12,
   },
-
-  // Service Impact
   serviceImpact: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    marginBottom: 12,
   },
   serviceImpactLabel: {
     fontSize: 12,
@@ -539,15 +467,11 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontStyle: 'italic',
   },
-
-  // Supervisor Actions
   supervisorActions: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
-    marginTop: 8,
     paddingTop: 12,
+    marginBottom: 12,
   },
   actionPrompt: {
     fontSize: 13,
@@ -586,19 +510,14 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     letterSpacing: 1,
   },
-
-  // Alert Footer
   alertFooter: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    marginTop: 8,
   },
   sourceText: {
     fontSize: 11,
     color: '#9CA3AF',
     fontFamily: 'monospace',
   },
-
-  // No Alerts State
   noAlertsContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -624,8 +543,6 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     textAlign: 'center',
   },
-
-  // Footer
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',

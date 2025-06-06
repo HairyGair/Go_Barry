@@ -1,36 +1,16 @@
-// Go_BARRY/app/_layout.jsx - Theme Integration Applied
-import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+// Go_BARRY/app/_layout.jsx - Main App Layout with Display Route
+import { Stack } from 'expo-router';
 import { ThemeProvider } from '../components/theme/ThemeContext';
 import { SupervisorProvider } from '../components/hooks/useSupervisorSession';
 
-export default function TabLayout() {
+export default function RootLayout() {
   return (
     <ThemeProvider>
       <SupervisorProvider>
-        <Tabs
-          screenOptions={{
-            tabBarActiveTintColor: '#007AFF',
-            tabBarInactiveTintColor: '#8E8E93',
-            tabBarStyle: {
-              backgroundColor: '#F2F2F7',
-            },
-            headerStyle: {
-              backgroundColor: '#007AFF',
-            },
-            headerTintColor: '#FFFFFF',
-            headerTitleStyle: {
-              fontWeight: 'bold',
-            },
-          }}
-        >
-          <Tabs.Screen
-            name="(tabs)"
-            options={{
-              headerShown: false,
-            }}
-          />
-        </Tabs>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="display" options={{ headerShown: false }} />
+        </Stack>
       </SupervisorProvider>
     </ThemeProvider>
   );
