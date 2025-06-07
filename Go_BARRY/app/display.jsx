@@ -7,9 +7,7 @@ import { View, StyleSheet, Platform } from 'react-native';
 const DisplayApp = () => {
   useEffect(() => {
     if (Platform.OS === 'web') {
-      // Serve the beautiful control room display directly
-      const htmlContent = `
-<!DOCTYPE html>
+      const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -18,7 +16,6 @@ const DisplayApp = () => {
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.min.js"></script>
     
     <style>
         :root {
@@ -32,20 +29,13 @@ const DisplayApp = () => {
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--bg-primary) 0%, #1a202c 100%); color: var(--text-primary); height: 100vh; overflow: hidden; font-size: 14px; position: relative; }
-        body::before { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-image: radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at 40% 40%, rgba(6, 182, 212, 0.1) 0%, transparent 50%), radial-gradient(circle at 60% 70%, rgba(16, 185, 129, 0.08) 0%, transparent 50%); animation: float 30s ease-in-out infinite; pointer-events: none; z-index: -1; }
-        @keyframes float { 0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.7; } 25% { transform: translateY(-10px) rotate(45deg); opacity: 1; } 50% { transform: translateY(-20px) rotate(90deg); opacity: 0.8; } 75% { transform: translateY(-10px) rotate(135deg); opacity: 1; } }
         .header { background: linear-gradient(135deg, var(--gne-red) 0%, var(--gne-red-dark) 100%); backdrop-filter: blur(20px); border-bottom: 2px solid var(--gne-red-light); padding: 16px 32px; display: grid; grid-template-columns: auto 1fr auto auto; gap: 32px; align-items: center; box-shadow: 0 8px 32px rgba(227, 30, 36, 0.3); position: relative; z-index: 100; }
-        .header::before { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, var(--gne-red-light), #ffffff, var(--gne-red-light)); animation: gne-flow 4s ease-in-out infinite; }
-        @keyframes gne-flow { 0%, 100% { opacity: 0.8; transform: translateX(-10%); } 50% { opacity: 1; transform: translateX(10%); } }
         .logo-section { display: flex; align-items: center; gap: 20px; }
         .logo { display: flex; align-items: center; gap: 12px; }
-        .logo img { height: 45px; width: auto; filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.3)); animation: logo-glow 3s ease-in-out infinite; }
-        @keyframes logo-glow { 0%, 100% { filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.3)); transform: scale(1); } 50% { filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.6)); transform: scale(1.02); } }
+        .logo img { height: 45px; width: auto; filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.3)); }
         .logo-fallback { display: flex; align-items: center; gap: 12px; font-size: 28px; font-weight: 800; color: var(--text-bright); text-shadow: 0 0 20px rgba(255, 255, 255, 0.3); }
-        .logo-fallback i { color: var(--text-bright); animation: pulse-glow 3s ease-in-out infinite; }
-        @keyframes pulse-glow { 0%, 100% { filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5)); transform: scale(1); } 50% { filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.9)); transform: scale(1.05); } }
         .system-health { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-        .health-indicator { display: flex; align-items: center; gap: 10px; padding: 10px 18px; background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; transition: all 0.3s ease; font-size: 16px; font-weight: 600; color: #ffffff; }
+        .health-indicator { display: flex; align-items: center; gap: 10px; padding: 10px 18px; background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; font-size: 16px; font-weight: 600; color: #ffffff; }
         .system-metrics { display: flex; gap: 32px; font-size: 16px; color: rgba(255, 255, 255, 0.9); }
         .system-metric { text-align: center; min-width: 90px; }
         .metric-value { font-weight: 700; font-size: 24px; color: #ffffff; margin-bottom: 2px; }
@@ -57,20 +47,12 @@ const DisplayApp = () => {
         .alert-display-section { background: var(--bg-glass); backdrop-filter: blur(20px); border: 1px solid var(--border-glass); border-radius: 20px; padding: 32px; box-shadow: var(--shadow-card); overflow: hidden; position: relative; }
         .alert-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; z-index: 2; position: relative; }
         .alert-title { font-size: 20px; font-weight: 700; color: var(--text-bright); display: flex; align-items: center; gap: 12px; }
-        .alert-count { background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan)); color: var(--text-bright); padding: 8px 20px; border-radius: 20px; font-size: 14px; font-weight: 700; animation: count-update 0.3s ease; border: 1px solid rgba(255, 255, 255, 0.2); }
+        .alert-count { background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan)); color: var(--text-bright); padding: 8px 20px; border-radius: 20px; font-size: 14px; font-weight: 700; border: 1px solid rgba(255, 255, 255, 0.2); }
         .current-alert { height: calc(100% - 100px); display: flex; align-items: center; justify-content: center; position: relative; }
         .alert-card { background: rgba(24, 35, 54, 0.85); backdrop-filter: blur(22px) saturate(1.5); border-radius: 28px; border: 2px solid rgba(255,255,255,0.2); box-shadow: 0 12px 50px 0 rgba(30, 58, 138, 0.25); padding: 24px; width: 100%; border-left: 10px solid var(--status-critical); position: relative; overflow: hidden; transition: all 0.3s ease; }
-        .alert-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(120deg, rgba(255,255,255,0.12) 10%, rgba(255,255,255,0.02) 80%); pointer-events: none; z-index: 1; }
         .alert-card-title { font-size: 1.8em; font-weight: 700; margin-bottom: 16px; color: #fff; text-shadow: 0 3px 12px #23272f; z-index: 2; position: relative; line-height: 1.2; }
         .alert-card-location { font-size: 1.4em; font-weight: 600; margin-bottom: 14px; color: #fff; text-shadow: 0 2px 8px #1e40af; z-index: 2; position: relative; display: flex; align-items: center; gap: 8px; }
         .alert-card-description { font-size: 1.1em; font-weight: 500; margin-bottom: 16px; color: #fff; text-shadow: 0 1px 4px #000; z-index: 2; position: relative; line-height: 1.3; }
-        .alert-details { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; z-index: 2; position: relative; }
-        .alert-detail-item { background: rgba(255, 255, 255, 0.12); padding: 24px 28px; border-radius: 20px; border-left: 5px solid var(--accent-cyan); backdrop-filter: blur(15px); }
-        .alert-detail-label { font-size: 14px; font-weight: 600; color: rgba(255, 255, 255, 0.8); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.8px; }
-        .alert-detail-value { font-size: 16px; font-weight: 600; color: #fff; text-shadow: 0 1px 2px #000; line-height: 1.2; }
-        .route-badges { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; z-index: 2; position: relative; }
-        .route-badge { background: #3b82f6; color: #fff; padding: 6px 12px; border-radius: 12px; font-size: 14px; font-weight: 700; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
-        .alert-meta { display: flex; justify-content: space-between; align-items: center; font-size: 15px; color: rgba(255, 255, 255, 0.7); margin-top: 24px; z-index: 2; position: relative; padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
         .full-map-container { background: var(--bg-glass); backdrop-filter: blur(20px); border: 1px solid var(--border-glass); border-radius: 20px; padding: 24px; box-shadow: var(--shadow-card); position: relative; overflow: hidden; }
         .map-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; z-index: 10; position: relative; }
         .map-title { font-size: 18px; font-weight: 700; color: var(--text-bright); display: flex; align-items: center; gap: 12px; }
@@ -79,10 +61,7 @@ const DisplayApp = () => {
         .spinner { width: 36px; height: 36px; border: 4px solid rgba(255, 255, 255, 0.1); border-top: 4px solid var(--accent-blue); border-radius: 50%; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .no-alerts { text-align: center; padding: 80px 20px; color: var(--text-muted); }
-        .no-alerts i { font-size: 84px; margin-bottom: 32px; color: var(--status-success); animation: success-pulse 3s ease-in-out infinite; }
-        @keyframes success-pulse { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 15px rgba(16, 185, 129, 0.4)); } 50% { transform: scale(1.1); filter: drop-shadow(0 0 30px rgba(16, 185, 129, 0.7)); } }
-        @media (max-width: 1400px) { .main-content { grid-template-columns: 1fr 550px; } }
-        @media (max-width: 1200px) { .main-content { grid-template-columns: 1fr; grid-template-rows: 60vh 40vh; } .system-metrics { gap: 24px; } .system-metric { min-width: 70px; } }
+        .no-alerts i { font-size: 84px; margin-bottom: 32px; color: var(--status-success); }
     </style>
 </head>
 <body>
@@ -99,7 +78,6 @@ const DisplayApp = () => {
         
         <div class="system-health">
             <div class="health-indicator">
-                <div class="status-dot"></div>
                 <span id="system-status-text">OPERATIONAL</span>
             </div>
             <div class="system-metrics">
@@ -164,28 +142,241 @@ const DisplayApp = () => {
     
     <script>
         const API_BASE_URL = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://go-barry.onrender.com';
-        let map; let alertMarkers = []; let currentAlerts = []; let alertIndex = 0; let alertCycleTimer = null;
-        const supervisorRoles = { 'anthony-gair': { name: 'Anthony Gair', role: 'Service Delivery Supervisor' }, 'andrew-cowley': { name: 'Andrew Cowley', role: 'Service Delivery Supervisor' }, 'claire-fiddler': { name: 'Claire Fiddler', role: 'Service Delivery Supervisor' }, 'alex-woodcock': { name: 'Alex Woodcock', role: 'Service Delivery Supervisor' }, 'john-paterson': { name: 'John Paterson', role: 'Service Delivery Supervisor' }, 'simon-glass': { name: 'Simon Glass', role: 'Service Delivery Supervisor' }, 'david-hall': { name: 'David Hall', role: 'Service Delivery Supervisor' }, 'james-daglish': { name: 'James Daglish', role: 'Service Delivery Supervisor' }, 'barry-perryman': { name: 'Barry Perryman', role: 'Service Delivery Controller' } };
+        let map, alertMarkers = [], currentAlerts = [], alertIndex = 0, alertCycleTimer = null;
         let activeSupervisors = [];
         const NORTH_EAST_BOUNDS = { center: [54.9783, -1.6178], bounds: [[53.5, -3.0], [56.0, -0.5]], zoom: 12 };
-        function initializeMap() { console.log('🗺️ Initializing interactive map...'); map = L.map('map').setView(NORTH_EAST_BOUNDS.center, NORTH_EAST_BOUNDS.zoom); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors | BARRY Traffic Intelligence', maxZoom: 18, id: 'mapbox/streets-v11' }).addTo(map); const northEastBoundary = L.rectangle(NORTH_EAST_BOUNDS.bounds, { color: '#3b82f6', weight: 2, opacity: 0.6, fillColor: '#3b82f6', fillOpacity: 0.1 }).addTo(map); console.log('✅ Map initialized with North East England coverage'); }
-        function clearMapMarkers() { alertMarkers.forEach(marker => map.removeLayer(marker)); alertMarkers = []; }
-        function addAlertToMap(alert, index) { if (!alert.coordinates || alert.coordinates.length !== 2) return; const [lat, lng] = alert.coordinates; const iconColor = alert.severity === 'High' ? '#ef4444' : alert.severity === 'Medium' ? '#f59e0b' : '#10b981'; const customIcon = L.divIcon({ className: 'custom-alert-marker', html: \`<div style="background: \${iconColor}; width: 28px; height: 28px; border-radius: 50%; border: 3px solid white; box-shadow: 0 3px 10px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">!</div>\`, iconSize: [34, 34], iconAnchor: [17, 17] }); const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map); alertMarkers.push(marker); }
-        function createAlertCard(alert) { const routeBadges = alert.affectsRoutes && alert.affectsRoutes.length > 0 ? alert.affectsRoutes.map(route => \`<span class="route-badge">\${route}</span>\`).join('') : '<span class="route-badge" style="opacity: 0.6;">No routes identified</span>'; const startTime = alert.startDate ? new Date(alert.startDate).toLocaleString('en-GB', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Time unknown'; const authority = alert.authority || alert.source || 'Unknown authority'; const incidentType = alert.type === 'roadwork' ? 'Road Works' : 'Traffic Incident'; return \`<div class="alert-card"><div class="alert-card-title">\${alert.title || 'Traffic Alert'}</div><div class="alert-card-location"><i class="fas fa-map-marker-alt"></i>\${alert.location || 'Location not specified'}</div><div class="alert-card-description">\${alert.description || incidentType + ' reported'}</div><div class="alert-details"><div class="alert-detail-item"><div class="alert-detail-label">Start Time</div><div class="alert-detail-value">\${startTime}</div></div><div class="alert-detail-item"><div class="alert-detail-label">Authority</div><div class="alert-detail-value">\${authority}</div></div><div class="alert-detail-item"><div class="alert-detail-label">Incident Type</div><div class="alert-detail-value">\${incidentType}</div></div><div class="alert-detail-item"><div class="alert-detail-label">Priority</div><div class="alert-detail-value">\${alert.severity || 'Standard'}</div></div></div><div class="route-badges">\${routeBadges}</div><div class="alert-meta"><div>Source: \${alert.dataSource || alert.source}</div><div>ID: \${alert.id ? alert.id.split('_').pop() : 'N/A'}</div><div>Updated: \${alert.lastUpdated ? new Date(alert.lastUpdated).toLocaleTimeString() : 'Unknown'}</div></div></div>\`; }
-        async function fetchAlerts() { try { console.log('🔄 Fetching alerts with cache busting...'); const url = API_BASE_URL + '/api/alerts-enhanced?t=' + Date.now() + '&no_cache=true'; const response = await fetch(url, { method: 'GET', headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0', 'Accept': 'application/json' } }); const data = await response.json(); if (data.success && data.alerts) { const filteredAlerts = data.alerts.filter(alert => { if (alert.id && (alert.id.includes('barry_v3') || alert.id.includes('sample') || alert.source === 'go_barry_v3' || alert.enhanced === true)) { console.warn('🗑️ Display filtered sample alert:', alert.id); return false; } return true; }); currentAlerts = filteredAlerts; updateAlertsDisplay(currentAlerts); updateMapWithAlerts(currentAlerts); updateAnalytics(data.metadata); console.log(`✅ Display alerts updated: ${data.alerts.length} → ${filteredAlerts.length} (filtered ${data.alerts.length - filteredAlerts.length} samples)`); document.getElementById('last-update').textContent = `Last Update: ${new Date().toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit' })}`; } else { throw new Error('Invalid response format'); } } catch (error) { console.error('❌ Error fetching alerts:', error); showErrorState(); } }
-        async function fetchSupervisors() { try { const response = await fetch(\`\${API_BASE_URL}/api/supervisor/active\`); if (response.ok) { const data = await response.json(); activeSupervisors = data.activeSupervisors || []; updateSupervisorDisplay(activeSupervisors); } } catch (error) { activeSupervisors = []; updateSupervisorDisplay([]); } }
-        function updateSupervisorDisplay(supervisors) { document.getElementById('header-supervisors').textContent = supervisors.length; }
-        function updateMapWithAlerts(alerts) { clearMapMarkers(); const mappableAlerts = alerts.filter(alert => alert.coordinates && alert.coordinates.length === 2); mappableAlerts.forEach((alert, index) => { addAlertToMap(alert, alerts.indexOf(alert)); }); document.getElementById('header-map-alerts').textContent = mappableAlerts.length; }
-        function updateAnalytics(metadata) { const criticalCount = currentAlerts.filter(a => a.status === 'red' && a.severity === 'High').length; const affectedRoutesCount = new Set(currentAlerts.flatMap(a => a.affectsRoutes || [])).size; document.getElementById('header-total-alerts').textContent = currentAlerts.length; document.getElementById('header-critical').textContent = criticalCount; document.getElementById('header-routes').textContent = affectedRoutesCount; document.getElementById('alert-count').textContent = currentAlerts.length; }
-        function showErrorState() { const alertContainer = document.getElementById('current-alert'); alertContainer.innerHTML = \`<div style="text-align: center; padding: 80px; color: var(--text-muted);"><i class="fas fa-exclamation-triangle" style="font-size: 84px; margin-bottom: 32px; color: var(--status-warning);"></i><h3 style="font-size: 24px; margin-bottom: 16px;">Connection Error</h3><p style="font-size: 16px;">Unable to fetch traffic alerts. Retrying...</p></div>\`; }
-        function updateAlertsDisplay(alerts) { const alertContainer = document.getElementById('current-alert'); if (alerts.length === 0) { alertContainer.innerHTML = \`<div class="no-alerts"><i class="fas fa-shield-check"></i><h3 style="font-size: 28px; margin-bottom: 16px;">All Systems Clear</h3><p style="font-size: 18px;">No active traffic alerts detected</p></div>\`; clearAlertCycle(); return; } currentAlerts = alerts; alertIndex = 0; renderCurrentAlert(); startAlertCycle(); }
-        function renderCurrentAlert() { const alertContainer = document.getElementById('current-alert'); if (!currentAlerts || currentAlerts.length === 0) { alertContainer.innerHTML = ''; return; } const alert = currentAlerts[alertIndex % currentAlerts.length]; alertContainer.innerHTML = createAlertCard(alert); if (alert.coordinates && alert.coordinates.length === 2) { const [lat, lng] = alert.coordinates; map.setView([lat, lng], 16, { animate: true, duration: 1 }); } }
-        function startAlertCycle() { clearAlertCycle(); if (!currentAlerts || currentAlerts.length <= 1) return; alertCycleTimer = setInterval(() => { alertIndex = (alertIndex + 1) % currentAlerts.length; renderCurrentAlert(); }, 20000); }
-        function clearAlertCycle() { if (alertCycleTimer) { clearInterval(alertCycleTimer); alertCycleTimer = null; } }
-        function updateClock() { const now = new Date(); const timeString = now.toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }); document.getElementById('clock').textContent = timeString; }
-        function init() { console.log('🚦 BARRY Enhanced Control Room with Maps Initializing...'); initializeMap(); updateClock(); setInterval(updateClock, 1000); fetchAlerts(); fetchSupervisors(); setInterval(fetchAlerts, 30000); setInterval(fetchSupervisors, 15000); console.log('✅ BARRY Control Room with Maps Ready'); }
+        
+        function initializeMap() {
+            console.log('Initializing interactive map...');
+            map = L.map('map').setView(NORTH_EAST_BOUNDS.center, NORTH_EAST_BOUNDS.zoom);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: 'OpenStreetMap contributors | BARRY Traffic Intelligence',
+                maxZoom: 18
+            }).addTo(map);
+            console.log('Map initialized with North East England coverage');
+        }
+        
+        function clearMapMarkers() {
+            alertMarkers.forEach(marker => map.removeLayer(marker));
+            alertMarkers = [];
+        }
+        
+        function addAlertToMap(alert, index) {
+            if (!alert.coordinates || alert.coordinates.length !== 2) return;
+            const lat = alert.coordinates[0];
+            const lng = alert.coordinates[1];
+            const iconColor = alert.severity === 'High' ? '#ef4444' : alert.severity === 'Medium' ? '#f59e0b' : '#10b981';
+            const customIcon = L.divIcon({
+                className: 'custom-alert-marker',
+                html: '<div style="background: ' + iconColor + '; width: 28px; height: 28px; border-radius: 50%; border: 3px solid white; box-shadow: 0 3px 10px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">!</div>',
+                iconSize: [34, 34],
+                iconAnchor: [17, 17]
+            });
+            const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map);
+            alertMarkers.push(marker);
+        }
+        
+        function createAlertCard(alert) {
+            const routeBadges = alert.affectsRoutes && alert.affectsRoutes.length > 0
+                ? alert.affectsRoutes.map(route => '<span class="route-badge">' + route + '</span>').join('')
+                : '<span class="route-badge" style="opacity: 0.6;">No routes identified</span>';
+            
+            const startTime = alert.startDate
+                ? new Date(alert.startDate).toLocaleString('en-GB', {
+                    weekday: 'short', month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                })
+                : 'Time unknown';
+            
+            const authority = alert.authority || alert.source || 'Unknown authority';
+            const incidentType = alert.type === 'roadwork' ? 'Road Works' : 'Traffic Incident';
+            
+            return '<div class="alert-card">' +
+                '<div class="alert-card-title">' + (alert.title || 'Traffic Alert') + '</div>' +
+                '<div class="alert-card-location"><i class="fas fa-map-marker-alt"></i>' + (alert.location || 'Location not specified') + '</div>' +
+                '<div class="alert-card-description">' + (alert.description || incidentType + ' reported') + '</div>' +
+                '</div>';
+        }
+        
+        async function fetchAlerts() {
+            try {
+                console.log('Fetching alerts with cache busting...');
+                const url = API_BASE_URL + '/api/alerts-enhanced?t=' + Date.now() + '&no_cache=true';
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache',
+                        'Expires': '0',
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.alerts) {
+                    const filteredAlerts = data.alerts.filter(alert => {
+                        if (alert.id && (alert.id.includes('barry_v3') || alert.id.includes('sample') || alert.source === 'go_barry_v3' || alert.enhanced === true)) {
+                            console.warn('Display filtered sample alert:', alert.id);
+                            return false;
+                        }
+                        return true;
+                    });
+                    
+                    currentAlerts = filteredAlerts;
+                    updateAlertsDisplay(currentAlerts);
+                    updateMapWithAlerts(currentAlerts);
+                    updateAnalytics(data.metadata);
+                    
+                    console.log('Display alerts updated: ' + data.alerts.length + ' to ' + filteredAlerts.length + ' (filtered ' + (data.alerts.length - filteredAlerts.length) + ' samples)');
+                    document.getElementById('last-update').textContent = 'Last Update: ' + new Date().toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit' });
+                } else {
+                    throw new Error('Invalid response format');
+                }
+            } catch (error) {
+                console.error('Error fetching alerts:', error);
+                showErrorState();
+            }
+        }
+        
+        async function fetchSupervisors() {
+            try {
+                const response = await fetch(API_BASE_URL + '/api/supervisor/active');
+                if (response.ok) {
+                    const data = await response.json();
+                    activeSupervisors = data.activeSupervisors || [];
+                    updateSupervisorDisplay(activeSupervisors);
+                }
+            } catch (error) {
+                activeSupervisors = [];
+                updateSupervisorDisplay([]);
+            }
+        }
+        
+        function updateSupervisorDisplay(supervisors) {
+            document.getElementById('header-supervisors').textContent = supervisors.length;
+        }
+        
+        function updateMapWithAlerts(alerts) {
+            clearMapMarkers();
+            const mappableAlerts = alerts.filter(alert => alert.coordinates && alert.coordinates.length === 2);
+            mappableAlerts.forEach((alert, index) => {
+                addAlertToMap(alert, alerts.indexOf(alert));
+            });
+            document.getElementById('header-map-alerts').textContent = mappableAlerts.length;
+        }
+        
+        function updateAnalytics(metadata) {
+            const criticalCount = currentAlerts.filter(a => a.status === 'red' && a.severity === 'High').length;
+            const affectedRoutesCount = new Set(currentAlerts.flatMap(a => a.affectsRoutes || [])).size;
+            
+            document.getElementById('header-total-alerts').textContent = currentAlerts.length;
+            document.getElementById('header-critical').textContent = criticalCount;
+            document.getElementById('header-routes').textContent = affectedRoutesCount;
+            document.getElementById('alert-count').textContent = currentAlerts.length;
+        }
+        
+        function showErrorState() {
+            const alertContainer = document.getElementById('current-alert');
+            alertContainer.innerHTML = '<div style="text-align: center; padding: 80px; color: var(--text-muted);"><i class="fas fa-exclamation-triangle" style="font-size: 84px; margin-bottom: 32px; color: var(--status-warning);"></i><h3 style="font-size: 24px; margin-bottom: 16px;">Connection Error</h3><p style="font-size: 16px;">Unable to fetch traffic alerts. Retrying...</p></div>';
+        }
+        
+        function updateAlertsDisplay(alerts) {
+            const alertContainer = document.getElementById('current-alert');
+            
+            if (alerts.length === 0) {
+                alertContainer.innerHTML = '<div class="no-alerts"><i class="fas fa-shield-check"></i><h3 style="font-size: 28px; margin-bottom: 16px;">All Systems Clear</h3><p style="font-size: 18px;">No active traffic alerts detected</p></div>';
+                clearAlertCycle();
+                return;
+            }
+            
+            currentAlerts = alerts;
+            alertIndex = 0;
+            renderCurrentAlert();
+            startAlertCycle();
+        }
+        
+        function renderCurrentAlert() {
+            const alertContainer = document.getElementById('current-alert');
+            
+            if (!currentAlerts || currentAlerts.length === 0) {
+                alertContainer.innerHTML = '';
+                return;
+            }
+            
+            const alert = currentAlerts[alertIndex % currentAlerts.length];
+            alertContainer.innerHTML = createAlertCard(alert);
+            
+            if (alert.coordinates && alert.coordinates.length === 2) {
+                const lat = alert.coordinates[0];
+                const lng = alert.coordinates[1];
+                map.setView([lat, lng], 16, { animate: true, duration: 1 });
+            }
+        }
+        
+        function startAlertCycle() {
+            clearAlertCycle();
+            
+            if (!currentAlerts || currentAlerts.length <= 1) return;
+            
+            alertCycleTimer = setInterval(() => {
+                alertIndex = (alertIndex + 1) % currentAlerts.length;
+                renderCurrentAlert();
+            }, 20000);
+        }
+        
+        function clearAlertCycle() {
+            if (alertCycleTimer) {
+                clearInterval(alertCycleTimer);
+                alertCycleTimer = null;
+            }
+        }
+        
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-GB', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('clock').textContent = timeString;
+        }
+        
+        function init() {
+            console.log('BARRY Enhanced Control Room with Maps Initializing...');
+            
+            initializeMap();
+            updateClock();
+            setInterval(updateClock, 1000);
+            
+            fetchAlerts();
+            fetchSupervisors();
+            
+            setInterval(fetchAlerts, 30000);
+            setInterval(fetchSupervisors, 15000);
+            
+            console.log('BARRY Control Room with Maps Ready');
+        }
+        
         document.addEventListener('DOMContentLoaded', init);
-        document.addEventListener('keydown', (event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'r') { event.preventDefault(); fetchAlerts(); } if (event.key === 'ArrowLeft' && currentAlerts.length > 1) { alertIndex = (alertIndex - 1 + currentAlerts.length) % currentAlerts.length; renderCurrentAlert(); } if (event.key === 'ArrowRight' && currentAlerts.length > 1) { alertIndex = (alertIndex + 1) % currentAlerts.length; renderCurrentAlert(); } });
+        
+        document.addEventListener('keydown', (event) => {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'r') {
+                event.preventDefault();
+                fetchAlerts();
+            }
+            
+            if (event.key === 'ArrowLeft' && currentAlerts.length > 1) {
+                alertIndex = (alertIndex - 1 + currentAlerts.length) % currentAlerts.length;
+                renderCurrentAlert();
+            }
+            
+            if (event.key === 'ArrowRight' && currentAlerts.length > 1) {
+                alertIndex = (alertIndex + 1) % currentAlerts.length;
+                renderCurrentAlert();
+            }
+        });
     </script>
 </body>
 </html>`;
