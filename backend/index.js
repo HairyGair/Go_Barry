@@ -367,6 +367,10 @@ app.use('/api/incidents', incidentAPI);
 import messagingAPI from './routes/messagingAPI.js';
 app.use('/api/messaging', messagingAPI);
 
+// Roadworks Management API (Complete Backend System)
+import roadworksAPI from './routes/roadworksAPI.js';
+app.use('/api/roadworks', roadworksAPI);
+
 // Add to test data API
 import testDataAPI from './routes/testDataAPI.js';
 app.use('/api/test', testDataAPI);
@@ -907,6 +911,9 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   🧪 Test: /api/alerts-test`);
   console.log(`   💚 Health: /api/health`);
   console.log(`   🔄 Refresh: /api/refresh`);
+  console.log(`   🚧 Roadworks: /api/roadworks`);
+  console.log(`   👮 Supervisor: /api/supervisor`);
+  console.log(`   📍 Incidents: /api/incidents`);
 });
 
 
