@@ -25,19 +25,21 @@ initializeEnhancedMatcher().then(success => {
 // Route mapping data - maps location keywords to bus routes
 const LOCATION_ROUTE_MAPPING = {
   'a1': ['21', 'X21', '43', '44', '45'], // Current A1 routes - removed outdated X9, X10, 11
-  'a19': ['1', '2', '35', '36', '307', '309'], // Current A19 routes - removed outdated X7, X8, 19
+  'a19': ['1', '35', '36', '307', '309'], // FIXED: Removed route '2' - it's Sunderland-Washington via Penshaw, not A19
   'a167': ['21', '22', 'X21', '50', '6'], // Current A167 routes - removed 7
-  'a1058': ['1', '2', '307', '309', '317'], // Current Coast Road routes - removed 308, 311
+  'a1058': ['1', '307', '309', '317'], // FIXED: Removed route '2' - Coast Road routes corrected
   'a184': ['25', '28', '29'], // Current A184 routes - removed 93, 94
   'a690': ['61', '62', '63'], // Current A690 routes - removed 64, 65
   'a69': ['X85', '684'], // Current A69 routes - removed X84, 602, 685
   'a183': ['16', '20', '61', '62'], // Current A183 routes - removed 18
   'newcastle': ['Q3', 'Q3X', '10', '10A', '10B', '12', '21', '22', '27', '28', '29', '47'], // CURRENT Newcastle routes only
   'gateshead': ['21', '27', '28', '29', '51', '52', '53', '54', '56', '57', '58'], // CURRENT Gateshead routes
-  'sunderland': ['16', '20', '24', '35', '36', '56', '61', '62', '63', '700', '701', '9'], // CURRENT Sunderland routes
+  'sunderland': ['2', '16', '20', '24', '35', '36', '56', '61', '62', '63', '700', '701', '9'], // FIXED: Added route '2' to Sunderland area
+  'washington': ['2', '16', '24', '35', '36'], // NEW: Route '2' serves Washington via Penshaw
+  'penshaw': ['2'], // NEW: Route '2' specifically serves Penshaw
   'durham': ['21', '22', 'X21', '50', '6'], // CURRENT Durham routes - removed 13, 14
-  'tyne tunnel': ['1', '2', '307', '309'], // CURRENT tunnel routes - removed 308, 311
-  'coast road': ['1', '2', '307', '309', '317'], // CURRENT coast routes - removed 308, 311
+  'tyne tunnel': ['1', '307', '309'], // FIXED: Removed route '2' - tunnel routes corrected
+  'coast road': ['1', '307', '309', '317'], // FIXED: Removed route '2' - coast routes corrected
   'central motorway': ['Q3', 'Q3X', '10', '12', '21', '22'] // CURRENT city routes - removed Q1, Q2, QUAYSIDE
 };
 
@@ -75,9 +77,9 @@ async function getCurrentRoutesFromCoordinates(lat, lng) {
     routes.push('21', 'X21', '43', '44', '45');
   }
   
-  // A19 Corridor (tighter bounds)
-  if (lng >= -1.52 && lng <= -1.32 && lat >= 54.92 && lat <= 55.08) {
-    routes.push('1', '2', '307', '309');
+  // A19 Corridor (tighter bounds) - FIXED: Removed route '2'
+  if (lng >= -1.50 && lng <= -1.34 && lat >= 54.94 && lat <= 55.06) {
+    routes.push('1', '35', '36', '307', '309');
   }
   
   // Newcastle City Centre (very precise)
@@ -85,9 +87,9 @@ async function getCurrentRoutesFromCoordinates(lat, lng) {
     routes.push('Q3', 'Q3X', '10', '10A', '10B', '12');
   }
   
-  // Coast Road Area (refined)
-  if (lng >= -1.50 && lng <= -1.30 && lat >= 54.98 && lat <= 55.08) {
-    routes.push('1', '2', '307', '309', '317');
+  // Coast Road Area (refined) - FIXED: Removed route '2'
+  if (lng >= -1.48 && lng <= -1.32 && lat >= 54.99 && lat <= 55.07) {
+    routes.push('1', '307', '309', '317');
   }
   
   // A167 Corridor (Gateshead/Durham)
@@ -95,9 +97,14 @@ async function getCurrentRoutesFromCoordinates(lat, lng) {
     routes.push('21', '22', 'X21', '6', '50');
   }
   
-  // Sunderland Area (more precise)
+  // Sunderland Area (more precise) - FIXED: Added route '2'
   if (lng >= -1.45 && lng <= -1.25 && lat >= 54.87 && lat <= 54.93) {
-    routes.push('16', '20', '24', '35', '36', '61', '62', '63');
+    routes.push('2', '16', '20', '24', '35', '36', '61', '62', '63');
+  }
+  
+  // Washington/Penshaw Area (NEW) - Route '2' corridor
+  if (lng >= -1.50 && lng <= -1.40 && lat >= 54.88 && lat <= 54.92) {
+    routes.push('2', '16', '24', '35', '36');
   }
   
   // Western Routes (Hexham/Consett area)

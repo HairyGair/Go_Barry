@@ -332,9 +332,9 @@ class EnhancedRouteMatcher {
       routes.push('21', 'X21', '43', '44', '45');
     }
     
-    // A19 Corridor
-    if (lon >= -1.55 && lon <= -1.35 && lat >= 54.92 && lat <= 55.08) {
-      routes.push('1', '2', '307', '309');
+    // A19 Corridor - FIXED: Removed route '2'
+    if (lon >= -1.50 && lon <= -1.34 && lat >= 54.94 && lat <= 55.06) {
+      routes.push('1', '35', '36', '307', '309');
     }
     
     // Newcastle City Centre (tight bounds)
@@ -342,9 +342,9 @@ class EnhancedRouteMatcher {
       routes.push('Q3', 'Q3X', '10', '10A', '10B', '12');
     }
     
-    // Coast Road Area
-    if (lon >= -1.52 && lon <= -1.32 && lat >= 54.98 && lat <= 55.08) {
-      routes.push('1', '2', '307', '309', '317');
+    // Coast Road Area - FIXED: Removed route '2'
+    if (lon >= -1.48 && lon <= -1.32 && lat >= 54.99 && lat <= 55.07) {
+      routes.push('1', '307', '309', '317');
     }
     
     // Gateshead/A167
@@ -352,9 +352,14 @@ class EnhancedRouteMatcher {
       routes.push('21', '22', 'X21', '6', '50');
     }
     
-    // Sunderland Area (more precise)
+    // Sunderland Area (more precise) - FIXED: Added route '2'
     if (lon >= -1.45 && lon <= -1.25 && lat >= 54.87 && lat <= 54.93) {
-      routes.push('16', '20', '24', '35', '36', '61', '62', '63');
+      routes.push('2', '16', '20', '24', '35', '36', '61', '62', '63');
+    }
+    
+    // Washington/Penshaw Area (NEW) - Route '2' corridor
+    if (lon >= -1.50 && lon <= -1.40 && lat >= 54.88 && lat <= 54.92) {
+      routes.push('2', '16', '24', '35', '36');
     }
     
     return routes;
@@ -393,25 +398,26 @@ class EnhancedRouteMatcher {
   getLocationBasedRoutes(text) {
     const routes = new Set();
     
-    // Major roads with specific route mappings
+    // Major roads with specific route mappings - FIXED: Removed route '2' from A19/A1058
     const roadMappings = {
       'a1': ['21', 'X21', '43', '44', '45'],
-      'a19': ['1', '2', '307', '309'],
+      'a19': ['1', '35', '36', '307', '309'],
       'a167': ['21', '22', 'X21', '6', '50'],
-      'a1058': ['1', '2', '307', '309', '317'],
+      'a1058': ['1', '307', '309', '317'],
       'a184': ['25', '28', '29'],
       'a690': ['61', '62', '63'],
       'a69': ['X85', '684'],
       'a183': ['16', '20', '61', '62']
     };
     
-    // Location mappings with current routes only
+    // Location mappings with current routes only - FIXED: Added route '2' to correct locations
     const locationMappings = {
       'newcastle': ['Q3', 'Q3X', '10', '10A', '10B', '12', '21', '22', '27', '28', '29'],
       'gateshead': ['21', '27', '28', '29', '51', '52', '53', '54', '56', '57', '58'],
-      'sunderland': ['16', '20', '24', '35', '36', '56', '61', '62', '63', '700', '701', '9'],
+      'sunderland': ['2', '16', '20', '24', '35', '36', '56', '61', '62', '63', '700', '701', '9'],
       'durham': ['21', '22', 'X21', '6', '50'],
-      'washington': ['16', '24', '35', '36'],
+      'washington': ['2', '16', '24', '35', '36'],
+      'penshaw': ['2'],
       'cramlington': ['43', '44', '45'],
       'hexham': ['X85', '684'],
       'consett': ['X30', 'X31', 'X70', 'X71'],
