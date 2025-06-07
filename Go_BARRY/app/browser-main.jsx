@@ -23,6 +23,7 @@ import MessageDistributionCenter from '../components/MessageDistributionCenter';
 import AutomatedReportingSystem from '../components/AutomatedReportingSystem';
 import SystemHealthMonitor from '../components/SystemHealthMonitor';
 import TrainingHelpSystem from '../components/TrainingHelpSystem';
+import SimpleAPITest from '../components/SimpleAPITest';
 import { useSupervisorSession } from '../components/hooks/useSupervisorSession';
 import { API_CONFIG } from '../config/api';
 
@@ -78,6 +79,13 @@ const BROWSER_NAVIGATION = {
     component: TrainingHelpSystem,
     description: 'Learn Go Barry & get support',
     color: '#6366F1'
+  },
+  test: {
+    title: 'API Test',
+    icon: 'bug',
+    component: SimpleAPITest,
+    description: 'Test API connectivity and data flow',
+    color: '#F97316'
   }
 };
 

@@ -1,5 +1,5 @@
 // services/tomtom.js
-// Enhanced TomTom Traffic API Integration with Location Processing
+// Enhanced TomTom Traffic API Integration with Improved GTFS Route Matching
 import axios from 'axios';
 import { 
   getLocationNameWithTimeout,
@@ -8,6 +8,7 @@ import {
   getEnhancedLocationWithFallbacks,
   getLocationName
 } from '../utils/location.js';
+import { enhancedFindRoutesNearCoordinates, enhancedLocationWithRoutes } from '../enhanced-gtfs-route-matcher.js';
 
 // Helper function to enhance alerts with timing and location data
 function enhanceAlertWithTimesAndLocation(alert, props) {
@@ -128,33 +129,41 @@ async function fetchTomTomTrafficWithStreetNames() {
           console.warn(`⚠️ Error extracting coordinates for incident ${index}:`, coordError.message);
         }
 
-        // ENHANCED: Get location with multiple fallback strategies
+        // ENHANCED: Get location with GTFS-enhanced processing
         console.log(`🗺️ Processing location for incident ${index + 1}/${realTrafficIncidents.length}...`);
         
         let enhancedLocation;
         try {
-          enhancedLocation = await getEnhancedLocationWithFallbacks(
+          // First get basic enhanced location
+          const basicLocation = await getEnhancedLocationWithFallbacks(
             lat, 
             lng, 
             props.roadName || props.description || '',
             `TomTom incident ${props.iconCategory}`
           );
+          
+          // Then enhance with GTFS route information
+          enhancedLocation = enhancedLocationWithRoutes(lat, lng, basicLocation);
+          
         } catch (locationError) {
           console.warn(`⚠️ Location enhancement failed for incident ${index}:`, locationError.message);
           enhancedLocation = getCoordinateDescription(lat, lng);
         }
         
-        // Enhanced GTFS route matching with error handling
+// Enhanced GTFS route matching with error handling
         let affectedRoutes = [];
+        let routeMatchMethod = 'none';
         try {
           if (lat && lng) {
-            console.log(`🗺️ Finding GTFS routes for incident at ${lat}, ${lng}...`);
-            affectedRoutes = await findRoutesNearCoordinate(lat, lng, 150);
+            console.log(`🗺️ Enhanced GTFS route matching for incident at ${lat}, ${lng}...`);
+            affectedRoutes = enhancedFindRoutesNearCoordinates(lat, lng, 250);
+            routeMatchMethod = affectedRoutes.length > 0 ? 'Enhanced GTFS' : 'none';
           }
         } catch (routeError) {
-          console.warn(`⚠️ GTFS route matching failed for incident ${index}:`, routeError.message);
+          console.warn(`⚠️ Enhanced GTFS route matching failed for incident ${index}:`, routeError.message);
           // Fallback to text-based route matching
           affectedRoutes = matchRoutes(enhancedLocation, props.description || '');
+          routeMatchMethod = affectedRoutes.length > 0 ? 'Text Pattern Fallback' : 'none';
         }
         
         // Map incident types with better categorization
@@ -190,7 +199,8 @@ async function fetchTomTomTrafficWithStreetNames() {
           status: 'red',
           source: 'tomtom',
           affectsRoutes: affectedRoutes,
-          routeMatchMethod: affectedRoutes.length > 0 ? 'GTFS Shapes' : 'Text Pattern',
+          routeMatchMethod: routeMatchMethod,
+          routeAccuracy: affectedRoutes.length > 0 ? (routeMatchMethod === 'Enhanced GTFS' ? 'high' : 'medium') : 'low',
           iconCategory: props.iconCategory,
           lastUpdated: new Date().toISOString(),
           dataSource: 'TomTom Traffic API v5 + Enhanced Location Processing'
@@ -205,8 +215,8 @@ async function fetchTomTomTrafficWithStreetNames() {
       }
     }
     
-    console.log(`✅ TomTom enhanced: ${alerts.length} alerts with locations and timing`);
-    return { success: true, data: alerts, method: 'Enhanced with Location Fallbacks' };
+    console.log(`✅ TomTom enhanced: ${alerts.length} alerts with improved GTFS route matching`);
+    return { success: true, data: alerts, method: 'Enhanced GTFS Route Matching' };
     
   } catch (error) {
     console.error('❌ Enhanced TomTom fetch failed:', error.message);

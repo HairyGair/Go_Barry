@@ -183,6 +183,10 @@ import {
   getGTFSStatsOptimized as getGTFSStats,
   enhanceLocationWithGTFSOptimized
 } from './gtfs-location-enhancer-optimized.js';
+import {
+  initializeEnhancedGTFS,
+  getEnhancedGTFSStats
+} from './enhanced-gtfs-route-matcher.js';
 
 // Helper function to calculate distance between two coordinates
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -890,7 +894,22 @@ const globalState = {
   lastFetchTime: null,
 };
 
-setupAPIRoutes(app, globalState);
+  setupAPIRoutes(app, globalState);
+
+  // Initialize enhanced GTFS system on startup
+  console.log('🆕 Initializing Enhanced GTFS Route Matcher...');
+  initializeEnhancedGTFS().then((success) => {
+    if (success) {
+      const stats = getEnhancedGTFSStats();
+      console.log('✅ Enhanced GTFS Route Matcher ready');
+      console.log(`   📊 Coverage: ${stats.routes} routes, ${stats.stops} stops, ${stats.shapes} shapes`);
+      console.log(`   🎯 Route matching accuracy: Enhanced`);
+    } else {
+      console.log('❌ Enhanced GTFS Route Matcher failed to initialize');
+    }
+  }).catch(error => {
+    console.error('❌ Enhanced GTFS initialization error:', error.message);
+  });
 
 
 export { fetchTomTomTrafficWithStreetNames as fetchTomTomTrafficOptimized, initializeGTFS, getGTFSStats };

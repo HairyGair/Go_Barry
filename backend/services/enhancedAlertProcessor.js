@@ -4,7 +4,7 @@
 
 import axios from 'axios';
 import { isAlertDismissed, getAlertDismissalInfo } from './supervisorManager.js';
-import { enhancedRouteMatching } from '../enhanced-gtfs-route-matcher.js';
+import { enhancedFindRoutesNearCoordinates, enhancedLocationWithRoutes } from '../enhanced-gtfs-route-matcher.js';
 
 // Enhanced geocoding with multiple fallbacks
 export async function getEnhancedLocation(lat, lng, fallbackDescription = '') {
@@ -106,19 +106,61 @@ export async function getEnhancedRouteMatching(location, description, coordinate
   console.log(`🚌 Getting enhanced route matching for: "${location}"`);
   
   try {
-    // Use the new enhanced route matching system
-    const result = await enhancedRouteMatching(location, coordinates, description);
+    let routes = [];
+    let accuracy = 'none';
+    let method = 'none';
+    let confidence = 0;
     
-    if (result.success && result.routes.length > 0) {
-      console.log(`✅ Enhanced route matching found ${result.routes.length} routes: ${result.routes.join(', ')}`);
-      console.log(`📊 Accuracy: ${result.accuracy}, Confidence: ${result.confidence.toFixed(2)}, Method: ${result.method}`);
+    // Try coordinate-based matching first if coordinates available
+    if (coordinates) {
+      let lat, lng;
       
+      // Handle different coordinate formats
+      if (Array.isArray(coordinates) && coordinates.length >= 2) {
+        [lat, lng] = coordinates;
+      } else if (coordinates.lat && coordinates.lng) {
+        lat = coordinates.lat;
+        lng = coordinates.lng;
+      }
+      
+      if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+        console.log(`📍 Using coordinate-based matching: ${lat}, ${lng}`);
+        
+        // Use our enhanced GTFS route finder
+        routes = enhancedFindRoutesNearCoordinates(lat, lng, 250);
+        
+        if (routes.length > 0) {
+          accuracy = 'high';
+          method = 'Enhanced GTFS Coordinate Matching';
+          confidence = 0.9;
+          
+          console.log(`✅ Enhanced GTFS found ${routes.length} routes: ${routes.join(', ')}`);
+        }
+      }
+    }
+    
+    // If no coordinate-based matches, try text-based matching
+    if (routes.length === 0) {
+      console.log(`📝 Trying text-based route matching for: "${location}"`);
+      const textRoutes = getTextBasedRoutes(location, description);
+      
+      if (textRoutes.length > 0) {
+        routes = textRoutes;
+        accuracy = 'medium';
+        method = 'Text Pattern Matching';
+        confidence = 0.6;
+        
+        console.log(`✅ Text matching found ${routes.length} routes: ${routes.join(', ')}`);
+      }
+    }
+    
+    if (routes.length > 0) {
       return {
-        routes: result.routes,
-        accuracy: result.accuracy,
-        confidence: result.confidence,
-        method: result.method,
-        methodDetails: result.methodDetails
+        routes: routes,
+        accuracy: accuracy,
+        confidence: confidence,
+        method: method,
+        methodDetails: `Enhanced GTFS Route Matcher v1.0 - ${method}`
       };
     } else {
       console.log(`❌ Enhanced route matching found no routes for: "${location}"`);
@@ -137,7 +179,76 @@ export async function getEnhancedRouteMatching(location, description, coordinate
   }
 }
 
-// Fallback route matching if enhanced system fails
+// Text-based route matching for fallback
+function getTextBasedRoutes(location, description) {
+  const routes = new Set();
+  const textContent = `${location} ${description}`.toLowerCase();
+  
+  // Enhanced text patterns for Go North East routes
+  const routePatterns = {
+    // Major corridors
+    'a1': ['21', 'X21', '25', '28', '28B'],
+    'a19': ['1', '2', '307', '309', '317'],
+    'a167': ['21', '22', 'X21', '6', '50'],
+    'a184': ['1', '2', '307', '309'],
+    'a693': ['X30', 'X31', '74', '84'],
+    
+    // Newcastle areas
+    'newcastle': ['Q3', 'Q3X', '10', '10A', '10B', '12', '21', '22', '27', '28', '29'],
+    'grainger': ['Q3', 'Q3X', '10', '12', '21', '22'],
+    'central station': ['Q3', 'Q3X', '10', '21', '22'],
+    'quayside': ['Q3', 'Q3X', '12'],
+    
+    // Gateshead areas
+    'gateshead': ['10', '10A', '10B', '27', '28', '28B', 'Q3', 'Q3X'],
+    'metrocentre': ['10', '10A', '10B', '27', '28', '100'],
+    'teams': ['Q3', 'Q3X'],
+    
+    // North Tyneside
+    'north shields': ['1', '2', '41', '42', '307', '309'],
+    'tynemouth': ['1', '2', '41'],
+    'whitley bay': ['1', '2', '307', '309'],
+    'coast road': ['1', '2', '307', '309'],
+    
+    // Sunderland areas
+    'sunderland': ['16', '20', '24', '35', '36', '56', '61', '62', '63'],
+    'washington': ['4', '50', '85', '86', 'X1'],
+    'houghton': ['35', '36', '4'],
+    
+    // Durham areas
+    'durham': ['21', '22', 'X21', '6', '7', '50'],
+    'chester le street': ['21', '22', 'X21', '28', '34'],
+    'stanley': ['6', '7', '8', '78'],
+    
+    // Consett/West Durham
+    'consett': ['X30', 'X31', 'X70', 'X71', 'X71A'],
+    'shotley bridge': ['X30', 'X31'],
+    'dipton': ['X30', 'X31'],
+    
+    // Hexham/West
+    'hexham': ['X85', '684', 'AD122'],
+    'corbridge': ['X85', '685'],
+    'prudhoe': ['X85', '684']
+  };
+  
+  // Apply pattern matching
+  Object.entries(routePatterns).forEach(([pattern, routeList]) => {
+    if (textContent.includes(pattern)) {
+      routeList.forEach(route => routes.add(route));
+    }
+  });
+  
+  // Road-specific patterns
+  if (textContent.includes('tyne tunnel')) {
+    ['1', '2', '307', '309'].forEach(route => routes.add(route));
+  }
+  
+  if (textContent.includes('birtley') || textContent.includes('angel of the north')) {
+    ['21', 'X21', '25'].forEach(route => routes.add(route));
+  }
+  
+  return Array.from(routes).sort();
+}
 function getFallbackRouteMatching(location, description, coordinates) {
   console.log(`🔄 Using fallback route matching for: "${location}"`);
   
