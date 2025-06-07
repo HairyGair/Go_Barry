@@ -1,175 +1,118 @@
 // Go_BARRY/config/api.js
-// Centralized API configuration for BARRY Traffic App
+// Production API configuration for gobarry.co.uk deployment
 
-// Determine if we're in development mode
-const __DEV__ = typeof __DEV__ !== 'undefined' ? __DEV__ : process.env.NODE_ENV === 'development';
-
-// API Configuration
 export const API_CONFIG = {
-  // Base URLs for different environments
-  baseURL: __DEV__ ? 'http://localhost:3001' : 'https://go-barry.onrender.com',
+  // Production configuration for gobarry.co.uk
+  baseURL: (() => {
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        // Local development
+        return 'http://localhost:3001';
+      }
+      // Production - use the working Render backend
+      return 'https://go-barry.onrender.com';
+    } else {
+      // React Native or build environment
+      return 'https://go-barry.onrender.com';
+    }
+  })(),
   
-  // Alternative URLs for fallback (in case primary fails)
-  fallbackURL: 'https://go-barry.onrender.com',
+  // Fallback URLs for redundancy
+  fallbackURLs: [
+    'http://localhost:3001',
+    'https://go-barry.onrender.com',
+    'https://api.gobarry.co.uk'
+  ],
   
-  // API Endpoints
+  // Refresh intervals (browser optimized)
+  refreshIntervals: {
+    dashboard: 30000,    // 30 seconds
+    alerts: 20000,       // 20 seconds (faster for browser)
+    incidents: 15000,    // 15 seconds
+    operational: 25000,  // 25 seconds for maps/traffic view
+    reports: 60000       // 1 minute
+  },
+  
+  // Request timeouts
+  timeouts: {
+    default: 8000,       // 8 seconds (faster for browser)
+    upload: 30000,       // 30 seconds
+    reports: 45000       // 45 seconds
+  },
+  
+  // Endpoints
   endpoints: {
     alerts: '/api/alerts',
-    alertsTest: '/api/alerts-test',
-    health: '/api/health',
-    refresh: '/api/refresh',
-    acknowledge: '/api/acknowledge',
-    note: '/api/note',
-    config: '/api/config',
-    debugTraffic: '/api/debug-traffic'
-  },
-  
-  // Request timeouts (in milliseconds)
-  timeouts: {
-    default: 10000,  // 10 seconds
-    health: 5000,    // 5 seconds
-    alerts: 15000    // 15 seconds for alerts (can be slow)
-  },
-  
-  // Retry configuration
-  retry: {
-    attempts: 3,
-    delay: 1000  // 1 second between retries
-  },
-  
-  // Refresh intervals (in milliseconds)
-  refreshIntervals: {
-    alerts: 5 * 60 * 1000,      // 5 minutes
-    dashboard: 30 * 1000,       // 30 seconds for dashboard
-    operational: 3 * 60 * 1000  // 3 minutes for operational view
+    alertsEnhanced: '/api/alerts-enhanced', 
+    incidents: '/api/incidents',
+    reports: '/api/reports',
+    messaging: '/api/messaging',
+    supervisor: '/api/supervisor',
+    geocoding: '/api/geocode',
+    routes: '/api/routes',
+    health: '/api/health'
   }
 };
 
-// Helper function to get full URL
-export const getApiUrl = (endpoint, useBase = true) => {
-  const base = useBase ? API_CONFIG.baseURL : '';
-  const path = API_CONFIG.endpoints[endpoint] || endpoint;
-  return `${base}${path}`;
-};
-
-// Helper function to get timeout for specific endpoint
-export const getTimeout = (endpoint) => {
-  if (endpoint === 'health') return API_CONFIG.timeouts.health;
-  if (endpoint === 'alerts') return API_CONFIG.timeouts.alerts;
-  return API_CONFIG.timeouts.default;
-};
-
-// Enhanced fetch function with retry and timeout
+// Enhanced fetch function with automatic fallback
 export const apiRequest = async (endpoint, options = {}) => {
-  const url = getApiUrl(endpoint);
-  const timeout = getTimeout(endpoint);
+  const urls = [API_CONFIG.baseURL, ...API_CONFIG.fallbackURLs.filter(url => url !== API_CONFIG.baseURL)];
+  const timeout = options.timeout || API_CONFIG.timeouts.default;
   
-  const fetchOptions = {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers
-    },
-    ...options
-  };
-  
-  // Add timeout to fetch
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-  
-  try {
-    const response = await fetch(url, {
-      ...fetchOptions,
-      signal: controller.signal
-    });
+  for (const baseURL of urls) {
+    const url = `${baseURL}${endpoint}`;
     
-    clearTimeout(timeoutId);
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
     
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    try {
+      console.log(`🔄 Trying: ${url}`);
+      
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'BARRY-Browser/3.0',
+          ...options.headers
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log(`✅ Success: ${url}`);
+      return data;
+      
+    } catch (error) {
+      clearTimeout(timeoutId);
+      console.log(`❌ Failed: ${url} - ${error.message}`);
+      
+      // If this is the last URL, throw the error
+      if (baseURL === urls[urls.length - 1]) {
+        if (error.name === 'AbortError') {
+          throw new Error('Request timed out on all endpoints');
+        }
+        throw error;
+      }
+      // Otherwise, continue to next URL
     }
-    
-    const data = await response.json();
-    return { success: true, data };
-    
-  } catch (error) {
-    clearTimeout(timeoutId);
-    
-    if (error.name === 'AbortError') {
-      throw new Error(`Request timeout after ${timeout}ms`);
-    }
-    
-    throw error;
   }
 };
 
-// Predefined API calls
-export const api = {
-  // Get all alerts
-  getAlerts: () => apiRequest('alerts'),
-  
-  // Get test alerts
-  getTestAlerts: () => apiRequest('alertsTest'),
-  
-  // Get system health
-  getHealth: () => apiRequest('health'),
-  
-  // Refresh data
-  refresh: () => apiRequest('refresh'),
-  
-  // Get config
-  getConfig: () => apiRequest('config'),
-  
-  // Debug traffic APIs
-  debugTraffic: () => apiRequest('debugTraffic'),
-  
-  // Acknowledge alert (POST)
-  acknowledgeAlert: (alertId, duty) => 
-    apiRequest('acknowledge', {
-      method: 'POST',
-      body: JSON.stringify({ alertId, duty })
-    }),
-  
-  // Add note to alert (POST)
-  addNote: (alertId, duty, note) =>
-    apiRequest('note', {
-      method: 'POST',
-      body: JSON.stringify({ alertId, duty, note })
-    })
-};
-
-// Environment info
+// Environment info for debugging
 export const ENV_INFO = {
-  isDevelopment: __DEV__,
+  isDevelopment: typeof window !== 'undefined' && 
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'),
   apiBaseUrl: API_CONFIG.baseURL,
-  version: '1.0.0'
+  platform: typeof window !== 'undefined' ? 'browser' : 'mobile',
+  timestamp: new Date().toISOString()
 };
 
-// Debug function to test API connectivity
-export const testApiConnectivity = async () => {
-  console.log('🔧 Testing API connectivity...');
-  
-  try {
-    const health = await api.getHealth();
-    console.log('✅ Health check passed:', health.data);
-    
-    const alerts = await api.getTestAlerts();
-    console.log('✅ Test alerts loaded:', alerts.data?.alerts?.length || 0);
-    
-    return {
-      success: true,
-      health: health.data,
-      testAlerts: alerts.data?.alerts?.length || 0
-    };
-    
-  } catch (error) {
-    console.error('❌ API connectivity test failed:', error.message);
-    return {
-      success: false,
-      error: error.message
-    };
-  }
-};
-
-// Export default config
 export default API_CONFIG;

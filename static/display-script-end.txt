@@ -1,0 +1,115 @@
+        function showErrorState() {
+            const alertContainer = document.getElementById('current-alert');
+            alertContainer.innerHTML = `
+                <div style="text-align: center; padding: 80px; color: var(--text-muted);">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 84px; margin-bottom: 32px; color: var(--status-warning);"></i>
+                    <h3 style="font-size: 24px; margin-bottom: 16px;">Connection Error</h3>
+                    <p style="font-size: 16px;">Unable to fetch traffic alerts. Retrying...</p>
+                </div>
+            `;
+        }
+
+        function updateAlertsDisplay(alerts) {
+            const alertContainer = document.getElementById('current-alert');
+            
+            if (alerts.length === 0) {
+                alertContainer.innerHTML = `
+                    <div class="no-alerts">
+                        <i class="fas fa-shield-check"></i>
+                        <h3 style="font-size: 28px; margin-bottom: 16px;">All Systems Clear</h3>
+                        <p style="font-size: 18px;">No active traffic alerts detected</p>
+                    </div>
+                `;
+                clearAlertCycle();
+                return;
+            }
+            
+            currentAlerts = alerts;
+            alertIndex = 0;
+            renderCurrentAlert();
+            startAlertCycle();
+        }
+
+        function renderCurrentAlert() {
+            const alertContainer = document.getElementById('current-alert');
+            if (!currentAlerts || currentAlerts.length === 0) {
+                alertContainer.innerHTML = '';
+                return;
+            }
+            
+            const alert = currentAlerts[alertIndex % currentAlerts.length];
+            alertContainer.innerHTML = createAlertCard(alert);
+            
+            // Zoom map to current alert if coordinates available
+            if (alert.coordinates && alert.coordinates.length === 2) {
+                const [lat, lng] = alert.coordinates;
+                map.setView([lat, lng], 16, { animate: true, duration: 1 });
+            }
+        }
+
+        function startAlertCycle() {
+            clearAlertCycle();
+            if (!currentAlerts || currentAlerts.length <= 1) return;
+            
+            alertCycleTimer = setInterval(() => {
+                alertIndex = (alertIndex + 1) % currentAlerts.length;
+                renderCurrentAlert();
+            }, 20000); // 20 seconds per alert
+        }
+
+        function clearAlertCycle() {
+            if (alertCycleTimer) {
+                clearInterval(alertCycleTimer);
+                alertCycleTimer = null;
+            }
+        }
+
+        // Clock update
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-GB', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('clock').textContent = timeString;
+        }
+
+        // Initialize everything
+        function init() {
+            console.log('🚦 BARRY Enhanced Control Room with Maps Initializing...');
+            
+            initializeMap();
+            updateClock();
+            setInterval(updateClock, 1000);
+            fetchAlerts();
+            fetchSupervisors();
+            setInterval(fetchAlerts, 30000); // 30 seconds
+            setInterval(fetchSupervisors, 15000); // 15 seconds - more frequent for supervisor updates
+            
+            console.log('✅ BARRY Control Room with Maps Ready');
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', init);
+        
+        // Keyboard shortcuts (display-only)
+        document.addEventListener('keydown', (event) => {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'r') {
+                event.preventDefault();
+                fetchAlerts();
+            }
+            // Alert navigation for display purposes
+            if (event.key === 'ArrowLeft' && currentAlerts.length > 1) {
+                alertIndex = (alertIndex - 1 + currentAlerts.length) % currentAlerts.length;
+                renderCurrentAlert();
+            }
+            if (event.key === 'ArrowRight' && currentAlerts.length > 1) {
+                alertIndex = (alertIndex + 1) % currentAlerts.length;
+                renderCurrentAlert();
+            }
+        });
+    </script>
+</body>
+</html>

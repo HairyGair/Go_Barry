@@ -1,151 +1,36 @@
 // Go_BARRY/app/(tabs)/maps.jsx
-// Interactive map showing traffic alerts across North East England
-// Updated to use centralized API configuration
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+// Browser-First Traffic Intelligence Dashboard
+// Optimized for supervisor workstations - no maps dependency
+
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ActivityIndicator,
-  Alert,
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
   Modal,
-  ScrollView
+  ScrollView,
+  Platform,
+  Dimensions
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { Ionicons } from '@expo/vector-icons';
 import { useBarryAPI } from '../../components/hooks/useBARRYapi';
-import { geocodeLocation, getNorthEastRegion, batchGeocode } from '../../services/geocoding';
 import EnhancedTrafficCard from '../../components/EnhancedTrafficCard';
 import { API_CONFIG, ENV_INFO } from '../../config/api';
 
-// Map styling for dark theme to match app
-const mapStyle = [
-  {
-    "elementType": "geometry",
-    "stylers": [{ "color": "#212121" }]
-  },
-  {
-    "elementType": "labels.icon",
-    "stylers": [{ "visibility": "off" }]
-  },
-  {
-    "elementType": "labels.text.fill",
-    "stylers": [{ "color": "#757575" }]
-  },
-  {
-    "elementType": "labels.text.stroke",
-    "stylers": [{ "color": "#212121" }]
-  },
-  {
-    "featureType": "administrative",
-    "elementType": "geometry",
-    "stylers": [{ "color": "#757575" }]
-  },
-  {
-    "featureType": "administrative.country",
-    "elementType": "labels.text.fill",
-    "stylers": [{ "color": "#9ca5b3" }]
-  },
-  {
-    "featureType": "poi",
-    "elementType": "labels.text.fill",
-    "stylers": [{ "color": "#757575" }]
-  },
-  {
-    "featureType": "road",
-    "elementType": "geometry.fill",
-    "stylers": [{ "color": "#2c2c2c" }]
-  },
-  {
-    "featureType": "road",
-    "elementType": "labels.text.fill",
-    "stylers": [{ "color": "#8a8a8a" }]
-  },
-  {
-    "featureType": "road.arterial",
-    "elementType": "geometry",
-    "stylers": [{ "color": "#373737" }]
-  },
-  {
-    "featureType": "road.highway",
-    "elementType": "geometry",
-    "stylers": [{ "color": "#3c3c3c" }]
-  },
-  {
-    "featureType": "road.highway.controlled_access",
-    "elementType": "geometry",
-    "stylers": [{ "color": "#4e4e4e" }]
-  },
-  {
-    "featureType": "road.local",
-    "elementType": "labels.text.fill",
-    "stylers": [{ "color": "#616161" }]
-  },
-  {
-    "featureType": "transit",
-    "elementType": "labels.text.fill",
-    "stylers": [{ "color": "#757575" }]
-  },
-  {
-    "featureType": "water",
-    "elementType": "geometry",
-    "stylers": [{ "color": "#000000" }]
-  },
-  {
-    "featureType": "water",
-    "elementType": "labels.text.fill",
-    "stylers": [{ "color": "#3d3d3d" }]
-  }
-];
+const { width } = Dimensions.get('window');
+const isWeb = Platform.OS === 'web';
 
-// Get marker color based on alert type and status
-function getMarkerColor(alert) {
-  // Priority: Status first, then type
-  if (alert.status === 'red') {
-    return '#EF4444'; // Red for active alerts
-  } else if (alert.status === 'amber') {
-    return '#F59E0B'; // Amber for upcoming alerts
-  } else if (alert.status === 'green') {
-    return '#10B981'; // Green for planned/cleared alerts
-  }
-  
-  // Fallback to type-based colors
-  switch (alert.type) {
-    case 'incident':
-      return '#DC2626'; // Dark red for incidents
-    case 'congestion':
-      return '#F97316'; // Orange for traffic
-    case 'roadwork':
-      return '#2563EB'; // Blue for roadworks
-    default:
-      return '#6B7280'; // Grey for unknown
-  }
-}
-
-// Get marker size based on severity
-function getMarkerSize(alert) {
-  switch (alert.severity) {
-    case 'High':
-      return 40;
-    case 'Medium':
-      return 30;
-    case 'Low':
-      return 20;
-    default:
-      return 25;
-  }
-}
-
-export default function MapsScreen() {
+// Enhanced browser-first interface for traffic intelligence
+export default function TrafficIntelligenceScreen() {
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
-  const [mapMarkers, setMapMarkers] = useState([]);
   const [filterType, setFilterType] = useState('all');
-  const [geocoding, setGeocoding] = useState(false);
-  
-  const mapRef = useRef(null);
+  const [viewMode, setViewMode] = useState('grid'); // grid, list, summary
+  const [sortBy, setSortBy] = useState('priority'); // priority, time, location
   
   // Use existing BARRY API hook with centralized config
   const {
@@ -156,143 +41,90 @@ export default function MapsScreen() {
     isRefreshing
   } = useBarryAPI({
     autoRefresh: true,
-    refreshInterval: API_CONFIG.refreshIntervals.operational // Use operational interval for maps
+    refreshInterval: API_CONFIG.refreshIntervals.operational
   });
-  
-  // Get default region for North East England
-  const initialRegion = getNorthEastRegion();
 
-  const processAlertsForMap = async () => {
-    try {
-      setGeocoding(true);
-      console.log('📍 Processing alerts for map view using centralized config...');
-      console.log(`📊 Processing ${alerts.length} alerts from ${ENV_INFO.apiBaseUrl}`);
-      
-      if (!alerts || alerts.length === 0) {
-        console.log('📍 No alerts to process for map');
-        setMapMarkers([]);
-        return;
+  // Enhanced filtering and sorting for supervisor workflow
+  const processedAlerts = useMemo(() => {
+    if (!alerts || alerts.length === 0) return [];
+    
+    // Apply filters
+    let filtered = alerts;
+    if (filterType !== 'all') {
+      filtered = alerts.filter(alert => alert.type === filterType);
+    }
+    
+    // Apply sorting
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'priority':
+          const priorityOrder = { 'High': 3, 'Medium': 2, 'Low': 1 };
+          return (priorityOrder[b.severity] || 0) - (priorityOrder[a.severity] || 0);
+        case 'time':
+          return new Date(b.timestamp || b.created) - new Date(a.timestamp || a.created);
+        case 'location':
+          return (a.location || '').localeCompare(b.location || '');
+        default:
+          return 0;
       }
-      
-      // Extract unique locations to minimize API calls
-      const uniqueLocations = [...new Set(alerts.map(alert => alert.location).filter(Boolean))];
-      console.log(`🗺️ Geocoding ${uniqueLocations.length} unique locations...`);
-      
-      // Batch geocode all locations
-      const geocodeResults = await batchGeocode(uniqueLocations, 
-        // Pass corresponding alerts to leverage backend coordinates
-        uniqueLocations.map(loc => alerts.find(alert => alert.location === loc))
-      );
-      
-      // Create a location-to-coords mapping
-      const locationCoordsMap = {};
-      geocodeResults.forEach(result => {
-        if (result.coords) {
-          locationCoordsMap[result.location] = result.coords;
-        }
-      });
-      
-      // Create markers for alerts with valid coordinates
-      const markers = alerts
-        .map((alert, index) => {
-          const coords = locationCoordsMap[alert.location];
-          if (!coords) {
-            console.warn(`⚠️ No coordinates found for alert: ${alert.location}`);
-            return null;
-          }
-          
-          return {
-            id: alert.id || `marker_${index}`,
-            coordinate: {
-              latitude: coords.latitude,
-              longitude: coords.longitude
-            },
-            title: alert.title,
-            description: alert.location,
-            type: alert.type,
-            alert: alert,
-            geocodeInfo: coords
-          };
-        })
-        .filter(Boolean); // Remove null entries
-      
-      setMapMarkers(markers);
-      console.log(`✅ Created ${markers.length} map markers via centralized API`);
-      
-    } catch (error) {
-      console.error('❌ Map data processing error:', error);
-      Alert.alert(
-        'Map Data Error',
-        `Unable to load traffic alerts for map from ${ENV_INFO.apiBaseUrl}. Please check your connection and try again.`,
-        [{ text: 'Retry', onPress: processAlertsForMap }, { text: 'Cancel' }]
-      );
-      setMapMarkers([]);
-    } finally {
-      setGeocoding(false);
-    }
-  };
+    });
+    
+    return sorted;
+  }, [alerts, filterType, sortBy]);
 
-  useEffect(() => {
-    if (alerts && alerts.length > 0) {
-      processAlertsForMap();
-    } else {
-      setMapMarkers([]);
-    }
-  }, [alerts]);
-
-  // Filter markers based on selected type
-  const filteredMarkers = useMemo(() => {
-    if (filterType === 'all') return mapMarkers;
-    return mapMarkers.filter(marker => marker.type === filterType);
-  }, [mapMarkers, filterType]);
-
-  const handleMarkerPress = (alert) => {
-    console.log('📍 Marker pressed:', alert.title);
+  const handleAlertPress = (alert) => {
+    console.log('🚨 Alert selected:', alert.title);
     setSelectedAlert(alert);
     setShowDetails(true);
   };
 
-  const handleMapPress = () => {
-    // Close any open details when map is tapped
-    if (showDetails) {
-      setShowDetails(false);
-      setSelectedAlert(null);
-    }
-  };
-
-  const centerOnMarkers = () => {
-    if (filteredMarkers.length > 0 && mapRef.current) {
-      const coordinates = filteredMarkers.map(marker => marker.coordinate);
-      mapRef.current.fitToCoordinates(coordinates, {
-        edgePadding: { top: 50, right: 50, bottom: 50, left: 50 },
-        animated: true
-      });
-    }
-  };
-
   const getFilterCounts = () => {
+    if (!alerts) return { all: 0, incident: 0, congestion: 0, roadwork: 0 };
+    
     return {
-      all: mapMarkers.length,
-      incident: mapMarkers.filter(m => m.type === 'incident').length,
-      congestion: mapMarkers.filter(m => m.type === 'congestion').length,
-      roadwork: mapMarkers.filter(m => m.type === 'roadwork').length
+      all: alerts.length,
+      incident: alerts.filter(a => a.type === 'incident').length,
+      congestion: alerts.filter(a => a.type === 'congestion').length,
+      roadwork: alerts.filter(a => a.type === 'roadwork').length
     };
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case 'High': return '#EF4444';
+      case 'Medium': return '#F59E0B';
+      case 'Low': return '#10B981';
+      default: return '#6B7280';
+    }
+  };
+
+  const getTypeIcon = (type) => {
+    switch (type) {
+      case 'incident': return 'alert-circle';
+      case 'congestion': return 'car';
+      case 'roadwork': return 'construct';
+      default: return 'information-circle';
+    }
+  };
+
+  const getTypeColor = (type) => {
+    switch (type) {
+      case 'incident': return '#DC2626';
+      case 'congestion': return '#F97316';
+      case 'roadwork': return '#2563EB';
+      default: return '#6B7280';
+    }
   };
 
   const counts = getFilterCounts();
 
-  if (loading || geocoding) {
+  if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor="#F3F4F6" />
+        <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2563EB" />
-          <Text style={styles.loadingText}>
-            {geocoding ? 'Processing locations...' : 'Loading map data...'}
-          </Text>
-          {geocoding && (
-            <Text style={styles.loadingSubtext}>Geocoding locations...</Text>
-          )}
+          <ActivityIndicator size="large" color="#3B82F6" />
+          <Text style={styles.loadingText}>Loading traffic intelligence...</Text>
           <Text style={styles.environmentText}>
             {ENV_INFO.isDevelopment ? '🔧 Development' : '🚀 Production'} • {ENV_INFO.apiBaseUrl}
           </Text>
@@ -301,114 +133,293 @@ export default function MapsScreen() {
     );
   }
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F3F4F6" />
-      
-      {/* Map Container */}
-      <View style={styles.mapContainer}>
-        <MapView
-          ref={mapRef}
-          style={styles.map}
-          provider={PROVIDER_GOOGLE}
-          customMapStyle={mapStyle}
-          initialRegion={initialRegion}
-          onPress={handleMapPress}
-          showsUserLocation={false}
-          showsMyLocationButton={false}
-          toolbarEnabled={false}
+  const renderGridView = () => (
+    <ScrollView 
+      style={styles.contentContainer}
+      contentContainerStyle={styles.gridContainer}
+      showsVerticalScrollIndicator={false}
+    >
+      {processedAlerts.map((alert, index) => (
+        <TouchableOpacity
+          key={alert.id || `alert_${index}`}
+          style={styles.gridCard}
+          onPress={() => handleAlertPress(alert)}
         >
-          {filteredMarkers.map((marker) => (
-            <Marker
-              key={marker.id}
-              coordinate={marker.coordinate}
-              title={marker.title}
-              description={marker.description}
-              onPress={() => handleMarkerPress(marker.alert)}
-              pinColor={getMarkerColor(marker.alert)}
-            >
-              <View style={[
-                styles.customMarker,
-                { 
-                  backgroundColor: getMarkerColor(marker.alert),
-                  width: getMarkerSize(marker.alert),
-                  height: getMarkerSize(marker.alert)
-                }
-              ]}>
-                <Text style={styles.markerText}>
-                  {marker.alert.type === 'incident' ? '🚨' : 
-                   marker.alert.type === 'congestion' ? '🚗' : '🚧'}
+          <View style={styles.gridCardHeader}>
+            <View style={styles.typeContainer}>
+              <Ionicons 
+                name={getTypeIcon(alert.type)} 
+                size={20} 
+                color={getTypeColor(alert.type)} 
+              />
+              <Text style={[styles.typeText, { color: getTypeColor(alert.type) }]}>
+                {alert.type?.toUpperCase()}
+              </Text>
+            </View>
+            <View style={[styles.severityBadge, { backgroundColor: getSeverityColor(alert.severity) }]}>
+              <Text style={styles.severityText}>{alert.severity}</Text>
+            </View>
+          </View>
+          
+          <Text style={styles.gridCardTitle} numberOfLines={2}>
+            {alert.title}
+          </Text>
+          
+          <Text style={styles.gridCardLocation} numberOfLines={1}>
+            📍 {alert.location}
+          </Text>
+          
+          <View style={styles.gridCardFooter}>
+            <Text style={styles.gridCardTime}>
+              {alert.timestamp ? 
+                new Date(alert.timestamp).toLocaleTimeString('en-GB', { 
+                  hour: '2-digit', 
+                  minute: '2-digit' 
+                }) : 
+                'Recent'
+              }
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+          </View>
+        </TouchableOpacity>
+      ))}
+      
+      {processedAlerts.length === 0 && (
+        <View style={styles.emptyState}>
+          <Ionicons name="checkmark-circle" size={64} color="#10B981" />
+          <Text style={styles.emptyStateTitle}>No Active Alerts</Text>
+          <Text style={styles.emptyStateText}>
+            {filterType === 'all' 
+              ? 'All systems operational in North East England'
+              : `No ${filterType} alerts at this time`
+            }
+          </Text>
+        </View>
+      )}
+    </ScrollView>
+  );
+
+  const renderListView = () => (
+    <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
+      {processedAlerts.map((alert, index) => (
+        <TouchableOpacity
+          key={alert.id || `alert_${index}`}
+          style={styles.listCard}
+          onPress={() => handleAlertPress(alert)}
+        >
+          <View style={styles.listCardContent}>
+            <View style={styles.listCardLeft}>
+              <View style={styles.listIconContainer}>
+                <Ionicons 
+                  name={getTypeIcon(alert.type)} 
+                  size={24} 
+                  color={getTypeColor(alert.type)} 
+                />
+              </View>
+              <View style={styles.listCardInfo}>
+                <Text style={styles.listCardTitle} numberOfLines={1}>
+                  {alert.title}
+                </Text>
+                <Text style={styles.listCardLocation} numberOfLines={1}>
+                  📍 {alert.location}
+                </Text>
+                <Text style={styles.listCardTime}>
+                  {alert.timestamp ? 
+                    new Date(alert.timestamp).toLocaleString('en-GB', { 
+                      day: '2-digit',
+                      month: '2-digit',
+                      hour: '2-digit', 
+                      minute: '2-digit' 
+                    }) : 
+                    'Recent'
+                  }
                 </Text>
               </View>
-            </Marker>
-          ))}
-        </MapView>
-        
-        {/* Floating Filter Buttons */}
-        <View style={styles.filterContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <TouchableOpacity
-              style={[styles.filterButton, filterType === 'all' && styles.filterButtonActive]}
-              onPress={() => setFilterType('all')}
-            >
-              <Text style={[styles.filterText, filterType === 'all' && styles.filterTextActive]}>
-                All ({counts.all})
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.filterButton, filterType === 'incident' && styles.filterButtonActive]}
-              onPress={() => setFilterType('incident')}
-            >
-              <Text style={[styles.filterText, filterType === 'incident' && styles.filterTextActive]}>
-                🚨 Incidents ({counts.incident})
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.filterButton, filterType === 'congestion' && styles.filterButtonActive]}
-              onPress={() => setFilterType('congestion')}
-            >
-              <Text style={[styles.filterText, filterType === 'congestion' && styles.filterTextActive]}>
-                🚗 Traffic ({counts.congestion})
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.filterButton, filterType === 'roadwork' && styles.filterButtonActive]}
-              onPress={() => setFilterType('roadwork')}
-            >
-              <Text style={[styles.filterText, filterType === 'roadwork' && styles.filterTextActive]}>
-                🚧 Roadworks ({counts.roadwork})
-              </Text>
-            </TouchableOpacity>
-          </ScrollView>
+            </View>
+            <View style={styles.listCardRight}>
+              <View style={[styles.severityBadge, { backgroundColor: getSeverityColor(alert.severity) }]}>
+                <Text style={styles.severityText}>{alert.severity}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            </View>
+          </View>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
+  );
+
+  const renderSummaryView = () => (
+    <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
+      <View style={styles.summaryContainer}>
+        {/* Summary Stats */}
+        <View style={styles.summaryGrid}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryNumber}>{counts.incident}</Text>
+            <Text style={styles.summaryLabel}>Active Incidents</Text>
+            <Ionicons name="alert-circle" size={32} color="#DC2626" />
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryNumber}>{counts.congestion}</Text>
+            <Text style={styles.summaryLabel}>Traffic Issues</Text>
+            <Ionicons name="car" size={32} color="#F97316" />
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryNumber}>{counts.roadwork}</Text>
+            <Text style={styles.summaryLabel}>Roadworks</Text>
+            <Ionicons name="construct" size={32} color="#2563EB" />
+          </View>
         </View>
         
-        {/* Floating Action Buttons */}
-        <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.actionButton} onPress={centerOnMarkers}>
-            <Text style={styles.actionButtonText}>📍</Text>
+        {/* Recent Critical Alerts */}
+        <View style={styles.criticalSection}>
+          <Text style={styles.sectionTitle}>🚨 Critical Alerts</Text>
+          {processedAlerts
+            .filter(alert => alert.severity === 'High')
+            .slice(0, 3)
+            .map((alert, index) => (
+              <TouchableOpacity
+                key={`critical_${index}`}
+                style={styles.criticalCard}
+                onPress={() => handleAlertPress(alert)}
+              >
+                <View style={styles.criticalHeader}>
+                  <Ionicons 
+                    name={getTypeIcon(alert.type)} 
+                    size={20} 
+                    color={getTypeColor(alert.type)} 
+                  />
+                  <Text style={styles.criticalTitle}>{alert.title}</Text>
+                </View>
+                <Text style={styles.criticalLocation}>📍 {alert.location}</Text>
+              </TouchableOpacity>
+            ))
+          }
+        </View>
+      </View>
+    </ScrollView>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerEmoji}>🚦</Text>
+            <Text style={styles.headerTitle}>BARRY Traffic Intelligence</Text>
+          </View>
+          <Text style={styles.headerSubtitle}>
+            {processedAlerts.length} alerts • North East England
+          </Text>
+        </View>
+        <TouchableOpacity 
+          style={styles.refreshButton} 
+          onPress={refreshAlerts}
+          disabled={isRefreshing}
+        >
+          <Ionicons 
+            name="refresh" 
+            size={24} 
+            color={isRefreshing ? "#9CA3AF" : "#3B82F6"} 
+          />
+        </TouchableOpacity>
+      </View>
+
+      {/* Controls */}
+      <View style={styles.controlsContainer}>
+        {/* Filter Buttons */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filtersRow}>
+          <TouchableOpacity
+            style={[styles.filterButton, filterType === 'all' && styles.filterButtonActive]}
+            onPress={() => setFilterType('all')}
+          >
+            <Text style={[styles.filterText, filterType === 'all' && styles.filterTextActive]}>
+              All ({counts.all})
+            </Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.actionButton} onPress={refreshAlerts}>
-            <Text style={styles.actionButtonText}>🔄</Text>
+          <TouchableOpacity
+            style={[styles.filterButton, filterType === 'incident' && styles.filterButtonActive]}
+            onPress={() => setFilterType('incident')}
+          >
+            <Text style={[styles.filterText, filterType === 'incident' && styles.filterTextActive]}>
+              🚨 Incidents ({counts.incident})
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.filterButton, filterType === 'congestion' && styles.filterButtonActive]}
+            onPress={() => setFilterType('congestion')}
+          >
+            <Text style={[styles.filterText, filterType === 'congestion' && styles.filterTextActive]}>
+              🚗 Traffic ({counts.congestion})
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.filterButton, filterType === 'roadwork' && styles.filterButtonActive]}
+            onPress={() => setFilterType('roadwork')}
+          >
+            <Text style={[styles.filterText, filterType === 'roadwork' && styles.filterTextActive]}>
+              🚧 Roadworks ({counts.roadwork})
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+
+        {/* View Mode & Sort Controls */}
+        <View style={styles.viewControls}>
+          <View style={styles.viewModeButtons}>
+            <TouchableOpacity
+              style={[styles.viewButton, viewMode === 'summary' && styles.viewButtonActive]}
+              onPress={() => setViewMode('summary')}
+            >
+              <Ionicons name="stats-chart" size={20} color={viewMode === 'summary' ? '#FFFFFF' : '#6B7280'} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewButton, viewMode === 'grid' && styles.viewButtonActive]}
+              onPress={() => setViewMode('grid')}
+            >
+              <Ionicons name="grid" size={20} color={viewMode === 'grid' ? '#FFFFFF' : '#6B7280'} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewButton, viewMode === 'list' && styles.viewButtonActive]}
+              onPress={() => setViewMode('list')}
+            >
+              <Ionicons name="list" size={20} color={viewMode === 'list' ? '#FFFFFF' : '#6B7280'} />
+            </TouchableOpacity>
+          </View>
+          
+          <TouchableOpacity
+            style={styles.sortButton}
+            onPress={() => {
+              const nextSort = sortBy === 'priority' ? 'time' : sortBy === 'time' ? 'location' : 'priority';
+              setSortBy(nextSort);
+            }}
+          >
+            <Ionicons name="funnel" size={16} color="#6B7280" />
+            <Text style={styles.sortText}>
+              {sortBy === 'priority' ? 'Priority' : sortBy === 'time' ? 'Time' : 'Location'}
+            </Text>
           </TouchableOpacity>
         </View>
-        
-        {/* Map Info Bar */}
-        <View style={styles.infoBar}>
-          <Text style={styles.infoText}>
-            {filteredMarkers.length} alerts • North East England
-          </Text>
-          <Text style={styles.infoSubtext}>
-            API: {ENV_INFO.isDevelopment ? 'Development' : 'Production'} • 
-            {lastUpdated && ` Updated: ${new Date(lastUpdated).toLocaleTimeString('en-GB', {
-              hour: '2-digit',
-              minute: '2-digit'
-            })}`}
-          </Text>
-        </View>
+      </View>
+
+      {/* Content */}
+      {viewMode === 'grid' && renderGridView()}
+      {viewMode === 'list' && renderListView()}
+      {viewMode === 'summary' && renderSummaryView()}
+
+      {/* Status Bar */}
+      <View style={styles.statusBar}>
+        <Text style={styles.statusText}>
+          {ENV_INFO.isDevelopment ? '🔧 Development' : '🚀 Production'} • 
+          {lastUpdated && ` Updated: ${new Date(lastUpdated).toLocaleTimeString('en-GB', {
+            hour: '2-digit',
+            minute: '2-digit'
+          })}`}
+        </Text>
       </View>
 
       {/* Alert Details Modal */}
@@ -426,28 +437,13 @@ export default function MapsScreen() {
                 style={styles.modalCloseButton}
                 onPress={() => setShowDetails(false)}
               >
-                <Text style={styles.modalCloseText}>✕</Text>
+                <Ionicons name="close" size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>
             
             {selectedAlert && (
               <ScrollView style={styles.modalBody}>
                 <EnhancedTrafficCard alert={selectedAlert} />
-                
-                {selectedAlert.geocodeInfo && (
-                  <View style={styles.locationInfo}>
-                    <Text style={styles.locationInfoTitle}>📍 Location Info</Text>
-                    <Text style={styles.locationInfoText}>
-                      Source: {selectedAlert.geocodeInfo.source}
-                    </Text>
-                    <Text style={styles.locationInfoText}>
-                      Confidence: {selectedAlert.geocodeInfo.confidence}
-                    </Text>
-                    <Text style={styles.locationInfoText}>
-                      API: {ENV_INFO.apiBaseUrl}
-                    </Text>
-                  </View>
-                )}
               </ScrollView>
             )}
           </View>
@@ -460,81 +456,88 @@ export default function MapsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F8FAFC',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F8FAFC',
   },
   loadingText: {
-    color: '#1A202C',
+    color: '#1F2937',
     fontSize: 16,
     marginTop: 12,
     fontWeight: '600',
   },
-  loadingSubtext: {
-    color: '#374151',
-    fontSize: 14,
-    marginTop: 4,
-  },
   environmentText: {
-    color: '#60A5FA',
+    color: '#3B82F6',
     fontSize: 12,
     marginTop: 8,
     fontFamily: 'monospace',
   },
-  mapContainer: {
-    flex: 1,
-    position: 'relative',
-  },
-  map: {
-    flex: 1,
-  },
-  customMarker: {
-    borderRadius: 20,
-    justifyContent: 'center',
+  header: {
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 5,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
-  markerText: {
-    fontSize: 16,
+  headerLeft: {
+    flex: 1,
+  },
+  headerTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 2,
+  },
+  headerEmoji: {
+    fontSize: 24,
+  },
+  headerTitle: {
+    fontSize: 24,
     fontWeight: 'bold',
+    color: '#1F2937',
+    letterSpacing: 0.5,
   },
-  filterContainer: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    right: 20,
-    zIndex: 1000,
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  refreshButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+  },
+  controlsContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  filtersRow: {
+    paddingHorizontal: 20,
+    marginBottom: 12,
   },
   filterButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: '#F3F4F6',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     marginRight: 8,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    borderColor: '#E5E7EB',
   },
   filterButtonActive: {
-    backgroundColor: '#2563EB',
-    borderColor: '#2563EB',
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
   },
   filterText: {
-    color: '#1A202C',
+    color: '#374151',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -542,58 +545,265 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
   },
-  actionButtons: {
-    position: 'absolute',
-    bottom: 80,
-    right: 20,
-    gap: 12,
-    zIndex: 1000,
-  },
-  actionButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
+  viewControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  viewModeButtons: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    padding: 2,
+  },
+  viewButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  viewButtonActive: {
+    backgroundColor: '#3B82F6',
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 4,
+  },
+  sortText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  contentContainer: {
+    flex: 1,
+  },
+  gridContainer: {
+    padding: 16,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  gridCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    width: isWeb ? (width > 768 ? '32%' : '48%') : '48%',
     borderWidth: 1,
-    borderColor: '#D1D5DB',
+    borderColor: '#E5E7EB',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  actionButtonText: {
-    fontSize: 20,
-  },
-  infoBar: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 80,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowRadius: 4,
     elevation: 2,
-    zIndex: 1000,
   },
-  infoText: {
-    color: '#1A202C',
-    fontSize: 14,
+  gridCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  typeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  typeText: {
+    fontSize: 12,
     fontWeight: '600',
   },
-  infoSubtext: {
-    color: '#374151',
+  severityBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  severityText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  gridCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  gridCardLocation: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 12,
+  },
+  gridCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  gridCardTime: {
     fontSize: 12,
-    marginTop: 2,
+    color: '#9CA3AF',
+    fontFamily: 'monospace',
+  },
+  listCard: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  listCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  listCardLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  listIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  listCardInfo: {
+    flex: 1,
+  },
+  listCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  listCardLocation: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 2,
+  },
+  listCardTime: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontFamily: 'monospace',
+  },
+  listCardRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  summaryContainer: {
+    padding: 16,
+  },
+  summaryGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+    gap: 12,
+  },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  summaryNumber: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  criticalSection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 16,
+  },
+  criticalCard: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  criticalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 4,
+  },
+  criticalTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    flex: 1,
+  },
+  criticalLocation: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 64,
+  },
+  emptyStateTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    maxWidth: 280,
+    lineHeight: 24,
+  },
+  statusBar: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  statusText: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+    fontFamily: 'monospace',
   },
   modalOverlay: {
     flex: 1,
@@ -615,37 +825,14 @@ const styles = StyleSheet.create({
     borderBottomColor: '#E5E7EB',
   },
   modalTitle: {
-    color: '#1A202C',
     fontSize: 18,
     fontWeight: '600',
+    color: '#1F2937',
   },
   modalCloseButton: {
     padding: 8,
   },
-  modalCloseText: {
-    color: '#6B7280',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
   modalBody: {
     padding: 20,
-  },
-  locationInfo: {
-    marginTop: 20,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    padding: 16,
-  },
-  locationInfoTitle: {
-    color: '#1A202C',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  locationInfoText: {
-    color: '#4B5563',
-    fontSize: 14,
-    marginBottom: 4,
-    fontFamily: 'monospace',
   },
 });

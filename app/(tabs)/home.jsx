@@ -148,8 +148,15 @@ export default function HomeScreen() {
     <ScrollView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>🚦 BARRY Control</Text>
-        <Text style={styles.subtitle}>Bus Alerts and Roadworks Reporting for You</Text>
+        <View style={styles.headerLogoContainer}>
+          <View style={styles.headerLogo}>
+            <Text style={styles.headerLogoText}>GO BARRY</Text>
+          </View>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.title}>BARRY Control</Text>
+            <Text style={styles.subtitle}>Bus Alerts and Roadworks Reporting for You</Text>
+          </View>
+        </View>
         
         {/* Connection Status */}
         <View style={styles.statusContainer}>
@@ -342,6 +349,32 @@ const styles = StyleSheet.create({
     padding: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#374151',
+  },
+  headerLogoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 16,
+  },
+  headerLogo: {
+    width: 50,
+    height: 50,
+    backgroundColor: '#E31E24',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  headerLogoText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    letterSpacing: 1,
+  },
+  headerTitleContainer: {
+    flex: 1,
   },
   title: {
     color: '#FFFFFF',

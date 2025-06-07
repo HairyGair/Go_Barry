@@ -58,8 +58,11 @@ const EnhancedTrafficCard = ({
     lastUpdated = null,
     locationAccuracy = 'low',
     routeMatchMethod = 'basic',
+    routeMatchingAccuracy = 'none',
+    routeMatchingConfidence = null,
     calculatedSeverity = null
   } = alert;
+  const uniqueRoutes = Array.from(new Set(affectsRoutes));
 
   const getStatusColors = () => {
     const colors = {
@@ -108,6 +111,20 @@ const EnhancedTrafficCard = ({
       return { icon: '📍', text: 'Precise Location', color: '#10B981' };
     }
     return { icon: '📍', text: 'General Area', color: '#F59E0B' };
+  };
+
+  // Route accuracy badge helper
+  const getRouteAccuracyBadge = () => {
+    switch (routeMatchingAccuracy) {
+      case 'high':
+        return { text: 'High', color: '#10B981' };
+      case 'medium':
+        return { text: 'Medium', color: '#F59E0B' };
+      case 'low':
+        return { text: 'Low', color: '#EF4444' };
+      default:
+        return { text: 'Unknown', color: '#6B7280' };
+    }
   };
 
   const formatDateTime = (dateString) => {
@@ -342,10 +359,10 @@ const EnhancedTrafficCard = ({
             </View>
             
             {/* Enhanced Route Matching Display */}
-            {routeMatchMethod === 'enhanced' && (
+            {routeMatchMethod && routeMatchMethod !== 'basic' && (
               <View style={styles.enhancedBadge}>
                 <Ionicons name="checkmark-circle" size={12} color="#10B981" />
-                <Text style={styles.enhancedText}>Enhanced Route Matching</Text>
+                <Text style={styles.enhancedText}>Method: {routeMatchMethod}</Text>
               </View>
             )}
           </View>
@@ -362,19 +379,26 @@ const EnhancedTrafficCard = ({
           )}
 
           {/* Enhanced Route Display */}
-          {affectsRoutes && affectsRoutes.length > 0 && (
+          {uniqueRoutes && uniqueRoutes.length > 0 && (
             <View style={styles.routeSection}>
-              <Text style={styles.routeLabel}>🚌 Affected Routes ({affectsRoutes.length}):</Text>
+              <View style={styles.routeHeader}>
+                <Text style={styles.routeLabel}>🚌 Affected Routes ({uniqueRoutes.length}):</Text>
+                <View style={styles.routeAccuracyBadge}>
+                  <Text style={[styles.routeAccuracyText, { color: getRouteAccuracyBadge().color }]}>
+                    Accuracy: {getRouteAccuracyBadge().text}
+                  </Text>
+                </View>
+              </View>
               <View style={styles.routeBadgeContainer}>
-                {affectsRoutes.slice(0, 8).map((route, index) => (
+                {uniqueRoutes.slice(0, 8).map((route, index) => (
                   <View key={`${route}-${index}`} style={styles.routeBadge}>
                     <Text style={styles.routeBadgeText}>{route}</Text>
                   </View>
                 ))}
-                {affectsRoutes.length > 8 && (
+                {uniqueRoutes.length > 8 && (
                   <View style={styles.moreRoutesBadge}>
                     <Text style={styles.moreRoutesText}>
-                      +{affectsRoutes.length - 8}
+                      +{uniqueRoutes.length - 8}
                     </Text>
                   </View>
                 )}
@@ -422,6 +446,14 @@ const EnhancedTrafficCard = ({
                   {formatDateTime(lastUpdated)}
                 </Text>
               )}
+              <Text style={styles.detailCardText}>
+                <Text style={styles.detailLabel}>Route Method: </Text>
+                {routeMatchMethod || 'N/A'}
+              </Text>
+              <Text style={styles.detailCardText}>
+                <Text style={styles.detailLabel}>Route Accuracy: </Text>
+                {getRouteAccuracyBadge().text}
+              </Text>
             </View>
 
             {/* Description */}
@@ -450,13 +482,13 @@ const EnhancedTrafficCard = ({
             )}
 
             {/* All Routes (if more than 8) */}
-            {affectsRoutes && affectsRoutes.length > 8 && (
+            {uniqueRoutes && uniqueRoutes.length > 8 && (
               <View style={styles.detailCard}>
                 <Text style={styles.detailCardTitle}>
-                  🚌 All Affected Routes ({affectsRoutes.length})
+                  🚌 All Affected Routes ({uniqueRoutes.length})
                 </Text>
                 <View style={styles.allRoutesBadgeContainer}>
-                  {affectsRoutes.map((route, index) => (
+                  {uniqueRoutes.map((route, index) => (
                     <View key={`expanded-${route}-${index}`} style={styles.routeBadge}>
                       <Text style={styles.routeBadgeText}>{route}</Text>
                     </View>
@@ -953,6 +985,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  // Route Header and Route Accuracy styles
+  routeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  routeAccuracyBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+  },
+  routeAccuracyText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
 });
 

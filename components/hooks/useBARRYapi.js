@@ -1,29 +1,19 @@
 // Go_BARRY/components/hooks/useBARRYapi.js
-// ROLLBACK TO ORIGINAL WORKING VERSION
+// Updated to use centralized API configuration for browser compatibility
 import { useState, useEffect, useCallback } from 'react';
+import { API_CONFIG, apiRequest } from '../../config/api';
 
-// Define API functions inline to avoid import issues
+// Enhanced API call function using centralized config
 const safeApiCall = async (endpoint) => {
   try {
-    const API_BASE_URL = 'https://go-barry.onrender.com';
-    const url = `${API_BASE_URL}${endpoint}`;
+    console.log(`🚀 API Call: ${API_CONFIG.baseURL}${endpoint}`);
     
-    console.log(`🚀 API Call: ${url}`);
-    
-    const response = await fetch(url, {
-      method: 'GET',
+    const data = await apiRequest(endpoint, {
       headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'BARRY-Mobile/3.0'
-      },
-      timeout: 15000 // 15 second timeout
+        'User-Agent': 'BARRY-Browser/3.0'
+      }
     });
     
-    console.log(`📊 API Response: ${response.status} ${response.statusText}`);
-    
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    
-    const data = await response.json();
     console.log(`✅ API Success:`, {
       endpoint,
       alertCount: data?.alerts?.length || 0,
@@ -41,7 +31,7 @@ const safeApiCall = async (endpoint) => {
 export const useBarryAPI = (options = {}) => {
   const {
     autoRefresh = true,
-    refreshInterval = 5 * 60 * 1000
+    refreshInterval = API_CONFIG.refreshIntervals.alerts // Use centralized intervals
   } = options;
 
   // State management
@@ -57,28 +47,78 @@ export const useBarryAPI = (options = {}) => {
     } 
   });
 
-  // Fetch alerts function
+  // Fetch alerts function using centralized endpoints
   const fetchAlerts = useCallback(async () => {
     try {
       setLoading(true);
       
-      const result = await safeApiCall('/api/alerts-enhanced');
+      // Try enhanced alerts first, fallback to basic alerts
+      let result = await safeApiCall(API_CONFIG.endpoints.alertsEnhanced);
+      
+      if (!result.success) {
+        console.log('🔄 Fallback to basic alerts endpoint...');
+        result = await safeApiCall(API_CONFIG.endpoints.alerts);
+      }
       
       if (result.success) {
         const alertsData = result.data.alerts || [];
         setAlerts(alertsData);
         setLastUpdated(result.data.metadata?.lastUpdated || new Date().toISOString());
-        console.log(`✅ Loaded ${alertsData.length} enhanced alerts from multiple sources`);
+        setError(null);
+        console.log(`✅ Loaded ${alertsData.length} alerts from ${API_CONFIG.baseURL}`);
       } else {
         throw new Error(result.error);
       }
     } catch (err) {
       console.error('❌ Fetch error:', err);
       setError(err.message);
+      
+      // If we have no data, try to provide some sample data for demo
+      if (alerts.length === 0) {
+        console.log('🔄 No backend data available, using demo mode');
+        const demoAlerts = [
+          {
+            id: 'demo-1',
+            title: 'A1(M) Junction 65 - Temporary Traffic Lights',
+            location: 'A1(M) Junction 65, Gateshead',
+            type: 'roadwork',
+            severity: 'Medium',
+            status: 'amber',
+            description: 'Temporary traffic lights in operation due to planned roadworks.',
+            timestamp: new Date().toISOString(),
+            source: 'Demo Data'
+          },
+          {
+            id: 'demo-2', 
+            title: 'A19 Tyne Tunnel - Heavy Traffic',
+            location: 'A19 Tyne Tunnel, North Shields',
+            type: 'congestion',
+            severity: 'Low',
+            status: 'green',
+            description: 'Expect delays due to heavy traffic volume.',
+            timestamp: new Date().toISOString(),
+            source: 'Demo Data'
+          },
+          {
+            id: 'demo-3',
+            title: 'A194(M) Vehicle Breakdown',
+            location: 'A194(M) Westbound, South Shields',
+            type: 'incident',
+            severity: 'High',
+            status: 'red',
+            description: 'Lane 2 blocked due to vehicle breakdown. Recovery in progress.',
+            timestamp: new Date().toISOString(),
+            source: 'Demo Data'
+          }
+        ];
+        setAlerts(demoAlerts);
+        setLastUpdated(new Date().toISOString());
+        console.log('📺 Demo mode activated with sample traffic data');
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [alerts.length]);
 
   // Fetch system health
   const fetchSystemHealth = useCallback(async () => {
@@ -94,7 +134,7 @@ export const useBarryAPI = (options = {}) => {
 
   // Auto-refresh effect
   useEffect(() => {
-    console.log('🔄 useBarryAPI initializing...');
+    console.log(`🔄 useBarryAPI initializing with ${API_CONFIG.baseURL}...`);
     
     fetchAlerts();
     fetchSystemHealth();
@@ -103,7 +143,7 @@ export const useBarryAPI = (options = {}) => {
       console.log(`⏰ Setting up auto-refresh every ${refreshInterval / 1000}s`);
       const interval = setInterval(fetchAlerts, refreshInterval);
       return () => {
-        console.log('💵 Clearing auto-refresh interval');
+        console.log('🛑 Clearing auto-refresh interval');
         clearInterval(interval);
       };
     }
@@ -125,8 +165,9 @@ export const useBarryAPI = (options = {}) => {
   const activeAlertsCount = activeAlerts.length;
   const criticalAlertsCount = criticalAlerts.length;
 
-  // Simple function stubs
+  // Refresh function
   const refreshAlerts = useCallback(async () => {
+    console.log('🔄 Manual refresh triggered');
     await fetchAlerts();
   }, [fetchAlerts]);
 
@@ -159,7 +200,10 @@ export const useBarryAPI = (options = {}) => {
     
     // Utilities
     hasData: safeAlerts.length > 0,
-    isHealthy: systemHealth?.status === 'healthy'
+    isHealthy: systemHealth?.status === 'healthy',
+    
+    // Debug info
+    apiBaseUrl: API_CONFIG.baseURL
   };
 };
 
