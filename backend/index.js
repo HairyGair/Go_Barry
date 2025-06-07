@@ -913,4 +913,4 @@ const globalState = {
 
 
 export { fetchTomTomTrafficWithStreetNames as fetchTomTomTrafficOptimized, initializeGTFS, getGTFSStats };
-export default app;
+export default app;// Force restart to enable real APIs
