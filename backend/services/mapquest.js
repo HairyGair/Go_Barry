@@ -1,6 +1,7 @@
 // services/mapquest.js
-// Enhanced MapQuest Traffic API Integration with Location Processing
+// Enhanced MapQuest Traffic API Integration with Full Go North East Coverage
 import axios from 'axios';
+import { getBoundsForAPI, GO_NORTH_EAST_COVERAGE } from '../config/geographicBounds.js';
 import { 
   getLocationNameWithTimeout,
   getRegionFromCoordinates,
@@ -78,7 +79,11 @@ async function fetchMapQuestTrafficWithStreetNames() {
   }
 
   try {
-    console.log('🗺️ Fetching MapQuest traffic with enhanced authentication...');
+    console.log('🗺️ [ENHANCED] Fetching MapQuest traffic across full Go North East network...');
+    
+    // Use expanded coverage for Go North East network
+    const boundingBox = getBoundsForAPI('mapquest');
+    console.log(`🌍 Coverage area: ${boundingBox} (Full Go North East network)`);
     
     // Try multiple endpoint configurations for better compatibility
     const endpoints = [
@@ -86,7 +91,7 @@ async function fetchMapQuestTrafficWithStreetNames() {
         url: 'https://www.mapquestapi.com/traffic/v2/incidents',
         params: {
           key: process.env.MAPQUEST_API_KEY,
-          boundingBox: '54.8,-1.8,55.2,-1.2', // Optimized North East bounding box
+          boundingBox: boundingBox, // EXPANDED: Full Go North East coverage
           filters: 'incidents,construction',
           format: 'json'
         }
@@ -95,7 +100,7 @@ async function fetchMapQuestTrafficWithStreetNames() {
         url: 'https://www.mapquestapi.com/traffic/v2/incidents',
         params: {
           key: process.env.MAPQUEST_API_KEY,
-          bbox: '54.8,-1.8,55.2,-1.2', // Alternative parameter name
+          bbox: boundingBox, // Alternative parameter name
           incidentTypes: 'incidents,construction'
         }
       }
@@ -133,13 +138,13 @@ async function fetchMapQuestTrafficWithStreetNames() {
       throw lastError || new Error('All MapQuest endpoints failed');
     }
     
-    console.log(`📡 MapQuest: ${response.status}, incidents: ${response.data?.incidents?.length || 0}`);
+    console.log(`📡 MapQuest: ${response.status}, incidents: ${response.data?.incidents?.length || 0} across full Go North East network`);
     
     const alerts = [];
     
     if (response.data?.incidents) {
-      // Process incidents with enhanced location handling
-      const incidentsToProcess = response.data.incidents.slice(0, 12); // Increased to 12
+      // Process incidents with enhanced location handling across full network
+      const incidentsToProcess = response.data.incidents.slice(0, 15); // Increased for full network
       
       for (const [index, incident] of incidentsToProcess.entries()) {
         const lat = incident.lat;
@@ -207,8 +212,8 @@ async function fetchMapQuestTrafficWithStreetNames() {
       }
     }
     
-    console.log(`✅ MapQuest enhanced: ${alerts.length} alerts with locations and timing`);
-    return { success: true, data: alerts, method: 'Enhanced with Location Fallbacks' };
+    console.log(`✅ MapQuest enhanced: ${alerts.length} alerts with locations across full Go North East network`);
+    return { success: true, data: alerts, method: 'Enhanced with Full Network Coverage' };
     
   } catch (error) {
     console.error('❌ Enhanced MapQuest fetch failed:', error.message);

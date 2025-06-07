@@ -1,6 +1,7 @@
 // services/tomtom.js
-// Enhanced TomTom Traffic API Integration with Improved GTFS Route Matching
+// Enhanced TomTom Traffic API Integration with Full Go North East Coverage
 import axios from 'axios';
+import { getBoundsForAPI, GO_NORTH_EAST_COVERAGE } from '../config/geographicBounds.js';
 import { 
   getLocationNameWithTimeout,
   getRegionFromCoordinates,
@@ -82,27 +83,32 @@ async function fetchTomTomTrafficWithStreetNames() {
   }
   
   try {
-    console.log('🚗 [PRIORITY] Fetching TomTom traffic with enhanced location processing...');
+    console.log('🚗 [ENHANCED] Fetching TomTom traffic across full Go North East network...');
     console.log('🔑 TomTom API key configured:', process.env.TOMTOM_API_KEY ? 'YES' : 'NO');
+    
+    // Use full Go North East coverage area instead of just Newcastle
+    const bbox = getBoundsForAPI('tomtom');
+    console.log(`🗺️ Coverage area: ${bbox} (Full Go North East network)`);
     
     const response = await axios.get('https://api.tomtom.com/traffic/services/5/incidentDetails', {
       params: {
         key: process.env.TOMTOM_API_KEY,
-        bbox: '-1.8,54.8,-1.4,55.1', // Newcastle area
+        bbox: bbox, // EXPANDED: Now covers entire Go North East network
         zoom: 10
       },
       timeout: 15000,
       headers: {
-        'User-Agent': 'BARRY-TrafficWatch/3.0-Enhanced',
+        'User-Agent': 'BARRY-TrafficWatch/3.0-FullNetwork',
         'Accept': 'application/json'
       }
     });
     
-    console.log(`📡 [PRIORITY] TomTom response: ${response.status}, incidents: ${response.data?.incidents?.length || 0}`);
+    console.log(`📡 [ENHANCED] TomTom response: ${response.status}, incidents: ${response.data?.incidents?.length || 0}`);
+    console.log(`🌍 Search area: Full Go North East network (${Object.keys(GO_NORTH_EAST_COVERAGE.regions).join(', ')})`);
     
     if (!response.data || !response.data.incidents) {
-      console.log('⚠️ TomTom returned no incidents data');
-      return { success: true, data: [], method: 'TomTom API - No incidents in area' };
+      console.log('⚠️ TomTom returned no incidents data across full network');
+      return { success: true, data: [], method: 'TomTom API - No incidents in Go North East network' };
     }
     
     const alerts = [];
@@ -115,10 +121,10 @@ async function fetchTomTomTrafficWithStreetNames() {
         return props.iconCategory >= 1 && props.iconCategory <= 14;
       });
       
-      console.log(`🔍 Processing ${realTrafficIncidents.length} traffic incidents (filtered from ${response.data.incidents.length})`);
+      console.log(`🔍 Processing ${realTrafficIncidents.length} traffic incidents across Go North East network (filtered from ${response.data.incidents.length})`);
       
       for (const [index, feature] of realTrafficIncidents.entries()) {
-        if (index >= 12) break; // Increased limit to 12 for better coverage
+        if (index >= 15) break; // Increased limit for full network coverage
         
         const props = feature.properties || {};
         
@@ -137,7 +143,7 @@ async function fetchTomTomTrafficWithStreetNames() {
         }
 
         // ENHANCED: Get location with GTFS-enhanced processing
-        console.log(`🗺️ Processing location for incident ${index + 1}/${realTrafficIncidents.length}...`);
+        console.log(`🗺️ Processing location for incident ${index + 1}/${realTrafficIncidents.length} across Go North East network...`);
         
         let enhancedLocation;
         try {
@@ -222,20 +228,21 @@ async function fetchTomTomTrafficWithStreetNames() {
       }
     }
     
-    console.log(`✅ [PRIORITY] TomTom enhanced: ${alerts.length} alerts with improved GTFS route matching`);
+    console.log(`✅ [ENHANCED] TomTom full network: ${alerts.length} alerts with improved GTFS route matching across entire Go North East coverage`);
     
     // ALWAYS return a valid structure
     return { 
       success: true, 
       data: alerts, 
-      method: 'Enhanced GTFS Route Matching',
+      method: 'Enhanced GTFS Route Matching + Full Network Coverage',
       source: 'TomTom Traffic API v5',
       timestamp: new Date().toISOString(),
-      bbox: '-1.8,54.8,-1.4,55.1'
+      coverage: `Full Go North East Network (${Object.keys(GO_NORTH_EAST_COVERAGE.regions).join(', ')})`,
+      bbox: bbox
     };
     
   } catch (error) {
-    console.error('❌ [PRIORITY] Enhanced TomTom fetch failed:', error.message);
+    console.error('❌ [ENHANCED] Enhanced TomTom fetch failed:', error.message);
     console.error('Error details:', {
       message: error.message,
       code: error.code,

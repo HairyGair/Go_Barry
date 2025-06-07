@@ -367,6 +367,10 @@ app.use('/api/incidents', incidentAPI);
 import messagingAPI from './routes/messagingAPI.js';
 app.use('/api/messaging', messagingAPI);
 
+// Test Data API for debugging and verification
+import testDataAPI from './routes/testDataAPI.js';
+app.use('/api/test', testDataAPI);
+
 // Geocoding API endpoints
 app.get('/api/geocode/:location', async (req, res) => {
   try {
