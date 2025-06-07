@@ -127,7 +127,7 @@ const IndexApp = () => {
                     </a>
                 </div>
 
-                <div class="app-card" onclick="window.open('/supervisor', '_blank')">
+                <div class="app-card" onclick="window.open('/browser-main', '_blank')">
                     <div class="app-icon supervisor-icon">
                         <i class="fas fa-user-tie"></i>
                     </div>
@@ -142,7 +142,7 @@ const IndexApp = () => {
                         <li><i class="fas fa-mobile-alt"></i> Mobile responsive</li>
                         <li><i class="fas fa-key"></i> Secure authentication</li>
                     </ul>
-                    <a href="/supervisor" target="_blank" class="app-button">
+                    <a href="/browser-main" target="_blank" class="app-button">
                         <i class="fas fa-sign-in-alt"></i> Access Supervisor Tools
                     </a>
                 </div>
