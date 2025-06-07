@@ -77,11 +77,13 @@ function matchRoutes(location, description = '') {
 // Enhanced TomTom traffic fetcher with improved location handling and timing
 async function fetchTomTomTrafficWithStreetNames() {
   if (!process.env.TOMTOM_API_KEY) {
-    return { success: false, data: [], error: 'API key missing' };
+    console.error('❌ TomTom API key missing!');
+    return { success: false, data: [], error: 'TomTom API key missing' };
   }
   
   try {
-    console.log('🚗 Fetching TomTom traffic with enhanced location processing...');
+    console.log('🚗 [PRIORITY] Fetching TomTom traffic with enhanced location processing...');
+    console.log('🔑 TomTom API key configured:', process.env.TOMTOM_API_KEY ? 'YES' : 'NO');
     
     const response = await axios.get('https://api.tomtom.com/traffic/services/5/incidentDetails', {
       params: {
@@ -96,7 +98,12 @@ async function fetchTomTomTrafficWithStreetNames() {
       }
     });
     
-    console.log(`📡 TomTom: ${response.status}, incidents: ${response.data?.incidents?.length || 0}`);
+    console.log(`📡 [PRIORITY] TomTom response: ${response.status}, incidents: ${response.data?.incidents?.length || 0}`);
+    
+    if (!response.data || !response.data.incidents) {
+      console.log('⚠️ TomTom returned no incidents data');
+      return { success: true, data: [], method: 'TomTom API - No incidents in area' };
+    }
     
     const alerts = [];
     
@@ -215,12 +222,38 @@ async function fetchTomTomTrafficWithStreetNames() {
       }
     }
     
-    console.log(`✅ TomTom enhanced: ${alerts.length} alerts with improved GTFS route matching`);
-    return { success: true, data: alerts, method: 'Enhanced GTFS Route Matching' };
+    console.log(`✅ [PRIORITY] TomTom enhanced: ${alerts.length} alerts with improved GTFS route matching`);
+    
+    // ALWAYS return a valid structure
+    return { 
+      success: true, 
+      data: alerts, 
+      method: 'Enhanced GTFS Route Matching',
+      source: 'TomTom Traffic API v5',
+      timestamp: new Date().toISOString(),
+      bbox: '-1.8,54.8,-1.4,55.1'
+    };
     
   } catch (error) {
-    console.error('❌ Enhanced TomTom fetch failed:', error.message);
-    return { success: false, data: [], error: error.message };
+    console.error('❌ [PRIORITY] Enhanced TomTom fetch failed:', error.message);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      response: error.response?.status,
+      data: error.response?.data
+    });
+    
+    // ALWAYS return a valid structure even on error
+    return { 
+      success: false, 
+      data: [], 
+      error: error.message,
+      errorDetails: {
+        code: error.code,
+        status: error.response?.status,
+        timestamp: new Date().toISOString()
+      }
+    };
   }
 }
 

@@ -71,89 +71,131 @@ export function setupAPIRoutes(app, globalState) {
   // Enhanced alerts endpoint with GTFS location accuracy - LIVE DATA ONLY
   app.get('/api/alerts-enhanced', async (req, res) => {
     try {
-      console.log('🚀 Fetching LIVE enhanced alerts only (no sample data)...');
+      console.log('🚀 [FIXED] Fetching LIVE enhanced alerts with priority flow...');
       
-      // Fetch ONLY from live sources - NO SAMPLE DATA
-      const tomtomResult = await fetchTomTomTrafficWithStreetNames();
-      const mapquestResult = await fetchMapQuestTrafficWithStreetNames();
-      
-      // StreetManager webhook data (using webhook service) - live only
-      const streetManagerActivities = getWebhookActivities();
-      const streetManagerPermits = getWebhookPermits();
-      const streetManagerResult = {
-        success: true,
-        data: [...streetManagerActivities.data, ...streetManagerPermits.data],
-        metadata: {
-          source: 'StreetManager Webhooks (Live Only)',
-          activities: streetManagerActivities.data.length,
-          permits: streetManagerPermits.data.length,
-          method: 'webhook_storage',
-          mode: 'live_data_only'
-        }
-      };
-      
-      const allAlerts = [];
+      let allAlerts = [];
       const sources = {};
       
-      // Process TomTom results
-      if (tomtomResult.success) {
-        allAlerts.push(...tomtomResult.data);
+      // 1. PRIORITY: Get TomTom alerts first (most reliable)
+      console.log('📡 Fetching TomTom alerts...');
+      try {
+        const tomtomResult = await fetchTomTomTrafficWithStreetNames();
+        if (tomtomResult.success && tomtomResult.data && tomtomResult.data.length > 0) {
+          allAlerts.push(...tomtomResult.data);
+          sources.tomtom = {
+            success: true,
+            count: tomtomResult.data.length,
+            method: 'Enhanced with GTFS (Live Data)',
+            mode: 'live'
+          };
+          console.log(`✅ TomTom: ${tomtomResult.data.length} alerts fetched`);
+        } else {
+          sources.tomtom = {
+            success: false,
+            count: 0,
+            error: tomtomResult.error || 'No data returned',
+            mode: 'live'
+          };
+          console.log('⚠️ TomTom: No alerts returned or error occurred');
+        }
+      } catch (tomtomError) {
+        console.error('❌ TomTom fetch failed:', tomtomError.message);
         sources.tomtom = {
-          success: true,
-          count: tomtomResult.data.length,
-          method: 'Enhanced with GTFS (Live Data)',
-          enhancement: tomtomResult.enhancement,
-          mode: 'live'
-        };
-      } else {
-        sources.tomtom = {
           success: false,
           count: 0,
-          error: tomtomResult.error,
+          error: tomtomError.message,
           mode: 'live'
         };
       }
       
-      // Process MapQuest results
-      if (mapquestResult.success) {
-        allAlerts.push(...mapquestResult.data);
+      // 2. Get MapQuest alerts (if working)
+      console.log('🗺️ Fetching MapQuest alerts...');
+      try {
+        const mapquestResult = await fetchMapQuestTrafficWithStreetNames();
+        if (mapquestResult.success && mapquestResult.data && mapquestResult.data.length > 0) {
+          allAlerts.push(...mapquestResult.data);
+          sources.mapquest = {
+            success: true,
+            count: mapquestResult.data.length,
+            method: 'Enhanced with Location Processing (Live Data)',
+            mode: 'live'
+          };
+          console.log(`✅ MapQuest: ${mapquestResult.data.length} alerts fetched`);
+        } else {
+          sources.mapquest = {
+            success: false,
+            count: 0,
+            error: mapquestResult.error || 'No data returned',
+            mode: 'live'
+          };
+          console.log('⚠️ MapQuest: No alerts returned or auth issue');
+        }
+      } catch (mapquestError) {
+        console.error('❌ MapQuest fetch failed:', mapquestError.message);
         sources.mapquest = {
-          success: true,
-          count: mapquestResult.data.length,
-          method: 'Enhanced with Location Processing (Live Data)',
-          mode: 'live'
-        };
-      } else {
-        sources.mapquest = {
           success: false,
           count: 0,
-          error: mapquestResult.error,
+          error: mapquestError.message,
           mode: 'live'
         };
       }
       
-      // Process StreetManager results
-      if (streetManagerResult.success) {
-        allAlerts.push(...streetManagerResult.data);
-        sources.streetmanager = {
-          success: true,
-          count: streetManagerResult.data.length,
-          method: 'Official UK Roadworks Data (Live Only)',
-          official: true,
-          mode: 'live'
-        };
-      } else {
+      // 3. Get StreetManager webhook data
+      console.log('🚧 Fetching StreetManager webhook data...');
+      try {
+        const streetManagerActivities = getWebhookActivities();
+        const streetManagerPermits = getWebhookPermits();
+        const streetManagerData = [...streetManagerActivities.data, ...streetManagerPermits.data];
+        
+        if (streetManagerData.length > 0) {
+          allAlerts.push(...streetManagerData);
+          sources.streetmanager = {
+            success: true,
+            count: streetManagerData.length,
+            method: 'Official UK Roadworks Data (Live Only)',
+            official: true,
+            mode: 'live'
+          };
+          console.log(`✅ StreetManager: ${streetManagerData.length} alerts fetched`);
+        } else {
+          sources.streetmanager = {
+            success: true,
+            count: 0,
+            method: 'Official UK Roadworks Data (Live Only)',
+            note: 'No current roadworks data',
+            mode: 'live'
+          };
+          console.log('ℹ️ StreetManager: No current roadworks');
+        }
+      } catch (streetManagerError) {
+        console.error('❌ StreetManager webhook failed:', streetManagerError.message);
         sources.streetmanager = {
           success: false,
           count: 0,
-          error: streetManagerResult.error,
+          error: streetManagerError.message,
           mode: 'live'
         };
       }
       
-      // Process with enhanced algorithms
-      const enhancedAlerts = await processEnhancedAlerts(allAlerts);
+      console.log(`📊 Raw alerts collected: ${allAlerts.length}`);
       
+      // 4. ENHANCED PROCESSING - but ensure we ALWAYS return something
+      let enhancedAlerts = [];
+      if (allAlerts.length > 0) {
+        try {
+          console.log('🔄 Processing alerts with enhanced algorithms...');
+          enhancedAlerts = await processEnhancedAlerts(allAlerts);
+          console.log(`✅ Enhanced processing complete: ${enhancedAlerts.length} alerts`);
+        } catch (enhancementError) {
+          console.error('❌ Enhanced processing failed:', enhancementError.message);
+          console.log('🔄 Falling back to raw alerts...');
+          enhancedAlerts = allAlerts; // Fallback to raw alerts if enhancement fails
+        }
+      } else {
+        console.log('ℹ️ No raw alerts to process');
+      }
+      
+      // 5. Generate statistics
       const stats = {
         totalAlerts: enhancedAlerts.length,
         activeAlerts: enhancedAlerts.filter(a => a.status === 'red').length,
@@ -163,7 +205,8 @@ export function setupAPIRoutes(app, globalState) {
           (enhancedAlerts.reduce((sum, a) => sum + (a.affectsRoutes?.length || 0), 0) / enhancedAlerts.length).toFixed(1) : 0
       };
       
-      res.json({
+      // 6. ALWAYS return a valid response
+      const response = {
         success: true,
         alerts: enhancedAlerts,
         metadata: {
@@ -177,22 +220,44 @@ export function setupAPIRoutes(app, globalState) {
           supervisor: {
             dismissalEnabled: true,
             accountabilityActive: true
+          },
+          debug: {
+            rawAlertsCollected: allAlerts.length,
+            enhancedAlertsReturned: enhancedAlerts.length,
+            sourcesWorking: Object.values(sources).filter(s => s.success).length,
+            timestamp: new Date().toISOString()
           }
         }
-      });
+      };
+      
+      console.log(`🎯 [FIXED] Returning ${enhancedAlerts.length} alerts to frontend`);
+      res.json(response);
+      
     } catch (error) {
-      console.error('❌ Enhanced alerts endpoint error:', error);
-      res.status(500).json({
+      console.error('❌ [CRITICAL] Enhanced alerts endpoint error:', error);
+      
+      // EMERGENCY FALLBACK - Always return a valid structure
+      const emergencyResponse = {
         success: false,
-        error: error.message,
         alerts: [],
         metadata: {
+          totalAlerts: 0,
+          sources: {
+            error: 'Critical endpoint failure'
+          },
           error: error.message,
           timestamp: new Date().toISOString(),
-          mode: 'live_data_only',
-          sampleData: 'removed'
+          mode: 'emergency_fallback',
+          debug: {
+            criticalError: true,
+            errorMessage: error.message,
+            stack: error.stack
+          }
         }
-      });
+      };
+      
+      console.log('🚨 Returning emergency fallback response');
+      res.status(500).json(emergencyResponse);
     }
   });
 
@@ -222,26 +287,38 @@ export function setupAPIRoutes(app, globalState) {
     }
   });
 
-  // Main alerts endpoint (simplified version)
+  // Main alerts endpoint (simplified version) - FIXED
   app.get('/api/alerts', async (req, res) => {
     try {
-      console.log('🚀 Fetching main alerts...');
+      console.log('🚀 [MAIN] Fetching main alerts...');
       
       // Check cache first
       const CACHE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
       const now = Date.now();
       
       if (cachedAlerts && lastFetchTime && (now - lastFetchTime) < CACHE_TIMEOUT) {
-        console.log('📦 Returning cached alerts');
+        console.log('📦 [MAIN] Returning cached alerts:', cachedAlerts.alerts?.length || 0);
         return res.json(cachedAlerts);
       }
       
-      // Fetch fresh data
-      const tomtomResult = await fetchTomTomTrafficWithStreetNames();
-      const allAlerts = [];
+      // Fetch fresh data with error handling
+      console.log('🔄 [MAIN] Cache expired, fetching fresh data...');
+      let allAlerts = [];
+      let sources = {};
       
-      if (tomtomResult.success) {
-        allAlerts.push(...tomtomResult.data);
+      try {
+        const tomtomResult = await fetchTomTomTrafficWithStreetNames();
+        if (tomtomResult.success && tomtomResult.data) {
+          allAlerts.push(...tomtomResult.data);
+          sources.tomtom = { success: true, count: tomtomResult.data.length };
+          console.log(`✅ [MAIN] TomTom: ${tomtomResult.data.length} alerts`);
+        } else {
+          sources.tomtom = { success: false, error: tomtomResult.error };
+          console.log('⚠️ [MAIN] TomTom failed or no data');
+        }
+      } catch (tomtomError) {
+        sources.tomtom = { success: false, error: tomtomError.message };
+        console.error('❌ [MAIN] TomTom error:', tomtomError.message);
       }
       
       const response = {
@@ -249,8 +326,10 @@ export function setupAPIRoutes(app, globalState) {
         alerts: allAlerts,
         metadata: {
           totalAlerts: allAlerts.length,
+          sources: sources,
           lastUpdated: new Date().toISOString(),
-          cached: false
+          cached: false,
+          endpoint: 'main-alerts'
         }
       };
       
@@ -258,14 +337,26 @@ export function setupAPIRoutes(app, globalState) {
       globalState.cachedAlerts = response;
       globalState.lastFetchTime = now;
       
+      console.log(`🎯 [MAIN] Returning ${allAlerts.length} alerts`);
       res.json(response);
+      
     } catch (error) {
-      console.error('❌ Main alerts endpoint error:', error);
-      res.status(500).json({
+      console.error('❌ [MAIN] Main alerts endpoint error:', error);
+      
+      // Emergency fallback
+      const emergencyResponse = {
         success: false,
         error: error.message,
-        alerts: []
-      });
+        alerts: [],
+        metadata: {
+          totalAlerts: 0,
+          error: error.message,
+          timestamp: new Date().toISOString(),
+          endpoint: 'main-alerts-emergency'
+        }
+      };
+      
+      res.status(500).json(emergencyResponse);
     }
   });
 
