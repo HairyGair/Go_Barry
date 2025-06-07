@@ -10,19 +10,19 @@ export const API_CONFIG = {
         // Local development
         return 'http://localhost:3001';
       }
-      // Production - always use api subdomain
-      return 'https://api.gobarry.co.uk';
+      // Production - use the working Render backend
+      return 'https://go-barry.onrender.com';
     } else {
       // React Native or build environment
-      return 'https://api.gobarry.co.uk';
+      return 'https://go-barry.onrender.com';
     }
   })(),
   
   // Fallback URLs for redundancy
   fallbackURLs: [
     'http://localhost:3001',
-    'https://api.gobarry.co.uk',
-    'https://go-barry.onrender.com'
+    'https://go-barry.onrender.com',
+    'https://api.gobarry.co.uk'
   ],
   
   // Refresh intervals (browser optimized)

@@ -8,7 +8,9 @@ export default function RootLayout() {
     <ThemeProvider>
       <SupervisorProvider>
         <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="browser-main" options={{ headerShown: false }} />
           <Stack.Screen name="display" options={{ headerShown: false }} />
         </Stack>
       </SupervisorProvider>

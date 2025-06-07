@@ -92,10 +92,15 @@ const OptimizedMobileDashboard = ({ baseUrl = API_CONFIG.baseURL }) => {
   // Smart refresh with haptic feedback on mobile
   const handleRefresh = useCallback(async () => {
     try {
-      // Haptic feedback on mobile
+      // Haptic feedback on mobile (with graceful fallback)
       if (Platform.OS !== 'web') {
-        const { HapticFeedback } = require('expo-haptics');
-        HapticFeedback.impactAsync(HapticFeedback.ImpactFeedbackStyle.Light);
+        try {
+          const { HapticFeedback } = await import('expo-haptics');
+          HapticFeedback.impactAsync(HapticFeedback.ImpactFeedbackStyle.Light);
+        } catch (hapticError) {
+          // Graceful fallback if haptics not available
+          console.log('Haptic feedback not available');
+        }
       }
       
       await Promise.all([refetchAlerts(), refetchHealth()]);

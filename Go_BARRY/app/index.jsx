@@ -1,0 +1,208 @@
+// Go_BARRY/app/index.jsx
+// Main home page that serves the beautiful HTML via React Native Web
+
+import React, { useEffect } from 'react';
+import { View, StyleSheet, Platform } from 'react-native';
+
+const IndexApp = () => {
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      // For web, serve the static HTML content directly
+      // This will be handled by the Expo build process
+      const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go Barry - Traffic Intelligence Platform</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --gne-red: #E31E24; --gne-red-dark: #B71C1C; --gne-red-light: #FF5252;
+            --dark-bg: #0a0e16; --glass-bg: rgba(0, 0, 0, 0.4); --glass-border: rgba(255, 255, 255, 0.2);
+            --text-bright: #ffffff; --text-primary: #f3f4f6; --text-secondary: #d1d5db;
+            --accent-blue: #3b82f6; --accent-cyan: #06b6d4;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--dark-bg) 0%, #1a202c 100%); color: var(--text-bright); min-height: 100vh; position: relative; overflow-x: hidden; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-image: radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at 40% 40%, rgba(227, 30, 36, 0.1) 0%, transparent 50%); animation: float 30s ease-in-out infinite; pointer-events: none; z-index: -1; }
+        @keyframes float { 0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.7; } 33% { transform: translateY(-10px) rotate(45deg); opacity: 1; } 66% { transform: translateY(-20px) rotate(90deg); opacity: 0.8; } }
+        .header { background: linear-gradient(135deg, var(--gne-red) 0%, var(--gne-red-dark) 100%); backdrop-filter: blur(20px); border-bottom: 2px solid var(--gne-red-light); padding: 20px 0; box-shadow: 0 8px 32px rgba(227, 30, 36, 0.3); position: relative; z-index: 100; }
+        .header::before { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, var(--gne-red-light), #ffffff, var(--gne-red-light)); animation: flow 4s ease-in-out infinite; }
+        @keyframes flow { 0%, 100% { opacity: 0.8; transform: translateX(-10%); } 50% { opacity: 1; transform: translateX(10%); } }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 32px; }
+        .header-content { display: flex; align-items: center; justify-content: space-between; }
+        .logo-section { display: flex; align-items: center; gap: 20px; }
+        .logo { display: flex; align-items: center; gap: 16px; }
+        .logo img { height: 60px; width: auto; filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.3)); animation: logo-glow 3s ease-in-out infinite; }
+        @keyframes logo-glow { 0%, 100% { filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.3)); transform: scale(1); } 50% { filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.6)); transform: scale(1.02); } }
+        .logo-fallback { width: 60px; height: 60px; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); color: var(--gne-red); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; letter-spacing: 1px; border: 3px solid white; box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+        .brand-text { display: flex; flex-direction: column; }
+        .brand-title { font-size: 32px; font-weight: 900; color: var(--text-bright); text-shadow: 0 2px 4px rgba(0,0,0,0.3); letter-spacing: 1px; }
+        .brand-subtitle { font-size: 16px; color: var(--text-primary); font-weight: 500; margin-top: 4px; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .status-indicator { display: flex; align-items: center; gap: 12px; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 12px; padding: 12px 20px; }
+        .status-dot { width: 12px; height: 12px; background: #10b981; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.1); } }
+        .status-text { font-weight: 600; font-size: 16px; color: var(--text-bright); text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .main-content { padding: 80px 0; }
+        .welcome-section { text-align: center; margin-bottom: 80px; }
+        .welcome-title { font-size: 48px; font-weight: 900; margin-bottom: 24px; background: linear-gradient(135deg, var(--text-bright) 0%, var(--accent-cyan) 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1.2; }
+        .welcome-description { font-size: 20px; color: var(--text-primary); max-width: 600px; margin: 0 auto; line-height: 1.6; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+        .apps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; max-width: 1000px; margin: 0 auto; }
+        .app-card { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 24px; padding: 40px; text-align: center; transition: all 0.3s ease; position: relative; overflow: hidden; cursor: pointer; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+        .app-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 100%); opacity: 0; transition: opacity 0.3s ease; }
+        .app-card:hover { transform: translateY(-8px); box-shadow: 0 20px 60px rgba(0,0,0,0.3); border-color: var(--accent-blue); }
+        .app-card:hover::before { opacity: 1; }
+        .app-icon { width: 80px; height: 80px; margin: 0 auto 24px; border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 36px; color: white; position: relative; z-index: 2; }
+        .control-room-icon { background: linear-gradient(135deg, var(--gne-red) 0%, var(--gne-red-dark) 100%); }
+        .supervisor-icon { background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-cyan) 100%); }
+        .app-title { font-size: 24px; font-weight: 700; margin-bottom: 16px; color: var(--text-bright); position: relative; z-index: 2; text-shadow: 0 2px 4px rgba(0,0,0,0.6); }
+        .app-description { font-size: 16px; color: var(--text-primary); line-height: 1.6; margin-bottom: 32px; position: relative; z-index: 2; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .app-features { list-style: none; margin-bottom: 32px; position: relative; z-index: 2; }
+        .app-features li { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--text-secondary); margin-bottom: 8px; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .app-features i { color: var(--accent-cyan); font-size: 16px; }
+        .app-button { background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-cyan) 100%); color: white; border: none; padding: 16px 32px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; position: relative; z-index: 2; width: 100%; text-decoration: none; display: inline-block; }
+        .app-button:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3); }
+        .control-room-button { background: linear-gradient(135deg, var(--gne-red) 0%, var(--gne-red-dark) 100%); }
+        .control-room-button:hover { box-shadow: 0 8px 24px rgba(227, 30, 36, 0.3); }
+        .footer { background: rgba(0, 0, 0, 0.3); backdrop-filter: blur(10px); border-top: 1px solid var(--glass-border); padding: 40px 0; text-align: center; margin-top: 80px; }
+        .footer-content { color: var(--text-secondary); font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .footer-brand { font-weight: 600; color: var(--gne-red-light); }
+        @media (max-width: 768px) { .apps-grid { grid-template-columns: 1fr; gap: 24px; } .welcome-title { font-size: 36px; } .header-content { flex-direction: column; gap: 20px; text-align: center; } .brand-title { font-size: 24px; } .app-card { padding: 32px 24px; } }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo">
+                        <img src="./gobarry-logo.png" alt="Go Barry" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex';">
+                        <div id="logo-fallback" class="logo-fallback" style="display: none;">GO BARRY</div>
+                    </div>
+                    <div class="brand-text">
+                        <div class="brand-title">Go Barry</div>
+                        <div class="brand-subtitle">Traffic Intelligence Platform</div>
+                    </div>
+                </div>
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span class="status-text">System Operational</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="container">
+            <div class="welcome-section">
+                <h1 class="welcome-title">Choose Your Application</h1>
+                <p class="welcome-description">
+                    Access Go Barry's traffic intelligence tools designed for Go North East operations. 
+                    Select the application that matches your role and requirements.
+                </p>
+            </div>
+
+            <div class="apps-grid">
+                <div class="app-card" onclick="window.open('/display', '_blank')">
+                    <div class="app-icon control-room-icon">
+                        <i class="fas fa-tv"></i>
+                    </div>
+                    <h2 class="app-title">Control Room Display</h2>
+                    <p class="app-description">
+                        24/7 traffic monitoring display designed for control room environments and large screens.
+                    </p>
+                    <ul class="app-features">
+                        <li><i class="fas fa-eye"></i> Real-time traffic alerts</li>
+                        <li><i class="fas fa-map"></i> Live traffic map</li>
+                        <li><i class="fas fa-clock"></i> Automatic alert cycling</li>
+                        <li><i class="fas fa-desktop"></i> Fullscreen optimized</li>
+                        <li><i class="fas fa-shield-alt"></i> Read-only monitoring</li>
+                    </ul>
+                    <a href="/display" target="_blank" class="app-button control-room-button">
+                        <i class="fas fa-external-link-alt"></i> Open Control Room
+                    </a>
+                </div>
+
+                <div class="app-card" onclick="window.open('/supervisor', '_blank')">
+                    <div class="app-icon supervisor-icon">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                    <h2 class="app-title">Supervisor Screen</h2>
+                    <p class="app-description">
+                        Interactive platform for supervisors to manage alerts, coordinate responses, and monitor operations.
+                    </p>
+                    <ul class="app-features">
+                        <li><i class="fas fa-tasks"></i> Alert management</li>
+                        <li><i class="fas fa-users"></i> Team coordination</li>
+                        <li><i class="fas fa-edit"></i> Interactive controls</li>
+                        <li><i class="fas fa-mobile-alt"></i> Mobile responsive</li>
+                        <li><i class="fas fa-key"></i> Secure authentication</li>
+                    </ul>
+                    <a href="/supervisor" target="_blank" class="app-button">
+                        <i class="fas fa-sign-in-alt"></i> Access Supervisor Tools
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <p>
+                    Powered by <span class="footer-brand">Go Barry</span> | 
+                    Traffic Intelligence for <strong>Go North East</strong> | 
+                    Real-time monitoring and alert management
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function checkSystemStatus() {
+            try {
+                const response = await fetch('https://go-barry.onrender.com/api/health');
+                if (response.ok) {
+                    document.querySelector('.status-text').textContent = 'System Operational';
+                    document.querySelector('.status-dot').style.background = '#10b981';
+                } else {
+                    document.querySelector('.status-text').textContent = 'System Issues';
+                    document.querySelector('.status-dot').style.background = '#ef4444';
+                }
+            } catch (error) {
+                document.querySelector('.status-text').textContent = 'Checking Status...';
+                document.querySelector('.status-dot').style.background = '#f59e0b';
+            }
+        }
+        checkSystemStatus();
+        setInterval(checkSystemStatus, 30000);
+        console.log('🚦 Go Barry Traffic Intelligence Platform Loaded');
+    </script>
+</body>
+</html>`;
+      
+      document.open();
+      document.write(htmlContent);
+      document.close();
+    }
+  }, []);
+
+  return (
+    <View style={styles.container}>
+      {/* This will be replaced by the HTML content on web */}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0a0e16',
+  },
+});
+
+export default IndexApp;
