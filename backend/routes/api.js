@@ -4,7 +4,7 @@
 // Import all the services and utilities
 import { fetchTomTomTrafficWithStreetNames } from "../services/tomtom.js";
 import { fetchMapQuestTrafficWithStreetNames } from "../services/mapquest.js";
-import { fetchHERETraffic } from "../services/here.js";
+import { fetchHERETrafficWithStreetNames } from "../services/here.js";
 import { fetchNationalHighways } from "../services/nationalHighways.js";
 // OLD REST API (removed):
 // import { fetchStreetManagerActivities, ... } from "../services/streetManager.js";
@@ -108,7 +108,40 @@ export function setupAPIRoutes(app, globalState) {
         };
       }
       
-      // 2. Get MapQuest alerts (if working)
+      // 2. Get HERE alerts (enhanced coverage)
+      console.log('🗺️ Fetching HERE alerts...');
+      try {
+        const hereResult = await fetchHERETrafficWithStreetNames();
+        if (hereResult.success && hereResult.data && hereResult.data.length > 0) {
+          allAlerts.push(...hereResult.data);
+          sources.here = {
+            success: true,
+            count: hereResult.data.length,
+            method: 'Enhanced with GTFS (Live Data)',
+            coverage: hereResult.coverage,
+            mode: 'live'
+          };
+          console.log(`✅ HERE: ${hereResult.data.length} alerts fetched`);
+        } else {
+          sources.here = {
+            success: false,
+            count: 0,
+            error: hereResult.error || 'No data returned',
+            mode: 'live'
+          };
+          console.log('⚠️ HERE: No alerts returned or error occurred');
+        }
+      } catch (hereError) {
+        console.error('❌ HERE fetch failed:', hereError.message);
+        sources.here = {
+          success: false,
+          count: 0,
+          error: hereError.message,
+          mode: 'live'
+        };
+      }
+      
+      // 3. Get MapQuest alerts (if working)
       console.log('🗺️ Fetching MapQuest alerts...');
       try {
         const mapquestResult = await fetchMapQuestTrafficWithStreetNames();
@@ -140,7 +173,7 @@ export function setupAPIRoutes(app, globalState) {
         };
       }
       
-      // 3. Get StreetManager webhook data
+      // 4. Get StreetManager webhook data
       console.log('🚧 Fetching StreetManager webhook data...');
       try {
         const streetManagerActivities = getWebhookActivities();
@@ -179,7 +212,7 @@ export function setupAPIRoutes(app, globalState) {
       
       console.log(`📊 Raw alerts collected: ${allAlerts.length}`);
       
-      // 4. ENHANCED PROCESSING - but ensure we ALWAYS return something
+      // 5. ENHANCED PROCESSING - but ensure we ALWAYS return something
       let enhancedAlerts = [];
       if (allAlerts.length > 0) {
         try {
@@ -195,7 +228,7 @@ export function setupAPIRoutes(app, globalState) {
         console.log('ℹ️ No raw alerts to process');
       }
       
-      // 5. Generate statistics
+      // 6. Generate statistics
       const stats = {
         totalAlerts: enhancedAlerts.length,
         activeAlerts: enhancedAlerts.filter(a => a.status === 'red').length,
@@ -205,7 +238,7 @@ export function setupAPIRoutes(app, globalState) {
           (enhancedAlerts.reduce((sum, a) => sum + (a.affectsRoutes?.length || 0), 0) / enhancedAlerts.length).toFixed(1) : 0
       };
       
-      // 6. ALWAYS return a valid response
+      // 7. ALWAYS return a valid response
       const response = {
         success: true,
         alerts: enhancedAlerts,
