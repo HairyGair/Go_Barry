@@ -269,6 +269,22 @@ export function getAllSupervisors() {
   }));
 }
 
+// Get active supervisors (currently signed in)
+export function getActiveSupervisors() {
+  const activeSessions = Object.values(supervisorSessions).filter(session => session.active);
+  return activeSessions.map(session => {
+    const supervisor = supervisors[session.supervisorId];
+    return {
+      supervisorId: session.supervisorId,
+      name: session.supervisorName,
+      role: supervisor?.role || 'Supervisor',
+      shift: supervisor?.shift || 'Unknown',
+      sessionStart: session.startTime,
+      lastActivity: session.lastActivity
+    };
+  });
+}
+
 // Get supervisor activity log
 export function getSupervisorActivity(supervisorId, limit = 50) {
   const activities = [];
@@ -376,6 +392,7 @@ export default {
   isAlertDismissed,
   getAlertDismissalInfo,
   getAllSupervisors,
+  getActiveSupervisors,
   getSupervisorActivity,
   getDismissalStatistics,
   signOutSupervisor

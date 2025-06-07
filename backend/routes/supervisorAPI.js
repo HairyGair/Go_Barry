@@ -191,6 +191,27 @@ router.get('/supervisors', async (req, res) => {
   }
 });
 
+// Get active supervisors (for display screen)
+router.get('/active', async (req, res) => {
+  try {
+    const activeSupervisors = supervisorManager.getActiveSupervisors();
+    res.json({
+      success: true,
+      activeSupervisors,
+      count: activeSupervisors.length,
+      lastUpdated: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Get active supervisors error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch active supervisors',
+      activeSupervisors: [],
+      count: 0
+    });
+  }
+});
+
 // Get supervisor activity log
 router.get('/supervisors/:supervisorId/activity', async (req, res) => {
   try {
