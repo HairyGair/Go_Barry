@@ -42,6 +42,7 @@ import {
 } from '../utils/alerts.js';
 import { calculateDistance } from '../utils/helpers.js';
 import { processEnhancedAlerts } from '../services/enhancedAlertProcessor.js';
+import { removeSampleData, filterMetadata } from '../utils/sampleDataFilter.js';
 import disruptionLogger from '../services/disruptionLogger.js';
 import disruptionWorkflowRouter from './disruptionWorkflowAPI.js';
 import {
@@ -212,20 +213,25 @@ export function setupAPIRoutes(app, globalState) {
       
       console.log(`📊 Raw alerts collected: ${allAlerts.length}`);
       
+      // EMERGENCY: Filter out any sample data
+      console.log('🗑️ Filtering out sample data...');
+      const filteredAlerts = removeSampleData(allAlerts);
+      console.log(`🗑️ Filtered: ${allAlerts.length} → ${filteredAlerts.length} alerts (removed ${allAlerts.length - filteredAlerts.length} sample alerts)`);
+      
       // 5. ENHANCED PROCESSING - but ensure we ALWAYS return something
       let enhancedAlerts = [];
-      if (allAlerts.length > 0) {
+      if (filteredAlerts.length > 0) {
         try {
           console.log('🔄 Processing alerts with enhanced algorithms...');
-          enhancedAlerts = await processEnhancedAlerts(allAlerts);
+          enhancedAlerts = await processEnhancedAlerts(filteredAlerts);
           console.log(`✅ Enhanced processing complete: ${enhancedAlerts.length} alerts`);
         } catch (enhancementError) {
           console.error('❌ Enhanced processing failed:', enhancementError.message);
-          console.log('🔄 Falling back to raw alerts...');
-          enhancedAlerts = allAlerts; // Fallback to raw alerts if enhancement fails
+          console.log('🔄 Falling back to filtered alerts...');
+          enhancedAlerts = filteredAlerts; // Fallback to filtered alerts if enhancement fails
         }
       } else {
-        console.log('ℹ️ No raw alerts to process');
+        console.log('ℹ️ No alerts to process after filtering');
       }
       
       // 6. Generate statistics
@@ -239,28 +245,35 @@ export function setupAPIRoutes(app, globalState) {
       };
       
       // 7. ALWAYS return a valid response
+      let responseMetadata = {
+        totalAlerts: enhancedAlerts.length,
+        sources,
+        statistics: stats,
+        lastUpdated: new Date().toISOString(),
+        enhancement: 'GTFS location accuracy enabled',
+        mode: 'live_data_only',
+        sampleData: 'removed',
+        supervisor: {
+          dismissalEnabled: true,
+          accountabilityActive: true
+        },
+        debug: {
+          rawAlertsCollected: allAlerts.length,
+          filteredAlerts: filteredAlerts.length,
+          sampleAlertsRemoved: allAlerts.length - filteredAlerts.length,
+          enhancedAlertsReturned: enhancedAlerts.length,
+          sourcesWorking: Object.values(sources).filter(s => s.success).length,
+          timestamp: new Date().toISOString()
+        }
+      };
+      
+      // Filter metadata to remove any sample data patterns
+      responseMetadata = filterMetadata(responseMetadata);
+      
       const response = {
         success: true,
         alerts: enhancedAlerts,
-        metadata: {
-          totalAlerts: enhancedAlerts.length,
-          sources,
-          statistics: stats,
-          lastUpdated: new Date().toISOString(),
-          enhancement: 'GTFS location accuracy enabled',
-          mode: 'live_data_only',
-          sampleData: 'removed',
-          supervisor: {
-            dismissalEnabled: true,
-            accountabilityActive: true
-          },
-          debug: {
-            rawAlertsCollected: allAlerts.length,
-            enhancedAlertsReturned: enhancedAlerts.length,
-            sourcesWorking: Object.values(sources).filter(s => s.success).length,
-            timestamp: new Date().toISOString()
-          }
-        }
+        metadata: responseMetadata
       };
       
       console.log(`🎯 [FIXED] Returning ${enhancedAlerts.length} alerts to frontend`);
