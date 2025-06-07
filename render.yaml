@@ -29,7 +29,7 @@ services:
         value: https://www.gobarry.co.uk,https://gobarry.co.uk
       - key: PRODUCTION_DOMAIN
         value: gobarry.co.uk
-    autoDeploy: false
+    autoDeploy: true
 
   # Frontend Web App - Go Barry v3.0 Dashboard  
   - type: static
