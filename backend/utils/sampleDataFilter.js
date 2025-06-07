@@ -47,8 +47,8 @@ export function removeSampleData(alerts) {
       return false;
     }
     
-    // Remove anything with enhancedFeatures metadata
-    if (alert.enhancedFeatures || alert.enhanced === true) {
+    // Remove anything with enhancedFeatures metadata (but allow real enhanced alerts)
+    if (alert.enhancedFeatures && alert.source === 'go_barry_v3') {
       console.log('🗑️ Filtered out enhanced sample alert:', alert.id);
       return false;
     }
