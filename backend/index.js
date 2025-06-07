@@ -367,11 +367,36 @@ app.use('/api/incidents', incidentAPI);
 import messagingAPI from './routes/messagingAPI.js';
 app.use('/api/messaging', messagingAPI);
 
-// Test Data API for debugging and verification
+// Add to test data API
 import testDataAPI from './routes/testDataAPI.js';
 app.use('/api/test', testDataAPI);
+  
+// SCOOT traffic intelligence endpoints
+  import { getSCOOTStats } from './services/scoot.js';
+  
+  app.get('/api/scoot/status', (req, res) => {
+    try {
+      const stats = getSCOOTStats();
+      res.json({
+        success: true,
+        scoot: {
+          enabled: true,
+          ...stats,
+          lastUpdated: new Date().toISOString()
+        }
+      });
+    } catch (error) {
+      res.json({
+        success: false,
+        scoot: {
+          enabled: false,
+          error: error.message
+        }
+      });
+    }
+  });
 
-// Geocoding API endpoints
+  // Geocoding API endpoints
 app.get('/api/geocode/:location', async (req, res) => {
   try {
     const location = decodeURIComponent(req.params.location);

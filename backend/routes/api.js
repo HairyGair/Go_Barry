@@ -6,6 +6,7 @@ import { fetchTomTomTrafficWithStreetNames } from "../services/tomtom.js";
 import { fetchMapQuestTrafficWithStreetNames } from "../services/mapquest.js";
 import { fetchHERETrafficWithStreetNames } from "../services/here.js";
 import { fetchNationalHighways } from "../services/nationalHighways.js";
+import { fetchSCOOTTrafficData } from "../services/scoot.js";
 // OLD REST API (removed):
 // import { fetchStreetManagerActivities, ... } from "../services/streetManager.js";
 
@@ -174,7 +175,41 @@ export function setupAPIRoutes(app, globalState) {
         };
       }
       
-      // 4. Get StreetManager webhook data
+      // 5. Get SCOOT real-time traffic intelligence
+      console.log('😦 Fetching SCOOT traffic intelligence...');
+      try {
+        const scootResult = await fetchSCOOTTrafficData();
+        if (scootResult.success && scootResult.data && scootResult.data.length > 0) {
+          allAlerts.push(...scootResult.data);
+          sources.scoot = {
+            success: true,
+            count: scootResult.data.length,
+            method: 'Real-time Traffic Intelligence (Live Data)',
+            coverage: 'Major Go North East route corridors',
+            mode: 'live'
+          };
+          console.log(`✅ SCOOT: ${scootResult.data.length} traffic intelligence alerts fetched`);
+        } else {
+          sources.scoot = {
+            success: false,
+            count: 0,
+            error: scootResult.error || 'No congestion data available',
+            note: scootResult.requiresApiKey ? 'API key required for SCOOT data' : 'Service unavailable',
+            mode: 'live'
+          };
+          console.log('⚠️ SCOOT: No traffic intelligence data available');
+        }
+      } catch (scootError) {
+        console.error('❌ SCOOT fetch failed:', scootError.message);
+        sources.scoot = {
+          success: false,
+          count: 0,
+          error: scootError.message,
+          mode: 'live'
+        };
+      }
+      
+      // 6. Get StreetManager webhook data
       console.log('🚧 Fetching StreetManager webhook data...');
       try {
         const streetManagerActivities = getWebhookActivities();

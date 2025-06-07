@@ -46,20 +46,30 @@ const generateSampleAlerts = () => {
     },
     {
       id: `test_${Date.now()}_3`,
-      type: 'incident',
-      title: 'Traffic Congestion - A19 Silverlink',
-      description: 'Heavy traffic due to ongoing incident at Silverlink roundabout',
+      type: 'congestion',
+      title: 'Heavy Congestion - A19 Silverlink',
+      description: 'SCOOT data shows 45% congestion, average speed 15 km/h at Silverlink roundabout',
       location: 'A19 Silverlink Roundabout, North Tyneside',
       coordinates: [55.0391, -1.4854],
       severity: 'Medium',
       status: 'red',
       source: 'test_data',
       affectsRoutes: ['1', '2', '307', '309'],
-      routeMatchMethod: 'enhanced_gtfs',
+      routeMatchMethod: 'scoot_site_mapping',
       routeAccuracy: 'high',
       lastUpdated: currentTime,
-      dataSource: 'Test Data - Simulated Congestion',
-      locationAccuracy: 'high'
+      dataSource: 'Test Data - Simulated SCOOT Intelligence',
+      locationAccuracy: 'high',
+      category: 'traffic_intelligence',
+      scootData: {
+        systemCodeNumber: 'N0511',
+        congestionPercent: 45,
+        averageSpeed: 15,
+        currentFlow: 45,
+        linkTravelTime: 180,
+        congestionSeverity: 'High',
+        speedSeverity: 'High'
+      }
     }
   ];
 };
