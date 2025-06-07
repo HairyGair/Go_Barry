@@ -103,6 +103,11 @@ import messagingAPI from './routes/messagingAPI.js';
 app.use('/api/messaging', messagingAPI);
 console.log('✅ Message Distribution API loaded');
 
+// Roadworks Management API (Complete Backend System)
+import roadworksAPI from './routes/roadworksAPI.js';
+app.use('/api/roadworks', roadworksAPI);
+console.log('✅ Roadworks Management API loaded');
+
 logMemoryUsage('APIs Loaded');
 
 // Geocoding API endpoints
@@ -314,6 +319,7 @@ app.get('/api/status', (req, res) => {
     timestamp: new Date().toISOString(),
     features: {
       incidentManagement: "/api/incidents",
+      roadworksManagement: "/api/roadworks",
       messageDistribution: "/api/messaging", 
       routeManagement: "/api/routes",
       supervisorAuth: "/api/supervisor",
@@ -325,6 +331,7 @@ app.get('/api/status', (req, res) => {
       "/api/alerts", 
       "/api/alerts-enhanced",
       "/api/incidents",
+      "/api/roadworks",
       "/api/messaging/channels",
       "/api/routes/gtfs-stats",
       "/api/supervisor",
@@ -361,6 +368,7 @@ app.use('*', (req, res) => {
       "/api/alerts",
       "/api/alerts-enhanced", 
       "/api/incidents",
+      "/api/roadworks",
       "/api/messaging/channels",
       "/api/routes/gtfs-stats",
       "/api/supervisor",
@@ -380,6 +388,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🌐 Public: https://go-barry.onrender.com`);
   console.log(`\n✅ Go Barry v3.0 Features Available:`);
   console.log(`   🚨 Incident Management: /api/incidents`);
+  console.log(`   🚧 Roadworks Management: /api/roadworks`);
   console.log(`   📢 Message Distribution: /api/messaging`);
   console.log(`   🛣️ Route Management: /api/routes`);
   console.log(`   👤 Supervisor System: /api/supervisor`);
