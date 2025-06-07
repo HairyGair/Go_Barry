@@ -59,19 +59,29 @@ const EnhancedDashboard = () => {
   // Enhanced fetch function with supervisor awareness and FALLBACK STRATEGY
   const fetchAlerts = async () => {
     try {
-      console.log('🔧 Enhanced Dashboard fetching alerts...');
+      console.log('🔧 Enhanced Dashboard fetching alerts with cache busting...');
       setError(null);
       
-      // STRATEGY: Try enhanced endpoint first, fallback to main alerts endpoint
+      // STRATEGY: Try enhanced endpoint first with cache busting, fallback to main alerts endpoint
       let response;
       let endpoint;
       let fallbackUsed = false;
       
       try {
-        // Try enhanced endpoint first
+        // Try enhanced endpoint first with cache busting
         endpoint = '/api/alerts-enhanced';
-        console.log(`🎯 Trying enhanced endpoint: ${API_BASE_URL}${endpoint}`);
-        response = await fetch(`${API_BASE_URL}${endpoint}`);
+        const url = `${API_BASE_URL}${endpoint}?t=${Date.now()}&no_cache=true`;
+        console.log(`🎯 Trying enhanced endpoint with cache busting: ${url}`);
+        
+        response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'Accept': 'application/json',
+          },
+        });
         
         if (!response.ok) {
           throw new Error(`Enhanced endpoint failed: HTTP ${response.status}`);
@@ -80,10 +90,20 @@ const EnhancedDashboard = () => {
       } catch (enhancedError) {
         console.warn('⚠️ Enhanced endpoint failed, trying fallback:', enhancedError.message);
         
-        // Fallback to main alerts endpoint
+        // Fallback to main alerts endpoint with cache busting
         endpoint = '/api/alerts';
-        console.log(`🔄 Fallback to main endpoint: ${API_BASE_URL}${endpoint}`);
-        response = await fetch(`${API_BASE_URL}${endpoint}`);
+        const fallbackUrl = `${API_BASE_URL}${endpoint}?t=${Date.now()}&no_cache=true`;
+        console.log(`🔄 Fallback to main endpoint: ${fallbackUrl}`);
+        
+        response = await fetch(fallbackUrl, {
+          method: 'GET',
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'Accept': 'application/json',
+          },
+        });
         fallbackUsed = true;
         
         if (!response.ok) {
@@ -101,9 +121,23 @@ const EnhancedDashboard = () => {
       });
       
       if (data.success && data.alerts) {
-        setAlerts(data.alerts);
+        // Frontend filter as additional protection
+        const filteredAlerts = data.alerts.filter(alert => {
+          if (alert.id && (
+            alert.id.includes('barry_v3') ||
+            alert.id.includes('sample') ||
+            alert.source === 'go_barry_v3' ||
+            alert.enhanced === true
+          )) {
+            console.warn('🗑️ Dashboard filtered sample alert:', alert.id);
+            return false;
+          }
+          return true;
+        });
+        
+        setAlerts(filteredAlerts);
         setLastUpdated(new Date().toISOString());
-        console.log(`✅ Enhanced Dashboard loaded ${data.alerts.length} alerts from ${endpoint}`);
+        console.log(`✅ Enhanced Dashboard loaded ${data.alerts.length} → ${filteredAlerts.length} alerts from ${endpoint} (filtered ${data.alerts.length - filteredAlerts.length} samples)`);
         
         if (fallbackUsed) {
           console.log('ℹ️ Using fallback endpoint - enhanced features may be limited');
