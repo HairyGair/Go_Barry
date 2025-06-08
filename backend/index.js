@@ -10,7 +10,6 @@ import { parse } from 'csv-parse/sync';
 
 // Import working services
 import { fetchTomTomTrafficWithStreetNames } from './services/tomtom.js';
-import { addEmergencyEndpoint } from './emergency-endpoint.js';
 import healthRoutes from './routes/health.js';
 import supervisorAPI from './routes/supervisorAPI.js';
 
@@ -470,8 +469,51 @@ app.get('/api/alerts', async (req, res) => {
   }
 });
 
-// Add emergency endpoint
-addEmergencyEndpoint(app);
+// Emergency alerts endpoint (built-in instead of imported)
+app.get('/api/emergency-alerts', async (req, res) => {
+  console.log('🚨 Emergency alerts endpoint called');
+  
+  try {
+    console.log('🚗 Testing TomTom directly...');
+    const tomtomResult = await fetchTomTomTrafficWithStreetNames();
+    
+    console.log('📊 TomTom emergency result:', {
+      success: tomtomResult.success,
+      dataCount: tomtomResult.data ? tomtomResult.data.length : 0,
+      error: tomtomResult.error
+    });
+    
+    if (tomtomResult.success && tomtomResult.data) {
+      res.json({
+        success: true,
+        alerts: tomtomResult.data,
+        metadata: {
+          source: 'emergency_tomtom_direct',
+          count: tomtomResult.data.length,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } else {
+      res.json({
+        success: false,
+        alerts: [],
+        error: tomtomResult.error,
+        metadata: {
+          source: 'emergency_tomtom_direct',
+          count: 0,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+  } catch (error) {
+    console.error('❌ Emergency endpoint error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      alerts: []
+    });
+  }
+});
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
