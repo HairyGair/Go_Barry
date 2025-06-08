@@ -269,11 +269,13 @@ const BrowserMainApp = () => {
         {/* Header */}
         <View style={styles.sidebarHeader}>
           <View style={styles.logoContainer}>
-            <Text style={styles.logoText}>🚦</Text>
+            <View style={styles.logoImageContainer}>
+              {/* Try to load the actual logo, fallback to emoji */}
+              <Text style={styles.logoText}>🚦</Text>
+            </View>
             {!sidebarCollapsed && (
               <View style={styles.logoTextContainer}>
                 <View style={styles.logoMainContainer}>
-                  <Text style={styles.logoEmoji}>🚦</Text>
                   <Text style={styles.appTitle}>BARRY</Text>
                 </View>
                 <Text style={styles.appVersion}>v3.0 Pro • Supervisor Browser</Text>
@@ -431,6 +433,12 @@ const styles = StyleSheet.create({
   },
   logoText: {
     fontSize: 28,
+  },
+  logoImageContainer: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   logoTextContainer: {
     flexDirection: 'column',
