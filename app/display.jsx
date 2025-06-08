@@ -1,204 +1,517 @@
 // Go_BARRY/app/display.jsx
-// Control Room Display - Beautiful HTML with maps and alerts
+// Enhanced Control Room Display with Working Map
+// Auto-cycles through alerts with map zooming and improved alert information
 
-import React, { useEffect } from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Dimensions, Platform } from 'react-native';
+import TrafficMap from '../components/TrafficMap';
 
-const DisplayApp = () => {
+const EnhancedDisplayScreen = () => {
+  const [currentAlerts, setCurrentAlerts] = useState([]);
+  const [activeSupervisors, setActiveSupervisors] = useState([]);
+  const [alertIndex, setAlertIndex] = useState(0);
+  const [lastDataUpdate, setLastDataUpdate] = useState(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [seriouslyAffectedAreas, setSeriouslyAffectedAreas] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [connectionError, setConnectionError] = useState(false);
+
+  const API_BASE_URL = Platform.OS === 'web' && window.location.hostname === 'localhost' 
+    ? 'http://localhost:3001' 
+    : 'https://go-barry.onrender.com';
+
+  // Update time every second
   useEffect(() => {
-    if (Platform.OS === 'web') {
-      // Serve the beautiful control room display directly
-      const htmlContent = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BARRY Enhanced Control Room - Maps Integration</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.min.js"></script>
-    
-    <style>
-        :root {
-            --bg-primary: #0a0e16; --bg-secondary: #111827; --bg-card: rgba(17, 24, 39, 0.8);
-            --bg-glass: rgba(255, 255, 255, 0.05); --border-glass: rgba(255, 255, 255, 0.1);
-            --text-primary: #161616; --text-secondary: #222222; --text-muted: #444444; --text-bright: #ffffff;
-            --accent-blue: #3b82f6; --accent-cyan: #06b6d4; --accent-purple: #8b5cf6; --accent-emerald: #10b981;
-            --gne-red: #E31E24; --gne-red-dark: #B71C1C; --gne-red-light: #FF5252;
-            --status-critical: #ef4444; --status-warning: #f59e0b; --status-success: #10b981; --status-info: #3b82f6;
-            --shadow-glow: 0 0 30px rgba(227, 30, 36, 0.1); --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.3);
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--bg-primary) 0%, #1a202c 100%); color: var(--text-primary); height: 100vh; overflow: hidden; font-size: 14px; position: relative; }
-        body::before { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-image: radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at 40% 40%, rgba(6, 182, 212, 0.1) 0%, transparent 50%), radial-gradient(circle at 60% 70%, rgba(16, 185, 129, 0.08) 0%, transparent 50%); animation: float 30s ease-in-out infinite; pointer-events: none; z-index: -1; }
-        @keyframes float { 0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.7; } 25% { transform: translateY(-10px) rotate(45deg); opacity: 1; } 50% { transform: translateY(-20px) rotate(90deg); opacity: 0.8; } 75% { transform: translateY(-10px) rotate(135deg); opacity: 1; } }
-        .header { background: linear-gradient(135deg, var(--gne-red) 0%, var(--gne-red-dark) 100%); backdrop-filter: blur(20px); border-bottom: 2px solid var(--gne-red-light); padding: 16px 32px; display: grid; grid-template-columns: auto 1fr auto auto; gap: 32px; align-items: center; box-shadow: 0 8px 32px rgba(227, 30, 36, 0.3); position: relative; z-index: 100; }
-        .header::before { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, var(--gne-red-light), #ffffff, var(--gne-red-light)); animation: gne-flow 4s ease-in-out infinite; }
-        @keyframes gne-flow { 0%, 100% { opacity: 0.8; transform: translateX(-10%); } 50% { opacity: 1; transform: translateX(10%); } }
-        .logo-section { display: flex; align-items: center; gap: 20px; }
-        .logo { display: flex; align-items: center; gap: 12px; }
-        .logo img { height: 45px; width: auto; filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.3)); animation: logo-glow 3s ease-in-out infinite; }
-        @keyframes logo-glow { 0%, 100% { filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.3)); transform: scale(1); } 50% { filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.6)); transform: scale(1.02); } }
-        .logo-fallback { display: flex; align-items: center; gap: 12px; font-size: 28px; font-weight: 800; color: var(--text-bright); text-shadow: 0 0 20px rgba(255, 255, 255, 0.3); }
-        .logo-fallback i { color: var(--text-bright); animation: pulse-glow 3s ease-in-out infinite; }
-        @keyframes pulse-glow { 0%, 100% { filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.5)); transform: scale(1); } 50% { filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.9)); transform: scale(1.05); } }
-        .system-health { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-        .health-indicator { display: flex; align-items: center; gap: 10px; padding: 10px 18px; background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; transition: all 0.3s ease; font-size: 16px; font-weight: 600; color: #ffffff; }
-        .system-metrics { display: flex; gap: 32px; font-size: 16px; color: rgba(255, 255, 255, 0.9); }
-        .system-metric { text-align: center; min-width: 90px; }
-        .metric-value { font-weight: 700; font-size: 24px; color: #ffffff; margin-bottom: 2px; }
-        .metric-label { font-weight: 600; font-size: 13px; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px; }
-        .clock-section { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-        .clock { font-size: 28px; font-weight: 700; color: var(--text-bright); letter-spacing: 1px; font-variant-numeric: tabular-nums; text-shadow: 0 0 15px rgba(255, 255, 255, 0.4); }
-        .last-update { font-size: 14px; color: rgba(255, 255, 255, 0.8); font-weight: 500; }
-        .main-content { height: calc(100vh - 120px); display: grid; grid-template-columns: 450px 1fr; gap: 24px; padding: 20px 32px; }
-        .alert-display-section { background: var(--bg-glass); backdrop-filter: blur(20px); border: 1px solid var(--border-glass); border-radius: 20px; padding: 32px; box-shadow: var(--shadow-card); overflow: hidden; position: relative; }
-        .alert-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; z-index: 2; position: relative; }
-        .alert-title { font-size: 20px; font-weight: 700; color: var(--text-bright); display: flex; align-items: center; gap: 12px; }
-        .alert-count { background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan)); color: var(--text-bright); padding: 8px 20px; border-radius: 20px; font-size: 14px; font-weight: 700; animation: count-update 0.3s ease; border: 1px solid rgba(255, 255, 255, 0.2); }
-        .current-alert { height: calc(100% - 100px); display: flex; align-items: center; justify-content: center; position: relative; }
-        .alert-card { background: rgba(24, 35, 54, 0.85); backdrop-filter: blur(22px) saturate(1.5); border-radius: 28px; border: 2px solid rgba(255,255,255,0.2); box-shadow: 0 12px 50px 0 rgba(30, 58, 138, 0.25); padding: 24px; width: 100%; border-left: 10px solid var(--status-critical); position: relative; overflow: hidden; transition: all 0.3s ease; }
-        .alert-card::before { content: ''; position: absolute; inset: 0; background: linear-gradient(120deg, rgba(255,255,255,0.12) 10%, rgba(255,255,255,0.02) 80%); pointer-events: none; z-index: 1; }
-        .alert-card-title { font-size: 1.8em; font-weight: 700; margin-bottom: 16px; color: #fff; text-shadow: 0 3px 12px #23272f; z-index: 2; position: relative; line-height: 1.2; }
-        .alert-card-location { font-size: 1.4em; font-weight: 600; margin-bottom: 14px; color: #fff; text-shadow: 0 2px 8px #1e40af; z-index: 2; position: relative; display: flex; align-items: center; gap: 8px; }
-        .alert-card-description { font-size: 1.1em; font-weight: 500; margin-bottom: 16px; color: #fff; text-shadow: 0 1px 4px #000; z-index: 2; position: relative; line-height: 1.3; }
-        .alert-details { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; z-index: 2; position: relative; }
-        .alert-detail-item { background: rgba(255, 255, 255, 0.12); padding: 24px 28px; border-radius: 20px; border-left: 5px solid var(--accent-cyan); backdrop-filter: blur(15px); }
-        .alert-detail-label { font-size: 14px; font-weight: 600; color: rgba(255, 255, 255, 0.8); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.8px; }
-        .alert-detail-value { font-size: 16px; font-weight: 600; color: #fff; text-shadow: 0 1px 2px #000; line-height: 1.2; }
-        .route-badges { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; z-index: 2; position: relative; }
-        .route-badge { background: #3b82f6; color: #fff; padding: 6px 12px; border-radius: 12px; font-size: 14px; font-weight: 700; border: 2px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
-        .alert-meta { display: flex; justify-content: space-between; align-items: center; font-size: 15px; color: rgba(255, 255, 255, 0.7); margin-top: 24px; z-index: 2; position: relative; padding-top: 24px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
-        .full-map-container { background: var(--bg-glass); backdrop-filter: blur(20px); border: 1px solid var(--border-glass); border-radius: 20px; padding: 24px; box-shadow: var(--shadow-card); position: relative; overflow: hidden; }
-        .map-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; z-index: 10; position: relative; }
-        .map-title { font-size: 18px; font-weight: 700; color: var(--text-bright); display: flex; align-items: center; gap: 12px; }
-        #map { height: calc(100% - 80px); border-radius: 16px; border: 2px solid rgba(255, 255, 255, 0.1); position: relative; z-index: 1; }
-        .loading { display: flex; align-items: center; justify-content: center; padding: 60px; color: var(--text-muted); gap: 16px; }
-        .spinner { width: 36px; height: 36px; border: 4px solid rgba(255, 255, 255, 0.1); border-top: 4px solid var(--accent-blue); border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .no-alerts { text-align: center; padding: 80px 20px; color: var(--text-muted); }
-        .no-alerts i { font-size: 84px; margin-bottom: 32px; color: var(--status-success); animation: success-pulse 3s ease-in-out infinite; }
-        @keyframes success-pulse { 0%, 100% { transform: scale(1); filter: drop-shadow(0 0 15px rgba(16, 185, 129, 0.4)); } 50% { transform: scale(1.1); filter: drop-shadow(0 0 30px rgba(16, 185, 129, 0.7)); } }
-        @media (max-width: 1400px) { .main-content { grid-template-columns: 1fr 550px; } }
-        @media (max-width: 1200px) { .main-content { grid-template-columns: 1fr; grid-template-rows: 60vh 40vh; } .system-metrics { gap: 24px; } .system-metric { min-width: 70px; } }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <div class="logo-section">
-            <div class="logo">
-                <img src="../gobarry-logo.png" alt="Go Barry" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex';">
-                <div id="logo-fallback" class="logo-fallback" style="display: none;">
-                    <i class="fas fa-traffic-light"></i>
-                    <span>BARRY Control</span>
-                </div>
-            </div>
-        </div>
-        
-        <div class="system-health">
-            <div class="health-indicator">
-                <div class="status-dot"></div>
-                <span id="system-status-text">OPERATIONAL</span>
-            </div>
-            <div class="system-metrics">
-                <div class="system-metric">
-                    <div class="metric-value" id="header-total-alerts">0</div>
-                    <div class="metric-label">Total Alerts</div>
-                </div>
-                <div class="system-metric">
-                    <div class="metric-value" id="header-critical">0</div>
-                    <div class="metric-label">Critical</div>
-                </div>
-                <div class="system-metric">
-                    <div class="metric-value" id="header-routes">0</div>
-                    <div class="metric-label">Routes Affected</div>
-                </div>
-                <div class="system-metric">
-                    <div class="metric-value" id="header-map-alerts">0</div>
-                    <div class="metric-label">On Map</div>
-                </div>
-                <div class="system-metric">
-                    <div class="metric-value" id="header-supervisors">0</div>
-                    <div class="metric-label">Supervisors</div>
-                </div>
-            </div>
-        </div>
-
-        <div class="clock-section">
-            <div class="clock" id="clock">--:--:--</div>
-            <div class="last-update" id="last-update">Last Update: --:--</div>
-        </div>
-    </div>
-
-    <div class="main-content">
-        <div class="alert-display-section">
-            <div class="alert-header">
-                <div class="alert-title">
-                    <i class="fas fa-satellite-dish"></i>
-                    <span>Live Traffic Intelligence</span>
-                </div>
-                <div class="alert-count" id="alert-count">0</div>
-            </div>
-            <div class="current-alert" id="current-alert">
-                <div class="loading">
-                    <div class="spinner"></div>
-                    <span>Initializing traffic intelligence...</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="full-map-container">
-            <div class="map-header">
-                <div class="map-title">
-                    <i class="fas fa-map"></i>
-                    <span>Live Traffic Map - North East England</span>
-                </div>
-            </div>
-            <div id="map"></div>
-        </div>
-    </div>
-
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
-    <script>
-        const API_BASE_URL = window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://go-barry.onrender.com';
-        let map; let alertMarkers = []; let currentAlerts = []; let alertIndex = 0; let alertCycleTimer = null;
-        const supervisorRoles = { 'anthony-gair': { name: 'Anthony Gair', role: 'Service Delivery Supervisor' }, 'andrew-cowley': { name: 'Andrew Cowley', role: 'Service Delivery Supervisor' }, 'claire-fiddler': { name: 'Claire Fiddler', role: 'Service Delivery Supervisor' }, 'alex-woodcock': { name: 'Alex Woodcock', role: 'Service Delivery Supervisor' }, 'john-paterson': { name: 'John Paterson', role: 'Service Delivery Supervisor' }, 'simon-glass': { name: 'Simon Glass', role: 'Service Delivery Supervisor' }, 'david-hall': { name: 'David Hall', role: 'Service Delivery Supervisor' }, 'james-daglish': { name: 'James Daglish', role: 'Service Delivery Supervisor' }, 'barry-perryman': { name: 'Barry Perryman', role: 'Service Delivery Controller' } };
-        let activeSupervisors = [];
-        const NORTH_EAST_BOUNDS = { center: [54.9783, -1.6178], bounds: [[53.5, -3.0], [56.0, -0.5]], zoom: 12 };
-        function initializeMap() { console.log('🗺️ Initializing interactive map...'); map = L.map('map').setView(NORTH_EAST_BOUNDS.center, NORTH_EAST_BOUNDS.zoom); L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors | BARRY Traffic Intelligence', maxZoom: 18, id: 'mapbox/streets-v11' }).addTo(map); const northEastBoundary = L.rectangle(NORTH_EAST_BOUNDS.bounds, { color: '#3b82f6', weight: 2, opacity: 0.6, fillColor: '#3b82f6', fillOpacity: 0.1 }).addTo(map); console.log('✅ Map initialized with North East England coverage'); }
-        function clearMapMarkers() { alertMarkers.forEach(marker => map.removeLayer(marker)); alertMarkers = []; }
-        function addAlertToMap(alert, index) { if (!alert.coordinates || alert.coordinates.length !== 2) return; const [lat, lng] = alert.coordinates; const iconColor = alert.severity === 'High' ? '#ef4444' : alert.severity === 'Medium' ? '#f59e0b' : '#10b981'; const customIcon = L.divIcon({ className: 'custom-alert-marker', html: \`<div style="background: \${iconColor}; width: 28px; height: 28px; border-radius: 50%; border: 3px solid white; box-shadow: 0 3px 10px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">!</div>\`, iconSize: [34, 34], iconAnchor: [17, 17] }); const marker = L.marker([lat, lng], { icon: customIcon }).addTo(map); alertMarkers.push(marker); }
-        function createAlertCard(alert) { const routeBadges = alert.affectsRoutes && alert.affectsRoutes.length > 0 ? alert.affectsRoutes.map(route => \`<span class="route-badge">\${route}</span>\`).join('') : '<span class="route-badge" style="opacity: 0.6;">No routes identified</span>'; const startTime = alert.startDate ? new Date(alert.startDate).toLocaleString('en-GB', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Time unknown'; const authority = alert.authority || alert.source || 'Unknown authority'; const incidentType = alert.type === 'roadwork' ? 'Road Works' : 'Traffic Incident'; return \`<div class="alert-card"><div class="alert-card-title">\${alert.title || 'Traffic Alert'}</div><div class="alert-card-location"><i class="fas fa-map-marker-alt"></i>\${alert.location || 'Location not specified'}</div><div class="alert-card-description">\${alert.description || incidentType + ' reported'}</div><div class="alert-details"><div class="alert-detail-item"><div class="alert-detail-label">Start Time</div><div class="alert-detail-value">\${startTime}</div></div><div class="alert-detail-item"><div class="alert-detail-label">Authority</div><div class="alert-detail-value">\${authority}</div></div><div class="alert-detail-item"><div class="alert-detail-label">Incident Type</div><div class="alert-detail-value">\${incidentType}</div></div><div class="alert-detail-item"><div class="alert-detail-label">Priority</div><div class="alert-detail-value">\${alert.severity || 'Standard'}</div></div></div><div class="route-badges">\${routeBadges}</div><div class="alert-meta"><div>Source: \${alert.dataSource || alert.source}</div><div>ID: \${alert.id ? alert.id.split('_').pop() : 'N/A'}</div><div>Updated: \${alert.lastUpdated ? new Date(alert.lastUpdated).toLocaleTimeString() : 'Unknown'}</div></div></div>\`; }
-        async function fetchAlerts() { try { const response = await fetch(\`\${API_BASE_URL}/api/alerts-enhanced\`); const data = await response.json(); if (data.success && data.alerts) { currentAlerts = data.alerts; updateAlertsDisplay(currentAlerts); updateMapWithAlerts(currentAlerts); updateAnalytics(data.metadata); document.getElementById('last-update').textContent = \`Last Update: \${new Date().toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit' })}\`; } else { throw new Error('Invalid response format'); } } catch (error) { console.error('❌ Error fetching alerts:', error); showErrorState(); } }
-        async function fetchSupervisors() { try { const response = await fetch(\`\${API_BASE_URL}/api/supervisor/active\`); if (response.ok) { const data = await response.json(); activeSupervisors = data.activeSupervisors || []; updateSupervisorDisplay(activeSupervisors); } } catch (error) { activeSupervisors = []; updateSupervisorDisplay([]); } }
-        function updateSupervisorDisplay(supervisors) { document.getElementById('header-supervisors').textContent = supervisors.length; }
-        function updateMapWithAlerts(alerts) { clearMapMarkers(); const mappableAlerts = alerts.filter(alert => alert.coordinates && alert.coordinates.length === 2); mappableAlerts.forEach((alert, index) => { addAlertToMap(alert, alerts.indexOf(alert)); }); document.getElementById('header-map-alerts').textContent = mappableAlerts.length; }
-        function updateAnalytics(metadata) { const criticalCount = currentAlerts.filter(a => a.status === 'red' && a.severity === 'High').length; const affectedRoutesCount = new Set(currentAlerts.flatMap(a => a.affectsRoutes || [])).size; document.getElementById('header-total-alerts').textContent = currentAlerts.length; document.getElementById('header-critical').textContent = criticalCount; document.getElementById('header-routes').textContent = affectedRoutesCount; document.getElementById('alert-count').textContent = currentAlerts.length; }
-        function showErrorState() { const alertContainer = document.getElementById('current-alert'); alertContainer.innerHTML = \`<div style="text-align: center; padding: 80px; color: var(--text-muted);"><i class="fas fa-exclamation-triangle" style="font-size: 84px; margin-bottom: 32px; color: var(--status-warning);"></i><h3 style="font-size: 24px; margin-bottom: 16px;">Connection Error</h3><p style="font-size: 16px;">Unable to fetch traffic alerts. Retrying...</p></div>\`; }
-        function updateAlertsDisplay(alerts) { const alertContainer = document.getElementById('current-alert'); if (alerts.length === 0) { alertContainer.innerHTML = \`<div class="no-alerts"><i class="fas fa-shield-check"></i><h3 style="font-size: 28px; margin-bottom: 16px;">All Systems Clear</h3><p style="font-size: 18px;">No active traffic alerts detected</p></div>\`; clearAlertCycle(); return; } currentAlerts = alerts; alertIndex = 0; renderCurrentAlert(); startAlertCycle(); }
-        function renderCurrentAlert() { const alertContainer = document.getElementById('current-alert'); if (!currentAlerts || currentAlerts.length === 0) { alertContainer.innerHTML = ''; return; } const alert = currentAlerts[alertIndex % currentAlerts.length]; alertContainer.innerHTML = createAlertCard(alert); if (alert.coordinates && alert.coordinates.length === 2) { const [lat, lng] = alert.coordinates; map.setView([lat, lng], 16, { animate: true, duration: 1 }); } }
-        function startAlertCycle() { clearAlertCycle(); if (!currentAlerts || currentAlerts.length <= 1) return; alertCycleTimer = setInterval(() => { alertIndex = (alertIndex + 1) % currentAlerts.length; renderCurrentAlert(); }, 20000); }
-        function clearAlertCycle() { if (alertCycleTimer) { clearInterval(alertCycleTimer); alertCycleTimer = null; } }
-        function updateClock() { const now = new Date(); const timeString = now.toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }); document.getElementById('clock').textContent = timeString; }
-        function init() { console.log('🚦 BARRY Enhanced Control Room with Maps Initializing...'); initializeMap(); updateClock(); setInterval(updateClock, 1000); fetchAlerts(); fetchSupervisors(); setInterval(fetchAlerts, 30000); setInterval(fetchSupervisors, 15000); console.log('✅ BARRY Control Room with Maps Ready'); }
-        document.addEventListener('DOMContentLoaded', init);
-        document.addEventListener('keydown', (event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'r') { event.preventDefault(); fetchAlerts(); } if (event.key === 'ArrowLeft' && currentAlerts.length > 1) { alertIndex = (alertIndex - 1 + currentAlerts.length) % currentAlerts.length; renderCurrentAlert(); } if (event.key === 'ArrowRight' && currentAlerts.length > 1) { alertIndex = (alertIndex + 1) % currentAlerts.length; renderCurrentAlert(); } });
-    </script>
-</body>
-</html>`;
-      
-      document.open();
-      document.write(htmlContent);
-      document.close();
-    }
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
   }, []);
+
+  // Auto-cycle through alerts every 20 seconds
+  useEffect(() => {
+    if (currentAlerts.length <= 1) return;
+    
+    const cycleTimer = setInterval(() => {
+      setAlertIndex(prev => (prev + 1) % currentAlerts.length);
+    }, 20000);
+    
+    return () => clearInterval(cycleTimer);
+  }, [currentAlerts.length]);
+
+  // Fetch alerts from API
+  const fetchAlerts = async () => {
+    try {
+      setConnectionError(false);
+      const response = await fetch(`${API_BASE_URL}/api/alerts-enhanced?t=${Date.now()}&no_cache=true`, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.alerts) {
+        // Filter out sample alerts for display
+        const filteredAlerts = data.alerts.filter(alert => 
+          !alert.id?.includes('barry_v3') && 
+          !alert.id?.includes('sample') && 
+          alert.source !== 'go_barry_v3' && 
+          !alert.enhanced
+        );
+        
+        setCurrentAlerts(filteredAlerts);
+        setLastDataUpdate(new Date());
+        updateAffectedAreas(filteredAlerts);
+        setIsLoading(false);
+        
+        console.log(`Display alerts updated: ${data.alerts.length} to ${filteredAlerts.length} (filtered ${data.alerts.length - filteredAlerts.length} samples)`);
+      } else {
+        throw new Error('Invalid response format');
+      }
+    } catch (error) {
+      console.error('Error fetching alerts:', error);
+      setConnectionError(true);
+      setIsLoading(false);
+    }
+  };
+
+  // Fetch supervisors from API
+  const fetchSupervisors = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/supervisor/active`);
+      if (response.ok) {
+        const data = await response.json();
+        setActiveSupervisors(data.activeSupervisors || []);
+      }
+    } catch (error) {
+      console.error('Error fetching supervisors:', error);
+      setActiveSupervisors([]);
+    }
+  };
+
+  // Update affected areas analysis
+  const updateAffectedAreas = (alerts) => {
+    const areaMap = new Map();
+    
+    alerts.forEach(alert => {
+      if (!alert.location) return;
+      
+      let area = alert.location;
+      if (area.includes('A1')) area = 'A1 Corridor';
+      else if (area.includes('Newcastle') || area.includes('Gateshead')) area = 'Newcastle City Centre';
+      else if (area.includes('Sunderland')) area = 'Sunderland Area';
+      else if (area.includes('Durham')) area = 'Durham Area';
+      else area = area.split(',')[0];
+      
+      if (!areaMap.has(area)) areaMap.set(area, []);
+      areaMap.get(area).push(alert);
+    });
+    
+    const affected = [];
+    areaMap.forEach((alerts, area) => {
+      if (alerts.length >= 2) {
+        affected.push({ area, count: alerts.length });
+      }
+    });
+    
+    setSeriouslyAffectedAreas(affected);
+  };
+
+  // Initialize data fetching
+  useEffect(() => {
+    fetchAlerts();
+    fetchSupervisors();
+    
+    // Set up intervals
+    const alertInterval = setInterval(fetchAlerts, 30000); // Every 30 seconds
+    const supervisorInterval = setInterval(fetchSupervisors, 15000); // Every 15 seconds
+    
+    return () => {
+      clearInterval(alertInterval);
+      clearInterval(supervisorInterval);
+    };
+  }, []);
+
+  // Format time display
+  const formatTime = (date) => {
+    return date.toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+  };
+
+  // Format start time from alert data
+  const formatStartTime = (startDate) => {
+    if (!startDate) return 'Unknown start time';
+    
+    try {
+      const start = new Date(startDate);
+      if (isNaN(start.getTime())) return 'Invalid start time';
+      
+      return start.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+    } catch (error) {
+      return 'Unknown start time';
+    }
+  };
+
+  // Get alert age text
+  const getAlertAge = (startDate) => {
+    if (!startDate) return 'Unknown duration';
+    
+    try {
+      const now = new Date();
+      const start = new Date(startDate);
+      if (isNaN(start.getTime())) return 'Invalid duration';
+      
+      const diffMs = now - start;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMins / 60);
+      
+      if (diffMins < 1) return 'Just started';
+      if (diffMins < 60) return `${diffMins} minutes ago`;
+      if (diffHours < 24) return `${diffHours} hours ago`;
+      return `${Math.floor(diffHours / 24)} days ago`;
+    } catch (error) {
+      return 'Unknown duration';
+    }
+  };
+
+  // Calculate data freshness
+  const getDataFreshness = () => {
+    if (!lastDataUpdate) return { status: 'fresh', text: 'Live', details: 'Data current' };
+    
+    const ageSeconds = Math.floor((new Date() - lastDataUpdate) / 1000);
+    const ageMinutes = Math.floor(ageSeconds / 60);
+    
+    if (ageSeconds < 30) return { status: 'fresh', text: 'Live', details: 'Data current' };
+    if (ageSeconds < 120) return { status: 'stale', text: `${ageSeconds}s old`, details: 'Data slightly stale' };
+    return { status: 'old', text: `${ageMinutes}m old`, details: 'Data needs refresh' };
+  };
+
+  // Get disruption reason from alert
+  const getDisruptionReason = (alert) => {
+    if (!alert) return 'No reason specified';
+    
+    // Try to extract reason from description or title
+    const reason = alert.description || alert.title || alert.reason || 'Traffic disruption';
+    
+    // Clean up the reason text
+    return reason.length > 100 ? reason.substring(0, 100) + '...' : reason;
+  };
+
+  // Calculate metrics
+  const currentAlert = currentAlerts[alertIndex];
+  const criticalCount = currentAlerts.filter(a => a.severity === 'High').length;
+  const affectedRoutesCount = new Set(currentAlerts.flatMap(a => a.affectsRoutes || [])).size;
+  const mapAlertsCount = currentAlerts.filter(a => a.coordinates?.length === 2).length;
+  const activeCount = activeSupervisors.filter(s => s.status === 'active').length;
+  const awayCount = activeSupervisors.filter(s => s.status === 'away').length;
+  const freshness = getDataFreshness();
+
+  // Severity badge style helper
+  const getSeverityStyle = (severity) => {
+    switch (severity) {
+      case 'High': return { backgroundColor: '#ef4444', color: '#fff' };
+      case 'Medium': return { backgroundColor: '#f59e0b', color: '#fff' };
+      default: return { backgroundColor: '#10b981', color: '#fff' };
+    }
+  };
+
+  // Freshness dot style helper
+  const getFreshnessStyle = (status) => {
+    switch (status) {
+      case 'fresh': return { backgroundColor: '#10b981' };
+      case 'stale': return { backgroundColor: '#f59e0b' };
+      default: return { backgroundColor: '#ef4444' };
+    }
+  };
 
   return (
     <View style={styles.container}>
-      {/* This will be replaced by the HTML content on web */}
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.logoSection}>
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoText}>GO</Text>
+          </View>
+          <View>
+            <Text style={styles.logoTitle}>BARRY Control</Text>
+            <Text style={styles.logoSubtitle}>24/7 Traffic Monitoring</Text>
+          </View>
+        </View>
+
+        <View style={styles.systemHealth}>
+          <View style={styles.healthIndicator}>
+            <Text style={styles.healthText}>OPERATIONAL</Text>
+          </View>
+          <View style={styles.systemMetrics}>
+            <View style={styles.metric}>
+              <Text style={styles.metricValue}>{currentAlerts.length}</Text>
+              <Text style={styles.metricLabel}>Total</Text>
+            </View>
+            <View style={styles.metric}>
+              <Text style={styles.metricValue}>{criticalCount}</Text>
+              <Text style={styles.metricLabel}>Critical</Text>
+            </View>
+            <View style={styles.metric}>
+              <Text style={styles.metricValue}>{affectedRoutesCount}</Text>
+              <Text style={styles.metricLabel}>Routes</Text>
+            </View>
+            <View style={styles.metric}>
+              <Text style={styles.metricValue}>{mapAlertsCount}</Text>
+              <Text style={styles.metricLabel}>On Map</Text>
+            </View>
+            <View style={styles.metric}>
+              <Text style={styles.metricValue}>{activeSupervisors.length}</Text>
+              <Text style={styles.metricLabel}>Supervisors</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.dataFreshness}>
+          <View style={styles.freshnessIndicator}>
+            <View style={[styles.freshnessDot, getFreshnessStyle(freshness.status)]} />
+            <Text style={styles.freshnessText}>{freshness.text}</Text>
+          </View>
+          <Text style={styles.freshnessDetails}>{freshness.details}</Text>
+        </View>
+
+        <View style={styles.supervisorsSection}>
+          <Text style={styles.supervisorsTitle}>Supervisors</Text>
+          <View style={styles.supervisorsSummary}>
+            <View style={styles.statusIndicator} />
+            <Text style={styles.supervisorsCount}>{activeCount} Active, {awayCount} Away</Text>
+          </View>
+          <Text style={styles.lastActivity}>No recent activity</Text>
+        </View>
+
+        <View style={styles.clockSection}>
+          <Text style={styles.clock}>{formatTime(currentTime)}</Text>
+          <Text style={styles.lastUpdate}>
+            Last Update: {lastDataUpdate ? formatTime(lastDataUpdate) : '--:--'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Main Content */}
+      <View style={styles.mainContent}>
+        {/* Alert Display Section */}
+        <View style={styles.alertDisplaySection}>
+          <View style={styles.alertHeader}>
+            <View style={styles.alertTitleContainer}>
+              <Text style={styles.alertIcon}>📡</Text>
+              <Text style={styles.alertTitle}>Live Traffic Intelligence</Text>
+            </View>
+            <View style={styles.alertCount}>
+              <Text style={styles.alertCountText}>{currentAlerts.length}</Text>
+            </View>
+          </View>
+
+          <View style={styles.currentAlert}>
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <Text style={styles.loadingIcon}>⏳</Text>
+                <Text style={styles.loadingText}>Initializing traffic intelligence...</Text>
+              </View>
+            ) : connectionError ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorIcon}>⚠️</Text>
+                <Text style={styles.errorTitle}>Connection Error</Text>
+                <Text style={styles.errorText}>Unable to connect to traffic data services</Text>
+              </View>
+            ) : currentAlerts.length === 0 ? (
+              <View style={styles.noAlertsContainer}>
+                <Text style={styles.noAlertsIcon}>🛡️</Text>
+                <Text style={styles.noAlertsTitle}>All Systems Clear</Text>
+                <Text style={styles.noAlertsText}>No active traffic alerts detected</Text>
+              </View>
+            ) : currentAlert ? (
+              <View style={styles.alertCard}>
+                <Text style={styles.alertCounter}>
+                  Alert {alertIndex + 1} of {currentAlerts.length}
+                </Text>
+                
+                <View style={[styles.severityBadge, getSeverityStyle(currentAlert.severity)]}>
+                  <Text style={styles.severityText}>
+                    {(currentAlert.severity || 'UNKNOWN').toUpperCase()} PRIORITY
+                  </Text>
+                </View>
+
+                <Text style={styles.alertCardTitle}>
+                  {currentAlert.title || 'Traffic Alert'}
+                </Text>
+
+                <View style={styles.alertLocation}>
+                  <Text style={styles.locationIcon}>📍</Text>
+                  <Text style={styles.locationText}>
+                    {currentAlert.location || 'Location not specified'}
+                  </Text>
+                </View>
+
+                {/* Enhanced Alert Information */}
+                <View style={styles.alertDetails}>
+                  <View style={styles.alertDetailRow}>
+                    <Text style={styles.detailLabel}>Start Time:</Text>
+                    <Text style={styles.detailValue}>
+                      {formatStartTime(currentAlert.startDate)}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.alertDetailRow}>
+                    <Text style={styles.detailLabel}>Duration:</Text>
+                    <Text style={styles.detailValue}>
+                      {getAlertAge(currentAlert.startDate)}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.alertDetailRow}>
+                    <Text style={styles.detailLabel}>Reason:</Text>
+                    <Text style={styles.detailValueReason}>
+                      {getDisruptionReason(currentAlert)}
+                    </Text>
+                  </View>
+                </View>
+
+                {currentAlert.affectsRoutes?.length > 0 && (
+                  <View style={styles.routeImpact}>
+                    <View style={styles.routeImpactHeader}>
+                      <Text style={styles.routeIcon}>🚌</Text>
+                      <Text style={styles.routeTitle}>
+                        Affected Routes ({currentAlert.affectsRoutes.length})
+                      </Text>
+                    </View>
+                    <View style={styles.routeBadges}>
+                      {currentAlert.affectsRoutes.slice(0, 8).map((route, idx) => (
+                        <View key={idx} style={styles.routeBadge}>
+                          <Text style={styles.routeBadgeText}>{route}</Text>
+                        </View>
+                      ))}
+                      {currentAlert.affectsRoutes.length > 8 && (
+                        <Text style={styles.moreRoutesText}>
+                          +{currentAlert.affectsRoutes.length - 8} more
+                        </Text>
+                      )}
+                    </View>
+                  </View>
+                )}
+
+                <View style={styles.alertMetadata}>
+                  <Text style={styles.alertSource}>
+                    Source: {(currentAlert.source || 'SYSTEM').toUpperCase()}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        {/* Supervisors Panel */}
+        <View style={styles.supervisorsPanel}>
+          <View style={styles.supervisorsPanelHeader}>
+            <Text style={styles.supervisorsIcon}>👥</Text>
+            <Text style={styles.supervisorsPanelTitle}>Supervisors Online</Text>
+          </View>
+
+          <ScrollView style={styles.supervisorsList}>
+            {activeSupervisors.length === 0 ? (
+              <View style={styles.noSupervisorsContainer}>
+                <Text style={styles.noSupervisorsIcon}>👤</Text>
+                <Text style={styles.noSupervisorsTitle}>No Supervisors Online</Text>
+                <Text style={styles.noSupervisorsText}>Waiting for supervisors to log in...</Text>
+              </View>
+            ) : (
+              activeSupervisors.map((supervisor, idx) => (
+                <View key={idx} style={styles.supervisorCard}>
+                  <Text style={styles.supervisorName}>
+                    {supervisor.name || 'Unknown Supervisor'}
+                  </Text>
+                  <Text style={styles.supervisorRole}>
+                    {supervisor.role || 'Supervisor'}
+                  </Text>
+                  <View style={styles.supervisorActivity}>
+                    <View style={[
+                      styles.supervisorStatus,
+                      supervisor.status === 'active' ? styles.statusActive :
+                      supervisor.status === 'away' ? styles.statusAway : styles.statusOffline
+                    ]} />
+                    <Text style={styles.supervisorStatusText}>
+                      {(supervisor.status || 'offline').charAt(0).toUpperCase() + 
+                       (supervisor.status || 'offline').slice(1)} • Last: {
+                        supervisor.lastActivity ? 
+                        new Date(supervisor.lastActivity).toLocaleTimeString('en-GB', { 
+                          hour: '2-digit', minute: '2-digit' 
+                        }) : 'Unknown'
+                      }
+                    </Text>
+                  </View>
+                </View>
+              ))
+            )}
+
+            <View style={styles.shiftInfo}>
+              <View style={styles.shiftHeader}>
+                <Text style={styles.shiftIcon}>🕐</Text>
+                <Text style={styles.shiftTitle}>Next Shift Change</Text>
+              </View>
+              <Text style={styles.shiftTime}>2h 15m</Text>
+            </View>
+          </ScrollView>
+        </View>
+
+        {/* Enhanced Map Section with Working Map */}
+        <View style={styles.mapContainer}>
+          <View style={styles.mapHeader}>
+            <Text style={styles.mapIcon}>🗺️</Text>
+            <Text style={styles.mapTitle}>Live Traffic Map</Text>
+            <View style={styles.mapStats}>
+              <Text style={styles.mapStatsText}>
+                {mapAlertsCount} alerts • North East England
+              </Text>
+            </View>
+          </View>
+          
+          <View style={styles.mapWrapper}>
+            <TrafficMap 
+              alerts={currentAlerts}
+              currentAlert={currentAlert}
+              alertIndex={alertIndex}
+            />
+          </View>
+        </View>
+      </View>
+
+      {/* Affected Areas Ticker */}
+      <View style={styles.affectedAreasTicker}>
+        <View style={styles.tickerContent}>
+          {seriouslyAffectedAreas.length === 0 ? (
+            <View style={styles.tickerItem}>
+              <Text style={styles.tickerIcon}>🛡️</Text>
+              <Text style={styles.tickerText}>
+                No Seriously Affected Areas • All Routes Operating Normally
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.tickerItem}>
+              <Text style={styles.tickerIcon}>⚠️</Text>
+              <Text style={styles.tickerText}>
+                Seriously Affected Areas: {
+                  seriouslyAffectedAreas.map(area => 
+                    `${area.area} (${area.count} alerts)`
+                  ).join(' • ')
+                }
+              </Text>
+            </View>
+          )}
+        </View>
+        // Styles for the Enhanced Display Screen - Add this to the end of display.jsx
+
+      </View>
     </View>
   );
 };
@@ -208,6 +521,592 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0a0e16',
   },
+  
+  // Header Styles
+  header: {
+    backgroundColor: '#E31E24',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 2,
+    borderBottomColor: '#FF5252',
+    shadowColor: '#E31E24',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 32,
+    elevation: 8,
+  },
+  logoSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 20,
+  },
+  logoContainer: {
+    width: 48,
+    height: 48,
+    backgroundColor: '#B71C1C',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  logoTitle: {
+    color: '#ffffff',
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  logoSubtitle: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  
+  systemHealth: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  healthIndicator: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  healthText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  systemMetrics: {
+    flexDirection: 'row',
+    gap: 32,
+  },
+  metric: {
+    alignItems: 'center',
+    minWidth: 90,
+  },
+  metricValue: {
+    color: '#ffffff',
+    fontSize: 24,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  metricLabel: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  
+  dataFreshness: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  freshnessIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  freshnessDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  freshnessText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  freshnessDetails: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+  },
+  
+  supervisorsSection: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  supervisorsTitle: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  supervisorsSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10b981',
+  },
+  supervisorsCount: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 12,
+  },
+  lastActivity: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 11,
+    textAlign: 'center',
+  },
+  
+  clockSection: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  clock: {
+    color: '#ffffff',
+    fontSize: 28,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  lastUpdate: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  
+  // Main Content
+  mainContent: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 24,
+    padding: 32,
+  },
+  
+  // Alert Display Section
+  alertDisplaySection: {
+    flex: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 40,
+  },
+  alertHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  alertTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  alertIcon: {
+    fontSize: 22,
+  },
+  alertTitle: {
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: '700',
+  },
+  alertCount: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  alertCountText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  
+  currentAlert: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  
+  // Loading/Error/No Alerts States
+  loadingContainer: {
+    alignItems: 'center',
+    padding: 80,
+  },
+  loadingIcon: {
+    fontSize: 40,
+    marginBottom: 20,
+  },
+  loadingText: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 18,
+  },
+  
+  errorContainer: {
+    alignItems: 'center',
+    padding: 100,
+  },
+  errorIcon: {
+    fontSize: 100,
+    marginBottom: 40,
+  },
+  errorTitle: {
+    color: '#ef4444',
+    fontSize: 32,
+    fontWeight: '700',
+    marginBottom: 20,
+  },
+  errorText: {
+    color: '#ef4444',
+    fontSize: 20,
+  },
+  
+  noAlertsContainer: {
+    alignItems: 'center',
+    padding: 100,
+  },
+  noAlertsIcon: {
+    fontSize: 100,
+    marginBottom: 40,
+  },
+  noAlertsTitle: {
+    color: '#10b981',
+    fontSize: 32,
+    fontWeight: '700',
+    marginBottom: 20,
+  },
+  noAlertsText: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 20,
+  },
+  
+  // Alert Card
+  alertCard: {
+    backgroundColor: 'rgba(24, 35, 54, 0.85)',
+    borderRadius: 28,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderLeftWidth: 12,
+    borderLeftColor: '#ef4444',
+    padding: 48,
+  },
+  alertCounter: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  severityBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginBottom: 16,
+  },
+  severityText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  alertCardTitle: {
+    color: '#ffffff',
+    fontSize: 36,
+    fontWeight: '700',
+    marginBottom: 24,
+    lineHeight: 44,
+  },
+  alertLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 24,
+  },
+  locationIcon: {
+    fontSize: 24,
+  },
+  locationText: {
+    color: '#ffffff',
+    fontSize: 24,
+    fontWeight: '600',
+  },
+  
+  // Enhanced Alert Details
+  alertDetails: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+  },
+  alertDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    gap: 12,
+  },
+  detailLabel: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 16,
+    fontWeight: '600',
+    minWidth: 100,
+  },
+  detailValue: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '500',
+    flex: 1,
+  },
+  detailValueReason: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '500',
+    flex: 1,
+    lineHeight: 22,
+  },
+  
+  // Route Impact
+  routeImpact: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 16,
+  },
+  routeImpactHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  routeIcon: {
+    fontSize: 16,
+  },
+  routeTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  routeBadges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  routeBadge: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  routeBadgeText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  moreRoutesText: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 14,
+    alignSelf: 'center',
+  },
+  
+  // Alert Metadata
+  alertMetadata: {
+    marginTop: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  alertSource: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 14,
+  },
+  
+  // Supervisors Panel
+  supervisorsPanel: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 32,
+  },
+  supervisorsPanelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 28,
+  },
+  supervisorsIcon: {
+    fontSize: 20,
+  },
+  supervisorsPanelTitle: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  
+  supervisorsList: {
+    flex: 1,
+  },
+  noSupervisorsContainer: {
+    alignItems: 'center',
+    paddingVertical: 80,
+  },
+  noSupervisorsIcon: {
+    fontSize: 60,
+    marginBottom: 20,
+  },
+  noSupervisorsTitle: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  noSupervisorsText: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  
+  supervisorCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    padding: 20,
+    marginBottom: 16,
+  },
+  supervisorName: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  supervisorRole: {
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 16,
+    marginBottom: 10,
+  },
+  supervisorActivity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  supervisorStatus: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusActive: {
+    backgroundColor: '#10b981',
+  },
+  statusAway: {
+    backgroundColor: '#f59e0b',
+  },
+  statusOffline: {
+    backgroundColor: '#6b7280',
+  },
+  supervisorStatusText: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 14,
+  },
+  
+  shiftInfo: {
+    backgroundColor: 'rgba(251, 191, 36, 0.2)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.4)',
+    padding: 16,
+    marginTop: 20,
+  },
+  shiftHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  shiftIcon: {
+    fontSize: 16,
+  },
+  shiftTitle: {
+    color: '#fbbf24',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  shiftTime: {
+    color: 'rgba(251, 191, 36, 0.8)',
+    fontSize: 14,
+  },
+  
+  // Enhanced Map Container
+  mapContainer: {
+    flex: 1.5,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    padding: 32,
+  },
+  mapHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  mapIcon: {
+    fontSize: 20,
+  },
+  mapTitle: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  mapStats: {
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  mapStatsText: {
+    color: '#60a5fa',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  mapWrapper: {
+    flex: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  
+  // Affected Areas Ticker
+  affectedAreasTicker: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#E31E24',
+    paddingVertical: 16,
+    overflow: 'hidden',
+  },
+  tickerContent: {
+    flexDirection: 'row',
+  },
+  tickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 32,
+  },
+  tickerIcon: {
+    fontSize: 18,
+  },
+  tickerText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
 });
 
-export default DisplayApp;
+export default EnhancedDisplayScreen;

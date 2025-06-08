@@ -150,6 +150,7 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <View style={styles.headerLogoContainer}>
           <View style={styles.headerLogo}>
+            {/* Logo placeholder - React Native Image component would be used here */}
             <Text style={styles.headerLogoText}>GO BARRY</Text>
           </View>
           <View style={styles.headerTitleContainer}>
