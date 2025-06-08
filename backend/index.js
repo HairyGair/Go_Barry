@@ -9,7 +9,7 @@ import dotenv from 'dotenv';
 import { parse } from 'csv-parse/sync';
 
 import fetchTomTomTrafficGeoJSON from './tomtom-fixed-implementation.js';
-import { setupAPIRoutes } from './routes/api.js';
+import { setupAPIRoutes } from './routes/api-improved.js';
 import { fetchTomTomTrafficWithStreetNames } from './services/tomtom.js';
 import { fetchMapQuestTrafficWithStreetNames } from './services/mapquest.js';
 import { fetchHERETraffic } from './services/here.js';

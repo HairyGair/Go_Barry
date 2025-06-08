@@ -31,14 +31,21 @@ function enhanceAlertWithTimesAndLocation(alert, incident) {
   return alert;
 }
 
-// Helper function to find routes near coordinates
-async function findRoutesNearCoordinate(lat, lng, maxDistanceMeters = 150) {
-  // This is a placeholder - should integrate with actual GTFS route matching
+// Import improved route matching
+import { findAffectedRoutes } from '../utils/improvedRouteMatching.js';
+
+// Helper function to find routes near coordinates using improved matching
+function findRoutesNearCoordinate(lat, lng, maxDistanceMeters = 150) {
   try {
-    const { matchRoutes } = await import('../utils/routeMatching.js');
-    return matchRoutes(`${lat},${lng}`, '');
+    const result = findAffectedRoutes(
+      null, // no location text for coordinate-based search
+      { lat, lng },
+      ''
+    );
+    console.log(`🚌 Improved route matching found ${result.count} routes using ${result.method} method`);
+    return result.routes;
   } catch (error) {
-    console.warn('⚠️ Route matching not available:', error.message);
+    console.warn('⚠️ Improved route matching not available:', error.message);
     return [];
   }
 }
@@ -168,21 +175,29 @@ async function fetchMapQuestTrafficWithStreetNames() {
           enhancedLocation = incident.street || incident.shortDesc || 'North East England - Location being determined';
         }
         
-        // Enhanced GTFS route matching
+        // Enhanced route matching with improved algorithm
         let affectedRoutes = [];
+        let routeMatchMethod = 'none';
+        
         try {
-          if (lat && lng) {
-            console.log(`🗺️ Finding GTFS routes for MapQuest incident at ${lat}, ${lng}...`);
-            affectedRoutes = await findRoutesNearCoordinate(lat, lng, 150);
-          }
+          console.log(`🗺️ Finding GTFS routes for MapQuest incident at ${lat}, ${lng}...`);
           
-          // Fallback to text-based matching if coordinate matching failed
-          if (affectedRoutes.length === 0) {
-            affectedRoutes = matchRoutes(enhancedLocation, incident.fullDesc || incident.shortDesc || '');
-          }
+          // Use improved route matching that tries both coordinate and text-based methods
+          const routeResult = findAffectedRoutes(
+            enhancedLocation,
+            lat && lng ? { lat, lng } : null,
+            incident.fullDesc || incident.shortDesc || ''
+          );
+          
+          affectedRoutes = routeResult.routes;
+          routeMatchMethod = routeResult.method;
+          
+          console.log(`🎯 Found ${affectedRoutes.length} routes using ${routeMatchMethod} method: ${affectedRoutes.join(', ')}`);
+          
         } catch (routeError) {
           console.warn(`⚠️ Route matching failed for MapQuest incident ${index}:`, routeError.message);
           affectedRoutes = [];
+          routeMatchMethod = 'failed';
         }
         
         // Create base alert
@@ -197,7 +212,7 @@ async function fetchMapQuestTrafficWithStreetNames() {
           severity: incident.severity >= 3 ? 'High' : incident.severity >= 2 ? 'Medium' : 'Low',
           status: 'red',
           affectsRoutes: affectedRoutes,
-          routeMatchMethod: affectedRoutes.length > 0 ? 'GTFS Shapes' : 'Text Pattern',
+          routeMatchMethod: routeMatchMethod,
           coordinates: lat && lng ? { lat, lng } : null,
           lastUpdated: new Date().toISOString(),
           dataSource: 'MapQuest Traffic API + Enhanced Location Processing'

@@ -86,9 +86,9 @@ async function fetchTomTomTrafficWithStreetNames() {
     console.log('🚗 [ENHANCED] Fetching TomTom traffic across full Go North East network...');
     console.log('🔑 TomTom API key configured:', process.env.TOMTOM_API_KEY ? 'YES' : 'NO');
     
-    // Use full Go North East coverage area instead of just Newcastle
-    const bbox = getBoundsForAPI('tomtom');
-    console.log(`🗺️ Coverage area: ${bbox} (Full Go North East network)`);
+    // Use smaller Newcastle/Gateshead area to avoid 10,000km² limit
+    const bbox = '-1.8,54.8,-1.4,55.1'; // Newcastle/Gateshead core area (~450km²)
+    console.log(`🗺️ Coverage area: ${bbox} (Newcastle/Gateshead core - under 10,000km² limit)`);
     
     const response = await axios.get('https://api.tomtom.com/traffic/services/5/incidentDetails', {
       params: {
