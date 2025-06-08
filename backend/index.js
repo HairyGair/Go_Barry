@@ -1,5 +1,5 @@
-// backend/index-memory-fixed.js
-// BARRY Backend with FIXED Memory Management and Route Matching
+// backend/index.js
+// BARRY Backend with Memory Optimization and Fixed Route Matching
 import express from 'express';
 import axios from 'axios';
 import fs from 'fs/promises';
@@ -8,157 +8,24 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { parse } from 'csv-parse/sync';
 
-import fetchTomTomTrafficGeoJSON from './tomtom-fixed-implementation.js';
-import { setupAPIRoutes } from './routes/api-improved.js';
-import { addEmergencyEndpoint } from './emergency-endpoint.js';
+// Import working services
 import { fetchTomTomTrafficWithStreetNames } from './services/tomtom.js';
-import { fetchMapQuestTrafficWithStreetNames } from './services/mapquest.js';
-import { fetchHERETraffic } from './services/here.js';
-import { fetchNationalHighways } from './services/nationalHighways.js';
-import geocodingService, { 
-  geocodeLocation, 
-  enhanceAlertWithCoordinates, 
-  reverseGeocode, 
-  batchGeocode,
-  getCacheStats as getGeocodingCacheStats,
-  testGeocoding 
-} from './services/geocoding.js';
-import {
-  getLocationNameWithTimeout,
-  getRegionFromCoordinates,
-  getCoordinateDescription,
-  getEnhancedLocationWithFallbacks
-} from './utils/location.js';
-import enhanceLocationWithNames from './location-enhancer.js';
+import { addEmergencyEndpoint } from './emergency-endpoint.js';
 import healthRoutes from './routes/health.js';
 import supervisorAPI from './routes/supervisorAPI.js';
-import { processEnhancedAlerts } from './services/enhancedAlertProcessor.js';
-import findGTFSRoutesNearCoordinates from './gtfs-route-matcher.js';
-import { 
-  LOCATION_ROUTE_MAPPING,
-  matchRoutes,
-  getCurrentRoutesFromCoordinates,
-  isInNorthEast,
-  matchRoutesToLocation,
-  getRoutesFromCoordinates,
-  getTomTomRoutesFromCoordinates,
-  getCurrentRoutesFromText,
-  getRegionalRoutes,
-  getRegionalRoutesFromText
-} from './utils/routeMatching.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
-// MEMORY OPTIMIZATION: Single GTFS initialization only
-console.log('🚌 Initializing Enhanced Route Matcher...');
+console.log('🚦 BARRY Backend Starting with Memory Optimization...');
 
-// Simplified in-memory route cache for memory efficiency
-let routeCache = new Map();
-let stopCache = new Map();
-let initialized = false;
-
-// Memory-efficient GTFS loader
-async function initializeMemoryOptimizedGTFS() {
-  if (initialized) return true;
-  
-  try {
-    console.log('🔄 Loading memory-optimized GTFS data...');
-    
-    // Load only essential routes data
-    const routesPath = path.join(__dirname, 'data', 'routes.txt');
-    const routesContent = await fs.readFile(routesPath, 'utf8');
-    const routes = parse(routesContent, { columns: true, skip_empty_lines: true });
-    
-    routes.forEach(route => {
-      if (route.route_short_name) {
-        routeCache.set(route.route_id, {
-          id: route.route_id,
-          shortName: route.route_short_name,
-          longName: route.route_long_name || ''
-        });
-      }
-    });
-    
-    // Load limited stops data for route matching
-    const stopsPath = path.join(__dirname, 'data', 'stops.txt');
-    const stopsContent = await fs.readFile(stopsPath, 'utf8');
-    const stops = parse(stopsContent, { columns: true, skip_empty_lines: true });
-    
-    let loadedStops = 0;
-    stops.forEach(stop => {
-      // Only load stops in North East England bounds
-      const lat = parseFloat(stop.stop_lat);
-      const lng = parseFloat(stop.stop_lon);
-      
-      if (lat >= 54.5 && lat <= 55.5 && lng >= -2.0 && lng <= -1.0) {
-        stopCache.set(stop.stop_id, {
-          id: stop.stop_id,
-          name: stop.stop_name,
-          lat: lat,
-          lng: lng
-        });
-        loadedStops++;
-        
-        // Memory limit: only load first 3000 stops
-        if (loadedStops >= 3000) return;
-      }
-    });
-    
-    initialized = true;
-    console.log(`✅ Memory-optimized GTFS loaded: ${routeCache.size} routes, ${stopCache.size} stops`);
-    
-    // Force garbage collection if available
-    if (global.gc) {
-      global.gc();
-      console.log('♻️ Garbage collection triggered');
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('❌ Memory-optimized GTFS initialization failed:', error.message);
-    return false;
-  }
-}
-
-// Memory-efficient route matching
-function findRoutesNearCoordinatesOptimized(lat, lng, radiusMeters = 250) {
-  if (!initialized) {
-    console.warn('⚠️ Route matcher not initialized');
-    return [];
-  }
-  
+// Simple working route matching function
+function findRoutesNearCoordinatesFixed(lat, lng, radiusMeters = 250) {
   const foundRoutes = new Set();
   
-  // Check against cached stops
-  for (const stop of stopCache.values()) {
-    const distance = calculateDistance(lat, lng, stop.lat, stop.lng);
-    if (distance <= radiusMeters) {
-      // Use geographic rules to assign routes to nearby stops
-      const regionRoutes = getRoutesByRegion(lat, lng);
-      regionRoutes.forEach(route => foundRoutes.add(route));
-    }
-  }
-  
-  // Fallback to geographic regions if no stops found
-  if (foundRoutes.size === 0) {
-    const regionRoutes = getRoutesByRegion(lat, lng);
-    regionRoutes.forEach(route => foundRoutes.add(route));
-  }
-  
-  const routes = Array.from(foundRoutes).sort();
-  
-  if (routes.length > 0) {
-    console.log(`🎯 Route Match: Found ${routes.length} routes near ${lat.toFixed(4)}, ${lng.toFixed(4)}: ${routes.slice(0, 5).join(', ')}`);
-  }
-  
-  return routes;
-}
-
-// Geographic region-based route matching
-function getRoutesByRegion(lat, lng) {
+  // Geographic region-based route matching for Go North East
   const regions = [
     {
       name: 'Newcastle Centre',
@@ -183,7 +50,7 @@ function getRoutesByRegion(lat, lng) {
     {
       name: 'Durham',
       bounds: { north: 54.88, south: 54.75, east: -1.5, west: -1.6 },
-      routes: ['21', '22', 'X21', '6', '50', '28', 'X12']
+      routes: ['21', '22', 'X21', '6', '50', '28']
     },
     {
       name: 'Consett',
@@ -192,37 +59,37 @@ function getRoutesByRegion(lat, lng) {
     }
   ];
 
+  // Find matching region
   for (const region of regions) {
     if (lat >= region.bounds.south && lat <= region.bounds.north &&
         lng >= region.bounds.west && lng <= region.bounds.east) {
-      return region.routes;
+      region.routes.forEach(route => foundRoutes.add(route));
+      break;
     }
   }
 
-  return ['21', '22', '10', '1', '2']; // Default major routes
+  // If no specific region, use major routes as fallback
+  if (foundRoutes.size === 0) {
+    ['21', '22', '10', '1', '2', 'Q3'].forEach(route => foundRoutes.add(route));
+  }
+
+  const routes = Array.from(foundRoutes).sort();
+  
+  if (routes.length > 0) {
+    console.log(`🎯 Route Match: Found ${routes.length} routes near ${lat.toFixed(4)}, ${lng.toFixed(4)}: ${routes.slice(0, 5).join(', ')}`);
+  }
+  
+  return routes;
 }
 
-// Helper function to calculate distance
-function calculateDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371000; // Earth's radius in meters
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
-}
-
-// Load GTFS routes.txt into a Set of valid route_short_names
+// Load GTFS routes data
 let GTFS_ROUTES = new Set();
 const ACK_FILE = path.join(__dirname, 'data/acknowledged.json');
 let acknowledgedAlerts = {};
 const NOTES_FILE = path.join(__dirname, 'data/notes.json');
 let alertNotes = {};
 
-// Initialize essential data only
+// Initialize essential data
 (async () => {
   try {
     const routesTxt = await fs.readFile(path.join(__dirname, 'data/routes.txt'), 'utf-8');
@@ -257,48 +124,14 @@ let alertNotes = {};
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-console.log('🚦 BARRY Backend Starting with Enhanced Geocoding...');
-console.log('🗺️ Initializing Mapbox Geocoding Service...');
-
-try {
-  const geocodingStats = getGeocodingCacheStats();
-  console.log(`✅ Geocoding Service Ready:`);
-  console.log(`   🗺️ Mapbox configured: ${geocodingStats.mapboxConfigured}`);
-  console.log(`   💾 Cache initialized`);
-  console.log(`   🎯 Coverage: North East England`);
-  console.log(`   📋 Intelligent fallbacks enabled`);
-} catch (error) {
-  console.error('❌ Geocoding initialization error:', error.message);
-}
-
-// FIXED: Single GTFS initialization only
-console.log('🗺️ Initializing GTFS location enhancement...');
-setTimeout(async () => {
-  try {
-    const success = await initializeMemoryOptimizedGTFS();
-    if (success) {
-      console.log('✅ Memory-optimized GTFS ready for route matching');
-    } else {
-      console.log('❌ GTFS initialization failed');
-    }
-  } catch (error) {
-    console.log(`❌ GTFS error: ${error.message}`);
-  }
-}, 2000);
-
-console.log('🗺️ Initializing Route Visualization System...');
-
 console.log(`
 🔧 MEMORY OPTIMIZATION APPLIED:
    ✅ Single GTFS initialization only
-   ✅ Limited to 3000 stops maximum
+   ✅ Request throttling enabled
    ✅ Geographic region-based route matching
    ✅ Manual garbage collection enabled
-   ✅ Concurrent request throttling
+   ✅ Reduced memory footprint
 `);
-
-// Middleware
-app.use(express.json({ limit: '10mb' }));
 
 // Request throttling middleware
 let activeRequests = 0;
@@ -321,12 +154,20 @@ app.use((req, res, next) => {
     
     // Trigger garbage collection periodically
     if (activeRequests === 0 && global.gc) {
-      global.gc();
+      setTimeout(() => {
+        if (global.gc) {
+          global.gc();
+          console.log('♻️ Garbage collection triggered');
+        }
+      }, 1000);
     }
   });
   
   next();
 });
+
+// Middleware
+app.use(express.json({ limit: '10mb' }));
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -352,130 +193,297 @@ app.use('/api/health', healthRoutes);
 // Supervisor management routes
 app.use('/api/supervisor', supervisorAPI);
 
-// Route Management and Visualization API
-import routeManagementAPI from './routes/routeManagementAPI.js';
-app.use('/api/routes', routeManagementAPI);
-
-// Incident Management API
-import incidentAPI from './routes/incidentAPI.js';
-app.use('/api/incidents', incidentAPI);
-
-// Messaging Distribution API
-import messagingAPI from './routes/messagingAPI.js';
-app.use('/api/messaging', messagingAPI);
-
-// Roadworks Management API
-import roadworksAPI from './routes/roadworksAPI.js';
-app.use('/api/roadworks', roadworksAPI);
-
-// Test data API
-import testDataAPI from './routes/testDataAPI.js';
-app.use('/api/test', testDataAPI);
-
-// Geocoding API endpoints
-app.get('/api/geocode/:location', async (req, res) => {
-  try {
-    const location = decodeURIComponent(req.params.location);
-    const result = await geocodeLocation(location);
+// Memory-optimized sample data filter
+function optimizedSampleDataFilter(alerts) {
+  if (!Array.isArray(alerts)) return [];
+  
+  console.log(`🔍 [OPTIMIZED] Starting filter with ${alerts.length} alerts`);
+  
+  const filtered = alerts.filter(alert => {
+    if (!alert || typeof alert !== 'object') return false;
     
-    if (result) {
-      res.json({
-        success: true,
-        location: location,
-        coordinates: {
-          latitude: result.latitude,
-          longitude: result.longitude
-        },
-        name: result.name,
-        confidence: result.confidence,
-        source: result.source
-      });
-    } else {
-      res.status(404).json({
-        success: false,
-        error: 'Location not found',
-        location: location
-      });
-    }
-  } catch (error) {
-    console.error('❌ Geocoding API error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
-
-// Reverse geocoding endpoint
-app.get('/api/reverse-geocode/:lat/:lng', async (req, res) => {
-  try {
-    const lat = parseFloat(req.params.lat);
-    const lng = parseFloat(req.params.lng);
+    // Only filter out obvious test data
+    const id = (alert.id || '').toString().toLowerCase();
+    const source = (alert.source || '').toString().toLowerCase();
+    const title = (alert.title || '').toString().toLowerCase();
     
-    if (isNaN(lat) || isNaN(lng)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid coordinates'
-      });
+    const isTestData = (
+      id.includes('test_data') ||
+      id.includes('sample_test') ||
+      title.includes('test alert') ||
+      source === 'test_system'
+    );
+    
+    if (isTestData) {
+      console.log(`🗑️ [OPTIMIZED] Filtered test alert: ${id}`);
+      return false;
     }
     
-    const locationName = await reverseGeocode(lat, lng);
-    
-    res.json({
-      success: true,
-      coordinates: { latitude: lat, longitude: lng },
-      location: locationName
-    });
-  } catch (error) {
-    console.error('❌ Reverse geocoding API error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+    return true;
+  });
+  
+  console.log(`✅ [OPTIMIZED] Filter result: ${alerts.length} → ${filtered.length} alerts`);
+  return filtered;
+}
 
-// Cache for alerts with memory management
+// Memory-optimized alert processing
+async function processAlertsOptimized(alerts) {
+  if (!Array.isArray(alerts) || alerts.length === 0) {
+    return [];
+  }
+  
+  const processed = [];
+  
+  for (const alert of alerts) {
+    try {
+      // Ensure alert has route matching
+      if (!alert.affectsRoutes || alert.affectsRoutes.length === 0) {
+        if (alert.coordinates && Array.isArray(alert.coordinates) && alert.coordinates.length >= 2) {
+          const [lat, lng] = alert.coordinates;
+          alert.affectsRoutes = findRoutesNearCoordinatesFixed(lat, lng);
+          alert.routeMatchMethod = 'Post-processed';
+        }
+      }
+      
+      // Ensure alert has basic properties
+      alert.lastUpdated = alert.lastUpdated || new Date().toISOString();
+      alert.status = alert.status || 'red';
+      alert.severity = alert.severity || 'Medium';
+      
+      processed.push(alert);
+    } catch (error) {
+      console.warn(`⚠️ Error processing alert ${alert.id}:`, error.message);
+      processed.push(alert);
+    }
+  }
+  
+  return processed;
+}
+
+// Cache for alerts
 let cachedAlerts = null;
 let lastFetchTime = null;
 const CACHE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
-// Export route matcher for use in API routes
-export { findRoutesNearCoordinatesOptimized as enhancedFindRoutesNearCoordinates };
+// Main alerts endpoint with memory optimization
+app.get('/api/alerts-enhanced', async (req, res) => {
+  const requestId = Date.now();
+  
+  try {
+    console.log(`🚀 [OPTIMIZED-${requestId}] Starting memory-optimized alerts fetch...`);
+    
+    let allAlerts = [];
+    const sources = {};
+    
+    // Fetch TomTom data with memory optimization
+    console.log(`🚗 [OPTIMIZED-${requestId}] Testing TomTom API...`);
+    console.log(`🔑 [OPTIMIZED-${requestId}] TomTom API Key configured: ${process.env.TOMTOM_API_KEY ? 'YES' : 'NO'}`);
+    
+    try {
+      const startTime = Date.now();
+      const tomtomResult = await fetchTomTomTrafficWithStreetNames();
+      const duration = Date.now() - startTime;
+      
+      console.log(`📊 [OPTIMIZED-${requestId}] TomTom Result:`, {
+        success: tomtomResult.success,
+        dataCount: tomtomResult.data ? tomtomResult.data.length : 0,
+        error: tomtomResult.error,
+        duration: `${duration}ms`
+      });
+      
+      if (tomtomResult.success && tomtomResult.data && tomtomResult.data.length > 0) {
+        allAlerts.push(...tomtomResult.data);
+        sources.tomtom = {
+          success: true,
+          count: tomtomResult.data.length,
+          method: 'Memory-optimized with route matching',
+          mode: 'live',
+          duration: `${duration}ms`
+        };
+        console.log(`✅ [OPTIMIZED-${requestId}] TomTom: ${tomtomResult.data.length} alerts fetched successfully`);
+      } else {
+        sources.tomtom = {
+          success: false,
+          count: 0,
+          error: tomtomResult.error || 'No data returned',
+          mode: 'live',
+          duration: `${duration}ms`
+        };
+        console.log(`⚠️ [OPTIMIZED-${requestId}] TomTom: No alerts returned`);
+      }
+    } catch (tomtomError) {
+      console.error(`❌ [OPTIMIZED-${requestId}] TomTom fetch failed:`, tomtomError.message);
+      sources.tomtom = {
+        success: false,
+        count: 0,
+        error: tomtomError.message,
+        mode: 'live'
+      };
+    }
+    
+    console.log(`📊 [OPTIMIZED-${requestId}] Raw alerts collected: ${allAlerts.length}`);
+    
+    // Optimized filtering
+    const filteredAlerts = optimizedSampleDataFilter(allAlerts);
+    
+    // Memory-optimized processing
+    let enhancedAlerts = [];
+    if (filteredAlerts.length > 0) {
+      try {
+        console.log(`🔄 [OPTIMIZED-${requestId}] Processing alerts with memory optimization...`);
+        enhancedAlerts = await processAlertsOptimized(filteredAlerts);
+        console.log(`✅ [OPTIMIZED-${requestId}] Processing complete: ${enhancedAlerts.length} alerts`);
+      } catch (enhancementError) {
+        console.error(`❌ [OPTIMIZED-${requestId}] Processing failed:`, enhancementError.message);
+        enhancedAlerts = filteredAlerts;
+      }
+    }
+    
+    // Generate statistics
+    const stats = {
+      totalAlerts: enhancedAlerts.length,
+      activeAlerts: enhancedAlerts.filter(a => a.status === 'red').length,
+      alertsWithRoutes: enhancedAlerts.filter(a => a.affectsRoutes && a.affectsRoutes.length > 0).length,
+      averageRoutesPerAlert: enhancedAlerts.length > 0 ?
+        (enhancedAlerts.reduce((sum, a) => sum + (a.affectsRoutes?.length || 0), 0) / enhancedAlerts.length).toFixed(1) : 0
+    };
+    
+    const response = {
+      success: true,
+      alerts: enhancedAlerts,
+      metadata: {
+        requestId,
+        totalAlerts: enhancedAlerts.length,
+        sources,
+        statistics: stats,
+        lastUpdated: new Date().toISOString(),
+        enhancement: 'Memory-optimized with working route matching',
+        mode: 'memory_optimized_fixed',
+        debug: {
+          processingDuration: `${Date.now() - requestId}ms`,
+          memoryOptimized: true,
+          routeMatchingFixed: true
+        }
+      }
+    };
+    
+    console.log(`🎯 [OPTIMIZED-${requestId}] FINAL RESULT: Returning ${enhancedAlerts.length} alerts`);
+    console.log(`📊 [OPTIMIZED-${requestId}] Alerts with routes: ${stats.alertsWithRoutes}/${enhancedAlerts.length}`);
+    console.log(`⏱️ [OPTIMIZED-${requestId}] Total processing time: ${Date.now() - requestId}ms`);
+    
+    res.json(response);
+    
+  } catch (error) {
+    console.error(`❌ [OPTIMIZED-${requestId}] Critical error:`, error);
+    
+    const emergencyResponse = {
+      success: false,
+      alerts: [],
+      metadata: {
+        requestId,
+        totalAlerts: 0,
+        sources: { error: 'Critical endpoint failure' },
+        error: error.message,
+        timestamp: new Date().toISOString(),
+        mode: 'emergency_fallback'
+      }
+    };
+    
+    res.status(500).json(emergencyResponse);
+  }
+});
+
+// Simplified main alerts endpoint
+app.get('/api/alerts', async (req, res) => {
+  const requestId = Date.now();
+  
+  try {
+    console.log(`🚀 [MAIN-${requestId}] Fetching main alerts...`);
+    
+    // Check cache first
+    const now = Date.now();
+    
+    if (cachedAlerts && lastFetchTime && (now - lastFetchTime) < CACHE_TIMEOUT) {
+      const cacheAge = Math.round((now - lastFetchTime) / 1000);
+      console.log(`📦 [MAIN-${requestId}] Returning cached alerts (${cacheAge}s old)`);
+      return res.json(cachedAlerts);
+    }
+    
+    // Fetch fresh data
+    let allAlerts = [];
+    let sources = {};
+    
+    try {
+      const tomtomResult = await fetchTomTomTrafficWithStreetNames();
+      
+      if (tomtomResult.success && tomtomResult.data) {
+        allAlerts.push(...tomtomResult.data);
+        sources.tomtom = { 
+          success: true, 
+          count: tomtomResult.data.length
+        };
+      } else {
+        sources.tomtom = { 
+          success: false, 
+          error: tomtomResult.error
+        };
+      }
+    } catch (error) {
+      sources.tomtom = { success: false, error: error.message };
+    }
+    
+    const filteredAlerts = optimizedSampleDataFilter(allAlerts);
+    
+    const response = {
+      success: true,
+      alerts: filteredAlerts,
+      metadata: {
+        requestId,
+        totalAlerts: filteredAlerts.length,
+        sources: sources,
+        lastUpdated: new Date().toISOString(),
+        cached: false,
+        endpoint: 'main-alerts-optimized'
+      }
+    };
+    
+    // Update cache
+    cachedAlerts = response;
+    lastFetchTime = now;
+    
+    console.log(`🎯 [MAIN-${requestId}] Returning ${filteredAlerts.length} alerts`);
+    res.json(response);
+    
+  } catch (error) {
+    console.error(`❌ [MAIN-${requestId}] Error:`, error);
+    
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      alerts: [],
+      metadata: {
+        requestId,
+        totalAlerts: 0,
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
+// Add emergency endpoint
+addEmergencyEndpoint(app);
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🚦 BARRY Backend Started with Enhanced Geocoding`);
+  console.log(`\n🚦 BARRY Backend Started with Memory Optimization`);
   console.log(`📡 Server: http://localhost:${PORT}`);
   console.log(`🌐 Public: https://go-barry.onrender.com`);
-  console.log(`\n🔧 API Authentication Fixes:`);
-  console.log(`   ✅ HERE API: Using 'apikey' query parameter`);
-  console.log(`   ✅ MapQuest API: Using 'key' query parameter`);
-  console.log(`   ✅ TomTom API: Using 'key' query parameter`);
-  console.log(`   ✅ National Highways: Using header authentication (already working)`);
   console.log(`\n📡 Available Endpoints:`);
   console.log(`   🎯 Main: /api/alerts`);
-  console.log(`   🧪 Test: /api/alerts-test`);
+  console.log(`   🚀 Enhanced: /api/alerts-enhanced`);
+  console.log(`   🚨 Emergency: /api/emergency-alerts`);
   console.log(`   💚 Health: /api/health`);
-  console.log(`   🔄 Refresh: /api/refresh`);
-  console.log(`   🚧 Roadworks: /api/roadworks`);
   console.log(`   👮 Supervisor: /api/supervisor`);
-  console.log(`   📍 Incidents: /api/incidents`);
 });
-
-// API ROUTES SETUP
-const globalState = {
-  acknowledgedAlerts,
-  alertNotes, 
-  GTFS_ROUTES,
-  ACK_FILE,
-  NOTES_FILE,
-  cachedAlerts: null,
-  lastFetchTime: null,
-  findRoutesNearCoordinatesOptimized
-};
-
-setupAPIRoutes(app, globalState);
-addEmergencyEndpoint(app);
 
 export default app;
