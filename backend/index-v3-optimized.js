@@ -78,6 +78,9 @@ import geocodingService, {
   getCacheStats as getGeocodingCacheStats
 } from './services/geocoding.js';
 
+// Import Elgin service (optional/modular)
+import { getElginData, getElginHealth, isElginEnabled } from './services/elgin.js';
+
 // Import health routes
 import healthRoutes from './routes/health.js';
 app.use('/api/health', healthRoutes);
@@ -173,7 +176,28 @@ app.get('/api/reverse-geocode/:lat/:lng', async (req, res) => {
   }
 });
 
-// **SAMPLE DATA for v3.0 (Memory Safe)**
+// **ENHANCED ALERTS with Elgin Integration (Memory Safe)**
+async function getEnhancedAlerts() {
+  let alerts = [...SAMPLE_ALERTS]; // Start with sample data
+  
+  // Add Elgin data if enabled
+  if (isElginEnabled()) {
+    try {
+      console.log('🚧 Fetching Elgin roadworks data...');
+      const elginResult = await getElginData();
+      
+      if (elginResult.incidents && elginResult.incidents.length > 0) {
+        console.log(`✅ Added ${elginResult.incidents.length} Elgin incidents`);
+        alerts = alerts.concat(elginResult.incidents);
+      }
+    } catch (error) {
+      console.error('❌ Elgin integration error:', error.message);
+    }
+  }
+  
+  return alerts;
+}
+
 const SAMPLE_ALERTS = [
   {
     id: "barry_v3_001",
@@ -225,31 +249,37 @@ const SAMPLE_ALERTS = [
   }
 ];
 
-// Main alerts endpoint - Memory optimized
+// Main alerts endpoint - Memory optimized with Elgin integration
 app.get('/api/alerts', async (req, res) => {
   try {
     logMemoryUsage('Alerts Request');
     
+    // Get enhanced alerts (includes Elgin if enabled)
+    const alerts = await getEnhancedAlerts();
+    
     res.json({
       success: true,
-      alerts: SAMPLE_ALERTS,
+      alerts: alerts,
       metadata: {
-        totalAlerts: SAMPLE_ALERTS.length,
-        activeAlerts: SAMPLE_ALERTS.filter(a => a.status === 'red').length,
+        totalAlerts: alerts.length,
+        activeAlerts: alerts.filter(a => a.status === 'red').length,
         mode: "go-barry-v3-optimized",
         lastUpdated: new Date().toISOString(),
         coverage: "North East England", 
-        enhancedLocations: SAMPLE_ALERTS.filter(a => a.locationAccuracy === 'high').length,
-        enhancedRoutes: SAMPLE_ALERTS.filter(a => a.routeMatchMethod === 'gtfs_enhanced').length,
+        enhancedLocations: alerts.filter(a => a.locationAccuracy === 'high').length,
+        enhancedRoutes: alerts.filter(a => a.routeMatchMethod === 'gtfs_enhanced').length,
+        elginEnabled: isElginEnabled(),
+        elginIncidents: alerts.filter(a => a.source === 'elgin').length,
         features: [
           "Incident Management",
           "AI Disruption Manager", 
           "Message Distribution",
           "Automated Reporting",
           "System Health Monitor",
-          "Training & Help System"
+          "Training & Help System",
+          isElginEnabled() ? "Elgin Roadworks API" : "Elgin API (Disabled)"
         ],
-        note: "Go Barry v3.0 - Memory optimized with full feature set"
+        note: "Go Barry v3.0 - Memory optimized with modular Elgin integration"
       }
     });
     
@@ -342,6 +372,26 @@ app.get('/api/status', (req, res) => {
   });
 });
 
+// Elgin API status endpoint
+app.get('/api/elgin/status', async (req, res) => {
+  try {
+    const health = await getElginHealth();
+    res.json({
+      success: true,
+      ...health,
+      integration: 'modular',
+      removable: true,
+      note: 'Elgin integration can be easily disabled by setting ELGIN_ENABLED=false'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      service: 'Elgin API Status'
+    });
+  }
+});
+
 // Control Room Display route info
 app.get('/api/control-room', (req, res) => {
   res.json({
@@ -352,7 +402,8 @@ app.get('/api/control-room', (req, res) => {
       'Real-time traffic alerts',
       'Live map integration', 
       'Supervisor monitoring',
-      'Go Barry branding'
+      'Go Barry branding',
+      isElginEnabled() ? 'Elgin roadworks data' : 'Elgin API (disabled)'
     ],
     note: 'Open /control-room-display-screen.html in browser for full display'
   });

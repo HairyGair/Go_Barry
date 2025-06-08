@@ -24,6 +24,7 @@ import AutomatedReportingSystem from '../components/AutomatedReportingSystem';
 import SystemHealthMonitor from '../components/SystemHealthMonitor';
 import TrainingHelpSystem from '../components/TrainingHelpSystem';
 import SimpleAPITest from '../components/SimpleAPITest';
+import RoadworksManager from '../components/RoadworksManager';
 import { useSupervisorSession } from '../components/hooks/useSupervisorSession';
 import { API_CONFIG } from '../config/api';
 
@@ -44,6 +45,13 @@ const BROWSER_NAVIGATION = {
     component: IncidentManager,
     description: 'Create & track incidents with GTFS route detection',
     color: '#EF4444'
+  },
+  roadworks: {
+    title: 'Roadworks Manager',
+    icon: 'construct',
+    component: RoadworksManager,
+    description: 'Manage roadworks & create Blink diversions',
+    color: '#F59E0B'
   },
   ai: {
     title: 'AI Disruption Manager',
@@ -118,7 +126,7 @@ const BrowserMainApp = () => {
 
     const handleKeyDown = (event) => {
       // Ctrl/Cmd + number keys for quick navigation
-      if ((event.ctrlKey || event.metaKey) && event.key >= '1' && event.key <= '7') {
+      if ((event.ctrlKey || event.metaKey) && event.key >= '1' && event.key <= '9') {
         event.preventDefault();
         const screens = Object.keys(BROWSER_NAVIGATION);
         const screenIndex = parseInt(event.key) - 1;
