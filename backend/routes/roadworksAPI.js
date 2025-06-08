@@ -3,7 +3,7 @@
 // Operational workflow for diversion planning, communication generation, and council coordination
 
 import express from 'express';
-import supervisorManager from '../services/supervisorManager.js';
+import supervisorManager, { validateSupervisorSession } from '../services/supervisorManager.js';
 import geocodingService, { geocodeLocation } from '../services/geocoding.js';
 import findGTFSRoutesNearCoordinates from '../gtfs-route-matcher.js';
 import { generateDiversionPDF, generateTicketMachineMessage } from '../services/roadworksServices.js';
@@ -13,6 +13,165 @@ const router = express.Router();
 // In-memory roadworks storage (in production, use database)
 let roadworks = [];
 let roadworksCounter = 1;
+
+// Initialize with current week's roadworks
+function initializeCurrentRoadworks() {
+  console.log('🚧 Initializing current week roadworks data...');
+  
+  const currentWeekRoadworks = [
+    {
+      id: `roadwork_${roadworksCounter++}`,
+      title: 'A19 Southbound Lane Restrictions',
+      description: 'Highway maintenance works affecting southbound carriageway between Seaton Burn and Wideopen. Lane 1 closed, expect 10-15 minute delays.',
+      location: 'A19 Southbound, Seaton Burn to Wideopen',
+      coordinates: { latitude: 55.0833, longitude: -1.6167 },
+      authority: 'National Highways',
+      contactPerson: 'David Richardson',
+      contactPhone: '0300 123 5000',
+      contactEmail: 'd.richardson@nationalhighways.co.uk',
+      plannedStartDate: '2025-06-09T06:00:00.000Z',
+      plannedEndDate: '2025-06-13T18:00:00.000Z',
+      estimatedDuration: '4 days',
+      roadworkType: 'road_surface',
+      trafficManagement: 'lane_closure',
+      priority: 'high',
+      affectedRoutes: ['1', '2', '22', '35', '317', '327'],
+      status: 'active',
+      assignedTo: 'supervisor001',
+      assignedToName: 'John Smith',
+      createdBy: 'system',
+      createdByName: 'BARRY System',
+      createdAt: '2025-06-08T14:30:00.000Z',
+      lastUpdated: '2025-06-09T08:00:00.000Z',
+      promotedToDisplay: true,
+      displayNotes: 'Major A19 delays affecting northern services',
+      diversions: [],
+      tasks: [
+        {
+          id: 'task_001',
+          title: 'Update passenger information systems',
+          type: 'communication',
+          status: 'completed',
+          priority: 'urgent'
+        }
+      ]
+    },
+    {
+      id: `roadwork_${roadworksCounter++}`,
+      title: 'Newcastle City Centre - Grey Street Gas Works',
+      description: 'Emergency gas main replacement on Grey Street. Road completely closed to traffic, pedestrian access maintained.',
+      location: 'Grey Street, Newcastle City Centre',
+      coordinates: { latitude: 54.9738, longitude: -1.6131 },
+      authority: 'Newcastle City Council',
+      contactPerson: 'Sarah Mitchell',
+      contactPhone: '0191 278 7878',
+      contactEmail: 's.mitchell@newcastle.gov.uk',
+      plannedStartDate: '2025-06-10T07:00:00.000Z',
+      plannedEndDate: '2025-06-14T17:00:00.000Z',
+      estimatedDuration: '4 days',
+      roadworkType: 'utilities',
+      trafficManagement: 'road_closure',
+      priority: 'critical',
+      affectedRoutes: ['Q3', 'Q3X', '12', '39', '40'],
+      status: 'planning',
+      assignedTo: 'supervisor001',
+      assignedToName: 'John Smith',
+      createdBy: 'external',
+      createdByName: 'Council Notification',
+      createdAt: '2025-06-07T16:45:00.000Z',
+      lastUpdated: '2025-06-09T09:15:00.000Z',
+      promotedToDisplay: true,
+      displayNotes: 'Critical: City centre road closure affecting Quayside services',
+      diversions: [],
+      tasks: [
+        {
+          id: 'task_002',
+          title: 'Create diversion route for Q3/Q3X',
+          type: 'diversion_planning',
+          status: 'pending',
+          priority: 'urgent'
+        },
+        {
+          id: 'task_003',
+          title: 'Coordinate with Metro for alternative travel',
+          type: 'coordination',
+          status: 'pending',
+          priority: 'high'
+        }
+      ]
+    },
+    {
+      id: `roadwork_${roadworksCounter++}`,
+      title: 'Sunderland Bridge Maintenance',
+      description: 'Planned maintenance on Sunderland Bridge affecting traffic flow. Temporary traffic lights in operation.',
+      location: 'Sunderland Bridge, Sunderland',
+      coordinates: { latitude: 54.9069, longitude: -1.3838 },
+      authority: 'Sunderland City Council',
+      contactPerson: 'Mark Thompson',
+      contactPhone: '0191 520 5555',
+      contactEmail: 'm.thompson@sunderland.gov.uk',
+      plannedStartDate: '2025-06-11T10:00:00.000Z',
+      plannedEndDate: '2025-06-11T16:00:00.000Z',
+      estimatedDuration: '6 hours',
+      roadworkType: 'maintenance',
+      trafficManagement: 'traffic_lights',
+      priority: 'medium',
+      affectedRoutes: ['16', '20', '24', '56', '61'],
+      status: 'approved',
+      assignedTo: 'supervisor002',
+      assignedToName: 'Sarah Johnson',
+      createdBy: 'planned',
+      createdByName: 'Weekly Planning',
+      createdAt: '2025-06-05T12:00:00.000Z',
+      lastUpdated: '2025-06-08T14:30:00.000Z',
+      promotedToDisplay: false,
+      diversions: [],
+      tasks: []
+    },
+    {
+      id: `roadwork_${roadworksCounter++}`,
+      title: 'Durham Road Water Main Repair',
+      description: 'Emergency water main repair affecting Durham Road near Chester-le-Street. Single lane operation.',
+      location: 'Durham Road, Chester-le-Street',
+      coordinates: { latitude: 54.8516, longitude: -1.5761 },
+      authority: 'Northumbrian Water',
+      contactPerson: 'Lisa Cummings',
+      contactPhone: '0345 717 1100',
+      contactEmail: 'l.cummings@nwl.co.uk',
+      plannedStartDate: '2025-06-12T08:00:00.000Z',
+      plannedEndDate: '2025-06-13T17:00:00.000Z',
+      estimatedDuration: '2 days',
+      roadworkType: 'utilities',
+      trafficManagement: 'traffic_control',
+      priority: 'high',
+      affectedRoutes: ['21', 'X21', '28', '50'],
+      status: 'reported',
+      assignedTo: 'supervisor001',
+      assignedToName: 'John Smith',
+      createdBy: 'external',
+      createdByName: 'Northumbrian Water',
+      createdAt: '2025-06-09T11:30:00.000Z',
+      lastUpdated: '2025-06-09T11:30:00.000Z',
+      promotedToDisplay: false,
+      diversions: [],
+      tasks: [
+        {
+          id: 'task_004',
+          title: 'Assess impact on 21/X21 services',
+          type: 'assessment',
+          status: 'pending',
+          priority: 'high'
+        }
+      ]
+    }
+  ];
+  
+  roadworks = currentWeekRoadworks;
+  console.log(`✅ Initialized ${roadworks.length} current roadworks for this week`);
+}
+
+// Initialize roadworks data on startup
+initializeCurrentRoadworks();
 
 // Roadworks workflow statuses
 const ROADWORKS_STATUSES = {
@@ -131,7 +290,7 @@ router.post('/', async (req, res) => {
     }
 
     // Validate supervisor session
-    const sessionValidation = supervisorManager.validateSupervisorSession(sessionId);
+    const sessionValidation = validateSupervisorSession(sessionId);
     if (!sessionValidation.success) {
       return res.status(401).json({
         success: false,
@@ -280,7 +439,7 @@ router.put('/:id/status', async (req, res) => {
     }
 
     // Validate supervisor session
-    const sessionValidation = supervisorManager.validateSupervisorSession(sessionId);
+    const sessionValidation = validateSupervisorSession(sessionId);
     if (!sessionValidation.success) {
       return res.status(401).json({
         success: false,
@@ -365,7 +524,7 @@ router.post('/:id/diversion', async (req, res) => {
     } = req.body;
 
     // Validate supervisor session
-    const sessionValidation = supervisorManager.validateSupervisorSession(sessionId);
+    const sessionValidation = validateSupervisorSession(sessionId);
     if (!sessionValidation.success) {
       return res.status(401).json({
         success: false,
@@ -459,7 +618,7 @@ router.post('/:id/promote-to-display', async (req, res) => {
     const { sessionId, displayNotes, reason } = req.body;
 
     // Validate supervisor session
-    const sessionValidation = supervisorManager.validateSupervisorSession(sessionId);
+    const sessionValidation = validateSupervisorSession(sessionId);
     if (!sessionValidation.success) {
       return res.status(401).json({
         success: false,
@@ -511,7 +670,7 @@ router.delete('/:id/remove-from-display', async (req, res) => {
     const { sessionId, reason } = req.body;
 
     // Validate supervisor session
-    const sessionValidation = supervisorManager.validateSupervisorSession(sessionId);
+    const sessionValidation = validateSupervisorSession(sessionId);
     if (!sessionValidation.success) {
       return res.status(401).json({
         success: false,

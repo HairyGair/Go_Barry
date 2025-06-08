@@ -32,6 +32,7 @@ const RoadworksManager = ({ baseUrl }) => {
   const [selectedRoadwork, setSelectedRoadwork] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showStatusModal, setShowStatusModal] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     promotedToDisplay: 0,
@@ -51,6 +52,208 @@ const RoadworksManager = ({ baseUrl }) => {
     cancelled: { label: 'Cancelled', color: '#9CA3AF', icon: 'close-circle' }
   };
 
+// Status Change Modal Component
+const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) => {
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const statusOptions = [
+    { value: 'assessing', label: 'Assessing Impact', description: 'Reviewing the impact on our services' },
+    { value: 'planning', label: 'Planning Response', description: 'Creating diversion plans and communications' },
+    { value: 'approved', label: 'Plans Approved', description: 'Response plans are ready for implementation' },
+    { value: 'active', label: 'Monitoring Active', description: 'Roadworks are active, monitoring impact' },
+    { value: 'monitoring', label: 'Ongoing Monitoring', description: 'Continuing to monitor and adjust' }
+  ];
+
+  const handleConfirm = () => {
+    if (!selectedStatus) {
+      Alert.alert('Error', 'Please select a status');
+      return;
+    }
+    
+    if (!notes.trim()) {
+      Alert.alert('Error', 'Please provide notes about the action being taken');
+      return;
+    }
+
+    onConfirm(roadwork?.id, selectedStatus, notes);
+    setSelectedStatus('');
+    setNotes('');
+    onClose();
+  };
+
+  const handleClose = () => {
+    setSelectedStatus('');
+    setNotes('');
+    onClose();
+  };
+
+  if (!visible || !roadwork) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={handleClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Take Action on Roadwork</Text>
+            <TouchableOpacity onPress={handleClose} style={styles.modalCloseButton}>
+              <Ionicons name="close" size={24} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            <Text style={styles.statusModalTitle}>{roadwork.title}</Text>
+            <Text style={styles.statusModalLocation}>{roadwork.location}</Text>
+
+            <Text style={styles.sectionTitle}>Select Action</Text>
+            
+            {statusOptions.map((option) => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.statusOption,
+                  selectedStatus === option.value && styles.statusOptionSelected
+                ]}
+                onPress={() => setSelectedStatus(option.value)}
+              >
+                <View style={styles.statusOptionContent}>
+                  <Text style={[
+                    styles.statusOptionLabel,
+                    selectedStatus === option.value && styles.statusOptionLabelSelected
+                  ]}>
+                    {option.label}
+                  </Text>
+                  <Text style={styles.statusOptionDescription}>
+                    {option.description}
+                  </Text>
+                </View>
+                {selectedStatus === option.value && (
+                  <Ionicons name="checkmark-circle" size={24} color="#10B981" />
+                )}
+              </TouchableOpacity>
+            ))}
+
+            <Text style={styles.sectionTitle}>Action Notes</Text>
+            <TextInput
+              style={[styles.textInput, styles.textArea]}
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Describe what action you're taking or plan to take...\n\nExamples:\n• Coordinating with council for shuttle service\n• Creating diversion route via A19\n• Sent to commercial team for council liaison"
+              placeholderTextColor="#9CA3AF"
+              multiline={true}
+              numberOfLines={6}
+            />
+          </ScrollView>
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity 
+              style={styles.cancelButton}
+              onPress={handleClose}
+              disabled={loading}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.confirmActionButton, loading && styles.buttonDisabled]}
+              onPress={handleConfirm}
+              disabled={loading || !selectedStatus || !notes.trim()}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+                  <Text style={styles.confirmActionButtonText}>Confirm Action</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+  const handleDismissRoadwork = async (roadworkId, reason = 'No action required') => {
+    if (!isLoggedIn) {
+      Alert.alert('Error', 'You must be logged in to dismiss roadworks');
+      return;
+    }
+
+    try {
+      console.log(`🙅 ${roadworkId} - Dismissing roadwork...`);
+      
+      const response = await fetch(`${apiBaseUrl}/api/roadworks/${roadworkId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'cancelled',
+          sessionId: sessionId,
+          notes: reason
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('✅ Roadwork dismissed successfully');
+        Alert.alert('Success', 'Roadwork dismissed successfully');
+        await loadRoadworks();
+      } else {
+        console.error('❌ Failed to dismiss roadwork:', data.error);
+        Alert.alert('Error', data.error || 'Failed to dismiss roadwork');
+      }
+    } catch (error) {
+      console.error('❌ Error dismissing roadwork:', error);
+      Alert.alert('Error', `Failed to dismiss roadwork: ${error.message}`);
+    }
+  };
+
+  const handleAcknowledgeRoadwork = async (roadworkId, newStatus, notes) => {
+    if (!isLoggedIn) {
+      Alert.alert('Error', 'You must be logged in to acknowledge roadworks');
+      return;
+    }
+
+    try {
+      console.log(`✅ ${roadworkId} - Acknowledging roadwork with status: ${newStatus}`);
+      
+      const response = await fetch(`${apiBaseUrl}/api/roadworks/${roadworkId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: newStatus,
+          sessionId: sessionId,
+          notes: notes
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('✅ Roadwork acknowledged successfully');
+        Alert.alert('Success', 'Roadwork status updated successfully');
+        await loadRoadworks();
+      } else {
+        console.error('❌ Failed to acknowledge roadwork:', data.error);
+        Alert.alert('Error', data.error || 'Failed to update roadwork');
+      }
+    } catch (error) {
+      console.error('❌ Error acknowledging roadwork:', error);
+      Alert.alert('Error', `Failed to update roadwork: ${error.message}`);
+    }
+  };
+
   // Priority levels with colors
   const PRIORITY_LEVELS = {
     critical: { label: 'Critical', color: '#DC2626', bgColor: '#FEF2F2' },
@@ -60,102 +263,8 @@ const RoadworksManager = ({ baseUrl }) => {
     planned: { label: 'Planned', color: '#7C3AED', bgColor: '#FAF5FF' }
   };
 
-  // Sample roadworks data for demonstration
-  const sampleRoadworks = [
-    {
-      id: 'roadwork_001',
-      title: 'A1 Northbound Road Surface Repairs',
-      description: 'Major road surface repairs affecting both lanes between Junction 65 and 66. Expected delays of 10-15 minutes.',
-      location: 'A1 Northbound, Birtley Junction 65',
-      coordinates: { latitude: 54.9158, longitude: -1.5721 },
-      authority: 'National Highways',
-      contactPerson: 'John Smith',
-      contactPhone: '0191 123 4567',
-      contactEmail: 'j.smith@nationalhighways.co.uk',
-      plannedStartDate: '2025-06-10T06:00:00.000Z',
-      plannedEndDate: '2025-06-12T18:00:00.000Z',
-      estimatedDuration: '3 days',
-      roadworkType: 'road_surface',
-      trafficManagement: 'traffic_lights',
-      priority: 'high',
-      affectedRoutes: ['21', 'X21', '10', '12', '25'],
-      status: 'planning',
-      assignedTo: 'supervisor001',
-      assignedToName: supervisorName || 'Demo Supervisor',
-      createdBy: 'supervisor001',
-      createdByName: supervisorName || 'Demo Supervisor',
-      createdAt: '2025-06-07T09:00:00.000Z',
-      lastUpdated: '2025-06-07T10:30:00.000Z',
-      promotedToDisplay: true,
-      displayNotes: 'Major route closure affecting key services',
-      diversions: [],
-      tasks: [
-        {
-          id: 'task_001',
-          title: 'Create Blink PDF Diversion Map',
-          type: 'blink_pdf',
-          status: 'pending',
-          priority: 'urgent'
-        }
-      ]
-    },
-    {
-      id: 'roadwork_002',
-      title: 'Central Station Traffic Light Maintenance',
-      description: 'Temporary traffic lights installation for planned maintenance works around Central Station area.',
-      location: 'Central Station, Newcastle upon Tyne',
-      coordinates: { latitude: 54.9686, longitude: -1.6174 },
-      authority: 'Newcastle City Council',
-      contactPerson: 'Sarah Johnson',
-      contactPhone: '0191 987 6543',
-      contactEmail: 's.johnson@newcastle.gov.uk',
-      plannedStartDate: '2025-06-15T07:00:00.000Z',
-      plannedEndDate: '2025-06-15T19:00:00.000Z',
-      estimatedDuration: '1 day',
-      roadworkType: 'utilities',
-      trafficManagement: 'traffic_lights',
-      priority: 'medium',
-      affectedRoutes: ['Q3', 'Q3X', '10', '12'],
-      status: 'approved',
-      assignedTo: 'supervisor002',
-      assignedToName: 'Sarah Wilson',
-      createdBy: 'supervisor002',
-      createdByName: 'Sarah Wilson',
-      createdAt: '2025-06-05T14:20:00.000Z',
-      lastUpdated: '2025-06-06T16:45:00.000Z',
-      promotedToDisplay: false,
-      diversions: [],
-      tasks: []
-    },
-    {
-      id: 'roadwork_003',
-      title: 'Tyne Bridge Inspection Works',
-      description: 'Scheduled safety inspection of Tyne Bridge structure requiring temporary lane closures.',
-      location: 'Tyne Bridge, Newcastle/Gateshead',
-      coordinates: { latitude: 54.9695, longitude: -1.6018 },
-      authority: 'Gateshead Council',
-      contactPerson: 'David Brown',
-      contactPhone: '0191 456 7890',
-      contactEmail: 'd.brown@gateshead.gov.uk',
-      plannedStartDate: '2025-06-20T22:00:00.000Z',
-      plannedEndDate: '2025-06-21T06:00:00.000Z',
-      estimatedDuration: '8 hours',
-      roadworkType: 'major_works',
-      trafficManagement: 'lane_closure',
-      priority: 'planned',
-      affectedRoutes: ['21', '22', '27'],
-      status: 'reported',
-      assignedTo: 'supervisor001',
-      assignedToName: supervisorName || 'Demo Supervisor',
-      createdBy: 'supervisor003',
-      createdByName: 'Mike Thompson',
-      createdAt: '2025-06-03T11:15:00.000Z',
-      lastUpdated: '2025-06-03T11:15:00.000Z',
-      promotedToDisplay: false,
-      diversions: [],
-      tasks: []
-    }
-  ];
+  // API base URL
+  const apiBaseUrl = baseUrl || 'https://go-barry.onrender.com';
 
   // Load roadworks data
   useEffect(() => {
@@ -165,13 +274,25 @@ const RoadworksManager = ({ baseUrl }) => {
   const loadRoadworks = async () => {
     setLoading(true);
     try {
-      // For now, use sample data
-      // In production, this would fetch from your backend
-      setRoadworks(sampleRoadworks);
-      calculateStats(sampleRoadworks);
+      console.log('🚧 Loading roadworks from API...');
+      const response = await fetch(`${apiBaseUrl}/api/roadworks`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setRoadworks(data.roadworks || []);
+        calculateStats(data.roadworks || []);
+        console.log(`✅ Loaded ${data.roadworks?.length || 0} roadworks`);
+      } else {
+        console.error('❌ Failed to load roadworks:', data.error);
+        Alert.alert('Error', 'Failed to load roadworks data');
+        setRoadworks([]);
+        calculateStats([]);
+      }
     } catch (error) {
-      console.error('Error loading roadworks:', error);
-      Alert.alert('Error', 'Failed to load roadworks data');
+      console.error('❌ Error loading roadworks:', error);
+      Alert.alert('Error', `Failed to connect to server: ${error.message}`);
+      setRoadworks([]);
+      calculateStats([]);
     } finally {
       setLoading(false);
     }
@@ -202,33 +323,37 @@ const RoadworksManager = ({ baseUrl }) => {
     }
 
     try {
-      // Create new roadwork with supervisor info
-      const newRoadwork = {
-        ...formData,
-        id: `roadwork_${Date.now()}`,
-        status: 'reported',
-        createdBy: sessionId,
-        createdByName: supervisorName,
-        assignedTo: sessionId,
-        assignedToName: supervisorName,
-        createdAt: new Date().toISOString(),
-        lastUpdated: new Date().toISOString(),
-        promotedToDisplay: false,
-        diversions: [],
-        tasks: [],
-        affectedRoutes: []
-      };
-
-      // In production, send to backend
-      // For now, add to local state
-      const updatedRoadworks = [newRoadwork, ...roadworks];
-      setRoadworks(updatedRoadworks);
-      calculateStats(updatedRoadworks);
-      setShowCreateModal(false);
-      Alert.alert('Success', 'Roadwork created successfully');
+      setLoading(true);
+      console.log('🚧 Creating new roadwork...');
+      
+      const response = await fetch(`${apiBaseUrl}/api/roadworks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          sessionId: sessionId
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('✅ Roadwork created successfully');
+        setShowCreateModal(false);
+        Alert.alert('Success', 'Roadwork created successfully');
+        // Reload roadworks to get updated list
+        await loadRoadworks();
+      } else {
+        console.error('❌ Failed to create roadwork:', data.error);
+        Alert.alert('Error', data.error || 'Failed to create roadwork');
+      }
     } catch (error) {
-      console.error('Error creating roadwork:', error);
-      Alert.alert('Error', 'Failed to create roadwork');
+      console.error('❌ Error creating roadwork:', error);
+      Alert.alert('Error', `Failed to create roadwork: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -239,17 +364,34 @@ const RoadworksManager = ({ baseUrl }) => {
     }
 
     try {
-      const updatedRoadworks = roadworks.map(r => 
-        r.id === roadworkId 
-          ? { ...r, promotedToDisplay: !r.promotedToDisplay, lastUpdated: new Date().toISOString() }
-          : r
-      );
-      setRoadworks(updatedRoadworks);
-      calculateStats(updatedRoadworks);
-      Alert.alert('Success', 'Roadwork display status updated');
+      console.log(`📺 ${roadworkId} - Toggling display status...`);
+      
+      const response = await fetch(`${apiBaseUrl}/api/roadworks/${roadworkId}/promote-to-display`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: sessionId,
+          displayNotes: 'Promoted via mobile interface',
+          reason: 'Supervisor decision to promote/remove from display'
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('✅ Display status updated successfully');
+        Alert.alert('Success', 'Roadwork display status updated');
+        // Reload roadworks to get updated status
+        await loadRoadworks();
+      } else {
+        console.error('❌ Failed to update display status:', data.error);
+        Alert.alert('Error', data.error || 'Failed to update roadwork');
+      }
     } catch (error) {
-      console.error('Error updating roadwork:', error);
-      Alert.alert('Error', 'Failed to update roadwork');
+      console.error('❌ Error updating roadwork:', error);
+      Alert.alert('Error', `Failed to update roadwork: ${error.message}`);
     }
   };
 
@@ -415,7 +557,21 @@ const RoadworksManager = ({ baseUrl }) => {
         roadwork={selectedRoadwork}
         onClose={() => setShowDetailsModal(false)}
         onPromoteToDisplay={handlePromoteToDisplay}
+        onDismiss={handleDismissRoadwork}
+        onAcknowledge={(roadworkId) => {
+          setShowDetailsModal(false);
+          setShowStatusModal(true);
+        }}
         isAdmin={isAdmin}
+      />
+
+      {/* Status Change Modal */}
+      <StatusChangeModal
+        visible={showStatusModal}
+        roadwork={selectedRoadwork}
+        onClose={() => setShowStatusModal(false)}
+        onConfirm={handleAcknowledgeRoadwork}
+        loading={loading}
       />
     </View>
   );
@@ -614,11 +770,32 @@ const CreateRoadworkModal = ({ visible, onClose, onCreate, loading, session }) =
 };
 
 // Roadwork Details Modal Component
-const RoadworkDetailsModal = ({ visible, roadwork, onClose, onPromoteToDisplay, isAdmin }) => {
+const RoadworkDetailsModal = ({ visible, roadwork, onClose, onPromoteToDisplay, onDismiss, onAcknowledge, isAdmin }) => {
   if (!visible || !roadwork) return null;
 
   const status = ROADWORKS_STATUSES[roadwork.status] || ROADWORKS_STATUSES.reported;
   const priority = PRIORITY_LEVELS[roadwork.priority] || PRIORITY_LEVELS.medium;
+
+  const canDismiss = roadwork.status === 'reported' || roadwork.status === 'assessing';
+  const canAcknowledge = roadwork.status !== 'cancelled' && roadwork.status !== 'completed';
+
+  const handleDismissPress = () => {
+    Alert.alert(
+      'Dismiss Roadwork',
+      'Are you sure you want to dismiss this roadwork? This indicates no action is required.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Dismiss',
+          style: 'destructive',
+          onPress: () => {
+            onDismiss(roadwork.id, 'No action required - dismissed by supervisor');
+            onClose();
+          }
+        }
+      ]
+    );
+  };
 
   return (
     <Modal
@@ -704,6 +881,26 @@ const RoadworkDetailsModal = ({ visible, roadwork, onClose, onPromoteToDisplay, 
 
           {/* Actions */}
           <View style={styles.modalActions}>
+            {canDismiss && (
+              <TouchableOpacity
+                style={styles.dismissButton}
+                onPress={handleDismissPress}
+              >
+                <Ionicons name="close-circle" size={20} color="#EF4444" />
+                <Text style={styles.dismissButtonText}>Dismiss</Text>
+              </TouchableOpacity>
+            )}
+            
+            {canAcknowledge && (
+              <TouchableOpacity
+                style={styles.acknowledgeButton}
+                onPress={() => onAcknowledge(roadwork.id)}
+              >
+                <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                <Text style={styles.acknowledgeButtonText}>Take Action</Text>
+              </TouchableOpacity>
+            )}
+            
             <TouchableOpacity
               style={[
                 styles.displayToggleButton,
@@ -1155,6 +1352,96 @@ const styles = StyleSheet.create({
   },
   displayToggleButtonTextActive: {
     color: '#10B981',
+  },
+  // Dismiss and Acknowledge Button Styles
+  dismissButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FEF2F2',
+    gap: 8,
+  },
+  dismissButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#EF4444',
+  },
+  acknowledgeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    backgroundColor: '#F0FDF4',
+    gap: 8,
+  },
+  acknowledgeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+  // Status Change Modal Styles
+  statusModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  statusModalLocation: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 16,
+  },
+  statusOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  statusOptionSelected: {
+    borderColor: '#10B981',
+    backgroundColor: '#F0FDF4',
+  },
+  statusOptionContent: {
+    flex: 1,
+  },
+  statusOptionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  statusOptionLabelSelected: {
+    color: '#047857',
+  },
+  statusOptionDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  confirmActionButton: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  confirmActionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

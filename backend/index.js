@@ -12,6 +12,7 @@ import { parse } from 'csv-parse/sync';
 import { fetchTomTomTrafficWithStreetNames } from './services/tomtom.js';
 import healthRoutes from './routes/health.js';
 import supervisorAPI from './routes/supervisorAPI.js';
+import roadworksAPI from './routes/roadworksAPI.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -191,6 +192,9 @@ app.use('/api/health', healthRoutes);
 
 // Supervisor management routes
 app.use('/api/supervisor', supervisorAPI);
+
+// Roadworks management routes
+app.use('/api/roadworks', roadworksAPI);
 
 // Memory-optimized sample data filter
 function optimizedSampleDataFilter(alerts) {
@@ -526,6 +530,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   🚨 Emergency: /api/emergency-alerts`);
   console.log(`   💚 Health: /api/health`);
   console.log(`   👮 Supervisor: /api/supervisor`);
+  console.log(`   🚧 Roadworks: /api/roadworks`);
 });
 
 export default app;
