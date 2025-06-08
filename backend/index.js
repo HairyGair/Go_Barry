@@ -8,8 +8,12 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { parse } from 'csv-parse/sync';
 
-// Import working services
+// Import ALL working services
 import { fetchTomTomTrafficWithStreetNames } from './services/tomtom.js';
+import { fetchHERETrafficWithStreetNames } from './services/here.js';
+import { fetchMapQuestTrafficWithStreetNames } from './services/mapquest.js';
+import { fetchNationalHighways } from './services/nationalHighways.js';
+import { initializeEnhancedGTFS, enhancedFindRoutesNearCoordinates } from './enhanced-gtfs-route-matcher.js';
 import healthRoutes from './routes/health.js';
 import supervisorAPI from './routes/supervisorAPI.js';
 import roadworksAPI from './routes/roadworksAPI.js';
@@ -21,8 +25,29 @@ dotenv.config();
 
 console.log('🚦 BARRY Backend Starting with Memory Optimization...');
 
-// Simple working route matching function
+// Enhanced GTFS route matching function
 function findRoutesNearCoordinatesFixed(lat, lng, radiusMeters = 250) {
+  try {
+    // Use enhanced GTFS matching for accurate route detection
+    const routes = enhancedFindRoutesNearCoordinates(lat, lng, radiusMeters);
+    
+    if (routes.length > 0) {
+      console.log(`🎯 Enhanced GTFS Match: Found ${routes.length} routes near ${lat.toFixed(4)}, ${lng.toFixed(4)}: ${routes.slice(0, 5).join(', ')}`);
+      return routes;
+    }
+    
+    // Fallback to basic geographic regions if enhanced matching fails
+    console.log(`⚠️ Enhanced GTFS failed, using geographic fallback...`);
+    return basicGeographicRouteMatch(lat, lng);
+    
+  } catch (error) {
+    console.warn(`⚠️ Enhanced GTFS error: ${error.message}, using fallback`);
+    return basicGeographicRouteMatch(lat, lng);
+  }
+}
+
+// Fallback basic geographic route matching
+function basicGeographicRouteMatch(lat, lng) {
   const foundRoutes = new Set();
   
   // Geographic region-based route matching for Go North East
@@ -76,7 +101,7 @@ function findRoutesNearCoordinatesFixed(lat, lng, radiusMeters = 250) {
   const routes = Array.from(foundRoutes).sort();
   
   if (routes.length > 0) {
-    console.log(`🎯 Route Match: Found ${routes.length} routes near ${lat.toFixed(4)}, ${lng.toFixed(4)}: ${routes.slice(0, 5).join(', ')}`);
+    console.log(`🗺️ Geographic Match: Found ${routes.length} routes near ${lat.toFixed(4)}, ${lng.toFixed(4)}: ${routes.slice(0, 5).join(', ')}`);
   }
   
   return routes;
@@ -89,9 +114,14 @@ let acknowledgedAlerts = {};
 const NOTES_FILE = path.join(__dirname, 'data/notes.json');
 let alertNotes = {};
 
-// Initialize essential data
+// Initialize essential data and enhanced GTFS
 (async () => {
   try {
+    // Initialize Enhanced GTFS system first
+    console.log('🚀 Initializing Enhanced GTFS route matching system...');
+    await initializeEnhancedGTFS();
+    console.log('✅ Enhanced GTFS route matching ready');
+    
     const routesTxt = await fs.readFile(path.join(__dirname, 'data/routes.txt'), 'utf-8');
     const records = parse(routesTxt, { columns: true, skip_empty_lines: true });
     for (const rec of records) {
@@ -193,14 +223,258 @@ app.use('/api/health', healthRoutes);
 // Supervisor management routes
 app.use('/api/supervisor', supervisorAPI);
 
-// Roadworks management routes
+// Roadworks management routes  
 app.use('/api/roadworks', roadworksAPI);
 
-// Memory-optimized sample data filter
+// Supervisor dismiss alert endpoint with accountability
+app.post('/api/supervisor/dismiss-alert', async (req, res) => {
+  try {
+    const { alertId, reason, sessionId } = req.body;
+    
+    if (!alertId || !reason || !sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Alert ID, reason, and session ID are required'
+      });
+    }
+    
+    // Validate supervisor session
+    const { validateSupervisorSession } = await import('./services/supervisorManager.js');
+    const sessionValidation = validateSupervisorSession(sessionId);
+    
+    if (!sessionValidation.success) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid supervisor session'
+      });
+    }
+    
+    const supervisor = sessionValidation.supervisor;
+    
+    // Create dismissal record with full accountability
+    const dismissalRecord = {
+      alertId,
+      dismissedBy: {
+        supervisorId: supervisor.id,
+        supervisorName: supervisor.name,
+        badge: supervisor.badge || 'N/A',
+        role: supervisor.role
+      },
+      dismissedAt: new Date().toISOString(),
+      reason,
+      sessionId,
+      ipAddress: req.ip || 'unknown',
+      userAgent: req.get('User-Agent') || 'unknown'
+    };
+    
+    // Store dismissal (in production, this would go to database)
+    if (!global.dismissedIncidents) {
+      global.dismissedIncidents = new Map();
+    }
+    global.dismissedIncidents.set(alertId, dismissalRecord);
+    
+    console.log(`🙅 Alert ${alertId} dismissed by ${supervisor.name} (${supervisor.badge}): ${reason}`);
+    
+    res.json({
+      success: true,
+      dismissal: dismissalRecord,
+      message: 'Alert dismissed successfully'
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to dismiss alert:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to dismiss alert'
+    });
+  }
+});
+
+// Get dismissed alerts for audit trail
+app.get('/api/supervisor/dismissed-alerts', async (req, res) => {
+  try {
+    const dismissedAlerts = global.dismissedIncidents || new Map();
+    const dismissals = Array.from(dismissedAlerts.values())
+      .sort((a, b) => new Date(b.dismissedAt) - new Date(a.dismissedAt))
+      .slice(0, 100); // Last 100 dismissals
+    
+    res.json({
+      success: true,
+      dismissals,
+      count: dismissals.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to get dismissed alerts:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get dismissed alerts'
+    });
+  }
+});
+
+// Check if alert is dismissed
+function isAlertDismissed(alertId) {
+  if (!global.dismissedIncidents) return false;
+  return global.dismissedIncidents.has(alertId);
+}
+
+// Filter out dismissed alerts
+function filterDismissedAlerts(alerts, requestId) {
+  if (!Array.isArray(alerts)) return [];
+  
+  const activeDismissals = global.dismissedIncidents || new Map();
+  const filtered = alerts.filter(alert => {
+    if (activeDismissals.has(alert.id)) {
+      const dismissal = activeDismissals.get(alert.id);
+      console.log(`🙅 [${requestId}] Alert ${alert.id} dismissed by ${dismissal.dismissedBy.supervisorName}: ${dismissal.reason}`);
+      return false;
+    }
+    return true;
+  });
+  
+  const dismissedCount = alerts.length - filtered.length;
+  if (dismissedCount > 0) {
+    console.log(`🙅 [${requestId}] Filtered ${dismissedCount} supervisor-dismissed alerts`);
+  }
+  
+  return filtered;
+}
+
+// Enhanced alert filtering with duplicate removal and age filtering
+function enhancedAlertFiltering(alerts, requestId) {
+  if (!Array.isArray(alerts)) return [];
+  
+  console.log(`🔍 [${requestId}] Enhanced filtering starting with ${alerts.length} alerts`);
+  
+  const now = new Date();
+  const seenAlerts = new Map();
+  const filtered = [];
+  
+  for (const alert of alerts) {
+    if (!alert || typeof alert !== 'object') continue;
+    
+    // Filter out obvious test data
+    const id = (alert.id || '').toString().toLowerCase();
+    const title = (alert.title || '').toString().toLowerCase();
+    const source = (alert.source || '').toString().toLowerCase();
+    
+    if (id.includes('test_data') || id.includes('sample_test') || 
+        title.includes('test alert') || source === 'test_system') {
+      console.log(`🗑️ [${requestId}] Filtered test alert: ${id}`);
+      continue;
+    }
+    
+    // Create location-based deduplication key
+    const location = alert.location || '';
+    const coordinates = alert.coordinates;
+    let dedupKey = '';
+    
+    if (coordinates && Array.isArray(coordinates) && coordinates.length >= 2) {
+      // Round coordinates to avoid minor differences
+      const lat = Math.round(coordinates[0] * 1000) / 1000;
+      const lng = Math.round(coordinates[1] * 1000) / 1000;
+      dedupKey = `${lat},${lng}`;
+    } else {
+      // Use normalized location text
+      dedupKey = location.toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+    
+    // Check for duplicates
+    if (seenAlerts.has(dedupKey)) {
+      const existing = seenAlerts.get(dedupKey);
+      // Keep the most recent or from preferred source
+      const sourcePreference = { tomtom: 4, here: 3, mapquest: 2, national_highways: 1 };
+      const currentPref = sourcePreference[alert.source] || 0;
+      const existingPref = sourcePreference[existing.source] || 0;
+      
+      if (currentPref > existingPref) {
+        // Replace with better source
+        const existingIndex = filtered.findIndex(a => a.id === existing.id);
+        if (existingIndex !== -1) {
+          filtered[existingIndex] = alert;
+          seenAlerts.set(dedupKey, alert);
+        }
+      }
+      continue;
+    }
+    
+    seenAlerts.set(dedupKey, alert);
+    filtered.push(alert);
+  }
+  
+  console.log(`✅ [${requestId}] Enhanced filtering: ${alerts.length} → ${filtered.length} alerts (removed ${alerts.length - filtered.length} duplicates/test data)`);
+  return filtered;
+}
+
+// Auto-cancellation logic for resolved incidents
+function applyAutoCancellation(alerts, requestId) {
+  if (!Array.isArray(alerts)) return [];
+  
+  console.log(`🧹 [${requestId}] Applying auto-cancellation to ${alerts.length} alerts`);
+  
+  const now = new Date();
+  const activeAlerts = [];
+  let cancelledCount = 0;
+  
+  for (const alert of alerts) {
+    let shouldCancel = false;
+    let cancelReason = '';
+    
+    // Check 1: Age-based cancellation
+    if (alert.lastUpdated) {
+      const alertAge = now - new Date(alert.lastUpdated);
+      const maxAge = 4 * 60 * 60 * 1000; // 4 hours for traffic incidents
+      
+      if (alertAge > maxAge) {
+        shouldCancel = true;
+        cancelReason = 'Incident older than 4 hours, auto-cancelled';
+      }
+    }
+    
+    // Check 2: End time passed
+    if (alert.endTime) {
+      const endTime = new Date(alert.endTime);
+      if (now > endTime) {
+        shouldCancel = true;
+        cancelReason = 'Incident end time passed, auto-cancelled';
+      }
+    }
+    
+    // Check 3: Status-based cancellation
+    if (alert.status === 'green' || alert.status === 'resolved' || alert.status === 'cleared') {
+      shouldCancel = true;
+      cancelReason = 'Incident marked as resolved/cleared';
+    }
+    
+    // Check 4: Low severity + old
+    if (alert.severity === 'Low' && alert.lastUpdated) {
+      const alertAge = now - new Date(alert.lastUpdated);
+      const lowSeverityMaxAge = 2 * 60 * 60 * 1000; // 2 hours for low severity
+      
+      if (alertAge > lowSeverityMaxAge) {
+        shouldCancel = true;
+        cancelReason = 'Low severity incident older than 2 hours, auto-cancelled';
+      }
+    }
+    
+    if (shouldCancel) {
+      console.log(`🧹 [${requestId}] Auto-cancelled: ${alert.id} - ${cancelReason}`);
+      cancelledCount++;
+    } else {
+      activeAlerts.push(alert);
+    }
+  }
+  
+  console.log(`✅ [${requestId}] Auto-cancellation: ${alerts.length} → ${activeAlerts.length} alerts (cancelled ${cancelledCount} stale incidents)`);
+  return activeAlerts;
+}
+
+// Memory-optimized sample data filter (legacy)
 function optimizedSampleDataFilter(alerts) {
   if (!Array.isArray(alerts)) return [];
   
-  console.log(`🔍 [OPTIMIZED] Starting filter with ${alerts.length} alerts`);
+  console.log(`🔍 [LEGACY] Starting filter with ${alerts.length} alerts`);
   
   const filtered = alerts.filter(alert => {
     if (!alert || typeof alert !== 'object') return false;
@@ -218,14 +492,14 @@ function optimizedSampleDataFilter(alerts) {
     );
     
     if (isTestData) {
-      console.log(`🗑️ [OPTIMIZED] Filtered test alert: ${id}`);
+      console.log(`🗑️ [LEGACY] Filtered test alert: ${id}`);
       return false;
     }
     
     return true;
   });
   
-  console.log(`✅ [OPTIMIZED] Filter result: ${alerts.length} → ${filtered.length} alerts`);
+  console.log(`✅ [LEGACY] Filter result: ${alerts.length} → ${filtered.length} alerts`);
   return filtered;
 }
 
@@ -268,116 +542,168 @@ let cachedAlerts = null;
 let lastFetchTime = null;
 const CACHE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
-// Main alerts endpoint with memory optimization
+// ALL TRAFFIC SOURCES - Multi-source alerts endpoint with auto-cancellation
 app.get('/api/alerts-enhanced', async (req, res) => {
   const requestId = Date.now();
   
   try {
-    console.log(`🚀 [OPTIMIZED-${requestId}] Starting memory-optimized alerts fetch...`);
+    console.log(`🚀 [MULTI-SOURCE-${requestId}] Starting ALL traffic sources fetch...`);
     
     let allAlerts = [];
     const sources = {};
+    const fetchPromises = [];
     
-    // Fetch TomTom data with memory optimization
-    console.log(`🚗 [OPTIMIZED-${requestId}] Testing TomTom API...`);
-    console.log(`🔑 [OPTIMIZED-${requestId}] TomTom API Key configured: ${process.env.TOMTOM_API_KEY ? 'YES' : 'NO'}`);
+    // TOMTOM - Primary source
+    console.log(`🚗 [${requestId}] Fetching TomTom traffic...`);
+    fetchPromises.push(
+      fetchTomTomTrafficWithStreetNames()
+        .then(result => ({ source: 'tomtom', data: result }))
+        .catch(error => ({ source: 'tomtom', data: { success: false, error: error.message, data: [] } }))
+    );
     
-    try {
-      const startTime = Date.now();
-      const tomtomResult = await fetchTomTomTrafficWithStreetNames();
-      const duration = Date.now() - startTime;
+    // HERE - Secondary source
+    console.log(`🗺️ [${requestId}] Fetching HERE traffic...`);
+    fetchPromises.push(
+      fetchHERETrafficWithStreetNames()
+        .then(result => ({ source: 'here', data: result }))
+        .catch(error => ({ source: 'here', data: { success: false, error: error.message, data: [] } }))
+    );
+    
+    // MAPQUEST - Additional coverage
+    console.log(`🗺️ [${requestId}] Fetching MapQuest traffic...`);
+    fetchPromises.push(
+      fetchMapQuestTrafficWithStreetNames()
+        .then(result => ({ source: 'mapquest', data: result }))
+        .catch(error => ({ source: 'mapquest', data: { success: false, error: error.message, data: [] } }))
+    );
+    
+    // NATIONAL HIGHWAYS - Major roads
+    console.log(`🛫 [${requestId}] Fetching National Highways...`);
+    fetchPromises.push(
+      fetchNationalHighways()
+        .then(result => ({ source: 'national_highways', data: result }))
+        .catch(error => ({ source: 'national_highways', data: { success: false, error: error.message, data: [] } }))
+    );
+    
+    // Fetch all sources in parallel with timeout
+    console.log(`⏱️ [${requestId}] Fetching from ALL 4 traffic sources...`);
+    const startTime = Date.now();
+    
+    const results = await Promise.allSettled(
+      fetchPromises.map(promise => 
+        Promise.race([
+          promise,
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Source timeout')), 25000)
+          )
+        ])
+      )
+    );
+    
+    const fetchDuration = Date.now() - startTime;
+    console.log(`⚙️ [${requestId}] All sources completed in ${fetchDuration}ms`);
+    
+    // Process results from all sources
+    for (const [index, result] of results.entries()) {
+      const sourceNames = ['tomtom', 'here', 'mapquest', 'national_highways'];
+      const sourceName = sourceNames[index];
       
-      console.log(`📊 [OPTIMIZED-${requestId}] TomTom Result:`, {
-        success: tomtomResult.success,
-        dataCount: tomtomResult.data ? tomtomResult.data.length : 0,
-        error: tomtomResult.error,
-        duration: `${duration}ms`
-      });
-      
-      if (tomtomResult.success && tomtomResult.data && tomtomResult.data.length > 0) {
-        allAlerts.push(...tomtomResult.data);
-        sources.tomtom = {
-          success: true,
-          count: tomtomResult.data.length,
-          method: 'Memory-optimized with route matching',
-          mode: 'live',
-          duration: `${duration}ms`
-        };
-        console.log(`✅ [OPTIMIZED-${requestId}] TomTom: ${tomtomResult.data.length} alerts fetched successfully`);
+      if (result.status === 'fulfilled' && result.value?.data) {
+        const sourceResult = result.value.data;
+        
+        if (sourceResult.success && sourceResult.data && sourceResult.data.length > 0) {
+          allAlerts.push(...sourceResult.data);
+          sources[sourceName] = {
+            success: true,
+            count: sourceResult.data.length,
+            method: sourceResult.method || 'API',
+            mode: 'live'
+          };
+          console.log(`✅ [${requestId}] ${sourceName.toUpperCase()}: ${sourceResult.data.length} alerts`);
+        } else {
+          sources[sourceName] = {
+            success: false,
+            count: 0,
+            error: sourceResult.error || 'No data returned',
+            mode: 'live'
+          };
+          console.log(`⚠️ [${requestId}] ${sourceName.toUpperCase()}: No alerts`);
+        }
       } else {
-        sources.tomtom = {
+        sources[sourceName] = {
           success: false,
           count: 0,
-          error: tomtomResult.error || 'No data returned',
-          mode: 'live',
-          duration: `${duration}ms`
+          error: result.reason?.message || 'Fetch failed',
+          mode: 'live'
         };
-        console.log(`⚠️ [OPTIMIZED-${requestId}] TomTom: No alerts returned`);
+        console.log(`❌ [${requestId}] ${sourceName.toUpperCase()}: Failed - ${result.reason?.message}`);
       }
-    } catch (tomtomError) {
-      console.error(`❌ [OPTIMIZED-${requestId}] TomTom fetch failed:`, tomtomError.message);
-      sources.tomtom = {
-        success: false,
-        count: 0,
-        error: tomtomError.message,
-        mode: 'live'
-      };
     }
     
-    console.log(`📊 [OPTIMIZED-${requestId}] Raw alerts collected: ${allAlerts.length}`);
+    console.log(`📊 [${requestId}] Raw alerts collected from ALL sources: ${allAlerts.length}`);
     
-    // Optimized filtering
-    const filteredAlerts = optimizedSampleDataFilter(allAlerts);
+    // Enhanced filtering - remove duplicates, test data, and apply supervisor dismissals
+    let filteredAlerts = enhancedAlertFiltering(allAlerts, requestId);
+    filteredAlerts = filterDismissedAlerts(filteredAlerts, requestId);
     
-    // Memory-optimized processing
+    // Memory-optimized processing with enhanced GTFS
     let enhancedAlerts = [];
     if (filteredAlerts.length > 0) {
       try {
-        console.log(`🔄 [OPTIMIZED-${requestId}] Processing alerts with memory optimization...`);
+        console.log(`🔄 [${requestId}] Processing alerts with enhanced GTFS matching...`);
         enhancedAlerts = await processAlertsOptimized(filteredAlerts);
-        console.log(`✅ [OPTIMIZED-${requestId}] Processing complete: ${enhancedAlerts.length} alerts`);
+        console.log(`✅ [${requestId}] Processing complete: ${enhancedAlerts.length} alerts`);
       } catch (enhancementError) {
-        console.error(`❌ [OPTIMIZED-${requestId}] Processing failed:`, enhancementError.message);
+        console.error(`❌ [${requestId}] Processing failed:`, enhancementError.message);
         enhancedAlerts = filteredAlerts;
       }
     }
     
-    // Generate statistics
+    // Apply auto-cancellation logic
+    const activeAlerts = applyAutoCancellation(enhancedAlerts, requestId);
+    
+    // Generate comprehensive statistics
     const stats = {
-      totalAlerts: enhancedAlerts.length,
-      activeAlerts: enhancedAlerts.filter(a => a.status === 'red').length,
-      alertsWithRoutes: enhancedAlerts.filter(a => a.affectsRoutes && a.affectsRoutes.length > 0).length,
-      averageRoutesPerAlert: enhancedAlerts.length > 0 ?
-        (enhancedAlerts.reduce((sum, a) => sum + (a.affectsRoutes?.length || 0), 0) / enhancedAlerts.length).toFixed(1) : 0
+      totalAlerts: activeAlerts.length,
+      activeAlerts: activeAlerts.filter(a => a.status === 'red').length,
+      alertsWithRoutes: activeAlerts.filter(a => a.affectsRoutes && a.affectsRoutes.length > 0).length,
+      averageRoutesPerAlert: activeAlerts.length > 0 ?
+        (activeAlerts.reduce((sum, a) => sum + (a.affectsRoutes?.length || 0), 0) / activeAlerts.length).toFixed(1) : 0,
+      sourceBreakdown: sources,
+      enhancedGTFS: activeAlerts.filter(a => a.routeMatchMethod?.includes('Enhanced')).length,
+      autoCancelled: enhancedAlerts.length - activeAlerts.length
     };
     
     const response = {
       success: true,
-      alerts: enhancedAlerts,
+      alerts: activeAlerts,
       metadata: {
         requestId,
-        totalAlerts: enhancedAlerts.length,
+        totalAlerts: activeAlerts.length,
         sources,
         statistics: stats,
         lastUpdated: new Date().toISOString(),
-        enhancement: 'Memory-optimized with working route matching',
-        mode: 'memory_optimized_fixed',
+        enhancement: 'Multi-source with Enhanced GTFS + Auto-cancellation',
+        mode: 'all_traffic_sources',
         debug: {
           processingDuration: `${Date.now() - requestId}ms`,
-          memoryOptimized: true,
-          routeMatchingFixed: true
+          sourcesActive: Object.keys(sources).filter(s => sources[s].success).length,
+          totalSources: 4,
+          enhancedGTFS: true,
+          autoCancellation: true
         }
       }
     };
     
-    console.log(`🎯 [OPTIMIZED-${requestId}] FINAL RESULT: Returning ${enhancedAlerts.length} alerts`);
-    console.log(`📊 [OPTIMIZED-${requestId}] Alerts with routes: ${stats.alertsWithRoutes}/${enhancedAlerts.length}`);
-    console.log(`⏱️ [OPTIMIZED-${requestId}] Total processing time: ${Date.now() - requestId}ms`);
+    console.log(`🎯 [${requestId}] FINAL RESULT: ${activeAlerts.length} alerts from ${Object.keys(sources).filter(s => sources[s].success).length}/4 sources`);
+    console.log(`📊 [${requestId}] Enhanced GTFS matches: ${stats.enhancedGTFS}/${activeAlerts.length}`);
+    console.log(`🧹 [${requestId}] Auto-cancelled: ${stats.autoCancelled} stale incidents`);
+    console.log(`⏱️ [${requestId}] Total processing time: ${Date.now() - requestId}ms`);
     
     res.json(response);
     
   } catch (error) {
-    console.error(`❌ [OPTIMIZED-${requestId}] Critical error:`, error);
+    console.error(`❌ [${requestId}] Critical multi-source error:`, error);
     
     const emergencyResponse = {
       success: false,
@@ -385,7 +711,7 @@ app.get('/api/alerts-enhanced', async (req, res) => {
       metadata: {
         requestId,
         totalAlerts: 0,
-        sources: { error: 'Critical endpoint failure' },
+        sources: { error: 'Multi-source endpoint failure' },
         error: error.message,
         timestamp: new Date().toISOString(),
         mode: 'emergency_fallback'
@@ -526,11 +852,19 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🌐 Public: https://go-barry.onrender.com`);
   console.log(`\n📡 Available Endpoints:`);
   console.log(`   🎯 Main: /api/alerts`);
-  console.log(`   🚀 Enhanced: /api/alerts-enhanced`);
+  console.log(`   🚀 Enhanced (ALL SOURCES): /api/alerts-enhanced`);
   console.log(`   🚨 Emergency: /api/emergency-alerts`);
   console.log(`   💚 Health: /api/health`);
   console.log(`   👮 Supervisor: /api/supervisor`);
+  console.log(`   🙅 Dismiss Alert: /api/supervisor/dismiss-alert`);
   console.log(`   🚧 Roadworks: /api/roadworks`);
+  console.log(`\n🌟 FEATURES ACTIVE:`);
+  console.log(`   ✅ Multi-Source Traffic (TomTom + HERE + MapQuest + National Highways)`);
+  console.log(`   ✅ Enhanced GTFS Route Matching`);
+  console.log(`   ✅ Auto-Cancellation of Stale Incidents`);
+  console.log(`   ✅ Supervisor Dismiss with Accountability`);
+  console.log(`   ✅ Smart Duplicate Removal`);
+  console.log(`   ✅ Roadworks Management System`);
 });
 
 export default app;
