@@ -27,6 +27,7 @@ const DisplayScreen = () => {
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [acknowledgedAlerts, setAcknowledgedAlerts] = useState(new Set());
+  const [wsConnected, setWsConnected] = useState(false);
 
   // Update time every second
   useEffect(() => {
@@ -34,6 +35,47 @@ const DisplayScreen = () => {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // WebSocket connection for supervisor-sync
+  useEffect(() => {
+    const ws = new WebSocket('wss://go-barry.onrender.com/ws/supervisor-sync');
+
+    ws.onopen = () => {
+      console.log('Display connected to WebSocket');
+      setWsConnected(true);
+      ws.send(JSON.stringify({ type: 'auth', clientType: 'display' }));
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      if (data.type === 'sync_state') {
+        console.log('Received sync state:', data.payload);
+        // Optionally update local acknowledgedAlerts, priorityOverrides, etc.
+        // Example: If payload includes acknowledgedAlerts array:
+        // setAcknowledgedAlerts(new Set(data.payload.acknowledgedAlerts || []));
+      }
+
+      if (data.type === 'alert_update' || data.type === 'broadcast_message') {
+        console.log('Received update:', data);
+        // Trigger an API refresh to pull latest alerts and state
+        refreshAlerts();
+      }
+    };
+
+    ws.onclose = () => {
+      console.log('WebSocket connection closed');
+      setWsConnected(false);
+    };
+
+    ws.onerror = (err) => {
+      console.error('WebSocket error:', err);
+    };
+
+    return () => {
+      ws.close();
+    };
   }, []);
 
   const formatTime = (date) => {
