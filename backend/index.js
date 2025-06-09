@@ -16,6 +16,7 @@ import { fetchMapQuestTrafficWithStreetNames } from './services/mapquest.js';
 import { fetchNationalHighways } from './services/nationalHighways.js';
 import { initializeEnhancedGTFS, enhancedFindRoutesNearCoordinates } from './enhanced-gtfs-route-matcher.js';
 import healthRoutes from './routes/health.js';
+import healthExtendedRouter from './routes/healthExtended.js';
 import supervisorAPI from './routes/supervisorAPI.js';
 import roadworksAPI from './routes/roadworksAPI.js';
 import supervisorSyncService from './services/supervisorSync.js';
@@ -246,6 +247,7 @@ app.use((req, res, next) => {
 
 // Health endpoint
 app.use('/api/health', healthRoutes);
+app.use('/api/health-extended', healthExtendedRouter);
 
 // Supervisor management routes
 app.use('/api/supervisor', supervisorAPI);
@@ -879,6 +881,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`   🚀 Enhanced (DISPLAY SCREEN): /api/alerts-enhanced`);
   console.log(`   🚨 Emergency: /api/emergency-alerts`);
   console.log(`   💚 Health: /api/health`);
+  console.log(`   🧑‍⚕️ Health Extended: /api/health-extended`);
   console.log(`   👮 Supervisor: /api/supervisor`);
   console.log(`   🙅 Dismiss Alert: /api/supervisor/dismiss-alert`);
   console.log(`   🚧 Roadworks: /api/roadworks`);
