@@ -885,7 +885,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`   👮 Supervisor: /api/supervisor`);
   console.log(`   🙅 Dismiss Alert: /api/supervisor/dismiss-alert`);
   console.log(`   🚧 Roadworks: /api/roadworks`);
-  console.log(`   🔌 WebSocket: ws://localhost:${PORT}/ws/supervisor-sync`);
+  console.log(`   🔌 WebSocket: wss://go-barry.onrender.com/ws/supervisor-sync`);
   console.log(`   📊 Sync Status: /api/supervisor/sync-status`);
   console.log(`\n🌟 FIXES APPLIED:`);
   console.log(`   ✅ CORS properly configured for gobarry.co.uk and www.gobarry.co.uk`);
