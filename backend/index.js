@@ -18,6 +18,8 @@ import { initializeEnhancedGTFS, enhancedFindRoutesNearCoordinates } from './enh
 import healthRoutes from './routes/health.js';
 import supervisorAPI from './routes/supervisorAPI.js';
 import roadworksAPI from './routes/roadworksAPI.js';
+import supervisorSyncService from './services/supervisorSync.js';
+import { createServer } from 'http';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -143,6 +145,9 @@ let alertNotes = {};
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Create HTTP server for WebSocket support
+const server = createServer(app);
 
 console.log(`
 🔧 FIXED CONFIGURATION:
@@ -832,8 +837,40 @@ app.get('/api/supervisor/dismissed-alerts', async (req, res) => {
   }
 });
 
-// Start server
-app.listen(PORT, '0.0.0.0', () => {
+// Initialize WebSocket service
+supervisorSyncService.initialize(server);
+
+// WebSocket sync endpoint for getting current state
+app.get('/api/supervisor/sync-status', (req, res) => {
+  const stats = supervisorSyncService.getStats();
+  res.json({
+    success: true,
+    syncStatus: stats,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Endpoint to update alerts in WebSocket service
+app.post('/api/supervisor/sync-alerts', async (req, res) => {
+  try {
+    const { alerts } = req.body;
+    supervisorSyncService.updateAlerts(alerts);
+    res.json({
+      success: true,
+      message: 'Alerts synced to display screens',
+      alertCount: alerts.length
+    });
+  } catch (error) {
+    console.error('❌ Failed to sync alerts:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to sync alerts'
+    });
+  }
+});
+
+// Start server with WebSocket support
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`\n🚦 BARRY Backend Started with FIXED CORS and Rate Limiting`);
   console.log(`📡 Server: http://localhost:${PORT}`);
   console.log(`🌐 Public: https://go-barry.onrender.com`);
@@ -845,6 +882,8 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`   👮 Supervisor: /api/supervisor`);
   console.log(`   🙅 Dismiss Alert: /api/supervisor/dismiss-alert`);
   console.log(`   🚧 Roadworks: /api/roadworks`);
+  console.log(`   🔌 WebSocket: ws://localhost:${PORT}/ws/supervisor-sync`);
+  console.log(`   📊 Sync Status: /api/supervisor/sync-status`);
   console.log(`\n🌟 FIXES APPLIED:`);
   console.log(`   ✅ CORS properly configured for gobarry.co.uk and www.gobarry.co.uk`);
   console.log(`   ✅ Rate limiting increased from 3 to 10 concurrent requests`);
