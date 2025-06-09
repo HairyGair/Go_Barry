@@ -1,7 +1,8 @@
 // Go_BARRY/components/SupervisorControl.jsx
-// Supervisor Control Panel for managing display screens in real-time
+// Enhanced Supervisor Control Panel using shared WebSocket hook
+// Real-time control of display screens with improved state management
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,11 +13,10 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
-  Switch,
   Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { API_CONFIG } from '../config/api';
+import { useSupervisorSync, CONNECTION_STATES } from './hooks/useSupervisorSync';
 
 const isWeb = Platform.OS === 'web';
 
@@ -27,312 +27,112 @@ const SupervisorControl = ({
   alerts = [],
   onClose
 }) => {
-  // WebSocket connection
-  const ws = useRef(null);
-  const reconnectTimeout = useRef(null);
-  const reconnectAttempts = useRef(0);
-  
-  // Connection state
-  const [isConnected, setIsConnected] = useState(false);
-  const [connectedDisplays, setConnectedDisplays] = useState(0);
-  const [syncStatus, setSyncStatus] = useState({
-    acknowledgedAlerts: 0,
-    priorityOverrides: 0,
-    supervisorNotes: 0,
-    customMessages: 0,
-    activeMode: 'normal'
+  // Use the shared WebSocket hook
+  const {
+    connectionState,
+    isConnected,
+    lastError,
+    connectionStats,
+    acknowledgedAlerts,
+    priorityOverrides,
+    supervisorNotes,
+    customMessages,
+    activeMode,
+    connectedDisplays,
+    acknowledgeAlert,
+    updateAlertPriority,
+    addNoteToAlert,
+    broadcastMessage,
+    setDisplayMode,
+    updateAlerts,
+    clearError
+  } = useSupervisorSync({
+    clientType: 'supervisor',
+    supervisorId,
+    sessionId,
+    autoConnect: true,
+    onConnectionChange: (connected) => {
+      console.log(`🔌 Supervisor ${supervisorName} connection:`, connected ? 'Connected' : 'Disconnected');
+    },
+    onError: (error) => {
+      console.error('❌ Supervisor WebSocket error:', error);
+      showNotification(`Connection error: ${error}`, 'error');
+    }
   });
-  
+
   // UI state
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
-  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastMessageText, setBroadcastMessageText] = useState('');
   const [broadcastPriority, setBroadcastPriority] = useState('info');
-  const [displayMode, setDisplayMode] = useState('normal');
-  const [loading, setLoading] = useState(true);
-  const [connectionError, setConnectionError] = useState(null);
-  
-  // Alert management state
-  const [acknowledgedAlerts, setAcknowledgedAlerts] = useState(new Set());
-  const [alertPriorities, setAlertPriorities] = useState(new Map());
-  const [alertNotes, setAlertNotes] = useState(new Map());
-  
-  // WebSocket URL
-  const getWebSocketUrl = () => {
-    const baseUrl = API_CONFIG.baseURL.replace('http://', '').replace('https://', '');
-    const protocol = API_CONFIG.baseURL.startsWith('https') ? 'wss' : 'ws';
-    return `${protocol}://${baseUrl}/ws/supervisor-sync`;
-  };
+  const [loading, setLoading] = useState(false);
 
-  // Connect to WebSocket
-  const connectWebSocket = useCallback(() => {
-    if (ws.current?.readyState === WebSocket.OPEN) return;
-    
-    try {
-      const wsUrl = getWebSocketUrl();
-      console.log('🔌 Connecting to WebSocket:', wsUrl);
-      
-      ws.current = new WebSocket(wsUrl);
-      
-      ws.current.onopen = () => {
-        console.log('✅ WebSocket connected');
-        setIsConnected(true);
-        setConnectionError(null);
-        reconnectAttempts.current = 0;
-        
-        // Authenticate
-        ws.current.send(JSON.stringify({
-          type: 'auth',
-          clientType: 'supervisor',
-          supervisorId,
-          sessionId
-        }));
-      };
-      
-      ws.current.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          handleWebSocketMessage(data);
-        } catch (error) {
-          console.error('❌ Failed to parse WebSocket message:', error);
-        }
-      };
-      
-      ws.current.onerror = (error) => {
-        console.error('❌ WebSocket error:', error);
-        setConnectionError('Connection error occurred');
-      };
-      
-      ws.current.onclose = () => {
-        console.log('🔌 WebSocket disconnected');
-        setIsConnected(false);
-        setConnectedDisplays(0);
-        
-        // Attempt reconnection
-        if (reconnectAttempts.current < 5) {
-          reconnectAttempts.current++;
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000);
-          console.log(`🔄 Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current})`);
-          
-          reconnectTimeout.current = setTimeout(() => {
-            connectWebSocket();
-          }, delay);
-        } else {
-          setConnectionError('Unable to maintain connection. Please refresh.');
-        }
-      };
-    } catch (error) {
-      console.error('❌ Failed to create WebSocket:', error);
-      setConnectionError('Failed to establish connection');
+  // Sync alerts when they change
+  useEffect(() => {
+    if (isConnected && alerts.length > 0) {
+      updateAlerts(alerts);
     }
-  }, [supervisorId, sessionId]);
+  }, [alerts, isConnected, updateAlerts]);
 
-  // Handle incoming WebSocket messages
-  const handleWebSocketMessage = (data) => {
-    console.log('📨 WebSocket message:', data.type);
-    
-    switch (data.type) {
-      case 'welcome':
-        console.log('👋 Connected with ID:', data.clientId);
-        // Request current state
-        ws.current.send(JSON.stringify({ type: 'request_state' }));
-        break;
-        
-      case 'auth_success':
-        console.log('✅ Authentication successful');
-        setLoading(false);
-        setConnectedDisplays(data.connectedDisplays || 0);
-        if (data.currentState) {
-          updateSyncState(data.currentState);
-        }
-        break;
-        
-      case 'auth_failed':
-        console.error('❌ Authentication failed:', data.error);
-        setConnectionError('Authentication failed. Please login again.');
-        if (onClose) onClose();
-        break;
-        
-      case 'state_update':
-        updateSyncState(data.state);
-        break;
-        
-      case 'display_connected':
-        setConnectedDisplays(data.displayCount);
-        showNotification('Display screen connected', 'success');
-        break;
-        
-      case 'display_disconnected':
-        setConnectedDisplays(data.remainingDisplays);
-        showNotification('Display screen disconnected', 'warning');
-        break;
-        
-      case 'alert_acknowledged':
-        handleAlertAcknowledged(data);
-        break;
-        
-      case 'priority_updated':
-        handlePriorityUpdated(data);
-        break;
-        
-      case 'note_added':
-        handleNoteAdded(data);
-        break;
-        
-      case 'mode_changed':
-        setDisplayMode(data.mode);
-        showNotification(`Display mode changed to ${data.mode}`, 'info');
-        break;
-        
-      case 'error':
-        console.error('❌ Server error:', data.error);
-        showNotification(data.error, 'error');
-        break;
-        
-      case 'pong':
-        // Keep-alive response
-        break;
-        
-      default:
-        console.log('⚠️ Unknown message type:', data.type);
-    }
-  };
-
-  // Update sync state from server
-  const updateSyncState = (state) => {
-    if (state.acknowledgedAlerts) {
-      setAcknowledgedAlerts(new Set(state.acknowledgedAlerts));
-    }
-    
-    if (state.priorityOverrides) {
-      const overrides = new Map(Object.entries(state.priorityOverrides));
-      setAlertPriorities(overrides);
-    }
-    
-    if (state.supervisorNotes) {
-      const notes = new Map(Object.entries(state.supervisorNotes));
-      setAlertNotes(notes);
-    }
-    
-    setSyncStatus({
-      acknowledgedAlerts: state.acknowledgedAlerts?.length || 0,
-      priorityOverrides: Object.keys(state.priorityOverrides || {}).length,
-      supervisorNotes: Object.keys(state.supervisorNotes || {}).length,
-      customMessages: state.customMessages?.length || 0,
-      activeMode: state.activeMode || 'normal',
-      connectedSupervisors: state.connectedSupervisors || 0,
-      connectedDisplays: state.connectedDisplays || 0
-    });
-    
-    setDisplayMode(state.activeMode || 'normal');
-    setConnectedDisplays(state.connectedDisplays || 0);
-  };
-
-  // Handle alert acknowledged
-  const handleAlertAcknowledged = (data) => {
-    setAcknowledgedAlerts(prev => new Set([...prev, data.alertId]));
-    if (data.notes) {
-      setAlertNotes(prev => new Map(prev).set(data.alertId, {
-        note: data.notes,
-        supervisorId: data.supervisorId,
-        timestamp: data.timestamp
-      }));
-    }
-  };
-
-  // Handle priority updated
-  const handlePriorityUpdated = (data) => {
-    setAlertPriorities(prev => new Map(prev).set(data.alertId, {
-      priority: data.priority,
-      reason: data.reason,
-      supervisorId: data.supervisorId,
-      timestamp: data.timestamp
-    }));
-  };
-
-  // Handle note added
-  const handleNoteAdded = (data) => {
-    setAlertNotes(prev => new Map(prev).set(data.alertId, {
-      note: data.note,
-      supervisorId: data.supervisorId,
-      timestamp: data.timestamp
-    }));
-  };
-
-  // Send WebSocket message
-  const sendMessage = (message) => {
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify(message));
-      return true;
-    } else {
-      showNotification('Not connected to server', 'error');
-      return false;
-    }
-  };
-
-  // Acknowledge alert
-  const acknowledgeAlert = (alert) => {
-    if (!alert) return;
-    
+  // Show notification helper
+  const showNotification = useCallback((message, type = 'info') => {
     if (isWeb) {
-      const reason = prompt('Reason for acknowledging this alert:');
-      if (!reason) return;
-      
-      const notes = prompt('Additional notes (optional):');
-      
-      if (sendMessage({
-        type: 'acknowledge_alert',
-        alertId: alert.id,
-        reason,
-        notes
-      })) {
-        showNotification('Alert acknowledged', 'success');
-      }
+      console.log(`[${type.toUpperCase()}] ${message}`);
+      // Could integrate with toast library here
     } else {
-      // Mobile implementation would use a modal
       Alert.alert(
-        'Acknowledge Alert',
-        'Please provide a reason for acknowledging this alert',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Acknowledge', 
-            onPress: () => {
-              sendMessage({
-                type: 'acknowledge_alert',
-                alertId: alert.id,
-                reason: 'Acknowledged via mobile',
-                notes: ''
-              });
-            }
-          }
-        ]
+        type === 'error' ? 'Error' : 'Notification',
+        message
       );
     }
-  };
+  }, []);
 
-  // Update alert priority
-  const updateAlertPriority = (alert, newPriority) => {
+  // Handle alert acknowledgment
+  const handleAcknowledgeAlert = useCallback(async (alert) => {
     if (!alert) return;
     
     const reason = isWeb 
+      ? prompt('Reason for acknowledging this alert:')
+      : 'Acknowledged via mobile';
+      
+    if (!reason) return;
+    
+    const notes = isWeb ? prompt('Additional notes (optional):') : '';
+    
+    setLoading(true);
+    const success = acknowledgeAlert(alert.id, reason, notes);
+    setLoading(false);
+    
+    if (success) {
+      showNotification('Alert acknowledged successfully', 'success');
+    } else {
+      showNotification('Failed to acknowledge alert', 'error');
+    }
+  }, [acknowledgeAlert, showNotification]);
+
+  // Handle priority update
+  const handleUpdatePriority = useCallback(async (alert, newPriority) => {
+    if (!alert) return;
+    
+    const reason = isWeb
       ? prompt('Reason for changing priority:')
       : 'Priority updated via mobile';
       
     if (!reason) return;
     
-    if (sendMessage({
-      type: 'update_priority',
-      alertId: alert.id,
-      priority: newPriority,
-      reason
-    })) {
+    setLoading(true);
+    const success = updateAlertPriority(alert.id, newPriority, reason);
+    setLoading(false);
+    
+    if (success) {
       showNotification(`Priority updated to ${newPriority}`, 'success');
+    } else {
+      showNotification('Failed to update priority', 'error');
     }
-  };
+  }, [updateAlertPriority, showNotification]);
 
-  // Add note to alert
-  const addNoteToAlert = (alert) => {
+  // Handle adding note
+  const handleAddNote = useCallback(async (alert) => {
     if (!alert) return;
     
     const note = isWeb
@@ -341,118 +141,99 @@ const SupervisorControl = ({
       
     if (!note) return;
     
-    if (sendMessage({
-      type: 'add_note',
-      alertId: alert.id,
-      note
-    })) {
-      showNotification('Note added', 'success');
+    setLoading(true);
+    const success = addNoteToAlert(alert.id, note);
+    setLoading(false);
+    
+    if (success) {
+      showNotification('Note added successfully', 'success');
+    } else {
+      showNotification('Failed to add note', 'error');
     }
-  };
+  }, [addNoteToAlert, showNotification]);
 
-  // Broadcast custom message
-  const broadcastCustomMessage = () => {
-    if (!broadcastMessage.trim()) {
+  // Handle broadcast message
+  const handleBroadcastMessage = useCallback(async () => {
+    if (!broadcastMessageText.trim()) {
       showNotification('Please enter a message', 'error');
       return;
     }
     
     const duration = broadcastPriority === 'critical' ? 60000 : 30000;
     
-    if (sendMessage({
-      type: 'broadcast_message',
-      message: broadcastMessage,
-      priority: broadcastPriority,
-      duration
-    })) {
+    setLoading(true);
+    const success = broadcastMessage(broadcastMessageText, broadcastPriority, duration);
+    setLoading(false);
+    
+    if (success) {
       showNotification('Message broadcast to all displays', 'success');
-      setBroadcastMessage('');
+      setBroadcastMessageText('');
       setShowBroadcastModal(false);
+    } else {
+      showNotification('Failed to broadcast message', 'error');
     }
-  };
+  }, [broadcastMessage, broadcastMessageText, broadcastPriority, showNotification]);
 
-  // Change display mode
-  const changeDisplayMode = (newMode) => {
+  // Handle display mode change
+  const handleModeChange = useCallback(async (newMode) => {
     const reason = isWeb
       ? prompt(`Reason for changing to ${newMode} mode:`)
       : `Mode changed to ${newMode}`;
       
     if (!reason) return;
     
-    if (sendMessage({
-      type: 'set_mode',
-      mode: newMode,
-      reason
-    })) {
-      setDisplayMode(newMode);
+    setLoading(true);
+    const success = setDisplayMode(newMode, reason);
+    setLoading(false);
+    
+    if (success) {
       showNotification(`Display mode changed to ${newMode}`, 'success');
-    }
-  };
-
-  // Show notification
-  const showNotification = (message, type = 'info') => {
-    if (isWeb) {
-      // Web notification
-      console.log(`[${type.toUpperCase()}] ${message}`);
     } else {
-      // Mobile notification
-      Alert.alert(
-        type === 'error' ? 'Error' : 'Notification',
-        message
-      );
+      showNotification('Failed to change display mode', 'error');
     }
-  };
+  }, [setDisplayMode, showNotification]);
 
-  // Initialize WebSocket connection
-  useEffect(() => {
-    connectWebSocket();
-    
-    // Ping interval
-    const pingInterval = setInterval(() => {
-      if (ws.current?.readyState === WebSocket.OPEN) {
-        ws.current.send(JSON.stringify({ type: 'ping' }));
-      }
-    }, 30000);
-    
-    return () => {
-      clearInterval(pingInterval);
-      if (reconnectTimeout.current) {
-        clearTimeout(reconnectTimeout.current);
-      }
-      if (ws.current) {
-        ws.current.close();
+  // Connection status component
+  const ConnectionStatus = () => {
+    const getStatusColor = () => {
+      switch (connectionState) {
+        case CONNECTION_STATES.CONNECTED: return '#10B981';
+        case CONNECTION_STATES.CONNECTING: return '#F59E0B';
+        case CONNECTION_STATES.RECONNECTING: return '#F59E0B';
+        case CONNECTION_STATES.ERROR: return '#EF4444';
+        default: return '#6B7280';
       }
     };
-  }, [connectWebSocket]);
 
-  // Sync alerts when they change
-  useEffect(() => {
-    if (isConnected && alerts.length > 0) {
-      sendMessage({
-        type: 'update_alerts',
-        alerts
-      });
-    }
-  }, [alerts, isConnected]);
+    const getStatusText = () => {
+      switch (connectionState) {
+        case CONNECTION_STATES.CONNECTED: return `Connected • ${connectedDisplays} display${connectedDisplays !== 1 ? 's' : ''}`;
+        case CONNECTION_STATES.CONNECTING: return 'Connecting...';
+        case CONNECTION_STATES.RECONNECTING: return `Reconnecting... (${connectionStats.reconnectAttempts})`;
+        case CONNECTION_STATES.ERROR: return 'Connection Error';
+        default: return 'Disconnected';
+      }
+    };
 
-  // Connection status indicator
-  const ConnectionStatus = () => (
-    <View style={styles.connectionStatus}>
-      <View style={[styles.statusDot, { backgroundColor: isConnected ? '#10B981' : '#EF4444' }]} />
-      <Text style={styles.connectionText}>
-        {isConnected ? `Connected • ${connectedDisplays} display${connectedDisplays !== 1 ? 's' : ''}` : 'Disconnected'}
-      </Text>
-      {connectionError && (
-        <Text style={styles.errorText}>{connectionError}</Text>
-      )}
-    </View>
-  );
+    return (
+      <View style={styles.connectionStatus}>
+        <View style={[styles.statusDot, { backgroundColor: getStatusColor() }]} />
+        <Text style={styles.connectionText}>{getStatusText()}</Text>
+        {lastError && (
+          <TouchableOpacity onPress={clearError} style={styles.errorButton}>
+            <Text style={styles.errorText}>{lastError}</Text>
+            <Ionicons name="close-circle" size={16} color="#EF4444" />
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
 
   // Alert control panel
   const AlertControlPanel = ({ alert }) => {
     const isAcknowledged = acknowledgedAlerts.has(alert.id);
-    const priority = alertPriorities.get(alert.id);
-    const note = alertNotes.get(alert.id);
+    const priority = priorityOverrides.get(alert.id);
+    const note = supervisorNotes.get(alert.id);
     
     return (
       <View style={styles.alertPanel}>
@@ -463,7 +244,7 @@ const SupervisorControl = ({
           {!isAcknowledged ? (
             <TouchableOpacity
               style={[styles.actionButton, styles.acknowledgeButton]}
-              onPress={() => acknowledgeAlert(alert)}
+              onPress={() => handleAcknowledgeAlert(alert)}
             >
               <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
               <Text style={styles.actionButtonText}>Acknowledge</Text>
@@ -477,7 +258,7 @@ const SupervisorControl = ({
           
           <TouchableOpacity
             style={[styles.actionButton, styles.noteButton]}
-            onPress={() => addNoteToAlert(alert)}
+            onPress={() => handleAddNote(alert)}
           >
             <Ionicons name="create" size={20} color="#FFFFFF" />
             <Text style={styles.actionButtonText}>Add Note</Text>
@@ -495,7 +276,7 @@ const SupervisorControl = ({
                   priority?.priority === level && styles.priorityButtonActive,
                   { backgroundColor: getPriorityColor(level) }
                 ]}
-                onPress={() => updateAlertPriority(alert, level)}
+                onPress={() => handleUpdatePriority(alert, level)}
               >
                 <Text style={styles.priorityButtonText}>{level}</Text>
               </TouchableOpacity>
@@ -511,17 +292,6 @@ const SupervisorControl = ({
         )}
       </View>
     );
-  };
-
-  // Get priority color
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'CRITICAL': return '#DC2626';
-      case 'HIGH': return '#F59E0B';
-      case 'MEDIUM': return '#3B82F6';
-      case 'LOW': return '#10B981';
-      default: return '#6B7280';
-    }
   };
 
   // Broadcast modal
@@ -544,8 +314,8 @@ const SupervisorControl = ({
           <TextInput
             style={styles.broadcastInput}
             placeholder="Enter message to broadcast to all displays..."
-            value={broadcastMessage}
-            onChangeText={setBroadcastMessage}
+            value={broadcastMessageText}
+            onChangeText={setBroadcastMessageText}
             multiline
             numberOfLines={3}
             placeholderTextColor="#9CA3AF"
@@ -576,7 +346,7 @@ const SupervisorControl = ({
           
           <TouchableOpacity
             style={[styles.broadcastButton, { backgroundColor: getPriorityColor(broadcastPriority.toUpperCase()) }]}
-            onPress={broadcastCustomMessage}
+            onPress={handleBroadcastMessage}
           >
             <Ionicons name="megaphone" size={20} color="#FFFFFF" />
             <Text style={styles.broadcastButtonText}>Broadcast Message</Text>
@@ -633,13 +403,13 @@ const SupervisorControl = ({
               key={mode}
               style={[
                 styles.modeButton,
-                displayMode === mode && styles.modeButtonActive
+                activeMode === mode && styles.modeButtonActive
               ]}
-              onPress={() => changeDisplayMode(mode)}
+              onPress={() => handleModeChange(mode)}
             >
               <Text style={[
                 styles.modeButtonText,
-                displayMode === mode && styles.modeButtonTextActive
+                activeMode === mode && styles.modeButtonTextActive
               ]}>
                 {mode.toUpperCase()}
               </Text>
@@ -650,19 +420,19 @@ const SupervisorControl = ({
 
       <View style={styles.statsBar}>
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>{syncStatus.acknowledgedAlerts}</Text>
+          <Text style={styles.statValue}>{acknowledgedAlerts.size}</Text>
           <Text style={styles.statLabel}>Acknowledged</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>{syncStatus.priorityOverrides}</Text>
+          <Text style={styles.statValue}>{priorityOverrides.size}</Text>
           <Text style={styles.statLabel}>Overrides</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>{syncStatus.supervisorNotes}</Text>
+          <Text style={styles.statValue}>{supervisorNotes.size}</Text>
           <Text style={styles.statLabel}>Notes</Text>
         </View>
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>{syncStatus.customMessages}</Text>
+          <Text style={styles.statValue}>{customMessages.length}</Text>
           <Text style={styles.statLabel}>Messages</Text>
         </View>
       </View>
@@ -689,10 +459,10 @@ const SupervisorControl = ({
                       <Ionicons name="checkmark-circle" size={16} color="#059669" />
                     </View>
                   )}
-                  {alertPriorities.has(alert.id) && (
-                    <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(alertPriorities.get(alert.id)?.priority) }]}>
+                  {priorityOverrides.has(alert.id) && (
+                    <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(priorityOverrides.get(alert.id)?.priority) }]}>
                       <Text style={styles.priorityBadgeText}>
-                        {alertPriorities.get(alert.id)?.priority}
+                        {priorityOverrides.get(alert.id)?.priority}
                       </Text>
                     </View>
                   )}
@@ -781,10 +551,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
   },
+  errorButton: {
+    marginLeft: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   errorText: {
     fontSize: 12,
     color: '#EF4444',
-    marginLeft: 8,
   },
   controlBar: {
     flexDirection: 'row',
@@ -1020,6 +795,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#10B981',
     marginTop: 12,
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,

@@ -1,126 +1,166 @@
-# 🚀 Go Barry Control Room Display - Deployment Guide
+# Go BARRY Frontend Deployment Guide
+## Updated WebSocket Integration - Production Deployment
 
-## ✅ **Ready to Upload Files**
+### 🚀 Quick Deployment Steps
 
-I've created a standalone control room display that you can upload to your gobarry.co.uk website. Here are the files you need:
-
-### **Files to Upload:**
-
-1. **`display.html`** - Complete standalone control room display
-2. **`gobarry-logo.png`** - Your Go Barry logo
-
----
-
-## 📁 **Upload Instructions**
-
-### **Option 1: cPanel File Manager**
-
-1. **Login to your cPanel** at your hosting provider
-2. **Open File Manager**
-3. **Navigate to your public_html directory** (or your website's root folder)
-4. **Upload these 2 files:**
-   - `display.html` 
-   - `gobarry-logo.png`
-5. **Make sure both files are in the same directory**
-
-### **Option 2: FTP Upload**
-
-1. **Connect via FTP** to your website
-2. **Navigate to the public_html folder** (or website root)
-3. **Upload both files** to the same directory
-4. **Ensure file permissions are set correctly** (644 for HTML, 644 for image)
-
----
-
-## 🌐 **Access Your Display**
-
-Once uploaded, you can access your control room display at:
-
-```
-https://gobarry.co.uk/display.html
+**1. Build the Frontend:**
+```bash
+cd "/Users/anthony/Go BARRY App"
+npm run build:frontend
 ```
 
+**2. Verify Build Success:**
+```bash
+ls -la Go_BARRY/dist/
+# Should show fresh build files with recent timestamps
+```
+
+**3. Deploy to Production:**
+```bash
+npm run deploy:render
+```
+
+### 🔧 Pre-Deployment Checklist
+
+#### ✅ Code Updates Completed
+- [x] SupervisorControl component updated with useSupervisorSync hook
+- [x] DisplayScreen component updated with useSupervisorSync hook  
+- [x] Enhanced WebSocket integration with shared state management
+- [x] Production API configuration verified (go-barry.onrender.com)
+- [x] WebSocket URLs configured for production (wss://go-barry.onrender.com)
+
+#### ✅ Configuration Verified
+- [x] API_CONFIG points to https://go-barry.onrender.com for production
+- [x] WebSocket URL auto-detects production environment
+- [x] Fallback URLs configured for redundancy
+- [x] Request timeouts optimized for production
+
+### 📋 Build Commands Reference
+
+```bash
+# From project root directory
+cd "/Users/anthony/Go BARRY App"
+
+# Install all dependencies (if needed)
+npm run install:all
+
+# Build frontend for web deployment
+npm run build:frontend
+
+# Deploy to production (commits and pushes to main)
+npm run deploy:render
+```
+
+### 🌐 Production Endpoints
+
+**Frontend:** https://gobarry.co.uk
+**Backend API:** https://go-barry.onrender.com
+**WebSocket:** wss://go-barry.onrender.com/ws/supervisor-sync
+
+### 🧪 Post-Deployment Testing Checklist
+
+#### 1. Basic Functionality
+- [ ] Frontend loads at https://gobarry.co.uk
+- [ ] Traffic alerts display correctly
+- [ ] Supervisor login works
+- [ ] Display screen mode accessible at /display
+
+#### 2. WebSocket Connectivity
+- [ ] Browser console shows successful WebSocket connection
+- [ ] Supervisor login establishes WebSocket session
+- [ ] Display screen connects to supervisor sync
+- [ ] Real-time updates work between supervisor and display
+
+#### 3. Supervisor Features
+- [ ] Alert acknowledgment works and syncs to display
+- [ ] Priority overrides apply in real-time
+- [ ] Supervisor notes save and display
+- [ ] Custom messages broadcast to display screen
+
+#### 4. Multi-Interface Testing
+- [ ] Browser interface works on desktop
+- [ ] Mobile interface responds correctly on phones/tablets
+- [ ] Display screen mode works for 24/7 monitoring
+- [ ] All interfaces show consistent data
+
+### 🔍 WebSocket Testing Commands
+
+Open browser developer console on https://gobarry.co.uk and run:
+
+```javascript
+// Check WebSocket connection status
+console.log('WebSocket connection:', 
+  window.wsConnection?.readyState === 1 ? 'Connected' : 'Disconnected'
+);
+
+// Monitor WebSocket messages
+window.addEventListener('message', (event) => {
+  if (event.data.includes('supervisor-sync')) {
+    console.log('WebSocket message:', event.data);
+  }
+});
+```
+
+### 🚨 Troubleshooting
+
+#### WebSocket Connection Issues
+1. Check browser console for connection errors
+2. Verify backend is running: https://go-barry.onrender.com/api/health
+3. Test WebSocket endpoint: wss://go-barry.onrender.com/ws/supervisor-sync
+4. Check firewall/proxy settings for WebSocket support
+
+#### Build Issues
+```bash
+# Clear Expo cache if build fails
+cd Go_BARRY
+expo start --clear
+
+# Reinstall dependencies
+rm -rf node_modules package-lock.json
+npm install
+
+# Try build again
+npm run build:web
+```
+
+#### Deployment Issues
+```bash
+# Check git status
+git status
+
+# Ensure all changes are committed
+git add .
+git commit -m "Pre-deployment updates"
+
+# Deploy manually if script fails
+git push origin main
+```
+
+### 📊 Production Monitoring
+
+After deployment, monitor:
+
+1. **Backend Health:** https://go-barry.onrender.com/api/health
+2. **WebSocket Status:** Check supervisor connection counts
+3. **Error Logs:** Monitor browser console for JavaScript errors
+4. **Performance:** Check page load times and API response times
+
+### 🔄 Rollback Plan
+
+If issues occur:
+1. Check git log for last working version
+2. Revert to previous commit: `git revert HEAD`
+3. Redeploy: `npm run deploy:render`
+4. Monitor for stability
+
 ---
 
-## 🎯 **Features Included**
+## Next Steps After Deployment
 
-✅ **Professional Go Barry Branding** - Shows your logo with fallback  
-✅ **Real-time Traffic Alerts** - Connects to your Render backend  
-✅ **Live Map Integration** - North East England coverage  
-✅ **Supervisor Monitoring** - Shows active supervisors  
-✅ **Responsive Design** - Works on all screen sizes  
-✅ **Auto-refresh** - Updates every 30 seconds  
-✅ **Keyboard Controls** - Arrow keys to navigate alerts  
+1. **Run the build command above**
+2. **Test locally first** by checking dist/ folder 
+3. **Deploy to production** using the deploy script
+4. **Complete the testing checklist** below
+5. **Monitor WebSocket connections** in production
 
----
-
-## 🔧 **Backend Configuration**
-
-The display automatically detects your environment:
-
-- **Local Development**: `http://localhost:3001`
-- **Production**: `https://go-barry.onrender.com` (your Render backend)
-
-No configuration needed! 🎉
-
----
-
-## 📱 **Usage**
-
-### **For Control Room Display:**
-- Open `https://gobarry.co.uk/display.html` in any browser
-- **Fullscreen recommended** for control room monitors
-- Press **F11** for fullscreen mode
-- Use **arrow keys** to manually navigate alerts
-- **Ctrl+R** to manually refresh data
-
-### **For Mobile/Tablet:**
-- Responsive design adapts to smaller screens
-- Touch-friendly interface
-- All functionality preserved
-
----
-
-## 🛠 **Troubleshooting**
-
-### **If logo doesn't show:**
-- Check that `gobarry-logo.png` is uploaded to the same directory as `display.html`
-- Professional "GO BARRY" text will show as fallback
-
-### **If no alerts show:**
-- Check browser console (F12) for connection errors
-- Verify your Render backend is running at `https://go-barry.onrender.com`
-- Backend URL is automatically detected
-
-### **Connection Issues:**
-- Display will show "Connection Error" with backend URL
-- Automatically retries every 30 seconds
-- Check that your Render backend is deployed and running
-
----
-
-## 🎨 **Customization**
-
-The display is fully customized for Go Barry with:
-- **Go North East red branding** (#E31E24)
-- **Professional dark theme**
-- **Animated backgrounds**
-- **Real-time clock**
-- **Live traffic map**
-
----
-
-## 📋 **Next Steps**
-
-1. **Upload the 2 files** to your website
-2. **Test the display** at `https://gobarry.co.uk/display.html`
-3. **Share the URL** with your team for control room monitoring
-4. **Set as homepage** on control room computers if desired
-
----
-
-## 🚦 **Go Barry Control Room is Ready!**
-
-Your professional traffic monitoring display is now ready for deployment. The display will show your Go Barry branding and connect to your live backend for real-time traffic intelligence.
-
-**Need help?** The display includes helpful error messages and debug information to troubleshoot any issues.
+Ready to deploy! 🚀

@@ -10,12 +10,15 @@ import {
   ScrollView,
   TouchableOpacity,
   Animated,
-  Dimensions
+  Dimensions,
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBarryAPI } from './hooks/useBARRYapi';
+import { useSupervisorSync, CONNECTION_STATES } from './hooks/useSupervisorSync';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const isWeb = Platform.OS === 'web';
 
 const DisplayScreen = () => {
   const {
@@ -28,17 +31,31 @@ const DisplayScreen = () => {
     refreshInterval: 15000 // 15 seconds for critical monitoring
   });
 
+  // Use the shared WebSocket hook for display client
+  const {
+    connectionState,
+    isConnected: wsConnected,
+    acknowledgedAlerts,
+    priorityOverrides,
+    supervisorNotes,
+    customMessages,
+    activeMode: displayMode,
+    connectedSupervisors
+  } = useSupervisorSync({
+    clientType: 'display',
+    autoConnect: true,
+    onConnectionChange: (connected) => {
+      console.log('🔌 Display WebSocket:', connected ? 'Connected' : 'Disconnected');
+    },
+    onError: (error) => {
+      console.error('❌ Display WebSocket error:', error);
+    }
+  });
+
+  // Time and UI state
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [acknowledgedAlerts, setAcknowledgedAlerts] = useState(new Set());
-  const [wsConnected, setWsConnected] = useState(false);
   const [blinkAnimation] = useState(new Animated.Value(1));
-  
-  // State for supervisor sync
-  const [priorityOverrides, setPriorityOverrides] = useState(new Map());
-  const [supervisorNotes, setSupervisorNotes] = useState(new Map());
-  const [customMessages, setCustomMessages] = useState([]);
-  const [displayMode, setDisplayMode] = useState('normal');
-  const [connectedSupervisors, setConnectedSupervisors] = useState(0);
+  const [pulseAnimation] = useState(new Animated.Value(1));
 
   // Update time every second
   useEffect(() => {
@@ -79,155 +96,25 @@ const DisplayScreen = () => {
     }
   }, [alerts, priorityOverrides, blinkAnimation]);
 
-  // WebSocket connection for supervisor-sync
+  // Pulse animation for connection status
   useEffect(() => {
-    const connectWebSocket = () => {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const baseUrl = window.location.hostname === 'localhost' 
-        ? 'localhost:3001'
-        : 'go-barry.onrender.com';
-      const wsUrl = `${protocol}//${baseUrl}/ws/supervisor-sync`;
-      
-      console.log('🔌 Display connecting to:', wsUrl);
-      const ws = new WebSocket(wsUrl);
-
-      ws.onopen = () => {
-        console.log('✅ Display connected to supervisor sync');
-        setWsConnected(true);
-        ws.send(JSON.stringify({ 
-          type: 'auth', 
-          clientType: 'display' 
-        }));
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          console.log('📨 Display received:', data.type);
-
-          switch (data.type) {
-            case 'welcome':
-              console.log('👋 Display welcomed');
-              break;
-              
-            case 'auth_success':
-              console.log('✅ Display authenticated');
-              if (data.currentState) {
-                updateDisplayState(data.currentState);
-              }
-              break;
-              
-            case 'state_update':
-              updateDisplayState(data.state);
-              break;
-              
-            case 'alert_acknowledged':
-              setAcknowledgedAlerts(prev => new Set([...prev, data.alertId]));
-              if (data.notes) {
-                setSupervisorNotes(prev => new Map(prev).set(data.alertId, {
-                  note: data.notes,
-                  supervisorId: data.supervisorId,
-                  timestamp: data.timestamp
-                }));
-              }
-              break;
-              
-            case 'priority_updated':
-              setPriorityOverrides(prev => new Map(prev).set(data.alertId, {
-                priority: data.priority,
-                reason: data.reason,
-                supervisorId: data.supervisorId,
-                timestamp: data.timestamp
-              }));
-              break;
-              
-            case 'note_added':
-              setSupervisorNotes(prev => new Map(prev).set(data.alertId, {
-                note: data.note,
-                supervisorId: data.supervisorId,
-                timestamp: data.timestamp
-              }));
-              break;
-              
-            case 'custom_message':
-              setCustomMessages(prev => [...prev, data.message]);
-              // Auto-remove message after duration
-              setTimeout(() => {
-                setCustomMessages(prev => prev.filter(m => m.id !== data.message.id));
-              }, 30000);
-              break;
-              
-            case 'message_removed':
-              setCustomMessages(prev => prev.filter(m => m.id !== data.messageId));
-              break;
-              
-            case 'mode_changed':
-              setDisplayMode(data.mode);
-              break;
-              
-            case 'alerts_updated':
-              // Refresh alerts from API to get latest data
-              refreshAlerts();
-              break;
-              
-            case 'supervisor_connected':
-              console.log(`👮 Supervisor ${data.supervisorName} connected`);
-              break;
-              
-            case 'supervisor_disconnected':
-              console.log(`👮 Supervisor disconnected`);
-              break;
-              
-            case 'error':
-              console.error('❌ WebSocket error:', data.error);
-              break;
-          }
-        } catch (error) {
-          console.error('❌ Failed to parse WebSocket message:', error);
-        }
-      };
-
-      ws.onclose = () => {
-        console.log('🔌 Display WebSocket disconnected');
-        setWsConnected(false);
-        // Attempt reconnection after 5 seconds
-        setTimeout(connectWebSocket, 5000);
-      };
-
-      ws.onerror = (err) => {
-        console.error('❌ Display WebSocket error:', err);
-        setWsConnected(false);
-      };
-
-      return ws;
-    };
-
-    const ws = connectWebSocket();
-    return () => {
-      if (ws) {
-        ws.close();
-      }
-    };
-  }, [refreshAlerts]);
-
-  // Update display state from supervisor sync
-  const updateDisplayState = (state) => {
-    if (state.acknowledgedAlerts) {
-      setAcknowledgedAlerts(new Set(state.acknowledgedAlerts));
-    }
-    if (state.priorityOverrides) {
-      setPriorityOverrides(new Map(Object.entries(state.priorityOverrides)));
-    }
-    if (state.supervisorNotes) {
-      setSupervisorNotes(new Map(Object.entries(state.supervisorNotes)));
-    }
-    if (state.customMessages) {
-      setCustomMessages(state.customMessages);
-    }
-    if (state.activeMode) {
-      setDisplayMode(state.activeMode);
-    }
-  };
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnimation, {
+          toValue: 1.1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnimation, {
+          toValue: 1,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [pulseAnimation]);
 
   const formatTime = (date) => {
     return date.toLocaleTimeString('en-GB', {
@@ -247,9 +134,7 @@ const DisplayScreen = () => {
     });
   };
 
-  const acknowledgeAlert = (alertId) => {
-    setAcknowledgedAlerts(prev => new Set([...prev, alertId]));
-  };
+
 
   const criticalAlerts = alerts.filter(alert => 
     alert.severity === 'High' || 
@@ -426,7 +311,7 @@ const DisplayScreen = () => {
                   { borderLeftColor: priorityColor },
                   isAcknowledged && styles.alertCardAcknowledged
                 ]}
-                onPress={() => acknowledgeAlert(alert.id)}
+                onPress={() => console.log('Display touched alert:', alert.id)}
               >
                 {/* Priority Banner */}
                 <View style={[styles.priorityBanner, { backgroundColor: priorityColor }]}>
