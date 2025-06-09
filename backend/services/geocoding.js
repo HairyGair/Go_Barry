@@ -3,6 +3,7 @@
 
 import dotenv from 'dotenv';
 import axios from 'axios';
+import LRUCache from '../utils/lruCache.js';
 
 dotenv.config();
 
@@ -56,9 +57,10 @@ const KNOWN_LOCATIONS = {
   'a19 cobalt': { latitude: 55.0450, longitude: -1.4750, name: 'A19 Cobalt Business Park' }
 };
 
-// Cache for geocoded locations
-let geocodeCache = new Map();
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+// LRU caches for geocoding
+const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes
+const geocodeCache = new LRUCache(500, CACHE_DURATION);
+const reverseCache = new LRUCache(500, CACHE_DURATION);
 
 // Rate limiting
 let requestQueue = [];
@@ -157,18 +159,7 @@ function getKnownLocationCoords(location) {
  */
 function getCachedLocation(location) {
   const cacheKey = normalizeLocation(location);
-  const cached = geocodeCache.get(cacheKey);
-  
-  if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
-    return cached.data;
-  }
-  
-  // Remove expired entry
-  if (cached) {
-    geocodeCache.delete(cacheKey);
-  }
-  
-  return null;
+  return geocodeCache.get(cacheKey);
 }
 
 /**
@@ -176,10 +167,7 @@ function getCachedLocation(location) {
  */
 function cacheLocation(location, result) {
   const cacheKey = normalizeLocation(location);
-  geocodeCache.set(cacheKey, {
-    data: result,
-    timestamp: Date.now()
-  });
+  geocodeCache.set(cacheKey, result);
 }
 
 /**
@@ -327,11 +315,17 @@ export async function geocodeLocation(location) {
  * Reverse geocoding - get location name from coordinates
  */
 export async function reverseGeocode(latitude, longitude) {
+  const cacheKey = `${latitude.toFixed(4)},${longitude.toFixed(4)}`;
+  const cached = reverseCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
   if (!MAPBOX_TOKEN) {
     console.warn('⚠️ MapBox token not configured for reverse geocoding');
-    return `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+    const fallback = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+    reverseCache.set(cacheKey, fallback);
+    return fallback;
   }
-  
   try {
     const url = `${MAPBOX_GEOCODING_URL}/${longitude},${latitude}.json`;
     const params = new URLSearchParams({
@@ -339,23 +333,25 @@ export async function reverseGeocode(latitude, longitude) {
       types: 'address,poi,place',
       limit: 1
     });
-    
     const response = await axios.get(`${url}?${params}`, {
       timeout: 10000,
       headers: {
         'User-Agent': 'BARRY-Backend/3.0'
       }
     });
-    
     if (response.data.features && response.data.features.length > 0) {
-      return response.data.features[0].place_name;
+      const result = response.data.features[0].place_name;
+      reverseCache.set(cacheKey, result);
+      return result;
     }
-    
-    return `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-    
+    const fallback = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+    reverseCache.set(cacheKey, fallback);
+    return fallback;
   } catch (error) {
     console.warn(`⚠️ Reverse geocoding failed for ${latitude}, ${longitude}:`, error.message);
-    return `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+    const fallback = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+    reverseCache.set(cacheKey, fallback);
+    return fallback;
   }
 }
 
@@ -363,30 +359,19 @@ export async function reverseGeocode(latitude, longitude) {
  * Batch geocode multiple locations efficiently
  */
 export async function batchGeocode(locations) {
-  const results = [];
-  
   console.log(`🗺️ Backend batch geocoding ${locations.length} locations...`);
-  
-  for (let i = 0; i < locations.length; i++) {
-    const location = locations[i];
-    
-    try {
-      const coords = await geocodeLocation(location);
-      results.push({
-        location: location,
-        coords: coords,
-        error: null
-      });
-    } catch (error) {
-      console.error(`❌ Geocoding failed for "${location}":`, error);
-      results.push({
-        location: location,
-        coords: null,
-        error: error.message
-      });
-    }
-  }
-  
+
+  const promises = locations.map(location =>
+    geocodeLocation(location)
+      .then(coords => ({ location, coords, error: null }))
+      .catch(error => {
+        console.error(`❌ Geocoding failed for "${location}":`, error);
+        return { location, coords: null, error: error.message };
+      })
+  );
+
+  const results = await Promise.all(promises);
+
   console.log(`✅ Backend batch geocoding complete: ${results.filter(r => r.coords).length}/${results.length} successful`);
   return results;
 }
@@ -455,25 +440,21 @@ export function getNorthEastRegion() {
 }
 
 /**
- * Clear the geocoding cache (useful for testing or memory management)
+ * Clear the geocoding caches (useful for testing or memory management)
  */
 export function clearGeocodeCache() {
   geocodeCache.clear();
-  console.log('🗑️ Backend geocoding cache cleared');
+  reverseCache.clear();
+  console.log('🗑️ Backend geocoding caches cleared');
 }
 
 /**
  * Get cache statistics
  */
 export function getCacheStats() {
-  const total = geocodeCache.size;
-  const expired = Array.from(geocodeCache.values())
-    .filter(entry => (Date.now() - entry.timestamp) >= CACHE_DURATION).length;
-  
   return {
-    total,
-    active: total - expired,
-    expired,
+    forwardEntries: geocodeCache.size(),
+    reverseEntries: reverseCache.size(),
     requestsQueued: requestQueue.length,
     mapboxConfigured: !!MAPBOX_TOKEN
   };

@@ -31,14 +31,10 @@ export async function enhanceLocationWithNames(lat, lng, originalLocation = '') 
     const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
     
     // Check cache first
-    if (locationCache.has(cacheKey)) {
-      const cached = locationCache.get(cacheKey);
-      if (Date.now() - cached.timestamp < CACHE_EXPIRE_TIME) {
-        console.log(`📋 Using cached location: ${cached.location}`);
-        return cached.location;
-      } else {
-        locationCache.delete(cacheKey); // Expired
-      }
+    const cached = locationCache.get(cacheKey);
+    if (cached) {
+      console.log(`📋 Using cached location: ${cached}`);
+      return cached;
     }
     
     console.log(`🗺️ Reverse geocoding: ${lat}, ${lng}`);
@@ -113,10 +109,7 @@ export async function enhanceLocationWithNames(lat, lng, originalLocation = '') 
     }
     
     // Cache the result
-    locationCache.set(cacheKey, {
-      location: enhancedLocation,
-      timestamp: Date.now()
-    });
+    locationCache.set(cacheKey, enhancedLocation);
     
     return enhancedLocation || originalLocation || `Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     
@@ -129,23 +122,23 @@ export async function enhanceLocationWithNames(lat, lng, originalLocation = '') 
 // Batch processing for multiple coordinates
 export async function enhanceMultipleLocations(coordinates) {
   const enhanced = [];
-  
+
   for (const { lat, lng, originalLocation } of coordinates) {
     const location = await enhanceLocationWithNames(lat, lng, originalLocation);
     enhanced.push({ lat, lng, location });
-    
+
     // Small delay between requests to be respectful
     await new Promise(resolve => setTimeout(resolve, 500));
   }
-  
+
   return enhanced;
 }
 
 // Get cache statistics
 export function getLocationCacheStats() {
   return {
-    cacheSize: locationCache.size,
-    locations: Array.from(locationCache.keys()).slice(0, 5) // First 5 for debugging
+    cacheSize: locationCache.size(),
+    // Not exposing keys to avoid leaking data
   };
 }
 
