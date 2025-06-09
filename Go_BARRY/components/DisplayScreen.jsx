@@ -1,6 +1,6 @@
 // Go_BARRY/components/DisplayScreen.jsx
-// 24/7 Control Room Display Screen for Traffic Monitoring
-// Designed for supervisors monitoring traffic alerts that require attention
+// Enhanced 24/7 Control Room Display Screen with Modern Design
+// Real-time supervisor sync with professional control room aesthetics
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -9,10 +9,13 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image
+  Animated,
+  Dimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBarryAPI } from './hooks/useBARRYapi';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 const DisplayScreen = () => {
   const {
@@ -28,6 +31,14 @@ const DisplayScreen = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [acknowledgedAlerts, setAcknowledgedAlerts] = useState(new Set());
   const [wsConnected, setWsConnected] = useState(false);
+  const [blinkAnimation] = useState(new Animated.Value(1));
+  
+  // State for supervisor sync
+  const [priorityOverrides, setPriorityOverrides] = useState(new Map());
+  const [supervisorNotes, setSupervisorNotes] = useState(new Map());
+  const [customMessages, setCustomMessages] = useState([]);
+  const [displayMode, setDisplayMode] = useState('normal');
+  const [connectedSupervisors, setConnectedSupervisors] = useState(0);
 
   // Update time every second
   useEffect(() => {
@@ -37,46 +48,186 @@ const DisplayScreen = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // Blinking animation for critical alerts
+  useEffect(() => {
+    const criticalCount = alerts.filter(alert => {
+      const override = priorityOverrides.get(alert.id);
+      return override?.priority === 'CRITICAL' || 
+             (!override && (alert.severity === 'High' || 
+             (alert.affectsRoutes && alert.affectsRoutes.length >= 3)));
+    }).length;
+
+    if (criticalCount > 0) {
+      const blink = Animated.loop(
+        Animated.sequence([
+          Animated.timing(blinkAnimation, {
+            toValue: 0.3,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(blinkAnimation, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+        ])
+      );
+      blink.start();
+      return () => blink.stop();
+    } else {
+      blinkAnimation.setValue(1);
+    }
+  }, [alerts, priorityOverrides, blinkAnimation]);
+
   // WebSocket connection for supervisor-sync
   useEffect(() => {
-    const ws = new WebSocket('wss://go-barry.onrender.com/ws/supervisor-sync');
+    const connectWebSocket = () => {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const baseUrl = window.location.hostname === 'localhost' 
+        ? 'localhost:3001'
+        : 'go-barry.onrender.com';
+      const wsUrl = `${protocol}//${baseUrl}/ws/supervisor-sync`;
+      
+      console.log('🔌 Display connecting to:', wsUrl);
+      const ws = new WebSocket(wsUrl);
 
-    ws.onopen = () => {
-      console.log('Display connected to WebSocket');
-      setWsConnected(true);
-      ws.send(JSON.stringify({ type: 'auth', clientType: 'display' }));
+      ws.onopen = () => {
+        console.log('✅ Display connected to supervisor sync');
+        setWsConnected(true);
+        ws.send(JSON.stringify({ 
+          type: 'auth', 
+          clientType: 'display' 
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('📨 Display received:', data.type);
+
+          switch (data.type) {
+            case 'welcome':
+              console.log('👋 Display welcomed');
+              break;
+              
+            case 'auth_success':
+              console.log('✅ Display authenticated');
+              if (data.currentState) {
+                updateDisplayState(data.currentState);
+              }
+              break;
+              
+            case 'state_update':
+              updateDisplayState(data.state);
+              break;
+              
+            case 'alert_acknowledged':
+              setAcknowledgedAlerts(prev => new Set([...prev, data.alertId]));
+              if (data.notes) {
+                setSupervisorNotes(prev => new Map(prev).set(data.alertId, {
+                  note: data.notes,
+                  supervisorId: data.supervisorId,
+                  timestamp: data.timestamp
+                }));
+              }
+              break;
+              
+            case 'priority_updated':
+              setPriorityOverrides(prev => new Map(prev).set(data.alertId, {
+                priority: data.priority,
+                reason: data.reason,
+                supervisorId: data.supervisorId,
+                timestamp: data.timestamp
+              }));
+              break;
+              
+            case 'note_added':
+              setSupervisorNotes(prev => new Map(prev).set(data.alertId, {
+                note: data.note,
+                supervisorId: data.supervisorId,
+                timestamp: data.timestamp
+              }));
+              break;
+              
+            case 'custom_message':
+              setCustomMessages(prev => [...prev, data.message]);
+              // Auto-remove message after duration
+              setTimeout(() => {
+                setCustomMessages(prev => prev.filter(m => m.id !== data.message.id));
+              }, 30000);
+              break;
+              
+            case 'message_removed':
+              setCustomMessages(prev => prev.filter(m => m.id !== data.messageId));
+              break;
+              
+            case 'mode_changed':
+              setDisplayMode(data.mode);
+              break;
+              
+            case 'alerts_updated':
+              // Refresh alerts from API to get latest data
+              refreshAlerts();
+              break;
+              
+            case 'supervisor_connected':
+              console.log(`👮 Supervisor ${data.supervisorName} connected`);
+              break;
+              
+            case 'supervisor_disconnected':
+              console.log(`👮 Supervisor disconnected`);
+              break;
+              
+            case 'error':
+              console.error('❌ WebSocket error:', data.error);
+              break;
+          }
+        } catch (error) {
+          console.error('❌ Failed to parse WebSocket message:', error);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('🔌 Display WebSocket disconnected');
+        setWsConnected(false);
+        // Attempt reconnection after 5 seconds
+        setTimeout(connectWebSocket, 5000);
+      };
+
+      ws.onerror = (err) => {
+        console.error('❌ Display WebSocket error:', err);
+        setWsConnected(false);
+      };
+
+      return ws;
     };
 
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-
-      if (data.type === 'sync_state') {
-        console.log('Received sync state:', data.payload);
-        // Optionally update local acknowledgedAlerts, priorityOverrides, etc.
-        // Example: If payload includes acknowledgedAlerts array:
-        // setAcknowledgedAlerts(new Set(data.payload.acknowledgedAlerts || []));
-      }
-
-      if (data.type === 'alert_update' || data.type === 'broadcast_message') {
-        console.log('Received update:', data);
-        // Trigger an API refresh to pull latest alerts and state
-        refreshAlerts();
-      }
-    };
-
-    ws.onclose = () => {
-      console.log('WebSocket connection closed');
-      setWsConnected(false);
-    };
-
-    ws.onerror = (err) => {
-      console.error('WebSocket error:', err);
-    };
-
+    const ws = connectWebSocket();
     return () => {
-      ws.close();
+      if (ws) {
+        ws.close();
+      }
     };
-  }, []);
+  }, [refreshAlerts]);
+
+  // Update display state from supervisor sync
+  const updateDisplayState = (state) => {
+    if (state.acknowledgedAlerts) {
+      setAcknowledgedAlerts(new Set(state.acknowledgedAlerts));
+    }
+    if (state.priorityOverrides) {
+      setPriorityOverrides(new Map(Object.entries(state.priorityOverrides)));
+    }
+    if (state.supervisorNotes) {
+      setSupervisorNotes(new Map(Object.entries(state.supervisorNotes)));
+    }
+    if (state.customMessages) {
+      setCustomMessages(state.customMessages);
+    }
+    if (state.activeMode) {
+      setDisplayMode(state.activeMode);
+    }
+  };
 
   const formatTime = (date) => {
     return date.toLocaleTimeString('en-GB', {
@@ -133,14 +284,20 @@ const DisplayScreen = () => {
         </View>
         
         <View style={styles.headerRight}>
-          <View style={styles.statusIndicator}>
+          <View style={[styles.statusIndicator, { backgroundColor: wsConnected ? '#059669' : '#EF4444' }]}>
             <Text style={styles.statusText}>
-              {loading ? 'UPDATING' : 'LIVE MONITORING'}
+              {loading ? 'UPDATING' : wsConnected ? 'LIVE MONITORING' : 'DISCONNECTED'}
             </Text>
           </View>
           <Text style={styles.lastUpdate}>
             Last Update: {lastUpdated ? new Date(lastUpdated).toLocaleTimeString('en-GB') : 'Never'}
           </Text>
+          {wsConnected && (
+            <View style={styles.syncStatus}>
+              <Ionicons name="wifi" size={12} color="#10B981" />
+              <Text style={styles.syncText}>Supervisor Sync Active</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -182,22 +339,83 @@ const DisplayScreen = () => {
         </TouchableOpacity>
       </View>
 
+      {/* Custom Messages from Supervisors */}
+      {customMessages.length > 0 && (
+        <View style={styles.customMessages}>
+          {customMessages.map(message => (
+            <View 
+              key={message.id} 
+              style={[
+                styles.customMessage,
+                { borderLeftColor: message.priority === 'critical' ? '#DC2626' : 
+                                  message.priority === 'warning' ? '#F59E0B' : '#3B82F6' }
+              ]}
+            >
+              <View style={styles.messageHeader}>
+                <Ionicons 
+                  name={message.priority === 'critical' ? 'warning' : 
+                       message.priority === 'warning' ? 'alert-circle' : 'information-circle'} 
+                  size={16} 
+                  color={message.priority === 'critical' ? '#DC2626' : 
+                         message.priority === 'warning' ? '#F59E0B' : '#3B82F6'} 
+                />
+                <Text style={styles.messageLabel}>SUPERVISOR MESSAGE</Text>
+                <Text style={styles.messageTime}>
+                  {new Date(message.timestamp).toLocaleTimeString('en-GB')}
+                </Text>
+              </View>
+              <Text style={styles.messageText}>{message.message}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       {/* Alerts Feed */}
       <ScrollView style={styles.alertsFeed} showsVerticalScrollIndicator={false}>
         {alerts.length > 0 ? (
           alerts.map((alert, index) => {
-            const isCritical = criticalAlerts.includes(alert);
-            const isUrgent = urgentAlerts.includes(alert);
+            // Check for supervisor priority override
+            const priorityOverride = priorityOverrides.get(alert.id);
+            const supervisorNote = supervisorNotes.get(alert.id);
+            
+            const isCritical = priorityOverride?.priority === 'CRITICAL' || 
+                             (!priorityOverride && criticalAlerts.includes(alert));
+            const isUrgent = priorityOverride?.priority === 'HIGH' || 
+                           (!priorityOverride && !isCritical && urgentAlerts.includes(alert));
             const isAcknowledged = acknowledgedAlerts.has(alert.id);
             
             let priority = 'MONITOR';
             let priorityColor = '#CA8A04';
-            if (isCritical) {
-              priority = 'CRITICAL';
-              priorityColor = '#DC2626';
-            } else if (isUrgent) {
-              priority = 'URGENT';
-              priorityColor = '#EA580C';
+            
+            if (priorityOverride) {
+              // Use supervisor override
+              switch (priorityOverride.priority) {
+                case 'CRITICAL':
+                  priority = 'CRITICAL';
+                  priorityColor = '#DC2626';
+                  break;
+                case 'HIGH':
+                  priority = 'URGENT';
+                  priorityColor = '#EA580C';
+                  break;
+                case 'MEDIUM':
+                  priority = 'MONITOR';
+                  priorityColor = '#CA8A04';
+                  break;
+                case 'LOW':
+                  priority = 'LOW';
+                  priorityColor = '#10B981';
+                  break;
+              }
+            } else {
+              // Use automatic priority
+              if (isCritical) {
+                priority = 'CRITICAL';
+                priorityColor = '#DC2626';
+              } else if (isUrgent) {
+                priority = 'URGENT';
+                priorityColor = '#EA580C';
+              }
             }
 
             return (
@@ -257,6 +475,22 @@ const DisplayScreen = () => {
 
                   {/* Supervisor Action */}
                   <View style={styles.supervisorActions}>
+                    {priorityOverride && (
+                      <View style={styles.priorityOverride}>
+                        <Ionicons name="shield-checkmark" size={14} color="#7C3AED" />
+                        <Text style={styles.overrideText}>
+                          Priority set to {priorityOverride.priority} by supervisor
+                        </Text>
+                      </View>
+                    )}
+                    
+                    {supervisorNote && (
+                      <View style={styles.supervisorNote}>
+                        <Ionicons name="document-text" size={14} color="#6B7280" />
+                        <Text style={styles.noteText}>{supervisorNote.note}</Text>
+                      </View>
+                    )}
+                    
                     <Text style={styles.actionPrompt}>
                       {isCritical && 'IMMEDIATE: Check service status and consider diversions'}
                       {isUrgent && !isCritical && 'URGENT: Review affected routes and passenger impact'}
@@ -637,6 +871,93 @@ const styles = StyleSheet.create({
     color: '#F59E0B',
     fontWeight: '500',
     letterSpacing: 0.5,
+  },
+  syncStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  syncText: {
+    fontSize: 10,
+    color: '#10B981',
+    fontWeight: '500',
+  },
+  customMessages: {
+    backgroundColor: '#1F2937',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  customMessage: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  messageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+  },
+  messageLabel: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#374151',
+    letterSpacing: 1,
+    flex: 1,
+  },
+  messageTime: {
+    fontSize: 10,
+    color: '#6B7280',
+    fontFamily: 'monospace',
+  },
+  messageText: {
+    fontSize: 14,
+    color: '#1F2937',
+    padding: 16,
+    lineHeight: 20,
+  },
+  priorityOverride: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F3E8FF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  overrideText: {
+    fontSize: 11,
+    color: '#7C3AED',
+    fontWeight: '600',
+  },
+  supervisorNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 6,
+    backgroundColor: '#F9FAFB',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  noteText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#4B5563',
+    lineHeight: 16,
   },
 });
 

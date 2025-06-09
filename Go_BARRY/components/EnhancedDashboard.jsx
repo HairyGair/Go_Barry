@@ -14,6 +14,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { API_CONFIG } from '../config/api';
+import SupervisorControl from './SupervisorControl';
+import SupervisorLogin from './SupervisorLogin';
+import { useSupervisorSession } from './hooks/useSupervisorSession';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -32,7 +35,11 @@ const EnhancedDashboard = ({
   const [lastUpdated, setLastUpdated] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
-  const [supervisorMode, setSupervisorMode] = useState(false);
+  const [showSupervisorLogin, setShowSupervisorLogin] = useState(false);
+  const [showSupervisorControl, setShowSupervisorControl] = useState(false);
+  
+  // Supervisor session management
+  const { supervisorSession: session, logout } = useSupervisorSession();
 
   // Enhanced data fetching
   const fetchAlertsData = useCallback(async () => {
@@ -114,6 +121,14 @@ const EnhancedDashboard = ({
           case 'f':
             e.preventDefault();
             document.getElementById('search-input')?.focus();
+            break;
+          case 's':
+            e.preventDefault();
+            if (session) {
+              setShowSupervisorControl(true);
+            } else {
+              setShowSupervisorLogin(true);
+            }
             break;
         }
       }
@@ -378,11 +393,58 @@ const EnhancedDashboard = ({
     </View>
   );
 
+  // Supervisor controls
+  const SupervisorHeader = () => (
+    <View style={styles.supervisorHeader}>
+      {session ? (
+        <View style={styles.supervisorSession}>
+          <View style={styles.supervisorInfo}>
+            <Ionicons name="shield-checkmark" size={16} color="#10B981" />
+            <Text style={styles.supervisorName}>
+              {session.supervisor.name} ({session.duty?.name || 'No Duty'})
+            </Text>
+            {session.supervisor.isAdmin && (
+              <Text style={styles.adminBadge}>ADMIN</Text>
+            )}
+          </View>
+          <View style={styles.supervisorActions}>
+            <TouchableOpacity
+              onPress={() => setShowSupervisorControl(true)}
+              style={styles.controlButton}
+            >
+              <Ionicons name="settings" size={16} color="#3B82F6" />
+              <Text style={styles.controlButtonText}>Control Panel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                logout();
+                setShowSupervisorControl(false);
+              }}
+              style={styles.logoutButton}
+            >
+              <Ionicons name="log-out" size={16} color="#EF4444" />
+              <Text style={styles.logoutButtonText}>Logout</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <TouchableOpacity
+          onPress={() => setShowSupervisorLogin(true)}
+          style={styles.loginPrompt}
+        >
+          <Ionicons name="person-circle" size={20} color="#6B7280" />
+          <Text style={styles.loginPromptText}>Supervisor Login</Text>
+          <Ionicons name="chevron-forward" size={16} color="#6B7280" />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
   // Keyboard shortcuts help
   const KeyboardHelp = () => isWeb && (
     <View style={styles.keyboardHelp}>
       <Text style={styles.keyboardHelpText}>
-        Shortcuts: Ctrl+1-4 (filters) • Ctrl+R (refresh) • Ctrl+F (search)
+        Shortcuts: Ctrl+1-4 (filters) • Ctrl+R (refresh) • Ctrl+F (search) • Ctrl+S (supervisor)
       </Text>
     </View>
   );
@@ -408,6 +470,9 @@ const EnhancedDashboard = ({
             Real-time Traffic Monitoring for Go North East
           </Text>
         </View>
+
+        {/* Supervisor Controls */}
+        <SupervisorHeader />
 
         {/* Statistics */}
         <StatsHeader />
@@ -450,6 +515,23 @@ const EnhancedDashboard = ({
         {/* Footer spacing */}
         <View style={{ height: 50 }} />
       </ScrollView>
+
+      {/* Supervisor Login Modal */}
+      <SupervisorLogin
+        visible={showSupervisorLogin}
+        onClose={() => setShowSupervisorLogin(false)}
+      />
+
+      {/* Supervisor Control Panel */}
+      {showSupervisorControl && session && (
+        <SupervisorControl
+          supervisorId={session.supervisor.id}
+          supervisorName={session.supervisor.name}
+          sessionId={session.sessionId}
+          alerts={alertsData?.alerts || []}
+          onClose={() => setShowSupervisorControl(false)}
+        />
+      )}
     </View>
   );
 };
@@ -730,6 +812,87 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748B',
     textAlign: 'center',
+  },
+  supervisorHeader: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  supervisorSession: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  supervisorInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 8,
+  },
+  supervisorName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1E293B',
+  },
+  adminBadge: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#F59E0B',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  supervisorActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  controlButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  controlButtonText: {
+    fontSize: 12,
+    color: '#3B82F6',
+    fontWeight: '500',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  logoutButtonText: {
+    fontSize: 12,
+    color: '#EF4444',
+    fontWeight: '500',
+  },
+  loginPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  loginPromptText: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+    flex: 1,
   },
 });
 
