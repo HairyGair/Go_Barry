@@ -13,7 +13,7 @@ const TrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) => {
   const [mapError, setMapError] = useState(null);
 
   // Mapbox access token from environment
-  const MAPBOX_TOKEN = 'pk.eyJ1IjoiaGFpcnlnYWlyMDAiLCJhIjoiY21iNWVsazl5MjFvbjJqc2I4ejBkZmdtZCJ9.CyLjZzGIuPsNFUCc1LlUyg';
+  const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN || 'pk.eyJ1IjoiaGFpcnlnYWlyMDAiLCJhIjoiY21iNWVsazl5MjFvbjJqc2I4ejBkZmdtZCJ9.CyLjZzGIuPsNFUCc1LlUyg';
 
   // North East England center coordinates
   const NE_ENGLAND_CENTER = [-1.6131, 54.9783]; // Newcastle area
