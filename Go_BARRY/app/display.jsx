@@ -1,1 +1,818 @@
-// Go_BARRY/app/display.jsx\n// Professional Display Screen matching Supervisor Interface Design\n// Shows live supervisor information with modern light color scheme\n\nimport React, { useState, useEffect } from 'react';\nimport { View, Text, StyleSheet, ScrollView, Dimensions, Platform } from 'react-native';\nimport { Ionicons } from '@expo/vector-icons';\nimport TrafficMap from '../components/TrafficMap';\nimport SupervisorCard from '../components/SupervisorCard';\nimport { useSupervisorSync } from '../components/hooks/useSupervisorSync';\n\nconst { width: screenWidth, height: screenHeight } = Dimensions.get('window');\n\nconst ProfessionalDisplayScreen = () => {\n  const [currentAlerts, setCurrentAlerts] = useState([]);\n  const [alertIndex, setAlertIndex] = useState(0);\n  const [lastDataUpdate, setLastDataUpdate] = useState(null);\n  const [currentTime, setCurrentTime] = useState(new Date());\n  const [seriouslyAffectedAreas, setSeriouslyAffectedAreas] = useState([]);\n  const [isLoading, setIsLoading] = useState(true);\n  const [connectionError, setConnectionError] = useState(false);\n  const [intelligenceData, setIntelligenceData] = useState(null);\n  const [dataSourceHealth, setDataSourceHealth] = useState(null);\n  const [mlPerformance, setMlPerformance] = useState(null);\n\n  // Live supervisor sync\n  const {\n    connectionState,\n    isConnected: wsConnected,\n    acknowledgedAlerts,\n    priorityOverrides,\n    supervisorNotes,\n    customMessages,\n    activeMode: displayMode,\n    connectedSupervisors,\n    activeSupervisors\n  } = useSupervisorSync({\n    clientType: 'display',\n    autoConnect: true,\n    onConnectionChange: (connected) => {\n      console.log('🔌 Display WebSocket:', connected ? 'Connected' : 'Disconnected');\n    },\n    onError: (error) => {\n      console.error('❌ Display WebSocket error:', error);\n    }\n  });\n\n  const API_BASE_URL = Platform.OS === 'web' && window.location.hostname === 'localhost' \n    ? 'http://localhost:3001' \n    : 'https://go-barry.onrender.com';\n\n  // Update time every second\n  useEffect(() => {\n    const timer = setInterval(() => {\n      setCurrentTime(new Date());\n    }, 1000);\n    return () => clearInterval(timer);\n  }, []);\n\n  // Auto-cycle through alerts every 20 seconds\n  useEffect(() => {\n    if (currentAlerts.length <= 1) return;\n    \n    const cycleTimer = setInterval(() => {\n      setAlertIndex(prev => (prev + 1) % currentAlerts.length);\n    }, 20000);\n    \n    return () => clearInterval(cycleTimer);\n  }, [currentAlerts.length]);\n\n  // Fetch enhanced alerts with ML intelligence\n  const fetchAlerts = async () => {\n    try {\n      setConnectionError(false);\n      \n      console.log('🔄 Display Screen: Fetching alerts...');\n      \n      const endpoints = [\n        `${API_BASE_URL}/api/alerts-enhanced?t=${Date.now()}&no_cache=true`,\n        `${API_BASE_URL}/api/alerts?t=${Date.now()}&no_cache=true`\n      ];\n      \n      let response;\n      let data;\n      \n      for (const endpoint of endpoints) {\n        try {\n          response = await fetch(endpoint, {\n            method: 'GET',\n            headers: { \n              'Accept': 'application/json',\n              'Cache-Control': 'no-cache',\n              'User-Agent': 'BARRY-Display-Screen'\n            },\n            timeout: 15000\n          });\n          \n          if (!response.ok) {\n            continue;\n          }\n          \n          data = await response.json();\n          break;\n          \n        } catch (endpointError) {\n          continue;\n        }\n      }\n      \n      if (!data) {\n        throw new Error('All endpoints failed');\n      }\n      \n      if (data.success && data.alerts) {\n        const filteredAlerts = data.alerts.filter(alert => \n          !alert.id?.includes('barry_v3') && \n          !alert.id?.includes('sample') && \n          alert.source !== 'go_barry_v3'\n        );\n        \n        setCurrentAlerts(filteredAlerts);\n        setLastDataUpdate(new Date());\n        updateAffectedAreas(filteredAlerts);\n        setIsLoading(false);\n        \n        console.log(`✅ Display alerts updated: ${filteredAlerts.length} alerts`);\n        \n      } else {\n        throw new Error('Invalid response format');\n      }\n    } catch (error) {\n      console.error('❌ Display Screen: Error fetching alerts:', error);\n      setConnectionError(true);\n      setIsLoading(false);\n    }\n  };\n\n  // Fetch additional intelligence data\n  const fetchIntelligenceData = async () => {\n    try {\n      const [health, performance] = await Promise.all([\n        fetch(`${API_BASE_URL}/api/intelligence/health`),\n        fetch(`${API_BASE_URL}/api/intelligence/ml/performance`)\n      ]);\n      \n      const [healthData, performanceData] = await Promise.all([\n        health.ok ? health.json() : null,\n        performance.ok ? performance.json() : null\n      ]);\n      \n      setDataSourceHealth(healthData?.health || null);\n      setMlPerformance(performanceData?.performance || null);\n      \n    } catch (error) {\n      console.error('Error fetching intelligence data:', error);\n    }\n  };\n\n  // Update affected areas analysis\n  const updateAffectedAreas = (alerts) => {\n    const areaMap = new Map();\n    \n    alerts.forEach(alert => {\n      if (!alert.location) return;\n      \n      let area = alert.location;\n      if (area.includes('A1')) area = 'A1 Corridor';\n      else if (area.includes('Newcastle') || area.includes('Gateshead')) area = 'Newcastle City Centre';\n      else if (area.includes('Sunderland')) area = 'Sunderland Area';\n      else if (area.includes('Durham')) area = 'Durham Area';\n      else area = area.split(',')[0];\n      \n      if (!areaMap.has(area)) areaMap.set(area, []);\n      areaMap.get(area).push(alert);\n    });\n    \n    const affected = [];\n    areaMap.forEach((alerts, area) => {\n      if (alerts.length >= 2) {\n        affected.push({ area, count: alerts.length });\n      }\n    });\n    \n    setSeriouslyAffectedAreas(affected);\n  };\n\n  // Initialize data fetching\n  useEffect(() => {\n    fetchAlerts();\n    fetchIntelligenceData();\n    \n    const alertInterval = setInterval(fetchAlerts, 15000); // Every 15 seconds\n    const intelligenceInterval = setInterval(fetchIntelligenceData, 30000); // Every 30 seconds\n    \n    return () => {\n      clearInterval(alertInterval);\n      clearInterval(intelligenceInterval);\n    };\n  }, []);\n\n  // Format time display\n  const formatTime = (date) => {\n    return date.toLocaleTimeString('en-GB', {\n      hour: '2-digit',\n      minute: '2-digit',\n      second: '2-digit',\n      hour12: false\n    });\n  };\n\n  // Calculate data freshness\n  const getDataFreshness = () => {\n    if (!lastDataUpdate) return { status: 'fresh', text: 'Live', details: 'Data current' };\n    \n    const ageSeconds = Math.floor((new Date() - lastDataUpdate) / 1000);\n    const ageMinutes = Math.floor(ageSeconds / 60);\n    \n    if (ageSeconds < 30) return { status: 'fresh', text: 'Live', details: 'Data current' };\n    if (ageSeconds < 120) return { status: 'stale', text: `${ageSeconds}s old`, details: 'Data slightly stale' };\n    return { status: 'old', text: `${ageMinutes}m old`, details: 'Data needs refresh' };\n  };\n\n  // Calculate metrics\n  const currentAlert = currentAlerts[alertIndex];\n  const criticalCount = currentAlerts.filter(a => a.severity === 'High').length;\n  const affectedRoutesCount = new Set(currentAlerts.flatMap(a => a.affectsRoutes || [])).size;\n  const mapAlertsCount = currentAlerts.filter(a => a.coordinates?.length === 2).length;\n  const freshness = getDataFreshness();\n\n  // Freshness dot style helper\n  const getFreshnessStyle = (status) => {\n    switch (status) {\n      case 'fresh': return { backgroundColor: '#10B981' };\n      case 'stale': return { backgroundColor: '#F59E0B' };\n      default: return { backgroundColor: '#EF4444' };\n    }\n  };\n\n  return (\n    <View style={styles.container}>\n      {/* Professional Header */}\n      <View style={styles.header}>\n        <View style={styles.headerLeft}>\n          <View style={styles.logoContainer}>\n            <Text style={styles.logoText}>🚦</Text>\n          </View>\n          <View style={styles.titleContainer}>\n            <Text style={styles.systemTitle}>GO BARRY Control Room</Text>\n            <Text style={styles.displayTitle}>Professional Traffic Intelligence Display</Text>\n          </View>\n        </View>\n        \n        <View style={styles.headerCenter}>\n          <View style={styles.systemMetrics}>\n            <View style={styles.metric}>\n              <Text style={styles.metricValue}>{currentAlerts.length}</Text>\n              <Text style={styles.metricLabel}>Total Alerts</Text>\n            </View>\n            <View style={styles.metric}>\n              <Text style={styles.metricValue}>{criticalCount}</Text>\n              <Text style={styles.metricLabel}>Critical</Text>\n            </View>\n            <View style={styles.metric}>\n              <Text style={styles.metricValue}>{affectedRoutesCount}</Text>\n              <Text style={styles.metricLabel}>Routes</Text>\n            </View>\n            <View style={styles.metric}>\n              <Text style={styles.metricValue}>{connectedSupervisors}</Text>\n              <Text style={styles.metricLabel}>Supervisors</Text>\n            </View>\n            <View style={styles.metric}>\n              <Text style={styles.metricValue}>\n                {mlPerformance?.accuracy ? Math.round(mlPerformance.accuracy) + '%' : '--'}\n              </Text>\n              <Text style={styles.metricLabel}>ML Accuracy</Text>\n            </View>\n          </View>\n        </View>\n        \n        <View style={styles.headerRight}>\n          <View style={styles.connectionStatus}>\n            <View style={[styles.connectionDot, getFreshnessStyle(freshness.status)]} />\n            <Text style={styles.connectionText}>{freshness.text}</Text>\n          </View>\n          <Text style={styles.timeDisplay}>{formatTime(currentTime)}</Text>\n          <Text style={styles.lastUpdate}>\n            Last Update: {lastDataUpdate ? formatTime(lastDataUpdate) : '--:--'}\n          </Text>\n          {wsConnected && (\n            <View style={styles.syncStatus}>\n              <Ionicons name=\"wifi\" size={12} color=\"#10B981\" />\n              <Text style={styles.syncText}>Supervisor Sync Active</Text>\n            </View>\n          )}\n        </View>\n      </View>\n\n      {/* Custom Messages from Supervisors */}\n      {customMessages.length > 0 && (\n        <View style={styles.customMessages}>\n          {customMessages.map(message => (\n            <View \n              key={message.id} \n              style={[\n                styles.customMessage,\n                { borderLeftColor: message.priority === 'critical' ? '#DC2626' : \n                                  message.priority === 'warning' ? '#F59E0B' : '#3B82F6' }\n              ]}\n            >\n              <View style={styles.messageHeader}>\n                <Ionicons \n                  name={message.priority === 'critical' ? 'warning' : \n                       message.priority === 'warning' ? 'alert-circle' : 'information-circle'} \n                  size={16} \n                  color={message.priority === 'critical' ? '#DC2626' : \n                         message.priority === 'warning' ? '#F59E0B' : '#3B82F6'} \n                />\n                <Text style={styles.messageLabel}>SUPERVISOR MESSAGE</Text>\n                <Text style={styles.messageTime}>\n                  {new Date(message.timestamp).toLocaleTimeString('en-GB')}\n                </Text>\n              </View>\n              <Text style={styles.messageText}>{message.message}</Text>\n            </View>\n          ))}\n        </View>\n      )}\n\n      {/* Live Supervisor Card */}\n      <SupervisorCard \n        supervisors={activeSupervisors || []}\n        connectedCount={connectedSupervisors}\n        onCardPress={(expanded) => {\n          console.log('Display supervisor card', expanded ? 'expanded' : 'collapsed');\n        }}\n      />\n\n      {/* Main Content */}\n      <View style={styles.mainContent}>\n        {/* Alert Display Section */}\n        <View style={styles.alertDisplaySection}>\n          <View style={styles.alertHeader}>\n            <View style={styles.alertTitleContainer}>\n              <Ionicons name=\"alert-circle\" size={24} color=\"#3B82F6\" />\n              <Text style={styles.alertTitle}>Live Traffic Intelligence</Text>\n            </View>\n            <View style={styles.alertCount}>\n              <Text style={styles.alertCountText}>{currentAlerts.length}</Text>\n            </View>\n          </View>\n\n          <View style={styles.currentAlert}>\n            {isLoading ? (\n              <View style={styles.loadingContainer}>\n                <Ionicons name=\"sync\" size={40} color=\"#3B82F6\" />\n                <Text style={styles.loadingText}>Initializing traffic intelligence...</Text>\n              </View>\n            ) : connectionError ? (\n              <View style={styles.errorContainer}>\n                <Ionicons name=\"warning\" size={60} color=\"#EF4444\" />\n                <Text style={styles.errorTitle}>Connection Error</Text>\n                <Text style={styles.errorText}>Unable to connect to traffic data services</Text>\n              </View>\n            ) : currentAlerts.length === 0 ? (\n              <View style={styles.noAlertsContainer}>\n                <Ionicons name=\"shield-checkmark\" size={80} color=\"#10B981\" />\n                <Text style={styles.noAlertsTitle}>All Systems Clear</Text>\n                <Text style={styles.noAlertsText}>No active traffic alerts detected</Text>\n                <Text style={styles.noAlertsSubtext}>Services operating normally across the network</Text>\n              </View>\n            ) : currentAlert ? (\n              <View style={styles.alertCard}>\n                <Text style={styles.alertCounter}>\n                  Alert {alertIndex + 1} of {currentAlerts.length}\n                </Text>\n                \n                <View style={[\n                  styles.severityBadge, \n                  { backgroundColor: currentAlert.severity === 'High' ? '#EF4444' : \n                                    currentAlert.severity === 'Medium' ? '#F59E0B' : '#10B981' }\n                ]}>\n                  <Text style={styles.severityText}>\n                    {(currentAlert.severity || 'UNKNOWN').toUpperCase()} PRIORITY\n                  </Text>\n                </View>\n\n                <Text style={styles.alertCardTitle}>\n                  {currentAlert.title || 'Traffic Alert'}\n                </Text>\n\n                <View style={styles.alertLocation}>\n                  <Ionicons name=\"location\" size={20} color=\"#3B82F6\" />\n                  <Text style={styles.locationText}>\n                    {currentAlert.location || 'Location not specified'}\n                  </Text>\n                </View>\n\n                <Text style={styles.alertDescription}>\n                  {currentAlert.description || 'No additional details available'}\n                </Text>\n\n                {currentAlert.affectsRoutes?.length > 0 && (\n                  <View style={styles.routeImpact}>\n                    <View style={styles.routeImpactHeader}>\n                      <Ionicons name=\"bus\" size={16} color=\"#3B82F6\" />\n                      <Text style={styles.routeTitle}>\n                        Affected Routes ({currentAlert.affectsRoutes.length})\n                      </Text>\n                    </View>\n                    <View style={styles.routeBadges}>\n                      {currentAlert.affectsRoutes.slice(0, 8).map((route, idx) => (\n                        <View key={idx} style={styles.routeBadge}>\n                          <Text style={styles.routeBadgeText}>{route}</Text>\n                        </View>\n                      ))}\n                      {currentAlert.affectsRoutes.length > 8 && (\n                        <Text style={styles.moreRoutesText}>\n                          +{currentAlert.affectsRoutes.length - 8} more\n                        </Text>\n                      )}\n                    </View>\n                  </View>\n                )}\n\n                <View style={styles.alertMetadata}>\n                  <Text style={styles.alertSource}>\n                    Source: {(currentAlert.source || 'SYSTEM').toUpperCase()}\n                  </Text>\n                </View>\n              </View>\n            ) : null}\n          </View>\n        </View>\n\n        {/* Enhanced Map Section */}\n        <View style={styles.mapContainer}>\n          <View style={styles.mapHeader}>\n            <View style={styles.mapTitleContainer}>\n              <Ionicons name=\"map\" size={20} color=\"#3B82F6\" />\n              <Text style={styles.mapTitle}>Live Traffic Map</Text>\n            </View>\n            <View style={styles.mapStats}>\n              <Text style={styles.mapStatsText}>\n                {mapAlertsCount} alerts • North East England\n              </Text>\n            </View>\n          </View>\n          \n          <View style={styles.mapWrapper}>\n            <TrafficMap \n              alerts={currentAlerts}\n              currentAlert={currentAlert}\n              alertIndex={alertIndex}\n            />\n          </View>\n        </View>\n      </View>\n\n      {/* Status Footer */}\n      <View style={styles.footer}>\n        <View style={styles.footerLeft}>\n          <Text style={styles.footerText}>\n            Go North East Control Room • Professional Traffic Intelligence Display\n          </Text>\n          {seriouslyAffectedAreas.length > 0 && (\n            <Text style={styles.affectedAreasText}>\n              Seriously Affected Areas: {\n                seriouslyAffectedAreas.map(area => \n                  `${area.area} (${area.count} alerts)`\n                ).join(' • ')\n              }\n            </Text>\n          )}\n        </View>\n        <View style={styles.footerRight}>\n          <Text style={styles.instructionText}>\n            Real-time supervisor sync • Live traffic intelligence\n          </Text>\n        </View>\n      </View>\n    </View>\n  );\n};\n\nconst styles = StyleSheet.create({\n  container: {\n    flex: 1,\n    backgroundColor: '#F8FAFC',\n    minHeight: '100vh',\n  },\n  \n  // Professional Header\n  header: {\n    flexDirection: 'row',\n    justifyContent: 'space-between',\n    alignItems: 'center',\n    padding: 20,\n    backgroundColor: '#FFFFFF',\n    borderBottomWidth: 1,\n    borderBottomColor: '#E5E7EB',\n    shadowColor: '#000',\n    shadowOffset: { width: 0, height: 2 },\n    shadowOpacity: 0.1,\n    shadowRadius: 4,\n    elevation: 3,\n  },\n  \n  headerLeft: {\n    flexDirection: 'row',\n    alignItems: 'center',\n    gap: 16,\n    flex: 1,\n  },\n  \n  logoContainer: {\n    width: 48,\n    height: 48,\n    backgroundColor: '#3B82F6',\n    borderRadius: 12,\n    alignItems: 'center',\n    justifyContent: 'center',\n  },\n  \n  logoText: {\n    fontSize: 24,\n  },\n  \n  titleContainer: {\n    flex: 1,\n  },\n  \n  systemTitle: {\n    fontSize: 24,\n    fontWeight: '700',\n    color: '#1F2937',\n    letterSpacing: 0.5,\n  },\n  \n  displayTitle: {\n    fontSize: 14,\n    color: '#6B7280',\n    fontWeight: '500',\n    marginTop: 2,\n  },\n  \n  headerCenter: {\n    flex: 2,\n    alignItems: 'center',\n  },\n  \n  systemMetrics: {\n    flexDirection: 'row',\n    gap: 32,\n  },\n  \n  metric: {\n    alignItems: 'center',\n    minWidth: 80,\n  },\n  \n  metricValue: {\n    fontSize: 24,\n    fontWeight: '700',\n    color: '#1F2937',\n    marginBottom: 4,\n  },\n  \n  metricLabel: {\n    fontSize: 12,\n    color: '#6B7280',\n    fontWeight: '600',\n    textTransform: 'uppercase',\n    textAlign: 'center',\n  },\n  \n  headerRight: {\n    alignItems: 'flex-end',\n    flex: 1,\n  },\n  \n  connectionStatus: {\n    flexDirection: 'row',\n    alignItems: 'center',\n    gap: 6,\n    marginBottom: 8,\n  },\n  \n  connectionDot: {\n    width: 8,\n    height: 8,\n    borderRadius: 4,\n  },\n  \n  connectionText: {\n    fontSize: 14,\n    fontWeight: '600',\n    color: '#374151',\n  },\n  \n  timeDisplay: {\n    fontSize: 24,\n    fontWeight: '700',\n    color: '#1F2937',\n    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',\n    marginBottom: 4,\n  },\n  \n  lastUpdate: {\n    fontSize: 12,\n    color: '#6B7280',\n    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',\n  },\n  \n  syncStatus: {\n    flexDirection: 'row',\n    alignItems: 'center',\n    gap: 4,\n    marginTop: 4,\n  },\n  \n  syncText: {\n    fontSize: 10,\n    color: '#10B981',\n    fontWeight: '500',\n  },\n  \n  // Custom Messages\n  customMessages: {\n    backgroundColor: '#FFFFFF',\n    borderBottomWidth: 1,\n    borderBottomColor: '#E5E7EB',\n  },\n  \n  customMessage: {\n    backgroundColor: '#FFFFFF',\n    borderLeftWidth: 4,\n    marginHorizontal: 16,\n    marginVertical: 8,\n    borderRadius: 8,\n    shadowColor: '#000',\n    shadowOffset: { width: 0, height: 2 },\n    shadowOpacity: 0.1,\n    shadowRadius: 4,\n    elevation: 3,\n  },\n  \n  messageHeader: {\n    flexDirection: 'row',\n    alignItems: 'center',\n    gap: 8,\n    backgroundColor: '#F8FAFC',\n    paddingHorizontal: 16,\n    paddingVertical: 8,\n    borderTopLeftRadius: 8,\n    borderTopRightRadius: 8,\n  },\n  \n  messageLabel: {\n    fontSize: 11,\n    fontWeight: '700',\n    color: '#374151',\n    letterSpacing: 1,\n    flex: 1,\n  },\n  \n  messageTime: {\n    fontSize: 10,\n    color: '#6B7280',\n    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',\n  },\n  \n  messageText: {\n    fontSize: 14,\n    color: '#1F2937',\n    padding: 16,\n    lineHeight: 20,\n  },\n  \n  // Main Content\n  mainContent: {\n    flex: 1,\n    flexDirection: 'row',\n    gap: 20,\n    padding: 20,\n  },\n  \n  // Alert Display Section\n  alertDisplaySection: {\n    flex: 2,\n    backgroundColor: '#FFFFFF',\n    borderRadius: 12,\n    borderWidth: 1,\n    borderColor: '#E5E7EB',\n    padding: 24,\n    shadowColor: '#000',\n    shadowOffset: { width: 0, height: 2 },\n    shadowOpacity: 0.1,\n    shadowRadius: 8,\n    elevation: 4,\n  },\n  \n  alertHeader: {\n    flexDirection: 'row',\n    justifyContent: 'space-between',\n    alignItems: 'center',\n    marginBottom: 24,\n  },\n  \n  alertTitleContainer: {\n    flexDirection: 'row',\n    alignItems: 'center',\n    gap: 12,\n  },\n  \n  alertTitle: {\n    fontSize: 20,\n    fontWeight: '700',\n    color: '#1F2937',\n  },\n  \n  alertCount: {\n    backgroundColor: '#3B82F6',\n    paddingHorizontal: 16,\n    paddingVertical: 8,\n    borderRadius: 20,\n  },\n  \n  alertCountText: {\n    color: '#FFFFFF',\n    fontSize: 14,\n    fontWeight: '700',\n  },\n  \n  currentAlert: {\n    flex: 1,\n    justifyContent: 'center',\n  },\n  \n  // Loading/Error/No Alerts States\n  loadingContainer: {\n    alignItems: 'center',\n    padding: 60,\n  },\n  \n  loadingText: {\n    color: '#6B7280',\n    fontSize: 16,\n    marginTop: 16,\n  },\n  \n  errorContainer: {\n    alignItems: 'center',\n    padding: 60,\n  },\n  \n  errorTitle: {\n    color: '#EF4444',\n    fontSize: 24,\n    fontWeight: '700',\n    marginTop: 16,\n    marginBottom: 8,\n  },\n  \n  errorText: {\n    color: '#EF4444',\n    fontSize: 16,\n    textAlign: 'center',\n  },\n  \n  noAlertsContainer: {\n    alignItems: 'center',\n    padding: 60,\n  },\n  \n  noAlertsTitle: {\n    color: '#10B981',\n    fontSize: 28,\n    fontWeight: '700',\n    marginTop: 16,\n    marginBottom: 8,\n  },\n  \n  noAlertsText: {\n    color: '#374151',\n    fontSize: 16,\n    textAlign: 'center',\n    marginBottom: 4,\n  },\n  \n  noAlertsSubtext: {\n    color: '#6B7280',\n    fontSize: 14,\n    textAlign: 'center',\n  },\n  \n  // Alert Card\n  alertCard: {\n    backgroundColor: '#F8FAFC',\n    borderRadius: 16,\n    borderWidth: 1,\n    borderColor: '#E5E7EB',\n    borderLeftWidth: 6,\n    borderLeftColor: '#3B82F6',\n    padding: 24,\n  },\n  \n  alertCounter: {\n    color: '#6B7280',\n    fontSize: 14,\n    fontWeight: '600',\n    textAlign: 'center',\n    marginBottom: 16,\n  },\n  \n  severityBadge: {\n    alignSelf: 'flex-start',\n    paddingHorizontal: 12,\n    paddingVertical: 6,\n    borderRadius: 16,\n    marginBottom: 16,\n  },\n  \n  severityText: {\n    color: '#FFFFFF',\n    fontSize: 12,\n    fontWeight: '700',\n    letterSpacing: 0.5,\n  },\n  \n  alertCardTitle: {\n    color: '#1F2937',\n    fontSize: 24,\n    fontWeight: '700',\n    marginBottom: 16,\n    lineHeight: 32,\n  },\n  \n  alertLocation: {\n    flexDirection: 'row',\n    alignItems: 'center',\n    gap: 8,\n    marginBottom: 16,\n  },\n  \n  locationText: {\n    color: '#3B82F6',\n    fontSize: 16,\n    fontWeight: '600',\n  },\n  \n  alertDescription: {\n    color: '#4B5563',\n    fontSize: 14,\n    lineHeight: 20,\n    marginBottom: 16,\n  },\n  \n  // Route Impact\n  routeImpact: {\n    backgroundColor: '#EFF6FF',\n    borderRadius: 12,\n    borderWidth: 1,\n    borderColor: '#DBEAFE',\n    padding: 16,\n    marginBottom: 16,\n  },\n  \n  routeImpactHeader: {\n    flexDirection: 'row',\n    alignItems: 'center',\n    gap: 8,\n    marginBottom: 12,\n  },\n  \n  routeTitle: {\n    color: '#1E40AF',\n    fontSize: 14,\n    fontWeight: '600',\n  },\n  \n  routeBadges: {\n    flexDirection: 'row',\n    flexWrap: 'wrap',\n    gap: 8,\n  },\n  \n  routeBadge: {\n    backgroundColor: '#3B82F6',\n    paddingHorizontal: 10,\n    paddingVertical: 4,\n    borderRadius: 6,\n  },\n  \n  routeBadgeText: {\n    color: '#FFFFFF',\n    fontSize: 12,\n    fontWeight: '600',\n  },\n  \n  moreRoutesText: {\n    color: '#6B7280',\n    fontSize: 12,\n    alignSelf: 'center',\n  },\n  \n  alertMetadata: {\n    marginTop: 16,\n    paddingTop: 16,\n    borderTopWidth: 1,\n    borderTopColor: '#E5E7EB',\n  },\n  \n  alertSource: {\n    color: '#6B7280',\n    fontSize: 12,\n    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',\n  },\n  \n  // Enhanced Map Container\n  mapContainer: {\n    flex: 1.5,\n    backgroundColor: '#FFFFFF',\n    borderRadius: 12,\n    borderWidth: 1,\n    borderColor: '#E5E7EB',\n    padding: 20,\n    shadowColor: '#000',\n    shadowOffset: { width: 0, height: 2 },\n    shadowOpacity: 0.1,\n    shadowRadius: 8,\n    elevation: 4,\n  },\n  \n  mapHeader: {\n    flexDirection: 'row',\n    alignItems: 'center',\n    justifyContent: 'space-between',\n    marginBottom: 16,\n  },\n  \n  mapTitleContainer: {\n    flexDirection: 'row',\n    alignItems: 'center',\n    gap: 8,\n  },\n  \n  mapTitle: {\n    fontSize: 18,\n    fontWeight: '700',\n    color: '#1F2937',\n  },\n  \n  mapStats: {\n    backgroundColor: '#EFF6FF',\n    paddingHorizontal: 12,\n    paddingVertical: 6,\n    borderRadius: 12,\n    borderWidth: 1,\n    borderColor: '#DBEAFE',\n  },\n  \n  mapStatsText: {\n    color: '#1E40AF',\n    fontSize: 12,\n    fontWeight: '600',\n  },\n  \n  mapWrapper: {\n    flex: 1,\n    borderRadius: 12,\n    overflow: 'hidden',\n    backgroundColor: '#F3F4F6',\n  },\n  \n  // Footer\n  footer: {\n    flexDirection: 'row',\n    justifyContent: 'space-between',\n    alignItems: 'center',\n    padding: 16,\n    backgroundColor: '#FFFFFF',\n    borderTopWidth: 1,\n    borderTopColor: '#E5E7EB',\n  },\n  \n  footerLeft: {\n    flex: 1,\n  },\n  \n  footerText: {\n    fontSize: 12,\n    color: '#6B7280',\n    fontWeight: '500',\n  },\n  \n  affectedAreasText: {\n    fontSize: 12,\n    color: '#EF4444',\n    fontWeight: '600',\n    marginTop: 4,\n  },\n  \n  footerRight: {\n    alignItems: 'flex-end',\n  },\n  \n  instructionText: {\n    fontSize: 12,\n    color: '#3B82F6',\n    fontWeight: '500',\n  },\n});\n\nexport default ProfessionalDisplayScreen;
+// Go_BARRY/app/display.jsx
+// Display Screen with Supervisor Interface Design
+// Professional control room monitoring with supervisor layout
+
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import DisplayScreen from '../components/DisplayScreen';
+import SupervisorCard from '../components/SupervisorCard';
+import { useSupervisorSync } from '../components/hooks/useSupervisorSync';
+import { useBarryAPI } from '../components/hooks/useBARRYapi';
+import { API_CONFIG } from '../config/api';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+
+// Display views for the sidebar
+const DISPLAY_VIEWS = {
+  alerts: {
+    title: 'Live Traffic Alerts',
+    icon: 'speedometer',
+    description: 'Real-time traffic monitoring and alerts',
+    color: '#3B82F6'
+  },
+  map: {
+    title: 'Traffic Map View',
+    icon: 'map',
+    description: 'Interactive map with incident locations',
+    color: '#10B981'
+  },
+  analytics: {
+    title: 'System Analytics',
+    icon: 'bar-chart',
+    description: 'Performance metrics and data insights',
+    color: '#8B5CF6'
+  },
+  supervisors: {
+    title: 'Supervisor Status',
+    icon: 'people',
+    description: 'Connected supervisors and activity',
+    color: '#F59E0B'
+  }
+};
+
+const SupervisorDisplayScreen = () => {
+  // Core state management
+  const [activeView, setActiveView] = useState('alerts');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Live supervisor sync for display
+  const {
+    connectionState,
+    isConnected: wsConnected,
+    acknowledgedAlerts,
+    priorityOverrides,
+    supervisorNotes,
+    customMessages,
+    activeMode: displayMode,
+    connectedSupervisors,
+    activeSupervisors
+  } = useSupervisorSync({
+    clientType: 'display',
+    autoConnect: true,
+    onConnectionChange: (connected) => {
+      console.log('🔌 Display WebSocket:', connected ? 'Connected' : 'Disconnected');
+    },
+    onError: (error) => {
+      console.error('❌ Display WebSocket error:', error);
+    }
+  });
+
+  // API data for alerts
+  const {
+    alerts,
+    loading,
+    lastUpdated,
+    refreshAlerts,
+    criticalAlerts,
+    activeAlerts
+  } = useBarryAPI({
+    autoRefresh: true,
+    refreshInterval: 15000 // 15 seconds for display
+  });
+
+  // Update time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Keyboard shortcuts for display control
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    const handleKeyDown = (event) => {
+      // Number keys for quick view switching
+      if (event.key >= '1' && event.key <= '4') {
+        event.preventDefault();
+        const views = Object.keys(DISPLAY_VIEWS);
+        const viewIndex = parseInt(event.key) - 1;
+        if (views[viewIndex]) {
+          setActiveView(views[viewIndex]);
+        }
+      }
+      
+      // 'B' to toggle sidebar
+      if (event.key === 'b' || event.key === 'B') {
+        event.preventDefault();
+        setSidebarCollapsed(!sidebarCollapsed);
+      }
+
+      // 'R' to refresh data
+      if (event.key === 'r' || event.key === 'R') {
+        event.preventDefault();
+        refreshAlerts();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [sidebarCollapsed, refreshAlerts]);
+
+  // Get connection status color
+  const getConnectionColor = () => {
+    if (!wsConnected) return '#EF4444'; // Red - disconnected
+    if (loading) return '#F59E0B'; // Orange - loading
+    return '#10B981'; // Green - connected
+  };
+
+  // Render the active view content
+  const renderActiveView = () => {
+    const viewConfig = DISPLAY_VIEWS[activeView];
+    
+    switch (activeView) {
+      case 'alerts':
+        return (
+          <View style={styles.viewContent}>
+            <DisplayScreen />
+          </View>
+        );
+      
+      case 'map':
+        return (
+          <View style={styles.viewContent}>
+            <View style={styles.placeholderContent}>
+              <Ionicons name="map" size={64} color="#10B981" />
+              <Text style={styles.placeholderTitle}>Interactive Traffic Map</Text>
+              <Text style={styles.placeholderText}>
+                Full-screen traffic map with real-time incident markers
+              </Text>
+            </View>
+          </View>
+        );
+      
+      case 'analytics':
+        return (
+          <View style={styles.viewContent}>
+            <ScrollView style={styles.analyticsContainer}>
+              <View style={styles.analyticsGrid}>
+                <View style={styles.analyticsCard}>
+                  <View style={styles.analyticsHeader}>
+                    <Ionicons name="pulse" size={24} color="#3B82F6" />
+                    <Text style={styles.analyticsTitle}>System Health</Text>
+                  </View>
+                  <Text style={styles.analyticsValue}>{wsConnected ? 'Online' : 'Offline'}</Text>
+                  <Text style={styles.analyticsSubtext}>WebSocket Connection</Text>
+                </View>
+                
+                <View style={styles.analyticsCard}>
+                  <View style={styles.analyticsHeader}>
+                    <Ionicons name="alert-circle" size={24} color="#EF4444" />
+                    <Text style={styles.analyticsTitle}>Active Alerts</Text>
+                  </View>
+                  <Text style={styles.analyticsValue}>{alerts.length}</Text>
+                  <Text style={styles.analyticsSubtext}>Total incidents</Text>
+                </View>
+                
+                <View style={styles.analyticsCard}>
+                  <View style={styles.analyticsHeader}>
+                    <Ionicons name="warning" size={24} color="#F59E0B" />
+                    <Text style={styles.analyticsTitle}>Critical</Text>
+                  </View>
+                  <Text style={styles.analyticsValue}>{criticalAlerts.length}</Text>
+                  <Text style={styles.analyticsSubtext}>High priority</Text>
+                </View>
+                
+                <View style={styles.analyticsCard}>
+                  <View style={styles.analyticsHeader}>
+                    <Ionicons name="people" size={24} color="#8B5CF6" />
+                    <Text style={styles.analyticsTitle}>Supervisors</Text>
+                  </View>
+                  <Text style={styles.analyticsValue}>{connectedSupervisors}</Text>
+                  <Text style={styles.analyticsSubtext}>Online now</Text>
+                </View>
+              </View>
+              
+              <View style={styles.analyticsDetails}>
+                <Text style={styles.analyticsDetailsTitle}>Data Sources</Text>
+                <View style={styles.dataSourcesList}>
+                  <View style={styles.dataSourceItem}>
+                    <View style={[styles.statusDot, { backgroundColor: '#10B981' }]} />
+                    <Text style={styles.dataSourceText}>TomTom API - Active</Text>
+                  </View>
+                  <View style={styles.dataSourceItem}>
+                    <View style={[styles.statusDot, { backgroundColor: '#10B981' }]} />
+                    <Text style={styles.dataSourceText}>HERE API - Active</Text>
+                  </View>
+                  <View style={styles.dataSourceItem}>
+                    <View style={[styles.statusDot, { backgroundColor: '#F59E0B' }]} />
+                    <Text style={styles.dataSourceText}>MapQuest API - Auth Issue</Text>
+                  </View>
+                  <View style={styles.dataSourceItem}>
+                    <View style={[styles.statusDot, { backgroundColor: '#10B981' }]} />
+                    <Text style={styles.dataSourceText}>National Highways - Active</Text>
+                  </View>
+                </View>
+              </View>
+            </ScrollView>
+          </View>
+        );
+      
+      case 'supervisors':
+        return (
+          <View style={styles.viewContent}>
+            <ScrollView style={styles.supervisorsContainer}>
+              <SupervisorCard 
+                supervisors={activeSupervisors || []}
+                connectedCount={connectedSupervisors}
+                style={styles.supervisorCardExpanded}
+              />
+              
+              {customMessages.length > 0 && (
+                <View style={styles.messagesSection}>
+                  <Text style={styles.sectionTitle}>Supervisor Messages</Text>
+                  {customMessages.map(message => (
+                    <View key={message.id} style={styles.messageCard}>
+                      <View style={styles.messageHeader}>
+                        <Ionicons 
+                          name="chatbubble" 
+                          size={16} 
+                          color="#3B82F6" 
+                        />
+                        <Text style={styles.messageTime}>
+                          {new Date(message.timestamp).toLocaleTimeString('en-GB')}
+                        </Text>
+                      </View>
+                      <Text style={styles.messageText}>{message.message}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        );
+      
+      default:
+        return (
+          <View style={styles.viewContent}>
+            <View style={styles.placeholderContent}>
+              <Ionicons name="construct" size={64} color="#6B7280" />
+              <Text style={styles.placeholderTitle}>View Not Available</Text>
+              <Text style={styles.placeholderText}>This view is under development</Text>
+            </View>
+          </View>
+        );
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Sidebar Navigation */}
+      <View style={[styles.sidebar, sidebarCollapsed && styles.sidebarCollapsed]}>
+        {/* Header */}
+        <View style={styles.sidebarHeader}>
+          <View style={styles.logoContainer}>
+            <View style={styles.logoImageContainer}>
+              <Text style={styles.logoText}>🚦</Text>
+            </View>
+            {!sidebarCollapsed && (
+              <View style={styles.logoTextContainer}>
+                <Text style={styles.appTitle}>BARRY</Text>
+                <Text style={styles.appVersion}>Control Room Display</Text>
+              </View>
+            )}
+          </View>
+          
+          <TouchableOpacity
+            style={styles.collapseButton}
+            onPress={() => setSidebarCollapsed(!sidebarCollapsed)}
+          >
+            <Ionicons 
+              name={sidebarCollapsed ? "chevron-forward" : "chevron-back"} 
+              size={20} 
+              color="#6B7280" 
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* System Status */}
+        <View style={styles.systemStatus}>
+          <View style={styles.statusInfo}>
+            <View style={styles.statusAvatar}>
+              <Ionicons 
+                name={wsConnected ? "wifi" : "wifi-outline"} 
+                size={sidebarCollapsed ? 16 : 20} 
+                color={getConnectionColor()} 
+              />
+            </View>
+            {!sidebarCollapsed && (
+              <View style={styles.statusDetails}>
+                <Text style={styles.statusTitle}>System Status</Text>
+                <Text style={[styles.statusText, { color: getConnectionColor() }]}>
+                  {wsConnected ? 'Connected' : 'Disconnected'}
+                </Text>
+                <Text style={styles.lastUpdateText}>
+                  Last update: {lastUpdated ? new Date(lastUpdated).toLocaleTimeString('en-GB') : 'Never'}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Navigation Items */}
+        <ScrollView style={styles.navigationContainer}>
+          {Object.entries(DISPLAY_VIEWS).map(([viewId, view], index) => (
+            <TouchableOpacity
+              key={viewId}
+              style={[
+                styles.navItem,
+                activeView === viewId && styles.navItemActive,
+                sidebarCollapsed && styles.navItemCollapsed
+              ]}
+              onPress={() => setActiveView(viewId)}
+            >
+              <View style={styles.navItemContent}>
+                <Ionicons 
+                  name={view.icon} 
+                  size={sidebarCollapsed ? 20 : 24} 
+                  color={activeView === viewId ? view.color : '#6B7280'} 
+                />
+                {!sidebarCollapsed && (
+                  <View style={styles.navItemText}>
+                    <Text style={[
+                      styles.navItemTitle,
+                      activeView === viewId && { color: view.color }
+                    ]}>
+                      {view.title}
+                    </Text>
+                    <Text style={styles.keyboardShortcut}>
+                      Press {index + 1}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              
+              {activeView === viewId && (
+                <View style={[styles.activeIndicator, { backgroundColor: view.color }]} />
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Footer Actions */}
+        <View style={styles.sidebarFooter}>
+          <TouchableOpacity
+            style={styles.footerButton}
+            onPress={refreshAlerts}
+          >
+            <Ionicons name="refresh" size={20} color="#3B82F6" />
+            {!sidebarCollapsed && (
+              <Text style={styles.footerButtonText}>Refresh (R)</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Main Content Area */}
+      <View style={styles.mainContent}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <View style={styles.headerTitleContainer}>
+              <Ionicons 
+                name={DISPLAY_VIEWS[activeView].icon} 
+                size={24} 
+                color={DISPLAY_VIEWS[activeView].color} 
+              />
+              <Text style={styles.headerTitle}>{DISPLAY_VIEWS[activeView].title}</Text>
+            </View>
+            <Text style={styles.headerDescription}>{DISPLAY_VIEWS[activeView].description}</Text>
+          </View>
+          
+          <View style={styles.headerRight}>
+            <View style={styles.headerStats}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{alerts.length}</Text>
+                <Text style={styles.statLabel}>Alerts</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{criticalAlerts.length}</Text>
+                <Text style={styles.statLabel}>Critical</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{connectedSupervisors}</Text>
+                <Text style={styles.statLabel}>Supervisors</Text>
+              </View>
+            </View>
+            
+            <Text style={styles.currentTime}>
+              {currentTime.toLocaleTimeString('en-GB', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false 
+              })}
+            </Text>
+          </View>
+        </View>
+        
+        {/* View Content */}
+        {renderActiveView()}
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: '#F8FAFC',
+    minHeight: '100vh',
+  },
+  
+  // Sidebar styles (matching browser-main)
+  sidebar: {
+    width: 280,
+    backgroundColor: '#FFFFFF',
+    borderRightWidth: 1,
+    borderRightColor: '#E5E7EB',
+    display: 'flex',
+    flexDirection: 'column',
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 0 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    zIndex: 10,
+  },
+  sidebarCollapsed: {
+    width: 72,
+  },
+  sidebarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  logoText: {
+    fontSize: 28,
+  },
+  logoImageContainer: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoTextContainer: {
+    flexDirection: 'column',
+  },
+  appTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    letterSpacing: 1,
+  },
+  appVersion: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  collapseButton: {
+    padding: 4,
+  },
+  
+  // System status
+  systemStatus: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  statusInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statusAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusDetails: {
+    flex: 1,
+  },
+  statusTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  lastUpdateText: {
+    fontSize: 10,
+    color: '#6B7280',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  
+  // Navigation
+  navigationContainer: {
+    flex: 1,
+    paddingVertical: 8,
+  },
+  navItem: {
+    marginHorizontal: 12,
+    marginVertical: 2,
+    borderRadius: 8,
+    position: 'relative',
+  },
+  navItemActive: {
+    backgroundColor: '#F8FAFC',
+  },
+  navItemCollapsed: {
+    marginHorizontal: 8,
+    alignItems: 'center',
+  },
+  navItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 12,
+  },
+  navItemText: {
+    flex: 1,
+  },
+  navItemTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  keyboardShortcut: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    fontFamily: 'monospace',
+    marginTop: 2,
+  },
+  activeIndicator: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    borderRadius: 2,
+  },
+  
+  // Footer
+  sidebarFooter: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  footerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    gap: 12,
+    borderRadius: 8,
+    backgroundColor: '#F9FAFB',
+  },
+  footerButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3B82F6',
+  },
+  
+  // Main content
+  mainContent: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: '100vh',
+  },
+  
+  // Header
+  header: {
+    backgroundColor: '#FFFFFF',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  headerTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 4,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  headerDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 24,
+  },
+  headerStats: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  statLabel: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  currentTime: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#374151',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  
+  // View content
+  viewContent: {
+    flex: 1,
+    overflow: 'hidden',
+  },
+  
+  // Placeholder content
+  placeholderContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 60,
+  },
+  placeholderTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  placeholderText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  
+  // Analytics view
+  analyticsContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  analyticsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+    marginBottom: 24,
+  },
+  analyticsCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    minWidth: 200,
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  analyticsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  analyticsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  analyticsValue: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  analyticsSubtext: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  analyticsDetails: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  analyticsDetailsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 16,
+  },
+  dataSourcesList: {
+    gap: 12,
+  },
+  dataSourceItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  dataSourceText: {
+    fontSize: 14,
+    color: '#374151',
+  },
+  
+  // Supervisors view
+  supervisorsContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  supervisorCardExpanded: {
+    marginBottom: 24,
+  },
+  messagesSection: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 16,
+  },
+  messageCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#3B82F6',
+  },
+  messageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  messageTime: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+  },
+  messageText: {
+    fontSize: 14,
+    color: '#1F2937',
+    lineHeight: 20,
+  },
+});
+
+export default SupervisorDisplayScreen;
