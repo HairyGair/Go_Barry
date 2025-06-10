@@ -22,6 +22,7 @@ import roadworksAPI from './routes/roadworksAPI.js';
 import gtfsAPI from './routes/gtfsAPI.js';
 import intelligenceAPI from './routes/intelligenceAPI.js';
 import supervisorSyncService from './services/supervisorSync.js';
+import enhancedDataSourceManager from './services/enhancedDataSourceManager.js';
 import { createServer } from 'http';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -515,12 +516,89 @@ let cachedAlerts = null;
 let lastFetchTime = null;
 const CACHE_TIMEOUT = 2 * 60 * 1000; // 2 minutes
 
-// DISPLAY SCREEN OPTIMIZED - Multi-source alerts endpoint
+// ENHANCED DISPLAY SCREEN - Multi-source alerts endpoint with Full Intelligence
 app.get('/api/alerts-enhanced', async (req, res) => {
   const requestId = Date.now();
   
   try {
-    console.log(`🚀 [DISPLAY-${requestId}] Display Screen alerts request from ${req.headers.origin}`);
+    console.log(`🚀 [ENHANCED-${requestId}] Enhanced Display Screen request from ${req.headers.origin}`);
+    
+    // Try Enhanced Data Source Manager first
+    let enhancedData;
+    try {
+      console.log(`🤖 [${requestId}] Using Enhanced Intelligence Manager...`);
+      enhancedData = await enhancedDataSourceManager.aggregateAllSources();
+      
+      if (enhancedData.incidents && enhancedData.incidents.length > 0) {
+        console.log(`✅ [${requestId}] Enhanced Intelligence: ${enhancedData.incidents.length} incidents`);
+        
+        // Enhanced filtering and processing
+        let filteredAlerts = enhancedAlertFiltering(enhancedData.incidents, requestId);
+        filteredAlerts = filterDismissedAlerts(filteredAlerts, requestId);
+        const activeAlerts = applyAutoCancellation(filteredAlerts, requestId);
+        
+        // Generate comprehensive statistics
+        const stats = {
+          totalAlerts: activeAlerts.length,
+          enhanced: activeAlerts.filter(a => a.enhanced).length,
+          withMLPredictions: activeAlerts.filter(a => a.mlPrediction).length,
+          withRouteImpact: activeAlerts.filter(a => a.routeImpact).length,
+          alertsWithRoutes: activeAlerts.filter(a => a.affectsRoutes && a.affectsRoutes.length > 0).length,
+          alertsWithCoordinates: activeAlerts.filter(a => a.coordinates && a.coordinates.length === 2).length,
+          averageConfidence: activeAlerts.length > 0 ?
+            (activeAlerts.reduce((sum, a) => sum + (a.confidenceScore || 0.5), 0) / activeAlerts.length).toFixed(2) : 0,
+          sourceBreakdown: enhancedData.sourceStats || {},
+          intelligenceStats: {
+            mlEnhanced: activeAlerts.filter(a => a.mlPrediction).length,
+            routeAnalyzed: activeAlerts.filter(a => a.routeImpact).length,
+            highConfidence: activeAlerts.filter(a => (a.confidenceScore || 0) > 0.7).length
+          }
+        };
+        
+        const response = {
+          success: true,
+          alerts: activeAlerts,
+          metadata: {
+            requestId,
+            totalAlerts: activeAlerts.length,
+            sources: enhancedData.sources || [],
+            sourceStats: enhancedData.sourceStats || {},
+            statistics: stats,
+            lastUpdated: enhancedData.lastUpdate || new Date().toISOString(),
+            enhancement: 'Full Intelligence Stack with ML Enhancement',
+            mode: 'enhanced_intelligence_manager',
+            intelligenceData: {
+              confidence: enhancedData.confidence || 0,
+              performance: enhancedData.performance || {},
+              lastUpdate: enhancedData.lastUpdate
+            },
+            debug: {
+              processingDuration: `${Date.now() - requestId}ms`,
+              sourcesActive: enhancedData.sources?.length || 0,
+              totalSources: 4,
+              enhancedGTFS: true,
+              mlIntelligence: true,
+              routeAnalysis: true,
+              autoCancellation: true,
+              corsFixed: true
+            }
+          }
+        };
+        
+        console.log(`🎯 [${requestId}] ENHANCED INTELLIGENCE RESULT: ${activeAlerts.length} alerts`);
+        console.log(`🤖 [${requestId}] ML Enhanced: ${stats.enhanced}/${activeAlerts.length}`);
+        console.log(`📊 [${requestId}] Route Analysis: ${stats.withRouteImpact}/${activeAlerts.length}`);
+        console.log(`🎯 [${requestId}] Average Confidence: ${stats.averageConfidence}`);
+        console.log(`⏱️ [${requestId}] Total processing time: ${Date.now() - requestId}ms`);
+        
+        return res.json(response);
+      }
+    } catch (intelligenceError) {
+      console.warn(`⚠️ [${requestId}] Enhanced Intelligence failed: ${intelligenceError.message}`);
+    }
+    
+    // Fallback to direct source fetching
+    console.log(`🔄 [${requestId}] Falling back to direct sources...`);
     
     let allAlerts = [];
     const sources = {};
@@ -556,7 +634,7 @@ app.get('/api/alerts-enhanced', async (req, res) => {
     );
     
     // Fetch with extended timeout for Display Screen
-    console.log(`⏱️ [${requestId}] Fetching from ALL 4 traffic sources (Display Screen)...`);
+    console.log(`⏱️ [${requestId}] Fetching from ALL 4 traffic sources (Enhanced Display Screen)...`);
     const startTime = Date.now();
     
     const results = await Promise.allSettled(
@@ -620,7 +698,7 @@ app.get('/api/alerts-enhanced', async (req, res) => {
     let enhancedAlerts = [];
     if (filteredAlerts.length > 0) {
       try {
-        console.log(`🔄 [${requestId}] Processing alerts for Display Screen...`);
+        console.log(`🔄 [${requestId}] Processing alerts for Enhanced Display Screen...`);
         enhancedAlerts = await processAlertsOptimized(filteredAlerts);
         console.log(`✅ [${requestId}] Processing complete: ${enhancedAlerts.length} alerts`);
       } catch (enhancementError) {
@@ -654,8 +732,8 @@ app.get('/api/alerts-enhanced', async (req, res) => {
         sources,
         statistics: stats,
         lastUpdated: new Date().toISOString(),
-        enhancement: 'Display Screen Optimized with Enhanced GTFS + Auto-cancellation',
-        mode: 'display_screen_optimized',
+        enhancement: 'Enhanced Display Screen with Fallback + GTFS',
+        mode: 'enhanced_display_with_fallback',
         debug: {
           processingDuration: `${Date.now() - requestId}ms`,
           sourcesActive: Object.keys(sources).filter(s => sources[s].success).length,
@@ -667,7 +745,7 @@ app.get('/api/alerts-enhanced', async (req, res) => {
       }
     };
     
-    console.log(`🎯 [${requestId}] DISPLAY SCREEN RESULT: ${activeAlerts.length} alerts from ${Object.keys(sources).filter(s => sources[s].success).length}/4 sources`);
+    console.log(`🎯 [${requestId}] FALLBACK RESULT: ${activeAlerts.length} alerts from ${Object.keys(sources).filter(s => sources[s].success).length}/4 sources`);
     console.log(`📊 [${requestId}] Enhanced GTFS matches: ${stats.enhancedGTFS}/${activeAlerts.length}`);
     console.log(`🗺️ [${requestId}] Alerts with coordinates: ${stats.alertsWithCoordinates}/${activeAlerts.length}`);
     console.log(`🧹 [${requestId}] Auto-cancelled: ${stats.autoCancelled} stale incidents`);
@@ -676,7 +754,7 @@ app.get('/api/alerts-enhanced', async (req, res) => {
     res.json(response);
     
   } catch (error) {
-    console.error(`❌ [${requestId}] Critical display screen error:`, error);
+    console.error(`❌ [${requestId}] Critical enhanced display error:`, error);
     
     const emergencyResponse = {
       success: false,
@@ -684,7 +762,7 @@ app.get('/api/alerts-enhanced', async (req, res) => {
       metadata: {
         requestId,
         totalAlerts: 0,
-        sources: { error: 'Display screen endpoint failure' },
+        sources: { error: 'Enhanced display endpoint failure' },
         error: error.message,
         timestamp: new Date().toISOString(),
         mode: 'emergency_fallback',

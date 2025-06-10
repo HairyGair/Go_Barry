@@ -15,10 +15,92 @@ const EnhancedDisplayScreen = () => {
   const [seriouslyAffectedAreas, setSeriouslyAffectedAreas] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [connectionError, setConnectionError] = useState(false);
+  const [intelligenceData, setIntelligenceData] = useState(null);
+  const [dataSourceHealth, setDataSourceHealth] = useState(null);
+  const [mlPerformance, setMlPerformance] = useState(null);
 
   const API_BASE_URL = Platform.OS === 'web' && window.location.hostname === 'localhost' 
     ? 'http://localhost:3001' 
     : 'https://go-barry.onrender.com';
+
+  // Enhance alerts with ML intelligence data
+  const enhanceAlertsWithIntelligence = async (alerts) => {
+    try {
+      const enhancedAlerts = await Promise.all(
+        alerts.map(async (alert) => {
+          try {
+            // Get route impact analysis for each alert
+            const routeImpactResponse = await fetch(`${API_BASE_URL}/api/intelligence/analyze/route-impact`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ alertData: alert })
+            });
+            
+            const routeImpactData = routeImpactResponse.ok ? await routeImpactResponse.json() : null;
+            
+            // Get severity prediction
+            const severityResponse = await fetch(`${API_BASE_URL}/api/intelligence/predict/severity`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ alertData: alert })
+            });
+            
+            const severityData = severityResponse.ok ? await severityResponse.json() : null;
+            
+            return {
+              ...alert,
+              intelligence: {
+                routeImpact: routeImpactData?.routeImpact || null,
+                severityPrediction: severityData?.prediction || null,
+                confidence: severityData?.prediction?.confidence || null,
+                passengerImpact: routeImpactData?.routeImpact?.passengerImpact || null,
+                recommendation: routeImpactData?.analysis?.recommendation || null
+              }
+            };
+          } catch (error) {
+            console.warn('Failed to enhance alert with intelligence:', error);
+            return alert;
+          }
+        })
+      );
+      
+      return enhancedAlerts;
+    } catch (error) {
+      console.error('Error enhancing alerts with intelligence:', error);
+      return alerts;
+    }
+  };
+
+  // Fetch additional intelligence data
+  const fetchIntelligenceData = async () => {
+    try {
+      const [hotspots, recommendations, health, performance] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/intelligence/analytics/hotspots`),
+        fetch(`${API_BASE_URL}/api/intelligence/analytics/recommendations`),
+        fetch(`${API_BASE_URL}/api/intelligence/health`),
+        fetch(`${API_BASE_URL}/api/intelligence/ml/performance`)
+      ]);
+      
+      const [hotspotsData, recommendationsData, healthData, performanceData] = await Promise.all([
+        hotspots.ok ? hotspots.json() : null,
+        recommendations.ok ? recommendations.json() : null,
+        health.ok ? health.json() : null,
+        performance.ok ? performance.json() : null
+      ]);
+      
+      setIntelligenceData({
+        hotspots: hotspotsData?.hotspots || [],
+        recommendations: recommendationsData?.recommendations || [],
+        lastUpdate: new Date()
+      });
+      
+      setDataSourceHealth(healthData?.health || null);
+      setMlPerformance(performanceData?.performance || null);
+      
+    } catch (error) {
+      console.error('Error fetching intelligence data:', error);
+    }
+  };
 
   // Update time every second
   useEffect(() => {
@@ -39,32 +121,43 @@ const EnhancedDisplayScreen = () => {
     return () => clearInterval(cycleTimer);
   }, [currentAlerts.length]);
 
-  // Fetch alerts from API
+  // Fetch enhanced alerts with ML intelligence
   const fetchAlerts = async () => {
     try {
       setConnectionError(false);
-      const response = await fetch(`${API_BASE_URL}/api/alerts-enhanced?t=${Date.now()}&no_cache=true`, {
-        method: 'GET',
-        headers: { 'Accept': 'application/json' }
-      });
       
-      const data = await response.json();
+      // Get enhanced alerts with ML predictions
+      const [alertsResponse, intelligenceResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/alerts-enhanced?t=${Date.now()}&no_cache=true`, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        }),
+        fetch(`${API_BASE_URL}/api/intelligence/data/enhanced`, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' }
+        })
+      ]);
       
-      if (data.success && data.alerts) {
-        // Filter out sample alerts for display
-        const filteredAlerts = data.alerts.filter(alert => 
+      const alertsData = await alertsResponse.json();
+      const intelligenceData = await intelligenceResponse.json();
+      
+      if (alertsData.success && alertsData.alerts) {
+        // Include enhanced alerts with ML data - only filter out samples
+        const filteredAlerts = alertsData.alerts.filter(alert => 
           !alert.id?.includes('barry_v3') && 
           !alert.id?.includes('sample') && 
-          alert.source !== 'go_barry_v3' && 
-          !alert.enhanced
+          alert.source !== 'go_barry_v3'
         );
         
-        setCurrentAlerts(filteredAlerts);
+        // Enhance alerts with intelligence data
+        const enhancedAlerts = await enhanceAlertsWithIntelligence(filteredAlerts);
+        
+        setCurrentAlerts(enhancedAlerts);
         setLastDataUpdate(new Date());
-        updateAffectedAreas(filteredAlerts);
+        updateAffectedAreas(enhancedAlerts);
         setIsLoading(false);
         
-        console.log(`Display alerts updated: ${data.alerts.length} to ${filteredAlerts.length} (filtered ${data.alerts.length - filteredAlerts.length} samples)`);
+        console.log(`Display alerts updated: ${alertsData.alerts.length} to ${enhancedAlerts.length} (enhanced with ML)`);
       } else {
         throw new Error('Invalid response format');
       }
@@ -121,14 +214,17 @@ const EnhancedDisplayScreen = () => {
   useEffect(() => {
     fetchAlerts();
     fetchSupervisors();
+    fetchIntelligenceData();
     
-    // Set up intervals
-    const alertInterval = setInterval(fetchAlerts, 30000); // Every 30 seconds
+    // Set up faster intervals for real-time monitoring
+    const alertInterval = setInterval(fetchAlerts, 10000); // Every 10 seconds
     const supervisorInterval = setInterval(fetchSupervisors, 15000); // Every 15 seconds
+    const intelligenceInterval = setInterval(fetchIntelligenceData, 30000); // Every 30 seconds
     
     return () => {
       clearInterval(alertInterval);
       clearInterval(supervisorInterval);
+      clearInterval(intelligenceInterval);
     };
   }, []);
 
@@ -268,6 +364,12 @@ const EnhancedDisplayScreen = () => {
               <Text style={styles.metricLabel}>On Map</Text>
             </View>
             <View style={styles.metric}>
+              <Text style={styles.metricValue}>
+                {mlPerformance?.accuracy ? Math.round(mlPerformance.accuracy) + '%' : '--'}
+              </Text>
+              <Text style={styles.metricLabel}>ML Accuracy</Text>
+            </View>
+            <View style={styles.metric}>
               <Text style={styles.metricValue}>{activeSupervisors.length}</Text>
               <Text style={styles.metricLabel}>Supervisors</Text>
             </View>
@@ -354,7 +456,7 @@ const EnhancedDisplayScreen = () => {
                   </Text>
                 </View>
 
-                {/* Enhanced Alert Information */}
+                {/* Enhanced Alert Information with ML Intelligence */}
                 <View style={styles.alertDetails}>
                   <View style={styles.alertDetailRow}>
                     <Text style={styles.detailLabel}>Start Time:</Text>
@@ -376,6 +478,32 @@ const EnhancedDisplayScreen = () => {
                       {getDisruptionReason(currentAlert)}
                     </Text>
                   </View>
+                  
+                  {/* ML Confidence Score */}
+                  {currentAlert.intelligence?.confidence && (
+                    <View style={styles.alertDetailRow}>
+                      <Text style={styles.detailLabel}>ML Confidence:</Text>
+                      <View style={styles.confidenceContainer}>
+                        <Text style={styles.detailValue}>
+                          {Math.round(currentAlert.intelligence.confidence * 100)}%
+                        </Text>
+                        <View style={[
+                          styles.confidenceBar,
+                          { width: `${currentAlert.intelligence.confidence * 100}%` }
+                        ]} />
+                      </View>
+                    </View>
+                  )}
+                  
+                  {/* Passenger Impact */}
+                  {currentAlert.intelligence?.passengerImpact && (
+                    <View style={styles.alertDetailRow}>
+                      <Text style={styles.detailLabel}>Est. Passengers:</Text>
+                      <Text style={styles.detailValue}>
+                        {currentAlert.intelligence.passengerImpact.estimated || 'Unknown'} affected
+                      </Text>
+                    </View>
+                  )}
                 </View>
 
                 {currentAlert.affectsRoutes?.length > 0 && (
@@ -401,10 +529,30 @@ const EnhancedDisplayScreen = () => {
                   </View>
                 )}
 
+                {/* AI Recommendations */}
+                {currentAlert.intelligence?.recommendation && (
+                  <View style={styles.recommendationBox}>
+                    <View style={styles.recommendationHeader}>
+                      <Text style={styles.recommendationIcon}>🤖</Text>
+                      <Text style={styles.recommendationTitle}>AI Recommendation</Text>
+                    </View>
+                    <Text style={styles.recommendationText}>
+                      {currentAlert.intelligence.recommendation}
+                    </Text>
+                  </View>
+                )}
+
                 <View style={styles.alertMetadata}>
                   <Text style={styles.alertSource}>
                     Source: {(currentAlert.source || 'SYSTEM').toUpperCase()}
+                    {currentAlert.intelligence && ' • Enhanced with ML'}
                   </Text>
+                  {dataSourceHealth && (
+                    <Text style={styles.dataHealthText}>
+                      Data Sources: {dataSourceHealth.components?.dataSources?.status || 'Unknown'} • 
+                      ML: {dataSourceHealth.components?.machineLearning?.status || 'Unknown'}
+                    </Text>
+                  )}
                 </View>
               </View>
             ) : null}
@@ -866,6 +1014,20 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   
+  // ML Confidence Display
+  confidenceContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  confidenceBar: {
+    height: 4,
+    backgroundColor: '#10b981',
+    borderRadius: 2,
+    flex: 1,
+  },
+  
   // Route Impact
   routeImpact: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -909,6 +1071,35 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   
+  // AI Recommendations
+  recommendationBox: {
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
+    padding: 16,
+    marginTop: 16,
+  },
+  recommendationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  recommendationIcon: {
+    fontSize: 16,
+  },
+  recommendationTitle: {
+    color: '#60a5fa',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  recommendationText: {
+    color: 'rgba(96, 165, 250, 0.9)',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  
   // Alert Metadata
   alertMetadata: {
     marginTop: 20,
@@ -919,6 +1110,11 @@ const styles = StyleSheet.create({
   alertSource: {
     color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 14,
+    marginBottom: 6,
+  },
+  dataHealthText: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: 12,
   },
   
   // Supervisors Panel
