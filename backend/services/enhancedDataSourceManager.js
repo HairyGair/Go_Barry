@@ -11,7 +11,7 @@ class EnhancedDataSourceManager {
   constructor() {
     this.sourceConfigs = {
       tomtom: { name: 'TomTom Traffic', reliability: 0.9, enabled: true },
-      here: { name: 'HERE Traffic', reliability: 0.85, enabled: true },
+      here: { name: 'HERE Traffic', reliability: 0.85, enabled: false }, // Disabled - API format issues
       mapquest: { name: 'MapQuest Traffic', reliability: 0.75, enabled: true },
       national_highways: { name: 'National Highways', reliability: 0.95, enabled: true }
     };
@@ -125,6 +125,18 @@ class EnhancedDataSourceManager {
   }
 
   async fetchHereData() {
+    // HERE API temporarily disabled due to persistent 400 errors
+    // Multiple API keys tested, appears to be request format issue
+    console.log('🗺️ HERE API disabled - persistent 400 errors with multiple keys');
+    return { 
+      success: false, 
+      error: 'HERE API disabled - format/authentication issues', 
+      data: [],
+      disabled: true
+    };
+    
+    // Original HERE code commented out for future fixing:
+    /*
     try {
       const result = await fetchHERETrafficWithStreetNames();
       return {
@@ -135,6 +147,7 @@ class EnhancedDataSourceManager {
     } catch (error) {
       return { success: false, error: error.message };
     }
+    */
   }
 
   async fetchMapQuestData() {
@@ -247,8 +260,8 @@ class EnhancedDataSourceManager {
   }
 
   calculateConfidence(successfulSources) {
-    const totalSources = Object.keys(this.sourceConfigs).length;
-    return Math.round((successfulSources.length / totalSources) * 100) / 100;
+    const enabledSources = Object.values(this.sourceConfigs).filter(s => s.enabled).length; // 3 enabled sources
+    return Math.round((successfulSources.length / enabledSources) * 100) / 100;
   }
 
   getCurrentData() {
@@ -256,13 +269,17 @@ class EnhancedDataSourceManager {
   }
 
   getSourceStatistics() {
+    const enabledSources = Object.values(this.sourceConfigs).filter(s => s.enabled).length;
+    const totalSources = Object.keys(this.sourceConfigs).length;
     return {
-      totalSources: Object.keys(this.sourceConfigs).length,
-      activeSources: Object.values(this.sourceConfigs).filter(s => s.enabled).length,
+      totalSources: totalSources,
+      enabledSources: enabledSources,
+      activeSources: enabledSources, // All enabled sources are considered active
       lastUpdate: this.aggregatedData.lastUpdate,
       confidence: this.aggregatedData.confidence,
       performance: this.aggregatedData.performance || {},
-      sourceStats: this.aggregatedData.sourceStats || {}
+      sourceStats: this.aggregatedData.sourceStats || {},
+      note: `HERE API disabled due to format issues - ${enabledSources}/${totalSources} sources enabled`
     };
   }
 
