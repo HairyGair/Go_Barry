@@ -121,35 +121,64 @@ const EnhancedDisplayScreen = () => {
     return () => clearInterval(cycleTimer);
   }, [currentAlerts.length]);
 
-  // Fetch enhanced alerts with ML intelligence
+  // Fetch enhanced alerts with ML intelligence and error handling
   const fetchAlerts = async () => {
     try {
       setConnectionError(false);
       
-      // Get enhanced alerts with ML predictions
-      const [alertsResponse, intelligenceResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/alerts-enhanced?t=${Date.now()}&no_cache=true`, {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' }
-        }),
-        fetch(`${API_BASE_URL}/api/intelligence/data/enhanced`, {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' }
-        })
-      ]);
+      console.log('🔄 Display Screen: Fetching alerts...');
       
-      const alertsData = await alertsResponse.json();
-      const intelligenceData = await intelligenceResponse.json();
+      // Try multiple endpoints for reliability
+      const endpoints = [
+        `${API_BASE_URL}/api/alerts-enhanced?t=${Date.now()}&no_cache=true`,
+        `${API_BASE_URL}/api/alerts?t=${Date.now()}&no_cache=true`
+      ];
       
-      if (alertsData.success && alertsData.alerts) {
+      let response;
+      let data;
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`📶 Trying endpoint: ${endpoint}`);
+          
+          response = await fetch(endpoint, {
+            method: 'GET',
+            headers: { 
+              'Accept': 'application/json',
+              'Cache-Control': 'no-cache',
+              'User-Agent': 'BARRY-Display-Screen'
+            },
+            timeout: 15000
+          });
+          
+          if (!response.ok) {
+            console.log(`⚠️ HTTP ${response.status} from ${endpoint}`);
+            continue;
+          }
+          
+          data = await response.json();
+          console.log(`✅ Success from ${endpoint}`);
+          break;
+          
+        } catch (endpointError) {
+          console.log(`❌ Failed ${endpoint}: ${endpointError.message}`);
+          continue;
+        }
+      }
+      
+      if (!data) {
+        throw new Error('All endpoints failed');
+      }
+      
+      if (data.success && data.alerts) {
         // Include enhanced alerts with ML data - only filter out samples
-        const filteredAlerts = alertsData.alerts.filter(alert => 
+        const filteredAlerts = data.alerts.filter(alert => 
           !alert.id?.includes('barry_v3') && 
           !alert.id?.includes('sample') && 
           alert.source !== 'go_barry_v3'
         );
         
-        // Enhance alerts with intelligence data
+        // Enhance alerts with intelligence data if available
         const enhancedAlerts = await enhanceAlertsWithIntelligence(filteredAlerts);
         
         setCurrentAlerts(enhancedAlerts);
@@ -157,14 +186,38 @@ const EnhancedDisplayScreen = () => {
         updateAffectedAreas(enhancedAlerts);
         setIsLoading(false);
         
-        console.log(`Display alerts updated: ${alertsData.alerts.length} to ${enhancedAlerts.length} (enhanced with ML)`);
+        console.log(`✅ Display alerts updated: ${data.alerts.length} to ${enhancedAlerts.length} (enhanced with ML)`);
+        
+        // Test data flow periodically
+        if (enhancedAlerts.length === 0) {
+          console.log('⚠️ No alerts received - testing data flow...');
+          testDataFlow();
+        }
+        
       } else {
-        throw new Error('Invalid response format');
+        throw new Error('Invalid response format or no success flag');
       }
     } catch (error) {
-      console.error('Error fetching alerts:', error);
+      console.error('❌ Display Screen: Error fetching alerts:', error);
       setConnectionError(true);
       setIsLoading(false);
+      
+      // Try emergency data flow test
+      testDataFlow();
+    }
+  };
+  
+  // Test data flow when no alerts are received
+  const testDataFlow = async () => {
+    try {
+      console.log('🧪 Testing data flow...');
+      const response = await fetch(`${API_BASE_URL}/api/test/data-flow`);
+      if (response.ok) {
+        const testData = await response.json();
+        console.log('📊 Data flow test:', testData);
+      }
+    } catch (error) {
+      console.error('❌ Data flow test failed:', error);
     }
   };
 
