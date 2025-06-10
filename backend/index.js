@@ -19,6 +19,7 @@ import healthRoutes from './routes/health.js';
 import healthExtendedRouter from './routes/healthExtended.js';
 import supervisorAPI from './routes/supervisorAPI.js';
 import roadworksAPI from './routes/roadworksAPI.js';
+import gtfsAPI from './routes/gtfsAPI.js';
 import intelligenceAPI from './routes/intelligenceAPI.js';
 import supervisorSyncService from './services/supervisorSync.js';
 import { createServer } from 'http';
