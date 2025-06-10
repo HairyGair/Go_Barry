@@ -1,13 +1,12 @@
 // Go_BARRY/app/display.jsx
-// EMERGENCY FIX: Disable WebSocket to stop connection storm
 // Large-scale non-interactive display optimized for control room visibility
+// Receives real-time updates from supervisor controls via WebSocket
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBarryAPI } from '../components/hooks/useBARRYapi';
-// EMERGENCY: Temporarily disable WebSocket to stop connection storm
-// import { useSupervisorSync } from '../components/hooks/useSupervisorSync';
+import { useSupervisorSync } from '../components/hooks/useSupervisorSync';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -26,8 +25,7 @@ const ControlRoomDisplay = () => {
     refreshInterval: 10000 // 10 seconds for live production monitoring
   });
 
-  // EMERGENCY: Temporarily disable WebSocket sync to stop connection storm
-  /*
+  // WebSocket sync with supervisor controls
   const {
     connectionState,
     isConnected: wsConnected,
@@ -42,21 +40,11 @@ const ControlRoomDisplay = () => {
     autoConnect: true,
     onConnectionChange: (connected) => {
       console.log('🔌 LIVE Control Room Display:', connected ? 'Connected' : 'Disconnected');
+    },
+    onError: (error) => {
+      console.warn('⚠️ Display WebSocket error (non-critical):', error);
     }
   });
-  */
-
-  // EMERGENCY: Use fallback values while WebSocket is disabled
-  const wsConnected = false;
-  const acknowledgedAlerts = new Set();
-  const priorityOverrides = new Map();
-  const supervisorNotes = new Map();
-  const customMessages = [];
-  const connectedSupervisors = 2; // Mock value
-  const activeSupervisors = [
-    { id: 'sup_001', name: 'Control Room Supervisor', role: 'Senior Supervisor' },
-    { id: 'sup_002', name: 'Field Supervisor', role: 'Field Operations' }
-  ];
 
   // Update time every second
   useEffect(() => {
@@ -109,11 +97,14 @@ const ControlRoomDisplay = () => {
 
   return (
     <View style={styles.container}>
-      {/* EMERGENCY NOTICE */}
-      <View style={styles.emergencyNotice}>
-        <Ionicons name="warning" size={20} color="#F59E0B" />
+      {/* CONNECTION STATUS */}
+      <View style={[styles.emergencyNotice, wsConnected ? styles.connectedNotice : null]}>
+        <Ionicons name={wsConnected ? "wifi" : "wifi-off"} size={20} color={wsConnected ? "#10B981" : "#F59E0B"} />
         <Text style={styles.emergencyText}>
-          WebSocket temporarily disabled to resolve connection issues. Display functioning with live traffic data.
+          {wsConnected 
+            ? `Supervisor sync active • ${connectedSupervisors} supervisor${connectedSupervisors !== 1 ? 's' : ''} connected`
+            : 'Supervisor sync offline • Display functioning with live traffic data'
+          }
         </Text>
       </View>
 
@@ -384,13 +375,13 @@ const ControlRoomDisplay = () => {
         <View style={styles.footerLeft}>
           <Text style={styles.footerTitle}>Go North East Traffic Control Room</Text>
           <Text style={styles.footerSubtitle}>
-            Live Production System • Real-time Traffic Intelligence • WebSocket Temporarily Disabled
+            Live Production System • Real-time Traffic Intelligence • Supervisor Sync {wsConnected ? 'Online' : 'Offline'}
           </Text>
         </View>
         
         <View style={styles.footerRight}>
           <Text style={styles.systemInfo}>
-            🟢 LIVE MONITORING • Auto-refresh: 10s • Production Data Only
+            {wsConnected ? '🟢' : '🟡'} LIVE MONITORING • Auto-refresh: 10s • Supervisor Sync {wsConnected ? 'Active' : 'Standby'}
           </Text>
         </View>
       </View>
@@ -405,7 +396,7 @@ const styles = StyleSheet.create({
     minHeight: '100vh',
   },
   
-  // EMERGENCY NOTICE
+  // CONNECTION STATUS
   emergencyNotice: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -415,6 +406,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 2,
     borderBottomColor: '#F59E0B',
+  },
+  
+  connectedNotice: {
+    backgroundColor: '#064E3B',
+    borderBottomColor: '#10B981',
   },
   
   emergencyText: {

@@ -114,6 +114,13 @@ export const useSupervisorSync = ({
 
   // Generate WebSocket URL based on environment
   const getWebSocketUrl = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'ws://localhost:3001/ws/supervisor-sync';
+      }
+    }
+    
     const baseUrl = API_CONFIG.baseURL.replace('http://', '').replace('https://', '');
     const protocol = API_CONFIG.baseURL.startsWith('https') ? 'wss' : 'ws';
     return `${protocol}://${baseUrl}/ws/supervisor-sync`;
@@ -422,8 +429,8 @@ export const useSupervisorSync = ({
 
   // Connect to WebSocket
   const connect = useCallback(() => {
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      console.log('🔌 Already connected');
+    if (ws.current?.readyState === WebSocket.OPEN || ws.current?.readyState === WebSocket.CONNECTING) {
+      console.log('🔌 Already connected or connecting');
       return;
     }
 
@@ -438,7 +445,7 @@ export const useSupervisorSync = ({
 
       ws.current.onopen = () => {
         console.log('✅ WebSocket connection opened');
-        setConnectionState(CONNECTION_STATES.CONNECTED);
+        setConnectionState(CONNECTION_STATES.CONNECTING); // Still connecting until auth
         
         // Authenticate based on client type
         const authMessage = {
@@ -447,11 +454,16 @@ export const useSupervisorSync = ({
           ...(clientType === 'supervisor' && { supervisorId, sessionId })
         };
         
-        sendMessage(authMessage);
-        
-        // Call connection change handler
-        if (onConnectionChange) {
-          onConnectionChange(true);
+        // Send auth message directly (don't use sendMessage which checks connection state)
+        try {
+          ws.current.send(JSON.stringify({
+            ...authMessage,
+            timestamp: new Date().toISOString()
+          }));
+          console.log('📤 Sent auth message:', authMessage.clientType);
+        } catch (error) {
+          console.error('❌ Failed to send auth message:', error);
+          setLastError('Authentication failed');
         }
       };
 
@@ -479,12 +491,12 @@ export const useSupervisorSync = ({
           onConnectionChange(false);
         }
         
-        // Attempt reconnection if not a clean close (reduced attempts)
-        if (event.code !== 1000 && reconnectAttempts.current < 5) {
+        // Attempt reconnection if not a clean close (very limited attempts to prevent storm)
+        if (event.code !== 1000 && reconnectAttempts.current < 2) {
           scheduleReconnect();
-        } else if (reconnectAttempts.current >= 5) {
-          console.log('🛑 Max reconnection attempts reached, stopping');
-          setLastError('Connection failed after multiple attempts');
+        } else if (reconnectAttempts.current >= 2) {
+          console.log('🛑 Max reconnection attempts reached (2), stopping to prevent connection storm');
+          setLastError('Connection failed after 2 attempts. Please refresh page.');
         }
       };
 
@@ -502,8 +514,8 @@ export const useSupervisorSync = ({
     }
 
     reconnectAttempts.current++;
-    // More conservative reconnection: longer delays, fewer attempts
-    const delay = Math.min(2000 * Math.pow(2, reconnectAttempts.current), 60000); // Start at 2s, max 60s
+    // Very conservative reconnection to prevent connection storms
+    const delay = Math.min(5000 * Math.pow(2, reconnectAttempts.current), 30000); // Start at 5s, max 30s
     
     console.log(`🔄 Scheduling reconnection attempt ${reconnectAttempts.current} in ${delay}ms`);
     setConnectionState(CONNECTION_STATES.RECONNECTING);

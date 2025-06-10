@@ -16,7 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useBarryAPI } from './hooks/useBARRYapi';
 import { useSupervisorSync, CONNECTION_STATES } from './hooks/useSupervisorSync';
-import SupervisorCard from './SupervisorCard';
+import TrafficMap from './TrafficMap';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -58,6 +58,10 @@ const DisplayScreen = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [blinkAnimation] = useState(new Animated.Value(1));
   const [pulseAnimation] = useState(new Animated.Value(1));
+  
+  // Map state
+  const [currentAlertIndex, setCurrentAlertIndex] = useState(0);
+  const [autoRotate, setAutoRotate] = useState(true);
 
   // Update time every second
   useEffect(() => {
@@ -66,6 +70,28 @@ const DisplayScreen = () => {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Auto-rotate through alerts
+  useEffect(() => {
+    if (!autoRotate || !alerts.length) return;
+    
+    const interval = setInterval(() => {
+      setCurrentAlertIndex((prevIndex) => {
+        const newIndex = (prevIndex + 1) % alerts.length;
+        console.log(`🔄 Auto-rotating to alert ${newIndex + 1}/${alerts.length}`);
+        return newIndex;
+      });
+    }, 10000); // Rotate every 10 seconds
+    
+    return () => clearInterval(interval);
+  }, [autoRotate, alerts.length]);
+
+  // Reset alert index when alerts change
+  useEffect(() => {
+    if (currentAlertIndex >= alerts.length) {
+      setCurrentAlertIndex(0);
+    }
+  }, [alerts.length, currentAlertIndex]);
 
   // Blinking animation for critical alerts
   useEffect(() => {
@@ -136,6 +162,220 @@ const DisplayScreen = () => {
     });
   };
 
+  // Get current alert
+  const getCurrentAlert = () => {
+    if (!alerts.length || currentAlertIndex >= alerts.length) return null;
+    return alerts[currentAlertIndex];
+  };
+
+  // Handle manual alert selection
+  const selectAlert = (index) => {
+    if (index >= 0 && index < alerts.length) {
+      setCurrentAlertIndex(index);
+      setAutoRotate(false); // Stop auto-rotation when manually selected
+      console.log(`🖦️ Manual alert selection: ${index + 1}/${alerts.length}`);
+      
+      // Resume auto-rotation after 30 seconds
+      setTimeout(() => {
+        setAutoRotate(true);
+        console.log('🔄 Auto-rotation resumed');
+      }, 30000);
+    }
+  };
+
+  const toggleAutoRotate = () => {
+    setAutoRotate(!autoRotate);
+    console.log(`🔄 Auto-rotation ${!autoRotate ? 'enabled' : 'disabled'}`);
+  };
+
+  // Helper function to format login time
+  const formatLoginTime = (loginTime) => {
+    if (!loginTime) return 'Unknown';
+    const minutes = Math.floor((Date.now() - new Date(loginTime).getTime()) / 60000);
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  };
+
+  // Render supervisor activity feed
+  const renderSupervisorActivity = () => {
+    const activities = [];
+    
+    // Add acknowledged alerts
+    acknowledgedAlerts.forEach((alertId) => {
+      const alert = alerts.find(a => a.id === alertId);
+      if (alert) {
+        activities.push({
+          id: `ack-${alertId}`,
+          type: 'acknowledgment',
+          icon: 'checkmark-circle',
+          iconColor: '#10B981',
+          title: 'Alert Acknowledged',
+          description: `${alert.title?.substring(0, 30)}...`,
+          timestamp: Date.now() - Math.random() * 600000 // Mock recent time
+        });
+      }
+    });
+    
+    // Add priority overrides
+    priorityOverrides.forEach((override, alertId) => {
+      const alert = alerts.find(a => a.id === alertId);
+      if (alert) {
+        activities.push({
+          id: `priority-${alertId}`,
+          type: 'priority',
+          icon: 'flag',
+          iconColor: '#F59E0B',
+          title: 'Priority Changed',
+          description: `Set to ${override.priority} priority`,
+          timestamp: Date.now() - Math.random() * 300000
+        });
+      }
+    });
+    
+    // Add supervisor notes
+    supervisorNotes.forEach((note, alertId) => {
+      activities.push({
+        id: `note-${alertId}`,
+        type: 'note',
+        icon: 'document-text',
+        iconColor: '#3B82F6',
+        title: 'Note Added',
+        description: note.note.substring(0, 40) + '...',
+        timestamp: Date.now() - Math.random() * 900000
+      });
+    });
+    
+    // Add custom messages
+    customMessages.forEach((message) => {
+      activities.push({
+        id: `msg-${message.id}`,
+        type: 'message',
+        icon: 'megaphone',
+        iconColor: message.priority === 'critical' ? '#DC2626' : '#7C3AED',
+        title: 'Broadcast Message',
+        description: message.message.substring(0, 35) + '...',
+        timestamp: new Date(message.timestamp).getTime()
+      });
+    });
+    
+    // Sort by timestamp (most recent first)
+    activities.sort((a, b) => b.timestamp - a.timestamp);
+    
+    // Take only recent activities
+    const recentActivities = activities.slice(0, 8);
+    
+    if (recentActivities.length === 0) {
+      return (
+        <View style={styles.noActivity}>
+          <Ionicons name="time-outline" size={20} color="#6B7280" />
+          <Text style={styles.noActivityText}>No recent activity</Text>
+          <Text style={styles.noActivitySubtext}>Supervisor actions will appear here</Text>
+        </View>
+      );
+    }
+    
+    return recentActivities.map((activity) => (
+      <View key={activity.id} style={styles.activityItem}>
+        <View style={[styles.activityIcon, { backgroundColor: activity.iconColor }]}>
+          <Ionicons name={activity.icon} size={12} color="#FFFFFF" />
+        </View>
+        
+        <View style={styles.activityContent}>
+          <Text style={styles.activityTitle}>{activity.title}</Text>
+          <Text style={styles.activityDescription}>{activity.description}</Text>
+          <Text style={styles.activityTimestamp}>
+            {formatActivityTime(activity.timestamp)}
+          </Text>
+        </View>
+      </View>
+
+      {/* Supervisor Control Panel */}
+      {enableSupervisorMode && supervisorPanelVisible && (
+        <View style={styles.supervisorControlPanel}>
+          <View style={styles.controlPanelHeader}>
+            <View style={styles.controlPanelHeaderLeft}>
+              <Ionicons name="person-circle" size={20} color="#FFFFFF" />
+              <Text style={styles.controlPanelTitle}>SUPERVISOR CONTROL PANEL</Text>
+              <Text style={styles.controlPanelSubtitle}>
+                {supervisorName} ({supervisorId})
+              </Text>
+            </View>
+            
+            <View style={styles.connectionStatus}>
+              <View style={[styles.statusDot, { backgroundColor: wsConnected ? '#10B981' : '#EF4444' }]} />
+              <Text style={styles.connectionText}>
+                {wsConnected ? `Connected • ${connectedDisplays || 0} displays` : 'Disconnected'}
+              </Text>
+              {lastError && (
+                <TouchableOpacity onPress={clearError} style={styles.errorButton}>
+                  <Text style={styles.errorText}>{lastError}</Text>
+                  <Ionicons name="close-circle" size={16} color="#EF4444" />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+          
+          <View style={styles.controlPanelContent}>
+            <View style={styles.modeSelector}>
+              <Text style={styles.modeSelectorLabel}>Display Mode:</Text>
+              <View style={styles.modeButtons}>
+                {['normal', 'emergency', 'maintenance'].map(mode => (
+                  <TouchableOpacity
+                    key={mode}
+                    style={[
+                      styles.modeButton,
+                      displayMode === mode && styles.modeButtonActive
+                    ]}
+                    onPress={() => handleModeChange(mode)}
+                  >
+                    <Text style={[
+                      styles.modeButtonText,
+                      displayMode === mode && styles.modeButtonTextActive
+                    ]}>
+                      {mode.toUpperCase()}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            
+            <View style={styles.statsContainer}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{acknowledgedAlerts.size}</Text>
+                <Text style={styles.statLabel}>Acknowledged</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{priorityOverrides.size}</Text>
+                <Text style={styles.statLabel}>Overrides</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{supervisorNotes.size}</Text>
+                <Text style={styles.statLabel}>Notes</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{customMessages.length}</Text>
+                <Text style={styles.statLabel}>Messages</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      )}
+    ));
+  };
+  
+  // Format activity timestamp
+  const formatActivityTime = (timestamp) => {
+    const minutes = Math.floor((Date.now() - timestamp) / 60000);
+    if (minutes < 1) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    return `${Math.floor(hours / 24)}d ago`;
+  };
+
 
 
   const criticalAlerts = alerts.filter(alert => 
@@ -185,6 +425,69 @@ const DisplayScreen = () => {
               <Text style={styles.syncText}>Supervisor Sync Active</Text>
             </View>
           )}
+          
+          {enableSupervisorMode && (
+            <View style={styles.supervisorControls}>
+              <TouchableOpacity 
+                style={[styles.supervisorControlButton, { backgroundColor: supervisorPanelVisible ? '#EF4444' : '#7C3AED' }]}
+                onPress={() => setSupervisorPanelVisible(!supervisorPanelVisible)}
+              >
+                <Ionicons name={supervisorPanelVisible ? "close" : "settings"} size={16} color="#FFFFFF" />
+                <Text style={styles.supervisorControlText}>
+                  {supervisorPanelVisible ? 'CLOSE' : 'CONTROLS'}
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.supervisorControlButton, { backgroundColor: '#059669' }]}
+                onPress={() => setShowBroadcastModal(true)}
+              >
+                <Ionicons name="megaphone" size={16} color="#FFFFFF" />
+                <Text style={styles.supervisorControlText}>BROADCAST</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Supervisor Status Bar */}
+      <View style={styles.supervisorStatusBar}>
+        <View style={styles.supervisorStatusLeft}>
+          <Ionicons 
+            name="people" 
+            size={16} 
+            color={connectedSupervisors > 0 ? '#10B981' : '#6B7280'} 
+          />
+          <Text style={[
+            styles.supervisorStatusText,
+            { color: connectedSupervisors > 0 ? '#10B981' : '#6B7280' }
+          ]}>
+            {connectedSupervisors === 0 ? 'NO SUPERVISORS ONLINE' :
+             connectedSupervisors === 1 ? '1 SUPERVISOR ONLINE' :
+             `${connectedSupervisors} SUPERVISORS ONLINE`}
+          </Text>
+        </View>
+        
+        <View style={styles.supervisorStatusRight}>
+          {activeSupervisors?.map((supervisor, index) => (
+            <View key={supervisor.id || index} style={styles.supervisorQuickInfo}>
+              <View style={[
+                styles.supervisorQuickAvatar,
+                { backgroundColor: supervisor.isAdmin ? '#7C3AED' : '#3B82F6' }
+              ]}>
+                <Text style={styles.supervisorInitial}>
+                  {(supervisor.name || 'S').charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <Text style={styles.supervisorQuickName}>
+                {supervisor.name || `Sup${index + 1}`}
+              </Text>
+            </View>
+          )).slice(0, 4)}
+          
+          {connectedSupervisors > 4 && (
+            <Text style={styles.moreSupervisors}>+{connectedSupervisors - 4}</Text>
+          )}
         </View>
       </View>
 
@@ -226,50 +529,192 @@ const DisplayScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Custom Messages from Supervisors */}
-      {customMessages.length > 0 && (
-        <View style={styles.customMessages}>
-          {customMessages.map(message => (
-            <View 
-              key={message.id} 
-              style={[
-                styles.customMessage,
-                { borderLeftColor: message.priority === 'critical' ? '#DC2626' : 
-                                  message.priority === 'warning' ? '#F59E0B' : '#3B82F6' }
-              ]}
-            >
-              <View style={styles.messageHeader}>
-                <Ionicons 
-                  name={message.priority === 'critical' ? 'warning' : 
-                       message.priority === 'warning' ? 'alert-circle' : 'information-circle'} 
-                  size={16} 
-                  color={message.priority === 'critical' ? '#DC2626' : 
-                         message.priority === 'warning' ? '#F59E0B' : '#3B82F6'} 
-                />
-                <Text style={styles.messageLabel}>SUPERVISOR MESSAGE</Text>
-                <Text style={styles.messageTime}>
-                  {new Date(message.timestamp).toLocaleTimeString('en-GB')}
+      {/* Main Content - Side by Side Layout */}
+      <View style={styles.mainContent}>
+        {/* Map Section - 40% */}
+        <View style={styles.mapSectionSideBySide}>
+          <View style={styles.mapHeader}>
+            <View style={styles.mapHeaderLeft}>
+              <Ionicons name="map" size={20} color="#FFFFFF" />
+              <Text style={styles.mapTitle}>LIVE TRAFFIC MAP</Text>
+              {alerts.length > 0 && (
+                <Text style={styles.mapAlertCounter}>
+                  Alert {currentAlertIndex + 1} of {alerts.length}
                 </Text>
-              </View>
-              <Text style={styles.messageText}>{message.message}</Text>
+              )}
             </View>
-          ))}
+            
+            <View style={styles.mapControls}>
+              {alerts.length > 1 && (
+                <>
+                  <TouchableOpacity 
+                    style={styles.mapControlButton}
+                    onPress={() => selectAlert((currentAlertIndex - 1 + alerts.length) % alerts.length)}
+                  >
+                    <Ionicons name="chevron-back" size={16} color="#FFFFFF" />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={[
+                      styles.mapControlButton,
+                      { backgroundColor: autoRotate ? '#10B981' : '#6B7280' }
+                    ]}
+                    onPress={toggleAutoRotate}
+                  >
+                    <Ionicons 
+                      name={autoRotate ? "play" : "pause"} 
+                      size={14} 
+                      color="#FFFFFF" 
+                    />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={styles.mapControlButton}
+                    onPress={() => selectAlert((currentAlertIndex + 1) % alerts.length)}
+                  >
+                    <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          </View>
+          
+          <View style={styles.mapContainerSideBySide}>
+            <TrafficMap 
+              alerts={alerts}
+              currentAlert={getCurrentAlert()}
+              alertIndex={currentAlertIndex}
+            />
+          </View>
         </View>
-      )}
 
-      {/* Supervisor Card */}
-      <SupervisorCard 
-        supervisors={activeSupervisors || []}
-        connectedCount={connectedSupervisors}
-        onCardPress={(expanded) => {
-          console.log('Supervisor card', expanded ? 'expanded' : 'collapsed');
-        }}
-      />
+        {/* Center Supervisor Section - 20% */}
+        <View style={styles.supervisorSection}>
+          {/* Online Supervisors - Top Half */}
+          <View style={styles.onlineSupervisors}>
+            <View style={styles.supervisorSectionHeader}>
+              <Ionicons name="people" size={18} color="#FFFFFF" />
+              <Text style={styles.supervisorSectionTitle}>SUPERVISORS ONLINE</Text>
+              <View style={[
+                styles.onlineCount,
+                { backgroundColor: connectedSupervisors > 0 ? '#10B981' : '#6B7280' }
+              ]}>
+                <Text style={styles.onlineCountText}>{connectedSupervisors}</Text>
+              </View>
+            </View>
+            
+            <ScrollView style={styles.supervisorsList} showsVerticalScrollIndicator={false}>
+              {connectedSupervisors === 0 ? (
+                <View style={styles.noSupervisorsOnline}>
+                  <Ionicons name="person-outline" size={24} color="#6B7280" />
+                  <Text style={styles.noSupervisorsText}>No supervisors online</Text>
+                  <Text style={styles.waitingText}>Waiting for login...</Text>
+                </View>
+              ) : (
+                activeSupervisors?.map((supervisor, index) => (
+                  <View key={supervisor.id || index} style={styles.supervisorOnlineItem}>
+                    <View style={[
+                      styles.supervisorOnlineAvatar,
+                      { backgroundColor: supervisor.isAdmin ? '#7C3AED' : '#3B82F6' }
+                    ]}>
+                      <Text style={styles.supervisorInitials}>
+                        {(supervisor.name || 'S').charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.supervisorOnlineInfo}>
+                      <Text style={styles.supervisorOnlineName}>
+                        {supervisor.name || `Supervisor ${index + 1}`}
+                      </Text>
+                      <Text style={styles.supervisorOnlineRole}>
+                        {supervisor.role || 'Traffic Supervisor'}
+                      </Text>
+                      <Text style={styles.supervisorOnlineTime}>
+                        Online {formatLoginTime(supervisor.loginTime)}
+                      </Text>
+                    </View>
+                    
+                    <View style={[
+                      styles.supervisorOnlineStatus,
+                      { backgroundColor: supervisor.status === 'active' ? '#10B981' : '#F59E0B' }
+                    ]} />
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </View>
+          
+          {/* Supervisor Activity - Bottom Half */}
+          <View style={styles.supervisorActivity}>
+            <View style={styles.supervisorSectionHeader}>
+              <Ionicons name="document-text" size={18} color="#FFFFFF" />
+              <Text style={styles.supervisorSectionTitle}>SUPERVISOR ACTIVITY</Text>
+              <View style={styles.activityIndicator}>
+                <View style={styles.activityDot} />
+                <Text style={styles.activityText}>LIVE</Text>
+              </View>
+            </View>
+            
+            <ScrollView style={styles.activityList} showsVerticalScrollIndicator={false}>
+              {renderSupervisorActivity()}
+            </ScrollView>
+          </View>
+        </View>
 
-      {/* Alerts Feed */}
-      <ScrollView style={styles.alertsFeed} showsVerticalScrollIndicator={false}>
-        {alerts.length > 0 ? (
-          alerts.map((alert, index) => {
+        {/* Alerts Feed - 40% */}
+        <View style={styles.alertsFeedSideBySide}>
+          <View style={styles.alertsHeader}>
+            <View style={styles.alertsHeaderLeft}>
+              <Ionicons name="alert-circle" size={20} color="#FFFFFF" />
+              <Text style={styles.alertsTitle}>ACTIVE ALERTS</Text>
+              <Text style={styles.alertsCounter}>
+                {alerts.length} Alert{alerts.length !== 1 ? 's' : ''}
+              </Text>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.refreshButtonSmall}
+              onPress={refreshAlerts}
+            >
+              <Ionicons name="refresh" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.alertsScrollView} showsVerticalScrollIndicator={false}>
+            {/* Custom Messages from Supervisors */}
+            {customMessages.length > 0 && (
+              <View style={styles.customMessagesInline}>
+                {customMessages.map(message => (
+                  <View 
+                    key={message.id} 
+                    style={[
+                      styles.customMessage,
+                      { borderLeftColor: message.priority === 'critical' ? '#DC2626' : 
+                                        message.priority === 'warning' ? '#F59E0B' : '#3B82F6' }
+                    ]}
+                  >
+                    <View style={styles.messageHeader}>
+                      <Ionicons 
+                        name={message.priority === 'critical' ? 'warning' : 
+                             message.priority === 'warning' ? 'alert-circle' : 'information-circle'} 
+                        size={16} 
+                        color={message.priority === 'critical' ? '#DC2626' : 
+                               message.priority === 'warning' ? '#F59E0B' : '#3B82F6'} 
+                      />
+                      <Text style={styles.messageLabel}>SUPERVISOR MESSAGE</Text>
+                      <Text style={styles.messageTime}>
+                        {new Date(message.timestamp).toLocaleTimeString('en-GB')}
+                      </Text>
+                    </View>
+                    <Text style={styles.messageText}>{message.message}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Alerts List */}
+            {alerts.length > 0 ? (
+              alerts.map((alert, index) => {
             // Check for supervisor priority override
             const priorityOverride = priorityOverrides.get(alert.id);
             const supervisorNote = supervisorNotes.get(alert.id);
@@ -320,9 +765,13 @@ const DisplayScreen = () => {
                 style={[
                   styles.alertCard,
                   { borderLeftColor: priorityColor },
-                  isAcknowledged && styles.alertCardAcknowledged
+                  isAcknowledged && styles.alertCardAcknowledged,
+                  index === currentAlertIndex && styles.alertCardSelected
                 ]}
-                onPress={() => console.log('Display touched alert:', alert.id)}
+                onPress={() => {
+                  console.log('Alert selected from display:', alert.id, 'index:', index);
+                  selectAlert(index);
+                }}
               >
                 {/* Priority Banner */}
                 <View style={[styles.priorityBanner, { backgroundColor: priorityColor }]}>
@@ -393,7 +842,68 @@ const DisplayScreen = () => {
                       {!isCritical && !isUrgent && 'MONITOR: Keep watching for service disruption'}
                     </Text>
                     
-                    {!isAcknowledged && (isCritical || isUrgent) && (
+                    {/* Supervisor Interactive Controls */}
+                    {enableSupervisorMode && (
+                      <View style={styles.supervisorControls}>
+                        {!isAcknowledged ? (
+                          <TouchableOpacity
+                            style={[styles.supervisorActionButton, styles.acknowledgeButton]}
+                            onPress={() => handleAcknowledgeAlert(alert)}
+                          >
+                            <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
+                            <Text style={styles.supervisorActionText}>Acknowledge</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <View style={styles.acknowledgedBadge}>
+                            <Ionicons name="checkmark-circle" size={16} color="#059669" />
+                            <Text style={styles.acknowledgedText}>ACKNOWLEDGED</Text>
+                          </View>
+                        )}
+                        
+                        <TouchableOpacity
+                          style={[styles.supervisorActionButton, styles.noteButton]}
+                          onPress={() => handleAddNote(alert)}
+                        >
+                          <Ionicons name="create" size={16} color="#FFFFFF" />
+                          <Text style={styles.supervisorActionText}>Add Note</Text>
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity
+                          style={[styles.supervisorActionButton, styles.templateButton]}
+                          onPress={() => {
+                            setSelectedAlert(alert);
+                            setShowMessageTemplates(true);
+                          }}
+                        >
+                          <Ionicons name="chatbubbles" size={16} color="#FFFFFF" />
+                          <Text style={styles.supervisorActionText}>Quick Message</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                    
+                    {/* Priority Override Buttons */}
+                    {enableSupervisorMode && (
+                      <View style={styles.priorityControls}>
+                        <Text style={styles.priorityControlLabel}>Priority Override:</Text>
+                        <View style={styles.priorityButtons}>
+                          {['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].map(level => (
+                            <TouchableOpacity
+                              key={level}
+                              style={[
+                                styles.priorityButton,
+                                priorityOverride?.priority === level && styles.priorityButtonActive,
+                                { backgroundColor: getPriorityColor(level), opacity: priorityOverride?.priority === level ? 1 : 0.7 }
+                              ]}
+                              onPress={() => handleUpdatePriority(alert, level)}
+                            >
+                              <Text style={styles.priorityButtonText}>{level}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+                    
+                    {!enableSupervisorMode && !isAcknowledged && (isCritical || isUrgent) && (
                       <View style={styles.acknowledgementPrompt}>
                         <Ionicons name="hand-left" size={16} color={priorityColor} />
                         <Text style={[styles.ackText, { color: priorityColor }]}>
@@ -402,7 +912,7 @@ const DisplayScreen = () => {
                       </View>
                     )}
                     
-                    {isAcknowledged && (
+                    {!enableSupervisorMode && isAcknowledged && (
                       <View style={styles.acknowledgedBadge}>
                         <Ionicons name="checkmark-circle" size={16} color="#059669" />
                         <Text style={styles.acknowledgedText}>ACKNOWLEDGED</Text>
@@ -420,20 +930,22 @@ const DisplayScreen = () => {
                 </View>
               </TouchableOpacity>
             );
-          })
-        ) : (
-          <View style={styles.noAlertsContainer}>
-            <Ionicons name="shield-checkmark" size={64} color="#059669" />
-            <Text style={styles.noAlertsTitle}>ALL CLEAR</Text>
-            <Text style={styles.noAlertsText}>
+            })
+              ) : (
+              <View style={styles.noAlertsContainer}>
+              <Ionicons name="shield-checkmark" size={64} color="#059669" />
+              <Text style={styles.noAlertsTitle}>ALL CLEAR</Text>
+              <Text style={styles.noAlertsText}>
               No traffic alerts requiring supervisor attention
-            </Text>
-            <Text style={styles.noAlertsSubtext}>
+              </Text>
+              <Text style={styles.noAlertsSubtext}>
               Services operating normally across the network
-            </Text>
-          </View>
-        )}
-      </ScrollView>
+              </Text>
+              </View>
+              )}
+                </ScrollView>
+        </View>
+      </View>
 
       {/* Footer */}
       <View style={styles.footer}>
@@ -444,6 +956,101 @@ const DisplayScreen = () => {
           TAP alerts to acknowledge • Critical alerts require immediate supervisor review
         </Text>
       </View>
+
+      {/* Broadcast Modal */}
+      {enableSupervisorMode && (
+        <Modal
+          visible={showBroadcastModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowBroadcastModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Broadcast Message</Text>
+                <TouchableOpacity onPress={() => setShowBroadcastModal(false)}>
+                  <Ionicons name="close" size={24} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              
+              <TextInput
+                style={styles.broadcastInput}
+                placeholder="Enter message to broadcast to all displays..."
+                value={broadcastMessageText}
+                onChangeText={setBroadcastMessageText}
+                multiline
+                numberOfLines={3}
+                placeholderTextColor="#9CA3AF"
+              />
+              
+              <View style={styles.prioritySelector}>
+                <Text style={styles.priorityLabel}>Message Priority:</Text>
+                <View style={styles.priorityOptions}>
+                  {['info', 'warning', 'critical'].map(priority => (
+                    <TouchableOpacity
+                      key={priority}
+                      style={[
+                        styles.priorityOption,
+                        broadcastPriority === priority && styles.priorityOptionActive
+                      ]}
+                      onPress={() => setBroadcastPriority(priority)}
+                    >
+                      <Text style={[
+                        styles.priorityOptionText,
+                        broadcastPriority === priority && styles.priorityOptionTextActive
+                      ]}>
+                        {priority.toUpperCase()}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              
+              <TouchableOpacity
+                style={[styles.broadcastButton, { backgroundColor: getPriorityColor(broadcastPriority.toUpperCase()) }]}
+                onPress={handleBroadcastMessage}
+              >
+                <Ionicons name="megaphone" size={20} color="#FFFFFF" />
+                <Text style={styles.broadcastButtonText}>Broadcast Message</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+      
+      {/* Message Templates Modal */}
+      {enableSupervisorMode && (
+        <Modal
+          visible={showMessageTemplates}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={() => setShowMessageTemplates(false)}
+        >
+          <MessageTemplates
+            supervisorId={supervisorId}
+            sessionId={sessionId}
+            selectedAlert={selectedAlert}
+            onMessageSent={() => {
+              setShowMessageTemplates(false);
+              setSelectedAlert(null);
+              showNotification('Message sent successfully', 'success');
+            }}
+            onClose={() => {
+              setShowMessageTemplates(false);
+              setSelectedAlert(null);
+            }}
+          />
+        </Modal>
+      )}
+      
+      {/* Loading Overlay */}
+      {loading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#3B82F6" />
+          <Text style={styles.loadingText}>Processing...</Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -581,12 +1188,11 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   alertsFeed: {
-    flex: 1,
-    padding: 16,
+    // Legacy style - now using alertsScrollView
   },
   alertCard: {
     backgroundColor: '#FFFFFF',
-    marginBottom: 16,
+    marginBottom: 12,
     borderRadius: 8,
     borderLeftWidth: 6,
     shadowColor: '#000',
@@ -613,7 +1219,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   alertContent: {
-    padding: 16,
+    padding: 12,
   },
   alertHeader: {
     flexDirection: 'row',
@@ -727,24 +1333,26 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: 40,
+    paddingHorizontal: 20,
   },
   noAlertsTitle: {
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#059669',
     marginTop: 16,
     marginBottom: 8,
     letterSpacing: 2,
+    textAlign: 'center',
   },
   noAlertsText: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#6B7280',
     textAlign: 'center',
     marginBottom: 8,
   },
   noAlertsSubtext: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#9CA3AF',
     textAlign: 'center',
   },
@@ -768,6 +1376,282 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     letterSpacing: 0.5,
   },
+  // Supervisor Control Styles
+  supervisorControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  supervisorControlButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  supervisorControlText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+    letterSpacing: 0.5,
+  },
+  supervisorControlPanel: {
+    backgroundColor: '#1E293B',
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  controlPanelHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#0F172A',
+  },
+  controlPanelHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  controlPanelTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    letterSpacing: 1,
+  },
+  controlPanelSubtitle: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    marginLeft: 8,
+  },
+  connectionStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  connectionText: {
+    fontSize: 11,
+    color: '#9CA3AF',
+  },
+  errorButton: {
+    marginLeft: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  errorText: {
+    fontSize: 10,
+    color: '#EF4444',
+  },
+  controlPanelContent: {
+    flexDirection: 'row',
+    padding: 16,
+    gap: 24,
+  },
+  modeSelector: {
+    flex: 1,
+  },
+  modeSelectorLabel: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  modeButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  modeButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#374151',
+    backgroundColor: '#1F2937',
+  },
+  modeButtonActive: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  modeButtonText: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    fontWeight: '500',
+  },
+  modeButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  statLabel: {
+    fontSize: 9,
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
+  supervisorActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginRight: 8,
+    marginBottom: 4,
+  },
+  acknowledgeButton: {
+    backgroundColor: '#10B981',
+  },
+  noteButton: {
+    backgroundColor: '#6B7280',
+  },
+  templateButton: {
+    backgroundColor: '#059669',
+  },
+  supervisorActionText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '500',
+  },
+  priorityControls: {
+    marginTop: 8,
+  },
+  priorityControlLabel: {
+    fontSize: 10,
+    color: '#6B7280',
+    marginBottom: 6,
+    fontWeight: '500',
+  },
+  priorityButtons: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  priorityButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  priorityButtonActive: {
+    opacity: 1,
+  },
+  priorityButtonText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  broadcastInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: '#1F2937',
+    minHeight: 80,
+    textAlignVertical: 'top',
+    marginBottom: 16,
+  },
+  prioritySelector: {
+    marginBottom: 16,
+  },
+  priorityLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  priorityOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  priorityOption: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+  },
+  priorityOptionActive: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  priorityOptionText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  priorityOptionTextActive: {
+    color: '#FFFFFF',
+  },
+  broadcastButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  broadcastButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
   syncStatus: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -778,6 +1662,380 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#10B981',
     fontWeight: '500',
+  },
+  supervisorStatusBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#0F172A',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+  },
+  supervisorStatusLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  supervisorStatusText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    letterSpacing: 1,
+  },
+  supervisorStatusRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  supervisorQuickInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  supervisorQuickAvatar: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  supervisorInitial: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  supervisorQuickName: {
+    fontSize: 10,
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  moreSupervisors: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    fontWeight: '500',
+  },
+  mapSection: {
+    backgroundColor: '#1F2937',
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  mainContent: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: '#000000',
+  },
+  mapSectionSideBySide: {
+    flex: 0.4,
+    backgroundColor: '#1F2937',
+    borderRightWidth: 1,
+    borderRightColor: '#374151',
+  },
+  centerSpacer: {
+    // Legacy style - replaced by supervisorSection
+  },
+  supervisorSection: {
+    flex: 0.2,
+    backgroundColor: '#0F172A',
+    borderRightWidth: 1,
+    borderRightColor: '#374151',
+    flexDirection: 'column',
+  },
+  onlineSupervisors: {
+    flex: 0.5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  supervisorActivity: {
+    flex: 0.5,
+  },
+  supervisorSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: '#1E293B',
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  supervisorSectionTitle: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    letterSpacing: 1,
+    flex: 1,
+    marginLeft: 8,
+  },
+  onlineCount: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  onlineCountText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  activityIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  activityDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10B981',
+  },
+  activityText: {
+    fontSize: 8,
+    fontWeight: 'bold',
+    color: '#10B981',
+    letterSpacing: 0.5,
+  },
+  supervisorsList: {
+    flex: 1,
+    padding: 8,
+  },
+  noSupervisorsOnline: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  noSupervisorsText: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '500',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  waitingText: {
+    fontSize: 9,
+    color: '#9CA3AF',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  supervisorOnlineItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    marginBottom: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+  },
+  supervisorOnlineAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  supervisorInitials: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  supervisorOnlineInfo: {
+    flex: 1,
+  },
+  supervisorOnlineName: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 1,
+  },
+  supervisorOnlineRole: {
+    fontSize: 8,
+    color: '#9CA3AF',
+    marginBottom: 1,
+  },
+  supervisorOnlineTime: {
+    fontSize: 7,
+    color: '#6B7280',
+  },
+  supervisorOnlineStatus: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  activityList: {
+    flex: 1,
+    padding: 8,
+  },
+  noActivity: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  noActivityText: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '500',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  noActivitySubtext: {
+    fontSize: 9,
+    color: '#9CA3AF',
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    marginBottom: 6,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.02)',
+  },
+  activityIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+    marginTop: 1,
+  },
+  activityContent: {
+    flex: 1,
+  },
+  activityTitle: {
+    fontSize: 9,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 2,
+  },
+  activityDescription: {
+    fontSize: 8,
+    color: '#9CA3AF',
+    lineHeight: 12,
+    marginBottom: 2,
+  },
+  activityTimestamp: {
+    fontSize: 7,
+    color: '#6B7280',
+  },
+  alertsFeedSideBySide: {
+    flex: 0.4,
+    backgroundColor: '#111827',
+  },
+  alertsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#0F172A',
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  alertsHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  alertsTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    letterSpacing: 1,
+  },
+  alertsCounter: {
+    fontSize: 12,
+    color: '#DC2626',
+    fontWeight: '500',
+    backgroundColor: 'rgba(220, 38, 38, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  refreshButtonSmall: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  alertsScrollView: {
+    flex: 1,
+    padding: 12,
+  },
+  customMessagesInline: {
+    marginBottom: 16,
+  },
+  mapHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#0F172A',
+  },
+  mapHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  mapTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    letterSpacing: 1,
+  },
+  mapAlertCounter: {
+    fontSize: 12,
+    color: '#F59E0B',
+    fontWeight: '500',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  mapControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  mapControlButton: {
+    backgroundColor: '#374151',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapContainer: {
+    height: 300,
+    margin: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  mapContainerSideBySide: {
+    flex: 1,
+    margin: 12,
+    borderRadius: 12,
+    overflow: 'hidden',
+    minHeight: 400,
+  },
+  alertCardSelected: {
+    backgroundColor: '#EBF8FF',
+    borderLeftWidth: 8,
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   customMessages: {
     backgroundColor: '#1F2937',

@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 
 // Import all our v3.0 components
 import SupervisorLogin from '../components/SupervisorLogin';
+import SupervisorControl from '../components/SupervisorControl';
+import SupervisorDisplayIntegrationTest from '../components/SupervisorDisplayIntegrationTest';
 import EnhancedDashboard from '../components/EnhancedDashboard';
 import IncidentManager from '../components/IncidentManager';
 import AIDisruptionManager from '../components/AIDisruptionManager';
@@ -29,13 +31,27 @@ import SupervisorCard from '../components/SupervisorCard';
 import SupervisorCardDemo from '../components/SupervisorCardDemo';
 import QuickSupervisorTest from '../components/QuickSupervisorTest';
 import { useSupervisorSession } from '../components/hooks/useSupervisorSession';
-// import { useSupervisorBroadcast } from '../components/hooks/useSupervisorBroadcast';
+import { useBarryAPI } from '../components/hooks/useBARRYapi';
 import { API_CONFIG } from '../config/api';
 
 const { width, height } = Dimensions.get('window');
 
 // Main navigation structure for browser
 const BROWSER_NAVIGATION = {
+  supervisor: {
+    title: 'Supervisor Control',
+    icon: 'people-circle',
+    component: SupervisorControl,
+    description: 'Interactive supervisor controls & display sync',
+    color: '#DC2626'
+  },
+  integration_test: {
+    title: 'Integration Test',
+    icon: 'flask',
+    component: SupervisorDisplayIntegrationTest,
+    description: '🧪 Test supervisor ↔ display real-time sync',
+    color: '#7C3AED'
+  },
   dashboard: {
     title: 'Control Dashboard',
     icon: 'stats-chart',
@@ -120,16 +136,16 @@ const BrowserMainApp = () => {
     isLoggedIn,
     supervisorName,
     supervisorRole,
+    supervisorId,
+    sessionId,
     isAdmin,
     logout
   } = useSupervisorSession();
 
-  // Enable supervisor broadcasting to display screens
-  // Temporarily disabled for testing visual components
-  // const { isConnected, sendDisplayMessage } = useSupervisorBroadcast();
-  const isConnected = false; // Mock for now
+  // Get live alerts for supervisor control
+  const { alerts } = useBarryAPI({ autoRefresh: true, refreshInterval: 15000 });
 
-  const [activeScreen, setActiveScreen] = useState('dashboard');
+  const [activeScreen, setActiveScreen] = useState('supervisor');
   const [showSupervisorLogin, setShowSupervisorLogin] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -290,7 +306,18 @@ const BrowserMainApp = () => {
         </View>
         
         <View style={styles.screenContent}>
-          <ScreenComponent baseUrl={API_CONFIG.baseURL} />
+          {activeScreen === 'supervisor' ? (
+            <SupervisorControl
+              supervisorId={supervisorId}
+              supervisorName={supervisorName}
+              sessionId={sessionId}
+              alerts={alerts}
+            />
+          ) : activeScreen === 'integration_test' ? (
+            <SupervisorDisplayIntegrationTest />
+          ) : (
+            <ScreenComponent baseUrl={API_CONFIG.baseURL} />
+          )}
         </View>
       </View>
     );

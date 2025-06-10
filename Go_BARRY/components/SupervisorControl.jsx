@@ -18,8 +18,22 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorSync, CONNECTION_STATES } from './hooks/useSupervisorSync';
 import MessageTemplates from './MessageTemplates';
+import EnhancedTrafficCard from './EnhancedTrafficCard';
 
 const isWeb = Platform.OS === 'web';
+
+// Helper function for priority colors
+const getPriorityColor = (priority) => {
+  switch (priority?.toUpperCase()) {
+    case 'CRITICAL': return '#DC2626';
+    case 'HIGH': return '#EF4444';
+    case 'MEDIUM': return '#F59E0B';
+    case 'LOW': return '#10B981';
+    case 'WARNING': return '#F59E0B';
+    case 'INFO': return '#3B82F6';
+    default: return '#6B7280';
+  }
+};
 
 const SupervisorControl = ({ 
   supervisorId,
@@ -444,32 +458,27 @@ const SupervisorControl = ({
         
         {alerts.length > 0 ? (
           alerts.map((alert) => (
-            <TouchableOpacity
-              key={alert.id}
-              style={styles.alertCard}
-              onPress={() => setSelectedAlert(alert.id === selectedAlert?.id ? null : alert)}
-            >
-              <View style={styles.alertCardHeader}>
-                <View style={styles.alertCardInfo}>
-                  <Text style={styles.alertCardTitle}>{alert.title}</Text>
-                  <Text style={styles.alertCardLocation}>{alert.location}</Text>
-                </View>
-                
-                <View style={styles.alertCardStatus}>
-                  {acknowledgedAlerts.has(alert.id) && (
-                    <View style={styles.acknowledgedBadge}>
-                      <Ionicons name="checkmark-circle" size={16} color="#059669" />
-                    </View>
-                  )}
-                  {priorityOverrides.has(alert.id) && (
-                    <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(priorityOverrides.get(alert.id)?.priority) }]}>
-                      <Text style={styles.priorityBadgeText}>
-                        {priorityOverrides.get(alert.id)?.priority}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </View>
+            <View key={alert.id} style={styles.alertWrapper}>
+              <EnhancedTrafficCard
+                alert={alert}
+                supervisorSession={{
+                  supervisor: {
+                    name: supervisorName,
+                    badge: supervisorId,
+                    role: 'Supervisor'
+                  },
+                  sessionId: sessionId
+                }}
+                onDismiss={(alertId, reason, notes) => {
+                  console.log(`🗑️ Dismissing alert ${alertId}: ${reason}`);
+                  handleAcknowledgeAlert(alert);
+                }}
+                onAcknowledge={(alertId) => {
+                  console.log(`✅ Acknowledging alert ${alertId}`);
+                  handleAcknowledgeAlert(alert);
+                }}
+                style={{ marginHorizontal: 0 }}
+              />
               
               {selectedAlert?.id === alert.id && (
                 <View style={styles.alertExtendedActions}>
@@ -487,7 +496,21 @@ const SupervisorControl = ({
                   <AlertControlPanel alert={alert} />
                 </View>
               )}
-            </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.expandControls}
+                onPress={() => setSelectedAlert(alert.id === selectedAlert?.id ? null : alert)}
+              >
+                <Text style={styles.expandControlsText}>
+                  {selectedAlert?.id === alert.id ? 'Hide Supervisor Controls' : 'Show Supervisor Controls'}
+                </Text>
+                <Ionicons 
+                  name={selectedAlert?.id === alert.id ? 'chevron-up' : 'chevron-down'} 
+                  size={16} 
+                  color="#3B82F6" 
+                />
+              </TouchableOpacity>
+            </View>
           ))
         ) : (
           <View style={styles.noAlertsContainer}>
@@ -681,6 +704,27 @@ const styles = StyleSheet.create({
   alertsList: {
     flex: 1,
     padding: 16,
+  },
+  alertWrapper: {
+    marginBottom: 8,
+  },
+  expandControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    borderRadius: 8,
+    marginTop: -8,
+    marginHorizontal: 16,
+    gap: 6,
+  },
+  expandControlsText: {
+    color: '#3B82F6',
+    fontSize: 14,
+    fontWeight: '600',
   },
   sectionTitle: {
     fontSize: 18,
