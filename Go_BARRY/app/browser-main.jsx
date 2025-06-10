@@ -25,7 +25,11 @@ import SystemHealthMonitor from '../components/SystemHealthMonitor';
 import TrainingHelpSystem from '../components/TrainingHelpSystem';
 import SimpleAPITest from '../components/SimpleAPITest';
 import RoadworksManager from '../components/RoadworksManager';
+import SupervisorCard from '../components/SupervisorCard';
+import SupervisorCardDemo from '../components/SupervisorCardDemo';
+import QuickSupervisorTest from '../components/QuickSupervisorTest';
 import { useSupervisorSession } from '../components/hooks/useSupervisorSession';
+// import { useSupervisorBroadcast } from '../components/hooks/useSupervisorBroadcast';
 import { API_CONFIG } from '../config/api';
 
 const { width, height } = Dimensions.get('window');
@@ -89,11 +93,25 @@ const BROWSER_NAVIGATION = {
     color: '#6366F1'
   },
   test: {
+    title: 'Quick Supervisor Test',
+    icon: 'people-circle',
+    component: QuickSupervisorTest,
+    description: 'Quick test of supervisor card components',
+    color: '#10B981'
+  },
+  apitest: {
     title: 'API Test',
     icon: 'bug',
     component: SimpleAPITest,
     description: 'Test API connectivity and data flow',
     color: '#F97316'
+  },
+  supervisordemo: {
+    title: 'Supervisor Card Demo',
+    icon: 'people',
+    component: SupervisorCardDemo,
+    description: 'Demo individual supervisor tracking features',
+    color: '#7C3AED'
   }
 };
 
@@ -105,6 +123,11 @@ const BrowserMainApp = () => {
     isAdmin,
     logout
   } = useSupervisorSession();
+
+  // Enable supervisor broadcasting to display screens
+  // Temporarily disabled for testing visual components
+  // const { isConnected, sendDisplayMessage } = useSupervisorBroadcast();
+  const isConnected = false; // Mock for now
 
   const [activeScreen, setActiveScreen] = useState('dashboard');
   const [showSupervisorLogin, setShowSupervisorLogin] = useState(false);
@@ -187,6 +210,17 @@ const BrowserMainApp = () => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  // Enhanced logout function that ensures modal opens
+  const handleLogout = async () => {
+    console.log('🔄 Logout clicked - clearing session...');
+    await logout();
+    // Force login modal to open after logout
+    setTimeout(() => {
+      setShowSupervisorLogin(true);
+      console.log('✅ Login modal should now be open');
+    }, 100);
+  };
+
   // Auto-open login if not logged in
   useEffect(() => {
     if (!isLoggedIn) {
@@ -218,7 +252,7 @@ const BrowserMainApp = () => {
             <TouchableOpacity
               style={styles.helpButton}
               onPress={() => setActiveScreen('training')}
-              title="Keyboard Shortcuts: Ctrl+1-7 for navigation, Ctrl+B for sidebar, F11 for fullscreen"
+              title="Keyboard Shortcuts: Ctrl+1-9 for navigation, Ctrl+B for sidebar, F11 for fullscreen"
             >
               <Ionicons name="help-circle" size={20} color="#6B7280" />
             </TouchableOpacity>
@@ -309,6 +343,18 @@ const BrowserMainApp = () => {
                   {isAdmin && (
                     <Text style={styles.adminBadge}>⭐ Admin</Text>
                   )}
+                  <View style={styles.connectionStatus}>
+                    <View style={[
+                      styles.connectionDot,
+                      { backgroundColor: '#EF4444' }
+                    ]} />
+                    <Text style={[
+                      styles.connectionText,
+                      { color: '#EF4444' }
+                    ]}>
+                      Display Sync Offline (Testing Mode)
+                    </Text>
+                  </View>
                 </View>
               )}
             </View>
@@ -370,7 +416,7 @@ const BrowserMainApp = () => {
           ) : (
             <TouchableOpacity
               style={styles.footerButton}
-              onPress={logout}
+              onPress={handleLogout}
             >
               <Ionicons name="log-out" size={20} color="#EF4444" />
               {!sidebarCollapsed && (
@@ -502,6 +548,21 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#F59E0B',
     fontWeight: '600',
+  },
+  connectionStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 4,
+  },
+  connectionDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  connectionText: {
+    fontSize: 10,
+    fontWeight: '500',
   },
   navigationContainer: {
     flex: 1,

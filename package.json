@@ -13,6 +13,7 @@
     "dev:full": "concurrently \"npm run dev:backend\" \"npm run dev:browser\"",
     "build": "npm run build:browser",
     "build:browser": "cd Go_BARRY && NODE_ENV=production npm run build:web:production",
+    "build:web": "cd Go_BARRY && npx expo export --platform web --output-dir dist",
     "build:backend": "cd backend && npm install",
     "build:frontend": "cd Go_BARRY && npm install && npm run build:web",
     "start:backend": "cd backend && npm start",
@@ -23,6 +24,7 @@
     "configure:cpanel": "echo 'Configuring for cPanel deployment with gobarry.co.uk...' && npm run deploy:cpanel"
   },
   "dependencies": {
+    "expo": "^53.0.11",
     "mapbox-gl": "^3.12.0",
     "uuid": "^11.1.0",
     "ws": "^8.18.2"

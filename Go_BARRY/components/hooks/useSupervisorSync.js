@@ -56,6 +56,10 @@ const MESSAGE_TYPES = {
   // Connection events
   SUPERVISOR_CONNECTED: 'supervisor_connected',
   SUPERVISOR_DISCONNECTED: 'supervisor_disconnected',
+  SUPERVISOR_JOINED: 'supervisor_joined',
+  SUPERVISOR_LEFT: 'supervisor_left',
+  SUPERVISOR_LIST_UPDATED: 'supervisor_list_updated',
+  SUPERVISOR_ACTIVITY_UPDATE: 'supervisor_activity_update',
   DISPLAY_CONNECTED: 'display_connected',
   DISPLAY_DISCONNECTED: 'display_disconnected',
   
@@ -100,6 +104,7 @@ export const useSupervisorSync = ({
     activeMode: 'normal',
     connectedSupervisors: 0,
     connectedDisplays: 0,
+    activeSupervisors: [], // Array of individual supervisor objects
     lastUpdated: null
   });
   
@@ -297,6 +302,54 @@ export const useSupervisorSync = ({
           }));
           break;
 
+        case MESSAGE_TYPES.SUPERVISOR_JOINED:
+          setSyncState(prev => {
+            const newSupervisors = [...prev.activeSupervisors];
+            // Check if supervisor already exists
+            if (!newSupervisors.find(s => s.id === data.supervisor.id)) {
+              newSupervisors.push(data.supervisor);
+            }
+            return {
+              ...prev,
+              activeSupervisors: newSupervisors,
+              connectedSupervisors: newSupervisors.length
+            };
+          });
+          break;
+
+        case MESSAGE_TYPES.SUPERVISOR_LEFT:
+          setSyncState(prev => {
+            const newSupervisors = prev.activeSupervisors.filter(s => s.id !== data.supervisorId);
+            return {
+              ...prev,
+              activeSupervisors: newSupervisors,
+              connectedSupervisors: newSupervisors.length
+            };
+          });
+          break;
+
+        case MESSAGE_TYPES.SUPERVISOR_LIST_UPDATED:
+          setSyncState(prev => ({
+            ...prev,
+            activeSupervisors: data.supervisors || [],
+            connectedSupervisors: (data.supervisors || []).length
+          }));
+          break;
+
+        case MESSAGE_TYPES.SUPERVISOR_ACTIVITY_UPDATE:
+          setSyncState(prev => {
+            const updatedSupervisors = prev.activeSupervisors.map(supervisor => 
+              supervisor.id === data.supervisorId 
+                ? { ...supervisor, lastActivity: data.lastActivity }
+                : supervisor
+            );
+            return {
+              ...prev,
+              activeSupervisors: updatedSupervisors
+            };
+          });
+          break;
+
         case MESSAGE_TYPES.SUPERVISOR_CONNECTED:
           setSyncState(prev => ({
             ...prev,
@@ -362,6 +415,7 @@ export const useSupervisorSync = ({
       activeMode: state.activeMode || prev.activeMode,
       connectedSupervisors: state.connectedSupervisors ?? prev.connectedSupervisors,
       connectedDisplays: state.connectedDisplays ?? prev.connectedDisplays,
+      activeSupervisors: state.activeSupervisors || prev.activeSupervisors,
       lastUpdated: state.lastUpdated || new Date().toISOString()
     }));
   }, []);
@@ -590,6 +644,7 @@ export const useSupervisorSync = ({
     activeMode: syncState.activeMode,
     connectedSupervisors: syncState.connectedSupervisors,
     connectedDisplays: syncState.connectedDisplays,
+    activeSupervisors: syncState.activeSupervisors,
     lastUpdated: syncState.lastUpdated,
     
     // Connection methods

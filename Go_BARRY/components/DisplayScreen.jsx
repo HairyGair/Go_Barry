@@ -16,6 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useBarryAPI } from './hooks/useBARRYapi';
 import { useSupervisorSync, CONNECTION_STATES } from './hooks/useSupervisorSync';
+import SupervisorCard from './SupervisorCard';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -40,7 +41,8 @@ const DisplayScreen = () => {
     supervisorNotes,
     customMessages,
     activeMode: displayMode,
-    connectedSupervisors
+    connectedSupervisors,
+    activeSupervisors
   } = useSupervisorSync({
     clientType: 'display',
     autoConnect: true,
@@ -254,6 +256,15 @@ const DisplayScreen = () => {
           ))}
         </View>
       )}
+
+      {/* Supervisor Card */}
+      <SupervisorCard 
+        supervisors={activeSupervisors || []}
+        connectedCount={connectedSupervisors}
+        onCardPress={(expanded) => {
+          console.log('Supervisor card', expanded ? 'expanded' : 'collapsed');
+        }}
+      />
 
       {/* Alerts Feed */}
       <ScrollView style={styles.alertsFeed} showsVerticalScrollIndicator={false}>
