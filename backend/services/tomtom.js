@@ -82,42 +82,128 @@ async function enhanceLocationWithRoutes(lat, lng, originalLocation) {
   return enhanced;
 }
 
-// Simple geocoding fallback
+// Simple geocoding fallback with multiple providers and rate limiting
 async function reverseGeocodeSimple(lat, lng) {
+  // Add delay to prevent rate limiting
+  await new Promise(resolve => setTimeout(resolve, 200));
+  
   try {
-    // Simple OpenStreetMap Nominatim request
+    // Try OpenStreetMap first with better User-Agent
     const response = await axios.get(`https://nominatim.openstreetmap.org/reverse`, {
       params: {
         lat: lat,
         lon: lng,
         format: 'json',
-        zoom: 18,
-        addressdetails: 1
+        zoom: 16, // More specific zoom level
+        addressdetails: 1,
+        extratags: 1
       },
       headers: {
-        'User-Agent': 'BARRY-TrafficWatch/3.0'
+        'User-Agent': 'Go-BARRY-Traffic-System/3.0 (+https://gobarry.co.uk/contact)'
       },
-      timeout: 5000
+      timeout: 8000
     });
     
     if (response.data && response.data.display_name) {
-      // Extract useful parts
+      // Enhanced address parsing
       const address = response.data.address || {};
       const parts = [];
       
+      // Priority order for road information
       if (address.road) parts.push(address.road);
+      else if (address.highway) parts.push(address.highway);
+      else if (address.path) parts.push(address.path);
+      
+      // Add area information
       if (address.neighbourhood) parts.push(address.neighbourhood);
-      if (address.suburb) parts.push(address.suburb);
-      if (address.town || address.city) parts.push(address.town || address.city);
+      else if (address.suburb) parts.push(address.suburb);
+      else if (address.village) parts.push(address.village);
+      
+      // Add city/town
+      if (address.town) parts.push(address.town);
+      else if (address.city) parts.push(address.city);
+      else if (address.county) parts.push(address.county);
       
       if (parts.length > 0) {
-        return parts.slice(0, 2).join(', '); // First 2 parts only
+        const location = parts.slice(0, 3).join(', '); // First 3 parts only
+        console.log(`✅ OSM Geocoding success: ${lat}, ${lng} → ${location}`);
+        return location;
       }
       
-      return response.data.display_name.split(',')[0]; // First part of display name
+      // Fallback to display name if no structured address
+      const displayParts = response.data.display_name.split(',').slice(0, 2);
+      const fallbackLocation = displayParts.join(', ').trim();
+      if (fallbackLocation && fallbackLocation !== 'undefined') {
+        console.log(`✅ OSM Fallback: ${lat}, ${lng} → ${fallbackLocation}`);
+        return fallbackLocation;
+      }
     }
   } catch (error) {
-    console.warn('⚠️ Reverse geocoding failed:', error.message);
+    console.warn(`⚠️ OSM geocoding failed for ${lat}, ${lng}:`, error.message);
+  }
+  
+  // Try Mapbox as fallback if available
+  if (process.env.MAPBOX_TOKEN) {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 100)); // Rate limit
+      
+      const mapboxResponse = await axios.get(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json`, {
+        params: {
+          access_token: process.env.MAPBOX_TOKEN,
+          types: 'address,poi'
+        },
+        timeout: 6000
+      });
+      
+      if (mapboxResponse.data?.features?.length > 0) {
+        const feature = mapboxResponse.data.features[0];
+        const placeName = feature.place_name || feature.text;
+        if (placeName) {
+          // Clean up Mapbox response
+          const cleanLocation = placeName.split(',').slice(0, 2).join(', ');
+          console.log(`✅ Mapbox Geocoding: ${lat}, ${lng} → ${cleanLocation}`);
+          return cleanLocation;
+        }
+      }
+    } catch (mapboxError) {
+      console.warn(`⚠️ Mapbox geocoding failed for ${lat}, ${lng}:`, mapboxError.message);
+    }
+  }
+  
+  // Geographic area fallback based on coordinates
+  const geographicLocation = getGeographicAreaName(lat, lng);
+  if (geographicLocation) {
+    console.log(`✅ Geographic fallback: ${lat}, ${lng} → ${geographicLocation}`);
+    return geographicLocation;
+  }
+  
+  console.warn(`❌ All geocoding failed for ${lat}, ${lng}`);
+  return null;
+}
+
+// Geographic area name fallback
+function getGeographicAreaName(lat, lng) {
+  const areas = [
+    { name: 'Newcastle City Centre', bounds: { north: 55.0, south: 54.96, east: -1.58, west: -1.64 } },
+    { name: 'Gateshead Centre', bounds: { north: 54.97, south: 54.94, east: -1.58, west: -1.65 } },
+    { name: 'North Tyneside', bounds: { north: 55.08, south: 55.0, east: -1.4, west: -1.5 } },
+    { name: 'Sunderland Area', bounds: { north: 54.95, south: 54.88, east: -1.32, west: -1.45 } },
+    { name: 'Durham Area', bounds: { north: 54.85, south: 54.75, east: -1.5, west: -1.6 } },
+    { name: 'Consett Area', bounds: { north: 54.87, south: 54.82, east: -1.8, west: -1.9 } },
+    { name: 'A1 Corridor', bounds: { north: 55.1, south: 54.8, east: -1.55, west: -1.65 } },
+    { name: 'A19 Corridor', bounds: { north: 55.1, south: 54.9, east: -1.35, west: -1.55 } }
+  ];
+  
+  for (const area of areas) {
+    if (lat >= area.bounds.south && lat <= area.bounds.north &&
+        lng >= area.bounds.west && lng <= area.bounds.east) {
+      return area.name;
+    }
+  }
+  
+  // Final fallback to general area
+  if (lat >= 54.7 && lat <= 55.1 && lng >= -1.9 && lng <= -1.3) {
+    return 'North East England';
   }
   
   return null;
