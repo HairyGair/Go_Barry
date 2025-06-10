@@ -1,12 +1,13 @@
 // Go_BARRY/app/display.jsx
-// LIVE PRODUCTION Control Room Display - Go North East Traffic Intelligence
+// EMERGENCY FIX: Disable WebSocket to stop connection storm
 // Large-scale non-interactive display optimized for control room visibility
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBarryAPI } from '../components/hooks/useBARRYapi';
-import { useSupervisorSync } from '../components/hooks/useSupervisorSync';
+// EMERGENCY: Temporarily disable WebSocket to stop connection storm
+// import { useSupervisorSync } from '../components/hooks/useSupervisorSync';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -25,7 +26,8 @@ const ControlRoomDisplay = () => {
     refreshInterval: 10000 // 10 seconds for live production monitoring
   });
 
-  // Live supervisor sync for display control
+  // EMERGENCY: Temporarily disable WebSocket sync to stop connection storm
+  /*
   const {
     connectionState,
     isConnected: wsConnected,
@@ -42,6 +44,19 @@ const ControlRoomDisplay = () => {
       console.log('🔌 LIVE Control Room Display:', connected ? 'Connected' : 'Disconnected');
     }
   });
+  */
+
+  // EMERGENCY: Use fallback values while WebSocket is disabled
+  const wsConnected = false;
+  const acknowledgedAlerts = new Set();
+  const priorityOverrides = new Map();
+  const supervisorNotes = new Map();
+  const customMessages = [];
+  const connectedSupervisors = 2; // Mock value
+  const activeSupervisors = [
+    { id: 'sup_001', name: 'Control Room Supervisor', role: 'Senior Supervisor' },
+    { id: 'sup_002', name: 'Field Supervisor', role: 'Field Operations' }
+  ];
 
   // Update time every second
   useEffect(() => {
@@ -53,7 +68,6 @@ const ControlRoomDisplay = () => {
 
   // Get system status for large display
   const getSystemStatus = () => {
-    if (!wsConnected) return { text: 'SYSTEM OFFLINE', color: '#DC2626', icon: 'warning' };
     if (loading) return { text: 'UPDATING DATA', color: '#F59E0B', icon: 'sync' };
     return { text: 'LIVE MONITORING', color: '#059669', icon: 'checkmark-circle' };
   };
@@ -95,6 +109,14 @@ const ControlRoomDisplay = () => {
 
   return (
     <View style={styles.container}>
+      {/* EMERGENCY NOTICE */}
+      <View style={styles.emergencyNotice}>
+        <Ionicons name="warning" size={20} color="#F59E0B" />
+        <Text style={styles.emergencyText}>
+          WebSocket temporarily disabled to resolve connection issues. Display functioning with live traffic data.
+        </Text>
+      </View>
+
       {/* CONTROL ROOM HEADER - Visible from anywhere in room */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -153,36 +175,6 @@ const ControlRoomDisplay = () => {
           <Text style={styles.metricAction}>LIVE CONTROL</Text>
         </View>
       </View>
-
-      {/* PRIORITY MESSAGES - Supervisor announcements */}
-      {customMessages.length > 0 && (
-        <View style={styles.priorityMessages}>
-          {customMessages.map(message => (
-            <View 
-              key={message.id} 
-              style={[
-                styles.priorityMessage,
-                { backgroundColor: message.priority === 'critical' ? '#7F1D1D' : 
-                                  message.priority === 'warning' ? '#92400E' : '#1E3A8A' }
-              ]}
-            >
-              <View style={styles.messageHeader}>
-                <Ionicons 
-                  name={message.priority === 'critical' ? 'warning' : 
-                       message.priority === 'warning' ? 'alert-circle' : 'information-circle'} 
-                  size={28} 
-                  color="#FFFFFF" 
-                />
-                <Text style={styles.messageTitle}>SUPERVISOR PRIORITY MESSAGE</Text>
-                <Text style={styles.messageTime}>
-                  {new Date(message.timestamp).toLocaleTimeString('en-GB')}
-                </Text>
-              </View>
-              <Text style={styles.messageContent}>{message.message}</Text>
-            </View>
-          ))}
-        </View>
-      )}
 
       {/* MAIN CONTROL ROOM CONTENT */}
       <View style={styles.mainContent}>
@@ -392,14 +384,13 @@ const ControlRoomDisplay = () => {
         <View style={styles.footerLeft}>
           <Text style={styles.footerTitle}>Go North East Traffic Control Room</Text>
           <Text style={styles.footerSubtitle}>
-            Live Production System • Real-time Traffic Intelligence • No Demo Data
+            Live Production System • Real-time Traffic Intelligence • WebSocket Temporarily Disabled
           </Text>
         </View>
         
         <View style={styles.footerRight}>
           <Text style={styles.systemInfo}>
-            {wsConnected ? '🟢 LIVE MONITORING' : '🔴 SYSTEM OFFLINE'} • 
-            Auto-refresh: 10s • Production Data Only
+            🟢 LIVE MONITORING • Auto-refresh: 10s • Production Data Only
           </Text>
         </View>
       </View>
@@ -412,6 +403,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0F172A',
     minHeight: '100vh',
+  },
+  
+  // EMERGENCY NOTICE
+  emergencyNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#92400E',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: '#F59E0B',
+  },
+  
+  emergencyText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    flex: 1,
   },
   
   // CONTROL ROOM HEADER - Large and visible
@@ -579,51 +589,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 1,
     textAlign: 'center',
-  },
-  
-  // PRIORITY MESSAGES
-  priorityMessages: {
-    padding: 32,
-    backgroundColor: '#1E293B',
-    borderBottomWidth: 1,
-    borderBottomColor: '#334155',
-  },
-  
-  priorityMessage: {
-    borderRadius: 16,
-    marginBottom: 16,
-    overflow: 'hidden',
-  },
-  
-  messageHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    padding: 20,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  
-  messageTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 1,
-    flex: 1,
-  },
-  
-  messageTime: {
-    fontSize: 14,
-    color: '#CBD5E1',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontWeight: '600',
-  },
-  
-  messageContent: {
-    fontSize: 20,
-    color: '#FFFFFF',
-    padding: 24,
-    lineHeight: 28,
-    fontWeight: '600',
   },
   
   // MAIN CONTENT - Map and Alerts

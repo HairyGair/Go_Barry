@@ -18,6 +18,11 @@ class SupervisorSyncService {
       lastUpdated: new Date().toISOString()
     };
     this.pingInterval = null;
+    
+    // EMERGENCY: Add connection limiting to prevent connection storms
+    this.connectionLimits = new Map(); // IP -> { count, lastReset }
+    this.MAX_CONNECTIONS_PER_IP = 2; // Reduced from unlimited to 2
+    this.RATE_LIMIT_WINDOW = 30000; // 30 seconds
   }
 
   // Initialize WebSocket server
@@ -41,10 +46,39 @@ class SupervisorSyncService {
     console.log('✅ Supervisor Sync WebSocket service initialized');
   }
 
+  // EMERGENCY: Check and enforce connection limits per IP
+  checkConnectionLimit(ip) {
+    const now = Date.now();
+    const limit = this.connectionLimits.get(ip) || { count: 0, lastReset: now };
+    
+    // Reset counter if window has passed
+    if (now - limit.lastReset > this.RATE_LIMIT_WINDOW) {
+      limit.count = 0;
+      limit.lastReset = now;
+    }
+    
+    if (limit.count >= this.MAX_CONNECTIONS_PER_IP) {
+      console.log(`🚨 [EMERGENCY] Connection limit exceeded for IP ${ip}: ${limit.count}/${this.MAX_CONNECTIONS_PER_IP}`);
+      return false;
+    }
+    
+    limit.count++;
+    this.connectionLimits.set(ip, limit);
+    console.log(`🔌 [RATE-LIMIT] IP ${ip}: ${limit.count}/${this.MAX_CONNECTIONS_PER_IP} connections`);
+    return true;
+  }
+
   // Handle new WebSocket connection
   handleConnection(ws, req) {
     const clientId = this.generateClientId();
     const clientIp = req.socket.remoteAddress;
+    
+    // EMERGENCY: Check connection limits to prevent connection storms
+    if (!this.checkConnectionLimit(clientIp)) {
+      console.log(`🚨 [EMERGENCY] Rejecting connection from ${clientIp} - rate limit exceeded`);
+      ws.close(1008, 'Rate limit exceeded - too many connections from this IP');
+      return;
+    }
     
     console.log(`🔌 New WebSocket connection: ${clientId} from ${clientIp}`);
 
@@ -56,7 +90,8 @@ class SupervisorSyncService {
       supervisorId: null,
       sessionId: null,
       connectedAt: new Date().toISOString(),
-      lastPing: Date.now()
+      lastPing: Date.now(),
+      ip: clientIp // Track IP for cleanup
     };
 
     this.clients.set(clientId, client);
@@ -430,6 +465,16 @@ class SupervisorSyncService {
     if (!client) return;
 
     console.log(`🔌 Client disconnected: ${clientId} (${client.type})`);
+    
+    // EMERGENCY: Decrement connection count for this IP
+    if (client.ip) {
+      const limit = this.connectionLimits.get(client.ip);
+      if (limit && limit.count > 0) {
+        limit.count--;
+        this.connectionLimits.set(client.ip, limit);
+        console.log(`🔌 [RATE-LIMIT] IP ${client.ip}: ${limit.count}/${this.MAX_CONNECTIONS_PER_IP} connections (after disconnect)`);
+      }
+    }
     
     this.clients.delete(clientId);
 
