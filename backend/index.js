@@ -19,6 +19,7 @@ import healthRoutes from './routes/health.js';
 import healthExtendedRouter from './routes/healthExtended.js';
 import supervisorAPI from './routes/supervisorAPI.js';
 import roadworksAPI from './routes/roadworksAPI.js';
+import intelligenceAPI from './routes/intelligenceAPI.js';
 import supervisorSyncService from './services/supervisorSync.js';
 import { createServer } from 'http';
 
@@ -254,6 +255,12 @@ app.use('/api/supervisor', supervisorAPI);
 
 // Roadworks management routes  
 app.use('/api/roadworks', roadworksAPI);
+
+// Intelligence system routes
+app.use('/api/intelligence', intelligenceAPI);
+
+// Enhanced GTFS analysis routes
+app.use('/api/gtfs', gtfsAPI);
 
 // Check if alert is dismissed
 function isAlertDismissed(alertId) {

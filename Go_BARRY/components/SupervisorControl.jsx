@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorSync, CONNECTION_STATES } from './hooks/useSupervisorSync';
+import MessageTemplates from './MessageTemplates';
 
 const isWeb = Platform.OS === 'web';
 
@@ -63,6 +64,7 @@ const SupervisorControl = ({
   // UI state
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+  const [showMessageTemplates, setShowMessageTemplates] = useState(false);
   const [broadcastMessageText, setBroadcastMessageText] = useState('');
   const [broadcastPriority, setBroadcastPriority] = useState('info');
   const [loading, setLoading] = useState(false);
@@ -470,7 +472,20 @@ const SupervisorControl = ({
               </View>
               
               {selectedAlert?.id === alert.id && (
-                <AlertControlPanel alert={alert} />
+                <View style={styles.alertExtendedActions}>
+                  <TouchableOpacity
+                    style={[styles.actionButton, styles.templateButton]}
+                    onPress={() => {
+                      setSelectedAlert(alert);
+                      setShowMessageTemplates(true);
+                    }}
+                  >
+                    <Ionicons name="chatbubbles" size={20} color="#FFFFFF" />
+                    <Text style={styles.actionButtonText}>Quick Message</Text>
+                  </TouchableOpacity>
+                  
+                  <AlertControlPanel alert={alert} />
+                </View>
               )}
             </TouchableOpacity>
           ))
@@ -481,6 +496,29 @@ const SupervisorControl = ({
           </View>
         )}
       </ScrollView>
+      
+      {/* Message Templates Modal */}
+      <Modal
+        visible={showMessageTemplates}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setShowMessageTemplates(false)}
+      >
+        <MessageTemplates
+          supervisorId={supervisorId}
+          sessionId={sessionId}
+          selectedAlert={selectedAlert}
+          onMessageSent={() => {
+            setShowMessageTemplates(false);
+            setSelectedAlert(null);
+            showNotification('Message sent successfully', 'success');
+          }}
+          onClose={() => {
+            setShowMessageTemplates(false);
+            setSelectedAlert(null);
+          }}
+        />
+      </Modal>
       
       <BroadcastModal />
     </View>
@@ -580,6 +618,9 @@ const styles = StyleSheet.create({
   },
   broadcastControlButton: {
     backgroundColor: '#7C3AED',
+  },
+  templatesButton: {
+    backgroundColor: '#059669',
   },
   controlButtonText: {
     color: '#FFFFFF',
@@ -742,6 +783,15 @@ const styles = StyleSheet.create({
   },
   noteButton: {
     backgroundColor: '#6B7280',
+  },
+  templateButton: {
+    backgroundColor: '#059669',
+  },
+  alertExtendedActions: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
   },
   actionButtonText: {
     color: '#FFFFFF',
