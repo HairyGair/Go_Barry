@@ -125,15 +125,6 @@ class EnhancedDataSourceManager {
   }
 
   async fetchHereData() {
-    // Temporarily disabled - invalid API key
-    if (!process.env.HERE_API_KEY || process.env.HERE_API_KEY.includes('DISABLED')) {
-      return { 
-        success: false, 
-        error: 'HERE API key disabled - need valid key',
-        data: [] 
-      };
-    }
-    
     try {
       const result = await fetchHERETrafficWithStreetNames();
       return {
