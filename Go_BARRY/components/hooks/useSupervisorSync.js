@@ -479,9 +479,12 @@ export const useSupervisorSync = ({
           onConnectionChange(false);
         }
         
-        // Attempt reconnection if not a clean close
-        if (event.code !== 1000 && reconnectAttempts.current < 10) {
+        // Attempt reconnection if not a clean close (reduced attempts)
+        if (event.code !== 1000 && reconnectAttempts.current < 5) {
           scheduleReconnect();
+        } else if (reconnectAttempts.current >= 5) {
+          console.log('🛑 Max reconnection attempts reached, stopping');
+          setLastError('Connection failed after multiple attempts');
         }
       };
 
@@ -499,7 +502,8 @@ export const useSupervisorSync = ({
     }
 
     reconnectAttempts.current++;
-    const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000);
+    // More conservative reconnection: longer delays, fewer attempts
+    const delay = Math.min(2000 * Math.pow(2, reconnectAttempts.current), 60000); // Start at 2s, max 60s
     
     console.log(`🔄 Scheduling reconnection attempt ${reconnectAttempts.current} in ${delay}ms`);
     setConnectionState(CONNECTION_STATES.RECONNECTING);
@@ -554,7 +558,7 @@ export const useSupervisorSync = ({
         
         sendMessage({ type: MESSAGE_TYPES.PING });
       }
-    }, 30000); // Ping every 30 seconds
+    }, 60000); // Ping every 60 seconds (reduced frequency)
   }, [sendMessage]);
 
   // Auto-connect on mount if enabled

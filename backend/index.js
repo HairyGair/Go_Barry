@@ -164,7 +164,7 @@ console.log(`
 
 // FIXED: More generous rate limiting for Display Screen
 let activeRequests = 0;
-const MAX_CONCURRENT_REQUESTS = 10; // INCREASED from 3 to 10
+const MAX_CONCURRENT_REQUESTS = 50; // INCREASED from 10 to 50 for live production
 
 app.use((req, res, next) => {
   if (activeRequests >= MAX_CONCURRENT_REQUESTS) {
@@ -1367,7 +1367,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`   📊 Sync Status: /api/supervisor/sync-status`);
   console.log(`\n🌟 FIXES APPLIED:`);
   console.log(`   ✅ CORS properly configured for gobarry.co.uk and www.gobarry.co.uk`);
-  console.log(`   ✅ Rate limiting increased from 3 to 10 concurrent requests`);
+  console.log(`   ✅ Rate limiting increased from 10 to 50 concurrent requests for live production`);
   console.log(`   ✅ Extended timeout for Display Screen (35 seconds)`);
   console.log(`   ✅ Enhanced error handling and logging`);
   console.log(`   ✅ Cache timeout reduced to 2 minutes for better responsiveness`);
