@@ -125,6 +125,15 @@ class EnhancedDataSourceManager {
   }
 
   async fetchHereData() {
+    // Temporarily disabled - invalid API key
+    if (!process.env.HERE_API_KEY || process.env.HERE_API_KEY.includes('DISABLED')) {
+      return { 
+        success: false, 
+        error: 'HERE API key disabled - need valid key',
+        data: [] 
+      };
+    }
+    
     try {
       const result = await fetchHERETrafficWithStreetNames();
       return {
@@ -138,6 +147,14 @@ class EnhancedDataSourceManager {
   }
 
   async fetchMapQuestData() {
+    if (!process.env.MAPQUEST_API_KEY) {
+      return { 
+        success: false, 
+        error: 'MapQuest API key missing',
+        data: [] 
+      };
+    }
+    
     try {
       const result = await fetchMapQuestTrafficWithStreetNames();
       return {
