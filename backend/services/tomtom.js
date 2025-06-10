@@ -2,7 +2,7 @@
 // Fixed TomTom Traffic API with Working Route Matching
 import axios from 'axios';
 
-// Fixed route matching function that actually works
+// Enhanced route matching using both coordinates AND geocoded location names
 function findRoutesNearCoordinatesFixed(lat, lng, radiusMeters = 250) {
   const foundRoutes = new Set();
   
@@ -65,6 +65,117 @@ function findRoutesNearCoordinatesFixed(lat, lng, radiusMeters = 250) {
   }
 
   return Array.from(foundRoutes).sort();
+}
+
+// NEW: Enhanced route matching using geocoded location names
+function enhancedRouteMatchingWithLocation(lat, lng, geocodedLocation, radiusMeters = 250) {
+  const foundRoutes = new Set();
+  const locationText = (geocodedLocation || '').toLowerCase();
+  
+  console.log(`🎯 Enhanced route matching for: "${geocodedLocation}" at ${lat}, ${lng}`);
+  
+  // 1. SPECIFIC ROAD/STREET NAME MATCHING
+  const roadMatches = {
+    // Major A-roads with specific routes
+    'a1': ['21', 'X21', '25', '28', '28B', 'X25'],
+    'a19': ['1', '2', '307', '309', '317', '56', '9'],
+    'a167': ['21', '22', 'X21', '6', '50'], // Durham Road
+    'a184': ['1', '2', '307', '309', '327'], // Coast Road
+    'a693': ['X30', 'X31', '74', '84'], // Stanley/Consett
+    'a696': ['74', '43', '44'], // Ponteland Road
+    
+    // Specific major roads
+    'central motorway': ['Q3', 'Q3X', '10', '12', '21'],
+    'newgate street': ['Q3', 'Q3X', '10', '12'],
+    'grainger street': ['Q3', 'Q3X', '10', '12'],
+    'collingwood street': ['Q3', 'Q3X', '10', '12'],
+    'grey street': ['Q3', 'Q3X', '10', '12'],
+    'northumberland street': ['Q3', 'Q3X', '10', '12'],
+    
+    'durham road': ['21', '22', 'X21', '6'],
+    'west road': ['X82', 'X84', 'X85'],
+    'gosforth high street': ['1', '2'],
+    'coast road': ['1', '2', '307', '309'],
+    'shields road': ['27', '28'],
+    'saltwell road': ['53', '54'],
+    
+    // Sunderland roads
+    'chester road': ['20', '24', '35'],
+    'fawcett street': ['16', '20', '61'],
+    'park lane': ['16', '20', '24', '35', '36'],
+    
+    // Major bridges and landmarks
+    'tyne bridge': ['Q3', 'Q3X', '10', '21'],
+    'king edward bridge': ['21', '22'],
+    'swing bridge': ['Q3', 'Q3X'],
+    'millennium bridge': ['Q3', 'Q3X'],
+    'redheugh bridge': ['21', '27', '28'],
+    'metro centre': ['10', '10A', '10B', '27', '28'],
+    'angel of the north': ['21', 'X21', '25'],
+    
+    // Town centers
+    'newcastle': ['Q3', 'Q3X', '10', '10A', '10B', '12', '21', '22', '27', '28', '29'],
+    'gateshead': ['10', '10A', '10B', '21', '27', '28', '28B', 'Q3', 'Q3X', '53', '54'],
+    'sunderland': ['16', '18', '20', '24', '35', '36', '56', '61', '62', '63'],
+    'durham': ['21', '22', 'X21', '6', '7', '50'],
+    'consett': ['X30', 'X31', 'X70', 'X71', 'X71A', '74', '84', '85'],
+    'stanley': ['X30', 'X31', '8', '78'],
+    'chester le street': ['21', '22', 'X21', '25', '28'],
+    'washington': ['2A', '2B', '4', '85', '86', 'X1'],
+    'hebburn': ['27', '28', '28B'],
+    'jarrow': ['27', '28', '526'],
+    'south shields': ['1', '2', '11', '17'],
+    'whitley bay': ['308', '309', '311'],
+    'cramlington': ['43', '44', '45'],
+    'blyth': ['1', '2', '308']
+  };
+  
+  // Check for road/location matches
+  for (const [keyword, routes] of Object.entries(roadMatches)) {
+    if (locationText.includes(keyword)) {
+      routes.forEach(route => foundRoutes.add(route));
+      console.log(`✅ Location match "${keyword}" → routes: ${routes.join(', ')}`);
+    }
+  }
+  
+  // 2. COORDINATE-BASED MATCHING (existing logic)
+  const coordinateRoutes = findRoutesNearCoordinatesFixed(lat, lng, radiusMeters);
+  coordinateRoutes.forEach(route => foundRoutes.add(route));
+  
+  // 3. VALIDATION: Remove routes that are geographically impossible
+  const finalRoutes = Array.from(foundRoutes);
+  const validatedRoutes = validateRoutesGeographically(finalRoutes, lat, lng);
+  
+  console.log(`✨ Enhanced matching result: ${validatedRoutes.length} routes for "${geocodedLocation}"`);
+  console.log(`   📍 Coordinate-based: ${coordinateRoutes.length} routes`);
+  console.log(`   🗺️ Location-based: ${finalRoutes.length - coordinateRoutes.length} additional routes`);
+  console.log(`   ✅ Final validated: ${validatedRoutes.join(', ')}`);
+  
+  return validatedRoutes;
+}
+
+// Validate routes geographically to remove impossible matches
+function validateRoutesGeographically(routes, lat, lng) {
+  const impossibleCombinations = {
+    // Routes that don't serve certain areas
+    sunderland: ['Q3', 'Q3X', '10', '10A', '10B', '12'], // Newcastle city routes don't go to Sunderland
+    consett: ['1', '2', '307', '309'], // North Tyneside routes don't go to Consett
+    durham: ['1', '2', '307', '309', '43', '44'] // North Tyneside/Cramlington routes don't go to Durham
+  };
+  
+  // Determine general area
+  let area = 'general';
+  if (lat >= 54.88 && lat <= 54.95 && lng >= -1.42 && lng <= -1.35) area = 'sunderland';
+  else if (lat >= 54.82 && lat <= 54.87 && lng >= -1.9 && lng <= -1.8) area = 'consett';
+  else if (lat >= 54.75 && lat <= 54.85 && lng >= -1.6 && lng <= -1.5) area = 'durham';
+  
+  // Filter out impossible routes
+  const validRoutes = routes.filter(route => {
+    const impossible = impossibleCombinations[area] || [];
+    return !impossible.includes(route);
+  });
+  
+  return validRoutes.sort();
 }
 
 // Enhanced location processing
@@ -304,9 +415,9 @@ async function fetchTomTomTrafficWithStreetNames() {
 }`);
         console.log(`✅ Enhanced location: ${enhancedLocation}`);
 
-        // FIXED: Route matching with working function
-        console.log(`🗺️ Enhanced GTFS route matching for incident at ${lat}, ${lng}...`);
-        const affectedRoutes = findRoutesNearCoordinatesFixed(lat, lng, 250);
+        // ENHANCED: Route matching using both coordinates AND geocoded location names
+        console.log(`🗺️ Enhanced route matching combining coordinates + location names...`);
+        const affectedRoutes = enhancedRouteMatchingWithLocation(lat, lng, enhancedLocation, 250);
         
         // Map incident types
         const getIncidentInfo = (iconCategory) => {
@@ -341,7 +452,7 @@ async function fetchTomTomTrafficWithStreetNames() {
           status: 'red',
           source: 'tomtom',
           affectsRoutes: affectedRoutes,
-          routeMatchMethod: 'Fixed Geographic Matching',
+          routeMatchMethod: 'Enhanced Location + Coordinate Matching',
           routeAccuracy: affectedRoutes.length > 0 ? 'high' : 'medium',
           iconCategory: props.iconCategory,
           lastUpdated: new Date().toISOString(),
@@ -359,7 +470,7 @@ async function fetchTomTomTrafficWithStreetNames() {
     return { 
       success: true, 
       data: alerts, 
-      method: 'Fixed Route Matching + Enhanced Location Processing',
+      method: 'Enhanced Location + Coordinate Matching + Intelligent Route Validation',
       source: 'TomTom Traffic API v5',
       timestamp: new Date().toISOString(),
       coverage: 'Newcastle/Gateshead core area',

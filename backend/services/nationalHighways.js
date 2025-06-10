@@ -1,18 +1,13 @@
 // services/nationalHighways.js
 // National Highways API Integration  
 import axios from 'axios';
+import { enhancedTextOnlyRouteMatching } from '../utils/enhancedRouteMatching.js';
 
-// Helper functions (simplified versions)
+// Enhanced route matching using shared utility
 function matchRoutes(location, description = '') {
-  const routes = [];
-  const text = `${location} ${description}`.toLowerCase();
-  
-  if (text.includes('a1')) routes.push('21', 'X21');
-  if (text.includes('a19')) routes.push('1', '2');
-  if (text.includes('newcastle')) routes.push('Q3', '10', '12');
-  if (text.includes('gateshead')) routes.push('21', '27', '28');
-  if (text.includes('sunderland')) routes.push('16', '20', '56');
-  
+  console.log(`🗺️ Enhanced National Highways route matching for: "${location}"`);
+  const routes = enhancedTextOnlyRouteMatching(location, description);
+  console.log(`✅ Found ${routes.length} matching routes: ${routes.join(', ')}`);
   return routes;
 }
 
@@ -95,7 +90,7 @@ async function fetchNationalHighways() {
           endDate: props.endDate || null,
           affectsRoutes: routes,
           lastUpdated: new Date().toISOString(),
-          dataSource: 'National Highways DATEX II API'
+          dataSource: 'National Highways DATEX II API + Enhanced Route Matching'
         };
       });
 

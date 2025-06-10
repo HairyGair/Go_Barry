@@ -8,7 +8,7 @@ import {
   getEnhancedLocationWithFallbacks,
   getLocationName
 } from '../utils/location.js';
-import { enhancedFindRoutesNearCoordinates, enhancedLocationWithRoutes } from '../enhanced-gtfs-route-matcher.js';
+import { enhancedRouteMatchingWithLocation } from '../utils/enhancedRouteMatching.js';
 
 // Enhanced route matching for HERE incidents
 function getEnhancedHERERouteMatching(location, description, coordinates) {
@@ -164,27 +164,25 @@ async function fetchHERETrafficWithStreetNames() {
           enhancedLocation = incident.location?.description?.value || 'North East England';
         }
         
-        // Enhanced GTFS route matching
+        // ENHANCED: Route matching using both coordinates AND geocoded location names
         let affectedRoutes = [];
         let routeMatchMethod = 'none';
         
         try {
           if (lat && lng) {
-            console.log(`🗺️ Enhanced GTFS route matching for HERE incident at ${lat}, ${lng}...`);
-            affectedRoutes = enhancedFindRoutesNearCoordinates(lat, lng, 300); // Slightly larger radius for HERE
-            routeMatchMethod = affectedRoutes.length > 0 ? 'Enhanced GTFS' : 'none';
-          }
-          
-          // Fallback to enhanced text-based matching if no coordinate matches
-          if (affectedRoutes.length === 0) {
+            console.log(`🗺️ Enhanced route matching combining coordinates + location names...`);
+            affectedRoutes = enhancedRouteMatchingWithLocation(lat, lng, enhancedLocation, 300);
+            routeMatchMethod = affectedRoutes.length > 0 ? 'Enhanced Location + Coordinate Matching' : 'none';
+          } else {
+            // Fallback to text-only matching if no coordinates
             const textRoutes = getEnhancedHERERouteMatching(
               enhancedLocation, 
               incident.description?.value || incident.summary?.value || '',
-              { lat, lng }
+              null
             );
             if (textRoutes.length > 0) {
               affectedRoutes = textRoutes;
-              routeMatchMethod = 'Enhanced Text Pattern';
+              routeMatchMethod = 'Text-based Pattern Matching';
             }
           }
           
@@ -230,7 +228,7 @@ async function fetchHERETrafficWithStreetNames() {
           affectsRoutes: affectedRoutes,
           routeMatchMethod: routeMatchMethod,
           routeAccuracy: affectedRoutes.length > 0 ? 
-            (routeMatchMethod === 'Enhanced GTFS' ? 'high' : 'medium') : 'low',
+            (routeMatchMethod === 'Enhanced Location + Coordinate Matching' ? 'high' : 'medium') : 'low',
           criticality: incident.criticality,
           roadName: roadName,
           startTime: incident.startTime,
@@ -255,7 +253,7 @@ async function fetchHERETrafficWithStreetNames() {
     return { 
       success: true, 
       data: alerts, 
-      method: 'Enhanced GTFS Route Matching',
+      method: 'Enhanced Location + Coordinate Matching + Intelligent Route Validation',
       source: 'HERE Traffic API v7',
       timestamp: new Date().toISOString(),
       coverage: `25km radius from Newcastle (${incidents.length} incidents processed)`
