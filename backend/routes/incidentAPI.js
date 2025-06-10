@@ -1,21 +1,24 @@
 // backend/routes/incidentAPI.js
-// Phase 2: GTFS-Powered Incident Management API Routes
+// Phase 2: GTFS-Powered Incident Management API Routes with Shared Storage
 
 import express from 'express';
 import geocodingService, { geocodeLocation } from '../services/geocoding.js';
 import findGTFSRoutesNearCoordinates from '../gtfs-route-matcher.js';
+import sharedStorage from '../services/sharedIncidentStorage.js';
 
 const router = express.Router();
 
-// In-memory incident storage (in production, use database)
-let incidents = [];
+// Counter for incident IDs
 let incidentCounter = 1;
 
 // GET /api/incidents - Get all incidents
 router.get('/', async (req, res) => {
   try {
+    // Get all incidents from shared storage
+    const allIncidents = await sharedStorage.getAllIncidents();
+    
     // Filter active incidents
-    const activeIncidents = incidents.filter(incident => 
+    const activeIncidents = allIncidents.filter(incident => 
       incident.status === 'active' || incident.status === 'monitoring'
     );
     
@@ -110,13 +113,18 @@ router.post('/', async (req, res) => {
       source: 'manual'
     };
 
-    incidents.push(incident);
+    // Save to shared storage
+    const savedIncident = await sharedStorage.addIncident(incident);
 
-    console.log(`✅ Created incident: ${incident.id} at ${location} affecting ${affectedRoutes.length} routes`);
+    console.log(`✅ Created shared incident: ${savedIncident.id} at ${location} affecting ${affectedRoutes.length} routes`);
+    
+    // Get current stats
+    const stats = await sharedStorage.getIncidentStats();
+    console.log(`📊 Total incidents in system: ${stats.total} (${stats.active} active)`);
 
     res.json({
       success: true,
-      incident,
+      incident: savedIncident,
       message: 'Incident created successfully'
     });
 
@@ -135,26 +143,20 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
-    const incidentIndex = incidents.findIndex(incident => incident.id === id);
-    if (incidentIndex === -1) {
+    const updatedIncident = await sharedStorage.updateIncident(id, updates);
+    
+    if (!updatedIncident) {
       return res.status(404).json({
         success: false,
         error: 'Incident not found'
       });
     }
 
-    // Update incident
-    incidents[incidentIndex] = {
-      ...incidents[incidentIndex],
-      ...updates,
-      lastUpdated: new Date().toISOString()
-    };
-
     console.log(`✅ Updated incident: ${id}`);
 
     res.json({
       success: true,
-      incident: incidents[incidentIndex],
+      incident: updatedIncident,
       message: 'Incident updated successfully'
     });
 
@@ -172,16 +174,14 @@ router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const incidentIndex = incidents.findIndex(incident => incident.id === id);
-    if (incidentIndex === -1) {
+    const deletedIncident = await sharedStorage.deleteIncident(id);
+    
+    if (!deletedIncident) {
       return res.status(404).json({
         success: false,
         error: 'Incident not found'
       });
     }
-
-    // Remove incident
-    const deletedIncident = incidents.splice(incidentIndex, 1)[0];
 
     console.log(`✅ Deleted incident: ${id}`);
 
@@ -200,12 +200,47 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// GET /api/incidents/stats - Get incident statistics (MUST come before /:id route)
+router.get('/stats', async (req, res) => {
+  try {
+    const stats = await sharedStorage.getIncidentStats();
+    const allIncidents = await sharedStorage.getAllIncidents();
+    
+    // Enhanced stats with route information
+    const affectedRoutesSet = new Set();
+    allIncidents.forEach(incident => {
+      if (incident.affectsRoutes) {
+        incident.affectsRoutes.forEach(route => affectedRoutesSet.add(route));
+      }
+    });
+
+    const enhancedStats = {
+      ...stats,
+      affectedRoutes: Array.from(affectedRoutesSet),
+      affectedRoutesCount: affectedRoutesSet.size,
+      lastUpdated: new Date().toISOString()
+    };
+
+    res.json({
+      success: true,
+      stats: enhancedStats
+    });
+
+  } catch (error) {
+    console.error('Failed to get incident stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get incident statistics'
+    });
+  }
+});
+
 // GET /api/incidents/:id - Get specific incident
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const incident = incidents.find(incident => incident.id === id);
+    const incident = await sharedStorage.getIncidentById(id);
     if (!incident) {
       return res.status(404).json({
         success: false,
@@ -223,51 +258,6 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch incident'
-    });
-  }
-});
-
-// GET /api/incidents/stats - Get incident statistics
-router.get('/stats', async (req, res) => {
-  try {
-    const activeIncidents = incidents.filter(i => i.status === 'active');
-    const resolvedIncidents = incidents.filter(i => i.status === 'resolved');
-    
-    const incidentsByType = {};
-    const incidentsBySeverity = {};
-    const affectedRoutesSet = new Set();
-
-    incidents.forEach(incident => {
-      // Count by type
-      incidentsByType[incident.type] = (incidentsByType[incident.type] || 0) + 1;
-      
-      // Count by severity
-      incidentsBySeverity[incident.severity] = (incidentsBySeverity[incident.severity] || 0) + 1;
-      
-      // Collect affected routes
-      if (incident.affectsRoutes) {
-        incident.affectsRoutes.forEach(route => affectedRoutesSet.add(route));
-      }
-    });
-
-    res.json({
-      success: true,
-      stats: {
-        total: incidents.length,
-        active: activeIncidents.length,
-        resolved: resolvedIncidents.length,
-        byType: incidentsByType,
-        bySeverity: incidentsBySeverity,
-        affectedRoutes: Array.from(affectedRoutesSet),
-        affectedRoutesCount: affectedRoutesSet.size
-      }
-    });
-
-  } catch (error) {
-    console.error('Failed to get incident stats:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get incident statistics'
     });
   }
 });

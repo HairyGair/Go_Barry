@@ -21,6 +21,7 @@ import supervisorAPI from './routes/supervisorAPI.js';
 import roadworksAPI from './routes/roadworksAPI.js';
 import gtfsAPI from './routes/gtfsAPI.js';
 import intelligenceAPI from './routes/intelligenceAPI.js';
+import incidentAPI from './routes/incidentAPI.js';
 import supervisorSyncService from './services/supervisorSync.js';
 import enhancedDataSourceManager from './services/enhancedDataSourceManager.js';
 import { createServer } from 'http';
@@ -263,6 +264,118 @@ app.use('/api/intelligence', intelligenceAPI);
 
 // Enhanced GTFS analysis routes
 app.use('/api/gtfs', gtfsAPI);
+
+// Incident management routes
+app.use('/api/incidents', incidentAPI);
+
+// Geocoding endpoint for incident manager
+app.get('/api/geocode/:location', async (req, res) => {
+  try {
+    const { location } = req.params;
+    const { geocodeLocation } = await import('./services/geocoding.js');
+    
+    const result = await geocodeLocation(location);
+    
+    if (result) {
+      res.json({
+        success: true,
+        location: result.name,
+        coordinates: {
+          latitude: result.latitude,
+          longitude: result.longitude
+        },
+        confidence: result.confidence,
+        source: result.source
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        error: 'Location not found'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Geocoding error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Geocoding failed'
+    });
+  }
+});
+
+// GTFS stop search endpoint
+app.get('/api/routes/search-stops', async (req, res) => {
+  try {
+    const { query } = req.query;
+    
+    if (!query || query.length < 2) {
+      return res.json({
+        success: true,
+        stops: []
+      });
+    }
+    
+    // Simple stop search - in production this would search the GTFS stops data
+    // For now, return some sample North East stops that match the query
+    const sampleStops = [
+      { stop_id: '1001', stop_code: 'NE001', stop_name: 'Newcastle Central Station', stop_lat: 54.9783, stop_lon: -1.6178 },
+      { stop_id: '1002', stop_code: 'GH001', stop_name: 'Gateshead Interchange', stop_lat: 54.9526, stop_lon: -1.6014 },
+      { stop_id: '1003', stop_code: 'SU001', stop_name: 'Sunderland City Centre', stop_lat: 54.9069, stop_lon: -1.3838 },
+      { stop_id: '1004', stop_code: 'DU001', stop_name: 'Durham Bus Station', stop_lat: 54.7753, stop_lon: -1.5849 },
+      { stop_id: '1005', stop_code: 'HX001', stop_name: 'Hexham Bus Station', stop_lat: 54.9698, stop_lon: -2.1015 }
+    ];
+    
+    const matchingStops = sampleStops.filter(stop => 
+      stop.stop_name.toLowerCase().includes(query.toLowerCase()) ||
+      stop.stop_code.toLowerCase().includes(query.toLowerCase())
+    );
+    
+    res.json({
+      success: true,
+      stops: matchingStops.slice(0, 5) // Limit to 5 results
+    });
+  } catch (error) {
+    console.error('❌ Stop search error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Stop search failed',
+      stops: []
+    });
+  }
+});
+
+// Find routes near coordinate endpoint
+app.get('/api/routes/find-near-coordinate', async (req, res) => {
+  try {
+    const { lat, lng } = req.query;
+    
+    if (!lat || !lng) {
+      return res.status(400).json({
+        success: false,
+        error: 'Latitude and longitude are required'
+      });
+    }
+    
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+    
+    const routes = findRoutesNearCoordinatesFixed(latitude, longitude, 250);
+    
+    res.json({
+      success: true,
+      routes: routes,
+      location: { latitude, longitude },
+      radius: 250,
+      count: routes.length
+    });
+  } catch (error) {
+    console.error('❌ Routes near coordinate error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to find routes near coordinate',
+      routes: []
+    });
+  }
+});
 
 // Missing API endpoints that frontend is calling
 app.get('/api/health/database', (req, res) => {
@@ -516,16 +629,115 @@ let cachedAlerts = null;
 let lastFetchTime = null;
 const CACHE_TIMEOUT = 2 * 60 * 1000; // 2 minutes
 
-// GUARANTEED WORKING - Multi-source alerts endpoint with ALL data feeds
+// Shared incident storage (in production, this would be a database)
+if (!global.manualIncidents) {
+  global.manualIncidents = [];
+}
+
+// Helper function to get manual incidents
+function getManualIncidents() {
+  return global.manualIncidents || [];
+}
+
+// Helper function to add manual incident
+function addManualIncident(incident) {
+  if (!global.manualIncidents) {
+    global.manualIncidents = [];
+  }
+  global.manualIncidents.push(incident);
+  return incident;
+}
+
+// Helper function to update manual incident
+function updateManualIncident(id, updates) {
+  if (!global.manualIncidents) return null;
+  
+  const index = global.manualIncidents.findIndex(inc => inc.id === id);
+  if (index !== -1) {
+    global.manualIncidents[index] = { ...global.manualIncidents[index], ...updates };
+    return global.manualIncidents[index];
+  }
+  return null;
+}
+
+// Helper function to delete manual incident
+function deleteManualIncident(id) {
+  if (!global.manualIncidents) return null;
+  
+  const index = global.manualIncidents.findIndex(inc => inc.id === id);
+  if (index !== -1) {
+    const deleted = global.manualIncidents.splice(index, 1)[0];
+    return deleted;
+  }
+  return null;
+}
+
+// Convert manual incidents to alert format
+function convertIncidentToAlert(incident) {
+  return {
+    id: incident.id,
+    title: `${incident.subtype || incident.type} - ${incident.location}`,
+    description: incident.description || `${incident.type} reported at ${incident.location}`,
+    location: incident.location,
+    coordinates: incident.coordinates ? [
+      incident.coordinates.latitude || incident.coordinates[0],
+      incident.coordinates.longitude || incident.coordinates[1]
+    ] : null,
+    severity: incident.severity || 'Medium',
+    status: incident.status === 'active' ? 'red' : 'amber',
+    timestamp: incident.createdAt,
+    lastUpdated: incident.lastUpdated || incident.createdAt,
+    startDate: incident.startTime || incident.createdAt,
+    endDate: incident.endTime,
+    source: 'manual_incident',
+    type: incident.type,
+    subtype: incident.subtype,
+    affectsRoutes: incident.affectsRoutes || [],
+    enhanced: true,
+    priority: incident.severity === 'High' ? 'IMMEDIATE' : 
+             incident.severity === 'Medium' ? 'URGENT' : 'MONITOR',
+    createdBy: incident.createdBy,
+    createdByRole: incident.createdByRole,
+    notes: incident.notes,
+    incidentData: incident // Keep original incident data
+  };
+}
+
+// GUARANTEED WORKING - Multi-source alerts endpoint with ALL data feeds + Manual Incidents
 app.get('/api/alerts-enhanced', async (req, res) => {
   const requestId = Date.now();
   
   try {
-    console.log(`🚀 [WORKING-${requestId}] Guaranteed data feed request from ${req.headers.origin}`);
+    console.log(`🚀 [ENHANCED-${requestId}] Enhanced data feed with manual incidents from ${req.headers.origin}`);
     
     let allAlerts = [];
     const sources = {};
     const fetchPromises = [];
+    
+    // Fetch manual incidents first
+    console.log(`📝 [${requestId}] Fetching manual incidents...`);
+    const manualIncidents = getManualIncidents();
+    let incidentAlerts = [];
+    
+    if (manualIncidents.length > 0) {
+      incidentAlerts = manualIncidents.map(convertIncidentToAlert);
+      allAlerts.push(...incidentAlerts);
+      sources.manual_incidents = {
+        success: true,
+        count: incidentAlerts.length,
+        method: 'Local Database',
+        mode: 'incident_manager'
+      };
+      console.log(`✅ [${requestId}] Added ${incidentAlerts.length} manual incidents to alerts`);
+    } else {
+      sources.manual_incidents = {
+        success: true,
+        count: 0,
+        method: 'Local Database',
+        mode: 'incident_manager'
+      };
+      console.log(`📝 [${requestId}] No manual incidents found`);
+    }
     
     // GUARANTEED: Fetch from all 4 sources with robust error handling
     console.log(`🚗 [${requestId}] Fetching TomTom traffic...`);
@@ -692,12 +904,17 @@ app.get('/api/alerts-enhanced', async (req, res) => {
       activeAlerts = processedAlerts;
     }
     
-    // GUARANTEED: Generate statistics safely
+    // GUARANTEED: Generate statistics safely (including manual incidents)
+    const manualIncidentCount = activeAlerts.filter(a => a.source === 'manual_incident').length;
+    const trafficAlertCount = activeAlerts.length - manualIncidentCount;
+    
     const stats = {
       totalAlerts: activeAlerts.length,
       activeAlerts: activeAlerts.filter(a => a.status === 'red' || !a.status).length,
       alertsWithRoutes: activeAlerts.filter(a => a.affectsRoutes && a.affectsRoutes.length > 0).length,
       alertsWithCoordinates: activeAlerts.filter(a => a.coordinates && Array.isArray(a.coordinates) && a.coordinates.length === 2).length,
+      manualIncidents: manualIncidentCount,
+      trafficAlerts: trafficAlertCount,
       sourcesSuccessful: successfulSources,
       sourcesTotal: 4,
       sourceBreakdown: sources,
@@ -728,9 +945,10 @@ app.get('/api/alerts-enhanced', async (req, res) => {
       }
     };
     
-    console.log(`🎯 [${requestId}] GUARANTEED RESULT: ${activeAlerts.length} alerts from ${successfulSources}/4 sources`);
+    console.log(`🎯 [${requestId}] ENHANCED RESULT: ${activeAlerts.length} total alerts (${stats.trafficAlerts} traffic + ${stats.manualIncidents} manual)`);
     console.log(`📊 [${requestId}] Sources working: ${Object.keys(sources).filter(s => sources[s].success).join(', ')}`);
     console.log(`🗺️ [${requestId}] Alerts with coordinates: ${stats.alertsWithCoordinates}/${activeAlerts.length}`);
+    console.log(`📝 [${requestId}] Manual incidents: ${stats.manualIncidents}`);
     console.log(`⏱️ [${requestId}] Total processing time: ${Date.now() - requestId}ms`);
     
     res.json(response);
