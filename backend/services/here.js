@@ -1,13 +1,7 @@
 // services/here.js  
 // Enhanced HERE Traffic API Integration with Enhanced GTFS Route Matching
 import axios from 'axios';
-import { 
-  getLocationNameWithTimeout,
-  getRegionFromCoordinates,
-  getCoordinateDescription,
-  getEnhancedLocationWithFallbacks,
-  getLocationName
-} from '../utils/location.js';
+import { getEnhancedLocationWithFallbacks } from '../utils/productionLocation.js';
 import { enhancedRouteMatchingWithLocation } from '../utils/enhancedRouteMatching.js';
 
 // Enhanced route matching for HERE incidents
@@ -86,8 +80,8 @@ async function fetchHERETrafficWithStreetNames() {
       params: {
         apikey: process.env.HERE_API_KEY,
         in: `circle:${lat},${lng};r=${radius}`,
-        locationReferencing: 'olr',
-        criticality: '0,1,2,3' // All criticality levels
+        locationReferencing: 'olr'
+        // Removed criticality parameter - causing 400 error
       },
       timeout: 15000,
       headers: {

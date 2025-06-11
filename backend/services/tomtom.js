@@ -1,6 +1,7 @@
 // services/tomtom-fixed.js
 // Fixed TomTom Traffic API with Working Route Matching
 import axios from 'axios';
+import { getEnhancedLocationWithFallbacks } from '../utils/productionLocation.js';
 
 // Enhanced route matching using both coordinates AND geocoded location names
 function findRoutesNearCoordinatesFixed(lat, lng, radiusMeters = 250) {
@@ -392,8 +393,10 @@ async function fetchTomTomTrafficWithStreetNames() {
         
         let enhancedLocation;
         try {
-          // Try reverse geocoding
-          const reversedLocation = await reverseGeocodeSimple(lat, lng);
+          // Use production-optimized geocoding
+          const reversedLocation = await getEnhancedLocationWithFallbacks(
+            lat, lng, props.roadName || 'Traffic incident', 'TomTom'
+          );
           
           if (reversedLocation) {
             enhancedLocation = reversedLocation;
@@ -456,6 +459,7 @@ async function fetchTomTomTrafficWithStreetNames() {
           routeAccuracy: affectedRoutes.length > 0 ? 'high' : 'medium',
           iconCategory: props.iconCategory,
           lastUpdated: new Date().toISOString(),
+          startDate: new Date().toISOString(), // Add startDate for display screen
           dataSource: 'TomTom Traffic API v5 + Fixed Route Matching'
         };
 
