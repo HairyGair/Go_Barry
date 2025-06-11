@@ -139,6 +139,7 @@ const BrowserMainApp = () => {
     supervisorId,
     sessionId,
     isAdmin,
+    supervisorSession, // Add this to access backendId
     logout
   } = useSupervisorSession();
 
