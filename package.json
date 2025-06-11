@@ -2,6 +2,7 @@
   "name": "barry-traffic-intelligence",
   "version": "3.0.0",
   "description": "BARRY - Real-time Traffic Intelligence Platform for Go North East",
+  "type": "module",
   "private": true,
   "scripts": {
     "install:all": "npm install && cd backend && npm install && cd ../Go_BARRY && npm install",
