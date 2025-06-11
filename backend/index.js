@@ -24,6 +24,7 @@ import intelligenceAPI from './routes/intelligenceAPI.js';
 import incidentAPI from './routes/incidentAPI.js';
 import supervisorSyncService from './services/supervisorSync.js';
 import enhancedDataSourceManager from './services/enhancedDataSourceManager.js';
+import streetManagerWebhooks from './services/streetManagerWebhooksSimple.js';
 import { createServer } from 'http';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -267,6 +268,67 @@ app.use('/api/gtfs', gtfsAPI);
 
 // Incident management routes
 app.use('/api/incidents', incidentAPI);
+
+// StreetManager webhook routes
+app.post('/api/streetmanager/webhook', async (req, res) => {
+  try {
+    console.log('🚧 StreetManager webhook received');
+    const result = streetManagerWebhooks.handleWebhookMessage(req.body);
+    res.json({
+      success: true,
+      result: result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ StreetManager webhook error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+app.get('/api/streetmanager/activities', (req, res) => {
+  try {
+    const result = streetManagerWebhooks.getWebhookActivities();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: []
+    });
+  }
+});
+
+app.get('/api/streetmanager/permits', (req, res) => {
+  try {
+    const result = streetManagerWebhooks.getWebhookPermits();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: []
+    });
+  }
+});
+
+app.get('/api/streetmanager/status', (req, res) => {
+  try {
+    const status = streetManagerWebhooks.getWebhookStatus();
+    res.json({
+      success: true,
+      ...status,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 // Geocoding endpoint for incident manager
 app.get('/api/geocode/:location', async (req, res) => {
@@ -1363,6 +1425,8 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`   👮 Supervisor: /api/supervisor`);
   console.log(`   🙅 Dismiss Alert: /api/supervisor/dismiss-alert`);
   console.log(`   🚧 Roadworks: /api/roadworks`);
+  console.log(`   📥 StreetManager Webhook: /api/streetmanager/webhook`);
+  console.log(`   📋 StreetManager Status: /api/streetmanager/status`);
   console.log(`   🔌 WebSocket: wss://go-barry.onrender.com/ws/supervisor-sync`);
   console.log(`   📊 Sync Status: /api/supervisor/sync-status`);
   console.log(`\n🌟 FIXES APPLIED:`);
@@ -1372,6 +1436,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`   ✅ Enhanced error handling and logging`);
   console.log(`   ✅ Cache timeout reduced to 2 minutes for better responsiveness`);
   console.log(`   ✅ Proper startDate fields added for Display Screen`);
+  console.log(`   ✅ StreetManager configured as webhook receiver (no API key needed)`);
 });
 
 export default app;// Deployment timestamp: Tue 10 Jun 2025 10:40:34 BST

@@ -41,10 +41,14 @@ const MessageTemplates = ({
   // Load templates on component mount
   useEffect(() => {
     loadTemplates();
+  }, []); // Empty dependency array
+
+  // Load suggestions when selectedAlert changes
+  useEffect(() => {
     if (selectedAlert) {
       loadSuggestions(selectedAlert);
     }
-  }, [selectedAlert]);
+  }, [selectedAlert]); // Only depend on selectedAlert
 
   // Load templates from API
   const loadTemplates = useCallback(async () => {
@@ -114,10 +118,20 @@ const MessageTemplates = ({
     }
     
     setTemplateVariables(initialVariables);
-    updatePreview(template, initialVariables);
-  }, [selectedAlert]);
+    
+    // Update preview directly here instead of calling updatePreview
+    let preview = template.message;
+    if (template.variables) {
+      template.variables.forEach(variable => {
+        const value = initialVariables[variable] || `{${variable}}`;
+        const regex = new RegExp(`\\{${variable}\\}`, 'g');
+        preview = preview.replace(regex, value);
+      });
+    }
+    setProcessedMessage(preview);
+  }, [selectedAlert]); // Only depend on selectedAlert
 
-  // Update message preview
+  // Update message preview - simplified to avoid dependency loops
   const updatePreview = useCallback((template, variables) => {
     if (!template) return;
     
@@ -131,14 +145,26 @@ const MessageTemplates = ({
     }
     
     setProcessedMessage(preview);
-  }, []);
+  }, []); // No dependencies to avoid loops
 
   // Handle variable change
   const handleVariableChange = useCallback((variable, value) => {
     const newVariables = { ...templateVariables, [variable]: value };
     setTemplateVariables(newVariables);
-    updatePreview(selectedTemplate, newVariables);
-  }, [templateVariables, selectedTemplate, updatePreview]);
+    
+    // Update preview directly here
+    if (selectedTemplate) {
+      let preview = selectedTemplate.message;
+      if (selectedTemplate.variables) {
+        selectedTemplate.variables.forEach(varName => {
+          const varValue = newVariables[varName] || `{${varName}}`;
+          const regex = new RegExp(`\\{${varName}\\}`, 'g');
+          preview = preview.replace(regex, varValue);
+        });
+      }
+      setProcessedMessage(preview);
+    }
+  }, [templateVariables, selectedTemplate]); // Fixed dependencies
 
   // Send template message
   const sendTemplateMessage = useCallback(async () => {

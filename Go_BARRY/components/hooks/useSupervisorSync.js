@@ -52,6 +52,12 @@ const MESSAGE_TYPES = {
   // Display control
   SET_MODE: 'set_mode',
   MODE_CHANGED: 'mode_changed',
+  DISMISS_FROM_DISPLAY: 'dismiss_from_display',
+  LOCK_ON_DISPLAY: 'lock_on_display',
+  UNLOCK_FROM_DISPLAY: 'unlock_from_display',
+  ALERT_DISMISSED_FROM_DISPLAY: 'alert_dismissed_from_display',
+  ALERT_LOCKED_ON_DISPLAY: 'alert_locked_on_display',
+  ALERT_UNLOCKED_FROM_DISPLAY: 'alert_unlocked_from_display',
   
   // Connection events
   SUPERVISOR_CONNECTED: 'supervisor_connected',
@@ -101,6 +107,8 @@ export const useSupervisorSync = ({
     priorityOverrides: new Map(),
     supervisorNotes: new Map(),
     customMessages: [],
+    dismissedFromDisplay: new Set(), // Alerts hidden from display
+    lockedOnDisplay: new Set(), // Alerts locked on display (no auto-rotation)
     activeMode: 'normal',
     connectedSupervisors: 0,
     connectedDisplays: 0,
@@ -309,6 +317,34 @@ export const useSupervisorSync = ({
           }));
           break;
 
+        case MESSAGE_TYPES.ALERT_DISMISSED_FROM_DISPLAY:
+          setSyncState(prev => ({
+            ...prev,
+            dismissedFromDisplay: new Set([...prev.dismissedFromDisplay, data.alertId]),
+            lastUpdated: data.timestamp
+          }));
+          break;
+
+        case MESSAGE_TYPES.ALERT_LOCKED_ON_DISPLAY:
+          setSyncState(prev => ({
+            ...prev,
+            lockedOnDisplay: new Set([...prev.lockedOnDisplay, data.alertId]),
+            lastUpdated: data.timestamp
+          }));
+          break;
+
+        case MESSAGE_TYPES.ALERT_UNLOCKED_FROM_DISPLAY:
+          setSyncState(prev => {
+            const newLocked = new Set(prev.lockedOnDisplay);
+            newLocked.delete(data.alertId);
+            return {
+              ...prev,
+              lockedOnDisplay: newLocked,
+              lastUpdated: data.timestamp
+            };
+          });
+          break;
+
         case MESSAGE_TYPES.SUPERVISOR_JOINED:
           setSyncState(prev => {
             const newSupervisors = [...prev.activeSupervisors];
@@ -419,6 +455,8 @@ export const useSupervisorSync = ({
       priorityOverrides: state.priorityOverrides ? new Map(Object.entries(state.priorityOverrides)) : prev.priorityOverrides,
       supervisorNotes: state.supervisorNotes ? new Map(Object.entries(state.supervisorNotes)) : prev.supervisorNotes,
       customMessages: state.customMessages || prev.customMessages,
+      dismissedFromDisplay: state.dismissedFromDisplay ? new Set(state.dismissedFromDisplay) : prev.dismissedFromDisplay,
+      lockedOnDisplay: state.lockedOnDisplay ? new Set(state.lockedOnDisplay) : prev.lockedOnDisplay,
       activeMode: state.activeMode || prev.activeMode,
       connectedSupervisors: state.connectedSupervisors ?? prev.connectedSupervisors,
       connectedDisplays: state.connectedDisplays ?? prev.connectedDisplays,
@@ -583,7 +621,7 @@ export const useSupervisorSync = ({
     return () => {
       disconnect();
     };
-  }, [autoConnect, connect, disconnect, startPingInterval]);
+  }, [autoConnect]); // Removed circular dependencies
 
   // Supervisor-specific actions
   const acknowledgeAlert = useCallback((alertId, reason, notes = '') => {
@@ -642,6 +680,31 @@ export const useSupervisorSync = ({
     });
   }, [sendMessage]);
 
+  // Display control actions
+  const dismissFromDisplay = useCallback((alertId, reason) => {
+    return sendMessage({
+      type: MESSAGE_TYPES.DISMISS_FROM_DISPLAY,
+      alertId,
+      reason
+    });
+  }, [sendMessage]);
+
+  const lockOnDisplay = useCallback((alertId, reason) => {
+    return sendMessage({
+      type: MESSAGE_TYPES.LOCK_ON_DISPLAY,
+      alertId,
+      reason
+    });
+  }, [sendMessage]);
+
+  const unlockFromDisplay = useCallback((alertId, reason) => {
+    return sendMessage({
+      type: MESSAGE_TYPES.UNLOCK_FROM_DISPLAY,
+      alertId,
+      reason
+    });
+  }, [sendMessage]);
+
   // Return hook interface
   return {
     // Connection state
@@ -657,6 +720,8 @@ export const useSupervisorSync = ({
     priorityOverrides: syncState.priorityOverrides,
     supervisorNotes: syncState.supervisorNotes,
     customMessages: syncState.customMessages,
+    dismissedFromDisplay: syncState.dismissedFromDisplay,
+    lockedOnDisplay: syncState.lockedOnDisplay,
     activeMode: syncState.activeMode,
     connectedSupervisors: syncState.connectedSupervisors,
     connectedDisplays: syncState.connectedDisplays,
@@ -682,6 +747,9 @@ export const useSupervisorSync = ({
     broadcastMessage,
     setDisplayMode,
     updateAlerts,
+    dismissFromDisplay,
+    lockOnDisplay,
+    unlockFromDisplay,
     
     // Utilities
     clearError: () => setLastError(null),

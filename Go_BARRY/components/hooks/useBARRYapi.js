@@ -51,13 +51,20 @@ export const useBarryAPI = (options = {}) => {
   const fetchAlerts = useCallback(async () => {
     try {
       setLoading(true);
+      console.log(`🔄 Starting fetchAlerts() - Base URL: ${API_CONFIG.baseURL}`);
       
       // Try enhanced alerts first, fallback to basic alerts
+      console.log('🚀 Trying enhanced alerts endpoint...');
       let result = await safeApiCall(API_CONFIG.endpoints.alertsEnhanced);
       
       if (!result.success) {
-        console.log('🔄 Fallback to basic alerts endpoint...');
+        console.log('⚠️ Enhanced alerts failed, trying basic alerts endpoint...');
         result = await safeApiCall(API_CONFIG.endpoints.alerts);
+      }
+      
+      if (!result.success) {
+        console.log('⚠️ Basic alerts failed, trying emergency endpoint...');
+        result = await safeApiCall('/api/emergency-alerts');
       }
       
       if (result.success) {
@@ -65,7 +72,17 @@ export const useBarryAPI = (options = {}) => {
         setAlerts(alertsData);
         setLastUpdated(result.data.metadata?.lastUpdated || new Date().toISOString());
         setError(null);
-        console.log(`✅ Loaded ${alertsData.length} alerts from ${API_CONFIG.baseURL}`);
+        console.log(`✅ SUCCESS: Loaded ${alertsData.length} LIVE alerts from ${API_CONFIG.baseURL}`);
+        
+        // Log first alert for debugging
+        if (alertsData.length > 0) {
+          console.log('📊 Sample alert:', {
+            id: alertsData[0].id,
+            title: alertsData[0].title,
+            source: alertsData[0].source,
+            isDemo: alertsData[0].id?.includes('demo')
+          });
+        }
       } else {
         throw new Error(result.error);
       }

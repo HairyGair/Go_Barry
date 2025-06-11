@@ -147,8 +147,8 @@ async function fetchHERETrafficWithStreetNames() {
               `HERE incident ${incident.criticality}`
             );
             
-            // Further enhance with GTFS route information
-            enhancedLocation = enhancedLocationWithRoutes(lat, lng, geocodedLocation);
+            // Use the geocoded location as-is
+            enhancedLocation = geocodedLocation;
           } else {
             enhancedLocation = baseLocation;
           }
@@ -204,9 +204,24 @@ async function fetchHERETrafficWithStreetNames() {
         
         const criticalityInfo = getCriticalityInfo(incident.criticality);
         
-        // Extract road information
+        // Extract road information with better fallbacks
         const roadInfo = incident.location?.shape?.links?.[0];
-        const roadName = roadInfo?.roadName || incident.location?.description?.value || 'Unknown Road';
+        let roadName = 'Unknown Road';
+        
+        // Try multiple sources for road name
+        if (roadInfo?.roadName) {
+          roadName = roadInfo.roadName;
+        } else if (incident.location?.description?.value) {
+          roadName = incident.location.description.value;
+        } else if (enhancedLocation && enhancedLocation !== 'North East England' && enhancedLocation !== 'HERE traffic incident') {
+          // Use enhanced location if it's meaningful
+          roadName = enhancedLocation.split(',')[0].trim();
+        } else if (incident.summary?.value) {
+          roadName = incident.summary.value;
+        } else if (lat && lng) {
+          // Create descriptive name from coordinates
+          roadName = `Location ${lat.toFixed(3)}, ${lng.toFixed(3)}`;
+        }
         
         // Create enhanced alert
         const alert = {

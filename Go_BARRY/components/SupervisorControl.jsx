@@ -52,6 +52,8 @@ const SupervisorControl = ({
     priorityOverrides,
     supervisorNotes,
     customMessages,
+    dismissedFromDisplay,
+    lockedOnDisplay,
     activeMode,
     connectedDisplays,
     acknowledgeAlert,
@@ -60,6 +62,9 @@ const SupervisorControl = ({
     broadcastMessage,
     setDisplayMode,
     updateAlerts,
+    dismissFromDisplay,
+    lockOnDisplay,
+    unlockFromDisplay,
     clearError
   } = useSupervisorSync({
     clientType: 'supervisor',
@@ -190,6 +195,67 @@ const SupervisorControl = ({
     }
   }, [broadcastMessage, broadcastMessageText, broadcastPriority, showNotification]);
 
+  // Handle display control actions
+  const handleDismissFromDisplay = useCallback(async (alert) => {
+    if (!alert) return;
+    
+    const reason = isWeb 
+      ? prompt('Reason for hiding this alert from display:')
+      : 'Hidden from display via mobile';
+      
+    if (!reason) return;
+    
+    setLoading(true);
+    const success = dismissFromDisplay(alert.id, reason);
+    setLoading(false);
+    
+    if (success) {
+      showNotification('Alert hidden from display', 'success');
+    } else {
+      showNotification('Failed to hide alert from display', 'error');
+    }
+  }, [dismissFromDisplay, showNotification]);
+
+  const handleLockOnDisplay = useCallback(async (alert) => {
+    if (!alert) return;
+    
+    const reason = isWeb 
+      ? prompt('Reason for locking this alert on display:')
+      : 'Locked on display via mobile';
+      
+    if (!reason) return;
+    
+    setLoading(true);
+    const success = lockOnDisplay(alert.id, reason);
+    setLoading(false);
+    
+    if (success) {
+      showNotification('Alert locked on display', 'success');
+    } else {
+      showNotification('Failed to lock alert on display', 'error');
+    }
+  }, [lockOnDisplay, showNotification]);
+
+  const handleUnlockFromDisplay = useCallback(async (alert) => {
+    if (!alert) return;
+    
+    const reason = isWeb 
+      ? prompt('Reason for unlocking this alert from display:')
+      : 'Unlocked from display via mobile';
+      
+    if (!reason) return;
+    
+    setLoading(true);
+    const success = unlockFromDisplay(alert.id, reason);
+    setLoading(false);
+    
+    if (success) {
+      showNotification('Alert unlocked from display', 'success');
+    } else {
+      showNotification('Failed to unlock alert from display', 'error');
+    }
+  }, [unlockFromDisplay, showNotification]);
+
   // Handle display mode change
   const handleModeChange = useCallback(async (newMode) => {
     const reason = isWeb
@@ -250,6 +316,8 @@ const SupervisorControl = ({
     const isAcknowledged = acknowledgedAlerts.has(alert.id);
     const priority = priorityOverrides.get(alert.id);
     const note = supervisorNotes.get(alert.id);
+    const isDismissedFromDisplay = dismissedFromDisplay.has(alert.id);
+    const isLockedOnDisplay = lockedOnDisplay.has(alert.id);
     
     return (
       <View style={styles.alertPanel}>
@@ -279,6 +347,46 @@ const SupervisorControl = ({
             <Ionicons name="create" size={20} color="#FFFFFF" />
             <Text style={styles.actionButtonText}>Add Note</Text>
           </TouchableOpacity>
+        </View>
+        
+        {/* Display Control Actions */}
+        <View style={styles.displayControlActions}>
+          <Text style={styles.displayControlLabel}>Display Control:</Text>
+          
+          <View style={styles.displayControlButtons}>
+            {!isDismissedFromDisplay ? (
+              <TouchableOpacity
+                style={[styles.actionButton, styles.dismissButton]}
+                onPress={() => handleDismissFromDisplay(alert)}
+              >
+                <Ionicons name="eye-off" size={18} color="#FFFFFF" />
+                <Text style={styles.actionButtonText}>Hide from Display</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.statusBadge}>
+                <Ionicons name="eye-off" size={14} color="#6B7280" />
+                <Text style={styles.statusBadgeText}>Hidden from Display</Text>
+              </View>
+            )}
+            
+            {!isLockedOnDisplay ? (
+              <TouchableOpacity
+                style={[styles.actionButton, styles.lockButton]}
+                onPress={() => handleLockOnDisplay(alert)}
+              >
+                <Ionicons name="lock-closed" size={18} color="#FFFFFF" />
+                <Text style={styles.actionButtonText}>Lock on Display</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.actionButton, styles.unlockButton]}
+                onPress={() => handleUnlockFromDisplay(alert)}
+              >
+                <Ionicons name="lock-open" size={18} color="#FFFFFF" />
+                <Text style={styles.actionButtonText}>Unlock Display</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
         
         <View style={styles.priorityControls}>
@@ -446,6 +554,14 @@ const SupervisorControl = ({
         <View style={styles.statItem}>
           <Text style={styles.statValue}>{supervisorNotes.size}</Text>
           <Text style={styles.statLabel}>Notes</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{dismissedFromDisplay.size}</Text>
+          <Text style={styles.statLabel}>Hidden</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{lockedOnDisplay.size}</Text>
+          <Text style={styles.statLabel}>Locked</Text>
         </View>
         <View style={styles.statItem}>
           <Text style={styles.statValue}>{customMessages.length}</Text>
@@ -814,6 +930,39 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 16,
   },
+  displayControlActions: {
+    marginBottom: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  displayControlLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 12,
+    fontWeight: '600',
+  },
+  displayControlButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  statusBadgeText: {
+    color: '#6B7280',
+    fontSize: 12,
+    fontWeight: '500',
+  },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -830,6 +979,15 @@ const styles = StyleSheet.create({
   },
   templateButton: {
     backgroundColor: '#059669',
+  },
+  dismissButton: {
+    backgroundColor: '#EF4444',
+  },
+  lockButton: {
+    backgroundColor: '#F59E0B',
+  },
+  unlockButton: {
+    backgroundColor: '#3B82F6',
   },
   alertExtendedActions: {
     marginTop: 16,

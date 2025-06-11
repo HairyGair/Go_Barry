@@ -15,6 +15,9 @@ const TrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) => {
   // Mapbox access token from environment
   const MAPBOX_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_TOKEN || 'pk.eyJ1IjoiaGFpcnlnYWlyMDAiLCJhIjoiY21iNWVsazl5MjFvbjJqc2I4ejBkZmdtZCJ9.CyLjZzGIuPsNFUCc1LlUyg';
 
+  console.log('🔑 Mapbox token available:', MAPBOX_TOKEN ? 'Yes' : 'No');
+  console.log('🌐 Platform:', Platform.OS);
+
   // North East England center coordinates
   const NE_ENGLAND_CENTER = [-1.6131, 54.9783]; // Newcastle area
   const DEFAULT_ZOOM = 10;
@@ -22,32 +25,62 @@ const TrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) => {
   useEffect(() => {
     if (Platform.OS !== 'web' || !mapContainer.current) return;
 
+    // Check if we're on localhost - Mapbox tokens often restrict localhost
+    const isLocalhost = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || 
+       window.location.hostname === '127.0.0.1' || 
+       window.location.hostname.includes('localhost'));
+    
+    if (isLocalhost) {
+      console.log('🏠 Localhost detected - Mapbox may be restricted');
+      setMapError('Map disabled on localhost - Deploy to see live map');
+      return;
+    }
+
     console.log('🗺️ Initializing TrafficMap...');
 
     // Load Mapbox GL dynamically for web
     const initializeMap = async () => {
       try {
+        console.log('🚀 Starting map initialization...');
+        
+        // Check if we're in a browser environment
+        if (typeof window === 'undefined' || typeof document === 'undefined') {
+          throw new Error('Not in browser environment');
+        }
+
+        // Add Mapbox GL script if not already loaded
+        if (!window.mapboxgl) {
+          console.log('📦 Loading Mapbox GL script...');
+          const script = document.createElement('script');
+          script.src = 'https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.js';
+          script.async = true;
+          document.head.appendChild(script);
+          
+          await new Promise((resolve, reject) => {
+            script.onload = resolve;
+            script.onerror = () => reject(new Error('Failed to load Mapbox GL script'));
+          });
+        }
+
         // Add Mapbox CSS if not already added
         if (!document.querySelector('link[href*="mapbox-gl"]')) {
+          console.log('📄 Loading Mapbox CSS...');
           const link = document.createElement('link');
           link.href = 'https://api.mapbox.com/mapbox-gl-js/v3.12.0/mapbox-gl.css';
           link.rel = 'stylesheet';
           document.head.appendChild(link);
-          console.log('📄 Mapbox CSS loaded');
         }
 
-        // Dynamically import mapbox-gl
-        const mapboxgl = await import('mapbox-gl');
-        
-        if (!mapboxgl.default) {
-          throw new Error('Failed to load Mapbox GL library');
+        if (!window.mapboxgl) {
+          throw new Error('Mapbox GL failed to load');
         }
 
-        console.log('📦 Mapbox GL library loaded');
-        mapboxgl.default.accessToken = MAPBOX_TOKEN;
+        console.log('✅ Mapbox GL loaded successfully');
+        window.mapboxgl.accessToken = MAPBOX_TOKEN;
 
         // Create map instance
-        const map = new mapboxgl.default.Map({
+        const map = new window.mapboxgl.Map({
           container: mapContainer.current,
           style: 'mapbox://styles/mapbox/dark-v11', // Dark theme for control room
           center: NE_ENGLAND_CENTER,
@@ -315,11 +348,25 @@ const TrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) => {
 
   // Handle map errors
   if (mapError) {
+    const isLocalhostError = mapError.includes('localhost');
+    
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={styles.errorTitle}>Map Error</Text>
-        <Text style={styles.errorText}>{mapError}</Text>
+      <View style={isLocalhostError ? styles.localhostContainer : styles.errorContainer}>
+        <Text style={styles.errorIcon}>{isLocalhostError ? '🏠' : '⚠️'}</Text>
+        <Text style={[styles.errorTitle, isLocalhostError && styles.localhostTitle]}>
+          {isLocalhostError ? 'Development Mode' : 'Map Error'}
+        </Text>
+        <Text style={[styles.errorText, isLocalhostError && styles.localhostText]}>{mapError}</Text>
+        {isLocalhostError && (
+          <View style={styles.localhostInfo}>
+            <Text style={styles.localhostInfoText}>
+              ✨ On production: Shows interactive map with alert markers
+            </Text>
+            <Text style={styles.localhostInfoText}>
+              📍 Auto-zooms to current rotating alert location
+            </Text>
+          </View>
+        )}
       </View>
     );
   }
@@ -426,6 +473,15 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 32,
   },
+  
+  localhostContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    borderRadius: 16,
+    padding: 32,
+  },
   errorIcon: {
     fontSize: 64,
     marginBottom: 20,
@@ -436,11 +492,33 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 12,
   },
+  
+  localhostTitle: {
+    color: '#3b82f6',
+  },
+  
   errorText: {
     color: '#ef4444',
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  
+  localhostText: {
+    color: '#3b82f6',
+    marginBottom: 20,
+  },
+  
+  localhostInfo: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  
+  localhostInfoText: {
+    color: '#1e40af',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });
 
