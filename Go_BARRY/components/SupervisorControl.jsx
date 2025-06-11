@@ -40,7 +40,8 @@ const SupervisorControl = ({
   supervisorName,
   sessionId,
   alerts = [],
-  onClose
+  onClose,
+  sector = 1 // Sector 1: Supervisor Control
 }) => {
   // Use the shared WebSocket hook
   const {
@@ -84,9 +85,13 @@ const SupervisorControl = ({
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [showMessageTemplates, setShowMessageTemplates] = useState(false);
+  const [showDisplayQueue, setShowDisplayQueue] = useState(false);
   const [broadcastMessageText, setBroadcastMessageText] = useState('');
   const [broadcastPriority, setBroadcastPriority] = useState('info');
   const [loading, setLoading] = useState(false);
+  
+  // Display queue state
+  const [displayQueue, setDisplayQueue] = useState([]);
 
   // Sync alerts when they change
   useEffect(() => {
@@ -491,11 +496,142 @@ const SupervisorControl = ({
   }
 
   // Main render
-  return (
-    <View style={styles.container}>
+  // Display Queue Modal
+  const DisplayQueueModal = () => (
+      <Modal
+        visible={showDisplayQueue}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDisplayQueue(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, styles.displayQueueModal]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Current Display Queue</Text>
+              <TouchableOpacity onPress={() => setShowDisplayQueue(false)}>
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.queueList}>
+              <View style={styles.queueStats}>
+                <View style={styles.queueStat}>
+                  <Text style={styles.queueStatValue}>{connectedDisplays}</Text>
+                  <Text style={styles.queueStatLabel}>Connected Displays</Text>
+                </View>
+                <View style={styles.queueStat}>
+                  <Text style={styles.queueStatValue}>{alerts.filter(a => !dismissedFromDisplay.has(a.id)).length}</Text>
+                  <Text style={styles.queueStatLabel}>Visible Alerts</Text>
+                </View>
+                <View style={styles.queueStat}>
+                  <Text style={styles.queueStatValue}>{lockedOnDisplay.size}</Text>
+                  <Text style={styles.queueStatLabel}>Locked Items</Text>
+                </View>
+              </View>
+              
+              <Text style={styles.queueSectionTitle}>Priority Queue Order:</Text>
+              
+              {alerts
+                .filter(alert => !dismissedFromDisplay.has(alert.id))
+                .sort((a, b) => {
+                  const priorityOrder = { 'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 };
+                  const aPriority = priorityOverrides.get(a.id)?.priority || a.priority || 'LOW';
+                  const bPriority = priorityOverrides.get(b.id)?.priority || b.priority || 'LOW';
+                  return priorityOrder[bPriority] - priorityOrder[aPriority];
+                })
+                .map((alert, index) => {
+                  const priority = priorityOverrides.get(alert.id)?.priority || alert.priority || 'LOW';
+                  const isLocked = lockedOnDisplay.has(alert.id);
+                  
+                  return (
+                    <View key={alert.id} style={styles.queueItem}>
+                      <View style={styles.queueItemHeader}>
+                        <Text style={styles.queuePosition}>#{index + 1}</Text>
+                        <View style={[styles.queuePriority, { backgroundColor: getPriorityColor(priority) }]}>
+                          <Text style={styles.queuePriorityText}>{priority}</Text>
+                        </View>
+                        {isLocked && (
+                          <View style={styles.queueLocked}>
+                            <Ionicons name="lock-closed" size={12} color="#F59E0B" />
+                            <Text style={styles.queueLockedText}>LOCKED</Text>
+                          </View>
+                        )}
+                      </View>
+                      
+                      <Text style={styles.queueItemTitle}>{alert.title}</Text>
+                      <Text style={styles.queueItemLocation}>{alert.location}</Text>
+                      
+                      <View style={styles.queueItemActions}>
+                        <TouchableOpacity
+                          style={styles.queueActionButton}
+                          onPress={() => {
+                            setShowDisplayQueue(false);
+                            setSelectedAlert(alert);
+                          }}
+                        >
+                          <Text style={styles.queueActionText}>Control</Text>
+                        </TouchableOpacity>
+                        
+                        {!isLocked ? (
+                          <TouchableOpacity
+                            style={[styles.queueActionButton, styles.lockAction]}
+                            onPress={() => handleLockOnDisplay(alert)}
+                          >
+                            <Ionicons name="lock-closed" size={14} color="#FFFFFF" />
+                            <Text style={styles.queueActionText}>Lock</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity
+                            style={[styles.queueActionButton, styles.unlockAction]}
+                            onPress={() => handleUnlockFromDisplay(alert)}
+                          >
+                            <Ionicons name="lock-open" size={14} color="#FFFFFF" />
+                            <Text style={styles.queueActionText}>Unlock</Text>
+                          </TouchableOpacity>
+                        )}
+                        
+                        <TouchableOpacity
+                          style={[styles.queueActionButton, styles.hideAction]}
+                          onPress={() => handleDismissFromDisplay(alert)}
+                        >
+                          <Ionicons name="eye-off" size={14} color="#FFFFFF" />
+                          <Text style={styles.queueActionText}>Hide</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })
+              }
+              
+              {customMessages.length > 0 && (
+                <>
+                  <Text style={styles.queueSectionTitle}>Custom Messages:</Text>
+                  {customMessages.map((message, index) => (
+                    <View key={`msg-${index}`} style={[styles.queueItem, styles.messageItem]}>
+                      <View style={styles.queueItemHeader}>
+                        <View style={[styles.queuePriority, { backgroundColor: getPriorityColor(message.priority?.toUpperCase() || 'INFO') }]}>
+                          <Text style={styles.queuePriorityText}>{message.priority?.toUpperCase() || 'INFO'}</Text>
+                        </View>
+                        <Text style={styles.messageTimestamp}>
+                          {new Date(message.timestamp).toLocaleTimeString()}
+                        </Text>
+                      </View>
+                      <Text style={styles.messageText}>{message.message}</Text>
+                    </View>
+                  ))}
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
+
+    return (
+      <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.title}>Supervisor Control Panel</Text>
+          <Text style={styles.title}>Sector 1: Supervisor Control</Text>
           <Text style={styles.subtitle}>
             {supervisorName} ({supervisorId})
           </Text>
@@ -512,13 +648,23 @@ const SupervisorControl = ({
       </View>
 
       <View style={styles.controlBar}>
-        <TouchableOpacity
-          style={[styles.controlButton, styles.broadcastControlButton]}
-          onPress={() => setShowBroadcastModal(true)}
-        >
-          <Ionicons name="megaphone" size={20} color="#FFFFFF" />
-          <Text style={styles.controlButtonText}>Broadcast Message</Text>
-        </TouchableOpacity>
+        <View style={styles.controlButtonGroup}>
+          <TouchableOpacity
+            style={[styles.controlButton, styles.broadcastControlButton]}
+            onPress={() => setShowBroadcastModal(true)}
+          >
+            <Ionicons name="megaphone" size={20} color="#FFFFFF" />
+            <Text style={styles.controlButtonText}>Broadcast Message</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.controlButton, styles.queueControlButton]}
+            onPress={() => setShowDisplayQueue(true)}
+          >
+            <Ionicons name="list" size={20} color="#FFFFFF" />
+            <Text style={styles.controlButtonText}>Display Queue</Text>
+          </TouchableOpacity>
+        </View>
         
         <View style={styles.modeSelector}>
           <Text style={styles.modeSelectorLabel}>Display Mode:</Text>
@@ -660,6 +806,7 @@ const SupervisorControl = ({
       </Modal>
       
       <BroadcastModal />
+      <DisplayQueueModal />
     </View>
   );
 };
@@ -746,6 +893,8 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    flexWrap: 'wrap',
+    gap: 12,
   },
   controlButton: {
     flexDirection: 'row',
@@ -1124,6 +1273,153 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Display Queue Modal Styles
+  displayQueueModal: {
+    maxWidth: 600,
+    maxHeight: '80%',
+  },
+  queueList: {
+    flex: 1,
+    maxHeight: 400,
+  },
+  queueStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: '#F9FAFB',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  queueStat: {
+    alignItems: 'center',
+  },
+  queueStatValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  queueStatLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  queueSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+    marginTop: 16,
+  },
+  queueItem: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  queueItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  queuePosition: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#6B7280',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    minWidth: 32,
+    textAlign: 'center',
+  },
+  queuePriority: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  queuePriorityText: {
+    fontSize: 10,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
+  },
+  queueLocked: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  queueLockedText: {
+    fontSize: 10,
+    color: '#F59E0B',
+    fontWeight: 'bold',
+  },
+  queueItemTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  queueItemLocation: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 12,
+  },
+  queueItemActions: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  queueActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 4,
+    backgroundColor: '#6B7280',
+  },
+  lockAction: {
+    backgroundColor: '#F59E0B',
+  },
+  unlockAction: {
+    backgroundColor: '#3B82F6',
+  },
+  hideAction: {
+    backgroundColor: '#EF4444',
+  },
+  queueActionText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  messageItem: {
+    backgroundColor: '#F0F9FF',
+    borderColor: '#0EA5E9',
+  },
+  messageTimestamp: {
+    fontSize: 10,
+    color: '#6B7280',
+    marginLeft: 'auto',
+  },
+  messageText: {
+    fontSize: 14,
+    color: '#1F2937',
+    fontStyle: 'italic',
+  },
+  // Control Button Group
+  controlButtonGroup: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  queueControlButton: {
+    backgroundColor: '#059669',
   },
 });
 

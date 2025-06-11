@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { Alert } from 'react-native';
-import sessionStorage from '../../services/sessionStorage';
+import sessionStorageService from '../../services/sessionStorage';
 
 // Create context for supervisor session
 const SupervisorContext = createContext();
@@ -62,7 +62,7 @@ export const useSupervisorSession = () => {
 
   // Initialize session from storage on mount
   useEffect(() => {
-    const savedSession = sessionStorage.loadSession();
+    const savedSession = sessionStorageService.loadSession();
     if (savedSession) {
       setSupervisorSession(savedSession);
       console.log('✅ Restored supervisor session:', savedSession.supervisor?.name);
@@ -90,7 +90,7 @@ export const useSupervisorSession = () => {
       activityLog = activityLog.slice(0, 100);
     }
 
-    sessionStorage.updateActivity();
+    sessionStorageService.updateActivity();
     console.log('📝 Activity logged:', type, details);
   }, [supervisorSession]);
 
@@ -100,7 +100,7 @@ export const useSupervisorSession = () => {
     setError(null);
     
     try {
-      // Validate supervisor
+      // Validate supervisor locally first
       const supervisor = SUPERVISOR_DB[loginData.supervisorId];
       if (!supervisor) {
         throw new Error('Supervisor not found');
@@ -113,11 +113,56 @@ export const useSupervisorSession = () => {
         }
       }
 
-      // Create session
+      // **NEW: Authenticate with backend**
+      console.log('🔐 Authenticating with backend...');
+      
+      // Map frontend IDs to backend IDs and badges
+      const backendMapping = {
+        'alex_woodcock': { id: 'supervisor001', badge: 'AW001' },
+        'andrew_cowley': { id: 'supervisor002', badge: 'AC002' },
+        'anthony_gair': { id: 'supervisor003', badge: 'AG003' },
+        'claire_fiddler': { id: 'supervisor004', badge: 'CF004' },
+        'david_hall': { id: 'supervisor005', badge: 'DH005' },
+        'james_daglish': { id: 'supervisor006', badge: 'JD006' },
+        'john_paterson': { id: 'supervisor007', badge: 'JP007' },
+        'simon_glass': { id: 'supervisor008', badge: 'SG008' },
+        'barry_perryman': { id: 'supervisor009', badge: 'BP009' },
+      };
+      
+      const backendSupervisor = backendMapping[loginData.supervisorId];
+      if (!backendSupervisor) {
+        throw new Error('Backend mapping not found for supervisor');
+      }
+      
+      // Authenticate with backend
+      const authResponse = await fetch(`${API_BASE_URL}/api/supervisor/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          supervisorId: backendSupervisor.id,
+          badge: backendSupervisor.badge
+        })
+      });
+      
+      if (!authResponse.ok) {
+        throw new Error('Backend authentication failed');
+      }
+      
+      const authResult = await authResponse.json();
+      
+      if (!authResult.success) {
+        throw new Error(authResult.error || 'Backend authentication failed');
+      }
+      
+      console.log('✅ Backend authentication successful:', authResult.sessionId);
+
+      // Create session with backend sessionId
       const session = {
-        sessionId: 'browser_' + Date.now(),
+        sessionId: authResult.sessionId, // Use backend session ID
         supervisor: {
-          id: loginData.supervisorId,
+          id: loginData.supervisorId, // Keep frontend ID for UI
           name: supervisor.name,
           role: supervisor.role,
           duty: loginData.duty,
@@ -125,13 +170,15 @@ export const useSupervisorSession = () => {
           permissions: supervisor.isAdmin ? 
             ['dismiss_alerts', 'view_all_activity', 'manage_supervisors', 'create_incidents', 'send_messages'] : 
             ['dismiss_alerts', 'create_incidents'],
+          backendId: backendSupervisor.id, // Store backend ID for WebSocket
+          badge: backendSupervisor.badge
         },
         loginTime: new Date().toISOString(),
         lastActivity: Date.now(),
       };
       
       // Save to persistent storage
-      const saved = sessionStorage.saveSession(session);
+      const saved = sessionStorageService.saveSession(session);
       if (!saved) {
         console.warn('⚠️ Failed to save session to storage, session will not persist');
       }
@@ -141,7 +188,7 @@ export const useSupervisorSession = () => {
       // Log login activity
       logActivity('LOGIN', `${supervisor.name} logged in on ${loginData.duty?.name || 'Unknown Duty'}`);
       
-      console.log('✅ Supervisor logged in:', supervisor.name, 'Duty:', loginData.duty?.name);
+      console.log('✅ Supervisor logged in:', supervisor.name, 'Duty:', loginData.duty?.name, 'Session:', authResult.sessionId);
       return { success: true, session };
       
     } catch (err) {
@@ -165,7 +212,7 @@ export const useSupervisorSession = () => {
       logActivity('LOGOUT', `${supervisorSession.supervisor.name} logged out`);
       
       // Clear persistent storage
-      sessionStorage.clearSession();
+      sessionStorageService.clearSession();
       
       setSupervisorSession(null);
       setError(null);
@@ -173,7 +220,7 @@ export const useSupervisorSession = () => {
     } catch (err) {
       console.error('❌ Logout error:', err);
       // Still clear session even if logging fails
-      sessionStorage.clearSession();
+      sessionStorageService.clearSession();
       setSupervisorSession(null);
     } finally {
       setIsLoading(false);
@@ -260,7 +307,7 @@ export const useSupervisorSession = () => {
   useEffect(() => {
     if (supervisorSession) {
       const interval = setInterval(() => {
-        sessionStorage.updateActivity();
+        sessionStorageService.updateActivity();
       }, 30000); // 30 seconds
       
       return () => clearInterval(interval);
@@ -270,7 +317,7 @@ export const useSupervisorSession = () => {
   // Check for session expiry
   useEffect(() => {
     const checkExpiry = () => {
-      if (supervisorSession && !sessionStorage.isSessionValid()) {
+      if (supervisorSession && !sessionStorageService.isSessionValid()) {
         setSupervisorSession(null);
         setError('Session expired - please log in again');
       }
@@ -281,7 +328,7 @@ export const useSupervisorSession = () => {
   }, [supervisorSession]);
 
   return {
-    supervisorSession,
+    supervisorSession, // Add this so we can access backendId
     isLoading,
     error,
     login,
@@ -293,7 +340,9 @@ export const useSupervisorSession = () => {
     isLoggedIn: !!supervisorSession,
     supervisorName: supervisorSession?.supervisor?.name,
     supervisorRole: supervisorSession?.supervisor?.role,
+    supervisorId: supervisorSession?.supervisor?.id, // Frontend ID
     supervisorDuty: supervisorSession?.supervisor?.duty?.name,
+    sessionId: supervisorSession?.sessionId,
     isAdmin: supervisorSession?.supervisor?.isAdmin || false,
     hasPermission: (permission) => {
       return supervisorSession?.supervisor?.permissions?.includes(permission) ?? false;

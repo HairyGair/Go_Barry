@@ -29,21 +29,91 @@ async function initializeSupervisorData() {
       supervisors = {
         'supervisor001': {
           id: 'supervisor001',
-          name: 'John Smith',
-          badge: 'JS001',
-          role: 'Senior Supervisor',
+          name: 'Alex Woodcock',
+          badge: 'AW001',
+          role: 'Supervisor',
           shift: 'Day',
-          permissions: ['view-alerts', 'dismiss-alerts', 'view-reports'],
+          permissions: ['view-alerts', 'dismiss-alerts'],
           active: true,
           createdAt: new Date().toISOString()
         },
         'supervisor002': {
           id: 'supervisor002', 
-          name: 'Sarah Johnson',
-          badge: 'SJ002',
-          role: 'Traffic Controller',
-          shift: 'Night',
+          name: 'Andrew Cowley',
+          badge: 'AC002',
+          role: 'Supervisor',
+          shift: 'Day',
           permissions: ['view-alerts', 'dismiss-alerts'],
+          active: true,
+          createdAt: new Date().toISOString()
+        },
+        'supervisor003': {
+          id: 'supervisor003',
+          name: 'Anthony Gair',
+          badge: 'AG003',
+          role: 'Supervisor',
+          shift: 'Day',
+          permissions: ['view-alerts', 'dismiss-alerts'],
+          active: true,
+          createdAt: new Date().toISOString()
+        },
+        'supervisor004': {
+          id: 'supervisor004',
+          name: 'Claire Fiddler',
+          badge: 'CF004',
+          role: 'Supervisor',
+          shift: 'Day',
+          permissions: ['view-alerts', 'dismiss-alerts'],
+          active: true,
+          createdAt: new Date().toISOString()
+        },
+        'supervisor005': {
+          id: 'supervisor005',
+          name: 'David Hall',
+          badge: 'DH005',
+          role: 'Supervisor',
+          shift: 'Day',
+          permissions: ['view-alerts', 'dismiss-alerts'],
+          active: true,
+          createdAt: new Date().toISOString()
+        },
+        'supervisor006': {
+          id: 'supervisor006',
+          name: 'James Daglish',
+          badge: 'JD006',
+          role: 'Supervisor',
+          shift: 'Day',
+          permissions: ['view-alerts', 'dismiss-alerts'],
+          active: true,
+          createdAt: new Date().toISOString()
+        },
+        'supervisor007': {
+          id: 'supervisor007',
+          name: 'John Paterson',
+          badge: 'JP007',
+          role: 'Supervisor',
+          shift: 'Day',
+          permissions: ['view-alerts', 'dismiss-alerts'],
+          active: true,
+          createdAt: new Date().toISOString()
+        },
+        'supervisor008': {
+          id: 'supervisor008',
+          name: 'Simon Glass',
+          badge: 'SG008',
+          role: 'Supervisor',
+          shift: 'Day',
+          permissions: ['view-alerts', 'dismiss-alerts'],
+          active: true,
+          createdAt: new Date().toISOString()
+        },
+        'supervisor009': {
+          id: 'supervisor009',
+          name: 'Barry Perryman',
+          badge: 'BP009',
+          role: 'Service Delivery Controller - Line Manager',
+          shift: 'Day',
+          permissions: ['view-alerts', 'dismiss-alerts', 'view-reports', 'manage-supervisors'],
           active: true,
           createdAt: new Date().toISOString()
         }

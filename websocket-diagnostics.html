@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BARRY WebSocket Connection Test</title>
+    <meta charset="utf-8">
+    <style>
+        body { 
+            font-family: 'SF Mono', Consolas, monospace; 
+            margin: 20px; 
+            background: #0a0a0a; 
+            color: #00ff00; 
+            line-height: 1.4;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        .status { 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 8px; 
+            border-left: 4px solid;
+        }
+        .success { background: #0a2e0a; border-color: #00ff00; }
+        .error { background: #2e0a0a; border-color: #ff0000; }
+        .warning { background: #2e2e0a; border-color: #ffaa00; }
+        .info { background: #0a0a2e; border-color: #0088ff; }
+        
+        button { 
+            padding: 12px 24px; 
+            margin: 8px; 
+            background: #1a1a1a; 
+            color: #00ff00; 
+            border: 2px solid #00ff00; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-family: inherit;
+            font-size: 14px;
+        }
+        button:hover { background: #00ff00; color: #000; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        #log { 
+            height: 400px; 
+            overflow-y: auto; 
+            border: 2px solid #333; 
+            padding: 15px; 
+            background: #000; 
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        
+        .timestamp { color: #666; }
+        .success-msg { color: #00ff00; }
+        .error-msg { color: #ff4444; }
+        .warning-msg { color: #ffaa00; }
+        .info-msg { color: #44aaff; }
+        
+        h1 { text-align: center; color: #00ff00; }
+        h2 { color: #00aaff; border-bottom: 1px solid #333; padding-bottom: 8px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚦 BARRY WebSocket Diagnostics</h1>
+        
+        <div id="connectionStatus" class="status warning">
+            ⏳ Ready to test connections
+        </div>
+
+        <h2>🔧 Connection Tests</h2>
+        <div>
+            <button onclick="testSupervisorDisplay()">Test Supervisor + Display</button>
+            <button onclick="testMultipleConnections()">Test Connection Limits</button>
+            <button onclick="testAuthentication()">Test Authentication</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+
+        <h2>📊 Live Results</h2>
+        <div id="log"></div>
+
+        <div class="status info" style="margin-top: 20px;">
+            <strong>Expected Results:</strong><br>
+            ✅ Both supervisor and display should connect successfully<br>
+            ✅ Multiple connections should work (limit increased to 10)<br>
+            ❌ If connections fail with code 1008 = Rate limit still too low
+        </div>
+    </div>
+
+    <script>
+        const WS_URL = 'wss://go-barry.onrender.com/ws/supervisor-sync';
+        let activeConnections = [];
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type + '-msg';
+            
+            logDiv.innerHTML += `<div><span class="timestamp">[${timestamp}]</span> <span class="${className}">${message}</span></div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('connectionStatus');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        function createConnection(clientType, connectionId) {
+            return new Promise((resolve, reject) => {
+                log(`🔌 Creating ${clientType} connection ${connectionId}`, 'info');
+                
+                const ws = new WebSocket(WS_URL);
+                const connection = { ws, type: clientType, id: connectionId, authenticated: false };
+                
+                const timeout = setTimeout(() => {
+                    ws.close();
+                    reject(new Error('Connection timeout'));
+                }, 10000);
+
+                ws.onopen = () => {
+                    clearTimeout(timeout);
+                    log(`✅ ${clientType} ${connectionId} connected`, 'success');
+                    
+                    // Send authentication
+                    const authMessage = {
+                        type: 'auth',
+                        clientType: clientType,
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    if (clientType === 'supervisor') {
+                        authMessage.supervisorId = `test_supervisor_${connectionId}`;
+                        authMessage.sessionId = `test_session_${Date.now()}_${connectionId}`;
+                    }
+                    
+                    ws.send(JSON.stringify(authMessage));
+                    log(`📤 ${clientType} ${connectionId} sent auth message`, 'info');
+                };
+
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    log(`📨 ${clientType} ${connectionId} received: ${data.type}`, 'success');
+                    
+                    if (data.type === 'auth_success') {
+                        connection.authenticated = true;
+                        log(`🎉 ${clientType} ${connectionId} authenticated successfully!`, 'success');
+                        resolve(connection);
+                    } else if (data.type === 'auth_failed') {
+                        log(`❌ ${clientType} ${connectionId} auth failed: ${data.error}`, 'error');
+                        reject(new Error(data.error));
+                    }
+                };
+
+                ws.onerror = (error) => {
+                    clearTimeout(timeout);
+                    log(`❌ ${clientType} ${connectionId} error`, 'error');
+                    reject(error);
+                };
+
+                ws.onclose = (event) => {
+                    clearTimeout(timeout);
+                    const reason = event.code === 1008 ? 'RATE LIMITED' : event.reason || 'Unknown';
+                    log(`🔌 ${clientType} ${connectionId} closed: Code ${event.code} (${reason})`, 'warning');
+                    
+                    if (event.code === 1008) {
+                        log(`🚨 RATE LIMIT HIT - Connection rejected by server`, 'error');
+                        updateStatus('Rate limit exceeded - fix needed', 'error');
+                    }
+                };
+
+                activeConnections.push(connection);
+            });
+        }
+
+        async function testSupervisorDisplay() {
+            log('🚀 Testing Supervisor + Display connection...', 'info');
+            updateStatus('Testing supervisor + display...', 'warning');
+            
+            try {
+                // Test supervisor connection
+                const supervisor = await createConnection('supervisor', 1);
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Test display connection
+                const display = await createConnection('display', 1);
+                
+                updateStatus('✅ Both supervisor and display connected!', 'success');
+                log('🎉 SUCCESS: Supervisor → Display flow should work!', 'success');
+                
+            } catch (error) {
+                updateStatus('❌ Connection failed', 'error');
+                log(`❌ FAILED: ${error.message}`, 'error');
+            }
+        }
+
+        async function testMultipleConnections() {
+            log('🚀 Testing multiple connections (limit test)...', 'info');
+            updateStatus('Testing connection limits...', 'warning');
+            
+            const connections = [];
+            
+            for (let i = 1; i <= 5; i++) {
+                try {
+                    log(`📡 Creating connection ${i}/5...`, 'info');
+                    const conn = await createConnection('display', i);
+                    connections.push(conn);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                } catch (error) {
+                    log(`❌ Connection ${i} failed: ${error.message}`, 'error');
+                    if (error.message.includes('1008')) {
+                        updateStatus('❌ Rate limit hit - need to increase limit further', 'error');
+                        return;
+                    }
+                }
+            }
+            
+            updateStatus(`✅ ${connections.length}/5 connections successful`, 'success');
+            log(`🎉 Connection limit test passed: ${connections.length} connections`, 'success');
+        }
+
+        async function testAuthentication() {
+            log('🚀 Testing authentication flow...', 'info');
+            
+            try {
+                const connection = await createConnection('supervisor', 'auth_test');
+                
+                if (connection.authenticated) {
+                    log('🎉 Authentication test PASSED', 'success');
+                    updateStatus('✅ Authentication working', 'success');
+                } else {
+                    log('❌ Authentication test FAILED', 'error');
+                    updateStatus('❌ Authentication failed', 'error');
+                }
+                
+            } catch (error) {
+                log(`❌ Authentication error: ${error.message}`, 'error');
+                updateStatus('❌ Authentication error', 'error');
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+            // Close all active connections
+            activeConnections.forEach(conn => {
+                if (conn.ws.readyState === WebSocket.OPEN) {
+                    conn.ws.close();
+                }
+            });
+            activeConnections = [];
+            updateStatus('Ready to test connections', 'warning');
+        }
+
+        // Auto-start on load
+        window.onload = () => {
+            log('🚦 BARRY WebSocket Diagnostics Ready', 'success');
+            log('💡 Click "Test Supervisor + Display" to check if fix worked', 'info');
+        };
+    </script>
+</body>
+</html>
