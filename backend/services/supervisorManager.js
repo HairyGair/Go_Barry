@@ -130,14 +130,10 @@ async function initializeSupervisorData() {
       await saveDismissedAlerts();
     }
 
-    // Load supervisor sessions
-    try {
-      const sessionsData = await fs.readFile(SUPERVISOR_SESSIONS_FILE, 'utf8');
-      supervisorSessions = JSON.parse(sessionsData);
-    } catch {
-      supervisorSessions = {};
-      await saveSupervisorSessions();
-    }
+    // Load supervisor sessions (MEMORY ONLY - files don't persist on Render)
+    // Don't load from file on cloud platforms
+    supervisorSessions = {};
+    console.log('💾 Using in-memory sessions only (cloud-compatible)');
 
     console.log(`✅ Supervisor system initialized: ${Object.keys(supervisors).length} supervisors, ${Object.keys(dismissedAlerts).length} dismissed alerts`);
   } catch (error) {
@@ -163,17 +159,17 @@ async function saveDismissedAlerts() {
 }
 
 async function saveSupervisorSessions() {
-  try {
-    await fs.writeFile(SUPERVISOR_SESSIONS_FILE, JSON.stringify(supervisorSessions, null, 2));
-  } catch (error) {
-    console.error('❌ Failed to save supervisor sessions:', error);
-  }
+  // Don't save sessions to file on cloud platforms - use memory only
+  // console.log('💾 Sessions stored in memory only');
 }
 
 // Supervisor authentication
 export function authenticateSupervisor(supervisorId, badge) {
+  console.log(`🔐 Auth attempt: ${supervisorId} with badge ${badge}`);
+  
   const supervisor = supervisors[supervisorId];
   if (!supervisor || !supervisor.active || supervisor.badge !== badge) {
+    console.log(`❌ Auth failed: Invalid credentials for ${supervisorId}`);
     return { success: false, error: 'Invalid supervisor credentials' };
   }
   
@@ -187,7 +183,11 @@ export function authenticateSupervisor(supervisorId, badge) {
     active: true
   };
   
-  saveSupervisorSessions();
+  console.log(`✅ Session created: ${sessionId} for ${supervisor.name}`);
+  console.log(`💾 Active sessions: ${Object.keys(supervisorSessions).length}`);
+  
+  // Don't save to file - memory only
+  // saveSupervisorSessions();
   
   return {
     success: true,
@@ -205,16 +205,23 @@ export function authenticateSupervisor(supervisorId, badge) {
 
 // Validate supervisor session
 export function validateSupervisorSession(sessionId) {
+  console.log(`🔍 Validating session: ${sessionId}`);
+  console.log(`💾 Active sessions: ${Object.keys(supervisorSessions).join(', ')}`);
+  
   const session = supervisorSessions[sessionId];
   if (!session || !session.active) {
+    console.log(`❌ Session validation failed: ${!session ? 'Session not found' : 'Session inactive'}`);
     return { success: false, error: 'Invalid or expired session' };
   }
   
   // Update last activity
   session.lastActivity = new Date().toISOString();
-  saveSupervisorSessions();
+  // Don't save to file - memory only
+  // saveSupervisorSessions();
   
   const supervisor = supervisors[session.supervisorId];
+  console.log(`✅ Session valid for: ${supervisor.name}`);
+  
   return {
     success: true,
     supervisor: {
@@ -445,7 +452,9 @@ export function signOutSupervisor(sessionId) {
   if (session) {
     session.active = false;
     session.endTime = new Date().toISOString();
-    saveSupervisorSessions();
+    // Don't save to file - memory only
+    // saveSupervisorSessions();
+    console.log(`🚪 Supervisor signed out: ${session.supervisorName}`);
     return { success: true };
   }
   return { success: false, error: 'Session not found' };
@@ -465,5 +474,7 @@ export default {
   getActiveSupervisors,
   getSupervisorActivity,
   getDismissalStatistics,
-  signOutSupervisor
+  signOutSupervisor,
+  // Export sessions for debugging
+  supervisorSessions
 };

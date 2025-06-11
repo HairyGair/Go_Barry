@@ -193,6 +193,7 @@ class SupervisorSyncService {
     if (!client) return;
 
     const { clientType, supervisorId, sessionId } = data;
+    console.log(`🔐 WebSocket auth attempt:`, { clientType, supervisorId, sessionId: sessionId ? sessionId.substring(0, 20) + '...' : 'none' });
 
     if (clientType === 'supervisor') {
       // Validate supervisor session
@@ -203,7 +204,7 @@ class SupervisorSyncService {
         client.supervisorId = supervisorId;
         client.sessionId = sessionId;
         
-        console.log(`✅ Supervisor ${supervisorId} authenticated`);
+        console.log(`✅ Supervisor ${supervisorId} authenticated via WebSocket`);
         
         this.sendToClient(client.ws, {
           type: 'auth_success',
@@ -243,6 +244,7 @@ class SupervisorSyncService {
           supervisors: activeSupervisors
         });
       } else {
+        console.log(`❌ WebSocket auth failed for ${supervisorId}:`, validation.error);
         this.sendToClient(client.ws, {
           type: 'auth_failed',
           error: validation.error

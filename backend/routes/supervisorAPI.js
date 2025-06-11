@@ -256,6 +256,65 @@ router.get('/statistics/dismissals', async (req, res) => {
   }
 });
 
+// Debug endpoint to check active sessions
+router.get('/debug/sessions', async (req, res) => {
+  try {
+    // Get all session IDs and their status
+    const sessions = Object.entries(supervisorManager.supervisorSessions || {}).map(([id, session]) => ({
+      sessionId: id,
+      supervisorId: session.supervisorId,
+      supervisorName: session.supervisorName,
+      active: session.active,
+      startTime: session.startTime,
+      lastActivity: session.lastActivity
+    }));
+    
+    res.json({
+      success: true,
+      totalSessions: sessions.length,
+      activeSessions: sessions.filter(s => s.active).length,
+      sessions: sessions,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Debug sessions error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get sessions debug info'
+    });
+  }
+});
+
+// Test endpoint to create a test session
+router.post('/debug/test-session', async (req, res) => {
+  try {
+    // Create a test session for Alex Woodcock
+    const result = supervisorManager.authenticateSupervisor('supervisor001', 'AW001');
+    
+    if (result.success) {
+      // Validate the session immediately
+      const validation = supervisorManager.validateSupervisorSession(result.sessionId);
+      
+      res.json({
+        success: true,
+        message: 'Test session created and validated',
+        sessionId: result.sessionId,
+        supervisor: result.supervisor,
+        validationResult: validation,
+        activeSessions: Object.keys(supervisorManager.supervisorSessions).length
+      });
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    console.error('❌ Test session error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create test session'
+    });
+  }
+});
+
 // Get enhanced alerts (filtered by dismissed alerts)
 router.get('/alerts/enhanced', async (req, res) => {
   try {
