@@ -21,7 +21,7 @@ class SupervisorSyncService {
     
     // EMERGENCY: Add connection limiting to prevent connection storms
     this.connectionLimits = new Map(); // IP -> { count, lastReset }
-    this.MAX_CONNECTIONS_PER_IP = 2; // Reduced from unlimited to 2
+    this.MAX_CONNECTIONS_PER_IP = 10; // Increased for testing (was 2)
     this.RATE_LIMIT_WINDOW = 30000; // 30 seconds
   }
 
