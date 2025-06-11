@@ -309,7 +309,7 @@ const BrowserMainApp = () => {
         <View style={styles.screenContent}>
           {activeScreen === 'supervisor' ? (
             <SupervisorControl
-              supervisorId={supervisorSession?.supervisor?.backendId || supervisorId} // Use backend ID for WebSocket
+              supervisorId={supervisorSession?.supervisor?.backendId || 'supervisor001'} // Force backend ID
               supervisorName={supervisorName}
               sessionId={sessionId}
               alerts={alerts}
