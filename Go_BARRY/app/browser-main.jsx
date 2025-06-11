@@ -30,6 +30,7 @@ import RoadworksManager from '../components/RoadworksManager';
 import SupervisorCard from '../components/SupervisorCard';
 import SupervisorCardDemo from '../components/SupervisorCardDemo';
 import QuickSupervisorTest from '../components/QuickSupervisorTest';
+import WebSocketTest from '../components/WebSocketTest';
 import { useSupervisorSession } from '../components/hooks/useSupervisorSession';
 import { useBarryAPI } from '../components/hooks/useBARRYapi';
 import { API_CONFIG } from '../config/api';
@@ -128,6 +129,13 @@ const BROWSER_NAVIGATION = {
     component: SupervisorCardDemo,
     description: 'Demo individual supervisor tracking features',
     color: '#7C3AED'
+  },
+  websockettest: {
+    title: 'WebSocket Test',
+    icon: 'wifi',
+    component: WebSocketTest,
+    description: 'Test WebSocket connections and authentication',
+    color: '#EC4899'
   }
 };
 

@@ -218,6 +218,30 @@ class SupervisorSyncService {
           supervisorId,
           supervisorName: validation.supervisor.name
         });
+        
+        // Send updated supervisor list to all displays
+        const activeSupervisors = [];
+        for (const [clientId, client] of this.clients.entries()) {
+          if (client.type === 'supervisor' && client.supervisorId) {
+            // Get supervisor details from validation or stored data
+            const supervisorValidation = supervisorManager.validateSupervisorSession(client.sessionId);
+            if (supervisorValidation.success) {
+              activeSupervisors.push({
+                id: client.supervisorId,
+                name: supervisorValidation.supervisor.name,
+                role: supervisorValidation.supervisor.role,
+                loginTime: client.connectedAt,
+                status: 'active'
+              });
+            }
+          }
+        }
+        
+        console.log(`📡 Broadcasting supervisor list to displays: ${activeSupervisors.length} supervisors`);
+        this.broadcastToDisplays({
+          type: 'supervisor_list_updated',
+          supervisors: activeSupervisors
+        });
       } else {
         this.sendToClient(client.ws, {
           type: 'auth_failed',
@@ -229,10 +253,33 @@ class SupervisorSyncService {
       
       console.log(`✅ Display screen connected`);
       
+      // Get list of active supervisors for display
+      const activeSupervisors = [];
+      for (const [clientId, c] of this.clients.entries()) {
+        if (c.type === 'supervisor' && c.supervisorId && c.sessionId) {
+          const supervisorValidation = supervisorManager.validateSupervisorSession(c.sessionId);
+          if (supervisorValidation.success) {
+            activeSupervisors.push({
+              id: c.supervisorId,
+              name: supervisorValidation.supervisor.name,
+              role: supervisorValidation.supervisor.role,
+              loginTime: c.connectedAt,
+              status: 'active'
+            });
+          }
+        }
+      }
+      
       this.sendToClient(client.ws, {
         type: 'auth_success',
         currentState: this.getDisplayState(),
         connectedSupervisors: this.getConnectedSupervisors().length
+      });
+      
+      // Immediately send supervisor list
+      this.sendToClient(client.ws, {
+        type: 'supervisor_list_updated',
+        supervisors: activeSupervisors
       });
 
       // Notify supervisors of new display connection

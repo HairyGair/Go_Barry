@@ -43,6 +43,16 @@ const SupervisorControl = ({
   onClose,
   sector = 1 // Sector 1: Supervisor Control
 }) => {
+  // Debug WebSocket authentication
+  useEffect(() => {
+    console.log('🚀 SupervisorControl WebSocket Auth:', {
+      supervisorId,
+      sessionId,
+      supervisorName,
+      hasSessionId: !!sessionId,
+      sessionIdLength: sessionId?.length
+    });
+  }, [supervisorId, sessionId, supervisorName]);
   // Use the shared WebSocket hook
   const {
     connectionState,

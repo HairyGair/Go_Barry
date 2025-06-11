@@ -372,6 +372,10 @@ export const useSupervisorSync = ({
           break;
 
         case MESSAGE_TYPES.SUPERVISOR_LIST_UPDATED:
+          console.log('👥 Supervisor list updated:', {
+            count: (data.supervisors || []).length,
+            supervisors: data.supervisors
+          });
           setSyncState(prev => ({
             ...prev,
             activeSupervisors: data.supervisors || [],
@@ -491,6 +495,15 @@ export const useSupervisorSync = ({
           clientType,
           ...(clientType === 'supervisor' && { supervisorId, sessionId })
         };
+        
+        // Debug authentication details
+        console.log('🔐 WebSocket Authentication:', {
+          clientType,
+          supervisorId: clientType === 'supervisor' ? supervisorId : 'N/A',
+          sessionId: clientType === 'supervisor' ? sessionId : 'N/A',
+          hasSessionId: !!sessionId,
+          sessionIdFormat: sessionId ? `${sessionId.substring(0, 20)}...` : 'none'
+        });
         
         // Send auth message directly (don't use sendMessage which checks connection state)
         try {
