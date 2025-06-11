@@ -53,6 +53,7 @@ const SupervisorControl = ({
       sessionIdLength: sessionId?.length
     });
   }, [supervisorId, sessionId, supervisorName]);
+  
   // Use the shared WebSocket hook
   const {
     connectionState,
@@ -84,6 +85,9 @@ const SupervisorControl = ({
     autoConnect: true,
     onConnectionChange: (connected) => {
       console.log(`🔌 Supervisor ${supervisorName} connection:`, connected ? 'Connected' : 'Disconnected');
+    },
+    onMessage: (message) => {
+      console.log(`📨 Supervisor received message:`, message.type, message);
     },
     onError: (error) => {
       console.error('❌ Supervisor WebSocket error:', error);

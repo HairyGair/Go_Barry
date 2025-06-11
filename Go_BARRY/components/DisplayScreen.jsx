@@ -60,6 +60,9 @@ const DisplayScreen = () => {
     onConnectionChange: (connected) => {
       console.log('🔌 Display WebSocket:', connected ? 'Connected' : 'Disconnected');
     },
+    onMessage: (message) => {
+      console.log('📨 Display received message:', message.type, message);
+    },
     onError: (error) => {
       console.error('❌ Display WebSocket error:', error);
     }
@@ -237,6 +240,13 @@ const DisplayScreen = () => {
   // Render supervisor activity feed
   const renderSupervisorActivity = () => {
     const activities = [];
+    
+    // Debug: Log supervisor data
+    console.log('👥 Display Screen - Active Supervisors:', {
+      count: activeSupervisors?.length || 0,
+      supervisors: activeSupervisors,
+      connectedCount: connectedSupervisors
+    });
     
     // Add connection events
     activeSupervisors?.forEach((supervisor, index) => {

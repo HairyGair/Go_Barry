@@ -31,6 +31,7 @@ import SupervisorCard from '../components/SupervisorCard';
 import SupervisorCardDemo from '../components/SupervisorCardDemo';
 import QuickSupervisorTest from '../components/QuickSupervisorTest';
 import WebSocketTest from '../components/WebSocketTest';
+import WebSocketDiagnostics from '../components/WebSocketDiagnostics';
 import { useSupervisorSession } from '../components/hooks/useSupervisorSession';
 import { useBarryAPI } from '../components/hooks/useBARRYapi';
 import { API_CONFIG } from '../config/api';
@@ -136,6 +137,13 @@ const BROWSER_NAVIGATION = {
     component: WebSocketTest,
     description: 'Test WebSocket connections and authentication',
     color: '#EC4899'
+  },
+  diagnostics: {
+    title: 'WebSocket Diagnostics',
+    icon: 'pulse',
+    component: WebSocketDiagnostics,
+    description: 'Advanced diagnostics for connection issues',
+    color: '#DC2626'
   }
 };
 
