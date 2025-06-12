@@ -2,7 +2,7 @@
 // Simple page to test API connectivity for Go BARRY
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import SimpleAPITest from '../components/SimpleAPITest';
+import SimpleAPITest from '../components/dev/SimpleAPITest';
 
 const TestAPIPage = () => {
   console.log('🧪 Test API page loaded');

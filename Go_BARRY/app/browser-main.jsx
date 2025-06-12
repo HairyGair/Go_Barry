@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 // Import all our v3.0 components
 import SupervisorLogin from '../components/SupervisorLogin';
 import SupervisorControl from '../components/SupervisorControl';
-import SupervisorDisplayIntegrationTest from '../components/SupervisorDisplayIntegrationTest';
+import SupervisorDisplayIntegrationTest from '../components/dev/SupervisorDisplayIntegrationTest';
 import EnhancedDashboard from '../components/EnhancedDashboard';
 import IncidentManager from '../components/IncidentManager';
 import AIDisruptionManager from '../components/AIDisruptionManager';
@@ -25,7 +25,7 @@ import MessageDistributionCenter from '../components/MessageDistributionCenter';
 import AutomatedReportingSystem from '../components/AutomatedReportingSystem';
 import SystemHealthMonitor from '../components/SystemHealthMonitor';
 import TrainingHelpSystem from '../components/TrainingHelpSystem';
-import SimpleAPITest from '../components/SimpleAPITest';
+import SimpleAPITest from '../components/dev/SimpleAPITest';
 import RoadworksManager from '../components/RoadworksManager';
 import SupervisorCard from '../components/SupervisorCard';
 import SupervisorCardDemo from '../components/SupervisorCardDemo';
