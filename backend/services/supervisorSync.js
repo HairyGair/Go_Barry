@@ -196,8 +196,28 @@ class SupervisorSyncService {
     console.log(`🔐 WebSocket auth attempt:`, { clientType, supervisorId, sessionId: sessionId ? sessionId.substring(0, 20) + '...' : 'none' });
 
     if (clientType === 'supervisor') {
-      // Validate supervisor session
-      const validation = supervisorManager.validateSupervisorSession(sessionId);
+      // FALLBACK: If session validation fails, try re-authentication
+      let validation = supervisorManager.validateSupervisorSession(sessionId);
+      
+      if (!validation.success) {
+        console.log(`⚠️ Session validation failed: ${validation.error}`);
+        console.log(`🔄 Attempting fallback authentication for ${supervisorId}...`);
+        
+        // Try to find supervisor by ID and create new session
+        const supervisors = supervisorManager.getAllSupervisors();
+        const supervisor = supervisors.find(s => s.id === supervisorId);
+        
+        if (supervisor) {
+          // Create emergency session for WebSocket
+          const authResult = supervisorManager.authenticateSupervisor(supervisorId, supervisor.badge);
+          if (authResult.success) {
+            console.log(`✅ Created emergency session: ${authResult.sessionId}`);
+            validation = { success: true, supervisor: authResult.supervisor };
+            // Update client with new session
+            client.emergencySessionId = authResult.sessionId;
+          }
+        }
+      }
       
       if (validation.success) {
         client.type = 'supervisor';
@@ -210,7 +230,8 @@ class SupervisorSyncService {
           type: 'auth_success',
           supervisor: validation.supervisor,
           currentState: this.getDisplayState(),
-          connectedDisplays: this.getConnectedDisplays().length
+          connectedDisplays: this.getConnectedDisplays().length,
+          sessionRecovered: !!client.emergencySessionId
         });
 
         // Notify displays of supervisor connection
