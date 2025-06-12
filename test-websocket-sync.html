@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Sync Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .connected { background: #d4edda; color: #155724; }
+        .disconnected { background: #f8d7da; color: #721c24; }
+        .log { background: #f8f9fa; padding: 10px; margin: 10px 0; height: 300px; overflow-y: auto; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Supervisor-Display Sync Test</h1>
+    
+    <div id="status" class="status disconnected">Disconnected</div>
+    
+    <div>
+        <button onclick="connectAsSupervisor()">Connect as Supervisor</button>
+        <button onclick="connectAsDisplay()">Connect as Display</button>
+        <button onclick="disconnect()">Disconnect</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+    
+    <div>
+        <button onclick="sendTestAlert()">Send Test Alert</button>
+        <button onclick="acknowledgeAlert()">Acknowledge Alert</button>
+        <button onclick="broadcastMessage()">Broadcast Message</button>
+    </div>
+    
+    <div class="log" id="log"></div>
+    
+    <script>
+        let ws = null;
+        let clientType = null;
+        
+        function log(message, type = 'info') {
+            const logEl = document.getElementById('log');
+            const time = new Date().toLocaleTimeString();
+            const color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'black';
+            logEl.innerHTML += `<div style="color: ${color}">[${time}] ${message}</div>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+        
+        function updateStatus(connected) {
+            const statusEl = document.getElementById('status');
+            if (connected) {
+                statusEl.className = 'status connected';
+                statusEl.textContent = `Connected as ${clientType}`;
+            } else {
+                statusEl.className = 'status disconnected';
+                statusEl.textContent = 'Disconnected';
+            }
+        }
+        
+        function connect(type) {
+            if (ws) {
+                ws.close();
+            }
+            
+            clientType = type;
+            const wsUrl = 'wss://go-barry.onrender.com/ws/supervisor-sync';
+            log(`Connecting to ${wsUrl} as ${type}...`);
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                log('WebSocket connected', 'success');
+                
+                // Send auth message
+                const authMsg = {
+                    type: 'auth',
+                    clientType: type,
+                    ...(type === 'supervisor' && {
+                        supervisorId: 'test-sup-001',
+                        sessionId: 'test-session-' + Date.now()
+                    })
+                };
+                
+                ws.send(JSON.stringify(authMsg));
+                log(`Sent auth: ${JSON.stringify(authMsg)}`);
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                log(`Received: ${data.type} - ${JSON.stringify(data)}`);
+                
+                if (data.type === 'auth_success') {
+                    updateStatus(true);
+                    log('Authentication successful!', 'success');
+                } else if (data.type === 'auth_failed') {
+                    log(`Authentication failed: ${data.error}`, 'error');
+                }
+            };
+            
+            ws.onerror = (error) => {
+                log('WebSocket error', 'error');
+                console.error(error);
+            };
+            
+            ws.onclose = (event) => {
+                log(`WebSocket closed: ${event.code} ${event.reason}`);
+                updateStatus(false);
+                ws = null;
+            };
+        }
+        
+        function connectAsSupervisor() {
+            connect('supervisor');
+        }
+        
+        function connectAsDisplay() {
+            connect('display');
+        }
+        
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+        
+        function sendTestAlert() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('Not connected', 'error');
+                return;
+            }
+            
+            const msg = {
+                type: 'update_alerts',
+                alerts: [{
+                    id: 'test-alert-' + Date.now(),
+                    title: 'Test Alert',
+                    location: 'Newcastle City Centre',
+                    severity: 'High',
+                    description: 'Test alert from WebSocket test'
+                }]
+            };
+            
+            ws.send(JSON.stringify(msg));
+            log(`Sent: ${JSON.stringify(msg)}`);
+        }
+        
+        function acknowledgeAlert() {
+            if (!ws || ws.readyState !== WebSocket.OPEN || clientType !== 'supervisor') {
+                log('Must be connected as supervisor', 'error');
+                return;
+            }
+            
+            const msg = {
+                type: 'acknowledge_alert',
+                alertId: 'test-alert-001',
+                reason: 'Test acknowledgment',
+                notes: 'Testing WebSocket sync'
+            };
+            
+            ws.send(JSON.stringify(msg));
+            log(`Sent: ${JSON.stringify(msg)}`);
+        }
+        
+        function broadcastMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN || clientType !== 'supervisor') {
+                log('Must be connected as supervisor', 'error');
+                return;
+            }
+            
+            const msg = {
+                type: 'broadcast_message',
+                message: 'Test broadcast from WebSocket test',
+                priority: 'info',
+                duration: 30000
+            };
+            
+            ws.send(JSON.stringify(msg));
+            log(`Sent: ${JSON.stringify(msg)}`);
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+    </script>
+</body>
+</html>
