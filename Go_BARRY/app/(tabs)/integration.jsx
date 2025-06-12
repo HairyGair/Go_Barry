@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import IntegrationTest from '../../components/IntegrationTest';
+import IntegrationTest from '../../components/dev/IntegrationTest';
 
 export default function IntegrationTestTab() {
   return (
