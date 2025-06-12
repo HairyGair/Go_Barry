@@ -463,4 +463,326 @@ router.post('/templates/suggest', async (req, res) => {
   }
 });
 
+// ===== POLLING-BASED SYNC ENDPOINTS =====
+
+// In-memory storage for polling-based supervisor sync
+let pollingState = {
+  acknowledgedAlerts: new Set(),
+  priorityOverrides: new Map(),
+  supervisorNotes: new Map(),
+  customMessages: [],
+  dismissedFromDisplay: new Set(),
+  lockedOnDisplay: new Set(),
+  lastUpdated: Date.now()
+};
+
+// Get current sync status for polling
+router.get('/sync-status', async (req, res) => {
+  try {
+    const activeSupervisors = supervisorManager.getActiveSupervisors();
+    
+    res.json({
+      success: true,
+      acknowledgedAlerts: Array.from(pollingState.acknowledgedAlerts),
+      priorityOverrides: Object.fromEntries(pollingState.priorityOverrides),
+      supervisorNotes: Object.fromEntries(pollingState.supervisorNotes),
+      customMessages: pollingState.customMessages,
+      dismissedFromDisplay: Array.from(pollingState.dismissedFromDisplay),
+      lockedOnDisplay: Array.from(pollingState.lockedOnDisplay),
+      connectedSupervisors: activeSupervisors.length,
+      activeSupervisors: activeSupervisors,
+      lastUpdated: pollingState.lastUpdated
+    });
+  } catch (error) {
+    console.error('❌ Sync status error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get sync status'
+    });
+  }
+});
+
+// Acknowledge alert
+router.post('/acknowledge-alert', async (req, res) => {
+  try {
+    const { alertId, reason, notes, timestamp } = req.body;
+    
+    if (!alertId || !reason) {
+      return res.status(400).json({
+        success: false,
+        error: 'Alert ID and reason are required'
+      });
+    }
+    
+    // Add to acknowledged alerts
+    pollingState.acknowledgedAlerts.add(alertId);
+    pollingState.lastUpdated = Date.now();
+    
+    console.log(`✅ Alert ${alertId} acknowledged: ${reason}`);
+    
+    res.json({
+      success: true,
+      message: 'Alert acknowledged successfully',
+      alertId,
+      timestamp: pollingState.lastUpdated
+    });
+  } catch (error) {
+    console.error('❌ Acknowledge alert error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to acknowledge alert'
+    });
+  }
+});
+
+// Update alert priority
+router.post('/update-priority', async (req, res) => {
+  try {
+    const { alertId, priority, reason, timestamp } = req.body;
+    
+    if (!alertId || !priority || !reason) {
+      return res.status(400).json({
+        success: false,
+        error: 'Alert ID, priority, and reason are required'
+      });
+    }
+    
+    // Update priority override
+    pollingState.priorityOverrides.set(alertId, {
+      priority: priority.toUpperCase(),
+      reason,
+      timestamp: timestamp || Date.now()
+    });
+    pollingState.lastUpdated = Date.now();
+    
+    console.log(`🎯 Alert ${alertId} priority updated to ${priority}: ${reason}`);
+    
+    res.json({
+      success: true,
+      message: 'Priority updated successfully',
+      alertId,
+      priority,
+      timestamp: pollingState.lastUpdated
+    });
+  } catch (error) {
+    console.error('❌ Update priority error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update priority'
+    });
+  }
+});
+
+// Add note to alert
+router.post('/add-note', async (req, res) => {
+  try {
+    const { alertId, note, timestamp } = req.body;
+    
+    if (!alertId || !note) {
+      return res.status(400).json({
+        success: false,
+        error: 'Alert ID and note are required'
+      });
+    }
+    
+    // Add supervisor note
+    pollingState.supervisorNotes.set(alertId, {
+      note,
+      timestamp: timestamp || Date.now()
+    });
+    pollingState.lastUpdated = Date.now();
+    
+    console.log(`📝 Note added to alert ${alertId}: ${note}`);
+    
+    res.json({
+      success: true,
+      message: 'Note added successfully',
+      alertId,
+      note,
+      timestamp: pollingState.lastUpdated
+    });
+  } catch (error) {
+    console.error('❌ Add note error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add note'
+    });
+  }
+});
+
+// Broadcast message
+router.post('/broadcast-message', async (req, res) => {
+  try {
+    const { message, priority, duration, timestamp } = req.body;
+    
+    if (!message) {
+      return res.status(400).json({
+        success: false,
+        error: 'Message is required'
+      });
+    }
+    
+    // Add custom message
+    const messageObj = {
+      id: `msg_${Date.now()}`,
+      message,
+      priority: priority || 'info',
+      duration: duration || 30000,
+      timestamp: timestamp || Date.now()
+    };
+    
+    pollingState.customMessages.push(messageObj);
+    pollingState.lastUpdated = Date.now();
+    
+    // Auto-remove message after duration
+    setTimeout(() => {
+      pollingState.customMessages = pollingState.customMessages.filter(m => m.id !== messageObj.id);
+      pollingState.lastUpdated = Date.now();
+    }, messageObj.duration);
+    
+    console.log(`📢 Message broadcast: ${message} (${priority})`);
+    
+    res.json({
+      success: true,
+      message: 'Message broadcast successfully',
+      messageId: messageObj.id,
+      timestamp: pollingState.lastUpdated
+    });
+  } catch (error) {
+    console.error('❌ Broadcast message error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to broadcast message'
+    });
+  }
+});
+
+// Dismiss alert from display
+router.post('/dismiss-from-display', async (req, res) => {
+  try {
+    const { alertId, reason, timestamp } = req.body;
+    
+    if (!alertId || !reason) {
+      return res.status(400).json({
+        success: false,
+        error: 'Alert ID and reason are required'
+      });
+    }
+    
+    // Add to dismissed from display
+    pollingState.dismissedFromDisplay.add(alertId);
+    pollingState.lastUpdated = Date.now();
+    
+    console.log(`👁️‍🗨️ Alert ${alertId} dismissed from display: ${reason}`);
+    
+    res.json({
+      success: true,
+      message: 'Alert dismissed from display successfully',
+      alertId,
+      timestamp: pollingState.lastUpdated
+    });
+  } catch (error) {
+    console.error('❌ Dismiss from display error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to dismiss from display'
+    });
+  }
+});
+
+// Lock alert on display
+router.post('/lock-on-display', async (req, res) => {
+  try {
+    const { alertId, reason, timestamp } = req.body;
+    
+    if (!alertId || !reason) {
+      return res.status(400).json({
+        success: false,
+        error: 'Alert ID and reason are required'
+      });
+    }
+    
+    // Add to locked on display
+    pollingState.lockedOnDisplay.add(alertId);
+    pollingState.lastUpdated = Date.now();
+    
+    console.log(`🔒 Alert ${alertId} locked on display: ${reason}`);
+    
+    res.json({
+      success: true,
+      message: 'Alert locked on display successfully',
+      alertId,
+      timestamp: pollingState.lastUpdated
+    });
+  } catch (error) {
+    console.error('❌ Lock on display error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to lock on display'
+    });
+  }
+});
+
+// Unlock alert from display
+router.post('/unlock-from-display', async (req, res) => {
+  try {
+    const { alertId, reason, timestamp } = req.body;
+    
+    if (!alertId || !reason) {
+      return res.status(400).json({
+        success: false,
+        error: 'Alert ID and reason are required'
+      });
+    }
+    
+    // Remove from locked on display
+    pollingState.lockedOnDisplay.delete(alertId);
+    pollingState.lastUpdated = Date.now();
+    
+    console.log(`🔓 Alert ${alertId} unlocked from display: ${reason}`);
+    
+    res.json({
+      success: true,
+      message: 'Alert unlocked from display successfully',
+      alertId,
+      timestamp: pollingState.lastUpdated
+    });
+  } catch (error) {
+    console.error('❌ Unlock from display error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to unlock from display'
+    });
+  }
+});
+
+// Clear all polling state (for testing)
+router.post('/clear-state', async (req, res) => {
+  try {
+    pollingState = {
+      acknowledgedAlerts: new Set(),
+      priorityOverrides: new Map(),
+      supervisorNotes: new Map(),
+      customMessages: [],
+      dismissedFromDisplay: new Set(),
+      lockedOnDisplay: new Set(),
+      lastUpdated: Date.now()
+    };
+    
+    console.log('🧹 Polling state cleared');
+    
+    res.json({
+      success: true,
+      message: 'Polling state cleared successfully',
+      timestamp: pollingState.lastUpdated
+    });
+  } catch (error) {
+    console.error('❌ Clear state error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear state'
+    });
+  }
+});
+
 export default router;

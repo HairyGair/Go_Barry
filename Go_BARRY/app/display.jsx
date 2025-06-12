@@ -132,7 +132,7 @@ const ControlRoomDisplay = () => {
 
       {/* MAIN CONTROL ROOM CONTENT */}
       <View style={styles.mainContent}>
-        {/* LEFT SIDE: ALERTS + SUPERVISOR INFO */}
+        {/* ALERTS SECTION - 60% */}
         <View style={styles.leftPanel}>
           {/* LIVE ALERTS SECTION */}
           <View style={styles.alertsSection}>
@@ -239,7 +239,7 @@ const ControlRoomDisplay = () => {
           </View>
         </View>
 
-        {/* RIGHT SIDE: TRAFFIC MAP */}
+        {/* MAP SECTION - 40% */}
         <View style={styles.mapSection}>
           <View style={styles.mapHeader}>
             <Ionicons name="map" size={32} color="#3B82F6" />
@@ -321,16 +321,15 @@ const styles = StyleSheet.create({
   
   mainContent: {
     flex: 1,
-    flexDirection: screenWidth > 1024 ? 'row' : 'column',
+    flexDirection: 'column',
     gap: Math.max(20, screenWidth * 0.02),
     padding: Math.max(16, screenWidth * 0.025),
     backgroundColor: '#FAFAFA',
   },
   
   leftPanel: {
-    flex: screenWidth > 1024 ? 3 : 1,
+    flex: 0.6,
     gap: Math.max(16, screenHeight * 0.02),
-    minHeight: screenWidth <= 1024 ? 'auto' : undefined,
   },
   
   alertsSection: {
@@ -664,8 +663,8 @@ const styles = StyleSheet.create({
   },
   
   mapSection: {
-    flex: screenWidth > 1024 ? 2 : 1,
-    minHeight: Math.max(400, screenHeight * 0.5),
+    flex: 0.4,
+    minHeight: Math.max(300, screenHeight * 0.3),
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     borderWidth: 1,
@@ -676,7 +675,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 8,
     elevation: 2,
-    marginTop: screenWidth <= 1024 ? Math.max(16, screenHeight * 0.02) : 0,
   },
   
   mapHeader: {

@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBarryAPI } from './hooks/useBARRYapi';
-import { useSupervisorSync, CONNECTION_STATES } from './hooks/useSupervisorSync';
+import { useSupervisorPolling, CONNECTION_STATES } from './hooks/useSupervisorPolling';
 import TrafficMap from './TrafficMap';
 import {
   GoBarryLogo,
@@ -41,7 +41,7 @@ const DisplayScreen = () => {
     refreshInterval: 15000 // 15 seconds for critical monitoring
   });
 
-  // Use the shared WebSocket hook for display client
+  // Use the optimized polling hook for display client
   const {
     connectionState,
     isConnected: wsConnected,
@@ -54,17 +54,17 @@ const DisplayScreen = () => {
     activeMode: displayMode,
     connectedSupervisors,
     activeSupervisors
-  } = useSupervisorSync({
+  } = useSupervisorPolling({
     clientType: 'display',
     autoConnect: true,
     onConnectionChange: (connected) => {
-      console.log('🔌 Display WebSocket:', connected ? 'Connected' : 'Disconnected');
+      console.log('🔌 Display Polling:', connected ? 'Connected' : 'Disconnected');
     },
     onMessage: (message) => {
       console.log('📨 Display received message:', message.type, message);
     },
     onError: (error) => {
-      console.error('❌ Display WebSocket error:', error);
+      console.error('❌ Display Polling error:', error);
     }
   });
 

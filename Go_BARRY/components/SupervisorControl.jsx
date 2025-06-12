@@ -16,7 +16,7 @@ import {
   Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSupervisorSync, CONNECTION_STATES } from './hooks/useSupervisorSync';
+import { useSupervisorPolling, CONNECTION_STATES } from './hooks/useSupervisorPolling';
 import MessageTemplates from './MessageTemplates';
 import EnhancedTrafficCard from './EnhancedTrafficCard';
 
@@ -43,9 +43,9 @@ const SupervisorControl = ({
   onClose,
   sector = 1 // Sector 1: Supervisor Control
 }) => {
-  // Debug WebSocket authentication
+  // Debug polling authentication
   useEffect(() => {
-    console.log('🚀 SupervisorControl WebSocket Auth:', {
+    console.log('🚀 SupervisorControl Polling Auth:', {
       supervisorId,
       sessionId,
       supervisorName,
@@ -54,7 +54,7 @@ const SupervisorControl = ({
     });
   }, [supervisorId, sessionId, supervisorName]);
   
-  // Use the shared WebSocket hook
+  // Use the optimized polling hook
   const {
     connectionState,
     isConnected,
@@ -78,7 +78,7 @@ const SupervisorControl = ({
     lockOnDisplay,
     unlockFromDisplay,
     clearError
-  } = useSupervisorSync({
+  } = useSupervisorPolling({
     clientType: 'supervisor',
     supervisorId,
     sessionId,
@@ -90,7 +90,7 @@ const SupervisorControl = ({
       console.log(`📨 Supervisor received message:`, message.type, message);
     },
     onError: (error) => {
-      console.error('❌ Supervisor WebSocket error:', error);
+      console.error('❌ Supervisor Polling error:', error);
       showNotification(`Connection error: ${error}`, 'error');
     }
   });
