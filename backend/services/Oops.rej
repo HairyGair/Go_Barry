@@ -1,0 +1,32 @@
+@@ -87,6 +87,7 @@
+     });
+ 
+     // Set up event handlers
++    console.log(`🔐 Client ${clientId} waiting for authentication...`);
+     ws.on('message', (message) => {
+       this.handleMessage(clientId, message);
+     });
+@@ -208,6 +209,7 @@
+         });
+         
+         // Send updated supervisor list to all displays
++        console.log(`📡 Sending supervisor list update to all displays...`);
+         const activeSupervisors = [];
+         for (const [clientId, client] of this.clients.entries()) {
+           if (client.type === 'supervisor' && client.supervisorId) {
+@@ -368,6 +370,15 @@
+       this.broadcastToDisplays({
+         type: 'supervisor_disconnected',
+         supervisorId: client.supervisorId,
++        remainingSupervisors: this.getConnectedSupervisors().length
++      });
++      
++      // Send updated supervisor list
++      const updatedList = this.getConnectedSupervisors();
++      console.log(`📡 Supervisor disconnected - updating display list (${updatedList.length} remaining)`);
++      this.broadcastToDisplays({
++        type: 'supervisor_list_updated',
++        supervisors: updatedList,
+         remainingSupervisors: this.getConnectedSupervisors().length
+       });
+     } else if (client.type === 'display') {
