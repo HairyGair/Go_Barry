@@ -8,6 +8,19 @@ import { processEnhancedAlerts } from '../services/enhancedAlertProcessor.js';
 
 const router = express.Router();
 
+// Middleware to update session activity on API calls
+router.use((req, res, next) => {
+  // Update activity for requests with sessionId in body or query
+  const sessionId = req.body?.sessionId || req.query?.sessionId;
+  if (sessionId) {
+    const updated = supervisorManager.updateSessionActivity(sessionId);
+    if (updated) {
+      console.log(`🔄 Activity updated for session: ${sessionId}`);
+    }
+  }
+  next();
+});
+
 // Supervisor authentication
 router.post('/auth/login', async (req, res) => {
   try {
@@ -271,24 +284,82 @@ router.get('/statistics/dismissals', async (req, res) => {
   }
 });
 
+// Get session timeout configuration and status
+router.get('/timeout-info', async (req, res) => {
+  try {
+    const timeoutInfo = supervisorManager.getSessionTimeoutInfo();
+    
+    res.json({
+      success: true,
+      ...timeoutInfo,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Get timeout info error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get timeout info'
+    });
+  }
+});
+
+// Manual cleanup trigger (for testing)
+router.post('/cleanup-sessions', async (req, res) => {
+  try {
+    const beforeCount = Object.values(supervisorManager.supervisorSessions).filter(s => s.active).length;
+    
+    supervisorManager.cleanupInactiveSessions();
+    
+    const afterCount = Object.values(supervisorManager.supervisorSessions).filter(s => s.active).length;
+    const cleanedCount = beforeCount - afterCount;
+    
+    res.json({
+      success: true,
+      message: 'Session cleanup completed',
+      sessionsBeforeCleanup: beforeCount,
+      sessionsAfterCleanup: afterCount,
+      sessionsCleaned: cleanedCount,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Manual cleanup error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to perform cleanup'
+    });
+  }
+});
+
 // Debug endpoint to check active sessions
 router.get('/debug/sessions', async (req, res) => {
   try {
     // Get all session IDs and their status
-    const sessions = Object.entries(supervisorManager.supervisorSessions || {}).map(([id, session]) => ({
-      sessionId: id,
-      supervisorId: session.supervisorId,
-      supervisorName: session.supervisorName,
-      active: session.active,
-      startTime: session.startTime,
-      lastActivity: session.lastActivity
-    }));
+    const sessions = Object.entries(supervisorManager.supervisorSessions || {}).map(([id, session]) => {
+      const now = Date.now();
+      const lastActivity = new Date(session.lastActivity).getTime();
+      const timeSinceActivity = now - lastActivity;
+      
+      return {
+        sessionId: id,
+        supervisorId: session.supervisorId,
+        supervisorName: session.supervisorName,
+        active: session.active,
+        startTime: session.startTime,
+        lastActivity: session.lastActivity,
+        minutesSinceActivity: Math.round(timeSinceActivity / 1000 / 60),
+        willTimeoutAt: new Date(lastActivity + supervisorManager.getSessionTimeoutInfo().timeoutMs).toISOString(),
+        endTime: session.endTime,
+        timeoutReason: session.timeoutReason,
+        signoutReason: session.signoutReason
+      };
+    });
     
     res.json({
       success: true,
       totalSessions: sessions.length,
       activeSessions: sessions.filter(s => s.active).length,
       sessions: sessions,
+      timeoutConfig: supervisorManager.getSessionTimeoutInfo(),
       timestamp: new Date().toISOString()
     });
   } catch (error) {

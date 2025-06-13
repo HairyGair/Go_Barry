@@ -15,7 +15,146 @@ import {
   FlatList
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import EnhancedTrafficCard from '../../components/EnhancedTrafficCard';
+// Simple Traffic Card component for mobile alerts
+const SimpleTrafficCard = ({ alert, supervisorSession, onDismiss, onAcknowledge }) => {
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'red': return '#EF4444';
+      case 'amber': return '#F59E0B';
+      case 'green': return '#10B981';
+      default: return '#6B7280';
+    }
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case 'High': return '#DC2626';
+      case 'Medium': return '#D97706';
+      case 'Low': return '#059669';
+      default: return '#4B5563';
+    }
+  };
+
+  return (
+    <View style={[
+      {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        padding: 16,
+        marginVertical: 6,
+        borderLeftWidth: 4,
+        borderLeftColor: getStatusColor(alert.status),
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3
+      }
+    ]}>
+      {/* Header */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 16, fontWeight: '600', color: '#1F2937', marginBottom: 4 }}>
+            {alert.title || 'Traffic Alert'}
+          </Text>
+          <Text style={{ fontSize: 14, color: '#6B7280' }}>
+            {alert.location || 'Location not specified'}
+          </Text>
+        </View>
+        <View style={[
+          {
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+            borderRadius: 6,
+            backgroundColor: getSeverityColor(alert.severity)
+          }
+        ]}>
+          <Text style={{ fontSize: 12, color: '#FFFFFF', fontWeight: '600' }}>
+            {alert.severity || 'Unknown'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Description */}
+      {alert.description && (
+        <Text style={{ fontSize: 14, color: '#374151', marginBottom: 12, lineHeight: 20 }}>
+          {alert.description}
+        </Text>
+      )}
+
+      {/* Routes affected */}
+      {alert.affectsRoutes && alert.affectsRoutes.length > 0 && (
+        <View style={{ marginBottom: 12 }}>
+          <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>Affects Routes:</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+            {alert.affectsRoutes.slice(0, 6).map((route, index) => (
+              <View key={index} style={[
+                {
+                  backgroundColor: '#EFF6FF',
+                  borderColor: '#3B82F6',
+                  borderWidth: 1,
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                  borderRadius: 4
+                }
+              ]}>
+                <Text style={{ fontSize: 11, color: '#3B82F6', fontWeight: '600' }}>
+                  {route}
+                </Text>
+              </View>
+            ))}
+            {alert.affectsRoutes.length > 6 && (
+              <Text style={{ fontSize: 11, color: '#6B7280', alignSelf: 'center' }}>
+                +{alert.affectsRoutes.length - 6} more
+              </Text>
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* Footer with actions */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F3F4F6' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Text style={{ fontSize: 12, color: '#6B7280' }}>
+            {alert.type || 'Alert'} • {alert.status || 'Unknown'}
+          </Text>
+          {alert.lastUpdated && (
+            <Text style={{ fontSize: 12, color: '#6B7280' }}>
+              {new Date(alert.lastUpdated).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          )}
+        </View>
+        
+        {supervisorSession && (
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#F59E0B',
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 6
+              }}
+              onPress={() => onAcknowledge && onAcknowledge(alert.id)}
+            >
+              <Text style={{ fontSize: 12, color: '#FFFFFF', fontWeight: '600' }}>ACK</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#EF4444',
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 6
+              }}
+              onPress={() => onDismiss && onDismiss(alert.id, 'Supervisor dismissed', 'Mobile action')}
+            >
+              <Text style={{ fontSize: 12, color: '#FFFFFF', fontWeight: '600' }}>DISMISS</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+};
 import SupervisorLogin from '../../components/SupervisorLogin';
 import { useSupervisorSession } from '../../components/hooks/useSupervisorSession';
 import { useBarryAPI } from '../../components/hooks/useBARRYapi';
@@ -355,7 +494,7 @@ export default function AlertsScreen() {
         keyExtractor={(item, index) => item.id || `alert_${index}`}
         renderItem={({ item, index }) => (
           <View style={styles.alertWrapper}>
-            <EnhancedTrafficCard 
+            <SimpleTrafficCard 
               alert={item} 
               supervisorSession={supervisorSession}
               onDismiss={handleAlertDismiss}

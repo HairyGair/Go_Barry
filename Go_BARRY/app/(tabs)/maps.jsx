@@ -18,11 +18,65 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBarryAPI } from '../../components/hooks/useBARRYapi';
-import EnhancedTrafficCard from '../../components/EnhancedTrafficCard';
 import { API_CONFIG, ENV_INFO } from '../../config/api';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
+
+// Simple Alert Details Component (replacement for EnhancedTrafficCard)
+const SimpleAlertDetails = ({ alert }) => {
+  if (!alert) return null;
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case 'High': return '#EF4444';
+      case 'Medium': return '#F59E0B';
+      case 'Low': return '#10B981';
+      default: return '#6B7280';
+    }
+  };
+
+  return (
+    <View style={styles.alertDetails}>
+      <View style={styles.alertDetailsHeader}>
+        <View style={[styles.severityBadge, { backgroundColor: getSeverityColor(alert.severity) }]}>
+          <Text style={styles.severityText}>{alert.severity}</Text>
+        </View>
+        <Text style={styles.alertType}>{alert.type?.toUpperCase()}</Text>
+      </View>
+      
+      <Text style={styles.alertDetailsTitle}>{alert.title}</Text>
+      <Text style={styles.alertDetailsLocation}>📍 {alert.location}</Text>
+      
+      {alert.description && (
+        <Text style={styles.alertDetailsDescription}>{alert.description}</Text>
+      )}
+      
+      {alert.affectsRoutes && alert.affectsRoutes.length > 0 && (
+        <View style={styles.affectedRoutes}>
+          <Text style={styles.routesLabel}>Affected Routes:</Text>
+          <View style={styles.routesList}>
+            {alert.affectsRoutes.map((route, idx) => (
+              <View key={idx} style={styles.routeBadge}>
+                <Text style={styles.routeText}>{route}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+      
+      <View style={styles.alertTimestamp}>
+        <Ionicons name="time" size={16} color="#6B7280" />
+        <Text style={styles.timestampText}>
+          {alert.timestamp ? 
+            new Date(alert.timestamp).toLocaleString('en-GB') : 
+            'Recent alert'
+          }
+        </Text>
+      </View>
+    </View>
+  );
+};
 
 // Enhanced browser-first interface for traffic intelligence
 export default function TrafficIntelligenceScreen() {
@@ -443,7 +497,7 @@ export default function TrafficIntelligenceScreen() {
             
             {selectedAlert && (
               <ScrollView style={styles.modalBody}>
-                <EnhancedTrafficCard alert={selectedAlert} />
+                <SimpleAlertDetails alert={selectedAlert} />
               </ScrollView>
             )}
           </View>
@@ -834,5 +888,81 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     padding: 20,
+  },
+  
+  // Alert Details Component Styles
+  alertDetails: {
+    backgroundColor: '#FFFFFF',
+  },
+  alertDetailsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  alertType: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    letterSpacing: 1,
+  },
+  alertDetailsTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
+    lineHeight: 24,
+  },
+  alertDetailsLocation: {
+    fontSize: 16,
+    color: '#3B82F6',
+    fontWeight: '500',
+    marginBottom: 12,
+  },
+  alertDetailsDescription: {
+    fontSize: 14,
+    color: '#4B5563',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  affectedRoutes: {
+    backgroundColor: '#F9FAFB',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  routesLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+    letterSpacing: 1,
+  },
+  routesList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  routeBadge: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  routeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  alertTimestamp: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  timestampText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontFamily: 'monospace',
   },
 });

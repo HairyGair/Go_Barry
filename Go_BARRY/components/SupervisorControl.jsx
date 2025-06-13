@@ -13,12 +13,168 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
-  Modal
+  Modal,
+  Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorPolling, CONNECTION_STATES } from './hooks/useSupervisorPolling';
 import MessageTemplates from './MessageTemplates';
-import EnhancedTrafficCard from './EnhancedTrafficCard';
+// Simple Alert Card component for supervisor control
+const SimpleAlertCard = ({ alert, supervisorSession, onDismiss, onAcknowledge, style }) => {
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'red': return '#EF4444';
+      case 'amber': return '#F59E0B';
+      case 'green': return '#10B981';
+      default: return '#6B7280';
+    }
+  };
+
+  const getSeverityColor = (severity) => {
+    switch (severity) {
+      case 'High': return '#DC2626';
+      case 'Medium': return '#D97706';
+      case 'Low': return '#059669';
+      default: return '#4B5563';
+    }
+  };
+
+  return (
+    <View style={[
+      {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        padding: 16,
+        marginVertical: 4,
+        borderLeftWidth: 4,
+        borderLeftColor: getStatusColor(alert.status),
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3
+      },
+      style
+    ]}>
+      {/* Header */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 16, fontWeight: '600', color: '#1F2937', marginBottom: 4 }}>
+            {alert.title || 'Traffic Alert'}
+          </Text>
+          <Text style={{ fontSize: 14, color: '#6B7280' }}>
+            {alert.location || 'Location not specified'}
+          </Text>
+        </View>
+        <View style={[
+          {
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+            borderRadius: 6,
+            backgroundColor: getSeverityColor(alert.severity)
+          }
+        ]}>
+          <Text style={{ fontSize: 12, color: '#FFFFFF', fontWeight: '600' }}>
+            {alert.severity || 'Unknown'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Description */}
+      {alert.description && (
+        <Text style={{ fontSize: 14, color: '#374151', marginBottom: 12, lineHeight: 20 }}>
+          {alert.description}
+        </Text>
+      )}
+
+      {/* Routes affected */}
+      {alert.affectsRoutes && alert.affectsRoutes.length > 0 && (
+        <View style={{ marginBottom: 12 }}>
+          <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>Affects Routes:</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+            {alert.affectsRoutes.slice(0, 6).map((route, index) => (
+              <View key={index} style={[
+                {
+                  backgroundColor: '#EFF6FF',
+                  borderColor: '#3B82F6',
+                  borderWidth: 1,
+                  paddingHorizontal: 6,
+                  paddingVertical: 2,
+                  borderRadius: 4
+                }
+              ]}>
+                <Text style={{ fontSize: 11, color: '#3B82F6', fontWeight: '600' }}>
+                  {route}
+                </Text>
+              </View>
+            ))}
+            {alert.affectsRoutes.length > 6 && (
+              <Text style={{ fontSize: 11, color: '#6B7280', alignSelf: 'center' }}>
+                +{alert.affectsRoutes.length - 6} more
+              </Text>
+            )}
+          </View>
+        </View>
+      )}
+
+      {/* Supervisor Actions */}
+      {supervisorSession && (
+        <View style={{ 
+          flexDirection: 'row', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          paddingTop: 12, 
+          borderTopWidth: 1, 
+          borderTopColor: '#F3F4F6' 
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Text style={{ fontSize: 12, color: '#6B7280' }}>
+              {alert.type || 'Alert'} • {alert.status || 'Unknown'}
+            </Text>
+            {alert.lastUpdated && (
+              <Text style={{ fontSize: 12, color: '#6B7280' }}>
+                {new Date(alert.lastUpdated).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            )}
+          </View>
+          
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#F59E0B',
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 6,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4
+              }}
+              onPress={() => onAcknowledge && onAcknowledge(alert.id)}
+            >
+              <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+              <Text style={{ fontSize: 12, color: '#FFFFFF', fontWeight: '600' }}>ACK</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#EF4444',
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 6,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4
+              }}
+              onPress={() => onDismiss && onDismiss(alert.id, 'Supervisor dismissed', 'Supervisor action')}
+            >
+              <Ionicons name="close" size={14} color="#FFFFFF" />
+              <Text style={{ fontSize: 12, color: '#FFFFFF', fontWeight: '600' }}>DISMISS</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+};
 
 const isWeb = Platform.OS === 'web';
 
@@ -645,7 +801,11 @@ const SupervisorControl = ({
       <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.title}>Sector 1: Supervisor Control</Text>
+          <Image 
+            source={require('../assets/gobarry-logo.png')} 
+            style={styles.logo}
+            resizeMode="contain"
+          />
           <Text style={styles.subtitle}>
             {supervisorName} ({supervisorId})
           </Text>
@@ -735,7 +895,7 @@ const SupervisorControl = ({
         {alerts.length > 0 ? (
           alerts.map((alert) => (
             <View key={alert.id} style={styles.alertWrapper}>
-              <EnhancedTrafficCard
+              <SimpleAlertCard
                 alert={alert}
                 supervisorSession={{
                   supervisor: {
@@ -828,7 +988,8 @@ const SupervisorControl = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
   },
   loadingContainer: {
     flex: 1,
@@ -845,32 +1006,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backdropFilter: 'blur(20px)',
+    padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: 'rgba(0, 0, 0, 0.06)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
     ...Platform.select({
-      web: { paddingTop: 16 },
-      default: { paddingTop: 40 }
+      web: { paddingTop: 20 },
+      default: { paddingTop: 44 }
     }),
   },
   headerLeft: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  logo: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
+
   subtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginTop: 4,
+    fontSize: 16,
+    color: '#4B5563',
+    marginTop: 2,
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
   closeButton: {
     padding: 8,
@@ -878,16 +1056,33 @@ const styles = StyleSheet.create({
   connectionStatus: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backdropFilter: 'blur(10px)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   connectionText: {
-    fontSize: 12,
-    color: '#6B7280',
+    fontSize: 13,
+    color: '#374151',
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
   errorButton: {
     marginLeft: 8,
@@ -903,31 +1098,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+    backdropFilter: 'blur(15px)',
+    padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: 'rgba(0, 0, 0, 0.04)',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 4,
   },
   controlButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    transform: [{ scale: 1 }],
   },
   broadcastControlButton: {
-    backgroundColor: '#7C3AED',
+    background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
+    backgroundColor: '#8B5CF6',
   },
   templatesButton: {
     backgroundColor: '#059669',
   },
   controlButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    textShadow: '0 1px 2px rgba(0,0,0,0.1)',
   },
   modeSelector: {
     flexDirection: 'row',
@@ -962,27 +1172,50 @@ const styles = StyleSheet.create({
   statsBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: '#FFFFFF',
-    padding: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backdropFilter: 'blur(20px)',
+    padding: 24,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: 'rgba(0, 0, 0, 0.03)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 3,
   },
   statItem: {
     alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
+    minWidth: 80,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+    backdropFilter: 'blur(10px)',
   },
   statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '800',
     color: '#1F2937',
+    letterSpacing: -0.5,
+    lineHeight: 32,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#6B7280',
-    marginTop: 4,
+    marginTop: 6,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   alertsList: {
     flex: 1,
-    padding: 16,
+    padding: 20,
+    paddingTop: 24,
   },
   alertWrapper: {
     marginBottom: 8,
@@ -991,25 +1224,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    paddingVertical: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backdropFilter: 'blur(10px)',
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    borderRadius: 8,
+    borderTopColor: 'rgba(0, 0, 0, 0.04)',
+    borderRadius: 12,
     marginTop: -8,
     marginHorizontal: 16,
-    gap: 6,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
   },
   expandControlsText: {
     color: '#3B82F6',
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '700',
     color: '#1F2937',
-    marginBottom: 16,
+    marginBottom: 20,
+    letterSpacing: -0.3,
+    paddingLeft: 4,
   },
   alertCard: {
     backgroundColor: '#FFFFFF',
@@ -1204,13 +1446,23 @@ const styles = StyleSheet.create({
   },
   noAlertsContainer: {
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: 80,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    marginHorizontal: 4,
+    borderRadius: 20,
+    backdropFilter: 'blur(10px)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 4,
   },
   noAlertsText: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#10B981',
-    marginTop: 12,
-    fontWeight: '600',
+    marginTop: 16,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   modalOverlay: {
     flex: 1,
@@ -1433,7 +1685,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   queueControlButton: {
-    backgroundColor: '#059669',
+    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+    backgroundColor: '#10B981',
   },
 });
 

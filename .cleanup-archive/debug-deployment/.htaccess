@@ -1,0 +1,9 @@
+RewriteEngine On
+
+# SPA Routing
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/_expo/
+RewriteRule . /index.html [L]
+
+ErrorDocument 404 /index.html

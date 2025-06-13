@@ -18,6 +18,10 @@ let supervisors = {};
 let dismissedAlerts = {};
 let supervisorSessions = {};
 
+// Auto-timeout configuration
+const SESSION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes in milliseconds
+let cleanupInterval;
+
 // Initialize data
 async function initializeSupervisorData() {
   try {
@@ -136,6 +140,9 @@ async function initializeSupervisorData() {
     console.log('💾 Using in-memory sessions only (cloud-compatible)');
 
     console.log(`✅ Supervisor system initialized: ${Object.keys(supervisors).length} supervisors, ${Object.keys(dismissedAlerts).length} dismissed alerts`);
+    
+    // Start auto-timeout cleanup
+    startSessionCleanup();
   } catch (error) {
     console.error('❌ Failed to initialize supervisor data:', error);
   }
@@ -161,6 +168,48 @@ async function saveDismissedAlerts() {
 async function saveSupervisorSessions() {
   // Don't save sessions to file on cloud platforms - use memory only
   // console.log('💾 Sessions stored in memory only');
+}
+
+// Auto-timeout: Clean up inactive sessions
+function cleanupInactiveSessions() {
+  const now = Date.now();
+  let cleanedCount = 0;
+  
+  Object.entries(supervisorSessions).forEach(([sessionId, session]) => {
+    if (session.active) {
+      const lastActivityTime = new Date(session.lastActivity).getTime();
+      const timeSinceActivity = now - lastActivityTime;
+      
+      if (timeSinceActivity > SESSION_TIMEOUT_MS) {
+        console.log(`⏰ Auto-timeout: Session ${sessionId} for ${session.supervisorName} (inactive for ${Math.round(timeSinceActivity / 1000 / 60)}m)`);
+        session.active = false;
+        session.endTime = new Date().toISOString();
+        session.timeoutReason = 'Auto-timeout after 10 minutes of inactivity';
+        cleanedCount++;
+      }
+    }
+  });
+  
+  if (cleanedCount > 0) {
+    console.log(`🧹 Auto-cleanup: ${cleanedCount} inactive session(s) timed out`);
+    console.log(`📊 Active sessions remaining: ${Object.values(supervisorSessions).filter(s => s.active).length}`);
+  }
+}
+
+// Start auto-cleanup interval
+function startSessionCleanup() {
+  // Clean up every minute
+  cleanupInterval = setInterval(cleanupInactiveSessions, 60 * 1000);
+  console.log('🕐 Session auto-timeout enabled: 10 minutes inactivity limit, cleanup every 60 seconds');
+}
+
+// Stop auto-cleanup interval  
+function stopSessionCleanup() {
+  if (cleanupInterval) {
+    clearInterval(cleanupInterval);
+    cleanupInterval = null;
+    console.log('🛑 Session auto-timeout disabled');
+  }
 }
 
 // Supervisor authentication
@@ -456,18 +505,40 @@ export function getDismissalStatistics(timeRange = 'today') {
   return stats;
 }
 
+// Update session activity (call this on any API interaction)
+export function updateSessionActivity(sessionId) {
+  const session = supervisorSessions[sessionId];
+  if (session && session.active) {
+    session.lastActivity = new Date().toISOString();
+    return true;
+  }
+  return false;
+}
+
 // Sign out supervisor
 export function signOutSupervisor(sessionId) {
   const session = supervisorSessions[sessionId];
   if (session) {
     session.active = false;
     session.endTime = new Date().toISOString();
+    session.signoutReason = 'Manual logout';
     // Don't save to file - memory only
     // saveSupervisorSessions();
     console.log(`🚪 Supervisor signed out: ${session.supervisorName}`);
     return { success: true };
   }
   return { success: false, error: 'Session not found' };
+}
+
+// Get session timeout info
+export function getSessionTimeoutInfo() {
+  return {
+    timeoutMinutes: SESSION_TIMEOUT_MS / (60 * 1000),
+    timeoutMs: SESSION_TIMEOUT_MS,
+    cleanupIntervalMs: 60 * 1000,
+    activeSessions: Object.values(supervisorSessions).filter(s => s.active).length,
+    totalSessions: Object.keys(supervisorSessions).length
+  };
 }
 
 // Initialize on module load
@@ -485,6 +556,11 @@ export default {
   getSupervisorActivity,
   getDismissalStatistics,
   signOutSupervisor,
+  updateSessionActivity,
+  getSessionTimeoutInfo,
+  cleanupInactiveSessions,
+  startSessionCleanup,
+  stopSessionCleanup,
   // Export sessions for debugging
   supervisorSessions
 };

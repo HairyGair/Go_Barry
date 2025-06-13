@@ -82,7 +82,7 @@ const TrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) => {
         // Create map instance
         const map = new window.mapboxgl.Map({
           container: mapContainer.current,
-          style: 'mapbox://styles/mapbox/dark-v11', // Dark theme for control room
+          style: 'mapbox://styles/mapbox/light-v11', // Bright theme to match supervisor interface
           center: NE_ENGLAND_CENTER,
           zoom: DEFAULT_ZOOM,
           projection: 'mercator',
@@ -118,14 +118,17 @@ const TrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) => {
               ],
               'circle-color': [
                 'case',
-                ['==', ['get', 'severity'], 'High'], '#ef4444', // Red for high severity
-                ['==', ['get', 'severity'], 'Medium'], '#f59e0b', // Orange for medium
-                '#10b981' // Green for low
+                ['==', ['get', 'severity'], 'CRITICAL'], '#DC2626', // Bright red for critical
+                ['==', ['get', 'severity'], 'HIGH'], '#EF4444', // Red for high severity  
+                ['==', ['get', 'severity'], 'High'], '#EF4444', // Red for high severity
+                ['==', ['get', 'severity'], 'MEDIUM'], '#F59E0B', // Bright orange for medium
+                ['==', ['get', 'severity'], 'Medium'], '#F59E0B', // Bright orange for medium
+                '#10B981' // Bright green for low
               ],
               'circle-stroke-color': [
                 'case',
-                ['==', ['get', 'isCurrent'], true], '#ffffff', // White stroke for current
-                '#000000'
+                ['==', ['get', 'isCurrent'], true], '#1F2937', // Dark stroke for current on light map
+                '#FFFFFF'
               ],
               'circle-stroke-width': [
                 'case',
@@ -149,11 +152,11 @@ const TrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) => {
             filter: ['==', ['get', 'isCurrent'], true],
             paint: {
               'circle-radius': 25,
-              'circle-color': '#ef4444',
-              'circle-opacity': 0.3,
-              'circle-stroke-color': '#ef4444',
-              'circle-stroke-width': 2,
-              'circle-stroke-opacity': 0.5
+              'circle-color': '#DC2626',
+              'circle-opacity': 0.4,
+              'circle-stroke-color': '#DC2626',
+              'circle-stroke-width': 3,
+              'circle-stroke-opacity': 0.7
             }
           });
 
@@ -184,11 +187,11 @@ const TrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) => {
             paint: {
               'text-color': [
                 'case',
-                ['==', ['get', 'isCurrent'], true], '#ffffff',
-                '#ffffff'
+                ['==', ['get', 'isCurrent'], true], '#1F2937',
+                '#374151'
               ],
-              'text-halo-color': '#000000',
-              'text-halo-width': 2,
+              'text-halo-color': '#FFFFFF',
+              'text-halo-width': 3,
               'text-halo-blur': 1
             }
           });
@@ -401,7 +404,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#1e293b',
+    backgroundColor: '#F3F4F6',
   },
   mapContainer: {
     width: '100%',
@@ -414,7 +417,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(30, 41, 59, 0.95)',
+    backgroundColor: 'rgba(243, 244, 246, 0.95)',
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 16,
@@ -424,26 +427,30 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   loadingText: {
-    color: '#ffffff',
+    color: '#1F2937',
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 8,
   },
   loadingSubtext: {
-    color: 'rgba(255, 255, 255, 0.7)',
+    color: '#6B7280',
     fontSize: 14,
   },
   mapInfo: {
     position: 'absolute',
     bottom: 16,
     right: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   mapInfoText: {
-    color: '#ffffff',
+    color: '#1F2937',
     fontSize: 12,
     fontWeight: '500',
   },
@@ -451,7 +458,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(30, 41, 59, 0.5)',
+    backgroundColor: 'rgba(243, 244, 246, 0.8)',
     borderRadius: 16,
     padding: 32,
   },
@@ -460,7 +467,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   unsupportedText: {
-    color: '#ffffff',
+    color: '#374151',
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 24,

@@ -212,8 +212,11 @@ app.use((req, res, next) => {
     'http://localhost:19000'
   ];
   
+  console.log(`🌐 CORS Debug: Origin=${origin}, Path=${req.path}`);
+  
   if (allowedOrigins.includes(origin) || !origin) {
     res.header('Access-Control-Allow-Origin', origin || '*');
+    console.log(`✅ CORS: Allowed origin: ${origin}`);
   } else {
     console.log(`⚠️ CORS: Blocked origin: ${origin}`);
     res.header('Access-Control-Allow-Origin', 'https://gobarry.co.uk');

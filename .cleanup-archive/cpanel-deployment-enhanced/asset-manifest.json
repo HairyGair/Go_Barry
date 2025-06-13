@@ -1,0 +1,41 @@
+{
+  "name": "Go Barry - Traffic Intelligence Platform",
+  "short_name": "Go Barry",
+  "version": "3.0.0",
+  "description": "Enhanced Traffic Intelligence Platform with Supervisor Integration",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#DC2626",
+  "background_color": "#1F2937",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "./assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "./assets/icon-512.png", 
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "features": {
+    "enhancedDisplay": true,
+    "supervisorIntegration": true,
+    "realTimePolling": true,
+    "activityFeed": true
+  },
+  "entryPoints": {
+    "main": "/",
+    "display": "/display", 
+    "supervisor": "/browser-main",
+    "test": "/test-api"
+  },
+  "build": {
+    "timestamp": "2024-12-19T23:00:00.000Z",
+    "version": "3.0.0",
+    "environment": "production"
+  }
+}
