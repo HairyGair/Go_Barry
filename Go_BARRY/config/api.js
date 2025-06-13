@@ -20,9 +20,8 @@ export const API_CONFIG = {
   
   // Fallback URLs for redundancy
   fallbackURLs: [
-    'http://localhost:3001',
     'https://go-barry.onrender.com',
-    'https://api.gobarry.co.uk'
+    'http://localhost:3001'
   ],
   
   // Refresh intervals (browser optimized)
