@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Dimensions, Platform, Image, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBarryAPI } from '../components/hooks/useBARRYapi';
-import { useSupervisorSync } from '../components/hooks/useSupervisorSync';
+import { useSupervisorPolling, CONNECTION_STATES } from '../components/hooks/useSupervisorPolling';
 import TrafficMap from '../components/TrafficMap';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -38,7 +38,7 @@ const ControlRoomDisplay = () => {
     customMessages,
     connectedSupervisors,
     activeSupervisors
-  } = useSupervisorSync({
+  } = useSupervisorPolling({
     clientType: 'display',
     autoConnect: true,
     onConnectionChange: (connected) => {
@@ -116,11 +116,14 @@ const ControlRoomDisplay = () => {
     <View style={styles.container}>
       {/* SIMPLE LOGO HEADER */}
       <View style={styles.logoHeader}>
-        <Image 
+        {/* <Image 
           source={require('../assets/gobarry-logo.png')}
           style={styles.logo}
           resizeMode="contain"
-        />
+        /> */}
+        <View style={styles.logoPlaceholder}>
+          <Text style={styles.logoText}>GO BARRY</Text>
+        </View>
         <View style={styles.headerInfo}>
           <Text style={styles.currentTime}>{formatTime(currentTime)}</Text>
           <View style={[styles.statusIndicator, { backgroundColor: systemStatus.color }]}>
@@ -287,6 +290,23 @@ const styles = StyleSheet.create({
     height: Math.min(48, screenHeight * 0.06),
     width: Math.min(160, screenWidth * 0.15),
     maxWidth: 200,
+  },
+  
+  logoPlaceholder: {
+    height: Math.min(48, screenHeight * 0.06),
+    width: Math.min(160, screenWidth * 0.15),
+    maxWidth: 200,
+    backgroundColor: '#E31E24',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  
+  logoText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: 'bold',
+    letterSpacing: 1,
   },
   
   headerInfo: {
