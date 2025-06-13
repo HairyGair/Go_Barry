@@ -481,6 +481,12 @@ router.get('/sync-status', async (req, res) => {
   try {
     const activeSupervisors = supervisorManager.getActiveSupervisors();
     
+    // Debug logging
+    console.log('🔍 Sync Status Debug:');
+    console.log('📊 Active supervisors from manager:', activeSupervisors.length);
+    console.log('👥 Supervisor details:', activeSupervisors.map(s => ({ name: s.name, sessionStart: s.sessionStart })));
+    console.log('💾 Session count:', Object.keys(supervisorManager.supervisorSessions || {}).length);
+    
     res.json({
       success: true,
       acknowledgedAlerts: Array.from(pollingState.acknowledgedAlerts),
