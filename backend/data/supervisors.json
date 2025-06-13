@@ -1,50 +1,92 @@
 {
   "supervisor001": {
     "id": "supervisor001",
-    "name": "John Smith",
-    "badge": "JS001",
-    "role": "Senior Supervisor",
+    "name": "Alex Woodcock",
+    "badge": "AW001",
+    "role": "Supervisor",
     "shift": "Day",
-    "permissions": ["view-alerts", "dismiss-alerts", "view-reports"],
-    "active": true,
-    "createdAt": "2025-01-01T00:00:00.000Z",
-    "department": "Traffic Control",
-    "email": "j.smith@gonortheast.co.uk"
-  },
-  "supervisor002": {
-    "id": "supervisor002",
-    "name": "Sarah Johnson",
-    "badge": "SJ002",
-    "role": "Traffic Controller",
-    "shift": "Night",
     "permissions": ["view-alerts", "dismiss-alerts"],
     "active": true,
-    "createdAt": "2025-01-01T00:00:00.000Z",
-    "department": "Traffic Control",
-    "email": "s.johnson@gonortheast.co.uk"
+    "createdAt": "2025-06-13T00:00:00.000Z"
+  },
+  "supervisor002": {
+    "id": "supervisor002", 
+    "name": "Andrew Cowley",
+    "badge": "AC002",
+    "role": "Supervisor",
+    "shift": "Day",
+    "permissions": ["view-alerts", "dismiss-alerts"],
+    "active": true,
+    "createdAt": "2025-06-13T00:00:00.000Z"
   },
   "supervisor003": {
     "id": "supervisor003",
-    "name": "Michael Brown",
-    "badge": "MB003",
-    "role": "Operations Manager",
+    "name": "Anthony Gair",
+    "badge": "AG003",
+    "role": "Supervisor",
     "shift": "Day",
-    "permissions": ["view-alerts", "dismiss-alerts", "view-reports", "manage-supervisors"],
+    "permissions": ["view-alerts", "dismiss-alerts"],
     "active": true,
-    "createdAt": "2025-01-01T00:00:00.000Z",
-    "department": "Operations",
-    "email": "m.brown@gonortheast.co.uk"
+    "createdAt": "2025-06-13T00:00:00.000Z"
   },
   "supervisor004": {
     "id": "supervisor004",
-    "name": "Emma Wilson",
-    "badge": "EW004",
-    "role": "Traffic Controller",
-    "shift": "Evening",
+    "name": "Claire Fiddler",
+    "badge": "CF004",
+    "role": "Supervisor",
+    "shift": "Day",
     "permissions": ["view-alerts", "dismiss-alerts"],
     "active": true,
-    "createdAt": "2025-01-01T00:00:00.000Z",
-    "department": "Traffic Control",
-    "email": "e.wilson@gonortheast.co.uk"
+    "createdAt": "2025-06-13T00:00:00.000Z"
+  },
+  "supervisor005": {
+    "id": "supervisor005",
+    "name": "David Hall",
+    "badge": "DH005",
+    "role": "Supervisor",
+    "shift": "Day",
+    "permissions": ["view-alerts", "dismiss-alerts"],
+    "active": true,
+    "createdAt": "2025-06-13T00:00:00.000Z"
+  },
+  "supervisor006": {
+    "id": "supervisor006",
+    "name": "James Daglish",
+    "badge": "JD006",
+    "role": "Supervisor",
+    "shift": "Day",
+    "permissions": ["view-alerts", "dismiss-alerts"],
+    "active": true,
+    "createdAt": "2025-06-13T00:00:00.000Z"
+  },
+  "supervisor007": {
+    "id": "supervisor007",
+    "name": "John Paterson",
+    "badge": "JP007",
+    "role": "Supervisor",
+    "shift": "Day",
+    "permissions": ["view-alerts", "dismiss-alerts"],
+    "active": true,
+    "createdAt": "2025-06-13T00:00:00.000Z"
+  },
+  "supervisor008": {
+    "id": "supervisor008",
+    "name": "Simon Glass",
+    "badge": "SG008",
+    "role": "Supervisor",
+    "shift": "Day",
+    "permissions": ["view-alerts", "dismiss-alerts"],
+    "active": true,
+    "createdAt": "2025-06-13T00:00:00.000Z"
+  },
+  "supervisor009": {
+    "id": "supervisor009",
+    "name": "Barry Perryman",
+    "badge": "BP009",
+    "role": "Service Delivery Controller - Line Manager",
+    "shift": "Day",
+    "permissions": ["view-alerts", "dismiss-alerts", "view-reports", "manage-supervisors"],
+    "active": true,
+    "createdAt": "2025-06-13T00:00:00.000Z"
   }
 }
