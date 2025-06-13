@@ -284,6 +284,180 @@ router.get('/statistics/dismissals', async (req, res) => {
   }
 });
 
+// ===== ADMIN ENDPOINTS =====
+
+// Log out all supervisors (admin only)
+router.post('/admin/logout-all', async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Session ID is required'
+      });
+    }
+    
+    const result = supervisorManager.logoutAllSupervisors(sessionId);
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        message: result.message,
+        loggedOutCount: result.loggedOutCount,
+        adminSupervisor: result.adminSupervisor,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(403).json({
+        success: false,
+        error: result.error
+      });
+    }
+  } catch (error) {
+    console.error('❌ Admin logout all error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to logout all supervisors'
+    });
+  }
+});
+
+// Add new supervisor (admin only)
+router.post('/admin/add-supervisor', async (req, res) => {
+  try {
+    const { sessionId, name, role, badge, shift, permissions } = req.body;
+    
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Session ID is required'
+      });
+    }
+    
+    if (!name || !role || !badge) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name, role, and badge are required'
+      });
+    }
+    
+    const supervisorData = {
+      name,
+      role,
+      badge,
+      shift: shift || 'Day',
+      permissions: permissions || ['view-alerts', 'dismiss-alerts']
+    };
+    
+    const result = await supervisorManager.addSupervisor(sessionId, supervisorData);
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        message: result.message,
+        supervisor: result.supervisor,
+        adminSupervisor: result.adminSupervisor,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: result.error
+      });
+    }
+  } catch (error) {
+    console.error('❌ Add supervisor error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add supervisor'
+    });
+  }
+});
+
+// Delete supervisor (admin only)
+router.delete('/admin/delete-supervisor/:supervisorId', async (req, res) => {
+  try {
+    const { supervisorId: supervisorIdToDelete } = req.params;
+    const { sessionId } = req.body;
+    
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Session ID is required'
+      });
+    }
+    
+    if (!supervisorIdToDelete) {
+      return res.status(400).json({
+        success: false,
+        error: 'Supervisor ID is required'
+      });
+    }
+    
+    const result = await supervisorManager.deleteSupervisor(sessionId, supervisorIdToDelete);
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        message: result.message,
+        deletedSupervisor: result.deletedSupervisor,
+        adminSupervisor: result.adminSupervisor,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: result.error
+      });
+    }
+  } catch (error) {
+    console.error('❌ Delete supervisor error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete supervisor'
+    });
+  }
+});
+
+// Check admin permissions (for frontend to show/hide admin features)
+router.get('/admin/check-permissions', async (req, res) => {
+  try {
+    const { sessionId } = req.query;
+    
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Session ID is required'
+      });
+    }
+    
+    // Validate session
+    const sessionValidation = supervisorManager.validateSupervisorSession(sessionId);
+    if (!sessionValidation.success) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid session'
+      });
+    }
+    
+    const hasAdmin = supervisorManager.hasAdminPermissions(sessionValidation.supervisor.id);
+    
+    res.json({
+      success: true,
+      hasAdminPermissions: hasAdmin,
+      supervisor: sessionValidation.supervisor,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Check admin permissions error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check permissions'
+    });
+  }
+});
+
 // Get session timeout configuration and status
 router.get('/timeout-info', async (req, res) => {
   try {

@@ -55,9 +55,9 @@ async function initializeSupervisorData() {
           id: 'supervisor003',
           name: 'Anthony Gair',
           badge: 'AG003',
-          role: 'Supervisor',
+          role: 'Developer/Admin',
           shift: 'Day',
-          permissions: ['view-alerts', 'dismiss-alerts'],
+          permissions: ['view-alerts', 'dismiss-alerts', 'view-reports', 'manage-supervisors'],
           active: true,
           createdAt: new Date().toISOString()
         },
@@ -541,6 +541,231 @@ export function getSessionTimeoutInfo() {
   };
 }
 
+// ===== ADMIN FUNCTIONS =====
+
+// Check if supervisor has admin permissions
+export function hasAdminPermissions(supervisorId) {
+  const supervisor = supervisors[supervisorId];
+  return supervisor && supervisor.permissions.includes('manage-supervisors');
+}
+
+// Log out all supervisors (admin function)
+export function logoutAllSupervisors(adminSessionId) {
+  try {
+    // Validate admin session
+    const sessionValidation = validateSupervisorSession(adminSessionId);
+    if (!sessionValidation.success) {
+      return { success: false, error: 'Invalid admin session' };
+    }
+    
+    const adminSupervisor = sessionValidation.supervisor;
+    
+    // Check admin permissions
+    if (!hasAdminPermissions(adminSupervisor.id)) {
+      return { success: false, error: 'Insufficient permissions - admin access required' };
+    }
+    
+    // Count active sessions before logout
+    const activeSessions = Object.values(supervisorSessions).filter(s => s.active);
+    const loggedOutCount = activeSessions.length;
+    
+    // Log out all active sessions
+    Object.entries(supervisorSessions).forEach(([sessionId, session]) => {
+      if (session.active) {
+        session.active = false;
+        session.endTime = new Date().toISOString();
+        session.adminLogout = true;
+        session.loggedOutBy = {
+          supervisorId: adminSupervisor.id,
+          supervisorName: adminSupervisor.name,
+          badge: adminSupervisor.badge
+        };
+      }
+    });
+    
+    console.log(`🚨 ADMIN ACTION: ${adminSupervisor.name} (${adminSupervisor.badge}) logged out all ${loggedOutCount} active supervisors`);
+    
+    return {
+      success: true,
+      message: `Successfully logged out ${loggedOutCount} supervisors`,
+      loggedOutCount,
+      adminSupervisor: {
+        id: adminSupervisor.id,
+        name: adminSupervisor.name,
+        badge: adminSupervisor.badge
+      }
+    };
+    
+  } catch (error) {
+    console.error('❌ Failed to logout all supervisors:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Add new supervisor (admin function)
+export async function addSupervisor(adminSessionId, supervisorData) {
+  try {
+    // Validate admin session
+    const sessionValidation = validateSupervisorSession(adminSessionId);
+    if (!sessionValidation.success) {
+      return { success: false, error: 'Invalid admin session' };
+    }
+    
+    const adminSupervisor = sessionValidation.supervisor;
+    
+    // Check admin permissions
+    if (!hasAdminPermissions(adminSupervisor.id)) {
+      return { success: false, error: 'Insufficient permissions - admin access required' };
+    }
+    
+    // Validate required fields
+    const { name, role, badge } = supervisorData;
+    if (!name || !role || !badge) {
+      return { success: false, error: 'Name, role, and badge are required' };
+    }
+    
+    // Generate supervisor ID
+    const existingIds = Object.keys(supervisors).map(id => {
+      const match = id.match(/supervisor(\d+)/);
+      return match ? parseInt(match[1]) : 0;
+    });
+    const nextNumber = Math.max(...existingIds) + 1;
+    const supervisorId = `supervisor${nextNumber.toString().padStart(3, '0')}`;
+    
+    // Check if badge already exists
+    const existingBadge = Object.values(supervisors).find(s => s.badge === badge);
+    if (existingBadge) {
+      return { success: false, error: `Badge ${badge} already exists for ${existingBadge.name}` };
+    }
+    
+    // Create new supervisor
+    const newSupervisor = {
+      id: supervisorId,
+      name: name.trim(),
+      badge: badge.trim().toUpperCase(),
+      role: role.trim(),
+      shift: supervisorData.shift || 'Day',
+      permissions: supervisorData.permissions || ['view-alerts', 'dismiss-alerts'],
+      active: true,
+      createdAt: new Date().toISOString(),
+      createdBy: {
+        supervisorId: adminSupervisor.id,
+        supervisorName: adminSupervisor.name,
+        badge: adminSupervisor.badge
+      }
+    };
+    
+    // Add to supervisors
+    supervisors[supervisorId] = newSupervisor;
+    await saveSupervisors();
+    
+    console.log(`👥 ADMIN ACTION: ${adminSupervisor.name} added new supervisor: ${newSupervisor.name} (${newSupervisor.badge})`);
+    
+    return {
+      success: true,
+      message: `Successfully added supervisor ${newSupervisor.name}`,
+      supervisor: {
+        id: newSupervisor.id,
+        name: newSupervisor.name,
+        badge: newSupervisor.badge,
+        role: newSupervisor.role,
+        shift: newSupervisor.shift,
+        permissions: newSupervisor.permissions
+      },
+      adminSupervisor: {
+        id: adminSupervisor.id,
+        name: adminSupervisor.name,
+        badge: adminSupervisor.badge
+      }
+    };
+    
+  } catch (error) {
+    console.error('❌ Failed to add supervisor:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Delete supervisor (admin function)
+export async function deleteSupervisor(adminSessionId, supervisorIdToDelete) {
+  try {
+    // Validate admin session
+    const sessionValidation = validateSupervisorSession(adminSessionId);
+    if (!sessionValidation.success) {
+      return { success: false, error: 'Invalid admin session' };
+    }
+    
+    const adminSupervisor = sessionValidation.supervisor;
+    
+    // Check admin permissions
+    if (!hasAdminPermissions(adminSupervisor.id)) {
+      return { success: false, error: 'Insufficient permissions - admin access required' };
+    }
+    
+    // Prevent self-deletion
+    if (supervisorIdToDelete === adminSupervisor.id) {
+      return { success: false, error: 'Cannot delete your own supervisor account' };
+    }
+    
+    // Check if supervisor exists
+    const supervisorToDelete = supervisors[supervisorIdToDelete];
+    if (!supervisorToDelete) {
+      return { success: false, error: 'Supervisor not found' };
+    }
+    
+    // Prevent deletion of Barry Perryman (Service Delivery Controller)
+    if (supervisorIdToDelete === 'supervisor009') {
+      return { success: false, error: 'Cannot delete Service Delivery Controller account' };
+    }
+    
+    // Log out any active sessions for this supervisor
+    Object.entries(supervisorSessions).forEach(([sessionId, session]) => {
+      if (session.supervisorId === supervisorIdToDelete && session.active) {
+        session.active = false;
+        session.endTime = new Date().toISOString();
+        session.deletedByAdmin = true;
+        session.deletedBy = {
+          supervisorId: adminSupervisor.id,
+          supervisorName: adminSupervisor.name,
+          badge: adminSupervisor.badge
+        };
+      }
+    });
+    
+    // Mark supervisor as deleted (don't actually delete for audit trail)
+    supervisorToDelete.active = false;
+    supervisorToDelete.deletedAt = new Date().toISOString();
+    supervisorToDelete.deletedBy = {
+      supervisorId: adminSupervisor.id,
+      supervisorName: adminSupervisor.name,
+      badge: adminSupervisor.badge
+    };
+    
+    await saveSupervisors();
+    
+    console.log(`🗑️ ADMIN ACTION: ${adminSupervisor.name} deleted supervisor: ${supervisorToDelete.name} (${supervisorToDelete.badge})`);
+    
+    return {
+      success: true,
+      message: `Successfully deleted supervisor ${supervisorToDelete.name}`,
+      deletedSupervisor: {
+        id: supervisorToDelete.id,
+        name: supervisorToDelete.name,
+        badge: supervisorToDelete.badge,
+        role: supervisorToDelete.role
+      },
+      adminSupervisor: {
+        id: adminSupervisor.id,
+        name: adminSupervisor.name,
+        badge: adminSupervisor.badge
+      }
+    };
+    
+  } catch (error) {
+    console.error('❌ Failed to delete supervisor:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 // Initialize on module load
 initializeSupervisorData();
 
@@ -561,6 +786,11 @@ export default {
   cleanupInactiveSessions,
   startSessionCleanup,
   stopSessionCleanup,
+  // Admin functions
+  hasAdminPermissions,
+  logoutAllSupervisors,
+  addSupervisor,
+  deleteSupervisor,
   // Export sessions for debugging
   supervisorSessions
 };
