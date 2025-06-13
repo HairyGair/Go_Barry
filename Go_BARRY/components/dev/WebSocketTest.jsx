@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { useSupervisorSession } from '../components/hooks/useSupervisorSession';
-import { useSupervisorSync } from '../components/hooks/useSupervisorSync';
+import { useSupervisorSession } from '../hooks/useSupervisorSession';
+import { useSupervisorSync } from '../hooks/useSupervisorSync';
 
 const WebSocketTest = () => {
   const {

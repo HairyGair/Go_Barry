@@ -14,8 +14,8 @@ import {
   Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useBarryAPI } from './hooks/useBARRYapi';
-import { useSupervisorSync } from './hooks/useSupervisorSync';
+import { useBarryAPI } from '../hooks/useBARRYapi';
+import { useSupervisorSync } from '../hooks/useSupervisorSync';
 
 const isWeb = Platform.OS === 'web';
 

@@ -1,1 +1,131 @@
-// Go_BARRY/components/QuickSupervisorTest.jsx\n// Quick test component to verify supervisor card works\n\nimport React from 'react';\nimport {\n  View,\n  Text,\n  StyleSheet,\n  ScrollView\n} from 'react-native';\nimport SupervisorCard from './SupervisorCard';\n\nconst QuickSupervisorTest = () => {\n  // Sample data for immediate testing\n  const testSupervisors = [\n    {\n      id: 'barry_perryman',\n      name: 'Barry Perryman',\n      role: 'Service Delivery Controller - Line Manager',\n      duty: { name: 'Service Delivery Controller Shift' },\n      isAdmin: true,\n      loginTime: new Date(Date.now() - 120 * 60000).toISOString(),\n      status: 'active'\n    },\n    {\n      id: 'alex_woodcock',\n      name: 'Alex Woodcock',\n      role: 'Traffic Supervisor',\n      duty: { name: 'Duty 100 (6am-3:30pm)' },\n      isAdmin: false,\n      loginTime: new Date(Date.now() - 45 * 60000).toISOString(),\n      status: 'active'\n    }\n  ];\n\n  return (\n    <ScrollView style={styles.container}>\n      <View style={styles.header}>\n        <Text style={styles.title}>🚦 Supervisor Card Test</Text>\n        <Text style={styles.subtitle}>\n          Testing individual supervisor tracking - Barry (Line Manager) + Alex (Regular Supervisor)\n        </Text>\n      </View>\n\n      <View style={styles.cardContainer}>\n        <Text style={styles.cardTitle}>Live Supervisor Card:</Text>\n        <SupervisorCard \n          supervisors={testSupervisors}\n          connectedCount={2}\n          onCardPress={(expanded) => {\n            console.log('Test supervisor card', expanded ? 'expanded' : 'collapsed');\n          }}\n        />\n      </View>\n\n      <View style={styles.info}>\n        <Text style={styles.infoTitle}>✅ What You Should See:</Text>\n        <Text style={styles.infoText}>• Green status (2 supervisors online)</Text>\n        <Text style={styles.infoText}>• Tap to expand details</Text>\n        <Text style={styles.infoText}>• Barry with purple shield + \"LINE MGR\" badge</Text>\n        <Text style={styles.infoText}>• Alex with blue person icon</Text>\n        <Text style={styles.infoText}>• Login times (\"2h ago\", \"45m ago\")</Text>\n        <Text style={styles.infoText}>• System status indicators at bottom</Text>\n      </View>\n    </ScrollView>\n  );\n};\n\nconst styles = StyleSheet.create({\n  container: {\n    flex: 1,\n    backgroundColor: '#F8FAFC',\n  },\n  \n  header: {\n    padding: 24,\n    backgroundColor: '#FFFFFF',\n    borderBottomWidth: 1,\n    borderBottomColor: '#E5E7EB',\n  },\n  \n  title: {\n    fontSize: 24,\n    fontWeight: '700',\n    color: '#1F2937',\n    marginBottom: 8,\n  },\n  \n  subtitle: {\n    fontSize: 16,\n    color: '#6B7280',\n    lineHeight: 24,\n  },\n  \n  cardContainer: {\n    margin: 16,\n  },\n  \n  cardTitle: {\n    fontSize: 18,\n    fontWeight: '600',\n    color: '#374151',\n    marginBottom: 12,\n    paddingHorizontal: 4,\n  },\n  \n  info: {\n    backgroundColor: '#FFFFFF',\n    margin: 16,\n    padding: 20,\n    borderRadius: 12,\n    borderWidth: 1,\n    borderColor: '#E5E7EB',\n  },\n  \n  infoTitle: {\n    fontSize: 16,\n    fontWeight: '600',\n    color: '#374151',\n    marginBottom: 12,\n  },\n  \n  infoText: {\n    fontSize: 14,\n    color: '#4B5563',\n    marginBottom: 8,\n    lineHeight: 20,\n  },\n});\n\nexport default QuickSupervisorTest;
+// Go_BARRY/components/QuickSupervisorTest.jsx
+// Quick test component to verify supervisor card works
+
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView
+} from 'react-native';
+import SupervisorCard from '../archive/SupervisorCard';
+
+const QuickSupervisorTest = () => {
+  // Sample data for immediate testing
+  const testSupervisors = [
+    {
+      id: 'barry_perryman',
+      name: 'Barry Perryman',
+      role: 'Service Delivery Controller - Line Manager',
+      duty: { name: 'Service Delivery Controller Shift' },
+      isAdmin: true,
+      loginTime: new Date(Date.now() - 120 * 60000).toISOString(),
+      status: 'active'
+    },
+    {
+      id: 'alex_woodcock',
+      name: 'Alex Woodcock',
+      role: 'Traffic Supervisor',
+      duty: { name: 'Duty 100 (6am-3:30pm)' },
+      isAdmin: false,
+      loginTime: new Date(Date.now() - 45 * 60000).toISOString(),
+      status: 'active'
+    }
+  ];
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>🚦 Supervisor Card Test</Text>
+        <Text style={styles.subtitle}>
+          Testing individual supervisor tracking - Barry (Line Manager) + Alex (Regular Supervisor)
+        </Text>
+      </View>
+
+      <View style={styles.cardContainer}>
+        <Text style={styles.cardTitle}>Live Supervisor Card:</Text>
+        <SupervisorCard 
+          supervisors={testSupervisors}
+          connectedCount={2}
+          onCardPress={(expanded) => {
+            console.log('Test supervisor card', expanded ? 'expanded' : 'collapsed');
+          }}
+        />
+      </View>
+
+      <View style={styles.info}>
+        <Text style={styles.infoTitle}>✅ What You Should See:</Text>
+        <Text style={styles.infoText}>• Green status (2 supervisors online)</Text>
+        <Text style={styles.infoText}>• Tap to expand details</Text>
+        <Text style={styles.infoText}>• Barry with purple shield + "LINE MGR" badge</Text>
+        <Text style={styles.infoText}>• Alex with blue person icon</Text>
+        <Text style={styles.infoText}>• Login times ("2h ago", "45m ago")</Text>
+        <Text style={styles.infoText}>• System status indicators at bottom</Text>
+      </View>
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  
+  header: {
+    padding: 24,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  
+  subtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    lineHeight: 24,
+  },
+  
+  cardContainer: {
+    margin: 16,
+  },
+  
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  
+  info: {
+    backgroundColor: '#FFFFFF',
+    margin: 16,
+    padding: 20,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+  },
+  
+  infoText: {
+    fontSize: 14,
+    color: '#4B5563',
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+});
+
+export default QuickSupervisorTest;
