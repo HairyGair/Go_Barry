@@ -65,8 +65,12 @@ class SupervisorPollingService {
 
   // Main polling function
   async poll() {
+    console.log(`📊 Polling supervisor sync-status...`);
     try {
-      const response = await fetch(`${API_BASE}/api/supervisor/sync-status`, {
+      const url = `${API_BASE}/api/supervisor/sync-status`;
+      console.log(`🔗 Making request to: ${url}`);
+      
+      const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -79,11 +83,15 @@ class SupervisorPollingService {
       }
 
       const data = await response.json();
+      console.log(`✅ Sync-status response:`, {
+        connectedSupervisors: data.connectedSupervisors,
+        activeSupervisors: data.activeSupervisors?.length || 0
+      });
       
       // Quick hash check to see if anything changed
       const currentHash = this.generateDataHash(data);
       if (currentHash === this.lastHash) {
-        // No changes, skip processing
+        console.log(`⏭️ No changes detected, skipping update`);
         return;
       }
       

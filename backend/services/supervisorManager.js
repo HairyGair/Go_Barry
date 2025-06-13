@@ -184,7 +184,8 @@ export function authenticateSupervisor(supervisorId, badge) {
   };
   
   console.log(`✅ Session created: ${sessionId} for ${supervisor.name}`);
-  console.log(`💾 Active sessions: ${Object.keys(supervisorSessions).length}`);
+  console.log(`💾 Active sessions after creation: ${Object.keys(supervisorSessions).length}`);
+  console.log(`📊 Sessions object:`, Object.keys(supervisorSessions));
   
   // Don't save to file - memory only
   // saveSupervisorSessions();
@@ -348,8 +349,14 @@ export function getAllSupervisors() {
 
 // Get active supervisors (currently signed in)
 export function getActiveSupervisors() {
+  console.log(`🔍 getActiveSupervisors called`);
+  console.log(`💾 Sessions available: ${Object.keys(supervisorSessions).length}`);
+  console.log(`🗂️ Session IDs:`, Object.keys(supervisorSessions));
+  
   const activeSessions = Object.values(supervisorSessions).filter(session => session.active);
-  return activeSessions.map(session => {
+  console.log(`✅ Active sessions found: ${activeSessions.length}`);
+  
+  const result = activeSessions.map(session => {
     const supervisor = supervisors[session.supervisorId];
     return {
       supervisorId: session.supervisorId,
@@ -360,6 +367,9 @@ export function getActiveSupervisors() {
       lastActivity: session.lastActivity
     };
   });
+  
+  console.log(`📋 Returning ${result.length} active supervisors:`, result.map(s => s.name));
+  return result;
 }
 
 // Get supervisor activity log

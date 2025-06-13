@@ -122,16 +122,24 @@ export const useSupervisorPolling = ({
   // Connect to polling service
   const connect = useCallback(() => {
     console.log(`🔌 ${clientType} connecting to polling service...`);
+    console.log(`📍 API Base URL:`, supervisorPollingService);
     setConnectionState('CONNECTING');
     
     // Add listener for state updates
     const removeListener = supervisorPollingService.addListener(handleStateUpdate);
     
     // Start polling
+    console.log(`🚀 Starting polling for ${clientType}...`);
     supervisorPollingService.startPolling();
     
     // Get initial state
     const initialState = supervisorPollingService.getState();
+    console.log(`📋 Initial state for ${clientType}:`, {
+      connected: initialState.connected,
+      connectedSupervisors: initialState.connectedSupervisors,
+      activeSupervisors: initialState.activeSupervisors?.length || 0
+    });
+    
     setAcknowledgedAlerts(initialState.acknowledgedAlerts);
     setPriorityOverrides(initialState.priorityOverrides);
     setSupervisorNotes(initialState.supervisorNotes);

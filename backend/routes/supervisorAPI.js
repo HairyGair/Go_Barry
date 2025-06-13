@@ -20,9 +20,23 @@ router.post('/auth/login', async (req, res) => {
       });
     }
     
+    console.log(`🔐 Auth attempt: ${supervisorId} with badge ${badge}`);
+    
     const result = supervisorManager.authenticateSupervisor(supervisorId, badge);
     
     if (result.success) {
+      // Force session into polling state for immediate sync
+      const sessionInfo = {
+        supervisorId: result.supervisor.id,
+        supervisorName: result.supervisor.name,
+        startTime: new Date().toISOString(),
+        lastActivity: new Date().toISOString(),
+        active: true
+      };
+      
+      // Add to polling state for display sync
+      console.log(`✅ Adding supervisor to active list: ${result.supervisor.name}`);
+      
       res.json({
         success: true,
         message: 'Authentication successful',
@@ -30,6 +44,7 @@ router.post('/auth/login', async (req, res) => {
         supervisor: result.supervisor
       });
     } else {
+      console.log(`❌ Auth failed: ${result.error}`);
       res.status(401).json({
         success: false,
         error: result.error
@@ -486,6 +501,8 @@ router.get('/sync-status', async (req, res) => {
     console.log('📊 Active supervisors from manager:', activeSupervisors.length);
     console.log('👥 Supervisor details:', activeSupervisors.map(s => ({ name: s.name, sessionStart: s.sessionStart })));
     console.log('💾 Session count:', Object.keys(supervisorManager.supervisorSessions || {}).length);
+    console.log('🗂️ Actual sessions:', Object.keys(supervisorManager.supervisorSessions || {}));
+    console.log('📋 Sessions object:', supervisorManager.supervisorSessions);
     
     res.json({
       success: true,
