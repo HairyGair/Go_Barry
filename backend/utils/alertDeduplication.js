@@ -18,8 +18,19 @@ export function generateAlertHash(alert) {
     coordKey = `${lat}-${lng}`;
   }
   
-  // Create hash from key components
-  const hashInput = `${locationKey}-${titleKey}-${descriptionKey}-${coordKey}`;
+  // For TomTom alerts with identical locations, use source-specific deduplication
+  let sourceKey = alert.source || 'unknown';
+  
+  // AGGRESSIVE DEDUPLICATION: If location is very specific (like "Westerhope, Newcastle upon Tyne")
+  // and from same source, consider it the same incident regardless of title variations
+  if (locationKey.length > 15 && (titleKey.includes('traffic') || titleKey.includes('road') || titleKey.includes('incident'))) {
+    // Use only location + source for highly specific locations
+    const hashInput = `${locationKey}-${sourceKey}`;
+    return crypto.createHash('md5').update(hashInput).digest('hex');
+  }
+  
+  // Standard hash for other cases
+  const hashInput = `${locationKey}-${titleKey}-${descriptionKey}-${coordKey}-${sourceKey}`;
   return crypto.createHash('md5').update(hashInput).digest('hex');
 }
 
