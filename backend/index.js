@@ -26,6 +26,7 @@ import supervisorSyncService from './services/supervisorSync.js';
 import enhancedDataSourceManager from './services/enhancedDataSourceManager.js';
 import streetManagerWebhooks from './services/streetManagerWebhooksSimple.js';
 import { createServer } from 'http';
+import { deduplicateAlerts, cleanupExpiredDismissals, generateAlertHash } from './utils/alertDeduplication.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -130,6 +131,25 @@ let alertNotes = {};
     console.log(`🚌 Loaded ${GTFS_ROUTES.size} GTFS routes`);
   } catch (err) {
     console.error('❌ Failed to load routes.txt:', err);
+  }
+  
+  // Load dismissed alerts for persistence across restarts
+  try {
+    const dismissedFilePath = path.join(__dirname, 'data/dismissed-alerts.json');
+    const raw = await fs.readFile(dismissedFilePath, 'utf-8');
+    const dismissedData = JSON.parse(raw);
+    
+    global.dismissedIncidents = new Map();
+    for (const [key, value] of Object.entries(dismissedData)) {
+      global.dismissedIncidents.set(key, value);
+    }
+    
+    // Clean up expired dismissals on startup
+    const cleanedCount = cleanupExpiredDismissals(global.dismissedIncidents, 48);
+    console.log(`✅ Loaded ${global.dismissedIncidents.size} dismissed alerts (cleaned ${cleanedCount} expired)`);
+  } catch (err) {
+    global.dismissedIncidents = new Map();
+    console.log('📝 No dismissed alerts file found, starting fresh');
   }
   
   try {
@@ -504,21 +524,47 @@ app.get('/api/messaging/channels', (req, res) => {
   });
 });
 
-// Check if alert is dismissed
-function isAlertDismissed(alertId) {
+// Check if alert is dismissed (with hash-based checking for consistency)
+function isAlertDismissed(alertId, alert = null) {
   if (!global.dismissedIncidents) return false;
-  return global.dismissedIncidents.has(alertId);
+  
+  // Check by exact ID first
+  if (global.dismissedIncidents.has(alertId)) {
+    return true;
+  }
+  
+  // If alert object provided, also check by content hash
+  if (alert) {
+    const alertHash = generateAlertHash(alert);
+    const hashKey = `hash_${alertHash}`;
+    
+    if (global.dismissedIncidents.has(hashKey)) {
+      return true;
+    }
+  }
+  
+  return false;
 }
 
-// Filter out dismissed alerts
+// Filter out dismissed alerts with improved checking
 function filterDismissedAlerts(alerts, requestId) {
   if (!Array.isArray(alerts)) return [];
   
-  const activeDismissals = global.dismissedIncidents || new Map();
+  // Periodic cleanup of expired dismissals (every ~100 requests)
+  if (!global.lastCleanup || Date.now() - global.lastCleanup > 10 * 60 * 1000) {
+    if (global.dismissedIncidents) {
+      const cleanedCount = cleanupExpiredDismissals(global.dismissedIncidents, 48);
+      if (cleanedCount > 0) {
+        console.log(`🧹 [${requestId}] Cleaned up ${cleanedCount} expired dismissals`);
+      }
+    }
+    global.lastCleanup = Date.now();
+  }
+  
   const filtered = alerts.filter(alert => {
-    if (activeDismissals.has(alert.id)) {
-      const dismissal = activeDismissals.get(alert.id);
-      console.log(`🙅 [${requestId}] Alert ${alert.id} dismissed by ${dismissal.dismissedBy.supervisorName}: ${dismissal.reason}`);
+    const dismissed = isAlertDismissed(alert.id, alert);
+    if (dismissed) {
+      console.log(`🙅 [${requestId}] Alert ${alert.id} dismissed (${alert.location})`);
       return false;
     }
     return true;
@@ -532,19 +578,20 @@ function filterDismissedAlerts(alerts, requestId) {
   return filtered;
 }
 
-// Enhanced alert filtering
+// Enhanced alert filtering with advanced deduplication
 function enhancedAlertFiltering(alerts, requestId) {
   if (!Array.isArray(alerts)) return [];
   
-  console.log(`🔍 [${requestId}] Enhanced filtering starting with ${alerts.length} alerts`);
+  console.log(`🔍 [${requestId}] Enhanced filtering with advanced deduplication starting with ${alerts.length} alerts`);
   
-  const seenAlerts = new Map();
-  const filtered = [];
+  // Use the new advanced deduplication system
+  const deduplicated = deduplicateAlerts(alerts, requestId);
   
-  for (const alert of alerts) {
-    if (!alert || typeof alert !== 'object') continue;
+  // Additional basic filtering for any remaining edge cases
+  const filtered = deduplicated.filter(alert => {
+    if (!alert || typeof alert !== 'object') return false;
     
-    // Filter out test data
+    // Filter out obviously invalid alerts
     const id = (alert.id || '').toString().toLowerCase();
     const title = (alert.title || '').toString().toLowerCase();
     const source = (alert.source || '').toString().toLowerCase();
@@ -552,44 +599,13 @@ function enhancedAlertFiltering(alerts, requestId) {
     if (id.includes('test_data') || id.includes('sample_test') || 
         title.includes('test alert') || source === 'test_system') {
       console.log(`🗑️ [${requestId}] Filtered test alert: ${id}`);
-      continue;
+      return false;
     }
     
-    // Create deduplication key
-    const location = alert.location || '';
-    const coordinates = alert.coordinates;
-    let dedupKey = '';
-    
-    if (coordinates && Array.isArray(coordinates) && coordinates.length >= 2) {
-      const lat = Math.round(coordinates[0] * 1000) / 1000;
-      const lng = Math.round(coordinates[1] * 1000) / 1000;
-      dedupKey = `${lat},${lng}`;
-    } else {
-      dedupKey = location.toLowerCase().replace(/[^a-z0-9]/g, '');
-    }
-    
-    // Check for duplicates
-    if (seenAlerts.has(dedupKey)) {
-      const existing = seenAlerts.get(dedupKey);
-      const sourcePreference = { tomtom: 4, here: 3, mapquest: 2, national_highways: 1 };
-      const currentPref = sourcePreference[alert.source] || 0;
-      const existingPref = sourcePreference[existing.source] || 0;
-      
-      if (currentPref > existingPref) {
-        const existingIndex = filtered.findIndex(a => a.id === existing.id);
-        if (existingIndex !== -1) {
-          filtered[existingIndex] = alert;
-          seenAlerts.set(dedupKey, alert);
-        }
-      }
-      continue;
-    }
-    
-    seenAlerts.set(dedupKey, alert);
-    filtered.push(alert);
-  }
+    return true;
+  });
   
-  console.log(`✅ [${requestId}] Enhanced filtering: ${alerts.length} → ${filtered.length} alerts`);
+  console.log(`✅ [${requestId}] Enhanced filtering with advanced deduplication: ${alerts.length} → ${filtered.length} alerts`);
   return filtered;
 }
 
@@ -1173,10 +1189,10 @@ app.get('/api/emergency-alerts', async (req, res) => {
   }
 });
 
-// Supervisor dismiss alert endpoint
+// Supervisor dismiss alert endpoint with improved persistence
 app.post('/api/supervisor/dismiss-alert', async (req, res) => {
   try {
-    const { alertId, reason, sessionId } = req.body;
+    const { alertId, reason, sessionId, alertData } = req.body;
     
     if (!alertId || !reason || !sessionId) {
       return res.status(400).json({
@@ -1211,16 +1227,42 @@ app.post('/api/supervisor/dismiss-alert', async (req, res) => {
       reason,
       sessionId,
       ipAddress: req.ip || 'unknown',
-      userAgent: req.get('User-Agent') || 'unknown'
+      userAgent: req.get('User-Agent') || 'unknown',
+      alertLocation: alertData?.location || 'Unknown'
     };
     
     // Store dismissal
     if (!global.dismissedIncidents) {
       global.dismissedIncidents = new Map();
     }
+    
+    // Store by alert ID
     global.dismissedIncidents.set(alertId, dismissalRecord);
     
-    console.log(`🙅 Alert ${alertId} dismissed by ${supervisor.name} (${supervisor.badge}): ${reason}`);
+    // Also store by content hash for better deduplication
+    if (alertData) {
+      const alertHash = generateAlertHash(alertData);
+      const hashKey = `hash_${alertHash}`;
+      global.dismissedIncidents.set(hashKey, {
+        ...dismissalRecord,
+        dismissalMethod: 'content_hash',
+        originalAlertId: alertId
+      });
+      console.log(`🙅 Alert ${alertId} dismissed by hash ${alertHash.substring(0, 8)}... for future deduplication`);
+    }
+    
+    // Persist to file for restart recovery (async, don't wait)
+    const dismissedFilePath = path.join(__dirname, 'data/dismissed-alerts.json');
+    try {
+      const dismissedObject = Object.fromEntries(global.dismissedIncidents);
+      fs.writeFile(dismissedFilePath, JSON.stringify(dismissedObject, null, 2)).catch(err => {
+        console.warn('⚠️ Failed to persist dismissals:', err.message);
+      });
+    } catch (err) {
+      console.warn('⚠️ Failed to serialize dismissals:', err.message);
+    }
+    
+    console.log(`🙅 Alert ${alertId} dismissed by ${supervisor.name} (${supervisor.badge}): ${reason} at ${alertData?.location || 'Unknown location'}`);
     
     res.json({
       success: true,

@@ -1,0 +1,498 @@
+// Go_BARRY/components/NewDisplayScreen.jsx
+// COMPLETELY NEW - Clean 50/50 Display Screen
+// Built from scratch to actually work
+
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  Dimensions
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useBarryAPI } from './hooks/useBARRYapi';
+import { useSupervisorPolling } from './hooks/useSupervisorPolling';
+
+const { width, height } = Dimensions.get('window');
+
+const NewDisplayScreen = () => {
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Get alerts data
+  const { alerts, loading, lastUpdated } = useBarryAPI({
+    autoRefresh: true,
+    refreshInterval: 15000
+  });
+
+  // Get supervisor data
+  const {
+    connectedSupervisors = 0,
+    activeSupervisors = []
+  } = useSupervisorPolling({
+    clientType: 'display',
+    autoConnect: true
+  });
+
+  // Update time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTime = (date) => {
+    return date.toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+  };
+
+  const formatDate = (date) => {
+    return date.toLocaleDateString('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  };
+
+  return (
+    <View style={styles.container}>
+      
+      {/* TOP HEADER */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text style={styles.systemTitle}>GO NORTH EAST CONTROL ROOM</Text>
+          <Text style={styles.displayTitle}>24/7 TRAFFIC MONITORING DISPLAY</Text>
+        </View>
+        
+        <View style={styles.headerCenter}>
+          <Text style={styles.timeDisplay}>{formatTime(currentTime)}</Text>
+          <Text style={styles.dateDisplay}>{formatDate(currentTime)}</Text>
+        </View>
+        
+        <View style={styles.headerRight}>
+          <Text style={styles.supervisorCount}>
+            {connectedSupervisors} Supervisor{connectedSupervisors !== 1 ? 's' : ''} Online
+          </Text>
+          <Text style={styles.lastUpdate}>
+            Last Update: {lastUpdated ? new Date(lastUpdated).toLocaleTimeString('en-GB') : 'Never'}
+          </Text>
+        </View>
+      </View>
+
+      {/* MAIN CONTENT - 50/50 SPLIT */}
+      <View style={styles.mainContent}>
+        
+        {/* LEFT SIDE - ALERTS (50%) */}
+        <View style={styles.leftSection}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="alert-circle" size={24} color="#FFFFFF" />
+            <Text style={styles.sectionTitle}>LIVE ALERTS</Text>
+            <Text style={styles.alertCount}>{alerts.length}</Text>
+          </View>
+          
+          <View style={styles.alertsContent}>
+            {alerts.length > 0 ? (
+              <View style={styles.alertCard}>
+                <View style={styles.alertHeader}>
+                  <Ionicons name="warning" size={48} color="#DC2626" />
+                  <Text style={styles.alertTitle}>{alerts[0].title}</Text>
+                </View>
+                <Text style={styles.alertLocation}>{alerts[0].location}</Text>
+                <Text style={styles.alertDescription}>{alerts[0].description}</Text>
+                
+                {alerts[0].affectsRoutes && alerts[0].affectsRoutes.length > 0 && (
+                  <View style={styles.routesSection}>
+                    <Text style={styles.routesLabel}>AFFECTED SERVICES:</Text>
+                    <View style={styles.routesList}>
+                      {alerts[0].affectsRoutes.map((route, idx) => (
+                        <View key={idx} style={styles.routeBadge}>
+                          <Text style={styles.routeText}>{route}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </View>
+            ) : (
+              <View style={styles.noAlertsContainer}>
+                <Ionicons name="shield-checkmark" size={80} color="#10B981" />
+                <Text style={styles.noAlertsTitle}>ALL CLEAR</Text>
+                <Text style={styles.noAlertsText}>No active traffic alerts</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* RIGHT SIDE - MAP (50%) */}
+        <View style={styles.rightSection}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="map" size={24} color="#FFFFFF" />
+            <Text style={styles.sectionTitle}>LIVE TRAFFIC MAP</Text>
+            <Text style={styles.mapSubtitle}>Newcastle & Gateshead</Text>
+          </View>
+          
+          <View style={styles.mapContent}>
+            <View style={styles.mapPlaceholder}>
+              <Ionicons name="map-outline" size={120} color="#6B7280" />
+              <Text style={styles.mapPlaceholderText}>
+                Interactive Map Area
+              </Text>
+              <Text style={styles.mapPlaceholderSubtext}>
+                Live traffic visualization for North East England
+              </Text>
+            </View>
+          </View>
+          
+          {/* Map Legend */}
+          <View style={styles.mapLegend}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#DC2626' }]} />
+              <Text style={styles.legendText}>Critical</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} />
+              <Text style={styles.legendText}>Delays</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
+              <Text style={styles.legendText}>Normal</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* BOTTOM STATUS */}
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          Go North East Control Room • 24/7 Traffic Intelligence • Professional Display
+        </Text>
+        <View style={styles.statusIndicators}>
+          <View style={styles.statusItem}>
+            <View style={[styles.statusDot, { backgroundColor: loading ? '#F59E0B' : '#10B981' }]} />
+            <Text style={styles.statusText}>
+              {loading ? 'UPDATING...' : 'LIVE DATA'}
+            </Text>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+    minHeight: '100vh',
+  },
+  
+  // HEADER STYLES
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 4,
+    borderBottomColor: '#DC2626',
+    elevation: 8,
+  },
+  headerLeft: {
+    flex: 1,
+  },
+  systemTitle: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#1F2937',
+    letterSpacing: 1,
+  },
+  displayTitle: {
+    fontSize: 16,
+    color: '#DC2626',
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  timeDisplay: {
+    fontSize: 48,
+    fontWeight: '900',
+    color: '#1F2937',
+    fontFamily: 'monospace',
+    letterSpacing: 2,
+  },
+  dateDisplay: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  headerRight: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  supervisorCount: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  lastUpdate: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontFamily: 'monospace',
+  },
+  
+  // MAIN CONTENT - 50/50 SPLIT
+  mainContent: {
+    flex: 1,
+    flexDirection: 'row', // THIS IS THE KEY - ROW = SIDE BY SIDE
+    backgroundColor: '#1E293B',
+  },
+  
+  // LEFT SECTION (50%)
+  leftSection: {
+    flex: 1, // Takes 50% of width
+    backgroundColor: '#1F2937',
+    borderRightWidth: 2,
+    borderRightColor: '#374151',
+  },
+  
+  // RIGHT SECTION (50%) 
+  rightSection: {
+    flex: 1, // Takes 50% of width
+    backgroundColor: '#1F2937',
+  },
+  
+  // SECTION HEADERS
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 20,
+    backgroundColor: '#111827',
+    borderBottomWidth: 2,
+    borderBottomColor: '#374151',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 1,
+    flex: 1,
+    marginLeft: 12,
+  },
+  alertCount: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    minWidth: 40,
+    textAlign: 'center',
+  },
+  mapSubtitle: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    fontWeight: '500',
+  },
+  
+  // ALERTS CONTENT
+  alertsContent: {
+    flex: 1,
+    padding: 24,
+  },
+  alertCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    borderLeftWidth: 6,
+    borderLeftColor: '#DC2626',
+    elevation: 8,
+  },
+  alertHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginBottom: 16,
+  },
+  alertTitle: {
+    flex: 1,
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1F2937',
+    lineHeight: 28,
+  },
+  alertLocation: {
+    fontSize: 20,
+    color: '#3B82F6',
+    fontWeight: '600',
+    marginBottom: 12,
+    textAlign: 'center',
+    backgroundColor: '#EBF8FF',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  alertDescription: {
+    fontSize: 16,
+    color: '#4B5563',
+    lineHeight: 24,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  routesSection: {
+    backgroundColor: '#FEF2F2',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  routesLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#DC2626',
+    marginBottom: 12,
+    textAlign: 'center',
+    letterSpacing: 1,
+  },
+  routesList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  routeBadge: {
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  routeText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    fontFamily: 'monospace',
+  },
+  
+  // NO ALERTS STATE
+  noAlertsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    borderRadius: 16,
+    padding: 40,
+    margin: 12,
+  },
+  noAlertsTitle: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#10B981',
+    marginTop: 16,
+    marginBottom: 8,
+    letterSpacing: 2,
+  },
+  noAlertsText: {
+    fontSize: 18,
+    color: '#059669',
+    fontWeight: '600',
+  },
+  
+  // MAP CONTENT
+  mapContent: {
+    flex: 1,
+    margin: 24,
+  },
+  mapPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#374151',
+    borderRadius: 16,
+    padding: 40,
+  },
+  mapPlaceholderText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#D1D5DB',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  mapPlaceholderSubtext: {
+    fontSize: 16,
+    color: '#9CA3AF',
+    textAlign: 'center',
+  },
+  
+  // MAP LEGEND
+  mapLegend: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    padding: 20,
+    backgroundColor: '#111827',
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  legendText: {
+    fontSize: 14,
+    color: '#D1D5DB',
+    fontWeight: '600',
+  },
+  
+  // FOOTER
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#111827',
+    borderTopWidth: 2,
+    borderTopColor: '#374151',
+  },
+  footerText: {
+    fontSize: 14,
+    color: '#D1D5DB',
+    fontWeight: '500',
+  },
+  statusIndicators: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  statusItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    color: '#D1D5DB',
+    fontWeight: '600',
+    letterSpacing: 1,
+  },
+});
+
+export default NewDisplayScreen;

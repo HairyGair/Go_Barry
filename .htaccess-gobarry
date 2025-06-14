@@ -1,0 +1,46 @@
+# .htaccess for Go BARRY Expo App
+# Fix server to serve index.html as default document
+
+DirectoryIndex index.html
+
+# Enable static file serving
+<FilesMatch "\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$">
+    # Set proper MIME types
+    <IfModule mod_mime.c>
+        AddType application/javascript .js
+        AddType text/css .css
+        AddType image/png .png
+        AddType image/jpeg .jpg
+        AddType image/jpeg .jpeg
+        AddType image/gif .gif
+        AddType image/svg+xml .svg
+    </IfModule>
+    
+    # Cache static assets
+    ExpiresActive On
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+</FilesMatch>
+
+# Handle React Router (if using client-side routing)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Handle Angular and React Router
+    RewriteBase /
+    RewriteRule ^index\.html$ - [L]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule . /index.html [L]
+</IfModule>
+
+# Security headers
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options nosniff
+    Header always set X-Frame-Options DENY
+    Header always set X-XSS-Protection "1; mode=block"
+</IfModule>
