@@ -22,6 +22,7 @@ import roadworksAPI from './routes/roadworksAPI.js';
 import gtfsAPI from './routes/gtfsAPI.js';
 import intelligenceAPI from './routes/intelligenceAPI.js';
 import incidentAPI from './routes/incidentAPI.js';
+import enhancementAPI from './routes/enhancementAPI.js';
 import supervisorSyncService from './services/supervisorSync.js';
 import enhancedDataSourceManager from './services/enhancedDataSourceManager.js';
 import streetManagerWebhooks from './services/streetManagerWebhooksSimple.js';
@@ -291,6 +292,9 @@ app.use('/api/gtfs', gtfsAPI);
 
 // Incident management routes
 app.use('/api/incidents', incidentAPI);
+
+// TomTom Enhancement API routes
+app.use('/api/enhancement', enhancementAPI);
 
 // StreetManager webhook routes
 app.post('/api/streetmanager/webhook', async (req, res) => {

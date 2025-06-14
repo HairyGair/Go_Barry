@@ -5,6 +5,7 @@ import express from 'express';
 import geocodingService, { geocodeLocation } from '../services/geocoding.js';
 import findGTFSRoutesNearCoordinates from '../gtfs-route-matcher.js';
 import sharedStorage from '../services/sharedIncidentStorage.js';
+import { enhanceIncidentWithTomTom } from '../services/tomtomEnhancementService.js';
 
 const router = express.Router();
 
@@ -115,6 +116,24 @@ router.post('/', async (req, res) => {
 
     // Save to shared storage
     const savedIncident = await sharedStorage.addIncident(incident);
+
+    // Try to enhance with TomTom features (non-blocking)
+    try {
+      const enhanced = await enhanceIncidentWithTomTom(savedIncident);
+      if (enhanced.enhancedWithTomTom) {
+        // Update with enhanced data
+        await sharedStorage.updateIncident(savedIncident.id, enhanced);
+        console.log(`✨ Enhanced incident ${savedIncident.id} with TomTom data`);
+        return res.json({
+          success: true,
+          incident: enhanced,
+          message: 'Incident created and enhanced successfully'
+        });
+      }
+    } catch (enhanceError) {
+      console.warn('TomTom enhancement failed:', enhanceError.message);
+      // Continue with non-enhanced incident
+    }
 
     console.log(`✅ Created shared incident: ${savedIncident.id} at ${location} affecting ${affectedRoutes.length} routes`);
     
