@@ -156,6 +156,21 @@ const SimpleAlertCard = ({ alert, supervisorSession, onDismiss, onAcknowledge, s
             </TouchableOpacity>
             <TouchableOpacity
               style={{
+                backgroundColor: '#3B82F6',
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 6,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4
+              }}
+              onPress={() => openIncidentMap(alert)}
+            >
+              <Ionicons name="map" size={14} color="#FFFFFF" />
+              <Text style={{ fontSize: 12, color: '#FFFFFF', fontWeight: '600' }}>MAP</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
                 backgroundColor: '#EF4444',
                 paddingHorizontal: 12,
                 paddingVertical: 6,
@@ -326,6 +341,40 @@ const SupervisorControl = ({
       showNotification('Failed to update priority', 'error');
     }
   }, [updateAlertPriority, showNotification]);
+
+  // Handle opening map for incident
+  const openIncidentMap = useCallback((alert) => {
+    if (!alert) return;
+    
+    let mapUrl;
+    
+    // Check if incident has coordinates
+    if (alert.coordinates && Array.isArray(alert.coordinates) && alert.coordinates.length === 2) {
+      const [lat, lng] = alert.coordinates;
+      // Use Google Maps with coordinates (more reliable for supervisor use)
+      mapUrl = `https://www.google.com/maps?q=${lat},${lng}&zoom=16&t=m`;
+      console.log(`🗺️ Opening map with coordinates: ${lat}, ${lng}`);
+    } else if (alert.location) {
+      // Fallback to location search
+      const encodedLocation = encodeURIComponent(`${alert.location}, UK`);
+      mapUrl = `https://www.google.com/maps/search/${encodedLocation}`;
+      console.log(`🗺️ Opening map with location search: ${alert.location}`);
+    } else {
+      // Final fallback to general Newcastle area
+      mapUrl = 'https://www.google.com/maps?q=Newcastle+upon+Tyne,+UK&zoom=12';
+      console.log('🗺️ Opening map with fallback to Newcastle area');
+      showNotification('No specific location available, showing Newcastle area', 'info');
+    }
+    
+    // Open in new tab/window
+    if (isWeb) {
+      window.open(mapUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      // For mobile, could integrate with native maps
+      console.log('📱 Map URL for mobile:', mapUrl);
+      showNotification('Map feature optimized for web supervisor interface', 'info');
+    }
+  }, [showNotification]);
 
   // Handle adding note
   const handleAddNote = useCallback(async (alert) => {

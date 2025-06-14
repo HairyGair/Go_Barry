@@ -7,6 +7,9 @@ import { fetchHERETrafficWithStreetNames } from './here.js';
 import { fetchMapQuestTrafficWithStreetNames } from './mapquest.js';
 import { fetchNationalHighways } from './nationalHighways.js';
 import streetManagerWebhooks from './streetManagerWebhooksSimple.js';
+import timeBasedPollingManager from './timeBasedPollingManager.js';
+import duplicateDetectionManager from './duplicateDetectionManager.js';
+import enhancedGeocodingService from './enhancedGeocodingService.js';
 
 class EnhancedDataSourceManager {
   constructor() {
@@ -25,7 +28,7 @@ class EnhancedDataSourceManager {
     this.cacheTimeout = 2 * 60 * 1000; // 2 minutes
   }
 
-  // EXPANDED: Main aggregation with 6 data sources
+  // EXPANDED: Main aggregation with 6 data sources + free tier compliance
   async aggregateAllSources() {
     console.log('🚀 [EXPANDED] Starting enhanced data aggregation with 6 sources...');
     
@@ -37,6 +40,10 @@ class EnhancedDataSourceManager {
       console.log('📦 Returning cached enhanced data');
       return this.aggregatedData;
     }
+    
+    // Check time-based polling restrictions
+    const pollingStatus = timeBasedPollingManager.getOptimizedSchedule();
+    console.log(`⏰ Polling window status: ${pollingStatus.overallStatus}`);
     
     const startTime = Date.now();
     const results = await Promise.allSettled([
@@ -51,6 +58,7 @@ class EnhancedDataSourceManager {
     const allIncidents = [];
     const successfulSources = [];
     const sourceStats = {};
+    const skippedSources = [];
     
     const sourceNames = ['tomtom', 'here', 'mapquest', 'national_highways', 'streetmanager', 'manual_incidents'];
     
@@ -67,24 +75,42 @@ class EnhancedDataSourceManager {
           count: incidents.length,
           method: result.value.method || 'API',
           mode: result.value.mode || 'live',
-          lastUpdate: new Date().toISOString()
+          lastUpdate: new Date().toISOString(),
+          pollingAllowed: result.value.pollingAllowed || true
         };
         
         console.log(`✅ [EXPANDED] ${sourceName.toUpperCase()}: ${incidents.length} incidents`);
       } else {
+        const pollingCheck = timeBasedPollingManager.canPollSource(sourceName);
+        
         sourceStats[sourceName] = {
           success: false,
           count: 0,
           error: result.reason?.message || result.value?.error || 'Unknown error',
-          mode: 'live'
+          mode: 'live',
+          pollingAllowed: pollingCheck.allowed,
+          pollingReason: pollingCheck.reason
         };
         
-        console.log(`❌ [EXPANDED] ${sourceName.toUpperCase()}: Failed - ${sourceStats[sourceName].error}`);
+        if (!pollingCheck.allowed) {
+          skippedSources.push(sourceName);
+          console.log(`⏳ [RATE LIMITED] ${sourceName.toUpperCase()}: ${pollingCheck.reason}`);
+        } else {
+          console.log(`❌ [EXPANDED] ${sourceName.toUpperCase()}: Failed - ${sourceStats[sourceName].error}`);
+        }
       }
     });
     
+    // Duplicate detection and removal
+    console.log('🔍 Running duplicate detection...');
+    const deduplicationResult = duplicateDetectionManager.processIncidents(allIncidents);
+    
+    // Enhanced geocoding for incidents missing coordinates
+    console.log('🌍 Running enhanced geocoding...');
+    const geocodedIncidents = await this.enhanceIncidentsWithGeocoding(deduplicationResult.deduplicated);
+    
     // ML-enhanced processing
-    const enhancedIncidents = this.enhanceWithML(allIncidents);
+    const enhancedIncidents = this.enhanceWithML(geocodedIncidents);
     const prioritizedIncidents = this.prioritizeIncidents(enhancedIncidents);
     
     const fetchDuration = Date.now() - startTime;
@@ -101,15 +127,22 @@ class EnhancedDataSourceManager {
         highPriority: prioritizedIncidents.filter(i => i.mlPrediction?.severity >= 3).length,
         criticalImpact: prioritizedIncidents.filter(i => i.routeImpact?.impactLevel === 'CRITICAL').length,
         withRoutes: prioritizedIncidents.filter(i => i.affectsRoutes?.length > 0).length,
-        withCoordinates: prioritizedIncidents.filter(i => i.coordinates?.length === 2).length
+        withCoordinates: prioritizedIncidents.filter(i => i.coordinates?.length === 2).length,
+        duplicatesRemoved: deduplicationResult.stats.duplicatesRemoved,
+        mergedIncidents: deduplicationResult.stats.mergedGroups,
+        geocoded: prioritizedIncidents.filter(i => i.geocoded).length
       },
+      duplicationStats: deduplicationResult.stats,
       performance: {
         fetchDuration: `${fetchDuration}ms`,
         sourcesActive: successfulSources.length,
         totalSources: Object.keys(this.sourceConfigs).length,
         sourcesEnabled: Object.keys(this.sourceConfigs).filter(k => this.sourceConfigs[k].enabled).length,
-        capacity: `${successfulSources.length}/${Object.keys(this.sourceConfigs).length} sources active`
-      }
+        capacity: `${successfulSources.length}/${Object.keys(this.sourceConfigs).length} sources active`,
+        skippedSources: skippedSources.length,
+        pollingWindowActive: pollingStatus.overallStatus === 'ACTIVE_WINDOW'
+      },
+      pollingStatus: pollingStatus
     };
     
     this.lastFetchTime = now;
@@ -118,32 +151,110 @@ class EnhancedDataSourceManager {
     return this.aggregatedData;
   }
 
-  // Real API fetch methods
+  // Enhanced geocoding for incidents missing coordinates
+  async enhanceIncidentsWithGeocoding(incidents) {
+    const incidentsNeedingGeocoding = incidents.filter(incident => {
+      const hasCoords = incident.coordinates && 
+                       Array.isArray(incident.coordinates) && 
+                       incident.coordinates.length === 2 &&
+                       !isNaN(incident.coordinates[0]) && 
+                       !isNaN(incident.coordinates[1]);
+      return !hasCoords && incident.location;
+    });
+    
+    if (incidentsNeedingGeocoding.length === 0) {
+      console.log('📍 All incidents already have coordinates');
+      return incidents;
+    }
+    
+    console.log(`📍 Geocoding ${incidentsNeedingGeocoding.length} incidents...`);
+    
+    // Batch geocode for efficiency
+    const locations = incidentsNeedingGeocoding.map(inc => inc.location);
+    const geocodingResults = await enhancedGeocodingService.batchGeocode(locations);
+    
+    // Apply geocoding results
+    const enhanced = incidents.map(incident => {
+      const needsGeocoding = incidentsNeedingGeocoding.find(i => i.id === incident.id);
+      if (!needsGeocoding) return incident;
+      
+      const geocodeIndex = incidentsNeedingGeocoding.indexOf(needsGeocoding);
+      const geocodeResult = geocodingResults[geocodeIndex];
+      
+      if (geocodeResult && geocodeResult.success) {
+        return {
+          ...incident,
+          coordinates: geocodeResult.coordinates,
+          geocoded: true,
+          geocodingConfidence: geocodeResult.confidence,
+          geocodingSource: geocodeResult.source,
+          formattedAddress: geocodeResult.formattedAddress
+        };
+      }
+      
+      return { ...incident, geocoded: false };
+    });
+    
+    const successfulGeocodings = enhanced.filter(i => i.geocoded).length;
+    console.log(`✅ Successfully geocoded ${successfulGeocodings}/${incidentsNeedingGeocoding.length} incidents`);
+    
+    return enhanced;
+  }
+
+  // Real API fetch methods with time-based polling
   async fetchTomTomData() {
+    const pollingCheck = timeBasedPollingManager.canPollSource('tomtom');
+    if (!pollingCheck.allowed) {
+      return { 
+        success: false, 
+        error: `Polling restricted: ${pollingCheck.reason}`,
+        pollingAllowed: false
+      };
+    }
+    
     try {
+      timeBasedPollingManager.recordPoll('tomtom', false); // Record attempt
       const result = await fetchTomTomTrafficWithStreetNames();
+      timeBasedPollingManager.recordPoll('tomtom', result.success); // Record actual result
+      
       return {
         success: result.success,
         incidents: result.data || [],
         method: result.method || 'TomTom API',
-        mode: 'live'
+        mode: 'live',
+        pollingAllowed: true
       };
     } catch (error) {
-      return { success: false, error: error.message };
+      timeBasedPollingManager.recordPoll('tomtom', false);
+      return { success: false, error: error.message, pollingAllowed: true };
     }
   }
 
   async fetchHereData() {
+    const pollingCheck = timeBasedPollingManager.canPollSource('here');
+    if (!pollingCheck.allowed) {
+      return { 
+        success: false, 
+        error: `Polling restricted: ${pollingCheck.reason}`,
+        pollingAllowed: false
+      };
+    }
+    
     try {
+      timeBasedPollingManager.recordPoll('here', false);
       const result = await fetchHERETrafficWithStreetNames();
+      timeBasedPollingManager.recordPoll('here', result.success);
+      
       return {
         success: result.success,
         incidents: result.data || [],
         method: result.method || 'HERE API',
-        mode: 'live'
+        mode: 'live',
+        pollingAllowed: true
       };
     } catch (error) {
-      return { success: false, error: error.message };
+      timeBasedPollingManager.recordPoll('here', false);
+      return { success: false, error: error.message, pollingAllowed: true };
     }
   }
 
@@ -152,41 +263,80 @@ class EnhancedDataSourceManager {
       return { 
         success: false, 
         error: 'MapQuest API key missing',
-        data: [] 
+        incidents: [],
+        pollingAllowed: false
+      };
+    }
+    
+    const pollingCheck = timeBasedPollingManager.canPollSource('mapquest');
+    if (!pollingCheck.allowed) {
+      return { 
+        success: false, 
+        error: `Polling restricted: ${pollingCheck.reason}`,
+        pollingAllowed: false
       };
     }
     
     try {
+      timeBasedPollingManager.recordPoll('mapquest', false);
       const result = await fetchMapQuestTrafficWithStreetNames();
+      timeBasedPollingManager.recordPoll('mapquest', result.success);
+      
       return {
         success: result.success,
         incidents: result.data || [],
         method: result.method || 'MapQuest API',
-        mode: 'live'
+        mode: 'live',
+        pollingAllowed: true
       };
     } catch (error) {
-      return { success: false, error: error.message };
+      timeBasedPollingManager.recordPoll('mapquest', false);
+      return { success: false, error: error.message, pollingAllowed: true };
     }
   }
 
   async fetchNationalHighwaysData() {
+    const pollingCheck = timeBasedPollingManager.canPollSource('national_highways');
+    if (!pollingCheck.allowed) {
+      return { 
+        success: false, 
+        error: `Polling restricted: ${pollingCheck.reason}`,
+        pollingAllowed: false
+      };
+    }
+    
     try {
+      timeBasedPollingManager.recordPoll('national_highways', false);
       const result = await fetchNationalHighways();
+      timeBasedPollingManager.recordPoll('national_highways', result.success);
+      
       return {
         success: result.success,
         incidents: result.data || [],
         method: 'National Highways DATEX II API',
-        mode: 'live'
+        mode: 'live',
+        pollingAllowed: true
       };
     } catch (error) {
-      return { success: false, error: error.message };
+      timeBasedPollingManager.recordPoll('national_highways', false);
+      return { success: false, error: error.message, pollingAllowed: true };
     }
   }
 
   // ACTIVATED: StreetManager webhook data fetcher
   async fetchStreetManagerData() {
+    const pollingCheck = timeBasedPollingManager.canPollSource('streetmanager');
+    if (!pollingCheck.allowed) {
+      return { 
+        success: false, 
+        error: `Polling restricted: ${pollingCheck.reason}`,
+        pollingAllowed: false
+      };
+    }
+    
     try {
       console.log('🚧 [ACTIVATED] Fetching StreetManager webhook data...');
+      timeBasedPollingManager.recordPoll('streetmanager', false);
       
       // Get data from webhook storage (no API calls needed)
       const activitiesResult = streetManagerWebhooks.getWebhookActivities();
@@ -209,44 +359,64 @@ class EnhancedDataSourceManager {
         console.log(`✅ StreetManager Permits: ${permits.length} planned works from webhooks`);
       }
       
+      timeBasedPollingManager.recordPoll('streetmanager', true);
+      
       return {
         success: true,
         incidents: allData,
         method: 'StreetManager UK Webhooks',
         mode: 'webhook_receiver',
-        count: totalCount
+        count: totalCount,
+        pollingAllowed: true
       };
       
     } catch (error) {
       console.error('❌ StreetManager webhook fetch failed:', error.message);
+      timeBasedPollingManager.recordPoll('streetmanager', false);
       return { 
         success: false, 
         error: error.message,
-        incidents: [] 
+        incidents: [],
+        pollingAllowed: true
       };
     }
   }
 
   // ACTIVATED: Manual incidents fetcher  
   async fetchManualIncidents() {
+    const pollingCheck = timeBasedPollingManager.canPollSource('manual_incidents');
+    if (!pollingCheck.allowed) {
+      return { 
+        success: false, 
+        error: `Polling restricted: ${pollingCheck.reason}`,
+        pollingAllowed: false
+      };
+    }
+    
     try {
       console.log('📝 [ACTIVATED] Fetching manual incidents...');
+      timeBasedPollingManager.recordPoll('manual_incidents', false);
       
       // TODO: Connect to Supabase/local storage for manual incidents
       // For now, demonstrate it's activated but empty
+      timeBasedPollingManager.recordPoll('manual_incidents', true);
+      
       return {
         success: true,
         incidents: [],
         method: 'Local Database',
         mode: 'incident_manager',
-        count: 0
+        count: 0,
+        pollingAllowed: true
       };
       
     } catch (error) {
+      timeBasedPollingManager.recordPoll('manual_incidents', false);
       return {
         success: false,
         error: error.message,
-        incidents: []
+        incidents: [],
+        pollingAllowed: true
       };
     }
   }
