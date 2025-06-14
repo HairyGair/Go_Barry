@@ -1,5 +1,5 @@
 // services/nationalHighways.js
-// National Highways API Integration  
+// National Highways RSS Feed Integration (Fixed for XML/RSS response)
 import axios from 'axios';
 import { enhancedTextOnlyRouteMatching } from '../utils/enhancedRouteMatching.js';
 
@@ -11,97 +11,154 @@ function matchRoutes(location, description = '') {
   return routes;
 }
 
-function classifyAlert(alert) {
-  const now = new Date();
-  let status = 'green';
+// Parse RSS item to extract traffic alert data
+function parseRSSItem(itemText) {
+  const extractField = (field) => {
+    const regex = new RegExp(`<${field}><!\\[CDATA\\[([^\\]]+)\\]\\]></${field}>`);
+    const match = itemText.match(regex);
+    return match ? match[1].trim() : '';
+  };
   
-  try {
-    const startDate = alert.startDate ? new Date(alert.startDate) : null;
-    const endDate = alert.endDate ? new Date(alert.endDate) : null;
-    
-    if (startDate && endDate) {
-      if (startDate <= now && endDate >= now) {
-        status = 'red'; // Active
-      } else if (startDate > now) {
-        const daysUntil = Math.floor((startDate - now) / (1000 * 60 * 60 * 24));
-        if (daysUntil <= 7) {
-          status = 'amber'; // Upcoming
-        }
-      }
-    } else if (alert.category?.toLowerCase().includes('closure')) {
-      status = 'red'; // Assume active if it's a closure
+  const extractSimpleField = (field) => {
+    const regex = new RegExp(`<${field}>([^<]+)</${field}>`);
+    const match = itemText.match(regex);
+    return match ? match[1].trim() : '';
+  };
+
+  return {
+    title: extractField('title') || extractSimpleField('title'),
+    description: extractField('description') || extractSimpleField('description'),
+    category: extractField('category') || extractSimpleField('category'),
+    road: extractField('road') || extractSimpleField('road'),
+    county: extractField('county') || extractSimpleField('county'),
+    region: extractField('region') || extractSimpleField('region'),
+    latitude: parseFloat(extractSimpleField('latitude')) || null,
+    longitude: parseFloat(extractSimpleField('longitude')) || null,
+    overallStart: extractSimpleField('overallStart'),
+    overallEnd: extractSimpleField('overallEnd'),
+    publishDate: extractSimpleField('pubDate')
+  };
+}
+
+// Check if alert is in North East region
+function isNorthEastAlert(alert) {
+  const northEastCounties = [
+    'northumberland', 'tyne and wear', 'durham', 'tyne & wear',
+    'newcastle', 'gateshead', 'sunderland', 'north tyneside', 'south tyneside'
+  ];
+  
+  const northEastRoads = ['A1', 'A19', 'A69', 'A167', 'A194', 'A1058', 'A184', 'A690'];
+  
+  // Check county
+  if (alert.county) {
+    const county = alert.county.toLowerCase();
+    if (northEastCounties.some(ne => county.includes(ne))) {
+      return true;
     }
-  } catch (error) {
-    console.warn('⚠️ Alert classification error:', error.message);
   }
   
-  return status;
+  // Check region
+  if (alert.region && alert.region.toLowerCase().includes('north east')) {
+    return true;
+  }
+  
+  // Check road
+  if (alert.road) {
+    return northEastRoads.some(road => alert.road.includes(road));
+  }
+  
+  // Check coordinates (rough North East boundary)
+  if (alert.latitude && alert.longitude) {
+    return alert.latitude >= 54.5 && alert.latitude <= 55.5 && 
+           alert.longitude >= -2.5 && alert.longitude <= -1.0;
+  }
+  
+  return false;
 }
 
 async function fetchNationalHighways() {
-  const apiKey = process.env.NATIONAL_HIGHWAYS_API_KEY;
-  
-  if (!apiKey) {
-    console.warn('⚠️ National Highways API key not found');
-    return { success: false, data: [], error: 'API key missing' };
-  }
-
   try {
-    console.log('🛣️ Fetching National Highways data...');
+    console.log('🛣️ Fetching National Highways RSS feed...');
     
-    const response = await axios.get('https://api.data.nationalhighways.co.uk/roads/v2.0/closures', {
+    // Use the RSS feed that works without API key
+    const response = await axios.get('https://m.highwaysengland.co.uk/feeds/rss/UnplannedEvents.xml', {
       headers: {
-        'Ocp-Apim-Subscription-Key': apiKey,
-        'Accept': 'application/json',
-        'User-Agent': 'BARRY-TrafficWatch/3.0'
+        'User-Agent': 'BARRY-TrafficWatch/3.0',
+        'Accept': 'application/xml, text/xml'
       },
       timeout: 15000
     });
     
-    console.log(`✅ National Highways: HTTP ${response.status}`);
+    console.log(`✅ National Highways RSS: HTTP ${response.status}`);
     
-    if (!response.data || !response.data.features) {
-      console.warn('⚠️ No features in National Highways response');
-      return { success: false, data: [], error: 'No features in response' };
+    if (!response.data || typeof response.data !== 'string') {
+      console.warn('⚠️ Invalid RSS response from National Highways');
+      return { success: false, data: [], error: 'Invalid RSS response' };
     }
     
-    const allFeatures = response.data.features;
-    console.log(`📊 Total features from National Highways: ${allFeatures.length}`);
-
-    // Filter for North East and process
-    const northEastAlerts = allFeatures
-      .filter(() => true)
-      .map(feature => {
-        const props = feature.properties;
-        const routes = matchRoutes(props.location || '', props.description || '');
-        const status = classifyAlert(props);
-
-        return {
-          id: `nh_${props.id || Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-          type: 'roadwork',
-          title: props.title || props.description || 'National Highways Closure',
-          description: props.description || props.comment || 'Planned closure or roadworks',
-          location: props.location || 'Major Road Network',
-          authority: 'National Highways',
-          source: 'national_highways',
-          severity: props.category?.toLowerCase().includes('closure') ? 'High' : 'Medium',
-          status: status,
-          startDate: props.startDate || null,
-          endDate: props.endDate || null,
-          affectsRoutes: routes,
-          lastUpdated: new Date().toISOString(),
-          dataSource: 'National Highways DATEX II API + Enhanced Route Matching'
-        };
-      });
-
-    console.log(`✅ Processed ${northEastAlerts.length} North East alerts`);
-    return { success: true, data: northEastAlerts, count: northEastAlerts.length };
+    // Parse RSS items
+    const itemMatches = response.data.match(/<item>[\s\S]*?<\/item>/g) || [];
+    console.log(`📊 Total RSS items from National Highways: ${itemMatches.length}`);
+    
+    if (itemMatches.length === 0) {
+      console.log('📝 No current unplanned events from National Highways');
+      return { success: true, data: [], count: 0 };
+    }
+    
+    // Process each item
+    const allAlerts = itemMatches.map((itemXml, index) => {
+      const item = parseRSSItem(itemXml);
+      
+      const location = [item.road, item.county].filter(Boolean).join(', ') || 'National Highways Network';
+      const routes = matchRoutes(location, item.description);
+      
+      // Determine severity based on description
+      let severity = 'Medium';
+      const desc = (item.description || '').toLowerCase();
+      if (desc.includes('closed') || desc.includes('severe')) {
+        severity = 'High';
+      } else if (desc.includes('slow') || desc.includes('delay')) {
+        severity = 'Low';
+      }
+      
+      return {
+        id: `nh_${Date.now()}_${index}`,
+        type: 'incident',
+        title: item.title || 'National Highways Incident',
+        description: item.description || 'Traffic incident reported',
+        location: location,
+        authority: 'National Highways',
+        source: 'national_highways',
+        severity: severity,
+        status: 'red', // Active incidents
+        category: item.category,
+        road: item.road,
+        county: item.county,
+        region: item.region,
+        coordinates: (item.latitude && item.longitude) ? [item.latitude, item.longitude] : null,
+        startDate: item.overallStart || item.publishDate,
+        endDate: item.overallEnd,
+        affectsRoutes: routes,
+        lastUpdated: new Date().toISOString(),
+        dataSource: 'National Highways RSS Feed'
+      };
+    });
+    
+    // Filter for North East alerts
+    const northEastAlerts = allAlerts.filter(isNorthEastAlert);
+    
+    console.log(`✅ Processed ${northEastAlerts.length} North East alerts from ${allAlerts.length} total`);
+    return { 
+      success: true, 
+      data: northEastAlerts, 
+      count: northEastAlerts.length,
+      method: 'RSS Feed (Unplanned Events)'
+    };
     
   } catch (error) {
-    console.error('❌ National Highways API error:', error.message);
+    console.error('❌ National Highways RSS error:', error.message);
     if (error.response) {
       console.error(`📡 Response status: ${error.response.status}`);
-      console.error(`📡 Response data:`, error.response.data);
     }
     return { success: false, data: [], error: error.message };
   }
