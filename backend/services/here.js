@@ -60,6 +60,103 @@ function getEnhancedHERERouteMatching(location, description, coordinates) {
   return Array.from(routes).sort();
 }
 
+// Enhanced HERE traffic flow data fetcher for bus control room intelligence
+async function fetchHERETrafficFlow() {
+  if (!process.env.HERE_API_KEY) {
+    console.error('❌ HERE API key missing!');
+    return { success: false, data: [], error: 'HERE API key missing' };
+  }
+  
+  try {
+    console.log('🚌 [CONTROL ROOM] Fetching HERE traffic flow data (using incidents with speed analysis)...');
+    
+    // Since flow API requires premium tier, extract speed info from incident data
+    const incidentResult = await fetchHERETrafficWithStreetNames();
+    
+    if (!incidentResult.success) {
+      return {
+        success: false,
+        data: [],
+        error: 'Failed to fetch HERE incident data for flow analysis'
+      };
+    }
+    
+    const incidents = incidentResult.data || [];
+    const flowAlerts = [];
+    
+    // Process incidents to extract congestion/delay information
+    for (const incident of incidents) {
+      const description = (incident.description || '').toLowerCase();
+      const title = (incident.title || '').toLowerCase();
+      const text = `${title} ${description}`;
+      
+      // Look for congestion/delay indicators in incident text
+      const congestionKeywords = [
+        'slow traffic', 'heavy traffic', 'congestion', 'delays',
+        'queue', 'queuing', 'standstill', 'crawling',
+        'reduced speed', 'slow moving', 'heavy congestion'
+      ];
+      
+      const hasCongestionIndicator = congestionKeywords.some(keyword => 
+        text.includes(keyword)
+      );
+      
+      if (hasCongestionIndicator && incident.affectsRoutes?.length > 0) {
+        // Estimate congestion level and delay from incident description
+        let congestionLevel = 'Moderate';
+        let estimatedDelay = '5-10 minutes';
+        let severity = 'Medium';
+        
+        if (text.includes('standstill') || text.includes('stationary') || text.includes('blocked')) {
+          congestionLevel = 'Severe';
+          estimatedDelay = '15+ minutes';
+          severity = 'High';
+        } else if (text.includes('heavy') || text.includes('major') || text.includes('long delays')) {
+          congestionLevel = 'Heavy';
+          estimatedDelay = '10-15 minutes';
+          severity = 'High';
+        }
+        
+        flowAlerts.push({
+          id: `here_flow_extracted_${incident.id}`,
+          type: 'congestion',
+          title: `${congestionLevel} Congestion - ${incident.location}`,
+          description: `Traffic congestion detected from incident reports. ${incident.description}`,
+          location: incident.location,
+          severity: severity,
+          status: severity === 'High' ? 'red' : 'amber',
+          source: 'here_flow_extracted',
+          affectsRoutes: incident.affectsRoutes,
+          routeMatchMethod: 'Incident-based Analysis',
+          routeAccuracy: 'high',
+          // BUS CONTROL ROOM DATA (estimated from incident text)
+          currentSpeed: 'Unknown (from incident)',
+          normalSpeed: 'Unknown (from incident)',
+          speedRatio: severity === 'High' ? '30-50%' : '50-70%',
+          estimatedDelay: estimatedDelay,
+          congestionLevel: congestionLevel,
+          coordinates: incident.coordinates,
+          lastUpdated: new Date().toISOString(),
+          dataSource: 'HERE Incidents API (congestion extraction)',
+          originalIncident: incident.id
+        });
+      }
+    }
+    
+    console.log(`🚌 [CONTROL ROOM] HERE flow analysis (from incidents): ${flowAlerts.length} congestion alerts`);
+    return { 
+      success: true, 
+      data: flowAlerts, 
+      method: 'Incident-based Congestion Analysis',
+      note: 'Flow API requires premium tier - using incident analysis instead'
+    };
+    
+  } catch (error) {
+    console.error('❌ HERE traffic flow extraction failed:', error.message);
+    return { success: false, data: [], error: error.message };
+  }
+}
+
 // Enhanced HERE traffic fetcher with improved location handling and GTFS integration
 async function fetchHERETrafficWithStreetNames() {
   if (!process.env.HERE_API_KEY) {
@@ -297,5 +394,5 @@ async function fetchHERETraffic() {
   return await fetchHERETrafficWithStreetNames();
 }
 
-export { fetchHERETraffic, fetchHERETrafficWithStreetNames };
-export default { fetchHERETraffic, fetchHERETrafficWithStreetNames };
+export { fetchHERETraffic, fetchHERETrafficWithStreetNames, fetchHERETrafficFlow };
+export default { fetchHERETraffic, fetchHERETrafficWithStreetNames, fetchHERETrafficFlow };
