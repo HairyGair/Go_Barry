@@ -198,11 +198,38 @@ const DisplayScreen = () => {
                   const isAcknowledged = acknowledgedAlerts.has(alert.id);
                   const priorityOverride = priorityOverrides.get(alert.id);
                   const supervisorNote = supervisorNotes.get(alert.id);
+                  
+                  // Get severity color
+                  const getSeverityColor = () => {
+                    switch (alert.severity?.toLowerCase()) {
+                      case 'critical':
+                      case 'high':
+                        return '#DC2626';
+                      case 'medium':
+                        return '#F59E0B';
+                      case 'low':
+                        return '#3B82F6';
+                      default:
+                        return '#6B7280';
+                    }
+                  };
 
                   return (
                     <View style={styles.currentAlert}>
+                      {/* Severity indicator bar */}
+                      <View style={[styles.severityIndicator, { backgroundColor: getSeverityColor() }]} />
+                      
+                      {/* Severity badge */}
+                      <View style={[styles.severityBadge, { backgroundColor: `${getSeverityColor()}15` }]}>
+                        <Text style={[styles.severityBadgeText, { color: getSeverityColor() }]}>
+                          {alert.severity?.toUpperCase() || 'ALERT'} IMPACT
+                        </Text>
+                      </View>
                       <Text style={styles.alertTitle}>{alert.title}</Text>
-                      <Text style={styles.alertLocation}>{alert.location}</Text>
+                      <View style={styles.locationContainer}>
+                        <Text style={styles.locationIcon}>📍</Text>
+                        <Text style={styles.alertLocation}>{alert.location}</Text>
+                      </View>
                       <Text style={styles.alertDescription}>{alert.description}</Text>
                       
                       {alert.affectsRoutes && alert.affectsRoutes.length > 0 && (
@@ -356,32 +383,34 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   systemTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '900',
-    color: '#1F2937',
-    letterSpacing: 1,
+    color: '#111827',
+    letterSpacing: 0.8,
   },
   systemSubtitle: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#DC2626',
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    marginTop: 2,
   },
   headerCenter: {
     flex: 1,
     alignItems: 'center',
   },
   timeDisplay: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#1F2937',
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#111827',
     fontFamily: Platform.OS === 'web' ? 'monospace' : 'System',
-    letterSpacing: -0.5,
+    letterSpacing: -1,
   },
   dateDisplay: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#6B7280',
-    fontWeight: '500',
+    fontWeight: '600',
+    marginTop: 2,
   },
   headerRight: {
     flex: 1,
@@ -389,20 +418,20 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
     elevation: 3,
   },
   statusText: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
 
   // Main content - True 50/50 split
@@ -470,9 +499,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#1F2937',
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#111827',
     letterSpacing: 0.5,
   },
   refreshBtn: {
@@ -499,15 +528,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
     gap: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
     backdropFilter: Platform.OS === 'web' ? 'blur(10px)' : undefined,
     padding: 12,
-    borderRadius: 12,
+    borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   navBtn: {
     backgroundColor: '#3B82F6',
@@ -516,10 +545,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: '#3B82F6',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
     elevation: 3,
   },
   navBtnText: {
@@ -528,66 +557,111 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   alertCounter: {
-    color: '#1F2937',
-    fontSize: 16,
-    fontWeight: '800',
+    color: '#111827',
+    fontSize: 17,
+    fontWeight: '900',
     fontFamily: Platform.OS === 'web' ? 'monospace' : 'System',
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
 
-  // Current alert
+  // Current alert - Modernized with severity indicators
   currentAlert: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
     backdropFilter: Platform.OS === 'web' ? 'blur(20px)' : undefined,
-    borderRadius: 20,
+    borderRadius: 16,
     padding: 24,
     flex: 1,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 6,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: 'rgba(0, 0, 0, 0.06)',
+    position: 'relative',
+    overflow: 'hidden',
   },
-  alertTitle: {
-    fontSize: 24,
+  // Severity indicator bar
+  severityIndicator: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 6,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+  },
+  
+  // Severity badge
+  severityBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 24,
+    marginBottom: 20,
+    marginLeft: 16,
+  },
+  severityBadgeText: {
+    fontSize: 13,
     fontWeight: '800',
-    color: '#1F2937',
-    marginBottom: 12,
-    letterSpacing: -0.3,
-    lineHeight: 28,
+    letterSpacing: 0.8,
+  },
+  
+  alertTitle: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#111827',
+    marginBottom: 16,
+    marginLeft: 16,
+    letterSpacing: -0.5,
+    lineHeight: 34,
+  },
+  locationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    marginLeft: 16,
+    marginRight: 16,
+  },
+  locationIcon: {
+    fontSize: 20,
+    marginRight: 8,
   },
   alertLocation: {
-    fontSize: 18,
-    color: '#3B82F6',
+    fontSize: 20,
+    color: '#1F2937',
     fontWeight: '700',
-    marginBottom: 12,
-    letterSpacing: 0.2,
+    letterSpacing: -0.2,
+    lineHeight: 26,
+    flex: 1,
   },
   alertDescription: {
-    fontSize: 16,
-    color: '#374151',
-    lineHeight: 24,
-    marginBottom: 20,
+    fontSize: 17,
+    color: '#6B7280',
+    lineHeight: 26,
+    marginBottom: 24,
+    marginLeft: 16,
+    marginRight: 16,
     fontWeight: '500',
+    letterSpacing: -0.1,
   },
 
   // Routes section
   routesSection: {
     marginBottom: 20,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    marginHorizontal: 16,
+    backgroundColor: 'rgba(59, 130, 246, 0.08)',
     padding: 16,
     borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#DC2626',
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.2)',
   },
   routesLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
-    color: '#DC2626',
-    marginBottom: 12,
-    letterSpacing: 0.5,
+    color: '#6B7280',
+    marginBottom: 14,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
   },
   routesList: {
@@ -596,82 +670,82 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   routeBadge: {
-    background: Platform.OS === 'web' ? 'linear-gradient(135deg, #DC2626 0%, #B91C1C 100%)' : '#DC2626',
-    backgroundColor: '#DC2626',
-    paddingHorizontal: 12,
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 8,
-    shadowColor: '#000',
+    borderRadius: 20,
+    shadowColor: '#3B82F6',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
-    elevation: 3,
+    elevation: 2,
   },
   routeText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
     color: '#FFFFFF',
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
 
   // Supervisor enhancements
   priorityOverride: {
-    background: Platform.OS === 'web' ? 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)' : '#FEF3C7',
     backgroundColor: '#FEF3C7',
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#F59E0B',
-    shadowColor: '#000',
+    marginHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.2)',
+    shadowColor: '#F59E0B',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
   priorityText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
     color: '#92400E',
     letterSpacing: 0.3,
   },
   supervisorNote: {
-    background: Platform.OS === 'web' ? 'linear-gradient(135deg, #EBF8FF 0%, #DBEAFE 100%)' : '#EBF8FF',
     backgroundColor: '#EBF8FF',
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3B82F6',
-    shadowColor: '#000',
+    marginHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.2)',
+    shadowColor: '#3B82F6',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
   noteText: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#1E40AF',
     fontWeight: '600',
+    lineHeight: 22,
   },
   acknowledgedBadge: {
-    background: Platform.OS === 'web' ? 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)' : '#D1FAE5',
     backgroundColor: '#D1FAE5',
     padding: 12,
-    borderRadius: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: '#10B981',
-    shadowColor: '#000',
+    borderRadius: 12,
+    marginHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.2)',
+    shadowColor: '#10B981',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
   ackText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
     color: '#059669',
-    letterSpacing: 0.3,
+    letterSpacing: 0.5,
   },
 
   // No alerts
@@ -685,14 +759,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   noAlertsTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '900',
     color: '#10B981',
-    marginBottom: 8,
+    marginBottom: 12,
+    letterSpacing: -0.5,
   },
   noAlertsText: {
-    fontSize: 16,
+    fontSize: 17,
     color: '#6B7280',
+    fontWeight: '500',
   },
 
   // Map section (70% of right side)
@@ -750,16 +826,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   activityTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#1F2937',
-    letterSpacing: 0.2,
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#111827',
+    letterSpacing: 0.1,
   },
   activityDescription: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#6B7280',
     fontWeight: '500',
-    marginTop: 2,
+    marginTop: 3,
+    lineHeight: 18,
   },
   noActivity: {
     padding: 16,
@@ -786,10 +863,10 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   footerText: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '600',
-    letterSpacing: 0.3,
+    fontSize: 14,
+    color: '#4B5563',
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
 });
 
