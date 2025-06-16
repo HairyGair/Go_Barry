@@ -5,7 +5,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 
-const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) => {
+const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, onError = null }) => {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -53,13 +53,22 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }
         if (!window.tt) {
           console.log('📦 Loading TomTom Maps SDK script...');
           const script = document.createElement('script');
-          script.src = 'https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps.min.js';
+          script.src = 'https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps-web.min.js';
           script.async = true;
+          script.crossOrigin = 'anonymous';
           document.head.appendChild(script);
           
           await new Promise((resolve, reject) => {
-            script.onload = resolve;
-            script.onerror = () => reject(new Error('Failed to load TomTom Maps SDK script'));
+            script.onload = () => {
+              console.log('✅ TomTom script loaded successfully');
+              resolve();
+            };
+            script.onerror = (error) => {
+              console.error('❌ TomTom script failed to load:', error);
+              reject(new Error('Failed to load TomTom Maps SDK script'));
+            };
+            // Add timeout to prevent hanging
+            setTimeout(() => reject(new Error('TomTom script load timeout')), 10000);
           });
         }
 
@@ -69,6 +78,7 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }
           const link = document.createElement('link');
           link.href = 'https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps.css';
           link.rel = 'stylesheet';
+          link.crossOrigin = 'anonymous';
           document.head.appendChild(link);
         }
 
@@ -78,12 +88,17 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }
 
         console.log('✅ TomTom Maps SDK loaded successfully');
 
+        // Validate API key
+        if (!TOMTOM_API_KEY || TOMTOM_API_KEY === 'your_tomtom_api_key_here') {
+          throw new Error('TomTom API key not configured. Set EXPO_PUBLIC_TOMTOM_API_KEY environment variable.');
+        }
+
         // Create TomTom map instance
         const map = window.tt.map({
           key: TOMTOM_API_KEY,
           container: mapContainer.current,
           style: 'tomtom://vector/1/basic-main', // Clean vector style
-          center: NE_ENGLAND_CENTER,
+          center: [-1.6131, 54.9783], // [lng, lat] for TomTom (reversed from our constant)
           zoom: DEFAULT_ZOOM,
           language: 'en-GB',
           geopoliticalView: 'GB'
@@ -148,7 +163,11 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }
 
       } catch (error) {
         console.error('❌ Failed to initialize TomTom map:', error);
-        setMapError(`Failed to initialize TomTom map: ${error.message}`);
+        const errorMessage = `Failed to initialize TomTom map: ${error.message}`;
+        setMapError(errorMessage);
+        if (onError) {
+          onError(error);
+        }
       }
     };
 
@@ -267,7 +286,7 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }
             document.head.appendChild(styles);
           }
 
-          // Create TomTom marker
+          // Create TomTom marker (TomTom uses [lng, lat] format)
           const marker = new window.tt.Marker(markerElement)
             .setLngLat([lng, lat])
             .addTo(map);
@@ -298,9 +317,9 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }
 
       console.log(`🎯 Auto-zooming TomTom map to current alert: ${currentAlert.title} at [${lat}, ${lng}]`);
 
-      // Animate to the current alert location
+      // Animate to the current alert location (TomTom uses [lng, lat])
       map.flyTo({
-        center: [lat, lng],
+        center: [lng, lat],
         zoom: 15, // Closer zoom for alert details
         duration: 2500, // 2.5 second animation
         essential: true
@@ -322,7 +341,7 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }
         const map = mapRef.current;
         console.log('🔄 Resetting TomTom map to North East England overview');
         map.flyTo({
-          center: NE_ENGLAND_CENTER,
+          center: [-1.6131, 54.9783], // [lng, lat] for TomTom
           zoom: DEFAULT_ZOOM,
           duration: 2000,
           essential: true
