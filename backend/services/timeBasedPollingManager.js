@@ -7,16 +7,53 @@ class TimeBasedPollingManager {
     this.allowedTimeEnd = { hours: 0, minutes: 15 };   // 00:15 (next day)
     this.lastPollTimes = new Map(); // Track last poll per source
     this.minimumIntervals = {
-      tomtom: 60000,      // 1 minute (free tier: 1000 calls/day)
-      here: 90000,        // 1.5 minutes (free tier: 250k/month)
-      mapquest: 120000,   // 2 minutes (free tier: 15k/month)
-      nationalHighways: 300000, // 5 minutes (government API - be respectful)
+      tomtom: 40000,      // 40 seconds (optimized for 2500 calls/day free tier)
+      national_highways: 300000, // 5 minutes (government API - be respectful)
       streetmanager: 180000,     // 3 minutes (webhook-based, low overhead)
       manual_incidents: 30000    // 30 seconds (local data)
+    };
+    
+    // Intelligent TomTom scheduling based on traffic patterns
+    this.tomtomSchedule = {
+      // Peak periods - higher frequency for better incident detection
+      peakMorning: { start: 7, end: 9.5, interval: 30000 },    // 07:00-09:30 (every 30s)
+      peakEvening: { start: 16.5, end: 19, interval: 30000 },   // 16:30-19:00 (every 30s)
+      
+      // Active periods - standard frequency
+      earlyMorning: { start: 5.25, end: 7, interval: 45000 },  // 05:15-07:00 (every 45s)
+      daytime: { start: 9.5, end: 16.5, interval: 50000 },     // 09:30-16:30 (every 50s)
+      evening: { start: 19, end: 22, interval: 50000 },        // 19:00-22:00 (every 50s)
+      
+      // Quiet period - lower frequency but maintain coverage
+      lateNight: { start: 22, end: 24.25, interval: 90000 }    // 22:00-00:15 (every 90s)
     };
     this.dailyCallCounts = new Map();
     this.lastResetDate = new Date().toDateString();
     this.isOverrideMode = false; // Emergency override
+  }
+
+  // Get intelligent interval for TomTom based on time of day
+  getTomTomOptimalInterval() {
+    const now = new Date();
+    const currentHour = now.getHours() + (now.getMinutes() / 60);
+    
+    // Check each time period and return appropriate interval
+    for (const [period, config] of Object.entries(this.tomtomSchedule)) {
+      if (currentHour >= config.start && currentHour < config.end) {
+        return {
+          interval: config.interval,
+          period: period,
+          frequency: `${config.interval/1000}s`
+        };
+      }
+    }
+    
+    // Default fallback
+    return {
+      interval: 60000,
+      period: 'default',
+      frequency: '60s'
+    };
   }
 
   // Check if current time is within allowed polling window
@@ -59,9 +96,21 @@ class TimeBasedPollingManager {
     // Reset daily counters if needed
     this.resetDailyCountersIfNeeded();
 
-    // Check minimum interval since last poll
+    // Check minimum interval since last poll (with intelligent TomTom scheduling)
     const lastPoll = this.lastPollTimes.get(sourceName);
-    const minimumInterval = this.minimumIntervals[sourceName] || 60000;
+    let minimumInterval = this.minimumIntervals[sourceName] || 60000;
+    
+    // Use intelligent scheduling for TomTom
+    if (sourceName === 'tomtom') {
+      const tomtomOptimal = this.getTomTomOptimalInterval();
+      minimumInterval = tomtomOptimal.interval;
+      
+      // Log current period for monitoring
+      if (lastPoll === undefined || (now - lastPoll) > minimumInterval) {
+        console.log(`📊 TomTom scheduling: ${tomtomOptimal.period} period (${tomtomOptimal.frequency})`);
+      }
+    }
+    
     const now = Date.now();
     
     if (lastPoll && (now - lastPoll) < minimumInterval) {
@@ -73,12 +122,10 @@ class TimeBasedPollingManager {
       };
     }
 
-    // Check daily limits (conservative estimates for free tiers)
+    // Check daily limits (optimized for efficient API usage)
     const dailyLimits = {
-      tomtom: 800,        // Conservative: 800/1000 daily limit
-      here: 1000,         // Conservative: ~1000 calls/day (250k/month)
-      mapquest: 400,      // Conservative: 400/500 daily limit  
-      nationalHighways: 200, // Conservative for government API
+      tomtom: 2000,       // Optimized: Use 80% of free tier (2500) with 500 emergency reserve
+      national_highways: 200, // Conservative for government API
       streetmanager: 500, // Webhook-based, but still limit
       manual_incidents: 2000 // Local data, higher limit
     };
@@ -185,18 +232,14 @@ class TimeBasedPollingManager {
       ),
       limits: {
         daily: {
-          tomtom: "800/1000 calls",
-          here: "1000 calls (~250k/month)",
-          mapquest: "400/500 calls", 
-          nationalHighways: "200 calls (conservative)",
+          tomtom: "2000/2500 calls (optimized with 500 emergency reserve)",
+          national_highways: "200 calls (conservative)",
           streetmanager: "500 calls (webhook-based)",
           manual_incidents: "2000 calls (local)"
         },
         intervals: {
-          tomtom: "60 seconds",
-          here: "90 seconds", 
-          mapquest: "120 seconds",
-          nationalHighways: "300 seconds",
+          tomtom: "Intelligent: 30s peak, 45-50s active, 90s quiet",
+          national_highways: "300 seconds",
           streetmanager: "180 seconds",
           manual_incidents: "30 seconds"
         }

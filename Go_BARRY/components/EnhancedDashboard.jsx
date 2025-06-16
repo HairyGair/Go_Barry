@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { API_CONFIG } from '../config/api';
 import SupervisorControl from './SupervisorControl';
 import SupervisorLogin from './SupervisorLogin';
+import EnhancedTrafficMap from './EnhancedTrafficMap';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
 import typography, { getAlertIcon, getSeverityIcon } from '../theme/typography';
 
@@ -485,6 +486,18 @@ const EnhancedDashboard = ({
         {/* System Status */}
         <SystemStatus />
 
+        {/* Interactive TomTom Map */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Traffic Map - TomTom Powered</Text>
+          <View style={styles.mapContainer}>
+            <EnhancedTrafficMap 
+              alerts={filteredAlerts}
+              currentAlert={filteredAlerts[0]} // Show first alert as current
+              alertIndex={0}
+            />
+          </View>
+        </View>
+
         {/* Search */}
         <SearchBar />
 
@@ -813,6 +826,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  mapContainer: {
+    height: 300,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#F8FAFC',
   },
   sectionTitle: {
     ...typography.styles.bodyLarge,
