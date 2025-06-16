@@ -7,7 +7,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Animate
 import { Ionicons } from '@expo/vector-icons';
 import { useBarryAPI } from './hooks/useBARRYapi';
 import { useSupervisorPolling } from './hooks/useSupervisorPolling';
-import TrafficMap from './TrafficMap';
+import EnhancedTrafficMap from './EnhancedTrafficMap';
 import typography, { getAlertIcon, getSeverityIcon } from '../theme/typography';
 
 const DisplayScreen = () => {
@@ -443,7 +443,7 @@ const DisplayScreen = () => {
             </View>
             
             <View style={styles.mapContainer}>
-              <TrafficMap 
+              <EnhancedTrafficMap 
                 alerts={alerts}
                 currentAlert={getCurrentAlert()}
                 alertIndex={currentAlertIndex}
