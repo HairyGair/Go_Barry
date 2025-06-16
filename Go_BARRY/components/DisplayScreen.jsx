@@ -7,8 +7,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Animate
 import { Ionicons } from '@expo/vector-icons';
 import { useBarryAPI } from './hooks/useBARRYapi';
 import { useSupervisorPolling } from './hooks/useSupervisorPolling';
-import EnhancedTrafficMap from './EnhancedTrafficMap';
-import FallbackMap from './FallbackMap';
+import TomTomTrafficMap from './TomTomTrafficMap';
 import typography, { getAlertIcon, getSeverityIcon } from '../theme/typography';
 
 const DisplayScreen = () => {
@@ -43,7 +42,6 @@ const DisplayScreen = () => {
   const [hoveredNavBtn, setHoveredNavBtn] = useState(null);
   const [hoveredAlert, setHoveredAlert] = useState(false);
   const [hoveredActivity, setHoveredActivity] = useState(null);
-  const [mapFallback, setMapFallback] = useState(false);
   const spinValue = useRef(new Animated.Value(0)).current;
   
   // Animation values
@@ -445,35 +443,11 @@ const DisplayScreen = () => {
             </View>
             
             <View style={styles.mapContainer}>
-              {mapFallback ? (
-                <FallbackMap 
-                  alerts={alerts}
-                  currentAlert={getCurrentAlert()}
-                  alertIndex={currentAlertIndex}
-                />
-              ) : (
-                <EnhancedTrafficMap 
-                  alerts={alerts}
-                  currentAlert={getCurrentAlert()}
-                  alertIndex={currentAlertIndex}
-                  onError={() => {
-                    console.log('🗺️ TomTom map failed, switching to fallback');
-                    setMapFallback(true);
-                  }}
-                />
-              )}
-              
-              {/* Map Toggle Button */}
-              <TouchableOpacity 
-                style={styles.mapToggle}
-                onPress={() => setMapFallback(!mapFallback)}
-                onMouseEnter={() => Platform.OS === 'web' && setHoveredNavBtn('map-toggle')}
-                onMouseLeave={() => Platform.OS === 'web' && setHoveredNavBtn(null)}
-              >
-                <Text style={styles.mapToggleText}>
-                  {mapFallback ? '🗺️' : '📊'}
-                </Text>
-              </TouchableOpacity>
+              <TomTomTrafficMap 
+                alerts={alerts}
+                currentAlert={getCurrentAlert()}
+                alertIndex={currentAlertIndex}
+              />
             </View>
           </View>
 
@@ -1052,31 +1026,6 @@ const styles = StyleSheet.create({
     elevation: 6,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
-    position: 'relative',
-  },
-  mapToggle: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    backgroundColor: 'rgba(59, 130, 246, 0.9)',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
-    zIndex: 1000,
-    ...(Platform.OS === 'web' && {
-      transition: 'all 0.2s ease',
-      cursor: 'pointer',
-    }),
-  },
-  mapToggleText: {
-    fontSize: 18,
   },
 
   // Activity section (30% of right side)
