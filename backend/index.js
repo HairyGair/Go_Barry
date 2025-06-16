@@ -1,5 +1,6 @@
-// backend/index-fixed-cors.js
-// BARRY Backend with FIXED CORS and Rate Limiting for Display Screen
+// backend/index.js - Go BARRY Backend
+// COST OPTIMIZED: MapQuest and HERE APIs removed (£180/month saved)
+// Traffic Intelligence with TomTom + National Highways + StreetManager + Manual Incidents
 
 import express from 'express';
 import axios from 'axios';
@@ -11,8 +12,8 @@ import { parse } from 'csv-parse/sync';
 
 // Import ALL working services
 import { fetchTomTomTrafficWithStreetNames } from './services/tomtom.js';
-import { fetchHERETrafficWithStreetNames } from './services/here.js';
-import { fetchMapQuestTrafficWithStreetNames } from './services/mapquest.js';
+
+
 import { fetchNationalHighways } from './services/nationalHighways.js';
 import { initializeEnhancedGTFS, enhancedFindRoutesNearCoordinates } from './enhanced-gtfs-route-matcher.js';
 import healthRoutes from './routes/health.js';
@@ -36,7 +37,7 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
-console.log('🚦 BARRY Backend Starting with FIXED CORS and Rate Limiting...');
+console.log('💰 Go BARRY Backend - COST OPTIMIZED (£180/month saved)...');
 
 // Enhanced GTFS route matching function
 function findRoutesNearCoordinatesFixed(lat, lng, radiusMeters = 250) {
@@ -847,7 +848,7 @@ app.get('/api/alerts-enhanced', async (req, res) => {
       console.log(`📝 [${requestId}] No manual incidents found`);
     }
     
-    // GUARANTEED: Fetch from all 4 sources with robust error handling
+    // GUARANTEED: Fetch from 2 remaining sources with robust error handling
     console.log(`🚗 [${requestId}] Fetching TomTom traffic...`);
     fetchPromises.push(
       fetchTomTomTrafficWithStreetNames()
@@ -855,26 +856,6 @@ app.get('/api/alerts-enhanced', async (req, res) => {
         .catch(error => {
           console.error(`❌ TomTom failed: ${error.message}`);
           return { source: 'tomtom', data: { success: false, error: error.message, data: [] } };
-        })
-    );
-    
-    console.log(`🗺️ [${requestId}] Fetching HERE traffic...`);
-    fetchPromises.push(
-      fetchHERETrafficWithStreetNames()
-        .then(result => ({ source: 'here', data: result }))
-        .catch(error => {
-          console.error(`❌ HERE failed: ${error.message}`);
-          return { source: 'here', data: { success: false, error: error.message, data: [] } };
-        })
-    );
-    
-    console.log(`🗺️ [${requestId}] Fetching MapQuest traffic...`);
-    fetchPromises.push(
-      fetchMapQuestTrafficWithStreetNames()
-        .then(result => ({ source: 'mapquest', data: result }))
-        .catch(error => {
-          console.error(`❌ MapQuest failed: ${error.message}`);
-          return { source: 'mapquest', data: { success: false, error: error.message, data: [] } };
         })
     );
     
@@ -889,7 +870,7 @@ app.get('/api/alerts-enhanced', async (req, res) => {
     );
     
     // GUARANTEED: Extended timeout with proper handling
-    console.log(`⏱️ [${requestId}] Fetching from ALL 4 traffic sources (GUARANTEED WORKING)...`);
+    console.log(`⏱️ [${requestId}] Fetching from 2 traffic sources (GUARANTEED WORKING)...`);
     const startTime = Date.now();
     
     // Use allSettled to ensure we always get results from at least some sources
@@ -910,7 +891,7 @@ app.get('/api/alerts-enhanced', async (req, res) => {
     // GUARANTEED: Process results with robust error handling
     let successfulSources = 0;
     for (const [index, result] of results.entries()) {
-      const sourceNames = ['tomtom', 'here', 'mapquest', 'national_highways'];
+      const sourceNames = ['tomtom', 'national_highways'];
       const sourceName = sourceNames[index];
       
       try {
@@ -973,7 +954,7 @@ app.get('/api/alerts-enhanced', async (req, res) => {
       }
     }
     
-    console.log(`📊 [${requestId}] Raw alerts collected: ${allAlerts.length} from ${successfulSources}/4 sources`);
+    console.log(`📊 [${requestId}] Raw alerts collected: ${allAlerts.length} from ${successfulSources}/2 sources`);
     
     // GUARANTEED: Enhanced filtering with robust error handling
     let filteredAlerts = [];
@@ -1024,7 +1005,7 @@ app.get('/api/alerts-enhanced', async (req, res) => {
       manualIncidents: manualIncidentCount,
       trafficAlerts: trafficAlertCount,
       sourcesSuccessful: successfulSources,
-      sourcesTotal: 4,
+      sourcesTotal: 2,
       sourceBreakdown: sources,
       processingTime: `${Date.now() - requestId}ms`,
       fetchDuration: `${fetchDuration}ms`
@@ -1046,7 +1027,7 @@ app.get('/api/alerts-enhanced', async (req, res) => {
         debug: {
           processingDuration: `${Date.now() - requestId}ms`,
           sourcesActive: successfulSources,
-          totalSources: 4,
+          totalSources: 2,
           guaranteedWorking: true,
           corsFixed: true
         }
@@ -1418,8 +1399,6 @@ app.get('/api/test/data-flow', async (req, res) => {
     // Test individual sources
     const sourceTests = {
       tomtom: false,
-      here: false,
-      mapquest: false,
       national_highways: false
     };
     
@@ -1427,16 +1406,6 @@ app.get('/api/test/data-flow', async (req, res) => {
       const tomtomResult = await fetchTomTomTrafficWithStreetNames();
       sourceTests.tomtom = tomtomResult.success && tomtomResult.data && tomtomResult.data.length > 0;
     } catch (e) { console.log('TomTom test failed:', e.message); }
-    
-    try {
-      const hereResult = await fetchHERETrafficWithStreetNames();
-      sourceTests.here = hereResult.success && hereResult.data && hereResult.data.length > 0;
-    } catch (e) { console.log('HERE test failed:', e.message); }
-    
-    try {
-      const mapquestResult = await fetchMapQuestTrafficWithStreetNames();
-      sourceTests.mapquest = mapquestResult.success && mapquestResult.data && mapquestResult.data.length > 0;
-    } catch (e) { console.log('MapQuest test failed:', e.message); }
     
     try {
       const nhResult = await fetchNationalHighways();
@@ -1449,8 +1418,8 @@ app.get('/api/test/data-flow', async (req, res) => {
       success: true,
       dataFlow: {
         sourcesWorking: workingSources,
-        totalSources: 4,
-        percentage: Math.round((workingSources / 4) * 100),
+        totalSources: 2,
+        percentage: Math.round((workingSources / 2) * 100),
         sources: sourceTests
       },
       timestamp: new Date().toISOString(),
@@ -1485,7 +1454,7 @@ app.post('/api/supervisor/sync-alerts', async (req, res) => {
 
 // Start server with WebSocket support
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🚦 BARRY Backend Started with FIXED CORS and Rate Limiting`);
+  console.log(`\n💰 Go BARRY Backend Started - COST OPTIMIZED`);
   console.log(`📡 Server: http://localhost:${PORT}`);
   console.log(`🌐 Public: https://go-barry.onrender.com`);
   console.log(`\n📡 Available Endpoints:`);
@@ -1501,14 +1470,14 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`   📋 StreetManager Status: /api/streetmanager/status`);
   console.log(`   🔌 WebSocket: wss://go-barry.onrender.com/ws/supervisor-sync`);
   console.log(`   📊 Sync Status: /api/supervisor/sync-status`);
-  console.log(`\n🌟 FIXES APPLIED:`);
-  console.log(`   ✅ CORS properly configured for gobarry.co.uk and www.gobarry.co.uk`);
-  console.log(`   ✅ Rate limiting increased from 10 to 50 concurrent requests for live production`);
-  console.log(`   ✅ Extended timeout for Display Screen (35 seconds)`);
-  console.log(`   ✅ Enhanced error handling and logging`);
-  console.log(`   ✅ Cache timeout reduced to 2 minutes for better responsiveness`);
-  console.log(`   ✅ Proper startDate fields added for Display Screen`);
-  console.log(`   ✅ StreetManager configured as webhook receiver (no API key needed)`);
+  console.log(`\n💰 COST REDUCTION DEPLOYED: \u00a3180/month saved!`);
+  console.log(`   ✅ TomTom API - Primary traffic intelligence`);
+  console.log(`   ✅ National Highways DATEX II - Official UK roadworks`);
+  console.log(`   ❌ HERE API - REMOVED (\u00a3100/month saved)`);
+  console.log(`   ❌ MapQuest API - REMOVED (\u00a380/month saved)`);
+  console.log(`   ✅ StreetManager UK - Webhook receiver (free)`);
+  console.log(`   ✅ Manual Incidents - Supervisor-created (free)`);
+  console.log(`   🎆 System fully operational with 4 data sources!`);
 });
 
 export default app;// Deployment timestamp: Tue 10 Jun 2025 10:40:34 BST
