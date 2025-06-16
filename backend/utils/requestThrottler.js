@@ -51,14 +51,22 @@ class RequestThrottler {
     const { startHour, startMinute, endHour, endMinute } = this.businessHours;
     
     const formatTime = (hour, minute) => {
-      const h = hour === 0 ? 12 : (hour > 12 ? hour - 12 : hour);
-      const ampm = hour < 12 ? 'AM' : 'PM';
       const m = minute.toString().padStart(2, '0');
-      return `${h}:${m} ${ampm}`;
+      
+      if (hour === 0) {
+        return `12:${m} AM`; // Midnight
+      } else if (hour < 12) {
+        return `${hour}:${m} AM`; // Morning
+      } else if (hour === 12) {
+        return `12:${m} PM`; // Noon
+      } else {
+        return `${hour - 12}:${m} PM`; // Afternoon/Evening
+      }
     };
     
     const start = formatTime(startHour, startMinute);
-    const end = formatTime(endHour === 0 ? 24 : endHour, endMinute);
+    // For end time, if it's 0 (midnight), format it correctly as 12:15 AM
+    const end = formatTime(endHour, endMinute);
     
     return `${start} - ${end} (${this.operatingHours}h operating)`;
   }
