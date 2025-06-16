@@ -245,5 +245,6 @@ const businessHours = {
 
 const geocodingThrottler = new RequestThrottler(2000, 'Geocoding', businessHours); // Leave some margin
 const tomtomThrottler = new RequestThrottler(2500, 'TomTom', businessHours);
+const tileThrottler = new RequestThrottler(50000, 'TomTom-Tiles', businessHours); // 50k tiles/day
 
-export { RequestThrottler, geocodingThrottler, tomtomThrottler };
+export { RequestThrottler, geocodingThrottler, tomtomThrottler, tileThrottler };
