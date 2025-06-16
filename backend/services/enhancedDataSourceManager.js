@@ -3,8 +3,8 @@
 
 import intelligenceEngine from './intelligenceEngine.js';
 import { fetchTomTomTrafficWithStreetNames } from './tomtom.js';
-import { fetchHERETrafficWithStreetNames, fetchHERETrafficFlow } from './here.js';
-import { fetchMapQuestTrafficWithStreetNames } from './mapquest.js';
+
+
 import { fetchNationalHighways } from './nationalHighways.js';
 import streetManagerWebhooks from './streetManagerWebhooksSimple.js';
 import timeBasedPollingManager from './timeBasedPollingManager.js';
@@ -15,8 +15,8 @@ class EnhancedDataSourceManager {
   constructor() {
     this.sourceConfigs = {
       tomtom: { name: 'TomTom Traffic', reliability: 0.9, enabled: true },
-      here: { name: 'HERE Traffic', reliability: 0.85, enabled: true }, // RE-ENABLED - Fixed API key typo
-      mapquest: { name: 'MapQuest Traffic', reliability: 0.75, enabled: true },
+
+
       national_highways: { name: 'National Highways', reliability: 0.95, enabled: true },
       streetmanager: { name: 'StreetManager UK', reliability: 0.98, enabled: true }, // ACTIVATED
       manual_incidents: { name: 'Manual Incidents', reliability: 1.0, enabled: true } // ACTIVATED
@@ -28,9 +28,9 @@ class EnhancedDataSourceManager {
     this.cacheTimeout = 2 * 60 * 1000; // 2 minutes
   }
 
-  // EXPANDED: Main aggregation with 6 data sources + free tier compliance
+  // EXPANDED: Main aggregation with 4 data sources + free tier compliance
   async aggregateAllSources() {
-    console.log('🚀 [EXPANDED] Starting enhanced data aggregation with 6 sources...');
+    console.log('🚀 [EXPANDED] Starting enhanced data aggregation with 4 sources...');
     
     // Check cache first
     const now = Date.now();
@@ -48,8 +48,8 @@ class EnhancedDataSourceManager {
     const startTime = Date.now();
     const results = await Promise.allSettled([
       this.fetchTomTomData(),
-      this.fetchHereData(), 
-      this.fetchMapQuestData(),
+ 
+
       this.fetchNationalHighwaysData(),
       this.fetchStreetManagerData(), // ACTIVATED
       this.fetchManualIncidents() // ACTIVATED
@@ -60,7 +60,7 @@ class EnhancedDataSourceManager {
     const sourceStats = {};
     const skippedSources = [];
     
-    const sourceNames = ['tomtom', 'here', 'mapquest', 'national_highways', 'streetmanager', 'manual_incidents'];
+    const sourceNames = ['tomtom', 'national_highways', 'streetmanager', 'manual_incidents'];
     
     results.forEach((result, index) => {
       const sourceName = sourceNames[index];
@@ -147,7 +147,7 @@ class EnhancedDataSourceManager {
     
     this.lastFetchTime = now;
     
-    console.log(`✅ [EXPANDED] Enhanced aggregation: ${prioritizedIncidents.length} incidents from ${successfulSources.length}/6 sources in ${fetchDuration}ms`);
+    console.log(`✅ [EXPANDED] Enhanced aggregation: ${prioritizedIncidents.length} incidents from ${successfulSources.length}/4 sources in ${fetchDuration}ms`);
     return this.aggregatedData;
   }
 
@@ -230,108 +230,9 @@ class EnhancedDataSourceManager {
     }
   }
 
-  async fetchHereData() {
-    const pollingCheck = timeBasedPollingManager.canPollSource('here');
-    if (!pollingCheck.allowed) {
-      return { 
-        success: false, 
-        error: `Polling restricted: ${pollingCheck.reason}`,
-        pollingAllowed: false
-      };
-    }
-    
-    try {
-      timeBasedPollingManager.recordPoll('here', false);
-      
-      // 🚌 ENHANCED: Fetch both incidents AND traffic flow data for control room
-      console.log('🚌 [CONTROL ROOM] Fetching HERE incidents + traffic flow data...');
-      const [incidentResult, flowResult] = await Promise.allSettled([
-        fetchHERETrafficWithStreetNames(),
-        fetchHERETrafficFlow()
-      ]);
-      
-      const allIncidents = [];
-      let combinedSuccess = false;
-      let methods = [];
-      
-      // Process incident data
-      if (incidentResult.status === 'fulfilled' && incidentResult.value.success) {
-        const incidents = incidentResult.value.data || [];
-        allIncidents.push(...incidents);
-        methods.push('HERE Incidents API');
-        combinedSuccess = true;
-        console.log(`✅ HERE Incidents: ${incidents.length} alerts`);
-      } else {
-        console.warn('⚠️ HERE incidents failed:', incidentResult.reason?.message || incidentResult.value?.error);
-      }
-      
-      // Process flow data
-      if (flowResult.status === 'fulfilled' && flowResult.value.success) {
-        const flowAlerts = flowResult.value.data || [];
-        allIncidents.push(...flowAlerts);
-        methods.push('HERE Traffic Flow API');
-        combinedSuccess = true;
-        console.log(`✅ HERE Traffic Flow: ${flowAlerts.length} congestion alerts`);
-      } else {
-        console.warn('⚠️ HERE traffic flow failed:', flowResult.reason?.message || flowResult.value?.error);
-      }
-      
-      timeBasedPollingManager.recordPoll('here', combinedSuccess);
-      
-      return {
-        success: combinedSuccess,
-        incidents: allIncidents,
-        method: methods.join(' + ') || 'HERE API',
-        mode: 'enhanced_traffic_intelligence',
-        pollingAllowed: true,
-        stats: {
-          totalAlerts: allIncidents.length,
-          incidents: allIncidents.filter(a => a.type === 'incident').length,
-          congestion: allIncidents.filter(a => a.type === 'congestion').length
-        }
-      };
-    } catch (error) {
-      timeBasedPollingManager.recordPoll('here', false);
-      return { success: false, error: error.message, pollingAllowed: true };
-    }
-  }
 
-  async fetchMapQuestData() {
-    if (!process.env.MAPQUEST_API_KEY) {
-      return { 
-        success: false, 
-        error: 'MapQuest API key missing',
-        incidents: [],
-        pollingAllowed: false
-      };
-    }
-    
-    const pollingCheck = timeBasedPollingManager.canPollSource('mapquest');
-    if (!pollingCheck.allowed) {
-      return { 
-        success: false, 
-        error: `Polling restricted: ${pollingCheck.reason}`,
-        pollingAllowed: false
-      };
-    }
-    
-    try {
-      timeBasedPollingManager.recordPoll('mapquest', false);
-      const result = await fetchMapQuestTrafficWithStreetNames();
-      timeBasedPollingManager.recordPoll('mapquest', result.success);
-      
-      return {
-        success: result.success,
-        incidents: result.data || [],
-        method: result.method || 'MapQuest API',
-        mode: 'live',
-        pollingAllowed: true
-      };
-    } catch (error) {
-      timeBasedPollingManager.recordPoll('mapquest', false);
-      return { success: false, error: error.message, pollingAllowed: true };
-    }
-  }
+
+
 
   async fetchNationalHighwaysData() {
     const pollingCheck = timeBasedPollingManager.canPollSource('national_highways');

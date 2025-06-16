@@ -87,33 +87,61 @@ const SimpleAlertCard = ({ alert, supervisorSession, onDismiss, onAcknowledge, s
         </Text>
       )}
 
-      {/* Routes affected */}
+      {/* Routes affected with frequency info */}
       {alert.affectsRoutes && alert.affectsRoutes.length > 0 && (
         <View style={{ marginBottom: 12 }}>
           <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>Affects Routes:</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
-            {alert.affectsRoutes.slice(0, 6).map((route, index) => (
-              <View key={index} style={[
-                {
-                  backgroundColor: '#EFF6FF',
-                  borderColor: '#3B82F6',
-                  borderWidth: 1,
-                  paddingHorizontal: 6,
-                  paddingVertical: 2,
-                  borderRadius: 4
-                }
-              ]}>
-                <Text style={{ fontSize: 11, color: '#3B82F6', fontWeight: '600' }}>
-                  {route}
-                </Text>
-              </View>
-            ))}
+            {alert.affectsRoutes.slice(0, 6).map((route, index) => {
+              const frequency = alert.routeFrequencySummaries?.[route] || '';
+              const impactCategory = alert.routeFrequencies?.[route]?.overall?.category;
+              const isHighFreq = impactCategory === 'high-frequency';
+              
+              return (
+                <View key={index} style={[
+                  {
+                    backgroundColor: isHighFreq ? '#FEF3C7' : '#EFF6FF',
+                    borderColor: isHighFreq ? '#F59E0B' : '#3B82F6',
+                    borderWidth: 1,
+                    paddingHorizontal: 6,
+                    paddingVertical: 2,
+                    borderRadius: 4
+                  }
+                ]}>
+                  <Text style={{ fontSize: 11, color: isHighFreq ? '#D97706' : '#3B82F6', fontWeight: '600' }}>
+                    {route} {frequency && `(${frequency})`}
+                  </Text>
+                </View>
+              );
+            })}
             {alert.affectsRoutes.length > 6 && (
               <Text style={{ fontSize: 11, color: '#6B7280', alignSelf: 'center' }}>
                 +{alert.affectsRoutes.length - 6} more
               </Text>
             )}
           </View>
+          {alert.frequencyImpact && (
+            <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={[
+                {
+                  paddingHorizontal: 8,
+                  paddingVertical: 4,
+                  borderRadius: 4,
+                  backgroundColor: alert.frequencyImpact.impactLevel === 'severe' ? '#DC2626' :
+                               alert.frequencyImpact.impactLevel === 'major' ? '#F59E0B' : '#3B82F6'
+                }
+              ]}>
+                <Text style={{ fontSize: 10, color: '#FFFFFF', fontWeight: '700' }}>
+                  {alert.frequencyImpact.impactLevel.toUpperCase()} SERVICE IMPACT
+                </Text>
+              </View>
+              {alert.frequencyImpact.affectedHighFrequency.length > 0 && (
+                <Text style={{ fontSize: 11, color: '#DC2626', fontWeight: '600' }}>
+                  ⚠️ Affects {alert.frequencyImpact.affectedHighFrequency.length} high-frequency route{alert.frequencyImpact.affectedHighFrequency.length > 1 ? 's' : ''}
+                </Text>
+              )}
+            </View>
+          )}
         </View>
       )}
 
@@ -938,6 +966,39 @@ const SupervisorControl = ({
         </View>
       </View>
 
+      {/* Service Frequency Impact Summary */}
+      {(() => {
+        const highFreqAlerts = alerts.filter(a => 
+          a.frequencyImpact?.affectedHighFrequency?.length > 0
+        );
+        const severeImpact = alerts.filter(a => 
+          a.frequencyImpact?.impactLevel === 'severe'
+        );
+        
+        if (highFreqAlerts.length > 0 || severeImpact.length > 0) {
+          return (
+            <View style={styles.frequencyImpactBar}>
+              <Text style={styles.frequencyImpactTitle}>🚌 Service Frequency Impact</Text>
+              <View style={styles.frequencyStats}>
+                {highFreqAlerts.length > 0 && (
+                  <View style={[styles.frequencyStat, { backgroundColor: '#FEF3C7' }]}>
+                    <Text style={styles.frequencyStatValue}>{highFreqAlerts.length}</Text>
+                    <Text style={styles.frequencyStatLabel}>High-Freq Disrupted</Text>
+                  </View>
+                )}
+                {severeImpact.length > 0 && (
+                  <View style={[styles.frequencyStat, { backgroundColor: '#FEE2E2' }]}>
+                    <Text style={styles.frequencyStatValue}>{severeImpact.length}</Text>
+                    <Text style={styles.frequencyStatLabel}>Severe Impact</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          );
+        }
+        return null;
+      })()}
+
       <ScrollView style={styles.alertsList} showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionTitle}>Active Alerts ({alerts.length})</Text>
         
@@ -1727,6 +1788,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#1F2937',
     fontStyle: 'italic',
+  },
+  frequencyImpactBar: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.04)',
+  },
+  frequencyImpactTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  frequencyStats: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  frequencyStat: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    minWidth: 120,
+  },
+  frequencyStatValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  frequencyStatLabel: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 2,
+    fontWeight: '600',
   },
   // Control Button Group
   controlButtonGroup: {

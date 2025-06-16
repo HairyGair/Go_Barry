@@ -2,12 +2,13 @@
 // Fixed Display Screen with Web-Compatible Styles
 // Simple, working 50/50 layout for control room
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBarryAPI } from './hooks/useBARRYapi';
 import { useSupervisorPolling } from './hooks/useSupervisorPolling';
 import TrafficMap from './TrafficMap';
+import typography, { getAlertIcon, getSeverityIcon } from '../theme/typography';
 
 const DisplayScreen = () => {
   const {
@@ -37,6 +38,16 @@ const DisplayScreen = () => {
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentAlertIndex, setCurrentAlertIndex] = useState(0);
+  const [hoveredRoute, setHoveredRoute] = useState(null);
+  const [hoveredNavBtn, setHoveredNavBtn] = useState(null);
+  const [hoveredAlert, setHoveredAlert] = useState(false);
+  const [hoveredActivity, setHoveredActivity] = useState(null);
+  const spinValue = useRef(new Animated.Value(0)).current;
+  
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -62,6 +73,56 @@ const DisplayScreen = () => {
     
     return () => clearInterval(interval);
   }, [visibleAlerts.length, lockedOnDisplay]);
+
+  // Animate alert changes
+  useEffect(() => {
+    // Reset animations
+    fadeAnim.setValue(0);
+    scaleAnim.setValue(0.95);
+    slideAnim.setValue(20);
+    
+    // Animate in
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [currentAlertIndex, visibleAlerts.length]);
+
+  // Spin animation for refresh button
+  useEffect(() => {
+    if (loading) {
+      const spin = Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        })
+      );
+      spin.start();
+      return () => spin.stop();
+    } else {
+      spinValue.setValue(0);
+    }
+  }, [loading]);
+
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg']
+  });
 
   const formatTime = (date) => {
     return date.toLocaleTimeString('en-GB', {
@@ -155,9 +216,11 @@ const DisplayScreen = () => {
         
         <View style={styles.headerRight}>
           <View style={[styles.statusBadge, { backgroundColor: loading ? '#F59E0B' : '#10B981' }]}>
+            <Text style={styles.statusIcon}>{loading ? typography.icons.status.updating : typography.icons.status.live}</Text>
             <Text style={styles.statusText}>{loading ? 'UPDATING' : 'LIVE'}</Text>
           </View>
           <View style={[styles.statusBadge, { backgroundColor: supervisorConnected ? '#10B981' : '#6B7280' }]}>
+            <Text style={styles.statusIcon}>{supervisorConnected ? typography.icons.status.connected : typography.icons.status.disconnected}</Text>
             <Text style={styles.statusText}>{connectedSupervisors} SUPERVISORS</Text>
           </View>
         </View>
@@ -169,7 +232,12 @@ const DisplayScreen = () => {
         {/* LEFT SIDE - ALERTS (50%) */}
         <View style={styles.leftSection}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>🚨 LIVE ALERTS ({visibleAlerts.length})</Text>
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.sectionTitle}>{typography.icons.alert.emergency} LIVE ALERTS</Text>
+              <View style={styles.alertCountBadge}>
+                <Text style={styles.alertCountText}>{visibleAlerts.length}</Text>
+              </View>
+            </View>
           </View>
           
           <View style={styles.alertContent}>
@@ -178,13 +246,29 @@ const DisplayScreen = () => {
                 {/* Alert Navigation */}
                 {visibleAlerts.length > 1 && (
                   <View style={styles.alertNavigation}>
-                    <TouchableOpacity style={styles.navBtn} onPress={prevAlert}>
+                    <TouchableOpacity 
+                      style={[
+                        styles.navBtn,
+                        hoveredNavBtn === 'prev' && styles.navBtnHovered
+                      ]} 
+                      onPress={prevAlert}
+                      onMouseEnter={() => Platform.OS === 'web' && setHoveredNavBtn('prev')}
+                      onMouseLeave={() => Platform.OS === 'web' && setHoveredNavBtn(null)}
+                    >
                       <Text style={styles.navBtnText}>◀</Text>
                     </TouchableOpacity>
                     <Text style={styles.alertCounter}>
                       {currentAlertIndex + 1} of {visibleAlerts.length}
                     </Text>
-                    <TouchableOpacity style={styles.navBtn} onPress={nextAlert}>
+                    <TouchableOpacity 
+                      style={[
+                        styles.navBtn,
+                        hoveredNavBtn === 'next' && styles.navBtnHovered
+                      ]} 
+                      onPress={nextAlert}
+                      onMouseEnter={() => Platform.OS === 'web' && setHoveredNavBtn('next')}
+                      onMouseLeave={() => Platform.OS === 'web' && setHoveredNavBtn(null)}
+                    >
                       <Text style={styles.navBtnText}>▶</Text>
                     </TouchableOpacity>
                   </View>
@@ -214,8 +298,35 @@ const DisplayScreen = () => {
                     }
                   };
 
+                  // Get alert type icon
+                  const getAlertTypeIcon = () => {
+                    const type = alert.type?.toLowerCase() || alert.category?.toLowerCase() || '';
+                    if (type.includes('roadwork') || type.includes('construction')) return '🚧';
+                    if (type.includes('accident') || type.includes('crash') || type.includes('collision')) return '🚗';
+                    if (type.includes('event') || type.includes('planned')) return '📅';
+                    if (type.includes('congestion') || type.includes('traffic')) return '🚦';
+                    if (type.includes('closure') || type.includes('closed')) return '🚫';
+                    if (type.includes('weather')) return '🌧️';
+                    if (type.includes('emergency')) return '🚨';
+                    return typography.icons.alert.warning;
+                  };
+
                   return (
-                    <View style={styles.currentAlert}>
+                    <Animated.View 
+                      style={[
+                        styles.currentAlert,
+                        hoveredAlert && styles.currentAlertHovered,
+                        {
+                          opacity: fadeAnim,
+                          transform: [
+                            { scale: scaleAnim },
+                            { translateY: slideAnim }
+                          ],
+                        }
+                      ]}
+                      onMouseEnter={() => Platform.OS === 'web' && setHoveredAlert(true)}
+                      onMouseLeave={() => Platform.OS === 'web' && setHoveredAlert(false)}
+                    >
                       {/* Severity indicator bar */}
                       <View style={[styles.severityIndicator, { backgroundColor: getSeverityColor() }]} />
                       
@@ -225,7 +336,13 @@ const DisplayScreen = () => {
                           {alert.severity?.toUpperCase() || 'ALERT'} IMPACT
                         </Text>
                       </View>
-                      <Text style={styles.alertTitle}>{alert.title}</Text>
+
+                      {/* END of Animated.View block */}
+                      {/* START of alertTitleRow block */}
+                      <View style={styles.alertTitleRow}>
+                        <Text style={styles.alertTypeIcon}>{getAlertTypeIcon()}</Text>
+                        <Text style={styles.alertTitle}>{alert.title}</Text>
+                      </View>
                       <View style={styles.locationContainer}>
                         <Text style={styles.locationIcon}>📍</Text>
                         <Text style={styles.alertLocation}>{alert.location}</Text>
@@ -236,41 +353,69 @@ const DisplayScreen = () => {
                         <View style={styles.routesSection}>
                           <Text style={styles.routesLabel}>AFFECTED SERVICES:</Text>
                           <View style={styles.routesList}>
-                            {alert.affectsRoutes.map((route, idx) => (
-                              <View key={idx} style={styles.routeBadge}>
-                                <Text style={styles.routeText}>{route}</Text>
-                              </View>
-                            ))}
+                            {alert.affectsRoutes.map((route, idx) => {
+                              const frequency = alert.routeFrequencySummaries?.[route];
+                              const isHighFreq = alert.routeFrequencies?.[route]?.overall?.category === 'high-frequency';
+                              
+                              return (
+                                <TouchableOpacity 
+                                  key={idx} 
+                                  style={[
+                                    styles.routeBadge,
+                                    isHighFreq && styles.routeBadgeHighFreq,
+                                    hoveredRoute === `${alert.id}-${idx}` && styles.routeBadgeHovered
+                                  ]}
+                                  activeOpacity={0.8}
+                                  onMouseEnter={() => Platform.OS === 'web' && setHoveredRoute(`${alert.id}-${idx}`)}
+                                  onMouseLeave={() => Platform.OS === 'web' && setHoveredRoute(null)}
+                                >
+                                  <Text style={[styles.routeText, isHighFreq && styles.routeTextHighFreq]}>
+                                    {route} {frequency && `(${frequency})`}
+                                  </Text>
+                                </TouchableOpacity>
+                              );
+                            })}
                           </View>
+                          {alert.frequencyImpact && (
+                            <View style={styles.frequencyImpactInfo}>
+                              <Text style={[
+                                styles.impactText,
+                                { color: alert.frequencyImpact.impactLevel === 'severe' ? '#DC2626' : 
+                                         alert.frequencyImpact.impactLevel === 'major' ? '#F59E0B' : '#3B82F6' }
+                              ]}>
+                                {alert.frequencyImpact.impactLevel.toUpperCase()} SERVICE IMPACT
+                              </Text>
+                            </View>
+                          )}
                         </View>
                       )}
 
                       {priorityOverride && (
                         <View style={styles.priorityOverride}>
                           <Text style={styles.priorityText}>
-                            🏁 PRIORITY: {priorityOverride.priority}
+                          {typography.icons.supervisor.flag} PRIORITY: {priorityOverride.priority}
                           </Text>
                         </View>
                       )}
 
                       {supervisorNote && (
                         <View style={styles.supervisorNote}>
-                          <Text style={styles.noteText}>📝 {supervisorNote.note}</Text>
+                          <Text style={styles.noteText}>{typography.icons.supervisor.note} {supervisorNote.note}</Text>
                         </View>
                       )}
 
                       {isAcknowledged && (
                         <View style={styles.acknowledgedBadge}>
-                          <Text style={styles.ackText}>✅ ACKNOWLEDGED</Text>
+                          <Text style={styles.ackText}>{typography.icons.action.check} ACKNOWLEDGED</Text>
                         </View>
                       )}
-                    </View>
+                    </Animated.View>
                   );
                 })()}
               </View>
             ) : (
               <View style={styles.noAlerts}>
-                <Text style={styles.noAlertsIcon}>🛡️</Text>
+                <Text style={styles.noAlertsIcon}>{typography.icons.supervisor.shield}</Text>
                 <Text style={styles.noAlertsTitle}>ALL CLEAR</Text>
                 <Text style={styles.noAlertsText}>No active traffic alerts</Text>
               </View>
@@ -283,9 +428,17 @@ const DisplayScreen = () => {
           {/* MAP SECTION (70% of right side) */}
           <View style={styles.mapSection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>🗺️ LIVE TRAFFIC MAP</Text>
-              <TouchableOpacity style={styles.refreshBtn} onPress={refreshAlerts}>
-                <Text style={styles.refreshText}>🔄</Text>
+              <Text style={styles.sectionTitle}>{typography.icons.location.map} LIVE TRAFFIC MAP</Text>
+              <TouchableOpacity 
+                style={styles.refreshBtn} 
+                onPress={refreshAlerts}
+              >
+                <Animated.Text style={[
+                  styles.refreshText,
+                  loading && {
+                    transform: [{ rotate: spin }]
+                  }
+                ]}>🔄</Animated.Text>
               </TouchableOpacity>
             </View>
             
@@ -301,22 +454,43 @@ const DisplayScreen = () => {
           {/* ACTIVITY SECTION (30% of right side) */}
           <View style={styles.activitySection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>👥 SUPERVISOR ACTIVITY</Text>
+              <Text style={styles.sectionTitle}>{typography.icons.supervisor.user} SUPERVISOR ACTIVITY</Text>
             </View>
             
             <ScrollView style={styles.activityList}>
               {activityFeed.length > 0 ? (
-                activityFeed.map((activity) => (
-                  <View key={activity.id} style={styles.activityItem}>
-                    <Text style={styles.activityIcon}>
-                      {activity.icon === 'log-in' ? '👤' : 
-                       activity.icon === 'checkmark-circle' ? '✅' : '📝'}
-                    </Text>
-                    <View style={styles.activityContent}>
-                      <Text style={styles.activityTitle}>{activity.title}</Text>
-                      <Text style={styles.activityDescription}>{activity.description}</Text>
+                activityFeed.map((activity, index) => (
+                  <TouchableOpacity 
+                    key={activity.id} 
+                    style={[
+                      styles.activityItem,
+                      hoveredActivity === activity.id && styles.activityItemHovered
+                    ]}
+                    activeOpacity={1}
+                    onMouseEnter={() => Platform.OS === 'web' && setHoveredActivity(activity.id)}
+                    onMouseLeave={() => Platform.OS === 'web' && setHoveredActivity(null)}
+                  >
+                    <View style={styles.activityIconContainer}>
+                      <Text style={styles.activityIcon}>
+                        {activity.icon === 'log-in' ? typography.icons.supervisor.user : 
+                         activity.icon === 'checkmark-circle' ? typography.icons.action.check : 
+                         typography.icons.supervisor.note}
+                      </Text>
                     </View>
-                  </View>
+                    <View style={styles.activityContent}>
+                      <Text style={[
+                        styles.activityTitle,
+                        activity.icon === 'log-in' && styles.activityTitleSuccess
+                      ]}>{activity.title}</Text>
+                      <Text style={styles.activityDescription}>{activity.description}</Text>
+                      <Text style={styles.activityTime}>
+                        {new Date(activity.timestamp).toLocaleTimeString('en-GB', { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
                 ))
               ) : (
                 <View style={styles.noActivity}>
@@ -383,16 +557,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   systemTitle: {
-    fontSize: 22,
-    fontWeight: '900',
+    ...typography.styles.headerSmall,
     color: '#111827',
-    letterSpacing: 0.8,
   },
   systemSubtitle: {
-    fontSize: 15,
+    ...typography.styles.bodyBase,
     color: '#DC2626',
-    fontWeight: '800',
-    letterSpacing: 0.8,
+    fontWeight: typography.fontWeight.extrabold,
+    letterSpacing: typography.letterSpacing.widest,
     marginTop: 2,
   },
   headerCenter: {
@@ -400,17 +572,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   timeDisplay: {
-    fontSize: 32,
-    fontWeight: '900',
+    ...typography.styles.timeDisplay,
     color: '#111827',
-    fontFamily: Platform.OS === 'web' ? 'monospace' : 'System',
-    letterSpacing: -1,
   },
   dateDisplay: {
-    fontSize: 13,
+    ...typography.styles.labelBase,
     color: '#6B7280',
-    fontWeight: '600',
+    fontWeight: typography.fontWeight.semibold,
     marginTop: 2,
+    textTransform: 'none',
   },
   headerRight: {
     flex: 1,
@@ -418,6 +588,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 24,
@@ -427,11 +600,12 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 3,
   },
+  statusIcon: {
+    fontSize: 14,
+  },
   statusText: {
-    fontSize: 12,
-    fontWeight: '800',
+    ...typography.styles.labelSmall,
     color: '#FFFFFF',
-    letterSpacing: 0.8,
   },
 
   // Main content - True 50/50 split
@@ -498,14 +672,32 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   sectionTitle: {
-    fontSize: 17,
-    fontWeight: '900',
+    ...typography.styles.sectionTitle,
     color: '#111827',
-    letterSpacing: 0.5,
+  },
+  alertCountBadge: {
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 16,
+    minWidth: 28,
+    alignItems: 'center',
+  },
+  alertCountText: {
+    ...typography.styles.badge,
+    color: '#FFFFFF',
   },
   refreshBtn: {
     padding: 4,
+    ...(Platform.OS === 'web' && {
+      transition: 'transform 0.3s ease',
+    }),
   },
   refreshText: {
     fontSize: 16,
@@ -550,6 +742,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 6,
     elevation: 3,
+    ...(Platform.OS === 'web' && {
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      cursor: 'pointer',
+    }),
+  },
+  navBtnHovered: {
+    backgroundColor: '#2563EB',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+    transform: [{ scale: 1.1 }],
   },
   navBtnText: {
     color: '#FFFFFF',
@@ -557,11 +761,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   alertCounter: {
+    ...typography.styles.bodyLarge,
     color: '#111827',
-    fontSize: 17,
-    fontWeight: '900',
+    fontWeight: typography.fontWeight.black,
     fontFamily: Platform.OS === 'web' ? 'monospace' : 'System',
-    letterSpacing: 0.3,
   },
 
   // Current alert - Modernized with severity indicators
@@ -580,6 +783,17 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0, 0, 0, 0.06)',
     position: 'relative',
     overflow: 'hidden',
+    ...(Platform.OS === 'web' && {
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      cursor: 'default',
+    }),
+  },
+  currentAlertHovered: {
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 12,
+    transform: [{ scale: 1.02 }],
   },
   // Severity indicator bar
   severityIndicator: {
@@ -602,19 +816,25 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
   severityBadgeText: {
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0.8,
+    ...typography.styles.labelBase,
+    textTransform: 'uppercase',
   },
   
-  alertTitle: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#111827',
+  alertTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
     marginLeft: 16,
-    letterSpacing: -0.5,
-    lineHeight: 34,
+    marginRight: 16,
+  },
+  alertTypeIcon: {
+    fontSize: 32,
+    marginRight: 12,
+  },
+  alertTitle: {
+    ...typography.styles.headerMedium,
+    color: '#111827',
+    flex: 1,
   },
   locationContainer: {
     flexDirection: 'row',
@@ -628,22 +848,18 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   alertLocation: {
-    fontSize: 20,
+    ...typography.styles.bodyLarge,
     color: '#1F2937',
-    fontWeight: '700',
-    letterSpacing: -0.2,
-    lineHeight: 26,
+    fontWeight: typography.fontWeight.bold,
+    letterSpacing: typography.letterSpacing.tight,
     flex: 1,
   },
   alertDescription: {
-    fontSize: 17,
+    ...typography.styles.bodyLarge,
     color: '#6B7280',
-    lineHeight: 26,
     marginBottom: 24,
     marginLeft: 16,
     marginRight: 16,
-    fontWeight: '500',
-    letterSpacing: -0.1,
   },
 
   // Routes section
@@ -657,12 +873,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(59, 130, 246, 0.2)',
   },
   routesLabel: {
-    fontSize: 13,
-    fontWeight: '800',
+    ...typography.styles.labelBase,
     color: '#6B7280',
     marginBottom: 14,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
   },
   routesList: {
     flexDirection: 'row',
@@ -679,12 +892,40 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 2,
+    ...(Platform.OS === 'web' && {
+      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+      cursor: 'pointer',
+    }),
+  },
+  routeBadgeHighFreq: {
+    backgroundColor: '#F59E0B',
+    shadowColor: '#F59E0B',
+  },
+  routeBadgeHovered: {
+    backgroundColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+    transform: [{ scale: 1.08 }],
   },
   routeText: {
-    fontSize: 15,
-    fontWeight: '800',
+    ...typography.styles.button,
     color: '#FFFFFF',
-    letterSpacing: 0.5,
+  },
+  routeTextHighFreq: {
+    fontWeight: '800',
+  },
+  frequencyImpactInfo: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  impactText: {
+    ...typography.styles.labelBase,
+    fontWeight: typography.fontWeight.extrabold,
+    letterSpacing: typography.letterSpacing.wider,
   },
 
   // Supervisor enhancements
@@ -703,10 +944,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   priorityText: {
-    fontSize: 15,
-    fontWeight: '800',
+    ...typography.styles.bodyBase,
+    fontWeight: typography.fontWeight.extrabold,
     color: '#92400E',
-    letterSpacing: 0.3,
   },
   supervisorNote: {
     backgroundColor: '#EBF8FF',
@@ -723,10 +963,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   noteText: {
-    fontSize: 15,
+    ...typography.styles.bodyBase,
     color: '#1E40AF',
-    fontWeight: '600',
-    lineHeight: 22,
+    fontWeight: typography.fontWeight.semibold,
   },
   acknowledgedBadge: {
     backgroundColor: '#D1FAE5',
@@ -742,10 +981,9 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   ackText: {
-    fontSize: 15,
-    fontWeight: '800',
+    ...typography.styles.bodyBase,
+    fontWeight: typography.fontWeight.extrabold,
     color: '#059669',
-    letterSpacing: 0.5,
   },
 
   // No alerts
@@ -759,16 +997,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   noAlertsTitle: {
-    fontSize: 28,
-    fontWeight: '900',
+    ...typography.styles.headerMedium,
     color: '#10B981',
     marginBottom: 12,
-    letterSpacing: -0.5,
   },
   noAlertsText: {
-    fontSize: 17,
+    ...typography.styles.bodyLarge,
     color: '#6B7280',
-    fontWeight: '500',
   },
 
   // Map section (70% of right side)
@@ -818,25 +1053,51 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+    ...(Platform.OS === 'web' && {
+      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+      cursor: 'pointer',
+    }),
+  },
+  activityItemHovered: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
+    transform: [{ scale: 1.02 }],
+  },
+  activityIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   activityIcon: {
-    fontSize: 20,
+    fontSize: typography.fontSize['icon-sm'],
   },
   activityContent: {
     flex: 1,
   },
   activityTitle: {
-    fontSize: 14,
-    fontWeight: '800',
+    ...typography.styles.bodySmall,
+    fontWeight: typography.fontWeight.extrabold,
     color: '#111827',
-    letterSpacing: 0.1,
+  },
+  activityTitleSuccess: {
+    color: '#059669',
   },
   activityDescription: {
-    fontSize: 13,
+    ...typography.styles.bodySmall,
     color: '#6B7280',
-    fontWeight: '500',
     marginTop: 3,
-    lineHeight: 18,
+  },
+  activityTime: {
+    ...typography.styles.labelSmall,
+    color: '#9CA3AF',
+    marginTop: 4,
+    textTransform: 'none',
   },
   noActivity: {
     padding: 16,
@@ -863,10 +1124,9 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   footerText: {
-    fontSize: 14,
+    ...typography.styles.bodySmall,
     color: '#4B5563',
-    fontWeight: '700',
-    letterSpacing: 0.2,
+    fontWeight: typography.fontWeight.bold,
   },
 });
 

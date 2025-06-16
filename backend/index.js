@@ -23,6 +23,8 @@ import gtfsAPI from './routes/gtfsAPI.js';
 import intelligenceAPI from './routes/intelligenceAPI.js';
 import incidentAPI from './routes/incidentAPI.js';
 import enhancementAPI from './routes/enhancementAPI.js';
+import frequencyAPI from './routes/frequencyAPI.js';
+import serviceFrequencyAnalyzer from './services/serviceFrequencyAnalyzer.js';
 import supervisorSyncService from './services/supervisorSync.js';
 import enhancedDataSourceManager from './services/enhancedDataSourceManager.js';
 import streetManagerWebhooks from './services/streetManagerWebhooksSimple.js';
@@ -121,6 +123,10 @@ let alertNotes = {};
     console.log('🚀 Initializing Enhanced GTFS route matching system...');
     await initializeEnhancedGTFS();
     console.log('✅ Enhanced GTFS route matching ready');
+    
+    console.log('🚌 Initializing Service Frequency Analyzer...');
+    await serviceFrequencyAnalyzer.initialize();
+    console.log('✅ Service Frequency Analyzer ready');
     
     const routesTxt = await fs.readFile(path.join(__dirname, 'data/routes.txt'), 'utf-8');
     const records = parse(routesTxt, { columns: true, skip_empty_lines: true });
@@ -295,6 +301,9 @@ app.use('/api/incidents', incidentAPI);
 
 // TomTom Enhancement API routes
 app.use('/api/enhancement', enhancementAPI);
+
+// Service Frequency API routes
+app.use('/api/frequency', frequencyAPI);
 
 // StreetManager webhook routes
 app.post('/api/streetmanager/webhook', async (req, res) => {
@@ -688,6 +697,20 @@ async function processAlertsOptimized(alerts) {
           alert.affectsRoutes = findRoutesNearCoordinatesFixed(lat, lng);
           alert.routeMatchMethod = 'Post-processed';
         }
+      }
+      
+      // Add frequency data for affected routes
+      if (alert.affectsRoutes && alert.affectsRoutes.length > 0) {
+        const frequencies = serviceFrequencyAnalyzer.getMultipleRouteFrequencies(alert.affectsRoutes);
+        const summaries = {};
+        for (const routeId of alert.affectsRoutes) {
+          summaries[routeId] = serviceFrequencyAnalyzer.getFrequencySummary(routeId);
+        }
+        const impact = serviceFrequencyAnalyzer.getImpactScore(alert.affectsRoutes);
+        
+        alert.routeFrequencies = frequencies;
+        alert.routeFrequencySummaries = summaries;
+        alert.frequencyImpact = impact;
       }
       
       alert.lastUpdated = alert.lastUpdated || new Date().toISOString();

@@ -17,6 +17,7 @@ import { API_CONFIG } from '../config/api';
 import SupervisorControl from './SupervisorControl';
 import SupervisorLogin from './SupervisorLogin';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
+import typography, { getAlertIcon, getSeverityIcon } from '../theme/typography';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -316,23 +317,26 @@ const EnhancedDashboard = ({
         onPress={() => handleAlertClick(alert)}
       >
         <View style={styles.alertHeader}>
-          <Text style={styles.alertTitle} numberOfLines={2}>
-            {alert.title || 'Traffic Incident'}
-          </Text>
+          <View style={styles.alertTitleRow}>
+            <Text style={styles.alertTypeIcon}>{getAlertIcon(alert.type || alert.category)}</Text>
+            <Text style={styles.alertTitle} numberOfLines={2}>
+              {alert.title || 'Traffic Incident'}
+            </Text>
+          </View>
           <View style={styles.alertBadges}>
             <Text style={[styles.alertStatus, { color: priorityColor }]}>
-              {alert.severity?.toUpperCase() || 'UNKNOWN'}
+              {getSeverityIcon(alert.severity)} {alert.severity?.toUpperCase() || 'UNKNOWN'}
             </Text>
             {alert.enhanced && (
               <View style={styles.enhancedBadge}>
-                <Ionicons name="checkmark" size={12} color="#059669" />
+                <Text style={styles.enhancedBadgeText}>{typography.icons.action.check}</Text>
               </View>
             )}
           </View>
         </View>
         
         <Text style={styles.alertLocation}>
-          📍 {alert.location || 'Location being resolved...'}
+          {typography.icons.location.pin} {alert.location || 'Location being resolved...'}
         </Text>
         
         {alert.description && (
@@ -342,10 +346,13 @@ const EnhancedDashboard = ({
         )}
         
         {alert.affectsRoutes && alert.affectsRoutes.length > 0 && (
-          <Text style={styles.alertRoutes}>
-            🚌 Routes: {alert.affectsRoutes.slice(0, 8).join(', ')}
-            {alert.affectsRoutes.length > 8 ? ` +${alert.affectsRoutes.length - 8} more` : ''}
-          </Text>
+          <View style={styles.alertRoutesContainer}>
+            <Text style={styles.alertRoutesIcon}>🚌</Text>
+            <Text style={styles.alertRoutes}>
+              Routes: {alert.affectsRoutes.slice(0, 8).join(', ')}
+              {alert.affectsRoutes.length > 8 ? ` +${alert.affectsRoutes.length - 8} more` : ''}
+            </Text>
+          </View>
         )}
         
         <View style={styles.alertFooter}>
@@ -366,18 +373,16 @@ const EnhancedDashboard = ({
       <Text style={styles.sectionTitle}>System Status</Text>
       <View style={styles.statusGrid}>
         <View style={styles.statusItem}>
-          <Ionicons 
-            name={healthData?.status === 'healthy' ? 'checkmark-circle' : 'warning'} 
-            size={16} 
-            color={healthData?.status === 'healthy' ? '#10B981' : '#EF4444'} 
-          />
+          <Text style={styles.statusIcon}>
+            {healthData?.status === 'healthy' ? typography.icons.status.connected : typography.icons.alert.warning}
+          </Text>
           <Text style={styles.statusText}>
             Backend: {healthData?.status || 'Unknown'}
           </Text>
         </View>
         
         <View style={styles.statusItem}>
-          <Ionicons name="server" size={16} color="#3B82F6" />
+          <Ionicons name="shield-checkmark" size={16} color="#3B82F6" />
           <Text style={styles.statusText}>
             GTFS Routes: {healthData?.gtfs?.routes || 'N/A'}
           </Text>
@@ -501,7 +506,7 @@ const EnhancedDashboard = ({
             ))
           ) : (
             <View style={styles.noAlertsContainer}>
-              <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+              <Text style={styles.noAlertsIcon}>{typography.icons.supervisor.shield}</Text>
               <Text style={styles.noAlertsText}>
                 {searchQuery ? 'No alerts match your search' : 'No alerts in this category'}
               </Text>
@@ -648,14 +653,14 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingTop: isWeb ? 24 : 44,
   },
+  // Enhanced typography styles
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    ...typography.styles.headerMedium,
     color: '#FFFFFF',
     marginBottom: 4,
   },
   headerSubtitle: {
-    fontSize: 16,
+    ...typography.styles.bodyBase,
     color: '#9CA3AF',
   },
   keyboardHelp: {
@@ -703,22 +708,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   enhancedStatValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    ...typography.styles.headerSmall,
     color: '#1E293B',
     marginVertical: 4,
   },
   enhancedStatLabel: {
-    fontSize: 11,
+    ...typography.styles.labelSmall,
     color: '#64748B',
     textAlign: 'center',
     marginBottom: 2,
-    fontWeight: '600',
+    textTransform: 'uppercase',
   },
   enhancedStatCount: {
+    ...typography.styles.labelSmall,
     fontSize: 9,
     color: '#94A3B8',
     textAlign: 'center',
+    textTransform: 'none',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -740,7 +746,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    ...typography.styles.bodyBase,
     color: '#1E293B',
     outlineStyle: 'none',
   },
@@ -765,8 +771,8 @@ const styles = StyleSheet.create({
     borderColor: '#3B82F6',
   },
   filterTabText: {
-    fontSize: 14,
-    fontWeight: '500',
+    ...typography.styles.bodySmall,
+    fontWeight: typography.fontWeight.medium,
     color: '#64748B',
   },
   filterTabTextActive: {
@@ -809,8 +815,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    ...typography.styles.bodyLarge,
+    fontWeight: typography.fontWeight.semibold,
     color: '#1E293B',
     marginBottom: 12,
   },
@@ -825,8 +831,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statusText: {
-    fontSize: 14,
+    ...typography.styles.bodySmall,
     color: '#64748B',
+  },
+  statusIcon: {
+    fontSize: 16,
+    marginRight: 2,
   },
   alertItem: {
     backgroundColor: '#FEF2F2',
@@ -841,12 +851,22 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 4,
   },
-  alertTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1E293B',
+  alertTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     flex: 1,
     marginRight: 8,
+  },
+  alertTypeIcon: {
+    fontSize: 20,
+    marginRight: 8,
+    marginTop: -2,
+  },
+  alertTitle: {
+    ...typography.styles.bodySmall,
+    fontWeight: typography.fontWeight.semibold,
+    color: '#1E293B',
+    flex: 1,
   },
   alertBadges: {
     flexDirection: 'row',
@@ -854,33 +874,48 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   alertStatus: {
-    fontSize: 10,
-    fontWeight: 'bold',
+    ...typography.styles.labelSmall,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+    textTransform: 'uppercase',
   },
   enhancedBadge: {
     backgroundColor: '#D1FAE5',
     borderRadius: 10,
     padding: 2,
   },
-  alertLocation: {
+  enhancedBadgeText: {
     fontSize: 12,
+  },
+  alertLocation: {
+    ...typography.styles.labelSmall,
     color: '#64748B',
     marginBottom: 4,
+    textTransform: 'none',
   },
   alertDescription: {
-    fontSize: 12,
+    ...typography.styles.labelSmall,
     color: '#374151',
     marginBottom: 4,
+    textTransform: 'none',
+  },
+  alertRoutesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  alertRoutesIcon: {
+    fontSize: 14,
+    marginRight: 4,
   },
   alertRoutes: {
-    fontSize: 11,
+    ...typography.styles.labelSmall,
     color: '#7C3AED',
-    fontWeight: '500',
-    marginBottom: 4,
+    fontWeight: typography.fontWeight.medium,
+    textTransform: 'none',
+    flex: 1,
   },
   alertFooter: {
     flexDirection: 'row',
@@ -888,29 +923,38 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   alertSource: {
+    ...typography.styles.labelSmall,
     fontSize: 10,
     color: '#94A3B8',
     fontStyle: 'italic',
+    textTransform: 'none',
   },
   alertTime: {
+    ...typography.styles.labelSmall,
     fontSize: 10,
     color: '#94A3B8',
+    textTransform: 'none',
   },
   noAlertsContainer: {
     alignItems: 'center',
     paddingVertical: 40,
   },
+  noAlertsIcon: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
   noAlertsText: {
-    fontSize: 16,
+    ...typography.styles.bodyBase,
     color: '#10B981',
     textAlign: 'center',
     marginTop: 12,
     marginBottom: 8,
   },
   noAlertsSubtext: {
-    fontSize: 12,
+    ...typography.styles.labelSmall,
     color: '#64748B',
     textAlign: 'center',
+    textTransform: 'none',
   },
   supervisorHeader: {
     backgroundColor: '#FFFFFF',
@@ -936,8 +980,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   supervisorName: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...typography.styles.bodySmall,
+    fontWeight: typography.fontWeight.semibold,
     color: '#1E293B',
   },
   adminBadge: {
@@ -963,9 +1007,10 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   controlButtonText: {
-    fontSize: 12,
+    ...typography.styles.labelSmall,
     color: '#3B82F6',
-    fontWeight: '500',
+    fontWeight: typography.fontWeight.medium,
+    textTransform: 'none',
   },
   logoutButton: {
     flexDirection: 'row',
@@ -988,9 +1033,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   loginPromptText: {
-    fontSize: 14,
+    ...typography.styles.bodySmall,
     color: '#6B7280',
-    fontWeight: '500',
+    fontWeight: typography.fontWeight.medium,
     flex: 1,
   },
   // Alert Details Modal Styles

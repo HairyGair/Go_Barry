@@ -1,6 +1,4 @@
 #!/bin/bash
-chmod +x test-auth-quick.sh
-chmod +x deploy-final-websocket-fix.sh
-chmod +x deploy-complete-session-fix.sh
-chmod +x deploy-session-fix.sh
-echo "✅ Made all scripts executable"
+chmod +x deploy-cost-reduction.sh
+echo "✅ Made deploy-cost-reduction.sh executable"
+echo "📝 You can now run: ./deploy-cost-reduction.sh"

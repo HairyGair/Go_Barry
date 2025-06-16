@@ -1,0 +1,76 @@
+
+// Add this to the processAlertsOptimized function in index.js
+// to ensure all alerts get route matching:
+
+// Inside processAlertsOptimized, after the existing route matching:
+if ((!alert.affectsRoutes || alert.affectsRoutes.length === 0) && alert.location) {
+  // Try location-based fallback matching
+  const locationLower = alert.location.toLowerCase();
+  const fallbackRoutes = [];
+  
+  // Common location keywords to route mappings
+  const locationRouteMap = {
+    'a1': ['21', 'X21', '25', '28', '28B'],
+    'a19': ['1', '2', '307', '309', '317'],
+    'tyne tunnel': ['1', '2', '307', '309'],
+    'newcastle': ['Q3', 'Q3X', '10', '12', '21', '22', '27', '28'],
+    'gateshead': ['10', '10A', '10B', '27', '28', 'Q3'],
+    'sunderland': ['16', '20', '24', '35', '36', '56', '61', '62'],
+    'durham': ['21', '22', 'X21', '6', '50'],
+    'metro centre': ['10', '10A', '10B', 'Q3'],
+    'team valley': ['28', '28B', '93', '94'],
+    'quayside': ['Q3', 'Q3X'],
+    'coast road': ['1', '2', '307', '309', '317'],
+    'great north road': ['21', 'X21'],
+  };
+  
+  // Check each keyword
+  for (const [keyword, routes] of Object.entries(locationRouteMap)) {
+    if (locationLower.includes(keyword)) {
+      fallbackRoutes.push(...routes);
+    }
+  }
+  
+  // Remove duplicates
+  alert.affectsRoutes = [...new Set(fallbackRoutes)];
+  
+  if (alert.affectsRoutes.length > 0) {
+    alert.routeMatchMethod = 'Location-keyword-fallback';
+    console.log(`🔍 Fallback route match for "${alert.location}": ${alert.affectsRoutes.join(', ')}`);
+  }
+}
+
+// Also ensure we log when routes are missing
+if (!alert.affectsRoutes || alert.affectsRoutes.length === 0) {
+  console.warn(`⚠️ No routes matched for alert: ${alert.title} at ${alert.location}`);
+}
+
+
+
+// Add this test endpoint to verify route matching:
+app.get('/api/test/route-matching', async (req, res) => {
+  const testLocations = [
+    { title: 'A1 Congestion', location: 'A1 Northbound at Team Valley' },
+    { title: 'Tyne Tunnel Delays', location: 'A19 Tyne Tunnel Approach' },
+    { title: 'City Centre', location: 'Newcastle City Centre, Monument' },
+    { title: 'Metro Centre', location: 'A1 Junction Metro Centre' },
+  ];
+  
+  const results = [];
+  
+  for (const loc of testLocations) {
+    const alert = { ...loc };
+    // Apply the fallback matching logic here
+    // ... (include the fallback code)
+    results.push({
+      location: alert.location,
+      matchedRoutes: alert.affectsRoutes || [],
+      method: alert.routeMatchMethod || 'none'
+    });
+  }
+  
+  res.json({
+    success: true,
+    testResults: results
+  });
+});
