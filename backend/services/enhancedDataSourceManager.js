@@ -28,7 +28,7 @@ class EnhancedDataSourceManager {
     this.cacheTimeout = 2 * 60 * 1000; // 2 minutes
   }
 
-  // EXPANDED: Main aggregation with 4 data sources + free tier compliance
+  // EXPANDED: Main aggregation with 4 data sources
   async aggregateAllSources() {
     console.log('🚀 [EXPANDED] Starting enhanced data aggregation with 4 sources...');
     
@@ -466,8 +466,8 @@ class EnhancedDataSourceManager {
       },
       expansion: {
         activated: ['streetmanager', 'manual_incidents'],
-        ready: ['elgin', 'scoot', 'traffic_england'],
-        potential: ['weather', 'social_media', 'fleet_data']
+        ready: ['elgin', 'scoot'],
+        potential: ['weather', 'social_media']
       }
     };
   }
@@ -476,7 +476,7 @@ class EnhancedDataSourceManager {
   clearCache() {
     this.lastFetchTime = null;
     this.aggregatedData = { incidents: [], lastUpdate: null, confidence: 0 };
-    console.log('🧹 [EXPANDED] Enhanced data source cache cleared');
+    console.log('🧹 Enhanced data source cache cleared');
   }
 }
 

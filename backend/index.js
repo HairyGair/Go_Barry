@@ -1,5 +1,4 @@
 // backend/index.js - Go BARRY Backend
-// COST OPTIMIZED: MapQuest and HERE APIs removed (£180/month saved)
 // Traffic Intelligence with TomTom + National Highways + StreetManager + Manual Incidents
 
 import express from 'express';
@@ -37,7 +36,7 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
-console.log('💰 Go BARRY Backend - COST OPTIMIZED (£180/month saved)...');
+console.log('🚀 Go BARRY Backend Starting...');
 
 // Enhanced GTFS route matching function
 function findRoutesNearCoordinatesFixed(lat, lng, radiusMeters = 250) {
@@ -1454,7 +1453,7 @@ app.post('/api/supervisor/sync-alerts', async (req, res) => {
 
 // Start server with WebSocket support
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n💰 Go BARRY Backend Started - COST OPTIMIZED`);
+  console.log(`\n🚀 Go BARRY Backend Started`);
   console.log(`📡 Server: http://localhost:${PORT}`);
   console.log(`🌐 Public: https://go-barry.onrender.com`);
   console.log(`\n📡 Available Endpoints:`);
@@ -1470,14 +1469,12 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`   📋 StreetManager Status: /api/streetmanager/status`);
   console.log(`   🔌 WebSocket: wss://go-barry.onrender.com/ws/supervisor-sync`);
   console.log(`   📊 Sync Status: /api/supervisor/sync-status`);
-  console.log(`\n💰 COST REDUCTION DEPLOYED: \u00a3180/month saved!`);
+  console.log(`\n💡 Active Data Sources:`);
   console.log(`   ✅ TomTom API - Primary traffic intelligence`);
   console.log(`   ✅ National Highways DATEX II - Official UK roadworks`);
-  console.log(`   ❌ HERE API - REMOVED (\u00a3100/month saved)`);
-  console.log(`   ❌ MapQuest API - REMOVED (\u00a380/month saved)`);
-  console.log(`   ✅ StreetManager UK - Webhook receiver (free)`);
-  console.log(`   ✅ Manual Incidents - Supervisor-created (free)`);
-  console.log(`   🎆 System fully operational with 4 data sources!`);
+  console.log(`   ✅ StreetManager UK - Webhook receiver`);
+  console.log(`   ✅ Manual Incidents - Supervisor-created`);
+  console.log(`   🎆 System operational with 4 traffic data sources`);
 });
 
 export default app;// Deployment timestamp: Tue 10 Jun 2025 10:40:34 BST
