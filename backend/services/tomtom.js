@@ -2,6 +2,7 @@
 // Fixed TomTom Traffic API with Working Route Matching
 import axios from 'axios';
 import { getEnhancedLocationWithFallbacks } from '../utils/productionLocation.js';
+import { geocodingThrottler } from '../utils/requestThrottler.js';
 
 // Enhanced route matching using both coordinates AND geocoded location names
 function findRoutesNearCoordinatesFixed(lat, lng, radiusMeters = 250) {
@@ -194,27 +195,28 @@ async function enhanceLocationWithRoutes(lat, lng, originalLocation) {
   return enhanced;
 }
 
-// Simple geocoding fallback with multiple providers and rate limiting
+// Throttled geocoding with daily rate limiting
 async function reverseGeocodeSimple(lat, lng) {
-  // Add delay to prevent rate limiting
-  await new Promise(resolve => setTimeout(resolve, 200));
+  const context = `OSM-${lat.toFixed(4)},${lng.toFixed(4)}`;
   
   try {
-    // Try OpenStreetMap first with better User-Agent
-    const response = await axios.get(`https://nominatim.openstreetmap.org/reverse`, {
-      params: {
-        lat: lat,
-        lon: lng,
-        format: 'json',
-        zoom: 16, // More specific zoom level
-        addressdetails: 1,
-        extratags: 1
-      },
-      headers: {
-        'User-Agent': 'Go-BARRY-Traffic-System/3.0 (+https://gobarry.co.uk/contact)'
-      },
-      timeout: 8000
-    });
+    // Use throttled request for OpenStreetMap
+    const response = await geocodingThrottler.makeRequest(async () => {
+      return await axios.get(`https://nominatim.openstreetmap.org/reverse`, {
+        params: {
+          lat: lat,
+          lon: lng,
+          format: 'json',
+          zoom: 16,
+          addressdetails: 1,
+          extratags: 1
+        },
+        headers: {
+          'User-Agent': 'Go-BARRY-Traffic-System/3.0 (+https://gobarry.co.uk/contact)'
+        },
+        timeout: 8000
+      });
+    }, context);
     
     if (response.data && response.data.display_name) {
       // Enhanced address parsing
@@ -257,15 +259,17 @@ async function reverseGeocodeSimple(lat, lng) {
   // Try Mapbox as fallback if available
   if (process.env.MAPBOX_TOKEN) {
     try {
-      await new Promise(resolve => setTimeout(resolve, 100)); // Rate limit
+      const mapboxContext = `Mapbox-${lat.toFixed(4)},${lng.toFixed(4)}`;
       
-      const mapboxResponse = await axios.get(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json`, {
-        params: {
-          access_token: process.env.MAPBOX_TOKEN,
-          types: 'address,poi'
-        },
-        timeout: 6000
-      });
+      const mapboxResponse = await geocodingThrottler.makeRequest(async () => {
+        return await axios.get(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json`, {
+          params: {
+            access_token: process.env.MAPBOX_TOKEN,
+            types: 'address,poi'
+          },
+          timeout: 6000
+        });
+      }, mapboxContext);
       
       if (mapboxResponse.data?.features?.length > 0) {
         const feature = mapboxResponse.data.features[0];
@@ -360,8 +364,8 @@ async function fetchTomTomTrafficWithStreetNames() {
     const alerts = [];
     
     if (response.data?.incidents) {
-      // Process incidents with enhanced locations
-      const incidents = response.data.incidents.slice(0, 15); // Limit to prevent memory issues
+      // Process incidents with throttled geocoding (reduced for rate limiting)
+      const incidents = response.data.incidents.slice(0, 8); // Reduced from 15 to stay under rate limits
       
       console.log(`🔍 Processing ${incidents.length} traffic incidents across Go North East network (filtered from ${response.data.incidents.length})`);
       
@@ -469,7 +473,11 @@ async function fetchTomTomTrafficWithStreetNames() {
       }
     }
     
-    console.log(`✅ [ENHANCED] TomTom: ${alerts.length} alerts with working route matching`);
+    // Log throttling status
+    const throttleStatus = geocodingThrottler.getStatus();
+    console.log(`📊 Geocoding throttler status: ${throttleStatus.dailyCount}/${throttleStatus.dailyLimit} requests used today`);
+    
+    console.log(`✅ [ENHANCED] TomTom: ${alerts.length} alerts with working route matching (throttled processing)`);
     
     return { 
       success: true, 
@@ -503,5 +511,6 @@ async function fetchTomTomTrafficWithStreetNames() {
   }
 }
 
-export { fetchTomTomTrafficWithStreetNames };
-export default { fetchTomTomTrafficWithStreetNames };
+// Export throttling status for monitoring
+export { fetchTomTomTrafficWithStreetNames, geocodingThrottler };
+export default { fetchTomTomTrafficWithStreetNames, geocodingThrottler };

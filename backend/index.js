@@ -24,6 +24,7 @@ import intelligenceAPI from './routes/intelligenceAPI.js';
 import incidentAPI from './routes/incidentAPI.js';
 import enhancementAPI from './routes/enhancementAPI.js';
 import frequencyAPI from './routes/frequencyAPI.js';
+import throttleAPI from './routes/throttleAPI.js';
 import serviceFrequencyAnalyzer from './services/serviceFrequencyAnalyzer.js';
 import supervisorSyncService from './services/supervisorSync.js';
 import enhancedDataSourceManager from './services/enhancedDataSourceManager.js';
@@ -304,6 +305,9 @@ app.use('/api/enhancement', enhancementAPI);
 
 // Service Frequency API routes
 app.use('/api/frequency', frequencyAPI);
+
+// Request throttling monitoring routes
+app.use('/api/throttle', throttleAPI);
 
 // StreetManager webhook routes
 app.post('/api/streetmanager/webhook', async (req, res) => {
@@ -1469,6 +1473,7 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`   📋 StreetManager Status: /api/streetmanager/status`);
   console.log(`   🔌 WebSocket: wss://go-barry.onrender.com/ws/supervisor-sync`);
   console.log(`   📊 Sync Status: /api/supervisor/sync-status`);
+  console.log(`   🕐 Throttle Status: /api/throttle/status`);
   console.log(`\n💡 Active Data Sources:`);
   console.log(`   ✅ TomTom API - Primary traffic intelligence`);
   console.log(`   ✅ National Highways DATEX II - Official UK roadworks`);
