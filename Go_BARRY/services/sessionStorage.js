@@ -1,16 +1,16 @@
 // Go_BARRY/services/sessionStorage.js
-// Browser-compatible session storage service for supervisor sessions
+// In-memory session storage service for supervisor sessions (Claude artifact compatible)
 
 class SessionStorageService {
   constructor() {
     this.storageKey = 'barry_supervisor_session';
     this.isClient = typeof window !== 'undefined';
+    // Use in-memory storage instead of localStorage
+    this.memoryStorage = new Map();
   }
 
   // Save supervisor session
   saveSession(sessionData) {
-    if (!this.isClient) return false;
-    
     try {
       const sessionWithTimestamp = {
         ...sessionData,
@@ -18,7 +18,8 @@ class SessionStorageService {
         expiresAt: Date.now() + (8 * 60 * 60 * 1000) // 8 hours
       };
       
-      localStorage.setItem(this.storageKey, JSON.stringify(sessionWithTimestamp));
+      this.memoryStorage.set(this.storageKey, sessionWithTimestamp);
+      console.log('✅ Session saved to memory storage');
       return true;
     } catch (error) {
       console.error('Failed to save session:', error);
@@ -28,13 +29,9 @@ class SessionStorageService {
 
   // Load supervisor session
   loadSession() {
-    if (!this.isClient) return null;
-    
     try {
-      const sessionStr = localStorage.getItem(this.storageKey);
-      if (!sessionStr) return null;
-      
-      const session = JSON.parse(sessionStr);
+      const session = this.memoryStorage.get(this.storageKey);
+      if (!session) return null;
       
       // Check if session has expired
       if (session.expiresAt && Date.now() > session.expiresAt) {
@@ -52,10 +49,9 @@ class SessionStorageService {
 
   // Clear supervisor session
   clearSession() {
-    if (!this.isClient) return;
-    
     try {
-      localStorage.removeItem(this.storageKey);
+      this.memoryStorage.delete(this.storageKey);
+      console.log('✅ Session cleared from memory storage');
     } catch (error) {
       console.error('Failed to clear session:', error);
     }

@@ -134,12 +134,25 @@ export const useSupervisorSession = () => {
         throw new Error('Backend mapping not found for supervisor');
       }
       
-      // Add timeout to prevent hanging
+      // Add timeout to prevent hanging (increased for Render.com wake-up)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
       
       try {
+        // Wake up backend first with health check
+        console.log('🏥 Checking backend health first...');
+        try {
+          await fetch(`${API_BASE_URL}/api/health`, {
+            method: 'GET',
+            signal: controller.signal
+          });
+          console.log('✅ Backend is awake');
+        } catch (healthError) {
+          console.warn('⚠️ Health check failed, continuing with auth:', healthError.message);
+        }
+        
         // Authenticate with backend
+        console.log('🔐 Authenticating with backend...', `${API_BASE_URL}/api/supervisor/auth/login`);
         const authResponse = await fetch(`${API_BASE_URL}/api/supervisor/auth/login`, {
           method: 'POST',
           headers: {
@@ -170,7 +183,7 @@ export const useSupervisorSession = () => {
       } catch (fetchError) {
         clearTimeout(timeoutId);
         if (fetchError.name === 'AbortError') {
-          throw new Error('Login timeout - please check your connection');
+          throw new Error('Login timeout - backend may be waking up, please try again in a moment');
         }
         
         console.warn('⚠️ Backend auth failed, using local auth only:', fetchError.message);
