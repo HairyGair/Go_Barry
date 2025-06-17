@@ -1,11 +1,11 @@
-// Go_BARRY/components/EnhancedTrafficMap.jsx
-// TomTom-powered Interactive Traffic Map for Control Room Display
-// Auto-zooms to alerts and shows markers with traffic overlay
+// Go_BARRY/components/EnhancedTrafficMapV2.jsx
+// Enhanced TomTom-powered Interactive Traffic Map with Roadworks, Layer Controls & Performance Caching
+// Integrated for Go BARRY traffic intelligence platform
 
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 
-const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, zoomTarget = null, onError = null }) => {
+const EnhancedTrafficMapV2 = ({ alerts = [], currentAlert = null, alertIndex = 0, zoomTarget = null, onError = null }) => {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -22,22 +22,219 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
   // TomTom API key - using environment variable
   const TOMTOM_API_KEY = process.env.EXPO_PUBLIC_TOMTOM_API_KEY || 'your_tomtom_api_key_here';
 
-  console.log('🗺️ TomTom Map - API key available:', TOMTOM_API_KEY ? 'Yes' : 'No');
-  console.log('🌐 Platform:', Platform.OS);
+  console.log('🗺️ Enhanced TomTom Map V2 - API key available:', TOMTOM_API_KEY ? 'Yes' : 'No');
 
   // North East England center coordinates
   const NE_ENGLAND_CENTER = [54.9783, -1.6131]; // [lat, lng] for TomTom
   const DEFAULT_ZOOM = 10;
 
+  // Performance Manager Class
+  class TilePerformanceManager {
+    constructor() {
+      this.tileCache = new Map();
+      this.currentZoom = 10;
+      this.maxCacheSize = 50 * 1024 * 1024; // 50MB limit for Go BARRY
+    }
+
+    async initializeTileCache() {
+      // Initialize service worker for tile caching
+      if ('serviceWorker' in navigator && 'caches' in window) {
+        try {
+          const cacheName = 'go-barry-tiles-v1';
+          this.cache = await caches.open(cacheName);
+          console.log('✅ Tile caching initialized for Go BARRY');
+        } catch (error) {
+          console.warn('⚠️ Tile caching not available:', error);
+        }
+      }
+    }
+
+    async cacheRequest(url) {
+      if (!this.cache) return null;
+      
+      try {
+        const cachedResponse = await this.cache.match(url);
+        if (cachedResponse) {
+          console.log('📦 Serving tile from cache:', url.split('/').pop());
+          return cachedResponse;
+        }
+        
+        // Fetch and cache if not found
+        const response = await fetch(url);
+        if (response.ok) {
+          await this.cache.put(url, response.clone());
+          console.log('💾 Cached new tile:', url.split('/').pop());
+        }
+        return response;
+      } catch (error) {
+        console.warn('⚠️ Cache error:', error);
+        return fetch(url); // Fallback to direct fetch
+      }
+    }
+
+    manageLayersByZoom(map, zoomLevel) {
+      // Optimize layer visibility based on zoom for Go BARRY
+      if (zoomLevel <= 10) {
+        // Overview level - show main traffic data only
+        this.toggleLayerVisibility(map, 'speed-cameras', false);
+        this.setLayerOpacity(map, 'roadworks-layer', 0.6);
+      } else if (zoomLevel <= 13) {
+        // District level - add infrastructure
+        this.setLayerOpacity(map, 'roadworks-layer', 0.8);
+      } else {
+        // Street level - show all details for supervisors
+        this.toggleLayerVisibility(map, 'speed-cameras', layerVisibility.speedCameras);
+        this.setLayerOpacity(map, 'roadworks-layer', 1.0);
+      }
+      
+      console.log(`🔍 Go BARRY layers optimized for zoom ${zoomLevel}`);
+    }
+
+    toggleLayerVisibility(map, layerId, visible) {
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
+      }
+    }
+
+    setLayerOpacity(map, layerId, opacity) {
+      if (map.getLayer(layerId)) {
+        const paintProperty = layerId.includes('line') ? 'line-opacity' : 
+                            layerId.includes('circle') ? 'circle-opacity' : 'raster-opacity';
+        map.setPaintProperty(layerId, paintProperty, opacity);
+      }
+    }
+
+    cleanupCache() {
+      // Clean old tiles to stay within memory limits
+      if (this.cache) {
+        caches.keys().then(cacheNames => {
+          cacheNames.forEach(cacheName => {
+            if (cacheName.startsWith('go-barry-tiles-v') && cacheName !== 'go-barry-tiles-v1') {
+              caches.delete(cacheName);
+            }
+          });
+        });
+      }
+    }
+  }
+
+  // Enhanced layer setup function
+  const addEnhancedTrafficLayers = (map, apiKey, visibility) => {
+    const layers = [
+      {
+        id: 'traffic-flow',
+        type: 'raster',
+        source: {
+          type: 'raster',
+          tiles: [`https://api.tomtom.com/traffic/map/4/tile/flow/relative/{z}/{x}/{y}.png?key=${apiKey}`],
+          tileSize: 256
+        },
+        paint: { 'raster-opacity': 0.7 },
+        visible: visibility.trafficFlow,
+        icon: '🚦',
+        name: 'Traffic Flow'
+      },
+      {
+        id: 'traffic-flow-absolute',
+        type: 'raster',
+        source: {
+          type: 'raster',
+          tiles: [`https://api.tomtom.com/traffic/map/4/tile/flow/absolute/{z}/{x}/{y}.png?key=${apiKey}`],
+          tileSize: 256
+        },
+        paint: { 'raster-opacity': 0.7 },
+        visible: visibility.absoluteFlow,
+        icon: '⚡',
+        name: 'Exact Speeds'
+      },
+      {
+        id: 'traffic-incidents',
+        type: 'raster',
+        source: {
+          type: 'raster',
+          tiles: [`https://api.tomtom.com/traffic/map/4/tile/incidents/s3/{z}/{x}/{y}.png?key=${apiKey}`],
+          tileSize: 256
+        },
+        paint: { 'raster-opacity': 0.8 },
+        visible: visibility.trafficIncidents,
+        icon: '🚨',
+        name: 'Incidents'
+      },
+      {
+        id: 'roadworks-layer',
+        type: 'raster',
+        source: {
+          type: 'raster',
+          tiles: [`https://api.tomtom.com/traffic/map/4/tile/roadworks/{z}/{x}/{y}.png?key=${apiKey}`],
+          tileSize: 256
+        },
+        paint: { 'raster-opacity': 0.8 },
+        visible: visibility.roadworks,
+        icon: '🚧',
+        name: 'Roadworks'
+      },
+      {
+        id: 'speed-cameras',
+        type: 'raster',
+        source: {
+          type: 'raster',
+          tiles: [`https://api.tomtom.com/traffic/map/4/tile/speedcams/{z}/{x}/{y}.png?key=${apiKey}`],
+          tileSize: 256
+        },
+        paint: { 'raster-opacity': 0.7 },
+        visible: visibility.speedCameras,
+        icon: '📷',
+        name: 'Speed Cameras'
+      }
+    ];
+
+    layers.forEach(layer => {
+      try {
+        map.addLayer({
+          id: layer.id,
+          type: layer.type,
+          source: layer.source,
+          paint: layer.paint,
+          layout: {
+            visibility: layer.visible ? 'visible' : 'none'
+          }
+        });
+        console.log(`${layer.icon} ${layer.name} layer added`);
+      } catch (error) {
+        console.warn(`⚠️ Could not add ${layer.name} layer:`, error);
+      }
+    });
+
+    console.log('✅ All enhanced TomTom layers added for Go BARRY');
+  };
+
+  // Layer toggle function
+  const toggleLayer = (layerId, visible) => {
+    if (!mapRef.current) return;
+
+    const map = mapRef.current;
+    if (map.getLayer(layerId)) {
+      map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
+      
+      // Update state
+      setLayerVisibility(prev => ({
+        ...prev,
+        [layerId.replace('-layer', '').replace('-', '').replace('traffic', '').toLowerCase()]: visible
+      }));
+      
+      console.log(`${visible ? '👁️' : '🙈'} ${layerId} toggled`);
+    }
+  };
+
   useEffect(() => {
     if (Platform.OS !== 'web' || !mapContainer.current) return;
 
-    console.log('🗺️ Initializing TomTom TrafficMap...');
+    console.log('🗺️ Initializing Enhanced TomTom TrafficMap V2...');
 
     // Load TomTom Maps SDK dynamically for web
     const initializeTomTomMap = async () => {
       try {
-        console.log('🚀 Starting TomTom map initialization...');
+        console.log('🚀 Starting enhanced TomTom map initialization...');
         
         // Check if we're in a browser environment
         if (typeof window === 'undefined' || typeof document === 'undefined') {
@@ -113,7 +310,7 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
 
         console.log('🗺️ TomTom API Key validated:', TOMTOM_API_KEY ? `${TOMTOM_API_KEY.slice(0, 8)}...` : 'MISSING');
 
-        console.log('🗺️ Creating TomTom map instance...', {
+        console.log('🗺️ Creating enhanced TomTom map instance...', {
           container: mapContainer.current,
           width: mapContainer.current.offsetWidth,
           height: mapContainer.current.offsetHeight
@@ -130,67 +327,40 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
           geopoliticalView: 'GB'
         });
 
-        console.log('🗺️ TomTom Map instance created');
+        console.log('🗺️ Enhanced TomTom Map instance created');
 
         // Wait for map to load
         map.on('load', () => {
-          console.log('✅ TomTom TrafficMap loaded successfully');
+          console.log('✅ Enhanced TomTom TrafficMap loaded successfully');
           setMapLoaded(true);
           setMapError(null);
           
-          // Add traffic flow layer
-          if (trafficLayerVisible) {
-            try {
-              map.addLayer({
-                id: 'traffic-flow',
-                type: 'raster',
-                source: {
-                  type: 'raster',
-                  tiles: [`https://api.tomtom.com/traffic/map/4/tile/flow/relative/{z}/{x}/{y}.png?key=${TOMTOM_API_KEY}`],
-                  tileSize: 256
-                },
-                paint: {
-                  'raster-opacity': 0.7
-                }
-              });
-              console.log('🚦 Traffic flow layer added');
-            } catch (error) {
-              console.warn('⚠️ Could not add traffic layer:', error);
-            }
-          }
+          // Initialize performance manager
+          const perfManager = new TilePerformanceManager();
+          perfManager.initializeTileCache();
+          setPerformanceManager(perfManager);
+          
+          // Add enhanced traffic layers with caching
+          addEnhancedTrafficLayers(map, TOMTOM_API_KEY, layerVisibility);
+          
+          // Set up zoom-based layer management
+          map.on('zoom', () => {
+            perfManager.manageLayersByZoom(map, map.getZoom());
+          });
 
-          // Add traffic incidents layer
-          try {
-            map.addLayer({
-              id: 'traffic-incidents',
-              type: 'raster',
-              source: {
-                type: 'raster',
-                tiles: [`https://api.tomtom.com/traffic/map/4/tile/incidents/s3/{z}/{x}/{y}.png?key=${TOMTOM_API_KEY}`],
-                tileSize: 256
-              },
-              paint: {
-                'raster-opacity': 0.8
-              }
-            });
-            console.log('🚨 Traffic incidents layer added');
-          } catch (error) {
-            console.warn('⚠️ Could not add incidents layer:', error);
-          }
-
-          console.log('🎨 TomTom Map layers added successfully');
+          console.log('🎨 Enhanced TomTom Map layers added successfully');
         });
 
         map.on('error', (e) => {
-          console.error('❌ TomTom Map error:', e);
-          setMapError(`TomTom Map failed to load: ${e.error?.message || 'Unknown error'}`);
+          console.error('❌ Enhanced TomTom Map error:', e);
+          setMapError(`Enhanced TomTom Map failed to load: ${e.error?.message || 'Unknown error'}`);
         });
 
         mapRef.current = map;
 
       } catch (error) {
-        console.error('❌ Failed to initialize TomTom map:', error);
-        const errorMessage = `Failed to initialize TomTom map: ${error.message}`;
+        console.error('❌ Failed to initialize enhanced TomTom map:', error);
+        const errorMessage = `Failed to initialize enhanced TomTom map: ${error.message}`;
         setMapError(errorMessage);
         if (onError) {
           onError(error);
@@ -212,12 +382,15 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
     // Cleanup
     return () => {
       if (mapRef.current) {
-        console.log('🧹 Cleaning up TomTom map...');
+        console.log('🧹 Cleaning up enhanced TomTom map...');
         mapRef.current.remove();
         mapRef.current = null;
       }
+      if (performanceManager) {
+        performanceManager.cleanupCache();
+      }
     };
-  }, [TOMTOM_API_KEY, trafficLayerVisible]);
+  }, [TOMTOM_API_KEY]);
 
   // Add alert markers when alerts change
   useEffect(() => {
@@ -226,7 +399,7 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
     try {
       const map = mapRef.current;
       
-      console.log(`📍 Adding ${alerts.length} alert markers to TomTom map, current index: ${alertIndex}`);
+      console.log(`📍 Adding ${alerts.length} alert markers to enhanced TomTom map, current index: ${alertIndex}`);
       
       // Clear existing markers
       alerts.forEach((_, index) => {
@@ -330,16 +503,15 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
           // Add click handler for marker
           markerElement.addEventListener('click', () => {
             console.log(`📌 Clicked alert: ${alert.title}`);
-            // You could emit an event or call a callback here
           });
 
-          console.log(`📌 Added TomTom marker ${index}: ${alert.title} at [${lat}, ${lng}] - Current: ${isCurrent}`);
+          console.log(`📌 Added enhanced TomTom marker ${index}: ${alert.title} at [${lat}, ${lng}] - Current: ${isCurrent}`);
         });
 
-      console.log(`✅ Added ${alerts.filter(a => a.coordinates && a.coordinates.length === 2).length} markers to TomTom map`);
+      console.log(`✅ Added ${alerts.filter(a => a.coordinates && a.coordinates.length === 2).length} markers to enhanced TomTom map`);
 
     } catch (error) {
-      console.error('❌ Error adding markers to TomTom map:', error);
+      console.error('❌ Error adding markers to enhanced TomTom map:', error);
     }
   }, [alerts, alertIndex, mapLoaded]);
 
@@ -358,7 +530,7 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
 
       const [lat, lng] = alert.coordinates;
 
-      console.log(`🎯 ZOOM TARGET: Zooming TomTom map to clicked alert: ${alert.title} at [${lat}, ${lng}]`);
+      console.log(`🎯 ZOOM TARGET: Zooming enhanced TomTom map to clicked alert: ${alert.title} at [${lat}, ${lng}]`);
 
       // Animate to the clicked alert location (TomTom uses [lng, lat])
       map.flyTo({
@@ -377,10 +549,10 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
         }
       }, 1600); // After zoom completes
 
-      console.log(`🎯 Map zoom to clicked alert "${alert.title}" completed`);
+      console.log(`🎯 Enhanced map zoom to clicked alert "${alert.title}" completed`);
 
     } catch (error) {
-      console.error('❌ Error zooming TomTom map to clicked alert:', error);
+      console.error('❌ Error zooming enhanced TomTom map to clicked alert:', error);
     }
   }, [zoomTarget, mapLoaded, alertIndex]);
 
@@ -392,7 +564,7 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
       const map = mapRef.current;
       const [lat, lng] = currentAlert.coordinates;
 
-      console.log(`🎯 Auto-zooming TomTom map to current alert: ${currentAlert.title} at [${lat}, ${lng}]`);
+      console.log(`🎯 Auto-zooming enhanced TomTom map to current alert: ${currentAlert.title} at [${lat}, ${lng}]`);
 
       // Animate to the current alert location (TomTom uses [lng, lat])
       map.flyTo({
@@ -402,10 +574,10 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
         essential: true
       });
 
-      console.log(`🎯 TomTom Map zooming to alert "${currentAlert.title}" at [${lat}, ${lng}]`);
+      console.log(`🎯 Enhanced TomTom Map zooming to alert "${currentAlert.title}" at [${lat}, ${lng}]`);
 
     } catch (error) {
-      console.error('❌ Error zooming TomTom map to alert:', error);
+      console.error('❌ Error zooming enhanced TomTom map to alert:', error);
     }
   }, [currentAlert, alertIndex, mapLoaded, zoomTarget]);
 
@@ -416,41 +588,19 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
     if (!alerts.length || !currentAlert) {
       try {
         const map = mapRef.current;
-        console.log('🔄 Resetting TomTom map to North East England overview');
+        console.log('🔄 Resetting enhanced TomTom map to North East England overview');
         map.flyTo({
           center: [-1.6131, 54.9783], // [lng, lat] for TomTom
           zoom: DEFAULT_ZOOM,
           duration: 2000,
           essential: true
         });
-        console.log('🗺️ TomTom Map reset to North East England overview');
+        console.log('🗺️ Enhanced TomTom Map reset to North East England overview');
       } catch (error) {
-        console.error('❌ Error resetting TomTom map view:', error);
+        console.error('❌ Error resetting enhanced TomTom map view:', error);
       }
     }
   }, [alerts.length, currentAlert, mapLoaded]);
-
-  // Toggle traffic layer
-  const toggleTrafficLayer = () => {
-    if (!mapRef.current || !mapLoaded) return;
-    
-    const newVisibility = !trafficLayerVisible;
-    setTrafficLayerVisible(newVisibility);
-    
-    try {
-      const map = mapRef.current;
-      if (newVisibility) {
-        map.setLayoutProperty('traffic-flow', 'visibility', 'visible');
-        map.setLayoutProperty('traffic-incidents', 'visibility', 'visible');
-      } else {
-        map.setLayoutProperty('traffic-flow', 'visibility', 'none');
-        map.setLayoutProperty('traffic-incidents', 'visibility', 'none');
-      }
-      console.log(`🚦 Traffic layer ${newVisibility ? 'enabled' : 'disabled'}`);
-    } catch (error) {
-      console.error('❌ Error toggling traffic layer:', error);
-    }
-  };
 
   // Handle non-web platforms
   if (Platform.OS !== 'web') {
@@ -458,7 +608,7 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
       <View style={styles.unsupportedContainer}>
         <Text style={styles.unsupportedIcon}>🗺️</Text>
         <Text style={styles.unsupportedText}>
-          TomTom interactive map view is only available on web browsers
+          Enhanced TomTom interactive map view is only available on web browsers
         </Text>
       </View>
     );
@@ -469,7 +619,7 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={styles.errorTitle}>TomTom Map Error</Text>
+        <Text style={styles.errorTitle}>Enhanced TomTom Map Error</Text>
         <Text style={styles.errorText}>{mapError}</Text>
         <View style={styles.debugContainer}>
           <Text style={styles.debugTitle}>Debug Info:</Text>
@@ -493,26 +643,47 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
       {!mapLoaded && (
         <View style={styles.loadingOverlay}>
           <Text style={styles.loadingIcon}>🗺️</Text>
-          <Text style={styles.loadingText}>Loading TomTom traffic map...</Text>
-          <Text style={styles.loadingSubtext}>Connecting to TomTom...</Text>
+          <Text style={styles.loadingText}>Loading enhanced TomTom traffic map...</Text>
+          <Text style={styles.loadingSubtext}>Initializing layers & caching...</Text>
         </View>
       )}
       {mapLoaded && (
         <View style={styles.mapControls}>
-          <TouchableOpacity 
-            style={[styles.trafficToggle, { backgroundColor: trafficLayerVisible ? '#10B981' : '#6B7280' }]}
-            onPress={toggleTrafficLayer}
-          >
-            <Text style={styles.trafficToggleText}>
-              🚦 {trafficLayerVisible ? 'Traffic ON' : 'Traffic OFF'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.layerControls}>
+            <TouchableOpacity 
+              style={[styles.layerToggle, { backgroundColor: layerVisibility.trafficFlow ? '#10B981' : '#6B7280' }]}
+              onPress={() => toggleLayer('traffic-flow', !layerVisibility.trafficFlow)}
+            >
+              <Text style={styles.layerToggleText}>🚦</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.layerToggle, { backgroundColor: layerVisibility.trafficIncidents ? '#DC2626' : '#6B7280' }]}
+              onPress={() => toggleLayer('traffic-incidents', !layerVisibility.trafficIncidents)}
+            >
+              <Text style={styles.layerToggleText}>🚨</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.layerToggle, { backgroundColor: layerVisibility.roadworks ? '#F59E0B' : '#6B7280' }]}
+              onPress={() => toggleLayer('roadworks-layer', !layerVisibility.roadworks)}
+            >
+              <Text style={styles.layerToggleText}>🚧</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.layerToggle, { backgroundColor: layerVisibility.speedCameras ? '#3B82F6' : '#6B7280' }]}
+              onPress={() => toggleLayer('speed-cameras', !layerVisibility.speedCameras)}
+            >
+              <Text style={styles.layerToggleText}>📷</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
       {mapLoaded && alerts.length > 0 && (
         <View style={styles.mapInfo}>
           <Text style={styles.mapInfoText}>
-            🗺️ TomTom • {alerts.filter(a => a.coordinates && a.coordinates.length === 2).length} alerts
+            🗺️ Enhanced TomTom • {alerts.filter(a => a.coordinates && a.coordinates.length === 2).length} alerts • Cached
           </Text>
         </View>
       )}
@@ -562,22 +733,33 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 16,
     right: 16,
-    flexDirection: 'row',
+    flexDirection: 'column',
     gap: 8,
   },
-  trafficToggle: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  layerControls: {
+    flexDirection: 'row',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
     borderRadius: 8,
+    padding: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  trafficToggleText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
+  layerToggle: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  layerToggleText: {
+    fontSize: 16,
   },
   mapInfo: {
     position: 'absolute',
@@ -623,14 +805,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 32,
   },
-  localhostContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-    borderRadius: 16,
-    padding: 32,
-  },
   errorIcon: {
     fontSize: 64,
     marginBottom: 20,
@@ -641,28 +815,33 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 12,
   },
-  localhostTitle: {
-    color: '#3b82f6',
-  },
   errorText: {
     color: '#ef4444',
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+    marginBottom: 16,
   },
-  localhostText: {
-    color: '#3b82f6',
-    marginBottom: 20,
+  debugContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
   },
-  localhostInfo: {
-    alignItems: 'center',
-    gap: 8,
+  debugTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
   },
-  localhostInfoText: {
-    color: '#1e40af',
-    fontSize: 14,
-    textAlign: 'center',
-    fontWeight: '500',
+  debugText: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  fallbackText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
   },
 });
 
@@ -687,4 +866,4 @@ const TouchableOpacity = Platform.OS === 'web'
     )
   : require('react-native').TouchableOpacity;
 
-export default EnhancedTrafficMap;
+export default EnhancedTrafficMapV2;

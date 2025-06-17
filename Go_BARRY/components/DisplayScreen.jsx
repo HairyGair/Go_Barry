@@ -7,7 +7,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Animate
 import { Ionicons } from '@expo/vector-icons';
 import { useBarryAPI } from './hooks/useBARRYapi';
 import { useSupervisorPolling } from './hooks/useSupervisorPolling';
-import TomTomTrafficMap from './TomTomTrafficMap';
+import EnhancedTrafficMapV2 from './EnhancedTrafficMapV2';
 import typography, { getAlertIcon, getSeverityIcon } from '../theme/typography';
 
 const DisplayScreen = () => {
@@ -501,7 +501,7 @@ const DisplayScreen = () => {
           {/* MAP SECTION (70% of right side) */}
           <View style={styles.mapSection}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>{typography.icons.location.map} LIVE TRAFFIC MAP</Text>
+              <Text style={styles.sectionTitle}>{typography.icons.location.map} ENHANCED TRAFFIC MAP</Text>
               <TouchableOpacity 
                 style={styles.refreshBtn} 
                 onPress={refreshAlerts}
@@ -516,7 +516,7 @@ const DisplayScreen = () => {
             </View>
             
             <View style={styles.mapContainer}>
-              <TomTomTrafficMap 
+              <EnhancedTrafficMapV2 
                 alerts={visibleAlerts}
                 currentAlert={getCurrentAlert()}
                 alertIndex={currentAlertIndex}
