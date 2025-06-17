@@ -11,14 +11,26 @@ import EnhancedTrafficMapV2 from './EnhancedTrafficMapV2';
 import typography, { getAlertIcon, getSeverityIcon } from '../theme/typography';
 
 const DisplayScreen = () => {
+  // STAGGERED API calls - Add 5s delay before starting auto-refresh
+  const [delayedStart, setDelayedStart] = useState(false);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDelayedStart(true);
+      console.log('🕰️ DisplayScreen: Starting staggered API calls after 5s delay');
+    }, 5000); // 5s delay to offset from EnhancedDashboard
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   const {
     alerts,
     loading,
     lastUpdated,
     refreshAlerts
   } = useBarryAPI({
-    autoRefresh: true,
-    refreshInterval: 15000
+    autoRefresh: delayedStart, // Only start auto-refresh after delay
+    refreshInterval: 20000 // STAGGERED: 20s instead of 15s to prevent concurrent calls
   });
 
   const {
@@ -242,7 +254,7 @@ const DisplayScreen = () => {
                 {/* Automatic Alert Display - No Manual Navigation */}
                 <View style={styles.autoRotationInfo}>
                   <Text style={styles.rotationText}>
-                    Auto-rotating every 20 seconds • Alert {currentAlertIndex + 1} of {visibleAlerts.length}
+                    Auto-rotating every 20 seconds • Alert {currentAlertIndex + 1} of {visibleAlerts.length} • Refresh: 20s (staggered)
                   </Text>
                 </View>
 
@@ -573,7 +585,7 @@ const DisplayScreen = () => {
       {/* FOOTER */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          Go Barry v3.0 • {alerts.length} alerts • {connectedSupervisors} supervisors online
+          Go Barry v3.0 FIXED • {alerts.length} alerts • {connectedSupervisors} supervisors online • Staggered refresh (20s)
         </Text>
       </View>
     </View>

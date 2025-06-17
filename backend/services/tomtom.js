@@ -325,7 +325,11 @@ function getGeographicAreaName(lat, lng) {
   return null;
 }
 
-// FIXED: TomTom traffic fetcher with working route matching
+// Geocoding cache to prevent repeated API calls
+const geocodingCache = new Map();
+const GEOCODING_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+// FIXED: TomTom traffic fetcher with working route matching + geocoding cache
 async function fetchTomTomTrafficWithStreetNames() {
   if (!process.env.TOMTOM_API_KEY) {
     console.error('❌ TomTom API key missing!');
@@ -364,8 +368,8 @@ async function fetchTomTomTrafficWithStreetNames() {
     const alerts = [];
     
     if (response.data?.incidents) {
-      // Process incidents with throttled geocoding (reduced for rate limiting)
-      const incidents = response.data.incidents.slice(0, 8); // Reduced from 15 to stay under rate limits
+      // Process incidents with minimal geocoding (FIXED for rate limiting)
+      const incidents = response.data.incidents.slice(0, 5); // Further reduced from 8 to 5
       
       console.log(`🔍 Processing ${incidents.length} traffic incidents across Go North East network (filtered from ${response.data.incidents.length})`);
       
@@ -391,26 +395,41 @@ async function fetchTomTomTrafficWithStreetNames() {
           continue;
         }
 
-        // Enhanced location processing
+        // Enhanced location processing with caching
         console.log(`🗺️ Processing location for incident ${index + 1}/${incidents.length} across Go North East network...`);
-        console.log(`🗺️ Attempting enhanced geocoding for ${lat}, ${lng}...`);
         
         let enhancedLocation;
-        try {
-          // Use production-optimized geocoding
-          const reversedLocation = await getEnhancedLocationWithFallbacks(
-            lat, lng, props.roadName || 'Traffic incident', 'TomTom'
-          );
+        const coordKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+        
+        // Check geocoding cache first
+        const cachedLocation = geocodingCache.get(coordKey);
+        if (cachedLocation && (Date.now() - cachedLocation.timestamp) < GEOCODING_CACHE_TTL) {
+          enhancedLocation = cachedLocation.location;
+          console.log(`📦 Using cached location for ${lat}, ${lng}: ${enhancedLocation}`);
+        } else {
+          console.log(`🗺️ Attempting enhanced geocoding for ${lat}, ${lng}...`);
           
-          if (reversedLocation) {
-            enhancedLocation = reversedLocation;
-          } else {
-            enhancedLocation = props.roadName || props.description || `Traffic location`;
+          try {
+            // Use production-optimized geocoding (limited calls)
+            const reversedLocation = await getEnhancedLocationWithFallbacks(
+              lat, lng, props.roadName || 'Traffic incident', 'TomTom'
+            );
+            
+            if (reversedLocation) {
+              enhancedLocation = reversedLocation;
+              // Cache the result
+              geocodingCache.set(coordKey, {
+                location: enhancedLocation,
+                timestamp: Date.now()
+              });
+            } else {
+              enhancedLocation = props.roadName || props.description || `Traffic location`;
+            }
+            
+          } catch (locationError) {
+            console.warn(`⚠️ Location enhancement failed for incident ${index}:`, locationError.message);
+            enhancedLocation = props.roadName || `Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
           }
-          
-        } catch (locationError) {
-          console.warn(`⚠️ Location enhancement failed for incident ${index}:`, locationError.message);
-          enhancedLocation = props.roadName || `Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
         }
         
         console.log(`📍 OSM response for ${lat}, ${lng}: {
@@ -473,21 +492,31 @@ async function fetchTomTomTrafficWithStreetNames() {
       }
     }
     
-    // Log throttling status
+    // Log throttling status and cache stats
     const throttleStatus = geocodingThrottler.getStatus();
     console.log(`📊 Geocoding throttler status: ${throttleStatus.dailyCount}/${throttleStatus.dailyLimit} requests used today`);
+    console.log(`📦 Geocoding cache entries: ${geocodingCache.size}`);
     
-    console.log(`✅ [ENHANCED] TomTom: ${alerts.length} alerts with working route matching (throttled processing)`);
+    // Clean old cache entries (prevent memory leak)
+    const now = Date.now();
+    for (const [key, value] of geocodingCache.entries()) {
+    if (now - value.timestamp > GEOCODING_CACHE_TTL) {
+      geocodingCache.delete(key);
+    }
+    }
     
-    return { 
-      success: true, 
-      data: alerts, 
-      method: 'Enhanced Location + Coordinate Matching + Intelligent Route Validation',
-      source: 'TomTom Traffic API v5',
-      timestamp: new Date().toISOString(),
-      coverage: 'Newcastle/Gateshead core area',
-      bbox: bbox
-    };
+    console.log(`✅ [ENHANCED] TomTom: ${alerts.length} alerts with working route matching + geocoding cache`);
+    
+  return { 
+    success: true, 
+    data: alerts, 
+    method: 'Enhanced Location + Coordinate Matching + Geocoding Cache + Route Validation',
+    source: 'TomTom Traffic API v5',
+    timestamp: new Date().toISOString(),
+    coverage: 'Newcastle/Gateshead core area',
+    bbox: bbox,
+    geocodingCacheSize: geocodingCache.size
+  };
     
   } catch (error) {
     console.error('❌ [ENHANCED] TomTom fetch failed:', error.message);
@@ -511,6 +540,6 @@ async function fetchTomTomTrafficWithStreetNames() {
   }
 }
 
-// Export throttling status for monitoring
-export { fetchTomTomTrafficWithStreetNames, geocodingThrottler };
-export default { fetchTomTomTrafficWithStreetNames, geocodingThrottler };
+// Export throttling status and geocoding cache for monitoring
+export { fetchTomTomTrafficWithStreetNames, geocodingThrottler, geocodingCache };
+export default { fetchTomTomTrafficWithStreetNames, geocodingThrottler, geocodingCache };

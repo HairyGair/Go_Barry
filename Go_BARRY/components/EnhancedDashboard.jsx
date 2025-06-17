@@ -27,7 +27,7 @@ const EnhancedDashboard = ({
   baseUrl = API_CONFIG.baseURL,
   onAlertPress,
   onViewAllPress,
-  autoRefreshInterval = 15000 
+  autoRefreshInterval = 15000 // OPTIMIZED: 15s (DisplayScreen uses 20s staggered)
 }) => {
   // State management
   const [alertsData, setAlertsData] = useState(null);
@@ -502,9 +502,9 @@ const EnhancedDashboard = ({
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>BARRY Intelligence Dashboard</Text>
+          <Text style={styles.headerTitle}>BARRY Intelligence Dashboard FIXED</Text>
           <Text style={styles.headerSubtitle}>
-            Real-time Traffic Monitoring for Go North East
+          Real-time Traffic Monitoring for Go North East • Request Deduplication Active
           </Text>
         </View>
 
@@ -519,8 +519,8 @@ const EnhancedDashboard = ({
 
         {/* Interactive TomTom Map */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Enhanced Traffic Map - TomTom Powered with Roadworks & Caching</Text>
-          <Text style={styles.mapInstructions}>Click any alert card below to zoom the map to that location • Toggle layers with controls</Text>
+          <Text style={styles.sectionTitle}>Enhanced Traffic Map - TomTom Powered with Roadworks & Caching (OPTIMIZED)</Text>
+          <Text style={styles.mapInstructions}>Click any alert card below to zoom the map to that location • Toggle layers with controls • API calls optimized with 30s cache</Text>
           <View style={styles.mapContainer}>
             <EnhancedTrafficMapV2 
               alerts={filteredAlerts}
