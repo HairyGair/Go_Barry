@@ -38,7 +38,7 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
-console.log('🚀 Go BARRY Backend Starting...');
+console.log('🚀 Go BARRY Backend Starting - Render.com Compatible Version...');
 
 // Enhanced GTFS route matching function
 function findRoutesNearCoordinatesFixed(lat, lng, radiusMeters = 250) {
@@ -120,7 +120,7 @@ const NOTES_FILE = path.join(__dirname, 'data/notes.json');
 let alertNotes = {};
 
 // Initialize essential data and enhanced GTFS
-(async () => {
+async function initializeApplication() {
   try {
     console.log('🚀 Initializing Enhanced GTFS route matching system...');
     await initializeEnhancedGTFS();
@@ -140,6 +140,8 @@ let alertNotes = {};
     console.log(`🚌 Loaded ${GTFS_ROUTES.size} GTFS routes`);
   } catch (err) {
     console.error('❌ Failed to load routes.txt:', err);
+    // Don't fail startup for missing routes - use fallback
+    console.log('⚠️ Using fallback route matching');
   }
   
   // Load dismissed alerts for persistence across restarts
@@ -176,7 +178,9 @@ let alertNotes = {};
   } catch {
     alertNotes = {};
   }
-})();
+  
+  console.log('✅ Application initialization complete');
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -1362,134 +1366,71 @@ app.get('/api/supervisor/active', async (req, res) => {
   }
 });
 
-// Initialize WebSocket service
-supervisorSyncService.initialize(server);
-
-// WebSocket sync endpoint for getting current state
-app.get('/api/supervisor/sync-status', (req, res) => {
-  const stats = supervisorSyncService.getStats();
-  res.json({
-    success: true,
-    syncStatus: stats,
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Add supervisor session tracking endpoint
-app.get('/api/supervisor/active', async (req, res) => {
+// Start server with WebSocket support after initialization
+async function startServer() {
   try {
-    // Get active supervisors from session storage or memory
-    const activeSupervisors = [];
+    console.log('🚀 Starting Go BARRY Backend...');
     
-    // Check for any active sessions (simplified for now)
-    // In a real system, you'd check a session store
+    // Initialize application with timeout
+    console.log('🔄 Running initialization...');
+    await Promise.race([
+      initializeApplication(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Initialization timeout after 30 seconds')), 30000)
+      )
+    ]);
     
-    res.json({
-      success: true,
-      activeSupervisors: activeSupervisors,
-      count: activeSupervisors.length,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('❌ Failed to get active supervisors:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get active supervisors',
-      activeSupervisors: [],
-      count: 0
-    });
-  }
-});
-
-// Test endpoint to verify data flow
-app.get('/api/test/data-flow', async (req, res) => {
-  try {
-    console.log('🧪 Testing data flow...');
+    // Initialize WebSocket service
+    supervisorSyncService.initialize(server);
     
-    // Test individual sources
-    const sourceTests = {
-      tomtom: false,
-      national_highways: false
-    };
-    
-    try {
-      const tomtomResult = await fetchTomTomTrafficWithStreetNames();
-      sourceTests.tomtom = tomtomResult.success && tomtomResult.data && tomtomResult.data.length > 0;
-    } catch (e) { console.log('TomTom test failed:', e.message); }
-    
-    try {
-      const nhResult = await fetchNationalHighways();
-      sourceTests.national_highways = nhResult.success && nhResult.data && nhResult.data.length > 0;
-    } catch (e) { console.log('National Highways test failed:', e.message); }
-    
-    const workingSources = Object.values(sourceTests).filter(Boolean).length;
-    
-    res.json({
-      success: true,
-      dataFlow: {
-        sourcesWorking: workingSources,
-        totalSources: 2,
-        percentage: Math.round((workingSources / 2) * 100),
-        sources: sourceTests
-      },
-      timestamp: new Date().toISOString(),
-      message: workingSources > 0 ? 'Data flow working' : 'No data sources responding'
+    // Start listening
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`\n🚀 Go BARRY Backend Started Successfully`);
+      console.log(`📡 Server: http://localhost:${PORT}`);
+      console.log(`🌐 Public: https://go-barry.onrender.com`);
+      console.log(`\n📡 Available Endpoints:`);
+      console.log(`   🎯 Main: /api/alerts`);
+      console.log(`   🚀 Enhanced (DISPLAY SCREEN): /api/alerts-enhanced`);
+      console.log(`   🚨 Emergency: /api/emergency-alerts`);
+      console.log(`   💚 Health: /api/health`);
+      console.log(`   🧑‍⚕️ Health Extended: /api/health-extended`);
+      console.log(`   👮 Supervisor: /api/supervisor`);
+      console.log(`   🙅 Dismiss Alert: /api/supervisor/dismiss-alert`);
+      console.log(`   🚧 Roadworks: /api/roadworks`);
+      console.log(`   📥 StreetManager Webhook: /api/streetmanager/webhook`);
+      console.log(`   📋 StreetManager Status: /api/streetmanager/status`);
+      console.log(`   🔌 WebSocket: wss://go-barry.onrender.com/ws/supervisor-sync`);
+      console.log(`   📊 Sync Status: /api/supervisor/sync-status`);
+      console.log(`   🕐 Throttle Status: /api/throttle/status`);
+      console.log(`   🗺️ Map Tiles: /api/tiles/map/{layer}/{style}/{zoom}/{x}/{y}.{format}`);
+      console.log(`   🚦 Traffic Tiles: /api/tiles/traffic/{zoom}/{x}/{y}.{format}`);
+      console.log(`   📊 Tile Status: /api/tiles/status`);
+      console.log(`\n💡 Active Data Sources:`);
+      console.log(`   ✅ TomTom API - Primary traffic intelligence`);
+      console.log(`   ✅ National Highways DATEX II - Official UK roadworks`);
+      console.log(`   ✅ StreetManager UK - Webhook receiver`);
+      console.log(`   ✅ Manual Incidents - Supervisor-created`);
+      console.log(`   🎆 System operational with 4 traffic data sources`);
+      console.log(`\n✅ Render.com deployment ready!`);
     });
     
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      dataFlow: null
+    console.error('❌ Failed to start server:', error);
+    
+    // Start server anyway with minimal functionality for health checks
+    console.log('⚠️ Starting server in degraded mode...');
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚑 Go BARRY Backend Started (Degraded Mode)`);
+      console.log(`📡 Server: http://localhost:${PORT}`);
+      console.log(`⚠️ Some features may not work due to initialization failure`);
     });
   }
-});
-app.post('/api/supervisor/sync-alerts', async (req, res) => {
-  try {
-    const { alerts } = req.body;
-    supervisorSyncService.updateAlerts(alerts);
-    res.json({
-      success: true,
-      message: 'Alerts synced to display screens',
-      alertCount: alerts.length
-    });
-  } catch (error) {
-    console.error('❌ Failed to sync alerts:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to sync alerts'
-    });
-  }
-});
+}
 
-// Start server with WebSocket support
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`\n🚀 Go BARRY Backend Started`);
-  console.log(`📡 Server: http://localhost:${PORT}`);
-  console.log(`🌐 Public: https://go-barry.onrender.com`);
-  console.log(`\n📡 Available Endpoints:`);
-  console.log(`   🎯 Main: /api/alerts`);
-  console.log(`   🚀 Enhanced (DISPLAY SCREEN): /api/alerts-enhanced`);
-  console.log(`   🚨 Emergency: /api/emergency-alerts`);
-  console.log(`   💚 Health: /api/health`);
-  console.log(`   🧑‍⚕️ Health Extended: /api/health-extended`);
-  console.log(`   👮 Supervisor: /api/supervisor`);
-  console.log(`   🙅 Dismiss Alert: /api/supervisor/dismiss-alert`);
-  console.log(`   🚧 Roadworks: /api/roadworks`);
-  console.log(`   📥 StreetManager Webhook: /api/streetmanager/webhook`);
-  console.log(`   📋 StreetManager Status: /api/streetmanager/status`);
-  console.log(`   🔌 WebSocket: wss://go-barry.onrender.com/ws/supervisor-sync`);
-  console.log(`   📊 Sync Status: /api/supervisor/sync-status`);
-  console.log(`   🕐 Throttle Status: /api/throttle/status`);
-  console.log(`   🗺️ Map Tiles: /api/tiles/map/{layer}/{style}/{zoom}/{x}/{y}.{format}`);
-  console.log(`   🚦 Traffic Tiles: /api/tiles/traffic/{zoom}/{x}/{y}.{format}`);
-  console.log(`   📊 Tile Status: /api/tiles/status`);
-  console.log(`\n💡 Active Data Sources:`);
-  console.log(`   ✅ TomTom API - Primary traffic intelligence`);
-  console.log(`   ✅ National Highways DATEX II - Official UK roadworks`);
-  console.log(`   ✅ StreetManager UK - Webhook receiver`);
-  console.log(`   ✅ Manual Incidents - Supervisor-created`);
-  console.log(`   🎆 System operational with 4 traffic data sources`);
+// Start the server
+startServer().catch(error => {
+  console.error('❌ Critical startup error:', error);
+  process.exit(1);
 });
 
 export default app;// Deployment timestamp: Tue 10 Jun 2025 10:40:34 BST
