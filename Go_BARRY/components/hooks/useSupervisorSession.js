@@ -1,9 +1,72 @@
 // Go_BARRY/components/hooks/useSupervisorSession.js
-// Enhanced supervisor session management with browser persistence
+// Enhanced supervisor session management with inline storage
 
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { Alert } from 'react-native';
-import sessionStorageService from '../../services/sessionStorage';
+
+// Inline session storage to avoid import issues
+const sessionStorageService = {
+  memoryStorage: new Map(),
+  storageKey: 'barry_supervisor_session',
+  
+  saveSession(sessionData) {
+    try {
+      const sessionWithTimestamp = {
+        ...sessionData,
+        savedAt: Date.now(),
+        expiresAt: Date.now() + (8 * 60 * 60 * 1000) // 8 hours
+      };
+      
+      this.memoryStorage.set(this.storageKey, sessionWithTimestamp);
+      console.log('✅ Session saved to memory storage');
+      return true;
+    } catch (error) {
+      console.error('Failed to save session:', error);
+      return false;
+    }
+  },
+  
+  loadSession() {
+    try {
+      const session = this.memoryStorage.get(this.storageKey);
+      if (!session) return null;
+      
+      // Check if session has expired
+      if (session.expiresAt && Date.now() > session.expiresAt) {
+        this.clearSession();
+        return null;
+      }
+      
+      return session;
+    } catch (error) {
+      console.error('Failed to load session:', error);
+      this.clearSession();
+      return null;
+    }
+  },
+  
+  clearSession() {
+    try {
+      this.memoryStorage.delete(this.storageKey);
+      console.log('✅ Session cleared from memory storage');
+    } catch (error) {
+      console.error('Failed to clear session:', error);
+    }
+  },
+  
+  isSessionValid() {
+    const session = this.loadSession();
+    return session !== null;
+  },
+  
+  updateActivity() {
+    const session = this.loadSession();
+    if (session) {
+      session.lastActivity = Date.now();
+      this.saveSession(session);
+    }
+  }
+};
 
 // Create context for supervisor session
 const SupervisorContext = createContext();
