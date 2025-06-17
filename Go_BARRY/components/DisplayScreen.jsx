@@ -7,7 +7,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Animate
 import { Ionicons } from '@expo/vector-icons';
 import { useBarryAPI } from './hooks/useBARRYapi';
 import { useSupervisorPolling } from './hooks/useSupervisorPolling';
-import BasicMapFallback from './BasicMapFallback';
+import TomTomTrafficMap from './TomTomTrafficMap';
 import typography, { getAlertIcon, getSeverityIcon } from '../theme/typography';
 
 const DisplayScreen = () => {
@@ -327,41 +327,134 @@ const DisplayScreen = () => {
                       onMouseEnter={() => Platform.OS === 'web' && setHoveredAlert(true)}
                       onMouseLeave={() => Platform.OS === 'web' && setHoveredAlert(false)}
                     >
-                      {/* Severity indicator bar */}
-                      <View style={[styles.severityIndicator, { backgroundColor: getSeverityColor() }]} />
-                      
-                      {/* Severity badge */}
-                      <View style={[styles.severityBadge, { backgroundColor: `${getSeverityColor()}15` }]}>
-                        <Text style={[styles.severityBadgeText, { color: getSeverityColor() }]}>
-                          {alert.severity?.toUpperCase() || 'ALERT'} IMPACT
-                        </Text>
-                      </View>
+                      {/* REDESIGNED ALERT CARD */}
+                      <View style={styles.alertCard}>
+                        {/* Header Section */}
+                        <View style={styles.alertHeader}>
+                          <View style={styles.alertHeaderLeft}>
+                            <Text style={styles.alertTypeIcon}>{getAlertTypeIcon()}</Text>
+                            <View style={styles.alertHeaderText}>
+                              <Text style={styles.alertTitle} numberOfLines={2}>
+                                {alert.title}
+                              </Text>
+                              <View style={styles.alertMeta}>
+                                <Text style={styles.alertTime}>
+                                  Started: {(() => {
+                                    const age = alert.timestamp ? Math.floor((Date.now() - new Date(alert.timestamp).getTime()) / 60000) : 0;
+                                    return `${age}m ago`;
+                                  })()} 
+                                </Text>
+                                <Text style={styles.alertSource}>
+                                  • {alert.source || 'Traffic API'}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+                          <View style={[styles.severityBadge, {
+                            backgroundColor: getSeverityColor() + '20',
+                            borderColor: getSeverityColor()
+                          }]}>
+                            <Text style={[styles.severityText, { color: getSeverityColor() }]}>
+                              {(alert.calculatedSeverity || alert.severity || 'UNKNOWN').toUpperCase()}
+                            </Text>
+                          </View>
+                        </View>
 
-                      {/* END of Animated.View block */}
-                      {/* START of alertTitleRow block */}
-                      <View style={styles.alertTitleRow}>
-                        <Text style={styles.alertTypeIcon}>{getAlertTypeIcon()}</Text>
-                        <Text style={styles.alertTitle}>{alert.title}</Text>
+                        {/* Location Section */}
+                        <View style={styles.locationSection}>
+                          <View style={styles.sectionIcon}>
+                            <Text style={styles.iconText}>📍</Text>
+                          </View>
+                          <View style={styles.sectionContent}>
+                            <Text style={styles.sectionTitle}>LOCATION</Text>
+                            <Text style={styles.locationText} numberOfLines={2}>
+                              {(() => {
+                                const location = alert.location || 'Location not specified';
+                                const parts = location.split(', ');
+                                if (parts.length > 1) {
+                                  return `${parts[0]}\n${parts.slice(1).join(', ')}`;
+                                }
+                                return location;
+                              })()} 
+                            </Text>
+                            {alert.coordinates && (
+                              <Text style={styles.coordinatesText}>
+                                {Array.isArray(alert.coordinates) 
+                                  ? `${alert.coordinates[0]?.toFixed(4)}, ${alert.coordinates[1]?.toFixed(4)}`
+                                  : `${alert.coordinates.lat?.toFixed(4)}, ${alert.coordinates.lng?.toFixed(4)}`
+                                }
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+
+                        {/* Impact Section */}
+                        <View style={styles.impactSection}>
+                          <View style={styles.sectionIcon}>
+                            <Text style={styles.iconText}>⚠️</Text>
+                          </View>
+                          <View style={styles.sectionContent}>
+                            <Text style={styles.sectionTitle}>IMPACT ASSESSMENT</Text>
+                            <Text style={styles.impactText}>
+                              {(() => {
+                                const severity = alert.calculatedSeverity || alert.severity || 'Unknown';
+                                const routeCount = alert.affectsRoutes?.length || 0;
+                                const estimatedDelay = severity === 'High' ? '15-30min' : severity === 'Medium' ? '5-15min' : '2-8min';
+                                return `Est. Delays: ${estimatedDelay} • ${routeCount} services potentially affected`;
+                              })()} 
+                            </Text>
+                            {alert.routeMatchingConfidence && (
+                              <Text style={styles.confidenceText}>
+                                Route Confidence: {(alert.routeMatchingConfidence * 100).toFixed(0)}%
+                              </Text>
+                            )}
+                          </View>
+                        </View>
+
+                        {/* Description */}
+                        {alert.description && (
+                          <View style={styles.descriptionSection}>
+                            <Text style={styles.descriptionText} numberOfLines={3}>
+                              {alert.description}
+                            </Text>
+                          </View>
+                        )}
                       </View>
-                      <View style={styles.locationContainer}>
-                        <Text style={styles.locationIcon}>📍</Text>
-                        <Text style={styles.alertLocation}>{alert.location}</Text>
-                      </View>
-                      <Text style={styles.alertDescription}>{alert.description}</Text>
                       
                       {alert.affectsRoutes && alert.affectsRoutes.length > 0 && (
                         <View style={styles.routesSection}>
-                          <Text style={styles.routesLabel}>AFFECTED SERVICES:</Text>
+                          <View style={styles.routesHeader}>
+                            <Text style={styles.routesLabel}>🚌 AFFECTED SERVICES</Text>
+                            {alert.routeMatchingAccuracy && (
+                              <View style={[
+                                styles.confidenceBadge,
+                                alert.routeMatchingAccuracy === 'high' && styles.confidenceBadgeHigh,
+                                alert.routeMatchingAccuracy === 'medium' && styles.confidenceBadgeMedium,
+                                alert.routeMatchingAccuracy === 'low' && styles.confidenceBadgeLow
+                              ]}>
+                                <Text style={[
+                                  styles.confidenceBadgeText,
+                                  alert.routeMatchingAccuracy === 'high' && styles.confidenceBadgeTextHigh,
+                                  alert.routeMatchingAccuracy === 'medium' && styles.confidenceBadgeTextMedium,
+                                  alert.routeMatchingAccuracy === 'low' && styles.confidenceBadgeTextLow
+                                ]}>
+                                  {alert.routeMatchingAccuracy?.toUpperCase()} CONFIDENCE
+                                </Text>
+                              </View>
+                            )}
+                          </View>
                           <View style={styles.routesList}>
                             {alert.affectsRoutes.map((route, idx) => {
                               const frequency = alert.routeFrequencySummaries?.[route];
                               const isHighFreq = alert.routeFrequencies?.[route]?.overall?.category === 'high-frequency';
+                              const severity = alert.calculatedSeverity || alert.severity || 'Medium';
+                              const estimatedDelay = severity === 'High' ? '+15-30min' : severity === 'Medium' ? '+5-15min' : '+2-8min';
                               
                               return (
                                 <TouchableOpacity 
                                   key={idx} 
                                   style={[
-                                    styles.routeBadge,
+                                    styles.enhancedRouteBadge,
                                     isHighFreq && styles.routeBadgeHighFreq,
                                     hoveredRoute === `${alert.id}-${idx}` && styles.routeBadgeHovered
                                   ]}
@@ -369,13 +462,28 @@ const DisplayScreen = () => {
                                   onMouseEnter={() => Platform.OS === 'web' && setHoveredRoute(`${alert.id}-${idx}`)}
                                   onMouseLeave={() => Platform.OS === 'web' && setHoveredRoute(null)}
                                 >
-                                  <Text style={[styles.routeText, isHighFreq && styles.routeTextHighFreq]}>
-                                    {route} {frequency && `(${frequency})`}
-                                  </Text>
+                                  <View style={styles.routeInfo}>
+                                    <Text style={[styles.routeText, isHighFreq && styles.routeTextHighFreq]}>
+                                      Route {route}
+                                    </Text>
+                                    <Text style={styles.routeFrequency}>
+                                      {frequency || (isHighFreq ? 'High freq.' : 'Regular service')}
+                                    </Text>
+                                    <Text style={styles.routeDelay}>
+                                      Est. delay: {estimatedDelay}
+                                    </Text>
+                                  </View>
                                 </TouchableOpacity>
                               );
                             })}
                           </View>
+                          {alert.routeMatchMethod && (
+                            <View style={styles.routeMatchingInfo}>
+                              <Text style={styles.matchingMethod}>
+                                📍 Matched using: {alert.routeMatchMethod}
+                              </Text>
+                            </View>
+                          )}
                           {alert.frequencyImpact && (
                             <View style={styles.frequencyImpactInfo}>
                               <Text style={[
@@ -443,7 +551,7 @@ const DisplayScreen = () => {
             </View>
             
             <View style={styles.mapContainer}>
-              <BasicMapFallback 
+              <TomTomTrafficMap 
                 alerts={alerts}
                 currentAlert={getCurrentAlert()}
                 alertIndex={currentAlertIndex}
@@ -772,7 +880,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.98)',
     backdropFilter: Platform.OS === 'web' ? 'blur(20px)' : undefined,
     borderRadius: 16,
-    padding: 24,
+    padding: 0,
     flex: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -795,71 +903,154 @@ const styles = StyleSheet.create({
     elevation: 12,
     transform: [{ scale: 1.02 }],
   },
-  // Severity indicator bar
-  severityIndicator: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 6,
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
+
+  // REDESIGNED ALERT CARD STYLES
+  alertCard: {
+    flex: 1,
   },
-  
-  // Severity badge
-  severityBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 24,
-    marginBottom: 20,
-    marginLeft: 16,
-  },
-  severityBadgeText: {
-    ...typography.styles.labelBase,
-    textTransform: 'uppercase',
-  },
-  
-  alertTitleRow: {
+
+  // Alert Header
+  alertHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    marginLeft: 16,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    padding: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.08)',
+    backgroundColor: 'rgba(59, 130, 246, 0.02)',
+  },
+  alertHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    flex: 1,
     marginRight: 16,
   },
   alertTypeIcon: {
-    fontSize: 32,
+    fontSize: 28,
     marginRight: 12,
+    marginTop: 2,
+  },
+  alertHeaderText: {
+    flex: 1,
   },
   alertTitle: {
-    ...typography.styles.headerMedium,
+    fontSize: 18,
+    fontWeight: '700',
     color: '#111827',
-    flex: 1,
+    lineHeight: 24,
+    marginBottom: 8,
   },
-  locationContainer: {
+  alertMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    marginLeft: 16,
-    marginRight: 16,
+    flexWrap: 'wrap',
   },
-  locationIcon: {
-    fontSize: 20,
+  alertTime: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '600',
     marginRight: 8,
   },
-  alertLocation: {
-    ...typography.styles.bodyLarge,
-    color: '#1F2937',
-    fontWeight: typography.fontWeight.bold,
-    letterSpacing: typography.letterSpacing.tight,
+  alertSource: {
+    fontSize: 13,
+    color: '#3B82F6',
+    fontWeight: '600',
+  },
+  severityBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 2,
+    alignSelf: 'flex-start',
+  },
+  severityText: {
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+
+  // Section Styles
+  locationSection: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.06)',
+  },
+  impactSection: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.06)',
+    backgroundColor: 'rgba(245, 158, 11, 0.02)',
+  },
+  sectionIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    marginTop: 2,
+  },
+  iconText: {
+    fontSize: 16,
+  },
+  sectionContent: {
     flex: 1,
   },
-  alertDescription: {
-    ...typography.styles.bodyLarge,
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
     color: '#6B7280',
-    marginBottom: 24,
-    marginLeft: 16,
-    marginRight: 16,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  locationText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    lineHeight: 22,
+    marginBottom: 6,
+  },
+  coordinatesText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontFamily: Platform.OS === 'web' ? 'monospace' : 'System',
+    fontWeight: '500',
+  },
+  impactText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+    lineHeight: 20,
+    marginBottom: 6,
+  },
+  confidenceText: {
+    fontSize: 12,
+    color: '#059669',
+    fontWeight: '600',
+  },
+
+  // Description Section
+  descriptionSection: {
+    padding: 20,
+    paddingTop: 16,
+    backgroundColor: 'rgba(107, 114, 128, 0.02)',
+  },
+  descriptionText: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
+    fontWeight: '500',
   },
 
   // Routes section
@@ -872,15 +1063,74 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(59, 130, 246, 0.2)',
   },
-  routesLabel: {
-    ...typography.styles.labelBase,
-    color: '#6B7280',
+  routesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 14,
+  },
+  routesLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#6B7280',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  confidenceBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  confidenceBadgeHigh: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderColor: '#10B981',
+  },
+  confidenceBadgeMedium: {
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderColor: '#F59E0B',
+  },
+  confidenceBadgeLow: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderColor: '#EF4444',
+  },
+  confidenceBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  confidenceBadgeTextHigh: {
+    color: '#059669',
+  },
+  confidenceBadgeTextMedium: {
+    color: '#D97706',
+  },
+  confidenceBadgeTextLow: {
+    color: '#DC2626',
   },
   routesList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 12,
+  },
+  enhancedRouteBadge: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+    minWidth: 120,
+    ...(Platform.OS === 'web' && {
+      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+      cursor: 'pointer',
+    }),
+  },
+  routeInfo: {
+    alignItems: 'center',
   },
   routeBadge: {
     backgroundColor: '#3B82F6',
@@ -910,11 +1160,34 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1.08 }],
   },
   routeText: {
-    ...typography.styles.button,
+    fontSize: 14,
+    fontWeight: '700',
     color: '#FFFFFF',
+    marginBottom: 2,
   },
   routeTextHighFreq: {
     fontWeight: '800',
+  },
+  routeFrequency: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 2,
+  },
+  routeDelay: {
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: '600',
+  },
+  routeMatchingInfo: {
+    marginTop: 12,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(59, 130, 246, 0.2)',
+  },
+  matchingMethod: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontStyle: 'italic',
   },
   frequencyImpactInfo: {
     marginTop: 12,
