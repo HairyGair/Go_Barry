@@ -33,14 +33,29 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
       containerReady: !!mapContainer.current
     });
 
-    if (!mapContainer.current) {
-      console.error('❌ Map container not ready');
-      setMapError('Map container not initialized');
-      return;
-    }
+    // Wait for container to be ready with retry mechanism
+    const initializeMapWithRetry = async () => {
+      let retries = 0;
+      const maxRetries = 10;
+      
+      while (retries < maxRetries) {
+        if (mapContainer.current) {
+          console.log(`✅ Container ready after ${retries} retries`);
+          break;
+        }
+        
+        console.log(`⌛ Waiting for container... (attempt ${retries + 1}/${maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retries++;
+      }
+      
+      if (!mapContainer.current) {
+        console.error('❌ Map container not ready after retries');
+        setMapError('Map container failed to initialize - element not found');
+        return;
+      }
 
-    // Initialize map
-    const initializeMap = async () => {
+      // Initialize map
       try {
         console.log('🚀 Starting TomTom initialization...');
         
@@ -76,7 +91,7 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
           await Promise.race([
             loadPromise,
             new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('TomTom SDK load timeout')), 10000)
+              setTimeout(() => reject(new Error('TomTom SDK load timeout')), 15000)
             )
           ]);
         }
@@ -92,10 +107,23 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
 
         // Verify SDK loaded
         if (!window.tt || !window.tt.map) {
-          throw new Error('TomTom SDK not properly loaded');
+          throw new Error('TomTom SDK not properly loaded - window.tt.map not available');
         }
 
         console.log('✅ TomTom SDK ready, creating map...');
+        console.log('Container element:', mapContainer.current);
+        console.log('Container dimensions:', {
+          width: mapContainer.current.offsetWidth,
+          height: mapContainer.current.offsetHeight
+        });
+
+        // Ensure container has dimensions
+        if (mapContainer.current.offsetWidth === 0 || mapContainer.current.offsetHeight === 0) {
+          console.warn('⚠️ Container has zero dimensions, setting minimum size');
+          mapContainer.current.style.width = '100%';
+          mapContainer.current.style.height = '400px';
+          mapContainer.current.style.minHeight = '400px';
+        }
 
         // Create map with explicit error handling
         try {
@@ -108,7 +136,7 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
             language: 'en-GB'
           });
 
-          console.log('🗺️ Map instance created');
+          console.log('🗺️ Map instance created successfully');
 
           // Map event handlers
           map.on('load', () => {
@@ -161,8 +189,20 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
       }
     };
 
-    // Start initialization
-    initializeMap();
+    // Use requestAnimationFrame to ensure DOM is ready
+    const startInit = () => {
+      if (typeof requestAnimationFrame !== 'undefined') {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            initializeMapWithRetry();
+          });
+        });
+      } else {
+        setTimeout(initializeMapWithRetry, 100);
+      }
+    };
+
+    startInit();
 
     // Cleanup
     return () => {

@@ -25,18 +25,6 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
   useEffect(() => {
     if (Platform.OS !== 'web' || !mapContainer.current) return;
 
-    // Check if we're on localhost
-    const isLocalhost = typeof window !== 'undefined' && 
-      (window.location.hostname === 'localhost' || 
-       window.location.hostname === '127.0.0.1' || 
-       window.location.hostname.includes('localhost'));
-    
-    if (isLocalhost) {
-      console.log('🏠 Localhost detected - TomTom may be restricted');
-      setMapError('TomTom Map disabled on localhost - Deploy to see live traffic map');
-      return;
-    }
-
     console.log('🗺️ Initializing TomTom TrafficMap...');
 
     // Load TomTom Maps SDK dynamically for web
@@ -49,6 +37,26 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
           throw new Error('Not in browser environment');
         }
 
+        // Wait for container to be ready
+        let retries = 0;
+        while (retries < 10 && (!mapContainer.current || mapContainer.current.offsetWidth === 0)) {
+          console.log(`⌛ Waiting for container (attempt ${retries + 1}/10)...`);
+          await new Promise(resolve => setTimeout(resolve, 100));
+          retries++;
+        }
+        
+        if (!mapContainer.current) {
+          throw new Error('Map container not ready after retries');
+        }
+
+        // Ensure container has proper dimensions
+        if (mapContainer.current.offsetWidth === 0 || mapContainer.current.offsetHeight === 0) {
+          console.log('📄 Setting container dimensions...');
+          mapContainer.current.style.width = '100%';
+          mapContainer.current.style.height = '300px';
+          mapContainer.current.style.minHeight = '300px';
+        }
+
         // Add TomTom Maps SDK script if not already loaded
         if (!window.tt) {
           console.log('📦 Loading TomTom Maps SDK script...');
@@ -58,18 +66,21 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
           script.crossOrigin = 'anonymous';
           document.head.appendChild(script);
           
-          await new Promise((resolve, reject) => {
-            script.onload = () => {
-              console.log('✅ TomTom script loaded successfully');
-              resolve();
-            };
-            script.onerror = (error) => {
-              console.error('❌ TomTom script failed to load:', error);
-              reject(new Error('Failed to load TomTom Maps SDK script'));
-            };
-            // Add timeout to prevent hanging
-            setTimeout(() => reject(new Error('TomTom script load timeout')), 10000);
-          });
+          await Promise.race([
+            new Promise((resolve, reject) => {
+              script.onload = () => {
+                console.log('✅ TomTom script loaded successfully');
+                resolve();
+              };
+              script.onerror = (error) => {
+                console.error('❌ TomTom script failed to load:', error);
+                reject(new Error('Failed to load TomTom Maps SDK script'));
+              };
+            }),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('TomTom script load timeout')), 15000)
+            )
+          ]);
         }
 
         // Add TomTom CSS if not already added
@@ -93,6 +104,14 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
           throw new Error('TomTom API key not configured. Set EXPO_PUBLIC_TOMTOM_API_KEY environment variable.');
         }
 
+        console.log('🗺️ TomTom API Key validated:', TOMTOM_API_KEY ? `${TOMTOM_API_KEY.slice(0, 8)}...` : 'MISSING');
+
+        console.log('🗺️ Creating TomTom map instance...', {
+          container: mapContainer.current,
+          width: mapContainer.current.offsetWidth,
+          height: mapContainer.current.offsetHeight
+        });
+
         // Create TomTom map instance
         const map = window.tt.map({
           key: TOMTOM_API_KEY,
@@ -110,6 +129,7 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
         map.on('load', () => {
           console.log('✅ TomTom TrafficMap loaded successfully');
           setMapLoaded(true);
+          setMapError(null);
           
           // Add traffic flow layer
           if (trafficLayerVisible) {
@@ -156,7 +176,7 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
 
         map.on('error', (e) => {
           console.error('❌ TomTom Map error:', e);
-          setMapError('TomTom Map failed to load properly');
+          setMapError(`TomTom Map failed to load: ${e.error?.message || 'Unknown error'}`);
         });
 
         mapRef.current = map;
@@ -171,7 +191,16 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
       }
     };
 
-    initializeTomTomMap();
+    // Use requestAnimationFrame to ensure DOM is ready
+    if (typeof requestAnimationFrame !== 'undefined') {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          initializeTomTomMap();
+        });
+      });
+    } else {
+      setTimeout(initializeTomTomMap, 100);
+    }
 
     // Cleanup
     return () => {
@@ -430,28 +459,20 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
 
   // Handle map errors
   if (mapError) {
-    const isLocalhostError = mapError.includes('localhost');
-    
     return (
-      <View style={isLocalhostError ? styles.localhostContainer : styles.errorContainer}>
-        <Text style={styles.errorIcon}>{isLocalhostError ? '🏠' : '⚠️'}</Text>
-        <Text style={[styles.errorTitle, isLocalhostError && styles.localhostTitle]}>
-          {isLocalhostError ? 'Development Mode' : 'TomTom Map Error'}
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorIcon}>⚠️</Text>
+        <Text style={styles.errorTitle}>TomTom Map Error</Text>
+        <Text style={styles.errorText}>{mapError}</Text>
+        <View style={styles.debugContainer}>
+          <Text style={styles.debugTitle}>Debug Info:</Text>
+          <Text style={styles.debugText}>API Key: {TOMTOM_API_KEY ? 'Present' : 'Missing'}</Text>
+          <Text style={styles.debugText}>Platform: {Platform.OS}</Text>
+          <Text style={styles.debugText}>Container: {mapContainer.current ? 'Ready' : 'Not ready'}</Text>
+        </View>
+        <Text style={styles.fallbackText}>
+          Check browser console for detailed errors
         </Text>
-        <Text style={[styles.errorText, isLocalhostError && styles.localhostText]}>{mapError}</Text>
-        {isLocalhostError && (
-          <View style={styles.localhostInfo}>
-            <Text style={styles.localhostInfoText}>
-              ✨ On production: Shows TomTom map with live traffic overlay
-            </Text>
-            <Text style={styles.localhostInfoText}>
-              📍 Auto-zooms to current rotating alert location
-            </Text>
-            <Text style={styles.localhostInfoText}>
-              🚦 Real-time traffic flow and incident visualization
-            </Text>
-          </View>
-        )}
       </View>
     );
   }

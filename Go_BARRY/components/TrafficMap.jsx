@@ -25,17 +25,8 @@ const TrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) => {
   useEffect(() => {
     if (Platform.OS !== 'web' || !mapContainer.current) return;
 
-    // Check if we're on localhost - Mapbox tokens often restrict localhost
-    const isLocalhost = typeof window !== 'undefined' && 
-      (window.location.hostname === 'localhost' || 
-       window.location.hostname === '127.0.0.1' || 
-       window.location.hostname.includes('localhost'));
-    
-    if (isLocalhost) {
-      console.log('🏠 Localhost detected - Mapbox may be restricted');
-      setMapError('Map disabled on localhost - Deploy to see live map');
-      return;
-    }
+    // Remove localhost restriction - allow map to load on all domains
+    console.log('🗺️ Map loading allowed on all domains');
 
     console.log('🗺️ Initializing TrafficMap...');
 
@@ -351,25 +342,11 @@ const TrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) => {
 
   // Handle map errors
   if (mapError) {
-    const isLocalhostError = mapError.includes('localhost');
-    
     return (
-      <View style={isLocalhostError ? styles.localhostContainer : styles.errorContainer}>
-        <Text style={styles.errorIcon}>{isLocalhostError ? '🏠' : '⚠️'}</Text>
-        <Text style={[styles.errorTitle, isLocalhostError && styles.localhostTitle]}>
-          {isLocalhostError ? 'Development Mode' : 'Map Error'}
-        </Text>
-        <Text style={[styles.errorText, isLocalhostError && styles.localhostText]}>{mapError}</Text>
-        {isLocalhostError && (
-          <View style={styles.localhostInfo}>
-            <Text style={styles.localhostInfoText}>
-              ✨ On production: Shows interactive map with alert markers
-            </Text>
-            <Text style={styles.localhostInfoText}>
-              📍 Auto-zooms to current rotating alert location
-            </Text>
-          </View>
-        )}
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorIcon}>⚠️</Text>
+        <Text style={styles.errorTitle}>Map Error</Text>
+        <Text style={styles.errorText}>{mapError}</Text>
       </View>
     );
   }
