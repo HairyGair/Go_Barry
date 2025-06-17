@@ -190,7 +190,7 @@ export const useSupervisorSession = () => {
           id: loginData.supervisorId, // Keep frontend ID for UI
           name: supervisor.name,
           role: supervisor.role,
-          duty: loginData.duty,
+          duty: DUTY_OPTIONS.find((d) => d.id === loginData.duty) || { id: loginData.duty, name: loginData.duty },
           isAdmin: supervisor.isAdmin || false,
           permissions: supervisor.isAdmin ? 
             ['dismiss_alerts', 'view_all_activity', 'manage_supervisors', 'create_incidents', 'send_messages'] : 

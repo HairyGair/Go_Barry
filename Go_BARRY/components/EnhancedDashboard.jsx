@@ -39,6 +39,7 @@ const EnhancedDashboard = ({
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [showSupervisorLogin, setShowSupervisorLogin] = useState(false);
   const [showSupervisorControl, setShowSupervisorControl] = useState(false);
+  const [mapZoomTarget, setMapZoomTarget] = useState(null); // For alert card -> map zoom
   
   // Supervisor session management
   const { supervisorSession: session, logout } = useSupervisorSession();
@@ -180,6 +181,19 @@ const EnhancedDashboard = ({
 
   // Handle alert interactions
   const handleAlertClick = useCallback((alert) => {
+    console.log('🎯 Alert card clicked:', alert.title, 'Coordinates:', alert.coordinates);
+    
+    // Zoom map to alert location if it has coordinates
+    if (alert.coordinates && Array.isArray(alert.coordinates) && alert.coordinates.length >= 2) {
+      setMapZoomTarget({
+        alert,
+        timestamp: Date.now() // Force re-trigger even for same alert
+      });
+      console.log('📍 Triggering map zoom to:', alert.location);
+    } else {
+      console.warn('⚠️ Alert has no coordinates for map zoom:', alert.title);
+    }
+    
     if (onAlertPress) {
       onAlertPress(alert);
     } else {
@@ -312,9 +326,15 @@ const EnhancedDashboard = ({
                          alert.severity?.toLowerCase() === 'medium' ? '#F59E0B' :
                          alert.severity?.toLowerCase() === 'low' ? '#3B82F6' : '#6B7280';
 
+    const isMapTarget = mapZoomTarget?.alert?.id === alert.id;
+
     return (
       <TouchableOpacity
-        style={[styles.alertItem, { borderLeftColor: priorityColor }]}
+        style={[
+          styles.alertItem, 
+          { borderLeftColor: priorityColor },
+          isMapTarget && styles.alertItemHighlighted // Highlight when map is zoomed to this alert
+        ]}
         onPress={() => handleAlertClick(alert)}
       >
         <View style={styles.alertHeader}>
@@ -323,6 +343,9 @@ const EnhancedDashboard = ({
             <Text style={styles.alertTitle} numberOfLines={2}>
               {alert.title || 'Traffic Incident'}
             </Text>
+            {alert.coordinates && alert.coordinates.length >= 2 && (
+              <Text style={styles.alertMapIcon}>📍</Text>
+            )}
           </View>
           <View style={styles.alertBadges}>
             <Text style={[styles.alertStatus, { color: priorityColor }]}>
@@ -338,6 +361,11 @@ const EnhancedDashboard = ({
         
         <Text style={styles.alertLocation}>
           {typography.icons.location.pin} {alert.location || 'Location being resolved...'}
+          {alert.coordinates && alert.coordinates.length >= 2 && (
+            <Text style={styles.alertCoordinates}>
+              {' '}({alert.coordinates[0].toFixed(4)}, {alert.coordinates[1].toFixed(4)})
+            </Text>
+          )}
         </Text>
         
         {alert.description && (
@@ -363,6 +391,9 @@ const EnhancedDashboard = ({
           <Text style={styles.alertTime}>
             {alert.timestamp ? new Date(alert.timestamp).toLocaleTimeString() : 'Unknown time'}
           </Text>
+          {alert.coordinates && alert.coordinates.length >= 2 && (
+            <Text style={styles.alertClickHint}>Click to zoom map 🗺️</Text>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -489,11 +520,13 @@ const EnhancedDashboard = ({
         {/* Interactive TomTom Map */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Traffic Map - TomTom Powered</Text>
+          <Text style={styles.mapInstructions}>Click any alert card below to zoom the map to that location</Text>
           <View style={styles.mapContainer}>
             <EnhancedTrafficMap 
               alerts={filteredAlerts}
-              currentAlert={filteredAlerts[0]} // Show first alert as current
-              alertIndex={0}
+              currentAlert={mapZoomTarget?.alert || filteredAlerts[0]} // Use clicked alert or first alert
+              alertIndex={mapZoomTarget?.alert ? filteredAlerts.findIndex(a => a.id === mapZoomTarget.alert.id) : 0}
+              zoomTarget={mapZoomTarget} // Pass zoom target for triggering
             />
           </View>
         </View>
@@ -833,6 +866,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#F8FAFC',
   },
+  mapInstructions: {
+    ...typography.styles.labelSmall,
+    color: '#6B7280',
+    marginBottom: 8,
+    fontStyle: 'italic',
+    textTransform: 'none',
+  },
   sectionTitle: {
     ...typography.styles.bodyLarge,
     fontWeight: typography.fontWeight.semibold,
@@ -864,6 +904,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderLeftWidth: 4,
   },
+  alertItemHighlighted: {
+    backgroundColor: '#EFF6FF',
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    borderLeftColor: '#3B82F6',
+    borderLeftWidth: 6,
+  },
   alertHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -886,6 +935,11 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.semibold,
     color: '#1E293B',
     flex: 1,
+  },
+  alertMapIcon: {
+    fontSize: 16,
+    marginLeft: 8,
+    color: '#3B82F6',
   },
   alertBadges: {
     flexDirection: 'row',
@@ -912,6 +966,13 @@ const styles = StyleSheet.create({
     ...typography.styles.labelSmall,
     color: '#64748B',
     marginBottom: 4,
+    textTransform: 'none',
+  },
+  alertCoordinates: {
+    ...typography.styles.labelSmall,
+    color: '#94A3B8',
+    fontSize: 10,
+    fontStyle: 'italic',
     textTransform: 'none',
   },
   alertDescription: {
@@ -952,6 +1013,13 @@ const styles = StyleSheet.create({
     ...typography.styles.labelSmall,
     fontSize: 10,
     color: '#94A3B8',
+    textTransform: 'none',
+  },
+  alertClickHint: {
+    ...typography.styles.labelSmall,
+    fontSize: 10,
+    color: '#3B82F6',
+    fontStyle: 'italic',
     textTransform: 'none',
   },
   noAlertsContainer: {

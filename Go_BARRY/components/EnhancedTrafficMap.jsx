@@ -5,7 +5,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 
-const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, onError = null }) => {
+const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, zoomTarget = null, onError = null }) => {
   const mapContainer = useRef(null);
   const mapRef = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -307,9 +307,50 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
     }
   }, [alerts, alertIndex, mapLoaded]);
 
-  // Auto-zoom to current alert
+  // Auto-zoom to alert when zoomTarget changes (from alert card clicks)
   useEffect(() => {
-    if (!mapRef.current || !mapLoaded || !currentAlert || !currentAlert.coordinates) return;
+    if (!mapRef.current || !mapLoaded || !zoomTarget?.alert) return;
+
+    try {
+      const map = mapRef.current;
+      const alert = zoomTarget.alert;
+      
+      if (!alert.coordinates || !Array.isArray(alert.coordinates) || alert.coordinates.length < 2) {
+        console.warn('⚠️ Cannot zoom to alert without coordinates:', alert.title);
+        return;
+      }
+
+      const [lat, lng] = alert.coordinates;
+
+      console.log(`🎯 ZOOM TARGET: Zooming TomTom map to clicked alert: ${alert.title} at [${lat}, ${lng}]`);
+
+      // Animate to the clicked alert location (TomTom uses [lng, lat])
+      map.flyTo({
+        center: [lng, lat],
+        zoom: 16, // Even closer zoom for clicked alerts
+        duration: 1500, // Faster animation for user-initiated zooms
+        essential: true
+      });
+
+      // Highlight the clicked alert temporarily
+      setTimeout(() => {
+        const markerElement = document.getElementById(`alert-marker-${alertIndex}`);
+        if (markerElement) {
+          markerElement.style.animation = 'pulse 1s ease-in-out 3';
+          console.log(`💥 Highlighting clicked alert marker`);
+        }
+      }, 1600); // After zoom completes
+
+      console.log(`🎯 Map zoom to clicked alert "${alert.title}" completed`);
+
+    } catch (error) {
+      console.error('❌ Error zooming TomTom map to clicked alert:', error);
+    }
+  }, [zoomTarget, mapLoaded, alertIndex]);
+
+  // Auto-zoom to current alert (fallback when no specific zoom target)
+  useEffect(() => {
+    if (!mapRef.current || !mapLoaded || !currentAlert || !currentAlert.coordinates || zoomTarget) return;
 
     try {
       const map = mapRef.current;
@@ -330,7 +371,7 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
     } catch (error) {
       console.error('❌ Error zooming TomTom map to alert:', error);
     }
-  }, [currentAlert, alertIndex, mapLoaded]);
+  }, [currentAlert, alertIndex, mapLoaded, zoomTarget]);
 
   // Reset to overview when no alerts or no current alert
   useEffect(() => {

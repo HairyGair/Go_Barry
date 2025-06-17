@@ -38,10 +38,6 @@ const DisplayScreen = () => {
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentAlertIndex, setCurrentAlertIndex] = useState(0);
-  const [hoveredRoute, setHoveredRoute] = useState(null);
-  const [hoveredNavBtn, setHoveredNavBtn] = useState(null);
-  const [hoveredAlert, setHoveredAlert] = useState(false);
-  const [hoveredActivity, setHoveredActivity] = useState(null);
   const spinValue = useRef(new Animated.Value(0)).current;
   
   // Animation values
@@ -69,7 +65,7 @@ const DisplayScreen = () => {
         }
         return (prev + 1) % visibleAlerts.length;
       });
-    }, 10000);
+    }, 20000); // Changed to 20 seconds for automatic rotation
     
     return () => clearInterval(interval);
   }, [visibleAlerts.length, lockedOnDisplay]);
@@ -243,36 +239,12 @@ const DisplayScreen = () => {
           <View style={styles.alertContent}>
             {visibleAlerts.length > 0 ? (
               <View style={styles.alertDisplayArea}>
-                {/* Alert Navigation */}
-                {visibleAlerts.length > 1 && (
-                  <View style={styles.alertNavigation}>
-                    <TouchableOpacity 
-                      style={[
-                        styles.navBtn,
-                        hoveredNavBtn === 'prev' && styles.navBtnHovered
-                      ]} 
-                      onPress={prevAlert}
-                      onMouseEnter={() => Platform.OS === 'web' && setHoveredNavBtn('prev')}
-                      onMouseLeave={() => Platform.OS === 'web' && setHoveredNavBtn(null)}
-                    >
-                      <Text style={styles.navBtnText}>◀</Text>
-                    </TouchableOpacity>
-                    <Text style={styles.alertCounter}>
-                      {currentAlertIndex + 1} of {visibleAlerts.length}
-                    </Text>
-                    <TouchableOpacity 
-                      style={[
-                        styles.navBtn,
-                        hoveredNavBtn === 'next' && styles.navBtnHovered
-                      ]} 
-                      onPress={nextAlert}
-                      onMouseEnter={() => Platform.OS === 'web' && setHoveredNavBtn('next')}
-                      onMouseLeave={() => Platform.OS === 'web' && setHoveredNavBtn(null)}
-                    >
-                      <Text style={styles.navBtnText}>▶</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
+                {/* Automatic Alert Display - No Manual Navigation */}
+                <View style={styles.autoRotationInfo}>
+                  <Text style={styles.rotationText}>
+                    Auto-rotating every 20 seconds • Alert {currentAlertIndex + 1} of {visibleAlerts.length}
+                  </Text>
+                </View>
 
                 {/* Current Alert Display */}
                 {(() => {
@@ -315,7 +287,6 @@ const DisplayScreen = () => {
                     <Animated.View 
                       style={[
                         styles.currentAlert,
-                        hoveredAlert && styles.currentAlertHovered,
                         {
                           opacity: fadeAnim,
                           transform: [
@@ -324,8 +295,6 @@ const DisplayScreen = () => {
                           ],
                         }
                       ]}
-                      onMouseEnter={() => Platform.OS === 'web' && setHoveredAlert(true)}
-                      onMouseLeave={() => Platform.OS === 'web' && setHoveredAlert(false)}
                     >
                       {/* REDESIGNED ALERT CARD */}
                       <View style={styles.alertCard}>
@@ -451,16 +420,12 @@ const DisplayScreen = () => {
                               const estimatedDelay = severity === 'High' ? '+15-30min' : severity === 'Medium' ? '+5-15min' : '+2-8min';
                               
                               return (
-                                <TouchableOpacity 
+                                <View 
                                   key={idx} 
                                   style={[
                                     styles.enhancedRouteBadge,
-                                    isHighFreq && styles.routeBadgeHighFreq,
-                                    hoveredRoute === `${alert.id}-${idx}` && styles.routeBadgeHovered
+                                    isHighFreq && styles.routeBadgeHighFreq
                                   ]}
-                                  activeOpacity={0.8}
-                                  onMouseEnter={() => Platform.OS === 'web' && setHoveredRoute(`${alert.id}-${idx}`)}
-                                  onMouseLeave={() => Platform.OS === 'web' && setHoveredRoute(null)}
                                 >
                                   <View style={styles.routeInfo}>
                                     <Text style={[styles.routeText, isHighFreq && styles.routeTextHighFreq]}>
@@ -473,7 +438,7 @@ const DisplayScreen = () => {
                                       Est. delay: {estimatedDelay}
                                     </Text>
                                   </View>
-                                </TouchableOpacity>
+                                </View>
                               );
                             })}
                           </View>
@@ -552,9 +517,10 @@ const DisplayScreen = () => {
             
             <View style={styles.mapContainer}>
               <TomTomTrafficMap 
-                alerts={alerts}
+                alerts={visibleAlerts}
                 currentAlert={getCurrentAlert()}
                 alertIndex={currentAlertIndex}
+                autoZoom={true}
               />
             </View>
           </View>
@@ -568,15 +534,9 @@ const DisplayScreen = () => {
             <ScrollView style={styles.activityList}>
               {activityFeed.length > 0 ? (
                 activityFeed.map((activity, index) => (
-                  <TouchableOpacity 
+                  <View 
                     key={activity.id} 
-                    style={[
-                      styles.activityItem,
-                      hoveredActivity === activity.id && styles.activityItemHovered
-                    ]}
-                    activeOpacity={1}
-                    onMouseEnter={() => Platform.OS === 'web' && setHoveredActivity(activity.id)}
-                    onMouseLeave={() => Platform.OS === 'web' && setHoveredActivity(null)}
+                    style={styles.activityItem}
                   >
                     <View style={styles.activityIconContainer}>
                       <Text style={styles.activityIcon}>
@@ -598,7 +558,7 @@ const DisplayScreen = () => {
                         })}
                       </Text>
                     </View>
-                  </TouchableOpacity>
+                  </View>
                 ))
               ) : (
                 <View style={styles.noActivity}>
@@ -821,6 +781,26 @@ const styles = StyleSheet.create({
   },
   alertDisplayArea: {
     flex: 1,
+  },
+  autoRotationInfo: {
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    backdropFilter: Platform.OS === 'web' ? 'blur(10px)' : undefined,
+    padding: 12,
+    borderRadius: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.2)',
+  },
+  rotationText: {
+    ...typography.styles.bodyBase,
+    color: '#3B82F6',
+    fontWeight: typography.fontWeight.semibold,
+    textAlign: 'center',
   },
   alertNavigation: {
     flexDirection: 'row',

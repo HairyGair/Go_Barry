@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Go BARRY Backend Connectivity Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .test-container { background: white; padding: 20px; border-radius: 8px; margin: 10px 0; }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        .info { color: #3b82f6; }
+        .warning { color: #f59e0b; }
+        button { background: #3b82f6; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #2563eb; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Go BARRY Backend Connectivity Test</h1>
+    <p>This test runs from the frontend environment to check backend connectivity.</p>
+    
+    <div class="test-container">
+        <button onclick="runAllTests()">🧪 Run All Tests</button>
+        <button onclick="clearResults()">🧹 Clear Results</button>
+    </div>
+    
+    <div id="results"></div>
+
+    <script>
+        const API_BASE_URL = 'https://go-barry.onrender.com';
+        
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `test-container ${type}`;
+            div.innerHTML = `<pre>${new Date().toLocaleTimeString()} - ${message}</pre>`;
+            results.appendChild(div);
+            console.log(message);
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function testEndpoint(name, url, options = {}) {
+            log(`🧪 Testing: ${name}`, 'info');
+            log(`📡 URL: ${url}`, 'info');
+            
+            try {
+                const start = Date.now();
+                const response = await fetch(url, {
+                    ...options,
+                    mode: 'cors' // Explicitly set CORS mode
+                });
+                const duration = Date.now() - start;
+                
+                log(`⏱️ Response time: ${duration}ms`, 'info');
+                log(`📊 Status: ${response.status} ${response.statusText}`, response.ok ? 'success' : 'error');
+                
+                if (response.ok) {
+                    try {
+                        const data = await response.json();
+                        log(`✅ SUCCESS: ${JSON.stringify(data, null, 2)}`, 'success');
+                        return { success: true, data };
+                    } catch (jsonError) {
+                        const text = await response.text();
+                        log(`⚠️ JSON parse error but response received: ${text.substring(0, 200)}`, 'warning');
+                        return { success: true, data: text };
+                    }
+                } else {
+                    const errorText = await response.text();
+                    log(`❌ HTTP ${response.status}: ${errorText}`, 'error');
+                    return { success: false, error: `HTTP ${response.status}: ${errorText}` };
+                }
+                
+            } catch (error) {
+                log(`💥 FETCH FAILED: ${error.name} - ${error.message}`, 'error');
+                
+                // Additional debugging
+                if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+                    log(`🔍 This usually means:
+1. Network connectivity issue
+2. CORS blocking (check browser console)
+3. Backend service is down
+4. DNS resolution failure
+5. SSL/TLS certificate issue`, 'warning');
+                }
+                
+                return { success: false, error: error.message };
+            }
+        }
+
+        async function runAllTests() {
+            log('🚀 Starting comprehensive backend connectivity test...', 'info');
+            log(`🌐 Environment: ${window.location.hostname}`, 'info');
+            log(`🔗 Target backend: ${API_BASE_URL}`, 'info');
+            
+            const tests = [
+                {
+                    name: 'Health Check',
+                    url: `${API_BASE_URL}/api/health`,
+                    options: { method: 'GET' }
+                },
+                {
+                    name: 'Health Extended',
+                    url: `${API_BASE_URL}/api/health-extended`,
+                    options: { method: 'GET' }
+                },
+                {
+                    name: 'Active Supervisors',
+                    url: `${API_BASE_URL}/api/supervisor/active`,
+                    options: { method: 'GET' }
+                },
+                {
+                    name: 'Supervisor Login Test',
+                    url: `${API_BASE_URL}/api/supervisor/auth/login`,
+                    options: {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            supervisorId: 'supervisor003',
+                            badge: 'AG003'
+                        })
+                    }
+                }
+            ];
+
+            let successCount = 0;
+            
+            for (const test of tests) {
+                const result = await testEndpoint(test.name, test.url, test.options);
+                if (result.success) successCount++;
+                log('━'.repeat(50), 'info');
+            }
+            
+            const successRate = Math.round((successCount / tests.length) * 100);
+            
+            if (successCount === tests.length) {
+                log(`🎉 ALL TESTS PASSED! Backend is fully operational.`, 'success');
+            } else if (successCount > 0) {
+                log(`⚠️ PARTIAL SUCCESS: ${successCount}/${tests.length} tests passed (${successRate}%)`, 'warning');
+            } else {
+                log(`❌ ALL TESTS FAILED! Backend appears to be completely unreachable.`, 'error');
+                log(`💡 Possible solutions:
+1. Check if Render.com service is running
+2. Verify the backend URL: ${API_BASE_URL}
+3. Check browser console for CORS errors
+4. Try redeploying the backend
+5. Check Render.com dashboard for service status`, 'warning');
+            }
+            
+            log('🏁 Test completed', 'info');
+        }
+
+        // Auto-run test when page loads
+        window.addEventListener('load', () => {
+            log('📱 Frontend connectivity test loaded', 'info');
+            log('Click "Run All Tests" to start testing backend connectivity', 'info');
+        });
+    </script>
+</body>
+</html>
