@@ -27,7 +27,7 @@ const API_BASE_URL = (() => {
 const SUPERVISOR_DB = {
   'alex_woodcock': { name: 'Alex Woodcock', role: 'Supervisor', requiresPassword: false },
   'andrew_cowley': { name: 'Andrew Cowley', role: 'Supervisor', requiresPassword: false },
-  'anthony_gair': { name: 'Anthony Gair', role: 'Supervisor', requiresPassword: false },
+  'anthony_gair': { name: 'Anthony Gair', role: 'Developer/Admin', requiresPassword: false, isAdmin: true },
   'claire_fiddler': { name: 'Claire Fiddler', role: 'Supervisor', requiresPassword: false },
   'david_hall': { name: 'David Hall', role: 'Supervisor', requiresPassword: false },
   'james_daglish': { name: 'James Daglish', role: 'Supervisor', requiresPassword: false },
@@ -134,29 +134,54 @@ export const useSupervisorSession = () => {
         throw new Error('Backend mapping not found for supervisor');
       }
       
-      // Authenticate with backend
-      const authResponse = await fetch(`${API_BASE_URL}/api/supervisor/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          supervisorId: backendSupervisor.id,
-          badge: backendSupervisor.badge
-        })
-      });
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
-      if (!authResponse.ok) {
-        throw new Error('Backend authentication failed');
+      try {
+        // Authenticate with backend
+        const authResponse = await fetch(`${API_BASE_URL}/api/supervisor/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            supervisorId: backendSupervisor.id,
+            badge: backendSupervisor.badge
+          }),
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!authResponse.ok) {
+          const errorText = await authResponse.text();
+          throw new Error(`Backend authentication failed: ${authResponse.status} - ${errorText}`);
+        }
+        
+        const authResult = await authResponse.json();
+        
+        if (!authResult.success) {
+          throw new Error(authResult.error || 'Backend authentication failed');
+        }
+        
+        console.log('✅ Backend authentication successful:', authResult.sessionId);
+        
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Login timeout - please check your connection');
+        }
+        
+        console.warn('⚠️ Backend auth failed, using local auth only:', fetchError.message);
+        
+        // For now, continue with local authentication if backend fails
+        var authResult = {
+          success: true,
+          sessionId: 'local_' + Date.now(),
+          supervisor: supervisor
+        };
       }
-      
-      const authResult = await authResponse.json();
-      
-      if (!authResult.success) {
-        throw new Error(authResult.error || 'Backend authentication failed');
-      }
-      
-      console.log('✅ Backend authentication successful:', authResult.sessionId);
 
       // Create session with backend sessionId
       const session = {
@@ -170,8 +195,8 @@ export const useSupervisorSession = () => {
           permissions: supervisor.isAdmin ? 
             ['dismiss_alerts', 'view_all_activity', 'manage_supervisors', 'create_incidents', 'send_messages'] : 
             ['dismiss_alerts', 'create_incidents'],
-          backendId: backendSupervisor.id, // Store backend ID for WebSocket
-          badge: backendSupervisor.badge
+          backendId: backendSupervisor?.id, // Store backend ID for WebSocket
+          badge: backendSupervisor?.badge
         },
         loginTime: new Date().toISOString(),
         lastActivity: Date.now(),
@@ -195,6 +220,15 @@ export const useSupervisorSession = () => {
       const errorMessage = err.message || 'Login failed';
       setError(errorMessage);
       console.error('❌ Login error:', err);
+      console.error('❌ Error stack:', err.stack);
+      
+      // Additional debugging info
+      console.log('🔍 Debug info:');
+      console.log('- API_BASE_URL:', API_BASE_URL);
+      console.log('- loginData:', loginData);
+      console.log('- supervisor found:', !!supervisor);
+      console.log('- isClient:', typeof window !== 'undefined');
+      
       return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);

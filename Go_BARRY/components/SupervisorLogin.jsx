@@ -29,7 +29,7 @@ const SupervisorLogin = ({ visible, onClose }) => {
   const supervisors = [
     { id: 'alex_woodcock', name: 'Alex Woodcock', role: 'Supervisor', requiresPassword: false },
     { id: 'andrew_cowley', name: 'Andrew Cowley', role: 'Supervisor', requiresPassword: false },
-    { id: 'anthony_gair', name: 'Anthony Gair', role: 'Supervisor', requiresPassword: false },
+    { id: 'anthony_gair', name: 'Anthony Gair', role: 'Developer/Admin', requiresPassword: false, isAdmin: true },
     { id: 'claire_fiddler', name: 'Claire Fiddler', role: 'Supervisor', requiresPassword: false },
     { id: 'david_hall', name: 'David Hall', role: 'Supervisor', requiresPassword: false },
     { id: 'james_daglish', name: 'James Daglish', role: 'Supervisor', requiresPassword: false },
