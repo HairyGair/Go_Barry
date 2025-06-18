@@ -1,8 +1,12 @@
 // backend/services/eventMonitor.js
 // Major event monitoring service for Go North East disruption management
 
-const fs = require('fs').promises;
-const path = require('path');
+import { promises as fs } from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class EventMonitor {
   constructor() {
@@ -182,4 +186,4 @@ class EventMonitor {
 // Create singleton instance
 const eventMonitor = new EventMonitor();
 
-module.exports = eventMonitor;
+export default eventMonitor;

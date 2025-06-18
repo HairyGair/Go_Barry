@@ -1,9 +1,10 @@
 // backend/routes/eventAPI.js
 // API routes for major event monitoring
 
-const express = require('express');
+import express from 'express';
+import eventMonitor from '../services/eventMonitor.js';
+
 const router = express.Router();
-const eventMonitor = require('../services/eventMonitor');
 
 // Get active events
 router.get('/active', async (req, res) => {
@@ -176,4 +177,4 @@ router.post('/check-conflicts', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

@@ -26,7 +26,7 @@ import enhancementAPI from './routes/enhancementAPI.js';
 import frequencyAPI from './routes/frequencyAPI.js';
 import throttleAPI from './routes/throttleAPI.js';
 import tileAPI from './routes/tileAPI.js';
-import { eventAPI } from './routes/eventAPI.js';
+import eventAPI from './routes/eventAPI.js';
 import serviceFrequencyAnalyzer from './services/serviceFrequencyAnalyzer.js';
 import supervisorSyncService from './services/supervisorSync.js';
 import enhancedDataSourceManager from './services/enhancedDataSourceManager.js';
