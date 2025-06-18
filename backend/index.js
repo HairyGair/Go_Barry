@@ -20,6 +20,7 @@ import healthExtendedRouter from './routes/healthExtended.js';
 import supervisorAPI from './routes/supervisorAPI.js';
 import roadworksAPI from './routes/roadworksAPI.js';
 import roadworkAlertsAPI from './routes/roadworkAlertsAPI.js';
+import microsoftAuthAPI from './routes/microsoftAuthAPI.js';
 import gtfsAPI from './routes/gtfsAPI.js';
 import intelligenceAPI from './routes/intelligenceAPI.js';
 import incidentAPI from './routes/incidentAPI.js';
@@ -303,6 +304,9 @@ app.use('/api/roadworks', roadworksAPI);
 
 // Roadwork alerts routes (supervisor-created roadwork notifications)
 app.use('/api/roadwork-alerts', roadworkAlertsAPI);
+
+// Microsoft authentication routes
+app.use('/api/auth', microsoftAuthAPI);
 
 // Intelligence system routes
 app.use('/api/intelligence', intelligenceAPI);

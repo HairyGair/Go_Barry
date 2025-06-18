@@ -33,6 +33,11 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
 
   const [availableEmailGroups, setAvailableEmailGroups] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [microsoftLoginStatus, setMicrosoftLoginStatus] = useState({
+    loggedIn: false,
+    checking: true,
+    userInfo: null
+  });
 
   // Severity options with colors
   const severityOptions = [
@@ -41,10 +46,11 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
     { value: 'high', label: 'High Impact', color: '#ef4444' }
   ];
 
-  // Load email groups on mount
+  // Load email groups and check Microsoft login status on mount
   useEffect(() => {
     if (visible) {
       loadEmailGroups();
+      checkMicrosoftLoginStatus();
     }
   }, [visible]);
 
@@ -57,6 +63,66 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
       }
     } catch (error) {
       console.error('Failed to load email groups:', error);
+    }
+  };
+
+  const checkMicrosoftLoginStatus = async () => {
+    try {
+      setMicrosoftLoginStatus(prev => ({ ...prev, checking: true }));
+      
+      const response = await fetch(`https://go-barry.onrender.com/api/auth/microsoft/status/${supervisorData?.id}`);
+      const result = await response.json();
+      
+      if (result.success) {
+        setMicrosoftLoginStatus({
+          loggedIn: result.loggedIn,
+          checking: false,
+          userInfo: result.userInfo,
+          expiresInMinutes: result.expiresInMinutes
+        });
+      } else {
+        setMicrosoftLoginStatus({
+          loggedIn: false,
+          checking: false,
+          userInfo: null
+        });
+      }
+    } catch (error) {
+      console.error('Failed to check Microsoft login status:', error);
+      setMicrosoftLoginStatus({
+        loggedIn: false,
+        checking: false,
+        userInfo: null
+      });
+    }
+  };
+
+  const handleMicrosoftLogin = async () => {
+    try {
+      const response = await fetch(`https://go-barry.onrender.com/api/auth/microsoft/login-url/${supervisorData?.id}`);
+      const result = await response.json();
+      
+      if (result.success) {
+        // In a web environment, open in new window
+        if (Platform.OS === 'web') {
+          const popup = window.open(result.loginUrl, 'microsoft-login', 'width=500,height=600');
+          
+          // Poll for completion
+          const checkClosed = setInterval(() => {
+            if (popup.closed) {
+              clearInterval(checkClosed);
+              // Recheck login status after popup closes
+              setTimeout(checkMicrosoftLoginStatus, 1000);
+            }
+          }, 1000);
+        } else {
+          // In mobile, you'd use a WebView or linking
+          Alert.alert('Microsoft Login', 'Please use the web version for Microsoft authentication');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to get Microsoft login URL:', error);
+      Alert.alert('Error', 'Failed to initiate Microsoft login');
     }
   };
 
@@ -349,6 +415,36 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
             />
           </View>
 
+          {/* Microsoft Login Status */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Microsoft 365 Email</Text>
+            
+            {microsoftLoginStatus.checking ? (
+              <View style={styles.loginStatusItem}>
+                <Text style={styles.loginStatusText}>Checking Microsoft login status...</Text>
+              </View>
+            ) : microsoftLoginStatus.loggedIn ? (
+              <View style={styles.loginStatusItem}>
+                <View style={styles.loginSuccess}>
+                  <Text style={styles.loginSuccessText}>✓ Logged in as {microsoftLoginStatus.userInfo?.displayName}</Text>
+                  <Text style={styles.loginEmail}>{microsoftLoginStatus.userInfo?.mail}</Text>
+                  {microsoftLoginStatus.expiresInMinutes && (
+                    <Text style={styles.loginExpiry}>Expires in {microsoftLoginStatus.expiresInMinutes} minutes</Text>
+                  )}
+                </View>
+              </View>
+            ) : (
+              <View style={styles.loginStatusItem}>
+                <View style={styles.loginRequired}>
+                  <Text style={styles.loginRequiredText}>⚠️ Microsoft login required to send emails</Text>
+                  <TouchableOpacity style={styles.loginButton} onPress={handleMicrosoftLogin}>
+                    <Text style={styles.loginButtonText}>Login with Microsoft</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
+
           {/* Email Groups */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Notify Email Groups</Text>
@@ -581,6 +677,64 @@ const styles = {
   },
   disabledButton: {
     backgroundColor: '#ccc',
+  },
+  // Microsoft Login Styles
+  loginStatusItem: {
+    marginBottom: 12,
+  },
+  loginStatusText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    padding: 12,
+  },
+  loginSuccess: {
+    backgroundColor: '#f0f8ff',
+    padding: 15,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#22c55e',
+  },
+  loginSuccessText: {
+    fontSize: 16,
+    color: '#22c55e',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  loginEmail: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  loginExpiry: {
+    fontSize: 12,
+    color: '#999',
+    fontStyle: 'italic',
+  },
+  loginRequired: {
+    backgroundColor: '#fff3cd',
+    padding: 15,
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#f59e0b',
+    alignItems: 'center',
+  },
+  loginRequiredText: {
+    fontSize: 14,
+    color: '#856404',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  loginButton: {
+    backgroundColor: '#0078d4',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 6,
+  },
+  loginButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
 };
 

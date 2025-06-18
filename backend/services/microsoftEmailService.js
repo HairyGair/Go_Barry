@@ -1,57 +1,210 @@
 import { Client } from '@microsoft/microsoft-graph-client';
-import { ClientSecretCredential } from '@azure/identity';
+import { AuthenticationProvider } from '@microsoft/microsoft-graph-client';
 
 class MicrosoftEmailService {
   constructor() {
     this.tenantId = process.env.AZURE_TENANT_ID;
     this.clientId = process.env.AZURE_CLIENT_ID;
     this.clientSecret = process.env.AZURE_CLIENT_SECRET;
-    this.senderEmail = process.env.M365_SENDER_EMAIL;
+    this.redirectUri = process.env.AZURE_REDIRECT_URI || 'https://go-barry.onrender.com/auth/microsoft/callback';
     
-    this.credential = null;
-    this.graphClient = null;
+    // Store active supervisor tokens
+    this.supervisorTokens = new Map();
     
-    this.initialize();
+    console.log('✅ Microsoft 365 Email Service initialized (Delegated Authentication)');
   }
 
-  async initialize() {
+  // Generate Microsoft login URL for supervisor
+  getMicrosoftLoginUrl(supervisorId, state = null) {
+    const scopes = ['https://graph.microsoft.com/Mail.Send', 'https://graph.microsoft.com/User.Read'].join(' ');
+    const stateParam = state || `supervisor_${supervisorId}_${Date.now()}`;
+    
+    const params = new URLSearchParams({
+      client_id: this.clientId,
+      response_type: 'code',
+      redirect_uri: this.redirectUri,
+      scope: scopes,
+      state: stateParam,
+      prompt: 'select_account',
+      domain_hint: 'gonortheast.co.uk' // Force @gonortheast.co.uk accounts
+    });
+
+    return `https://login.microsoftonline.com/${this.tenantId}/oauth2/v2.0/authorize?${params.toString()}`;
+  }
+
+  // Exchange authorization code for access token
+  async exchangeCodeForToken(code, supervisorId) {
     try {
-      if (!this.tenantId || !this.clientId || !this.clientSecret) {
-        throw new Error('Missing Microsoft 365 configuration. Check environment variables.');
-      }
-
-      // Create credential for app-only authentication
-      this.credential = new ClientSecretCredential(
-        this.tenantId,
-        this.clientId,
-        this.clientSecret
-      );
-
-      // Initialize Graph client
-      this.graphClient = Client.initWithMiddleware({
-        authProvider: {
-          getAccessToken: async () => {
-            const tokenResponse = await this.credential.getToken([
-              'https://graph.microsoft.com/.default'
-            ]);
-            return tokenResponse.token;
-          }
-        }
+      const tokenUrl = `https://login.microsoftonline.com/${this.tenantId}/oauth2/v2.0/token`;
+      
+      const response = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: this.clientId,
+          client_secret: this.clientSecret,
+          scope: 'https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/User.Read',
+          code: code,
+          redirect_uri: this.redirectUri,
+          grant_type: 'authorization_code'
+        })
       });
 
-      console.log('✅ Microsoft 365 Email Service initialized');
+      const tokenData = await response.json();
+
+      if (tokenData.error) {
+        throw new Error(`Token exchange failed: ${tokenData.error_description}`);
+      }
+
+      // Store token for supervisor
+      this.supervisorTokens.set(supervisorId, {
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token,
+        expiresAt: Date.now() + (tokenData.expires_in * 1000),
+        scope: tokenData.scope,
+        obtainedAt: new Date().toISOString()
+      });
+
+      // Get user info to validate @gonortheast.co.uk domain
+      const userInfo = await this.getSupervisorInfo(supervisorId);
       
+      if (!userInfo.mail?.endsWith('@gonortheast.co.uk')) {
+        this.supervisorTokens.delete(supervisorId);
+        throw new Error('Only @gonortheast.co.uk accounts are allowed');
+      }
+
+      console.log(`✅ Microsoft token obtained for supervisor ${supervisorId} (${userInfo.mail})`);
+
+      return {
+        success: true,
+        userInfo,
+        tokenObtained: true
+      };
+
     } catch (error) {
-      console.error('❌ Microsoft 365 Email Service initialization failed:', error);
+      console.error('❌ Token exchange error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Refresh access token using refresh token
+  async refreshSupervisorToken(supervisorId) {
+    try {
+      const tokenInfo = this.supervisorTokens.get(supervisorId);
+      if (!tokenInfo?.refreshToken) {
+        throw new Error('No refresh token available');
+      }
+
+      const tokenUrl = `https://login.microsoftonline.com/${this.tenantId}/oauth2/v2.0/token`;
+      
+      const response = await fetch(tokenUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: this.clientId,
+          client_secret: this.clientSecret,
+          scope: 'https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/User.Read',
+          refresh_token: tokenInfo.refreshToken,
+          grant_type: 'refresh_token'
+        })
+      });
+
+      const tokenData = await response.json();
+
+      if (tokenData.error) {
+        throw new Error(`Token refresh failed: ${tokenData.error_description}`);
+      }
+
+      // Update stored token
+      this.supervisorTokens.set(supervisorId, {
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token || tokenInfo.refreshToken,
+        expiresAt: Date.now() + (tokenData.expires_in * 1000),
+        scope: tokenData.scope,
+        obtainedAt: tokenInfo.obtainedAt,
+        refreshedAt: new Date().toISOString()
+      });
+
+      console.log(`✅ Token refreshed for supervisor ${supervisorId}`);
+      return true;
+
+    } catch (error) {
+      console.error(`❌ Token refresh failed for ${supervisorId}:`, error);
+      this.supervisorTokens.delete(supervisorId);
+      return false;
+    }
+  }
+
+  // Get valid access token for supervisor
+  async getValidAccessToken(supervisorId) {
+    const tokenInfo = this.supervisorTokens.get(supervisorId);
+    
+    if (!tokenInfo) {
+      throw new Error('Supervisor not logged in to Microsoft 365');
+    }
+
+    // Check if token is expired (with 5 minute buffer)
+    if (Date.now() > (tokenInfo.expiresAt - 5 * 60 * 1000)) {
+      console.log(`🔄 Token expiring soon for ${supervisorId}, refreshing...`);
+      const refreshed = await this.refreshSupervisorToken(supervisorId);
+      if (!refreshed) {
+        throw new Error('Token expired and refresh failed. Please log in again.');
+      }
+      return this.supervisorTokens.get(supervisorId).accessToken;
+    }
+
+    return tokenInfo.accessToken;
+  }
+
+  // Create Graph client for supervisor
+  async createGraphClient(supervisorId) {
+    const accessToken = await this.getValidAccessToken(supervisorId);
+    
+    const authProvider = {
+      getAccessToken: async () => {
+        return accessToken;
+      }
+    };
+
+    return Client.initWithMiddleware({ authProvider });
+  }
+
+  // Get supervisor info from Microsoft Graph
+  async getSupervisorInfo(supervisorId) {
+    try {
+      const graphClient = await this.createGraphClient(supervisorId);
+      
+      const user = await graphClient
+        .api('/me')
+        .select('displayName,mail,jobTitle,department,officeLocation')
+        .get();
+
+      return {
+        displayName: user.displayName,
+        mail: user.mail,
+        jobTitle: user.jobTitle,
+        department: user.department,
+        officeLocation: user.officeLocation
+      };
+
+    } catch (error) {
+      console.error(`❌ Failed to get supervisor info for ${supervisorId}:`, error);
       throw error;
     }
   }
 
-  async sendRoadworkNotification(roadwork, recipients, emailGroups = []) {
+  // Send roadwork notification (from supervisor's account)
+  async sendRoadworkNotification(roadwork, recipients, supervisorId, emailGroups = []) {
     try {
-      if (!this.graphClient) {
-        throw new Error('Microsoft Graph client not initialized');
-      }
+      const graphClient = await this.createGraphClient(supervisorId);
+      const supervisorInfo = await this.getSupervisorInfo(supervisorId);
 
       // Validate recipients
       if (!recipients || recipients.length === 0) {
@@ -59,14 +212,14 @@ class MicrosoftEmailService {
       }
 
       // Create email content
-      const emailSubject = `🚧 Go BARRY Roadwork Alert: ${roadwork.title}`;
-      const emailBody = this.createRoadworkEmailBody(roadwork);
+      const emailSubject = `🚧 Roadwork Alert: ${roadwork.title}`;
+      const emailBody = this.createRoadworkEmailBody(roadwork, supervisorInfo);
 
       // Prepare recipients in Microsoft Graph format
       const toRecipients = recipients.map(email => ({
         emailAddress: {
           address: email.trim(),
-          name: email.split('@')[0] // Use email prefix as display name
+          name: email.split('@')[0]
         }
       }));
 
@@ -78,47 +231,42 @@ class MicrosoftEmailService {
           content: emailBody
         },
         toRecipients: toRecipients,
-        from: {
-          emailAddress: {
-            address: this.senderEmail,
-            name: 'Go BARRY Traffic Intelligence'
-          }
-        },
         importance: this.getEmailImportance(roadwork.severity),
-        categories: ['Go BARRY', 'Traffic Alert', `Severity-${roadwork.severity}`]
+        categories: ['Go BARRY', 'Roadwork Alert', `Severity-${roadwork.severity}`]
       };
 
-      // Add attachments if web link exists
-      if (roadwork.web_link) {
-        message.body.content += `
-          <div style="margin-top: 20px; padding: 10px; background: #f0f8ff; border-radius: 5px;">
-            <p><strong>📎 Additional Information:</strong></p>
-            <p><a href="${roadwork.web_link}" style="color: #1565C0;">${roadwork.web_link}</a></p>
-          </div>
-        `;
-      }
-
-      // Send email using shared mailbox or service account
-      await this.graphClient
-        .api(`/users/${this.senderEmail}/sendMail`)
+      // Send email from supervisor's account
+      await graphClient
+        .api('/me/sendMail')
         .post({
           message: message,
           saveToSentItems: true
         });
 
-      console.log(`✅ Microsoft 365 email sent for roadwork: ${roadwork.title} to ${recipients.length} recipients`);
+      console.log(`✅ Roadwork email sent by ${supervisorInfo.displayName} (${supervisorInfo.mail})`);
+      console.log(`📧 Subject: ${emailSubject}`);
+      console.log(`👥 Recipients: ${recipients.length} addresses`);
 
       return {
         success: true,
         recipients: recipients,
         subject: emailSubject,
+        sentBy: supervisorInfo.mail,
         sentAt: new Date().toISOString()
       };
 
     } catch (error) {
-      console.error('❌ Microsoft 365 send email error:', error);
+      console.error('❌ Send roadwork email error:', error);
       
-      // Return detailed error for debugging
+      // Check if token issue
+      if (error.message.includes('401') || error.message.includes('token') || error.message.includes('Unauthorized')) {
+        return {
+          success: false,
+          error: 'Microsoft login expired. Please log in again.',
+          requiresReauth: true
+        };
+      }
+      
       return {
         success: false,
         error: error.message,
@@ -127,8 +275,11 @@ class MicrosoftEmailService {
     }
   }
 
-  async sendTestEmail(testRecipient) {
+  // Send test email
+  async sendTestEmail(supervisorId, testRecipient) {
     try {
+      const supervisorInfo = await this.getSupervisorInfo(supervisorId);
+
       const testRoadwork = {
         id: 'test-001',
         title: 'Test Roadwork Alert',
@@ -138,15 +289,16 @@ class MicrosoftEmailService {
         severity: 'medium',
         start_date: new Date().toISOString(),
         routes_affected: ['21', 'X21'],
-        created_by_name: 'System Test',
-        created_by_supervisor_id: 'TEST001',
+        created_by_name: supervisorInfo.displayName,
+        created_by_supervisor_id: supervisorId,
         created_at: new Date().toISOString(),
-        contact_info: 'test@gonortheast.co.uk'
+        contact_info: supervisorInfo.mail
       };
 
       const result = await this.sendRoadworkNotification(
         testRoadwork, 
         [testRecipient],
+        supervisorId,
         ['Test Group']
       );
 
@@ -156,43 +308,71 @@ class MicrosoftEmailService {
       console.error('❌ Test email error:', error);
       return {
         success: false,
-        error: error.message
-      };
-    }
-  }
-
-  async validateEmailAccess() {
-    try {
-      if (!this.graphClient) {
-        return { success: false, error: 'Graph client not initialized' };
-      }
-
-      // Test access by getting user info
-      const user = await this.graphClient
-        .api(`/users/${this.senderEmail}`)
-        .select('displayName,mail,mailboxSettings')
-        .get();
-
-      return {
-        success: true,
-        user: {
-          displayName: user.displayName,
-          email: user.mail,
-          timeZone: user.mailboxSettings?.timeZone
-        }
-      };
-
-    } catch (error) {
-      console.error('❌ Email access validation error:', error);
-      return {
-        success: false,
         error: error.message,
-        code: error.code
+        requiresReauth: error.message.includes('not logged in')
       };
     }
   }
 
-  createRoadworkEmailBody(roadwork) {
+  // Check if supervisor is logged in to Microsoft
+  isSupervisorLoggedIn(supervisorId) {
+    const tokenInfo = this.supervisorTokens.get(supervisorId);
+    return tokenInfo && Date.now() < tokenInfo.expiresAt;
+  }
+
+  // Get supervisor login status
+  getSupervisorLoginStatus(supervisorId) {
+    const tokenInfo = this.supervisorTokens.get(supervisorId);
+    
+    if (!tokenInfo) {
+      return {
+        loggedIn: false,
+        requiresLogin: true
+      };
+    }
+
+    const isExpired = Date.now() > tokenInfo.expiresAt;
+    const expiresIn = Math.max(0, tokenInfo.expiresAt - Date.now());
+
+    return {
+      loggedIn: !isExpired,
+      expiresIn: expiresIn,
+      expiresInMinutes: Math.round(expiresIn / 1000 / 60),
+      obtainedAt: tokenInfo.obtainedAt,
+      requiresLogin: isExpired
+    };
+  }
+
+  // Log out supervisor from Microsoft
+  logoutSupervisor(supervisorId) {
+    const tokenInfo = this.supervisorTokens.get(supervisorId);
+    if (tokenInfo) {
+      this.supervisorTokens.delete(supervisorId);
+      console.log(`🚪 Supervisor ${supervisorId} logged out from Microsoft 365`);
+      return true;
+    }
+    return false;
+  }
+
+  // Get all logged in supervisors
+  getLoggedInSupervisors() {
+    const loggedIn = [];
+    
+    for (const [supervisorId, tokenInfo] of this.supervisorTokens.entries()) {
+      if (Date.now() < tokenInfo.expiresAt) {
+        loggedIn.push({
+          supervisorId,
+          obtainedAt: tokenInfo.obtainedAt,
+          expiresAt: new Date(tokenInfo.expiresAt).toISOString(),
+          expiresInMinutes: Math.round((tokenInfo.expiresAt - Date.now()) / 1000 / 60)
+        });
+      }
+    }
+
+    return loggedIn;
+  }
+
+  createRoadworkEmailBody(roadwork, supervisorInfo) {
     const statusEmoji = {
       pending: '🟡',
       active: '🔴', 
@@ -224,7 +404,7 @@ class MicrosoftEmailService {
           
           <!-- Header -->
           <div style="background: linear-gradient(135deg, #1565C0, #1976D2); color: white; padding: 25px; text-align: center;">
-            <h1 style="margin: 0; font-size: 24px; font-weight: 600;">🚧 Go BARRY Traffic Alert</h1>
+            <h1 style="margin: 0; font-size: 24px; font-weight: 600;">🚧 Go BARRY Roadwork Alert</h1>
             <p style="margin: 8px 0 0 0; opacity: 0.9; font-size: 14px;">Go North East - Traffic Intelligence System</p>
           </div>
           
@@ -290,12 +470,14 @@ class MicrosoftEmailService {
               </div>
             ` : ''}
             
-            <!-- Creator Information -->
+            <!-- Sent By Information -->
             <div style="background: #f0f8ff; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-              <h4 style="margin: 0 0 10px 0; color: #333;">👤 Created By</h4>
-              <p style="margin: 5px 0;"><strong>Supervisor:</strong> ${roadwork.created_by_name}</p>
-              <p style="margin: 5px 0;"><strong>Badge ID:</strong> ${roadwork.created_by_supervisor_id}</p>
-              <p style="margin: 5px 0;"><strong>Created:</strong> ${new Date(roadwork.created_at).toLocaleString('en-GB')}</p>
+              <h4 style="margin: 0 0 10px 0; color: #333;">📤 Sent By</h4>
+              <p style="margin: 5px 0;"><strong>Name:</strong> ${supervisorInfo.displayName}</p>
+              <p style="margin: 5px 0;"><strong>Email:</strong> ${supervisorInfo.mail}</p>
+              ${supervisorInfo.jobTitle ? `<p style="margin: 5px 0;"><strong>Role:</strong> ${supervisorInfo.jobTitle}</p>` : ''}
+              ${supervisorInfo.department ? `<p style="margin: 5px 0;"><strong>Department:</strong> ${supervisorInfo.department}</p>` : ''}
+              <p style="margin: 5px 0;"><strong>Sent:</strong> ${new Date().toLocaleString('en-GB')}</p>
             </div>
             
           </div>
@@ -303,7 +485,7 @@ class MicrosoftEmailService {
           <!-- Footer -->
           <div style="background: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #e0e0e0;">
             <p style="margin: 0; color: #666; font-size: 12px; line-height: 1.5;">
-              This alert was sent automatically by the Go BARRY Traffic Intelligence System.<br>
+              This alert was sent by ${supervisorInfo.displayName} via the Go BARRY Traffic Intelligence System.<br>
               Go North East | Network Disruption Management<br>
               <em>For technical support, contact the Go BARRY team.</em>
             </p>

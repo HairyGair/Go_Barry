@@ -124,7 +124,7 @@ router.post('/', async (req, res) => {
     // Send email notifications
     if (email_groups.length > 0) {
       try {
-        await sendRoadworkNotifications(roadwork, email_groups);
+        await sendRoadworkNotifications(roadwork, email_groups, created_by_supervisor_id);
         
         // Update roadwork as email sent
         await supabase
@@ -329,8 +329,13 @@ async function validateSupervisor(supervisorId) {
   }
 }
 
-async function sendRoadworkNotifications(roadwork, emailGroupNames) {
+async function sendRoadworkNotifications(roadwork, emailGroupNames, supervisorId) {
   try {
+    // Check if supervisor is logged in to Microsoft
+    if (!microsoftEmailService.isSupervisorLoggedIn(supervisorId)) {
+      throw new Error(`Supervisor not logged in to Microsoft 365. Please log in first.`);
+    }
+
     // Get email addresses for selected groups
     const { data: emailGroups, error } = await supabase
       .from('email_groups')
@@ -350,14 +355,18 @@ async function sendRoadworkNotifications(roadwork, emailGroupNames) {
 
     const recipients = Array.from(allEmails);
     
-    // Send email using Microsoft 365 service
+    // Send email using Microsoft 365 service (from supervisor's account)
     const emailResult = await microsoftEmailService.sendRoadworkNotification(
       roadwork, 
       recipients, 
+      supervisorId,
       emailGroups
     );
 
     if (!emailResult.success) {
+      if (emailResult.requiresReauth) {
+        throw new Error(`Microsoft login expired. Please log in again.`);
+      }
       throw new Error(`Email send failed: ${emailResult.error}`);
     }
 
@@ -369,12 +378,12 @@ async function sendRoadworkNotifications(roadwork, emailGroupNames) {
           roadwork_id: roadwork.id,
           email_group_id: group.id,
           recipient_emails: group.emails,
-          email_subject: emailResult.subject || `🚧 New Roadwork Alert: ${roadwork.title}`,
+          email_subject: emailResult.subject || `😧 Roadwork Alert: ${roadwork.title}`,
           status: 'sent'
         });
     }
 
-    console.log(`✅ Microsoft 365 notifications sent for roadwork: ${roadwork.title} to ${recipients.length} recipients`);
+    console.log(`✅ Microsoft 365 notifications sent by ${emailResult.sentBy} for roadwork: ${roadwork.title} to ${recipients.length} recipients`);
     
   } catch (error) {
     console.error('❌ Send email error:', error);
