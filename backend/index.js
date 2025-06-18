@@ -19,6 +19,7 @@ import healthRoutes from './routes/health.js';
 import healthExtendedRouter from './routes/healthExtended.js';
 import supervisorAPI from './routes/supervisorAPI.js';
 import roadworksAPI from './routes/roadworksAPI.js';
+import roadworkAlertsAPI from './routes/roadworkAlertsAPI.js';
 import gtfsAPI from './routes/gtfsAPI.js';
 import intelligenceAPI from './routes/intelligenceAPI.js';
 import incidentAPI from './routes/incidentAPI.js';
@@ -299,6 +300,9 @@ app.use('/api/supervisor', supervisorAPI);
 
 // Roadworks management routes  
 app.use('/api/roadworks', roadworksAPI);
+
+// Roadwork alerts routes (supervisor-created roadwork notifications)
+app.use('/api/roadwork-alerts', roadworkAlertsAPI);
 
 // Intelligence system routes
 app.use('/api/intelligence', intelligenceAPI);

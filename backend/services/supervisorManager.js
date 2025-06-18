@@ -557,12 +557,44 @@ export async function logoutAllSupervisors(adminSessionId) {
   }
 }
 
+// Validate if supervisor exists by ID only (for roadwork creation)
+export async function validateSupervisorById(supervisorId) {
+  try {
+    const { data: supervisor, error } = await supabase
+      .from('supervisors')
+      .select('id, name, badge, role')
+      .eq('id', supervisorId)
+      .eq('active', true)
+      .single();
+
+    if (error || !supervisor) {
+      console.log(`❌ Supervisor validation failed: ${supervisorId}`);
+      return { success: false, error: 'Supervisor not found' };
+    }
+
+    console.log(`✅ Supervisor validated: ${supervisor.name}`);
+    return {
+      success: true,
+      supervisor: {
+        id: supervisor.id,
+        name: supervisor.name,
+        badge: supervisor.badge,
+        role: supervisor.role
+      }
+    };
+  } catch (error) {
+    console.error('❌ Supervisor validation error:', error);
+    return { success: false, error: 'Validation failed' };
+  }
+}
+
 // Initialize on module load
 initializeSupervisorData();
 
 export default {
   authenticateSupervisor,
   validateSupervisorSession,
+  validateSupervisorById,
   dismissAlert,
   isAlertDismissed,
   getAlertDismissalInfo,

@@ -186,6 +186,66 @@ const RoadworksDatabase = ({ baseUrl }) => {
     setShowEmailModal(true);
   };
 
+  const handleRemoveRoadwork = async (roadworkId) => {
+    if (!isLoggedIn) {
+      Alert.alert('Error', 'You must be logged in to remove roadworks');
+      return;
+    }
+
+    // Confirm removal
+    if (Platform.OS === 'web') {
+      if (!confirm('Are you sure you want to remove this roadwork? This action cannot be undone.')) {
+        return;
+      }
+    } else {
+      Alert.alert(
+        'Remove Roadwork',
+        'Are you sure you want to remove this roadwork? This action cannot be undone.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Remove', style: 'destructive', onPress: () => performRemove(roadworkId) }
+        ]
+      );
+      return;
+    }
+
+    await performRemove(roadworkId);
+  };
+
+  const performRemove = async (roadworkId) => {
+    try {
+      setLoading(true);
+      console.log(`🗑️ ${roadworkId} - Removing roadwork...`);
+      
+      const response = await fetch(`${apiBaseUrl}/api/roadworks/${roadworkId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: sessionId,
+          reason: 'Removed by supervisor'
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('✅ Roadwork removed successfully');
+        Alert.alert('Success', 'Roadwork removed successfully');
+        await loadRoadworks();
+      } else {
+        console.error('❌ Failed to remove roadwork:', data.error);
+        Alert.alert('Error', data.error || 'Failed to remove roadwork');
+      }
+    } catch (error) {
+      console.error('❌ Error removing roadwork:', error);
+      Alert.alert('Error', `Failed to remove roadwork: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleMapRoadwork = (roadwork) => {
     if (!roadwork) return;
     
@@ -195,10 +255,12 @@ const RoadworksDatabase = ({ baseUrl }) => {
     if (roadwork.coordinates && roadwork.coordinates.latitude && roadwork.coordinates.longitude) {
       const { latitude, longitude } = roadwork.coordinates;
       mapUrl = `https://www.google.com/maps?q=${latitude},${longitude}&zoom=16&t=m`;
+      console.log(`🗺️ Opening map with coordinates: ${latitude}, ${longitude}`);
     } else if (roadwork.location) {
       // Fallback to location search
       const encodedLocation = encodeURIComponent(`${roadwork.location}, UK`);
       mapUrl = `https://www.google.com/maps/search/${encodedLocation}`;
+      console.log(`🗺️ Opening map with location search: ${roadwork.location}`);
     } else {
       Alert.alert('Error', 'No location information available for this roadwork');
       return;
@@ -407,6 +469,16 @@ const RoadworksDatabase = ({ baseUrl }) => {
               }}
             >
               <Ionicons name="location" size={12} color="#FFFFFF" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.removeButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleRemoveRoadwork(roadwork.id);
+              }}
+            >
+              <Ionicons name="trash" size={12} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
         </View>
@@ -1222,7 +1294,7 @@ const styles = StyleSheet.create({
   statusColumn: { width: 100 },
   routesColumn: { width: 120 },
   timeColumn: { width: 90 },
-  actionColumn: { width: 40 },
+  actionColumn: { width: 50 },
   tableRow: {
     flexDirection: 'row',
     paddingVertical: 12,
@@ -1365,6 +1437,16 @@ const styles = StyleSheet.create({
   },
   mapButton: {
     backgroundColor: '#059669',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    borderRadius: 4,
+    minWidth: 28,
+    justifyContent: 'center',
+  },
+  removeButton: {
+    backgroundColor: '#DC2626',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 6,

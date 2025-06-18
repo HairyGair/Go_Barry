@@ -1053,4 +1053,38 @@ router.post('/clear-state', async (req, res) => {
   }
 });
 
+// Validate supervisor by ID (for roadwork creation)
+router.post('/validate', async (req, res) => {
+  try {
+    const { id } = req.body;
+    
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Supervisor ID is required'
+      });
+    }
+    
+    const result = await supervisorManager.validateSupervisorById(id);
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        supervisor: result.supervisor
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        error: result.error
+      });
+    }
+  } catch (error) {
+    console.error('❌ Supervisor validation error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Validation failed'
+    });
+  }
+});
+
 export default router;
