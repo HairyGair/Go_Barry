@@ -1,0 +1,103 @@
+{
+  "templates": [
+    {
+      "id": "route_delay_minor",
+      "category": "delays",
+      "title": "Minor Route Delay",
+      "message": "Service {route} experiencing minor delays up to {duration} minutes due to {reason}. Alternative routes available.",
+      "priority": "info",
+      "variables": ["route", "duration", "reason"],
+      "channels": ["display", "web", "mobile"],
+      "autoTrigger": {
+        "enabled": true,
+        "conditions": {
+          "alertSeverity": "medium",
+          "delayMinutes": 5
+        }
+      },
+      "usageCount": 0,
+      "lastUsed": null,
+      "createdBy": "system",
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "route_suspension",
+      "category": "disruptions", 
+      "title": "Route Suspension",
+      "message": "Service {route} suspended between {startLocation} and {endLocation} due to {reason}. Use services {alternatives} as alternatives.",
+      "priority": "critical",
+      "variables": ["route", "startLocation", "endLocation", "reason", "alternatives"],
+      "channels": ["display", "web", "mobile", "social"],
+      "autoTrigger": {
+        "enabled": false
+      },
+      "usageCount": 0,
+      "lastUsed": null,
+      "createdBy": "system",
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "weather_advisory",
+      "category": "weather",
+      "title": "Weather Advisory",
+      "message": "Due to {weatherCondition}, expect delays on routes in {affectedAreas}. Services running with reduced frequency.",
+      "priority": "warning",
+      "variables": ["weatherCondition", "affectedAreas"],
+      "channels": ["display", "web"],
+      "autoTrigger": {
+        "enabled": true,
+        "conditions": {
+          "weatherSeverity": "high"
+        }
+      },
+      "usageCount": 0,
+      "lastUsed": null,
+      "createdBy": "system",
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "incident_resolved",
+      "category": "updates",
+      "title": "Incident Resolved",
+      "message": "Traffic incident on {location} affecting service {route} has been cleared. Normal service resuming.",
+      "priority": "info",
+      "variables": ["location", "route"],
+      "channels": ["display", "web", "mobile"],
+      "autoTrigger": {
+        "enabled": false
+      },
+      "usageCount": 0,
+      "lastUsed": null,
+      "createdBy": "system",
+      "createdAt": "2024-01-01T00:00:00Z"
+    },
+    {
+      "id": "emergency_diversion",
+      "category": "emergency",
+      "title": "Emergency Diversion",
+      "message": "URGENT: Service {route} diverted via {diversionRoute} due to emergency at {location}. Additional journey time {extraTime} minutes.",
+      "priority": "critical",
+      "variables": ["route", "diversionRoute", "location", "extraTime"],
+      "channels": ["display", "web", "mobile", "social"],
+      "autoTrigger": {
+        "enabled": false
+      },
+      "usageCount": 0,
+      "lastUsed": null,
+      "createdBy": "system",
+      "createdAt": "2024-01-01T00:00:00Z"
+    }
+  ],
+  "categories": [
+    {"id": "delays", "name": "Service Delays", "color": "#F59E0B"},
+    {"id": "disruptions", "name": "Service Disruptions", "color": "#EF4444"},
+    {"id": "weather", "name": "Weather Related", "color": "#8B5CF6"},
+    {"id": "updates", "name": "Service Updates", "color": "#10B981"},
+    {"id": "emergency", "name": "Emergency", "color": "#DC2626"}
+  ],
+  "metadata": {
+    "lastUpdated": "2024-01-01T00:00:00Z",
+    "version": "1.0.0",
+    "totalTemplates": 5
+  }
+}

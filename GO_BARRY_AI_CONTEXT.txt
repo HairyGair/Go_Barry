@@ -1,0 +1,217 @@
+# GO BARRY - CRITICAL PROJECT CONTEXT FOR AI ASSISTANTS
+# READ THIS FIRST IN EVERY NEW CHAT SESSION
+
+## 🚨 CRITICAL REMINDERS - DON'T FORGET THESE!
+
+1. **MEMORY LIMIT**: Backend runs on Render.com with 2GB RAM limit - ALWAYS optimize for memory
+2. **NO localStorage/sessionStorage**: These don't work in Expo/React Native web - use React state only
+3. **CORS IS FIXED**: Don't try to "fix" CORS - it's already properly configured for gobarry.co.uk
+4. **DEDUPLICATION WORKS**: Alert deduplication is implemented and working - don't reimplement
+5. **IMPORT STYLES**: Use ES6 imports (import X from 'Y') not CommonJS (require)
+6. **SUPERVISOR SYSTEM**: 9 real supervisors with badge auth - don't create mock supervisors
+7. **WEBSOCKET WORKS**: Supervisor sync via WebSocket is implemented at /ws/supervisor-sync
+8. **SUPABASE AVAILABLE**: Full Supabase account is configured and ready to use for any data storage needs
+
+## 📍 PROJECT OVERVIEW
+
+**Go BARRY** = Real-time traffic intelligence platform for Go North East bus operations
+- **Purpose**: Help bus supervisors manage traffic disruptions affecting 231 bus routes
+- **Coverage**: Newcastle, Gateshead, Sunderland, Durham, North Tyneside, Northumberland
+- **Users**: 9 Go North East supervisors + control room staff
+- **Scale**: Processes thousands of alerts daily from 6+ data sources
+
+## 🏗️ ARCHITECTURE
+
+### Backend (Node.js + Express)
+- **Location**: `/backend/`
+- **Entry**: `index.js` (ES6 modules, NOT CommonJS)
+- **Port**: 3001 locally, auto on Render
+- **Memory**: Optimized for <2GB
+- **Database**: Supabase (available for use) + local JSON files
+- **Real-time**: WebSocket via supervisorSync.js
+
+### Frontend (React Native + Expo)
+- **Location**: `/Go_BARRY/`
+- **Framework**: React Native 0.79.3, Expo 53.0.10
+- **Navigation**: Expo Router (file-based)
+- **Styling**: React Native StyleSheet (NO Tailwind in RN components!)
+- **Platform**: Web primary, mobile-ready
+
+### Key Services (/backend/services/)
+```
+✅ WORKING:
+- tomtom.js - TomTom traffic API with caching/throttling
+- here.js - HERE traffic API 
+- nationalHighways.js - UK official roadworks
+- streetManager.js - UK roadworks webhook
+- supervisorManager.js - Auth & session management
+- intelligenceEngine.js - ML severity prediction
+- enhancedGTFSMatcher.js - 80-90% accurate route matching
+- supervisorSync.js - WebSocket real-time sync
+- eventMonitor.js - Major event tracking
+
+⚠️ ISSUES:
+- mapquest.js - API auth broken
+- elgin.js - Integration incomplete
+- scoot.js - Integration incomplete
+```
+
+### Key Components (/Go_BARRY/components/)
+```
+MAIN INTERFACES:
+- EnhancedDashboard.jsx - Primary supervisor dashboard
+- DisplayScreen.jsx - 24/7 control room display (20s refresh)
+- SupervisorControl.jsx - Supervisor management interface
+- TomTomTrafficMap.jsx - Map component (web only)
+- EventManager.jsx - Major event management
+
+REMEMBER WHEN EDITING:
+- Use React Native components (View, Text, etc)
+- Platform.OS checks for web-specific features
+- NO localStorage - use useState/useContext
+- StyleSheet.create() for styles
+- Responsive design considerations
+```
+
+## 🗄️ DATABASE & STORAGE
+
+### Supabase (Available & Configured)
+- **Status**: Fully configured and ready to use
+- **Current Usage**: Supervisor data, settings storage
+- **Environment**: SUPABASE_URL and SUPABASE_ANON_KEY in .env
+- **Can be used for**: 
+  - Persistent alert storage
+  - Supervisor activity logs
+  - Historical incident data
+  - Analytics and reporting data
+  - Any new features requiring database storage
+
+### Local JSON Storage
+- **Location**: /backend/data/
+- **Files**: 
+  - dismissed-alerts.json (persistent dismissals)
+  - supervisors.json (supervisor data)
+  - major-events.json (event tracking)
+  - message-templates.json (messaging)
+- **Use for**: Quick access, temporary data, configuration
+
+## 🌐 API ENDPOINTS (ALL WORKING)
+
+Base URL: https://go-barry.onrender.com
+
+### Primary Endpoints
+- `GET /api/alerts-enhanced` - MAIN endpoint with ML, deduplication, route matching
+- `GET /api/health-extended` - Detailed system status
+- `POST /api/supervisor/login` - Supervisor authentication
+- `POST /api/supervisor/dismiss-alert` - Dismiss with audit trail
+- `GET /api/events/active` - Active major events
+
+### Don't Forget These Exist!
+- `/api/intelligence/predict/severity` - ML predictions
+- `/api/gtfs/match/enhanced` - Route matching
+- `/api/incidents/*` - Manual incident management
+- `/api/tiles/*` - TomTom map tiles
+- `/api/streetmanager/webhook` - Receives live updates
+- `/api/events/*` - Event management endpoints
+
+## 👥 SUPERVISOR SYSTEM (REAL DATA)
+
+9 Active Supervisors:
+- Alex Woodcock (AW001)
+- Andrew Cowley (AC002) 
+- Anthony Gair (AG003) - Admin
+- Claire Fiddler (CF004)
+- David Hall (DH005)
+- James Daglish (JD006)
+- John Paterson (JP007)
+- Simon Glass (SG008)
+- Barry Perryman (BP009) - Admin
+
+Features:
+- Badge-based login (e.g., "AG003")
+- 10-minute session timeout
+- Full audit trail for dismissals
+- WebSocket sync across all screens
+- Persistent dismissals (survive restarts)
+
+## 🚌 GTFS ROUTE DATA
+
+- **Total Routes**: 231 Go North East routes
+- **Data Files**: /backend/data/routes.txt, stops.txt, shapes.txt
+- **Matching**: enhancedGTFSMatcher.js provides 80-90% accuracy
+- **Key Routes**: 21, X21 (A1), 1, 2, 307 (A19), Q3 (Newcastle)
+
+## 💡 COMMON PATTERNS & CONVENTIONS
+
+### Backend Patterns
+```javascript
+// ALWAYS use ES6 imports
+import express from 'express';  // ✅
+const express = require('express'); // ❌
+
+// Memory-conscious loops
+for (const item of items) { // ✅ 
+  // process item
+}
+items.map().filter().reduce() // ❌ (creates intermediate arrays)
+
+// Error handling
+try {
+  // operation
+} catch (error) {
+  console.error('❌ Descriptive error:', error);
+  res.status(500).json({ success: false, error: error.message });
+}
+
+// API responses always include success flag
+res.json({ success: true, data: result });
+
+// Supabase usage pattern
+import { createClient } from '@supabase/supabase-js';
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+
+// Example: Store data
+const { data, error } = await supabase
+  .from('table_name')
+  .insert({ column: 'value' });
+```
+
+### Frontend Patterns
+```javascript
+// Component structure
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Platform } from 'react-native';
+
+// Platform checks
+if (Platform.OS === 'web') {
+  // Web-specific code (like maps)
+}
+
+// NO localStorage!
+localStorage.setItem() // ❌ WILL BREAK
+const [data, setData] = useState(); // ✅
+
+// API calls
+const response = await fetch('https://go-barry.onrender.com/api/...');
+
+// Styling
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5'
+  }
+});
+```
+
+## 🔧 CURRENT STATE (June 2025)
+
+### ✅ WORKING WELL
+- Alert deduplication with hash-based system
+- Supervisor authentication and dismissals
+- TomTom + HERE + National Highways APIs
+- WebSocket real-time updates
+- ML severity predictions
+- Event monitoring system
+- Display screen with map
+- Route matching 80-90% accurate
+- Alert auto-expiration (2-8

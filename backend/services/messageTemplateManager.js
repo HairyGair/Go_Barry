@@ -1,102 +1,167 @@
 // backend/services/messageTemplateManager.js
-// Automated Messaging Templates for Go BARRY Supervisors
-// Provides quick responses for common traffic situations
+// Automated Messaging Templates for Go BARRY Supervisors - Supabase version
 
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+dotenv.config();
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
 class MessageTemplateManager {
   constructor() {
-    this.templatesPath = path.join(__dirname, '../data/message-templates.json');
-    this.sentMessagesPath = path.join(__dirname, '../data/sent-messages.json');
     this.templates = [];
     this.categories = [];
-    this.sentMessages = [];
-    this.loadTemplates();
+    this.initializeConnection();
+  }
+
+  async initializeConnection() {
+    try {
+      // Test connection and load data
+      const { error } = await supabase
+        .from('message_templates')
+        .select('count', { count: 'exact' })
+        .limit(1);
+        
+      if (error) {
+        console.error('❌ MessageTemplateManager: Supabase connection failed:', error);
+        return;
+      }
+
+      await this.loadTemplates();
+      console.log('✅ MessageTemplateManager: Connected to Supabase');
+    } catch (error) {
+      console.error('❌ MessageTemplateManager: Failed to initialize:', error);
+    }
   }
 
   async loadTemplates() {
     try {
-      const data = await fs.readFile(this.templatesPath, 'utf8');
-      const templateData = JSON.parse(data);
-      this.templates = templateData.templates || [];
-      this.categories = templateData.categories || [];
-      console.log('✅ Message templates loaded:', this.templates.length);
+      // Load templates
+      const { data: templates, error: templatesError } = await supabase
+        .from('message_templates')
+        .select('*')
+        .order('category, title');
+
+      if (templatesError) {
+        console.error('❌ Failed to load templates:', templatesError);
+        this.templates = [];
+      } else {
+        this.templates = templates || [];
+      }
+
+      // Load categories
+      const { data: categories, error: categoriesError } = await supabase
+        .from('template_categories')
+        .select('*')
+        .order('name');
+
+      if (categoriesError) {
+        console.error('❌ Failed to load categories:', categoriesError);
+        this.categories = [];
+      } else {
+        this.categories = categories || [];
+      }
+
+      console.log(`✅ Message templates loaded: ${this.templates.length} templates, ${this.categories.length} categories`);
     } catch (error) {
-      console.error('❌ Failed to load message templates:', error);
+      console.error('❌ Failed to load templates from Supabase:', error);
       this.templates = [];
       this.categories = [];
     }
   }
 
-  async saveTemplates() {
-    try {
-      const templateData = {
-        templates: this.templates,
-        categories: this.categories,
-        metadata: {
-          lastUpdated: new Date().toISOString(),
-          version: '1.0.0',
-          totalTemplates: this.templates.length
-        }
-      };
-      await fs.writeFile(this.templatesPath, JSON.stringify(templateData, null, 2));
-      console.log('✅ Message templates saved');
-      return true;
-    } catch (error) {
-      console.error('❌ Failed to save message templates:', error);
-      return false;
-    }
-  }
-
   // Get all templates with optional filtering
-  getTemplates(filters = {}) {
-    let filteredTemplates = [...this.templates];
+  async getTemplates(filters = {}) {
+    try {
+      let query = supabase
+        .from('message_templates')
+        .select('*');
 
-    if (filters.category) {
-      filteredTemplates = filteredTemplates.filter(t => t.category === filters.category);
+      if (filters.category) {
+        query = query.eq('category', filters.category);
+      }
+
+      if (filters.priority) {
+        query = query.eq('priority', filters.priority);
+      }
+
+      if (filters.autoTrigger !== undefined) {
+        // For JSONB column, we need to use the ->> operator
+        if (filters.autoTrigger) {
+          query = query.eq('auto_trigger->>enabled', 'true');
+        } else {
+          query = query.or('auto_trigger->>enabled.is.null,auto_trigger->>enabled.eq.false');
+        }
+      }
+
+      const { data: templates, error } = await query.order('category, title');
+
+      if (error) {
+        console.error('❌ Error getting templates:', error);
+        return {
+          success: false,
+          error: error.message,
+          templates: [],
+          categories: this.categories,
+          total: 0
+        };
+      }
+
+      return {
+        success: true,
+        templates: templates || [],
+        categories: this.categories,
+        total: templates ? templates.length : 0
+      };
+    } catch (error) {
+      console.error('❌ Error getting templates:', error);
+      return {
+        success: false,
+        error: error.message,
+        templates: [],
+        categories: this.categories,
+        total: 0
+      };
     }
-
-    if (filters.priority) {
-      filteredTemplates = filteredTemplates.filter(t => t.priority === filters.priority);
-    }
-
-    if (filters.autoTrigger !== undefined) {
-      filteredTemplates = filteredTemplates.filter(t => t.autoTrigger?.enabled === filters.autoTrigger);
-    }
-
-    return {
-      success: true,
-      templates: filteredTemplates,
-      categories: this.categories,
-      total: filteredTemplates.length
-    };
   }
 
   // Get a specific template by ID
-  getTemplate(templateId) {
-    const template = this.templates.find(t => t.id === templateId);
-    
-    if (!template) {
+  async getTemplate(templateId) {
+    try {
+      const { data: template, error } = await supabase
+        .from('message_templates')
+        .select('*')
+        .eq('id', templateId)
+        .single();
+
+      if (error || !template) {
+        return {
+          success: false,
+          error: 'Template not found'
+        };
+      }
+
+      return {
+        success: true,
+        template
+      };
+    } catch (error) {
+      console.error('❌ Error getting template:', error);
       return {
         success: false,
-        error: 'Template not found'
+        error: error.message
       };
     }
-
-    return {
-      success: true,
-      template
-    };
   }
 
   // Process template with variables
-  processTemplate(templateId, variables = {}) {
-    const templateResult = this.getTemplate(templateId);
+  async processTemplate(templateId, variables = {}) {
+    const templateResult = await this.getTemplate(templateId);
     
     if (!templateResult.success) {
       return templateResult;
@@ -131,7 +196,7 @@ class MessageTemplateManager {
 
   // Send message using template
   async sendTemplateMessage(templateId, variables = {}, supervisorInfo = {}, options = {}) {
-    const processedResult = this.processTemplate(templateId, variables);
+    const processedResult = await this.processTemplate(templateId, variables);
     
     if (!processedResult.success) {
       return processedResult;
@@ -146,265 +211,323 @@ class MessageTemplateManager {
       };
     }
 
-    // Create message object
-    const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const message = {
-      id: messageId,
-      templateId,
-      title: processedResult.template.title,
-      content: processedResult.processedMessage,
-      priority: processedResult.priority,
-      channels: options.channels || processedResult.channels,
-      variables,
-      supervisor: {
-        id: supervisorInfo.supervisorId,
-        name: supervisorInfo.supervisorName,
-        sessionId: supervisorInfo.sessionId
-      },
-      timestamp: new Date().toISOString(),
-      status: 'sent',
-      recipients: options.recipients || 'all_displays',
-      autoGenerated: options.autoGenerated || false
-    };
-
-    // Update template usage stats
-    const template = this.templates.find(t => t.id === templateId);
-    if (template) {
-      template.usageCount = (template.usageCount || 0) + 1;
-      template.lastUsed = new Date().toISOString();
-      await this.saveTemplates();
-    }
-
-    // Save sent message for audit trail
-    await this.saveSentMessage(message);
-
-    return {
-      success: true,
-      message,
-      messageId,
-      processedContent: processedResult.processedMessage
-    };
-  }
-
-  // Save sent message to audit trail
-  async saveSentMessage(message) {
     try {
-      // Load existing sent messages
-      let sentMessages = [];
-      try {
-        const data = await fs.readFile(this.sentMessagesPath, 'utf8');
-        sentMessages = JSON.parse(data);
-      } catch (error) {
-        // File doesn't exist yet, start with empty array
-      }
+      // Create message object (you might want to store this in a separate table)
+      const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const message = {
+        id: messageId,
+        templateId,
+        title: processedResult.template.title,
+        content: processedResult.processedMessage,
+        priority: processedResult.priority,
+        channels: options.channels || processedResult.channels,
+        variables,
+        supervisor: {
+          id: supervisorInfo.supervisorId,
+          name: supervisorInfo.supervisorName,
+          sessionId: supervisorInfo.sessionId
+        },
+        timestamp: new Date().toISOString(),
+        status: 'sent',
+        recipients: options.recipients || 'all_displays',
+        autoGenerated: options.autoGenerated || false
+      };
 
-      // Add new message
-      sentMessages.unshift(message);
+      // Update template usage stats
+      await supabase
+        .from('message_templates')
+        .update({
+          usage_count: processedResult.template.usage_count + 1,
+          last_used: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', templateId);
 
-      // Keep only last 1000 messages
-      if (sentMessages.length > 1000) {
-        sentMessages = sentMessages.slice(0, 1000);
-      }
-
-      // Save back to file
-      await fs.writeFile(this.sentMessagesPath, JSON.stringify(sentMessages, null, 2));
-      return true;
-    } catch (error) {
-      console.error('❌ Failed to save sent message:', error);
-      return false;
-    }
-  }
-
-  // Get sent messages history
-  async getSentMessages(filters = {}) {
-    try {
-      const data = await fs.readFile(this.sentMessagesPath, 'utf8');
-      let sentMessages = JSON.parse(data);
-
-      // Apply filters
-      if (filters.supervisorId) {
-        sentMessages = sentMessages.filter(m => m.supervisor?.id === filters.supervisorId);
-      }
-
-      if (filters.templateId) {
-        sentMessages = sentMessages.filter(m => m.templateId === filters.templateId);
-      }
-
-      if (filters.priority) {
-        sentMessages = sentMessages.filter(m => m.priority === filters.priority);
-      }
-
-      if (filters.dateFrom) {
-        const fromDate = new Date(filters.dateFrom);
-        sentMessages = sentMessages.filter(m => new Date(m.timestamp) >= fromDate);
-      }
-
-      if (filters.dateTo) {
-        const toDate = new Date(filters.dateTo);
-        sentMessages = sentMessages.filter(m => new Date(m.timestamp) <= toDate);
-      }
-
-      // Limit results
-      const limit = parseInt(filters.limit) || 50;
-      if (sentMessages.length > limit) {
-        sentMessages = sentMessages.slice(0, limit);
-      }
+      console.log(`✅ Sent template message: ${templateId} by ${supervisorInfo.supervisorName}`);
 
       return {
         success: true,
-        messages: sentMessages,
-        total: sentMessages.length
+        message,
+        messageId,
+        processedContent: processedResult.processedMessage
       };
     } catch (error) {
-      console.error('❌ Failed to get sent messages:', error);
+      console.error('❌ Error sending template message:', error);
       return {
         success: false,
-        error: 'Failed to retrieve message history',
-        messages: []
+        error: error.message
       };
     }
   }
 
   // Create custom template
   async createTemplate(templateData, supervisorInfo) {
-    const templateId = `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    const newTemplate = {
-      id: templateId,
-      category: templateData.category || 'custom',
-      title: templateData.title,
-      message: templateData.message,
-      priority: templateData.priority || 'info',
-      variables: templateData.variables || [],
-      channels: templateData.channels || ['display', 'web'],
-      autoTrigger: {
-        enabled: false
-      },
-      usageCount: 0,
-      lastUsed: null,
-      createdBy: supervisorInfo.supervisorId,
-      createdAt: new Date().toISOString()
-    };
+    try {
+      const templateId = `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const newTemplate = {
+        id: templateId,
+        category: templateData.category || 'custom',
+        title: templateData.title,
+        message: templateData.message,
+        priority: templateData.priority || 'info',
+        variables: templateData.variables || [],
+        channels: templateData.channels || ['display', 'web'],
+        auto_trigger: {
+          enabled: false
+        },
+        usage_count: 0,
+        last_used: null,
+        created_by: supervisorInfo.supervisorId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
 
-    this.templates.push(newTemplate);
-    const saved = await this.saveTemplates();
+      const { data, error } = await supabase
+        .from('message_templates')
+        .insert(newTemplate)
+        .select()
+        .single();
 
-    if (saved) {
+      if (error) {
+        console.error('❌ Error creating template:', error);
+        return {
+          success: false,
+          error: error.message
+        };
+      }
+
+      console.log(`✅ Created custom template: ${templateId} by ${supervisorInfo.supervisorId}`);
+
       return {
         success: true,
-        template: newTemplate,
+        template: data,
         templateId
       };
-    } else {
+    } catch (error) {
+      console.error('❌ Error creating template:', error);
       return {
         success: false,
-        error: 'Failed to save template'
+        error: error.message
       };
     }
   }
 
   // Get template usage statistics
-  getTemplateStats() {
-    const stats = {
-      totalTemplates: this.templates.length,
-      templatesByCategory: {},
-      templatesByPriority: {},
-      mostUsedTemplates: [],
-      recentlyUsedTemplates: []
-    };
+  async getTemplateStats() {
+    try {
+      const { data: templates, error } = await supabase
+        .from('message_templates')
+        .select('*');
 
-    // Group by category
-    this.categories.forEach(cat => {
-      stats.templatesByCategory[cat.id] = {
-        name: cat.name,
-        count: this.templates.filter(t => t.category === cat.id).length,
-        color: cat.color
+      if (error) {
+        console.error('❌ Error getting template stats:', error);
+        return {
+          success: false,
+          error: error.message
+        };
+      }
+
+      const stats = {
+        totalTemplates: templates.length,
+        templatesByCategory: {},
+        templatesByPriority: {},
+        mostUsedTemplates: [],
+        recentlyUsedTemplates: []
       };
-    });
 
-    // Group by priority
-    const priorities = ['critical', 'warning', 'info'];
-    priorities.forEach(priority => {
-      stats.templatesByPriority[priority] = this.templates.filter(t => t.priority === priority).length;
-    });
+      // Group by category
+      this.categories.forEach(cat => {
+        stats.templatesByCategory[cat.id] = {
+          name: cat.name,
+          count: templates.filter(t => t.category === cat.id).length,
+          color: cat.color
+        };
+      });
 
-    // Most used templates
-    stats.mostUsedTemplates = this.templates
-      .filter(t => t.usageCount > 0)
-      .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
-      .slice(0, 5)
-      .map(t => ({
-        id: t.id,
-        title: t.title,
-        usageCount: t.usageCount,
-        category: t.category
-      }));
+      // Group by priority
+      const priorities = ['critical', 'warning', 'info'];
+      priorities.forEach(priority => {
+        stats.templatesByPriority[priority] = templates.filter(t => t.priority === priority).length;
+      });
 
-    // Recently used templates
-    stats.recentlyUsedTemplates = this.templates
-      .filter(t => t.lastUsed)
-      .sort((a, b) => new Date(b.lastUsed) - new Date(a.lastUsed))
-      .slice(0, 5)
-      .map(t => ({
-        id: t.id,
-        title: t.title,
-        lastUsed: t.lastUsed,
-        category: t.category
-      }));
+      // Most used templates
+      stats.mostUsedTemplates = templates
+        .filter(t => t.usage_count > 0)
+        .sort((a, b) => (b.usage_count || 0) - (a.usage_count || 0))
+        .slice(0, 5)
+        .map(t => ({
+          id: t.id,
+          title: t.title,
+          usage_count: t.usage_count,
+          category: t.category
+        }));
 
-    return {
-      success: true,
-      statistics: stats
-    };
+      // Recently used templates
+      stats.recentlyUsedTemplates = templates
+        .filter(t => t.last_used)
+        .sort((a, b) => new Date(b.last_used) - new Date(a.last_used))
+        .slice(0, 5)
+        .map(t => ({
+          id: t.id,
+          title: t.title,
+          last_used: t.last_used,
+          category: t.category
+        }));
+
+      return {
+        success: true,
+        statistics: stats
+      };
+    } catch (error) {
+      console.error('❌ Error getting template stats:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   }
 
   // Auto-suggest templates based on alert content
-  suggestTemplates(alertData) {
-    const suggestions = [];
+  async suggestTemplates(alertData) {
+    try {
+      if (!alertData) {
+        return { success: true, suggestions: [] };
+      }
 
-    if (!alertData) {
+      const alertText = (alertData.title + ' ' + alertData.description + ' ' + alertData.location).toLowerCase();
+      const suggestionIds = [];
+
+      // Rule-based suggestions
+      if (alertText.includes('delay') && !alertText.includes('severe')) {
+        suggestionIds.push('route_delay_minor');
+      }
+
+      if (alertText.includes('closed') || alertText.includes('blocked') || alertText.includes('suspension')) {
+        suggestionIds.push('route_suspension');
+      }
+
+      if (alertText.includes('weather') || alertText.includes('snow') || alertText.includes('ice') || alertText.includes('rain')) {
+        suggestionIds.push('weather_advisory');
+      }
+
+      if (alertText.includes('cleared') || alertText.includes('resolved') || alertText.includes('reopened')) {
+        suggestionIds.push('incident_resolved');
+      }
+
+      if (alertText.includes('emergency') || alertText.includes('diversion') || alertText.includes('urgent')) {
+        suggestionIds.push('emergency_diversion');
+      }
+
+      // Get suggested templates from database
+      const { data: suggestions, error } = await supabase
+        .from('message_templates')
+        .select('*')
+        .in('id', suggestionIds);
+
+      if (error) {
+        console.error('❌ Error getting template suggestions:', error);
+        return { success: true, suggestions: [] };
+      }
+
+      return {
+        success: true,
+        suggestions: suggestions || [],
+        alertData: {
+          title: alertData.title,
+          location: alertData.location,
+          routes: alertData.affectsRoutes || []
+        }
+      };
+    } catch (error) {
+      console.error('❌ Error suggesting templates:', error);
       return { success: true, suggestions: [] };
     }
+  }
 
-    const alertText = (alertData.title + ' ' + alertData.description + ' ' + alertData.location).toLowerCase();
+  // Update template
+  async updateTemplate(templateId, updates, supervisorInfo) {
+    try {
+      const updateData = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      };
 
-    // Rule-based suggestions
-    if (alertText.includes('delay') && !alertText.includes('severe')) {
-      suggestions.push(this.templates.find(t => t.id === 'route_delay_minor'));
-    }
+      const { data, error } = await supabase
+        .from('message_templates')
+        .update(updateData)
+        .eq('id', templateId)
+        .select()
+        .single();
 
-    if (alertText.includes('closed') || alertText.includes('blocked') || alertText.includes('suspension')) {
-      suggestions.push(this.templates.find(t => t.id === 'route_suspension'));
-    }
-
-    if (alertText.includes('weather') || alertText.includes('snow') || alertText.includes('ice') || alertText.includes('rain')) {
-      suggestions.push(this.templates.find(t => t.id === 'weather_advisory'));
-    }
-
-    if (alertText.includes('cleared') || alertText.includes('resolved') || alertText.includes('reopened')) {
-      suggestions.push(this.templates.find(t => t.id === 'incident_resolved'));
-    }
-
-    if (alertText.includes('emergency') || alertText.includes('diversion') || alertText.includes('urgent')) {
-      suggestions.push(this.templates.find(t => t.id === 'emergency_diversion'));
-    }
-
-    // Filter out undefined templates and duplicates
-    const validSuggestions = suggestions
-      .filter(Boolean)
-      .filter((template, index, self) => 
-        index === self.findIndex(t => t.id === template.id)
-      );
-
-    return {
-      success: true,
-      suggestions: validSuggestions,
-      alertData: {
-        title: alertData.title,
-        location: alertData.location,
-        routes: alertData.affectsRoutes || []
+      if (error) {
+        console.error('❌ Error updating template:', error);
+        return {
+          success: false,
+          error: error.message
+        };
       }
-    };
+
+      if (!data) {
+        return {
+          success: false,
+          error: 'Template not found'
+        };
+      }
+
+      console.log(`✅ Updated template: ${templateId} by ${supervisorInfo?.supervisorId}`);
+
+      return {
+        success: true,
+        template: data
+      };
+    } catch (error) {
+      console.error('❌ Error updating template:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Delete template
+  async deleteTemplate(templateId, supervisorInfo) {
+    try {
+      const { data, error } = await supabase
+        .from('message_templates')
+        .delete()
+        .eq('id', templateId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error deleting template:', error);
+        return {
+          success: false,
+          error: error.message
+        };
+      }
+
+      if (!data) {
+        return {
+          success: false,
+          error: 'Template not found'
+        };
+      }
+
+      console.log(`✅ Deleted template: ${templateId} by ${supervisorInfo?.supervisorId}`);
+
+      return {
+        success: true,
+        template: data
+      };
+    } catch (error) {
+      console.error('❌ Error deleting template:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
   }
 }
 

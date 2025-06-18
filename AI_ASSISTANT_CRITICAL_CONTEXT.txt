@@ -1,0 +1,20 @@
+# GO BARRY - CRITICAL PROJECT CONTEXT FOR AI ASSISTANTS
+# READ THIS FIRST IN EVERY NEW CHAT SESSION
+
+## 🚨 CRITICAL REMINDERS - DON'T FORGET THESE!
+
+1. **MEMORY LIMIT**: Backend runs on Render.com with 2GB RAM limit - ALWAYS optimize for memory
+2. **NO localStorage/sessionStorage**: These don't work in Expo/React Native web - use React state only
+3. **CORS IS FIXED**: Don't try to "fix" CORS - it's already properly configured for gobarry.co.uk
+4. **DEDUPLICATION WORKS**: Alert deduplication is implemented and working - don't reimplement
+5. **IMPORT STYLES**: Use ES6 imports (import X from 'Y') not CommonJS (require)
+6. **SUPERVISOR SYSTEM**: 9 real supervisors with badge auth - don't create mock supervisors
+7. **WEBSOCKET WORKS**: Supervisor sync via WebSocket is implemented at /ws/supervisor-sync
+
+## 📍 PROJECT OVERVIEW
+
+**Go BARRY** = Real-time traffic intelligence platform for Go North East bus operations
+- **Purpose**: Help bus supervisors manage traffic disruptions affecting 231 bus routes
+- **Coverage**: Newcastle, Gateshead, Sunderland, Durham, North Tyneside, Northumberland
+- **Users**: 9 Go North East supervisors + control room staff
+- **Scale**: Processes thousands of alerts daily from 6

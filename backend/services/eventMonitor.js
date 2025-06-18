@@ -1,109 +1,227 @@
 // backend/services/eventMonitor.js
-// Major event monitoring service for Go North East disruption management
+// Major event monitoring service for Go North East disruption management - Supabase version
 
-import { promises as fs } from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+dotenv.config();
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
 class EventMonitor {
   constructor() {
-    this.eventsFile = path.join(__dirname, '../data/major-events.json');
-    this.events = [];
-    this.loadEvents();
+    this.initializeConnection();
   }
 
-  async loadEvents() {
+  async initializeConnection() {
     try {
-      const data = await fs.readFile(this.eventsFile, 'utf8');
-      this.events = JSON.parse(data);
-    } catch (error) {
-      // Initialize with default events structure
-      this.events = [];
-      await this.saveEvents();
-    }
-  }
+      // Test connection to events table
+      const { error } = await supabase
+        .from('major_events')
+        .select('count', { count: 'exact' })
+        .limit(1);
+        
+      if (error) {
+        console.error('❌ EventMonitor: Supabase connection failed:', error);
+        return;
+      }
 
-  async saveEvents() {
-    await fs.writeFile(this.eventsFile, JSON.stringify(this.events, null, 2));
+      console.log('✅ EventMonitor: Connected to Supabase major_events table');
+    } catch (error) {
+      console.error('❌ EventMonitor: Failed to initialize:', error);
+    }
   }
 
   // Get currently active events
   async getActiveEvents() {
-    const now = new Date();
-    const activeEvents = this.events.filter(event => {
-      const eventStart = new Date(event.startTime);
-      const eventEnd = new Date(event.endTime);
-      return eventStart <= now && eventEnd >= now;
-    });
+    try {
+      const now = new Date().toISOString();
+      
+      const { data: activeEvents, error } = await supabase
+        .from('major_events')
+        .select('*')
+        .eq('status', 'active')
+        .lte('start_time', now)
+        .gte('end_time', now)
+        .order('severity', { ascending: true }) // CRITICAL first
+        .order('start_time', { ascending: false });
 
-    // Sort by severity and return
-    activeEvents.sort((a, b) => {
-      const severityOrder = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
-      return (severityOrder[a.severity] || 999) - (severityOrder[b.severity] || 999);
-    });
+      if (error) {
+        console.error('❌ Error getting active events:', error);
+        return { active: [], mostSevere: null, count: 0 };
+      }
 
-    return {
-      active: activeEvents,
-      mostSevere: activeEvents[0] || null,
-      count: activeEvents.length
-    };
+      return {
+        active: activeEvents || [],
+        mostSevere: activeEvents && activeEvents.length > 0 ? activeEvents[0] : null,
+        count: activeEvents ? activeEvents.length : 0
+      };
+    } catch (error) {
+      console.error('❌ Error getting active events:', error);
+      return { active: [], mostSevere: null, count: 0 };
+    }
   }
 
   // Add a new event
   async addEvent(eventData) {
-    const event = {
-      id: `event_${Date.now()}`,
-      ...eventData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    try {
+      const event = {
+        id: `event_${Date.now()}`,
+        title: eventData.title,
+        description: eventData.description,
+        location: eventData.location,
+        start_time: eventData.startTime,
+        end_time: eventData.endTime,
+        event_type: eventData.type || eventData.eventType,
+        severity: eventData.severity,
+        affected_routes: eventData.affectedRoutes || [],
+        status: eventData.status || 'active',
+        created_by: eventData.createdBy,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
 
-    this.events.push(event);
-    await this.saveEvents();
-    return event;
+      const { data, error } = await supabase
+        .from('major_events')
+        .insert(event)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error adding event:', error);
+        throw new Error(`Failed to add event: ${error.message}`);
+      }
+
+      console.log(`✅ Added major event: ${event.title} (${event.id})`);
+      return data;
+    } catch (error) {
+      console.error('❌ Error in addEvent:', error);
+      throw error;
+    }
   }
 
   // Update an event
   async updateEvent(eventId, updates) {
-    const index = this.events.findIndex(e => e.id === eventId);
-    if (index === -1) {
-      throw new Error('Event not found');
+    try {
+      const updateData = {
+        ...updates,
+        updated_at: new Date().toISOString()
+      };
+
+      // Convert field names to match database schema
+      if (updates.startTime) {
+        updateData.start_time = updates.startTime;
+        delete updateData.startTime;
+      }
+      if (updates.endTime) {
+        updateData.end_time = updates.endTime;
+        delete updateData.endTime;
+      }
+      if (updates.eventType) {
+        updateData.event_type = updates.eventType;
+        delete updateData.eventType;
+      }
+      if (updates.affectedRoutes) {
+        updateData.affected_routes = updates.affectedRoutes;
+        delete updateData.affectedRoutes;
+      }
+
+      const { data, error } = await supabase
+        .from('major_events')
+        .update(updateData)
+        .eq('id', eventId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error updating event:', error);
+        throw new Error(`Failed to update event: ${error.message}`);
+      }
+
+      if (!data) {
+        throw new Error('Event not found');
+      }
+
+      console.log(`✅ Updated major event: ${eventId}`);
+      return data;
+    } catch (error) {
+      console.error('❌ Error in updateEvent:', error);
+      throw error;
     }
-
-    this.events[index] = {
-      ...this.events[index],
-      ...updates,
-      updatedAt: new Date().toISOString()
-    };
-
-    await this.saveEvents();
-    return this.events[index];
   }
 
   // Delete an event
   async deleteEvent(eventId) {
-    const index = this.events.findIndex(e => e.id === eventId);
-    if (index === -1) {
-      throw new Error('Event not found');
-    }
+    try {
+      const { data, error } = await supabase
+        .from('major_events')
+        .delete()
+        .eq('id', eventId)
+        .select()
+        .single();
 
-    const deleted = this.events.splice(index, 1)[0];
-    await this.saveEvents();
-    return deleted;
+      if (error) {
+        console.error('❌ Error deleting event:', error);
+        throw new Error(`Failed to delete event: ${error.message}`);
+      }
+
+      if (!data) {
+        throw new Error('Event not found');
+      }
+
+      console.log(`✅ Deleted major event: ${eventId}`);
+      return data;
+    } catch (error) {
+      console.error('❌ Error in deleteEvent:', error);
+      throw error;
+    }
   }
 
   // Get all events (including past and future)
   async getAllEvents() {
-    return this.events;
+    try {
+      const { data, error } = await supabase
+        .from('major_events')
+        .select('*')
+        .order('start_time', { ascending: false });
+
+      if (error) {
+        console.error('❌ Error getting all events:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('❌ Error getting all events:', error);
+      return [];
+    }
   }
 
   // Get upcoming events
   async getUpcomingEvents() {
-    const now = new Date();
-    return this.events.filter(event => new Date(event.startTime) > now);
+    try {
+      const now = new Date().toISOString();
+      
+      const { data, error } = await supabase
+        .from('major_events')
+        .select('*')
+        .gt('start_time', now)
+        .order('start_time', { ascending: true });
+
+      if (error) {
+        console.error('❌ Error getting upcoming events:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('❌ Error getting upcoming events:', error);
+      return [];
+    }
   }
 
   // Event categories configuration
@@ -163,23 +281,122 @@ class EventMonitor {
 
   // Check for event conflicts
   async checkEventConflicts(newEvent) {
-    const conflicts = this.events.filter(existing => {
-      const existingStart = new Date(existing.startTime);
-      const existingEnd = new Date(existing.endTime);
-      const newStart = new Date(newEvent.startTime);
-      const newEnd = new Date(newEvent.endTime);
+    try {
+      const { data: existingEvents, error } = await supabase
+        .from('major_events')
+        .select('*')
+        .eq('status', 'active');
 
-      // Check time overlap
-      const timeOverlap = (newStart <= existingEnd && newEnd >= existingStart);
-      
-      // Check location proximity (if both have locations)
-      const locationConflict = existing.venue === newEvent.venue || 
-                             existing.location === newEvent.location;
+      if (error) {
+        console.error('❌ Error checking event conflicts:', error);
+        return [];
+      }
 
-      return timeOverlap && locationConflict;
-    });
+      const conflicts = existingEvents.filter(existing => {
+        const existingStart = new Date(existing.start_time);
+        const existingEnd = new Date(existing.end_time);
+        const newStart = new Date(newEvent.startTime || newEvent.start_time);
+        const newEnd = new Date(newEvent.endTime || newEvent.end_time);
 
-    return conflicts;
+        // Check time overlap
+        const timeOverlap = (newStart <= existingEnd && newEnd >= existingStart);
+        
+        // Check location proximity (if both have locations)
+        const locationConflict = existing.location === newEvent.location;
+
+        return timeOverlap && locationConflict;
+      });
+
+      return conflicts;
+    } catch (error) {
+      console.error('❌ Error checking event conflicts:', error);
+      return [];
+    }
+  }
+
+  // Get events by date range
+  async getEventsByDateRange(startDate, endDate) {
+    try {
+      const { data, error } = await supabase
+        .from('major_events')
+        .select('*')
+        .gte('start_time', startDate)
+        .lte('end_time', endDate)
+        .order('start_time', { ascending: true });
+
+      if (error) {
+        console.error('❌ Error getting events by date range:', error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('❌ Error getting events by date range:', error);
+      return [];
+    }
+  }
+
+  // Get event statistics
+  async getEventStatistics() {
+    try {
+      const { data, error } = await supabase
+        .from('major_events')
+        .select('*');
+
+      if (error) {
+        console.error('❌ Error getting event statistics:', error);
+        return {
+          total: 0,
+          active: 0,
+          upcoming: 0,
+          past: 0,
+          bySeverity: {},
+          byType: {}
+        };
+      }
+
+      const now = new Date();
+      const stats = {
+        total: data.length,
+        active: 0,
+        upcoming: 0,
+        past: 0,
+        bySeverity: {},
+        byType: {}
+      };
+
+      data.forEach(event => {
+        const startTime = new Date(event.start_time);
+        const endTime = new Date(event.end_time);
+
+        // Categorize by time
+        if (startTime <= now && endTime >= now) {
+          stats.active++;
+        } else if (startTime > now) {
+          stats.upcoming++;
+        } else {
+          stats.past++;
+        }
+
+        // Count by severity
+        stats.bySeverity[event.severity] = (stats.bySeverity[event.severity] || 0) + 1;
+
+        // Count by type
+        stats.byType[event.event_type] = (stats.byType[event.event_type] || 0) + 1;
+      });
+
+      return stats;
+    } catch (error) {
+      console.error('❌ Error getting event statistics:', error);
+      return {
+        total: 0,
+        active: 0,
+        upcoming: 0,
+        past: 0,
+        bySeverity: {},
+        byType: {}
+      };
+    }
   }
 }
 
