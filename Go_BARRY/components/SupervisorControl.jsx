@@ -19,6 +19,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorPolling, CONNECTION_STATES } from './hooks/useSupervisorPolling';
 import MessageTemplates from './MessageTemplates';
+import RoadworksDatabase from './RoadworksDatabase';
 // Simple Alert Card component for supervisor control
 const SimpleAlertCard = ({ alert, supervisorSession, onDismiss, onAcknowledge, style }) => {
   const getStatusColor = (status) => {
@@ -299,6 +300,7 @@ const SupervisorControl = ({
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [showMessageTemplates, setShowMessageTemplates] = useState(false);
   const [showDisplayQueue, setShowDisplayQueue] = useState(false);
+  const [showRoadworksDatabase, setShowRoadworksDatabase] = useState(false);
   const [broadcastMessageText, setBroadcastMessageText] = useState('');
   const [broadcastPriority, setBroadcastPriority] = useState('info');
   const [loading, setLoading] = useState(false);
@@ -915,6 +917,14 @@ const SupervisorControl = ({
             <Ionicons name="list" size={20} color="#FFFFFF" />
             <Text style={styles.controlButtonText}>Display Queue</Text>
           </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.controlButton, styles.roadworksControlButton]}
+            onPress={() => setShowRoadworksDatabase(true)}
+          >
+            <Ionicons name="construct" size={20} color="#FFFFFF" />
+            <Text style={styles.controlButtonText}>Roadworks Database</Text>
+          </TouchableOpacity>
         </View>
         
         <View style={styles.modeSelector}>
@@ -1087,6 +1097,27 @@ const SupervisorControl = ({
             setSelectedAlert(null);
           }}
         />
+      </Modal>
+      
+      {/* Roadworks Database Modal */}
+      <Modal
+        visible={showRoadworksDatabase}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setShowRoadworksDatabase(false)}
+      >
+        <View style={styles.roadworksModalContainer}>
+          <View style={styles.roadworksModalHeader}>
+            <Text style={styles.roadworksModalTitle}>Roadworks Management Database</Text>
+            <TouchableOpacity 
+              onPress={() => setShowRoadworksDatabase(false)}
+              style={styles.roadworksCloseButton}
+            >
+              <Ionicons name="close" size={24} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+          <RoadworksDatabase />
+        </View>
       </Modal>
       
       <BroadcastModal />
@@ -1832,6 +1863,38 @@ const styles = StyleSheet.create({
   queueControlButton: {
     background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
     backgroundColor: '#10B981',
+  },
+  roadworksControlButton: {
+    background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+    backgroundColor: '#F59E0B',
+  },
+  roadworksModalContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  roadworksModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    ...Platform.select({
+      web: { paddingTop: 16 },
+      default: { paddingTop: 44 }
+    }),
+  },
+  roadworksModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  roadworksCloseButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
   },
 });
 
