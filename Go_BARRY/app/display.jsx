@@ -1,22 +1,18 @@
 // Go_BARRY/app/display.jsx
-// Clean Display Route - Uses the rebuilt DisplayScreen component
+// Web-compatible Display Route
 
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
 import DisplayScreen from '../components/DisplayScreen';
 
 export default function Display() {
   return (
-    <View style={styles.container}>
+    <div style={{
+      minHeight: '100vh',
+      width: '100%',
+      margin: 0,
+      padding: 0
+    }}>
       <DisplayScreen />
-    </View>
+    </div>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    minHeight: '100vh',
-    // Remove old background - let DisplayScreen handle its own gradient background
-  },
-});

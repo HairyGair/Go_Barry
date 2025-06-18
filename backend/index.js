@@ -26,6 +26,7 @@ import enhancementAPI from './routes/enhancementAPI.js';
 import frequencyAPI from './routes/frequencyAPI.js';
 import throttleAPI from './routes/throttleAPI.js';
 import tileAPI from './routes/tileAPI.js';
+import eventAPI from './routes/eventAPI.js';
 import serviceFrequencyAnalyzer from './services/serviceFrequencyAnalyzer.js';
 import supervisorSyncService from './services/supervisorSync.js';
 import enhancedDataSourceManager from './services/enhancedDataSourceManager.js';
@@ -319,6 +320,9 @@ app.use('/api/throttle', throttleAPI);
 
 // TomTom tile serving routes
 app.use('/api/tiles', tileAPI);
+
+// Event monitoring routes
+app.use('/api/events', eventAPI);
 
 // StreetManager webhook routes
 app.post('/api/streetmanager/webhook', async (req, res) => {
