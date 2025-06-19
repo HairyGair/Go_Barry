@@ -203,8 +203,8 @@ export const useSupervisorSession = () => {
         }
         
         // Authenticate with backend
-        console.log('🔐 Authenticating with backend...', `${API_BASE_URL}/api/supervisor/auth/login`);
-        const authResponse = await fetch(`${API_BASE_URL}/api/supervisor/auth/login`, {
+        console.log('🔐 Authenticating with backend...', `${API_BASE_URL}/api/supervisor/login`);
+        const authResponse = await fetch(`${API_BASE_URL}/api/supervisor/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
