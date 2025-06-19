@@ -71,20 +71,8 @@ const sessionStorageService = {
 // Create context for supervisor session
 const SupervisorContext = createContext();
 
-// API configuration with fallback for development
-const API_BASE_URL = (() => {
-  if (typeof window !== 'undefined') {
-    // Browser environment
-    return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-      ? 'http://localhost:3001'
-      : 'https://go-barry.onrender.com';
-  } else {
-    // React Native environment
-    return __DEV__ 
-      ? 'http://192.168.1.132:3001' 
-      : 'https://go-barry.onrender.com';
-  }
-})();
+// Always use Render backend - no local backend running
+const API_BASE_URL = 'https://go-barry.onrender.com';
 
 // Supervisor database
 const SUPERVISOR_DB = {
@@ -170,7 +158,7 @@ export const useSupervisorSession = () => {
       }
 
       // Check password if required
-      if (supervisor.requiresPassword) {
+      if (supervisor?.requiresPassword) {
         if (!loginData.password || loginData.password !== supervisor.password) {
           throw new Error('Incorrect password for Line Manager access');
         }
@@ -258,11 +246,11 @@ export const useSupervisorSession = () => {
         sessionId: authResult.sessionId, // Use backend session ID
         supervisor: {
           id: loginData.supervisorId, // Keep frontend ID for UI
-          name: supervisor.name,
-          role: supervisor.role,
+          name: supervisor?.name || 'Unknown Supervisor',
+          role: supervisor?.role || 'Supervisor',
           duty: DUTY_OPTIONS.find((d) => d.id === loginData.duty) || { id: loginData.duty, name: loginData.duty },
-          isAdmin: supervisor.isAdmin || false,
-          permissions: supervisor.isAdmin ? 
+          isAdmin: supervisor?.isAdmin || false,
+          permissions: supervisor?.isAdmin ? 
             ['dismiss_alerts', 'view_all_activity', 'manage_supervisors', 'create_incidents', 'send_messages'] : 
             ['dismiss_alerts', 'create_incidents'],
           backendId: backendSupervisor?.id, // Store backend ID for WebSocket
@@ -281,9 +269,9 @@ export const useSupervisorSession = () => {
       setSupervisorSession(session);
       
       // Log login activity
-      logActivity('LOGIN', `${supervisor.name} logged in on ${loginData.duty?.name || 'Unknown Duty'}`);
+      logActivity('LOGIN', `${supervisor?.name || 'Unknown'} logged in on ${loginData.duty?.name || 'Unknown Duty'}`);
       
-      console.log('✅ Supervisor logged in:', supervisor.name, 'Duty:', loginData.duty?.name, 'Session:', authResult.sessionId);
+      console.log('✅ Supervisor logged in:', supervisor?.name || 'Unknown', 'Duty:', loginData.duty?.name, 'Session:', authResult.sessionId);
       return { success: true, session };
       
     } catch (err) {
