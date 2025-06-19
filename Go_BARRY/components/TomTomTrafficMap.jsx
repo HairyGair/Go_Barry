@@ -11,7 +11,6 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState(null);
   const mountedRef = useRef(true);
-  const retryCountRef = useRef(0);
 
   // TomTom API key
   const TOMTOM_API_KEY = process.env.EXPO_PUBLIC_TOMTOM_API_KEY || '9rZJqtnfYpOzlqnypI97nFb5oX17SNzp';
@@ -31,7 +30,7 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
           return;
         }
 
-        console.log(`🗺️ Starting TomTom Map initialization... (attempt ${retryCountRef.current + 1})`);
+        console.log(`🗺️ Starting TomTom Map initialization...`);
         
         // Check if we're in a browser
         if (typeof window === 'undefined' || typeof document === 'undefined') {
@@ -71,29 +70,15 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
 
         console.log('✅ TomTom SDK ready');
 
-        // Get container element with retry logic
+        // Get container element
         const container = mapContainer.current;
         if (!container) {
-          if (retryCountRef.current < 50) { // Max 50 retries = 10 seconds
-            retryCountRef.current++;
-            console.log(`⏳ Container not ready yet, retrying... (${retryCountRef.current}/50)`);
-            setTimeout(initializeMap, 200);
-            return;
-          } else {
-            throw new Error('Container element not found after 50 retries');
-          }
+          throw new Error('Container element not found');
         }
         
         // Ensure container is in DOM and has dimensions
         if (!document.contains(container) || container.offsetWidth === 0 || container.offsetHeight === 0) {
-          if (retryCountRef.current < 50) { // Max 50 retries = 10 seconds
-            retryCountRef.current++;
-            console.log(`⏳ Container not ready in DOM (${container.offsetWidth}x${container.offsetHeight}), retrying... (${retryCountRef.current}/50)`);
-            setTimeout(initializeMap, 200);
-            return;
-          } else {
-            throw new Error('Container not properly rendered after 50 retries');
-          }
+          throw new Error('Container not properly rendered');
         }
         
         console.log('✅ Container ready:', container);
@@ -137,13 +122,23 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
       }
     };
 
-    // Small delay to ensure container is ready
-    const timer = setTimeout(initializeMap, 2000); // Increased from 1000ms to 2000ms
+    const waitForContainer = () => {
+      const check = () => {
+        const container = mapContainer.current;
+        if (container && document.contains(container) && container.offsetWidth > 0 && container.offsetHeight > 0) {
+          initializeMap();
+        } else {
+          requestAnimationFrame(check);
+        }
+      };
+      requestAnimationFrame(check);
+    };
+
+    waitForContainer();
 
     // Cleanup
     return () => {
       mountedRef.current = false;
-      clearTimeout(timer);
       if (mapRef.current) {
         try {
           mapRef.current.remove();
@@ -154,7 +149,6 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
         mapRef.current = null;
       }
       markersRef.current = [];
-      retryCountRef.current = 0;
     };
   }, [TOMTOM_API_KEY]);
 
