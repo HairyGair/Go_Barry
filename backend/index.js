@@ -152,8 +152,8 @@ async function initializeApplication() {
       console.log('⚠️ Using fallback route matching');
     }
   
-  // Load dismissed alerts for persistence across restarts
-  try {
+    // Load dismissed alerts for persistence across restarts
+    try {
     const dismissedFilePath = path.join(__dirname, 'data/dismissed-alerts.json');
     const raw = await fs.readFile(dismissedFilePath, 'utf-8');
     const dismissedData = JSON.parse(raw);
@@ -188,6 +188,10 @@ async function initializeApplication() {
   }
   
   console.log('✅ Application initialization complete');
+  } catch (error) {
+    console.error('❌ Application initialization failed:', error.message);
+    console.log('⚠️ Starting with limited functionality...');
+  }
 }
 
 const app = express();
