@@ -71,7 +71,7 @@ const sessionStorageService = {
 // Create context for supervisor session
 const SupervisorContext = createContext();
 
-// Always use Render backend - no local backend running
+// FORCE PRODUCTION URL - Never use localhost
 const API_BASE_URL = 'https://go-barry.onrender.com';
 
 // Supervisor database
@@ -166,6 +166,7 @@ export const useSupervisorSession = () => {
 
       // **NEW: Authenticate with backend**
       console.log('🔐 Authenticating with backend...');
+      console.log('🌐 Using API URL:', API_BASE_URL);
       
       // Map frontend IDs to backend IDs and badges
       const backendMapping = {
@@ -187,24 +188,33 @@ export const useSupervisorSession = () => {
       
       // Add timeout to prevent hanging (increased for Render.com wake-up)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 45000); // Increased to 45 seconds
       
       try {
         // Wake up backend first with health check
         console.log('🏥 Checking backend health first...');
         try {
-          await fetch(`${API_BASE_URL}/api/health`, {
+          const healthResponse = await fetch(`${API_BASE_URL}/api/health`, {
             method: 'GET',
-            signal: controller.signal
+            signal: controller.signal,
+            headers: {
+              'Content-Type': 'application/json',
+            }
           });
-          console.log('✅ Backend is awake');
+          if (healthResponse.ok) {
+            console.log('✅ Backend is awake and healthy');
+          } else {
+            console.warn('⚠️ Backend health check returned non-OK status, continuing with auth');
+          }
         } catch (healthError) {
           console.warn('⚠️ Health check failed, continuing with auth:', healthError.message);
         }
         
         // Authenticate with backend
-        console.log('🔐 Authenticating with backend...', `${API_BASE_URL}/api/supervisor/login`);
-        const authResponse = await fetch(`${API_BASE_URL}/api/supervisor/login`, {
+        const authUrl = `${API_BASE_URL}/api/supervisor/login`;
+        console.log('🔐 Authenticating with backend...', authUrl);
+        
+        const authResponse = await fetch(authUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -218,12 +228,16 @@ export const useSupervisorSession = () => {
         
         clearTimeout(timeoutId);
         
+        console.log('📡 Auth response status:', authResponse.status);
+        
         if (!authResponse.ok) {
           const errorText = await authResponse.text();
+          console.error('❌ Auth response error:', errorText);
           throw new Error(`Backend authentication failed: ${authResponse.status} - ${errorText}`);
         }
         
         const authResult = await authResponse.json();
+        console.log('📋 Auth result:', authResult);
         
         if (!authResult.success) {
           throw new Error(authResult.error || 'Backend authentication failed');
@@ -233,6 +247,8 @@ export const useSupervisorSession = () => {
         
       } catch (fetchError) {
         clearTimeout(timeoutId);
+        console.error('❌ Fetch error details:', fetchError);
+        
         if (fetchError.name === 'AbortError') {
           throw new Error('Login timeout - backend may be waking up, please try again in a moment');
         }

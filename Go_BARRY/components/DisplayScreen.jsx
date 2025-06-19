@@ -31,15 +31,14 @@ const DisplayScreen = () => {
   const fetchSupervisorActivity = async () => {
     try {
       // Fetch active supervisors
-      const activeResponse = await fetch('https://go-barry.onrender.com/api/supervisor/active');
-      if (activeResponse.ok) {
-        const activeData = await activeResponse.json();
+      const response = await fetch('https://go-barry.onrender.com/api/supervisor/active');
+      if (response.ok) {
+        const activeData = await response.json();
         if (activeData.activeSupervisors) {
           setActiveSupervisors(activeData.activeSupervisors);
         }
       }
       
-      // Fetch recent activity logs
       const activityResponse = await fetch('https://go-barry.onrender.com/api/supervisor/activity/recent?limit=10');
       if (activityResponse.ok) {
         const activityData = await activityResponse.json();
