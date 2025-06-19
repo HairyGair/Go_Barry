@@ -5,7 +5,8 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "start": "node --max-old-space-size=1800 --expose-gc index.js",
+    "start": "node --max-old-space-size=1800 --expose-gc render-startup.js",
+    "start-full": "node --max-old-space-size=1800 --expose-gc index.js",
     "start-v3": "node --max-old-space-size=2048 --expose-gc index-v3-optimized.js",
     "start-original": "node index.js",
     "start-optimized": "node start-optimized.js",

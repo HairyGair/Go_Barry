@@ -1491,10 +1491,26 @@ async function startServer() {
   }
 }
 
-// Start the server
+// Start the server with immediate port binding for Render
 startServer().catch(error => {
   console.error('❌ Critical startup error:', error);
-  process.exit(1);
+  
+  // RENDER FIX: Still try to bind to port even on critical error
+  console.log('🚨 Attempting emergency port binding...');
+  const http = require('http');
+  const emergencyServer = http.createServer((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      success: false,
+      error: 'Server initialization failed',
+      status: 'emergency_mode',
+      timestamp: new Date().toISOString()
+    }));
+  });
+  
+  emergencyServer.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚨 Emergency server listening on port ${PORT}`);
+  });
 });
 
 export default app;// Deployment timestamp: Tue 10 Jun 2025 10:40:34 BST
