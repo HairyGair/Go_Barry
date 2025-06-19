@@ -78,6 +78,8 @@ class TimeBasedPollingManager {
 
   // Check if specific source can be polled based on rate limits
   canPollSource(sourceName) {
+    const now = Date.now();
+    
     // Emergency override allows all polling
     if (this.isOverrideMode) {
       console.log(`🚨 OVERRIDE MODE: Allowing ${sourceName} poll despite restrictions`);
@@ -110,8 +112,6 @@ class TimeBasedPollingManager {
         console.log(`📊 TomTom scheduling: ${tomtomOptimal.period} period (${tomtomOptimal.frequency})`);
       }
     }
-    
-    const now = Date.now();
     
     if (lastPoll && (now - lastPoll) < minimumInterval) {
       const remainingTime = minimumInterval - (now - lastPoll);
