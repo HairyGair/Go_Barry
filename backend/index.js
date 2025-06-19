@@ -201,8 +201,16 @@ async function initializeApplication() {
 
 const app = express();
 
-// Create HTTP server for WebSocket support
-const server = createServer(app);
+// Create HTTP server for WebSocket support (singleton pattern)
+let server;
+if (!global.goBarryServer) {
+  server = createServer(app);
+  global.goBarryServer = server;
+  console.log('✅ Created new server instance');
+} else {
+  server = global.goBarryServer;
+  console.log('🔄 Reusing existing server instance');
+}
 
 console.log(`
 🔧 FIXED CONFIGURATION:
@@ -1459,8 +1467,31 @@ async function startServer() {
   try {
     console.log('🚀 Starting Go BARRY Backend...');
     
-    // RENDER FIX: Bind to port IMMEDIATELY
+    // RENDER FIX: Bind to port IMMEDIATELY with error handling
     const port = process.env.PORT || 3001;
+    
+    // Check if server is already listening
+    if (server.listening) {
+      console.log(`✅ Server already listening on port ${port}`);
+      return;
+    }
+    
+    // Add error handler BEFORE calling listen
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.log(`⚠️ Port ${port} is already in use - this is OK on Render`);
+        console.log('🔄 Server likely restarting, continuing...');
+        
+        // Still try to initialize
+        initializeApplication().catch(error => {
+          console.error('⚠️ Initialization error:', error.message);
+        });
+      } else {
+        console.error('❌ Server error:', err);
+        throw err;
+      }
+    });
+    
     server.listen(port, () => {
       console.log(`✅ PORT ${port} BOUND SUCCESSFULLY`);
       console.log('🏃 Starting async initialization...');
@@ -1522,37 +1553,75 @@ async function startServer() {
 
 // Start the server with immediate port binding for Render
 console.log('🎯 CRITICAL FIX: Binding to port BEFORE initialization to satisfy Render requirements');
-startServer().catch(error => {
-  console.error('❌ Critical startup error:', error);
-  
-  // RENDER FIX: Still try to bind to port even on critical error
-  console.log('🚨 Attempting emergency port binding...');
-  const http = require('http');
-  const emergencyServer = http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      success: false,
-      error: 'Server initialization failed',
-      status: 'emergency_mode',
-      timestamp: new Date().toISOString()
-    }));
-  });
-  emergencyServer.listen(3456, () => {
-    const port = 3456;
-    console.log(`🚨 Emergency server listening on port ${port}`);
-  });
 
+// Add a small delay to ensure previous instance has released the port
+if (process.env.PORT) {
+  console.log('🕒 Waiting 2 seconds for port to be released...');
+  setTimeout(() => {
+    startServer().catch(error => {
+      console.error('❌ Critical startup error:', error);
+      
+      // RENDER FIX: Still try to bind to port even on critical error
+      console.log('🚨 Attempting emergency port binding...');
+      const http = require('http');
+      const emergencyServer = http.createServer((req, res) => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: false,
+          error: 'Server initialization failed',
+          status: 'emergency_mode',
+          timestamp: new Date().toISOString()
+        }));
+      });
+      emergencyServer.listen(3456, () => {
+        const port = 3456;
+        console.log(`🚨 Emergency server listening on port ${port}`);
+      });
+    });
+  }, 2000);
+} else {
+  // Local development - start immediately
+  startServer().catch(error => {
+    console.error('❌ Critical startup error:', error);
+  });
+}
 
 // Top-level error handling for unhandled crashes
 process.on('uncaughtException', err => {
   console.error('❌ Unhandled Exception:', err);
-  process.exit(1);
+  // Try to close server gracefully
+  if (server && server.listening) {
+    server.close(() => {
+      process.exit(1);
+    });
+  } else {
+    process.exit(1);
+  }
 });
 
 process.on('unhandledRejection', err => {
   console.error('❌ Unhandled Rejection:', err);
-  process.exit(1);
-});
+  // Try to close server gracefully
+  if (server && server.listening) {
+    server.close(() => {
+      process.exit(1);
+    });
+  } else {
+    process.exit(1);
+  }
 });
 
-export default app;// Deployment timestamp: Thu 19 Jun 2025 22:25:00 BST
+// Graceful shutdown on SIGTERM (Render sends this)
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM received, shutting down gracefully...');
+  if (server && server.listening) {
+    server.close(() => {
+      console.log('✅ Server closed');
+      process.exit(0);
+    });
+  } else {
+    process.exit(0);
+  }
+});
+
+export default app;// Deployment timestamp: Thu 19 Jun 2025 22:30:00 BST
