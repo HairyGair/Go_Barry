@@ -47,6 +47,53 @@ app.get('/api/supervisor/activity/recent', (req, res) => {
   });
 });
 
+// Supervisor login endpoint
+app.post('/api/supervisor/login', (req, res) => {
+  const { supervisorId, badge } = req.body;
+  
+  console.log(`🔐 Auth attempt: ${supervisorId} with badge ${badge}`);
+  
+  // Simple fallback authentication
+  const validSupervisors = {
+    'supervisor001': { name: 'Alex Woodcock', badge: 'AW001' },
+    'supervisor002': { name: 'Andrew Cowley', badge: 'AC002' },
+    'supervisor003': { name: 'Anthony Gair', badge: 'AG003' },
+    'supervisor004': { name: 'Claire Fiddler', badge: 'CF004' },
+    'supervisor005': { name: 'David Hall', badge: 'DH005' },
+    'supervisor006': { name: 'James Daglish', badge: 'JD006' },
+    'supervisor007': { name: 'John Paterson', badge: 'JP007' },
+    'supervisor008': { name: 'Simon Glass', badge: 'SG008' },
+    'supervisor009': { name: 'Barry Perryman', badge: 'BP009' }
+  };
+  
+  const supervisor = validSupervisors[supervisorId];
+  
+  if (supervisor && supervisor.badge === badge) {
+    const sessionId = `session_${supervisorId}_${Date.now()}`;
+    
+    console.log(`✅ Auth successful: ${supervisor.name}`);
+    
+    res.json({
+      success: true,
+      message: 'Authentication successful',
+      sessionId,
+      supervisor: {
+        id: supervisorId,
+        name: supervisor.name,
+        badge: supervisor.badge,
+        role: 'Supervisor',
+        permissions: ['dismiss-alerts', 'create-incidents']
+      }
+    });
+  } else {
+    console.log(`❌ Auth failed: ${supervisorId}`);
+    res.status(401).json({
+      success: false,
+      error: 'Invalid supervisor credentials'
+    });
+  }
+});
+
 // Active supervisors endpoint
 app.get('/api/supervisor/active', (req, res) => {
   res.json({
