@@ -190,6 +190,8 @@ export const useSupervisorSession = () => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 45000); // Increased to 45 seconds
       
+      let authResult; // Declare authResult in proper scope
+      
       try {
         // Wake up backend first with health check
         console.log('🏥 Checking backend health first...');
@@ -236,7 +238,7 @@ export const useSupervisorSession = () => {
           throw new Error(`Backend authentication failed: ${authResponse.status} - ${errorText}`);
         }
         
-        const authResult = await authResponse.json();
+        authResult = await authResponse.json();
         console.log('📋 Auth result:', authResult);
         
         if (!authResult.success) {

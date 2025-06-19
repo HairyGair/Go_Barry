@@ -11,17 +11,17 @@ const SupervisorLogin = ({ visible, onClose }) => {
   const [currentStep, setCurrentStep] = useState('supervisor');
   const { login, isLoading, error } = useSupervisorSession();
 
-  // Predefined supervisors
+  // Real supervisors matching backend authentication
   const supervisors = [
-    { id: 'alex_woodcock', name: 'Alex Woodcock', role: 'Supervisor', requiresPassword: false },
-    { id: 'andrew_cowley', name: 'Andrew Cowley', role: 'Supervisor', requiresPassword: false },
-    { id: 'anthony_gair', name: 'Anthony Gair', role: 'Developer/Admin', requiresPassword: false, isAdmin: true },
-    { id: 'claire_fiddler', name: 'Claire Fiddler', role: 'Supervisor', requiresPassword: false },
-    { id: 'david_hall', name: 'David Hall', role: 'Supervisor', requiresPassword: false },
-    { id: 'james_daglish', name: 'James Daglish', role: 'Supervisor', requiresPassword: false },
-    { id: 'john_paterson', name: 'John Paterson', role: 'Supervisor', requiresPassword: false },
-    { id: 'simon_glass', name: 'Simon Glass', role: 'Supervisor', requiresPassword: false },
-    { id: 'barry_perryman', name: 'Barry Perryman', role: 'Service Delivery Controller - Line Manager', requiresPassword: true, password: 'Barry123', isAdmin: true },
+    { id: 'alex_woodcock', name: 'Alex Woodcock', badge: 'AW001', role: 'Supervisor', requiresPassword: false },
+    { id: 'andrew_cowley', name: 'Andrew Cowley', badge: 'AC002', role: 'Supervisor', requiresPassword: false },
+    { id: 'anthony_gair', name: 'Anthony Gair', badge: 'AG003', role: 'Developer/Admin', requiresPassword: false, isAdmin: true },
+    { id: 'claire_fiddler', name: 'Claire Fiddler', badge: 'CF004', role: 'Supervisor', requiresPassword: false },
+    { id: 'david_hall', name: 'David Hall', badge: 'DH005', role: 'Supervisor', requiresPassword: false },
+    { id: 'james_daglish', name: 'James Daglish', badge: 'JD006', role: 'Supervisor', requiresPassword: false },
+    { id: 'john_paterson', name: 'John Paterson', badge: 'JP007', role: 'Supervisor', requiresPassword: false },
+    { id: 'simon_glass', name: 'Simon Glass', badge: 'SG008', role: 'Supervisor', requiresPassword: false },
+    { id: 'barry_perryman', name: 'Barry Perryman', badge: 'BP009', role: 'Service Delivery Controller - Line Manager', requiresPassword: true, password: 'Barry123', isAdmin: true },
   ];
 
   // Duty options
@@ -248,7 +248,7 @@ const SupervisorLogin = ({ visible, onClose }) => {
                           color: supervisorId === supervisor.id ? '#DBEAFE' : '#6B7280',
                           marginBottom: '2px'
                         }}>
-                          {supervisor.role}
+                          {supervisor.role} • Badge: {supervisor.badge}
                         </div>
                         {supervisor.isAdmin && (
                           <div style={{
