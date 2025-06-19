@@ -83,22 +83,59 @@ function stopSessionCleanup() {
   }
 }
 
-// Supervisor authentication
+// Supervisor authentication with fallback
 export async function authenticateSupervisor(supervisorId, badge) {
   console.log(`🔐 Auth attempt: ${supervisorId} with badge ${badge}`);
   
+  // Fallback supervisor data (matches frontend mapping)
+  const fallbackSupervisors = {
+    'supervisor001': { name: 'Alex Woodcock', badge: 'AW001', role: 'Supervisor', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents'] },
+    'supervisor002': { name: 'Andrew Cowley', badge: 'AC002', role: 'Supervisor', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents'] },
+    'supervisor003': { name: 'Anthony Gair', badge: 'AG003', role: 'Developer/Admin', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents', 'manage-supervisors'] },
+    'supervisor004': { name: 'Claire Fiddler', badge: 'CF004', role: 'Supervisor', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents'] },
+    'supervisor005': { name: 'David Hall', badge: 'DH005', role: 'Supervisor', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents'] },
+    'supervisor006': { name: 'James Daglish', badge: 'JD006', role: 'Supervisor', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents'] },
+    'supervisor007': { name: 'John Paterson', badge: 'JP007', role: 'Supervisor', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents'] },
+    'supervisor008': { name: 'Simon Glass', badge: 'SG008', role: 'Supervisor', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents'] },
+    'supervisor009': { name: 'Barry Perryman', badge: 'BP009', role: 'Service Delivery Controller', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents', 'manage-supervisors'] }
+  };
+  
   try {
-    // Get supervisor from Supabase
-    const { data: supervisor, error } = await supabase
-      .from('supervisors')
-      .select('*')
-      .eq('id', supervisorId)
-      .eq('badge', badge)
-      .eq('active', true)
-      .single();
+    let supervisor = null;
+    
+    // Try Supabase first
+    try {
+      const { data, error } = await supabase
+        .from('supervisors')
+        .select('*')
+        .eq('id', supervisorId)
+        .eq('badge', badge)
+        .eq('active', true)
+        .single();
 
-    if (error || !supervisor) {
-      console.log(`❌ Auth failed: Invalid credentials for ${supervisorId}`, error?.message);
+      if (!error && data) {
+        supervisor = data;
+        console.log(`✅ Supabase auth successful for ${supervisor.name}`);
+      }
+    } catch (supabaseError) {
+      console.warn('⚠️ Supabase auth failed, using fallback:', supabaseError.message);
+    }
+    
+    // Fallback to local data if Supabase fails
+    if (!supervisor) {
+      const fallbackSupervisor = fallbackSupervisors[supervisorId];
+      if (fallbackSupervisor && fallbackSupervisor.badge === badge) {
+        supervisor = {
+          id: supervisorId,
+          ...fallbackSupervisor,
+          active: true
+        };
+        console.log(`✅ Fallback auth successful for ${supervisor.name}`);
+      }
+    }
+    
+    if (!supervisor) {
+      console.log(`❌ Auth failed: Invalid credentials for ${supervisorId}`);
       return { success: false, error: 'Invalid supervisor credentials' };
     }
     
@@ -107,22 +144,28 @@ export async function authenticateSupervisor(supervisorId, badge) {
     supervisorSessions[sessionId] = {
       supervisorId,
       supervisorName: supervisor.name,
+      supervisorBadge: supervisor.badge,
       startTime: new Date().toISOString(),
       lastActivity: new Date().toISOString(),
       active: true
     };
     
-    // Log session creation to Supabase
-    await supabase
-      .from('supervisor_sessions')
-      .insert({
-        id: sessionId,
-        supervisor_id: supervisorId,
-        badge: badge,
-        login_time: new Date().toISOString(),
-        last_activity: new Date().toISOString(),
-        active: true
-      });
+    // Try to log session creation to Supabase (optional)
+    try {
+      await supabase
+        .from('supervisor_sessions')
+        .insert({
+          id: sessionId,
+          supervisor_id: supervisorId,
+          badge: badge,
+          login_time: new Date().toISOString(),
+          last_activity: new Date().toISOString(),
+          active: true
+        });
+      console.log(`✅ Session logged to Supabase: ${sessionId}`);
+    } catch (dbError) {
+      console.warn('⚠️ Failed to log session to Supabase, but session created:', dbError.message);
+    }
     
     console.log(`✅ Session created: ${sessionId} for ${supervisor.name}`);
     
@@ -144,7 +187,7 @@ export async function authenticateSupervisor(supervisorId, badge) {
   }
 }
 
-// Validate supervisor session
+// Validate supervisor session with fallback
 export async function validateSupervisorSession(sessionId) {
   console.log(`🔍 Validating session: ${sessionId}`);
   
@@ -154,27 +197,67 @@ export async function validateSupervisorSession(sessionId) {
     return { success: false, error: 'Invalid or expired session' };
   }
   
+  // Fallback supervisor data (same as auth function)
+  const fallbackSupervisors = {
+    'supervisor001': { name: 'Alex Woodcock', badge: 'AW001', role: 'Supervisor', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents'] },
+    'supervisor002': { name: 'Andrew Cowley', badge: 'AC002', role: 'Supervisor', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents'] },
+    'supervisor003': { name: 'Anthony Gair', badge: 'AG003', role: 'Developer/Admin', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents', 'manage-supervisors'] },
+    'supervisor004': { name: 'Claire Fiddler', badge: 'CF004', role: 'Supervisor', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents'] },
+    'supervisor005': { name: 'David Hall', badge: 'DH005', role: 'Supervisor', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents'] },
+    'supervisor006': { name: 'James Daglish', badge: 'JD006', role: 'Supervisor', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents'] },
+    'supervisor007': { name: 'John Paterson', badge: 'JP007', role: 'Supervisor', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents'] },
+    'supervisor008': { name: 'Simon Glass', badge: 'SG008', role: 'Supervisor', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents'] },
+    'supervisor009': { name: 'Barry Perryman', badge: 'BP009', role: 'Service Delivery Controller', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents', 'manage-supervisors'] }
+  };
+  
   try {
-    // Get supervisor data from Supabase
-    const { data: supervisor, error } = await supabase
-      .from('supervisors')
-      .select('*')
-      .eq('id', session.supervisorId)
-      .eq('active', true)
-      .single();
+    let supervisor = null;
+    
+    // Try Supabase first
+    try {
+      const { data, error } = await supabase
+        .from('supervisors')
+        .select('*')
+        .eq('id', session.supervisorId)
+        .eq('active', true)
+        .single();
 
-    if (error || !supervisor) {
+      if (!error && data) {
+        supervisor = data;
+      }
+    } catch (supabaseError) {
+      console.warn('⚠️ Supabase lookup failed during validation, using fallback');
+    }
+    
+    // Fallback to local data if Supabase fails
+    if (!supervisor) {
+      const fallbackSupervisor = fallbackSupervisors[session.supervisorId];
+      if (fallbackSupervisor) {
+        supervisor = {
+          id: session.supervisorId,
+          ...fallbackSupervisor,
+          active: true
+        };
+      }
+    }
+
+    if (!supervisor) {
       console.log(`❌ Supervisor not found or inactive: ${session.supervisorId}`);
       return { success: false, error: 'Supervisor account not found or inactive' };
     }
     
-    // Update last activity in memory and database
+    // Update last activity in memory
     session.lastActivity = new Date().toISOString();
     
-    await supabase
-      .from('supervisor_sessions')
-      .update({ last_activity: new Date().toISOString() })
-      .eq('id', sessionId);
+    // Try to update database (optional)
+    try {
+      await supabase
+        .from('supervisor_sessions')
+        .update({ last_activity: new Date().toISOString() })
+        .eq('id', sessionId);
+    } catch (dbError) {
+      console.warn('⚠️ Failed to update session in database, but session is valid');
+    }
     
     console.log(`✅ Session valid for: ${supervisor.name}`);
     

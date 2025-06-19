@@ -249,14 +249,8 @@ export const useSupervisorSession = () => {
           throw new Error('Login timeout - backend may be waking up, please try again in a moment');
         }
         
-        console.warn('⚠️ Backend auth failed, using local auth only:', fetchError.message);
-        
-        // For now, continue with local authentication if backend fails
-        var authResult = {
-          success: true,
-          sessionId: 'local_' + Date.now(),
-          supervisor: supervisor
-        };
+        // Don't fallback to local auth - require backend authentication
+        throw new Error(`Backend authentication required but failed: ${fetchError.message}`);
       }
 
       // Create session with backend sessionId
