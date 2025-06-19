@@ -1468,7 +1468,8 @@ async function startServer() {
     supervisorSyncService.initialize(server);
     
     // Start listening
-    server.listen(PORT, '0.0.0.0', () => {
+    server.listen(PORT, () => {
+      console.log(`✅ Server started on port ${PORT}`);
       console.log(`\n🚀 Go BARRY Backend Started Successfully`);
       console.log(`📡 Server: http://localhost:${PORT}`);
       console.log(`🌐 Public: https://go-barry.onrender.com`);
@@ -1503,7 +1504,8 @@ async function startServer() {
     
     // Start server anyway with minimal functionality for health checks
     console.log('⚠️ Starting server in degraded mode...');
-    server.listen(PORT, '0.0.0.0', () => {
+    server.listen(PORT, () => {
+      console.log(`✅ Server started on port ${PORT}`);
       console.log(`🚑 Go BARRY Backend Started (Degraded Mode)`);
       console.log(`📡 Server: http://localhost:${PORT}`);
       console.log(`⚠️ Some features may not work due to initialization failure`);
@@ -1528,9 +1530,21 @@ startServer().catch(error => {
     }));
   });
   
-  emergencyServer.listen(PORT, '0.0.0.0', () => {
+  emergencyServer.listen(PORT, () => {
     console.log(`🚨 Emergency server listening on port ${PORT}`);
   });
+
+
+// Top-level error handling for unhandled crashes
+process.on('uncaughtException', err => {
+  console.error('❌ Unhandled Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', err => {
+  console.error('❌ Unhandled Rejection:', err);
+  process.exit(1);
+});
 });
 
 export default app;// Deployment timestamp: Tue 10 Jun 2025 10:40:34 BST
