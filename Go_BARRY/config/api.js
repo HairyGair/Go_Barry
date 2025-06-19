@@ -2,21 +2,8 @@
 // Production API configuration for gobarry.co.uk deployment
 
 export const API_CONFIG = {
-  // Production configuration for gobarry.co.uk
-  baseURL: (() => {
-    if (typeof window !== 'undefined') {
-      const hostname = window.location.hostname;
-      if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        // Local development
-        return 'http://localhost:3001';
-      }
-      // Production - use the working Render backend
-      return 'https://go-barry.onrender.com';
-    } else {
-      // React Native or build environment
-      return 'https://go-barry.onrender.com';
-    }
-  })(),
+  // Always use Render backend - no local backend running
+  baseURL: 'https://go-barry.onrender.com',
   
   // Fallback URLs for redundancy
   fallbackURLs: [
