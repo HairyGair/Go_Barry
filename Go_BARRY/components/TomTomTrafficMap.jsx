@@ -74,25 +74,25 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
         // Get container element with retry logic
         const container = mapContainer.current;
         if (!container) {
-          if (retryCountRef.current < 40) { // Max 40 retries = 8 seconds
+          if (retryCountRef.current < 50) { // Max 50 retries = 10 seconds
             retryCountRef.current++;
-            console.log(`⏳ Container not ready yet, retrying... (${retryCountRef.current}/40)`);
+            console.log(`⏳ Container not ready yet, retrying... (${retryCountRef.current}/50)`);
             setTimeout(initializeMap, 200);
             return;
           } else {
-            throw new Error('Container element not found after 40 retries');
+            throw new Error('Container element not found after 50 retries');
           }
         }
         
-        // Ensure container is in DOM
-        if (!document.contains(container)) {
-          if (retryCountRef.current < 40) { // Max 40 retries = 8 seconds
+        // Ensure container is in DOM and has dimensions
+        if (!document.contains(container) || container.offsetWidth === 0 || container.offsetHeight === 0) {
+          if (retryCountRef.current < 50) { // Max 50 retries = 10 seconds
             retryCountRef.current++;
-            console.log(`⏳ Container not in DOM yet, retrying... (${retryCountRef.current}/40)`);
+            console.log(`⏳ Container not ready in DOM (${container.offsetWidth}x${container.offsetHeight}), retrying... (${retryCountRef.current}/50)`);
             setTimeout(initializeMap, 200);
             return;
           } else {
-            throw new Error('Container not in DOM after 40 retries');
+            throw new Error('Container not properly rendered after 50 retries');
           }
         }
         
@@ -138,7 +138,7 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
     };
 
     // Small delay to ensure container is ready
-    const timer = setTimeout(initializeMap, 1000);
+    const timer = setTimeout(initializeMap, 2000); // Increased from 1000ms to 2000ms
 
     // Cleanup
     return () => {
@@ -302,9 +302,11 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
     <View style={styles.container}>
       <div
         ref={mapContainer}
+        id="tomtom-map-container"
         style={{
           width: '100%',
           height: '100%',
+          minHeight: '400px',
           borderRadius: '12px',
           position: 'relative'
         }}
