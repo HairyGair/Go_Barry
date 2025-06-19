@@ -74,25 +74,25 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
         // Get container element with retry logic
         const container = mapContainer.current;
         if (!container) {
-          if (retryCountRef.current < 20) { // Max 20 retries = 4 seconds
+          if (retryCountRef.current < 40) { // Max 40 retries = 8 seconds
             retryCountRef.current++;
-            console.log(`⏳ Container not ready yet, retrying... (${retryCountRef.current}/20)`);
+            console.log(`⏳ Container not ready yet, retrying... (${retryCountRef.current}/40)`);
             setTimeout(initializeMap, 200);
             return;
           } else {
-            throw new Error('Container element not found after 20 retries');
+            throw new Error('Container element not found after 40 retries');
           }
         }
         
         // Ensure container is in DOM
         if (!document.contains(container)) {
-          if (retryCountRef.current < 20) { // Max 20 retries = 4 seconds
+          if (retryCountRef.current < 40) { // Max 40 retries = 8 seconds
             retryCountRef.current++;
-            console.log(`⏳ Container not in DOM yet, retrying... (${retryCountRef.current}/20)`);
+            console.log(`⏳ Container not in DOM yet, retrying... (${retryCountRef.current}/40)`);
             setTimeout(initializeMap, 200);
             return;
           } else {
-            throw new Error('Container not in DOM after 20 retries');
+            throw new Error('Container not in DOM after 40 retries');
           }
         }
         
@@ -138,7 +138,7 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
     };
 
     // Small delay to ensure container is ready
-    const timer = setTimeout(initializeMap, 500);
+    const timer = setTimeout(initializeMap, 1000);
 
     // Cleanup
     return () => {
