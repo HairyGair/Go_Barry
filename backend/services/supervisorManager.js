@@ -459,7 +459,31 @@ export async function signOutSupervisor(sessionId) {
       .eq('id', sessionId);
     
     console.log(`🚪 Supervisor signed out: ${session.supervisorName}`);
-    return { success: true };
+    // Get supervisor details for activity logging
+    let supervisorInfo = null;
+    try {
+      const { data: supervisor, error } = await supabase
+        .from('supervisors')
+        .select('*')
+        .eq('id', session.supervisorId)
+        .single();
+        
+      if (!error && supervisor) {
+        supervisorInfo = {
+          id: supervisor.id,
+          name: supervisor.name,
+          badge: supervisor.badge,
+          role: supervisor.role
+        };
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not retrieve supervisor info for logout:', error.message);
+    }
+    
+    return { 
+      success: true, 
+      supervisor: supervisorInfo 
+    };
   }
   return { success: false, error: 'Session not found' };
 }

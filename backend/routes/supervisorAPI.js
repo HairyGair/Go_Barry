@@ -5,6 +5,7 @@ import express from 'express';
 import supervisorManager from '../services/supervisorManager.js';
 import messageTemplateManager from '../services/messageTemplateManager.js';
 import { processEnhancedAlerts } from '../services/enhancedAlertProcessor.js';
+import supervisorActivityLogger from '../services/supervisorActivityLogger.js';
 
 const router = express.Router();
 
@@ -49,6 +50,9 @@ router.post('/auth/login', async (req, res) => {
       
       // Add to polling state for display sync
       console.log(`✅ Adding supervisor to active list: ${result.supervisor.name}`);
+      
+      // Log supervisor login activity
+      await supervisorActivityLogger.logLogin(result.supervisor.badge, result.supervisor.name);
       
       res.json({
         success: true,
@@ -120,6 +124,11 @@ router.post('/auth/logout', async (req, res) => {
     
     const result = supervisorManager.signOutSupervisor(sessionId);
     
+    // Log supervisor logout activity if successful
+    if (result.success && result.supervisor) {
+      await supervisorActivityLogger.logLogout(result.supervisor.badge, result.supervisor.name);
+    }
+    
     res.json({
       success: result.success,
       message: result.success ? 'Logged out successfully' : 'Logout failed'
@@ -148,6 +157,18 @@ router.post('/alerts/dismiss', async (req, res) => {
     const result = await supervisorManager.dismissAlert(alertId, sessionId, reason, notes);
     
     if (result.success) {
+      // Log alert dismissal activity
+      const sessionValidation = supervisorManager.validateSupervisorSession(sessionId);
+      if (sessionValidation.success) {
+        await supervisorActivityLogger.logAlertDismissal(
+          sessionValidation.supervisor.badge,
+          sessionValidation.supervisor.name,
+          alertId,
+          reason,
+          result.dismissal?.location
+        );
+      }
+      
       res.json({
         success: true,
         message: 'Alert dismissed successfully',
@@ -280,6 +301,60 @@ router.get('/statistics/dismissals', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch dismissal statistics'
+    });
+  }
+});
+
+// ===== SUPERVISOR ACTIVITY LOGGING =====
+
+// Get recent supervisor activities (for Display Screen)
+router.get('/activity/recent', async (req, res) => {
+  try {
+    const { limit = 50 } = req.query;
+    
+    const activities = await supervisorActivityLogger.getRecentActivities(parseInt(limit));
+    
+    res.json({
+      success: true,
+      activities,
+      count: activities.length,
+      lastUpdated: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Get recent activities error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch recent activities',
+      activities: []
+    });
+  }
+});
+
+// Log supervisor activity (internal use)
+router.post('/activity/log', async (req, res) => {
+  try {
+    const { supervisorBadge, action, details } = req.body;
+    
+    if (!supervisorBadge || !action) {
+      return res.status(400).json({
+        success: false,
+        error: 'Supervisor badge and action are required'
+      });
+    }
+    
+    const result = await supervisorActivityLogger.logActivity(supervisorBadge, action, details);
+    
+    res.json({
+      success: result.success,
+      message: result.success ? 'Activity logged successfully' : 'Failed to log activity',
+      activity: result.activity || null,
+      error: result.error || null
+    });
+  } catch (error) {
+    console.error('❌ Log activity error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to log activity'
     });
   }
 });

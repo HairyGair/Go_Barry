@@ -1,6 +1,7 @@
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
 import microsoftEmailService from '../services/microsoftEmailService.js';
+import supervisorActivityLogger from '../services/supervisorActivityLogger.js';
 
 const router = express.Router();
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
@@ -384,6 +385,22 @@ async function sendRoadworkNotifications(roadwork, emailGroupNames, supervisorId
     }
 
     console.log(`✅ Microsoft 365 notifications sent by ${emailResult.sentBy} for roadwork: ${roadwork.title} to ${recipients.length} recipients`);
+    
+    // Log email activity
+    try {
+      const { validateSupervisorById } = await import('../services/supervisorManager.js');
+      const supervisorResult = await validateSupervisorById(supervisorId);
+      if (supervisorResult.success) {
+        await supervisorActivityLogger.logEmailReport(
+          supervisorResult.supervisor.badge,
+          supervisorResult.supervisor.name,
+          'Roadwork Alert',
+          emailGroupNames.join(', ')
+        );
+      }
+    } catch (logError) {
+      console.warn('⚠️ Failed to log email activity:', logError.message);
+    }
     
   } catch (error) {
     console.error('❌ Send email error:', error);

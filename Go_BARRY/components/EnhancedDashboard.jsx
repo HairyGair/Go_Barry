@@ -502,10 +502,33 @@ const EnhancedDashboard = ({
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>BARRY Intelligence Dashboard FIXED</Text>
-          <Text style={styles.headerSubtitle}>
-          Real-time Traffic Monitoring for Go North East • Request Deduplication Active
-          </Text>
+          <View style={styles.headerContent}>
+            {/* Logo and Title */}
+            <View style={styles.headerLeft}>
+              {isWeb && (
+                <img 
+                  src="/gobarry-logo.png" 
+                  alt="Go BARRY Logo" 
+                  style={{
+                    height: 32,
+                    width: 'auto',
+                    objectFit: 'contain',
+                    marginRight: 12
+                  }}
+                  onError={(e) => {
+                    // Hide logo if it fails to load
+                    e.target.style.display = 'none';
+                  }}
+                />
+              )}
+              <View>
+                <Text style={styles.headerTitle}>BARRY Intelligence Dashboard</Text>
+                <Text style={styles.headerSubtitle}>
+                  Real-time Traffic Monitoring for Go North East • Request Deduplication Active
+                </Text>
+              </View>
+            </View>
+          </View>
         </View>
 
         {/* Supervisor Controls */}
@@ -698,6 +721,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#1F2937',
     padding: 24,
     paddingTop: isWeb ? 24 : 44,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   // Enhanced typography styles
   headerTitle: {
@@ -1111,6 +1144,20 @@ const styles = StyleSheet.create({
   logoutButtonText: {
     fontSize: 12,
     color: '#EF4444',
+    fontWeight: '500',
+  },
+  createRoadworkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  createRoadworkButtonText: {
+    fontSize: 12,
+    color: '#10B981',
     fontWeight: '500',
   },
   loginPrompt: {

@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 // Simple Traffic Card component for mobile alerts
-const SimpleTrafficCard = ({ alert, supervisorSession, onDismiss, onAcknowledge }) => {
+const SimpleTrafficCard = ({ alert, supervisorSession, onDismiss, onAcknowledge, onAddToDatabase }) => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'red': return '#EF4444';
@@ -126,7 +126,18 @@ const SimpleTrafficCard = ({ alert, supervisorSession, onDismiss, onAcknowledge 
         </View>
         
         {supervisorSession && (
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#10B981',
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 6
+              }}
+              onPress={() => onAddToDatabase && onAddToDatabase(alert)}
+            >
+              <Text style={{ fontSize: 11, color: '#FFFFFF', fontWeight: '600' }}>ADD TO DB</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={{
                 backgroundColor: '#F59E0B',
@@ -156,6 +167,7 @@ const SimpleTrafficCard = ({ alert, supervisorSession, onDismiss, onAcknowledge 
   );
 };
 import SupervisorLogin from '../../components/SupervisorLogin';
+import CreateRoadworkModal from '../../components/CreateRoadworkModal';
 import { useSupervisorSession } from '../../components/hooks/useSupervisorSession';
 import { useBarryAPI } from '../../components/hooks/useBARRYapi';
 import { Colors, getStatusColor, getSeverityColor, getTrafficTypeColor } from '../../constants/Colors';
@@ -236,6 +248,8 @@ export default function AlertsScreen() {
   const [showSortModal, setShowSortModal] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showSupervisorLogin, setShowSupervisorLogin] = useState(false);
+  const [showCreateRoadworkModal, setShowCreateRoadworkModal] = useState(false);
+  const [selectedAlertForRoadwork, setSelectedAlertForRoadwork] = useState(null);
 
   // Alert action handlers
   const handleAlertDismiss = async (alertId, reason, notes) => {
@@ -259,6 +273,11 @@ export default function AlertsScreen() {
 
   const handleSupervisorLogin = () => {
     setShowSupervisorLogin(true);
+  };
+
+  const handleAddToDatabase = (alert) => {
+    setSelectedAlertForRoadwork(alert);
+    setShowCreateRoadworkModal(true);
   };
 
   // Advanced filtering and sorting logic
@@ -499,6 +518,7 @@ export default function AlertsScreen() {
               supervisorSession={supervisorSession}
               onDismiss={handleAlertDismiss}
               onAcknowledge={handleAlertAcknowledge}
+              onAddToDatabase={handleAddToDatabase}
             />
           </View>
         )}
@@ -541,6 +561,34 @@ export default function AlertsScreen() {
       <SupervisorLogin 
         visible={showSupervisorLogin}
         onClose={() => setShowSupervisorLogin(false)}
+      />
+
+      {/* Create Roadwork Modal */}
+      <CreateRoadworkModal
+        visible={showCreateRoadworkModal}
+        onClose={() => {
+          setShowCreateRoadworkModal(false);
+          setSelectedAlertForRoadwork(null);
+        }}
+        supervisorData={{ 
+          id: supervisorSession?.sessionId, 
+          name: supervisorName, 
+          email: supervisorRole 
+        }}
+        onRoadworkCreated={(newRoadwork) => {
+          console.log('Roadwork created from alert:', newRoadwork);
+          setShowCreateRoadworkModal(false);
+          setSelectedAlertForRoadwork(null);
+          Alert.alert('Success', 'Traffic alert converted to roadwork entry successfully!');
+        }}
+        prefillData={selectedAlertForRoadwork ? {
+          title: selectedAlertForRoadwork.title || 'Traffic Alert',
+          description: selectedAlertForRoadwork.description || '',
+          location: selectedAlertForRoadwork.location || '',
+          affectedRoutes: selectedAlertForRoadwork.affectsRoutes || [],
+          priority: selectedAlertForRoadwork.severity?.toLowerCase() || 'medium',
+          type: 'incident'
+        } : null}
       />
 
       {/* Sort Modal */}

@@ -59,11 +59,14 @@
 ### Key Components (/Go_BARRY/components/)
 ```
 MAIN INTERFACES:
-- EnhancedDashboard.jsx - Primary supervisor dashboard
+- EnhancedDashboard.jsx - Primary supervisor dashboard (+ Create Roadwork)
 - DisplayScreen.jsx - 24/7 control room display (20s refresh)
 - SupervisorControl.jsx - Supervisor management interface
 - TomTomTrafficMap.jsx - Map component (web only)
 - EventManager.jsx - Major event management
+- CreateRoadworkModal.jsx - Unified roadwork creation modal
+- RoadworksManager.jsx - Roadwork management interface
+- RoadworksDatabase.jsx - Full roadworks database viewer
 
 REMEMBER WHEN EDITING:
 - Use React Native components (View, Text, etc)
@@ -113,6 +116,10 @@ Base URL: https://go-barry.onrender.com
 - `/api/tiles/*` - TomTom map tiles
 - `/api/streetmanager/webhook` - Receives live updates
 - `/api/events/*` - Event management endpoints
+- `/api/roadworks` - Roadwork creation and management
+- `/api/roadworks/{id}/status` - Update roadwork status
+- `/api/roadwork-alerts` - Email notification system
+- `/api/auth/microsoft/*` - Microsoft 365 email integration
 
 ## 👥 SUPERVISOR SYSTEM (REAL DATA)
 
@@ -214,4 +221,49 @@ const styles = StyleSheet.create({
 - Event monitoring system
 - Display screen with map
 - Route matching 80-90% accurate
-- Alert auto-expiration (2-8
+- **Roadwork Creation System** - Unified modal across dashboard + manager
+- **Email Integration** - Microsoft 365 + notification groups
+- **Roadworks Database** - Full CRUD with supervisor audit trail
+- Alert auto-expiration (2-8 hours)
+- Performance optimizations for 2GB memory limit
+
+### 🚧 ROADWORKS MANAGEMENT SYSTEM (NEW)
+
+**Components:**
+- `CreateRoadworkModal.jsx` - Main creation interface with:
+  - Microsoft 365 email login integration
+  - Email group notifications
+  - Route impact assessment
+  - Severity levels and scheduling
+  - Full supervisor audit trail
+
+**Integration Points:**
+- `EnhancedDashboard.jsx` - "Create Roadwork" button in supervisor controls
+- `RoadworksManager.jsx` - Uses unified modal, no duplicate code
+- `RoadworksDatabase.jsx` - Professional table view with actions
+
+**API Endpoints:**
+- `POST /api/roadworks` - Create new roadwork
+- `PUT /api/roadworks/{id}/status` - Update status with notes
+- `POST /api/roadwork-alerts` - Send email notifications
+- `GET /api/roadwork-alerts/email-groups` - Available email groups
+- `GET/POST /api/auth/microsoft/*` - Email authentication
+
+**Features:**
+- Email notifications to multiple groups (Traffic Control, Drivers, etc)
+- Microsoft 365 integration for official emails
+- Status workflow (Reported → Assessing → Planning → Active → Completed)
+- Priority levels (Critical, High, Medium, Low, Planned)
+- Route impact tracking with GTFS matching
+- Supervisor action audit trail
+- Map integration for locations
+- Display screen promotion capabilities
+
+**Usage:**
+1. Supervisors create roadworks via dashboard or manager
+2. System sends automatic email notifications
+3. Roadworks appear in database for tracking
+4. Status updates create full audit trail
+5. Can be promoted to main display screen
+
+### ⚠️ KNOWN ISSUES

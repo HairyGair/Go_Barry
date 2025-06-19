@@ -7,6 +7,7 @@ import supervisorManager, { validateSupervisorSession } from '../services/superv
 import geocodingService, { geocodeLocation } from '../services/geocoding.js';
 import findGTFSRoutesNearCoordinates from '../gtfs-route-matcher.js';
 import { generateDiversionPDF, generateTicketMachineMessage } from '../services/roadworksServices.js';
+import supervisorActivityLogger from '../services/supervisorActivityLogger.js';
 
 const router = express.Router();
 
@@ -401,6 +402,18 @@ router.post('/', async (req, res) => {
     console.log(`✅ Created roadworks task: ${roadwork.id} at ${location} affecting ${affectedRoutes.length} routes`);
     console.log(`   📋 Priority: ${determinedPriority} | Assigned to: ${supervisor.name}`);
     console.log(`   🚌 Routes affected: ${affectedRoutes.slice(0, 5).join(', ')}${affectedRoutes.length > 5 ? '...' : ''}`);
+
+    // Log roadwork creation activity
+    await supervisorActivityLogger.logRoadworkCreation(
+      supervisor.badge,
+      supervisor.name,
+      {
+        location: enhancedLocationName,
+        severity: determinedPriority,
+        status: roadwork.status,
+        affected_routes: affectedRoutes.length
+      }
+    );
 
     res.json({
       success: true,
