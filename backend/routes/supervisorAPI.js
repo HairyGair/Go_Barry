@@ -36,7 +36,7 @@ router.post('/login', async (req, res) => {
     
     console.log(`🔐 Auth attempt: ${supervisorId} with badge ${badge}`);
     
-    const result = supervisorManager.authenticateSupervisor(supervisorId, badge);
+    const result = await supervisorManager.authenticateSupervisor(supervisorId, badge);
     
     if (result.success) {
       // Force session into polling state for immediate sync
@@ -90,7 +90,7 @@ router.post('/auth/login', async (req, res) => {
     
     console.log(`🔐 Auth attempt: ${supervisorId} with badge ${badge}`);
     
-    const result = supervisorManager.authenticateSupervisor(supervisorId, badge);
+    const result = await supervisorManager.authenticateSupervisor(supervisorId, badge);
     
     if (result.success) {
       // Force session into polling state for immediate sync
@@ -142,7 +142,7 @@ router.post('/auth/validate', async (req, res) => {
       });
     }
     
-    const result = supervisorManager.validateSupervisorSession(sessionId);
+    const result = await supervisorManager.validateSupervisorSession(sessionId);
     
     if (result.success) {
       res.json({
@@ -176,7 +176,7 @@ router.post('/auth/logout', async (req, res) => {
       });
     }
     
-    const result = supervisorManager.signOutSupervisor(sessionId);
+    const result = await supervisorManager.signOutSupervisor(sessionId);
     
     // Log supervisor logout activity if successful
     if (result.success && result.supervisor) {
@@ -212,7 +212,7 @@ router.post('/alerts/dismiss', async (req, res) => {
     
     if (result.success) {
       // Log alert dismissal activity
-      const sessionValidation = supervisorManager.validateSupervisorSession(sessionId);
+      const sessionValidation = await supervisorManager.validateSupervisorSession(sessionId);
       if (sessionValidation.success) {
         await supervisorActivityLogger.logAlertDismissal(
           sessionValidation.supervisor.badge,
@@ -281,7 +281,7 @@ router.post('/alerts/restore', async (req, res) => {
 // Get all supervisors (for admin)
 router.get('/supervisors', async (req, res) => {
   try {
-    const supervisors = supervisorManager.getAllSupervisors();
+    const supervisors = await supervisorManager.getAllSupervisors();
     res.json({
       success: true,
       supervisors
@@ -322,7 +322,7 @@ router.get('/supervisors/:supervisorId/activity', async (req, res) => {
     const { supervisorId } = req.params;
     const { limit = 50 } = req.query;
     
-    const activity = supervisorManager.getSupervisorActivity(supervisorId, parseInt(limit));
+    const activity = await supervisorManager.getSupervisorActivity(supervisorId, parseInt(limit));
     
     res.json({
       success: true,
@@ -343,7 +343,7 @@ router.get('/statistics/dismissals', async (req, res) => {
   try {
     const { timeRange = 'today' } = req.query;
     
-    const stats = supervisorManager.getDismissalStatistics(timeRange);
+    const stats = await supervisorManager.getDismissalStatistics(timeRange);
     
     res.json({
       success: true,
@@ -427,7 +427,7 @@ router.post('/admin/logout-all', async (req, res) => {
       });
     }
     
-    const result = supervisorManager.logoutAllSupervisors(sessionId);
+    const result = await supervisorManager.logoutAllSupervisors(sessionId);
     
     if (result.success) {
       res.json({
@@ -562,7 +562,7 @@ router.get('/admin/check-permissions', async (req, res) => {
     }
     
     // Validate session
-    const sessionValidation = supervisorManager.validateSupervisorSession(sessionId);
+    const sessionValidation = await supervisorManager.validateSupervisorSession(sessionId);
     if (!sessionValidation.success) {
       return res.status(401).json({
         success: false,
@@ -570,7 +570,7 @@ router.get('/admin/check-permissions', async (req, res) => {
       });
     }
     
-    const hasAdmin = supervisorManager.hasAdminPermissions(sessionValidation.supervisor.id);
+    const hasAdmin = await supervisorManager.hasAdminPermissions(sessionValidation.supervisor.id);
     
     res.json({
       success: true,
@@ -678,11 +678,11 @@ router.get('/debug/sessions', async (req, res) => {
 router.post('/debug/test-session', async (req, res) => {
   try {
     // Create a test session for Alex Woodcock
-    const result = supervisorManager.authenticateSupervisor('supervisor001', 'AW001');
+    const result = await supervisorManager.authenticateSupervisor('supervisor001', 'AW001');
     
     if (result.success) {
       // Validate the session immediately
-      const validation = supervisorManager.validateSupervisorSession(result.sessionId);
+      const validation = await supervisorManager.validateSupervisorSession(result.sessionId);
       
       res.json({
         success: true,
@@ -786,7 +786,7 @@ router.post('/templates/:templateId/send', async (req, res) => {
     }
     
     // Validate supervisor session
-    const sessionResult = supervisorManager.validateSupervisorSession(sessionId);
+    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
     if (!sessionResult.success) {
       return res.status(401).json({
         success: false,
@@ -912,7 +912,7 @@ router.post('/acknowledge-alert', async (req, res) => {
     }
 
     // Validate supervisor session
-    const sessionResult = supervisorManager.validateSupervisorSession(sessionId);
+    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
     if (!sessionResult.success) {
       return res.status(401).json({
         success: false,
@@ -967,7 +967,7 @@ router.post('/update-priority', async (req, res) => {
     }
 
     // Validate supervisor session
-    const sessionResult = supervisorManager.validateSupervisorSession(sessionId);
+    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
     if (!sessionResult.success) {
       return res.status(401).json({
         success: false,
@@ -1027,7 +1027,7 @@ router.post('/add-note', async (req, res) => {
     }
 
     // Validate supervisor session
-    const sessionResult = supervisorManager.validateSupervisorSession(sessionId);
+    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
     if (!sessionResult.success) {
       return res.status(401).json({
         success: false,
@@ -1085,7 +1085,7 @@ router.post('/broadcast-message', async (req, res) => {
     }
 
     // Validate supervisor session
-    const sessionResult = supervisorManager.validateSupervisorSession(sessionId);
+    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
     if (!sessionResult.success) {
       return res.status(401).json({
         success: false,
@@ -1154,7 +1154,7 @@ router.post('/dismiss-from-display', async (req, res) => {
     }
 
     // Validate supervisor session
-    const sessionResult = supervisorManager.validateSupervisorSession(sessionId);
+    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
     if (!sessionResult.success) {
       return res.status(401).json({
         success: false,
@@ -1208,7 +1208,7 @@ router.post('/lock-on-display', async (req, res) => {
     }
 
     // Validate supervisor session
-    const sessionResult = supervisorManager.validateSupervisorSession(sessionId);
+    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
     if (!sessionResult.success) {
       return res.status(401).json({
         success: false,
@@ -1262,7 +1262,7 @@ router.post('/unlock-from-display', async (req, res) => {
     }
 
     // Validate supervisor session
-    const sessionResult = supervisorManager.validateSupervisorSession(sessionId);
+    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
     if (!sessionResult.success) {
       return res.status(401).json({
         success: false,
