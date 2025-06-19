@@ -129,13 +129,16 @@ async function initializeApplication() {
     await initializeEnhancedGTFS();
     console.log('✅ Enhanced GTFS route matching ready');
     
-    // FIXED: Non-blocking Service Frequency Analyzer initialization
+    // FIXED: Truly non-blocking Service Frequency Analyzer initialization
     console.log('🚌 Starting Service Frequency Analyzer (background)...');
-    serviceFrequencyAnalyzer.initialize().then(() => {
-      console.log('✅ Service Frequency Analyzer ready');
-    }).catch(error => {
-      console.warn('⚠️ Service Frequency Analyzer failed - continuing without it:', error.message);
-    });
+    // Don't await - let it initialize in background
+    setTimeout(() => {
+      serviceFrequencyAnalyzer.initialize().then(() => {
+        console.log('✅ Service Frequency Analyzer ready');
+      }).catch(error => {
+        console.warn('⚠️ Service Frequency Analyzer failed - continuing without it:', error.message);
+      });
+    }, 1000); // Start after 1 second to not block main initialization
     
     try {
       const routesTxt = await fs.readFile(path.join(__dirname, 'data/routes.txt'), 'utf-8');
@@ -1460,7 +1463,7 @@ async function startServer() {
     await Promise.race([
       initializeApplication(),
       new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Initialization timeout after 30 seconds')), 30000)
+        setTimeout(() => reject(new Error('Initialization timeout after 60 seconds')), 60000)
       )
     ]);
     
@@ -1548,4 +1551,4 @@ process.on('unhandledRejection', err => {
 });
 });
 
-export default app;// Deployment timestamp: Tue 10 Jun 2025 10:40:34 BST
+export default app;// Deployment timestamp: Thu 19 Jun 2025 22:17:00 BST
