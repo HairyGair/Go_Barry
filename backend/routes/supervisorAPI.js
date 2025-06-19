@@ -902,21 +902,43 @@ router.get('/sync-status', async (req, res) => {
 // Acknowledge alert
 router.post('/acknowledge-alert', async (req, res) => {
   try {
-    const { alertId, reason, notes, timestamp } = req.body;
-    
-    if (!alertId || !reason) {
+    const { alertId, sessionId, reason, notes, timestamp } = req.body;
+
+    if (!alertId || !sessionId || !reason) {
       return res.status(400).json({
         success: false,
-        error: 'Alert ID and reason are required'
+        error: 'Alert ID, session ID, and reason are required'
       });
     }
-    
+
+    // Validate supervisor session
+    const sessionResult = supervisorManager.validateSupervisorSession(sessionId);
+    if (!sessionResult.success) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid session'
+      });
+    }
+
     // Add to acknowledged alerts
     pollingState.acknowledgedAlerts.add(alertId);
     pollingState.lastUpdated = Date.now();
-    
+
+    // Log system action
+    await supervisorActivityLogger.logSystemAction(
+      sessionResult.supervisor.badge,
+      sessionResult.supervisor.name,
+      'acknowledge-alert',
+      {
+        alert_id: alertId,
+        reason,
+        notes,
+        timestamp: timestamp || pollingState.lastUpdated
+      }
+    );
+
     console.log(`✅ Alert ${alertId} acknowledged: ${reason}`);
-    
+
     res.json({
       success: true,
       message: 'Alert acknowledged successfully',
@@ -935,15 +957,24 @@ router.post('/acknowledge-alert', async (req, res) => {
 // Update alert priority
 router.post('/update-priority', async (req, res) => {
   try {
-    const { alertId, priority, reason, timestamp } = req.body;
-    
-    if (!alertId || !priority || !reason) {
+    const { alertId, sessionId, priority, reason, timestamp } = req.body;
+
+    if (!alertId || !sessionId || !priority || !reason) {
       return res.status(400).json({
         success: false,
-        error: 'Alert ID, priority, and reason are required'
+        error: 'Alert ID, session ID, priority, and reason are required'
       });
     }
-    
+
+    // Validate supervisor session
+    const sessionResult = supervisorManager.validateSupervisorSession(sessionId);
+    if (!sessionResult.success) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid session'
+      });
+    }
+
     // Update priority override
     pollingState.priorityOverrides.set(alertId, {
       priority: priority.toUpperCase(),
@@ -951,9 +982,22 @@ router.post('/update-priority', async (req, res) => {
       timestamp: timestamp || Date.now()
     });
     pollingState.lastUpdated = Date.now();
-    
+
+    // Log system action
+    await supervisorActivityLogger.logSystemAction(
+      sessionResult.supervisor.badge,
+      sessionResult.supervisor.name,
+      'update-priority',
+      {
+        alert_id: alertId,
+        priority: priority,
+        reason,
+        timestamp: timestamp || pollingState.lastUpdated
+      }
+    );
+
     console.log(`🎯 Alert ${alertId} priority updated to ${priority}: ${reason}`);
-    
+
     res.json({
       success: true,
       message: 'Priority updated successfully',
@@ -973,24 +1017,45 @@ router.post('/update-priority', async (req, res) => {
 // Add note to alert
 router.post('/add-note', async (req, res) => {
   try {
-    const { alertId, note, timestamp } = req.body;
-    
-    if (!alertId || !note) {
+    const { alertId, sessionId, note, timestamp } = req.body;
+
+    if (!alertId || !sessionId || !note) {
       return res.status(400).json({
         success: false,
-        error: 'Alert ID and note are required'
+        error: 'Alert ID, session ID, and note are required'
       });
     }
-    
+
+    // Validate supervisor session
+    const sessionResult = supervisorManager.validateSupervisorSession(sessionId);
+    if (!sessionResult.success) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid session'
+      });
+    }
+
     // Add supervisor note
     pollingState.supervisorNotes.set(alertId, {
       note,
       timestamp: timestamp || Date.now()
     });
     pollingState.lastUpdated = Date.now();
-    
+
+    // Log system action
+    await supervisorActivityLogger.logSystemAction(
+      sessionResult.supervisor.badge,
+      sessionResult.supervisor.name,
+      'add-note',
+      {
+        alert_id: alertId,
+        note,
+        timestamp: timestamp || pollingState.lastUpdated
+      }
+    );
+
     console.log(`📝 Note added to alert ${alertId}: ${note}`);
-    
+
     res.json({
       success: true,
       message: 'Note added successfully',
@@ -1010,15 +1075,24 @@ router.post('/add-note', async (req, res) => {
 // Broadcast message
 router.post('/broadcast-message', async (req, res) => {
   try {
-    const { message, priority, duration, timestamp } = req.body;
-    
-    if (!message) {
+    const { message, sessionId, priority, duration, timestamp } = req.body;
+
+    if (!message || !sessionId) {
       return res.status(400).json({
         success: false,
-        error: 'Message is required'
+        error: 'Message and session ID are required'
       });
     }
-    
+
+    // Validate supervisor session
+    const sessionResult = supervisorManager.validateSupervisorSession(sessionId);
+    if (!sessionResult.success) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid session'
+      });
+    }
+
     // Add custom message
     const messageObj = {
       id: `msg_${Date.now()}`,
@@ -1027,18 +1101,31 @@ router.post('/broadcast-message', async (req, res) => {
       duration: duration || 30000,
       timestamp: timestamp || Date.now()
     };
-    
+
     pollingState.customMessages.push(messageObj);
     pollingState.lastUpdated = Date.now();
-    
+
+    // Log system action
+    await supervisorActivityLogger.logSystemAction(
+      sessionResult.supervisor.badge,
+      sessionResult.supervisor.name,
+      'broadcast-message',
+      {
+        message,
+        priority: priority || 'info',
+        duration: duration || 30000,
+        timestamp: timestamp || pollingState.lastUpdated
+      }
+    );
+
     // Auto-remove message after duration
     setTimeout(() => {
       pollingState.customMessages = pollingState.customMessages.filter(m => m.id !== messageObj.id);
       pollingState.lastUpdated = Date.now();
     }, messageObj.duration);
-    
+
     console.log(`📢 Message broadcast: ${message} (${priority})`);
-    
+
     res.json({
       success: true,
       message: 'Message broadcast successfully',
@@ -1057,21 +1144,42 @@ router.post('/broadcast-message', async (req, res) => {
 // Dismiss alert from display
 router.post('/dismiss-from-display', async (req, res) => {
   try {
-    const { alertId, reason, timestamp } = req.body;
-    
-    if (!alertId || !reason) {
+    const { alertId, sessionId, reason, timestamp } = req.body;
+
+    if (!alertId || !sessionId || !reason) {
       return res.status(400).json({
         success: false,
-        error: 'Alert ID and reason are required'
+        error: 'Alert ID, session ID, and reason are required'
       });
     }
-    
+
+    // Validate supervisor session
+    const sessionResult = supervisorManager.validateSupervisorSession(sessionId);
+    if (!sessionResult.success) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid session'
+      });
+    }
+
     // Add to dismissed from display
     pollingState.dismissedFromDisplay.add(alertId);
     pollingState.lastUpdated = Date.now();
-    
+
+    // Log system action
+    await supervisorActivityLogger.logSystemAction(
+      sessionResult.supervisor.badge,
+      sessionResult.supervisor.name,
+      'dismiss-from-display',
+      {
+        alert_id: alertId,
+        reason,
+        timestamp: timestamp || pollingState.lastUpdated
+      }
+    );
+
     console.log(`👁️‍🗨️ Alert ${alertId} dismissed from display: ${reason}`);
-    
+
     res.json({
       success: true,
       message: 'Alert dismissed from display successfully',
@@ -1090,21 +1198,42 @@ router.post('/dismiss-from-display', async (req, res) => {
 // Lock alert on display
 router.post('/lock-on-display', async (req, res) => {
   try {
-    const { alertId, reason, timestamp } = req.body;
-    
-    if (!alertId || !reason) {
+    const { alertId, sessionId, reason, timestamp } = req.body;
+
+    if (!alertId || !sessionId || !reason) {
       return res.status(400).json({
         success: false,
-        error: 'Alert ID and reason are required'
+        error: 'Alert ID, session ID, and reason are required'
       });
     }
-    
+
+    // Validate supervisor session
+    const sessionResult = supervisorManager.validateSupervisorSession(sessionId);
+    if (!sessionResult.success) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid session'
+      });
+    }
+
     // Add to locked on display
     pollingState.lockedOnDisplay.add(alertId);
     pollingState.lastUpdated = Date.now();
-    
+
+    // Log system action
+    await supervisorActivityLogger.logSystemAction(
+      sessionResult.supervisor.badge,
+      sessionResult.supervisor.name,
+      'lock-on-display',
+      {
+        alert_id: alertId,
+        reason,
+        timestamp: timestamp || pollingState.lastUpdated
+      }
+    );
+
     console.log(`🔒 Alert ${alertId} locked on display: ${reason}`);
-    
+
     res.json({
       success: true,
       message: 'Alert locked on display successfully',
@@ -1123,21 +1252,42 @@ router.post('/lock-on-display', async (req, res) => {
 // Unlock alert from display
 router.post('/unlock-from-display', async (req, res) => {
   try {
-    const { alertId, reason, timestamp } = req.body;
-    
-    if (!alertId || !reason) {
+    const { alertId, sessionId, reason, timestamp } = req.body;
+
+    if (!alertId || !sessionId || !reason) {
       return res.status(400).json({
         success: false,
-        error: 'Alert ID and reason are required'
+        error: 'Alert ID, session ID, and reason are required'
       });
     }
-    
+
+    // Validate supervisor session
+    const sessionResult = supervisorManager.validateSupervisorSession(sessionId);
+    if (!sessionResult.success) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid session'
+      });
+    }
+
     // Remove from locked on display
     pollingState.lockedOnDisplay.delete(alertId);
     pollingState.lastUpdated = Date.now();
-    
+
+    // Log system action
+    await supervisorActivityLogger.logSystemAction(
+      sessionResult.supervisor.badge,
+      sessionResult.supervisor.name,
+      'unlock-from-display',
+      {
+        alert_id: alertId,
+        reason,
+        timestamp: timestamp || pollingState.lastUpdated
+      }
+    );
+
     console.log(`🔓 Alert ${alertId} unlocked from display: ${reason}`);
-    
+
     res.json({
       success: true,
       message: 'Alert unlocked from display successfully',

@@ -26,6 +26,11 @@ class SupervisorPollingService {
     this.retryCount = 0;
     this.maxRetries = 5;
     this.backoffMultiplier = 1.5;
+    this.sessionId = null;
+  }
+
+  setSessionId(sessionId) {
+    this.sessionId = sessionId;
   }
 
   // Start optimized polling
@@ -70,11 +75,16 @@ class SupervisorPollingService {
       const url = `${API_BASE}/api/supervisor/sync-status`;
       console.log(`🔗 Making request to: ${url}`);
       
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (this.sessionId) {
+        headers['X-Session-Id'] = this.sessionId;
+      }
+      
       const response = await fetch(url, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         timeout: 5000 // 5 second timeout
       });
 
@@ -252,11 +262,16 @@ class SupervisorPollingService {
   // Supervisor action methods
   async acknowledgeAlert(alertId, reason, notes = '') {
     try {
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (this.sessionId) {
+        headers['X-Session-Id'] = this.sessionId;
+      }
+
       const response = await fetch(`${API_BASE}/api/supervisor/acknowledge-alert`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           alertId,
           reason,
@@ -282,11 +297,16 @@ class SupervisorPollingService {
 
   async updateAlertPriority(alertId, priority, reason) {
     try {
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (this.sessionId) {
+        headers['X-Session-Id'] = this.sessionId;
+      }
+
       const response = await fetch(`${API_BASE}/api/supervisor/update-priority`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           alertId,
           priority: priority.toUpperCase(),
@@ -312,11 +332,16 @@ class SupervisorPollingService {
 
   async addNoteToAlert(alertId, note) {
     try {
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (this.sessionId) {
+        headers['X-Session-Id'] = this.sessionId;
+      }
+
       const response = await fetch(`${API_BASE}/api/supervisor/add-note`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           alertId,
           note,
@@ -341,11 +366,16 @@ class SupervisorPollingService {
 
   async broadcastMessage(message, priority = 'info', duration = 30000) {
     try {
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (this.sessionId) {
+        headers['X-Session-Id'] = this.sessionId;
+      }
+
       const response = await fetch(`${API_BASE}/api/supervisor/broadcast-message`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           message,
           priority: priority.toLowerCase(),
@@ -371,11 +401,16 @@ class SupervisorPollingService {
 
   async dismissFromDisplay(alertId, reason) {
     try {
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (this.sessionId) {
+        headers['X-Session-Id'] = this.sessionId;
+      }
+
       const response = await fetch(`${API_BASE}/api/supervisor/dismiss-from-display`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           alertId,
           reason,
@@ -400,11 +435,16 @@ class SupervisorPollingService {
 
   async lockOnDisplay(alertId, reason) {
     try {
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (this.sessionId) {
+        headers['X-Session-Id'] = this.sessionId;
+      }
+
       const response = await fetch(`${API_BASE}/api/supervisor/lock-on-display`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           alertId,
           reason,
@@ -429,11 +469,16 @@ class SupervisorPollingService {
 
   async unlockFromDisplay(alertId, reason) {
     try {
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (this.sessionId) {
+        headers['X-Session-Id'] = this.sessionId;
+      }
+
       const response = await fetch(`${API_BASE}/api/supervisor/unlock-from-display`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({
           alertId,
           reason,

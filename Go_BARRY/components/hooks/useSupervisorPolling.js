@@ -124,14 +124,19 @@ export const useSupervisorPolling = ({
     console.log(`🔌 ${clientType} connecting to polling service...`);
     console.log(`📍 API Base URL:`, supervisorPollingService);
     setConnectionState('CONNECTING');
-    
+
+    // Set sessionId if provided
+    if (sessionId) {
+      supervisorPollingService.setSessionId(sessionId);
+    }
+
     // Add listener for state updates
     const removeListener = supervisorPollingService.addListener(handleStateUpdate);
-    
+
     // Start polling
     console.log(`🚀 Starting polling for ${clientType}...`);
     supervisorPollingService.startPolling();
-    
+
     // Get initial state
     const initialState = supervisorPollingService.getState();
     console.log(`📋 Initial state for ${clientType}:`, {
@@ -139,7 +144,7 @@ export const useSupervisorPolling = ({
       connectedSupervisors: initialState.connectedSupervisors,
       activeSupervisors: initialState.activeSupervisors?.length || 0
     });
-    
+
     setAcknowledgedAlerts(initialState.acknowledgedAlerts);
     setPriorityOverrides(initialState.priorityOverrides);
     setSupervisorNotes(initialState.supervisorNotes);
@@ -155,11 +160,12 @@ export const useSupervisorPolling = ({
     onConnectionChangeRef.current?.(initialState.connected);
 
     return removeListener;
-  }, [clientType, handleStateUpdate]);
+  }, [clientType, handleStateUpdate, sessionId]);
 
   // Disconnect from polling service
   const disconnect = useCallback(() => {
     console.log(`🔌 ${clientType} disconnecting from polling service...`);
+    supervisorPollingService.setSessionId(null);
     supervisorPollingService.stopPolling();
     setIsConnected(false);
     setConnectionState('DISCONNECTED');
