@@ -1468,10 +1468,11 @@ async function startServer() {
     supervisorSyncService.initialize(server);
     
     // Start listening
-    server.listen(PORT, () => {
-      console.log(`✅ Server started on port ${PORT}`);
+    server.listen(process.env.PORT || 3001, () => {
+      const port = process.env.PORT || 3001;
+      console.log(`✅ Server started on port ${port}`);
       console.log(`\n🚀 Go BARRY Backend Started Successfully`);
-      console.log(`📡 Server: http://localhost:${PORT}`);
+      console.log(`📡 Server: http://localhost:${port}`);
       console.log(`🌐 Public: https://go-barry.onrender.com`);
       console.log(`\n📡 Available Endpoints:`);
       console.log(`   🎯 Main: /api/alerts`);
@@ -1529,9 +1530,9 @@ startServer().catch(error => {
       timestamp: new Date().toISOString()
     }));
   });
-  
-  emergencyServer.listen(PORT, () => {
-    console.log(`🚨 Emergency server listening on port ${PORT}`);
+  emergencyServer.listen(process.env.PORT || 3001, () => {
+    const port = process.env.PORT || 3001;
+    console.log(`🚨 Emergency server listening on port ${port}`);
   });
 
 
