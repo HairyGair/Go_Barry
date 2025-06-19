@@ -1,5 +1,5 @@
 // Go_BARRY/components/TomTomTrafficMap.jsx
-// Simplified TomTom Maps implementation - Fixed for Display Screen
+// Fixed TomTom Maps implementation for Display Screen
 
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
@@ -24,69 +24,68 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
 
     const initializeMap = async () => {
       try {
-        // Check if component is still mounted
-        if (!mountedRef.current) {
-          console.log('🛑 Component unmounted, aborting map initialization');
-          return;
-        }
+        if (!mountedRef.current) return;
 
-        console.log(`🗺️ Starting TomTom Map initialization...`);
+        console.log('🗺️ Starting TomTom Map initialization...');
         
-        // Check if we're in a browser
-        if (typeof window === 'undefined' || typeof document === 'undefined') {
-          throw new Error('Not in browser environment');
-        }
-
         // Load TomTom SDK if not already loaded
         if (!window.tt) {
           console.log('📦 Loading TomTom Maps SDK...');
           
-          // Create script element
-          const script = document.createElement('script');
-          script.src = 'https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps-web.min.js';
-          script.async = true;
+          // Load CSS first
+          if (!document.querySelector('link[href*="tomtom"]')) {
+            const link = document.createElement('link');
+            link.href = 'https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps.css';
+            link.rel = 'stylesheet';
+            document.head.appendChild(link);
+          }
 
-          // Wait for script to load, but delay injection by 250ms to ensure DOM is stable
-          await new Promise((resolve, reject) => {
-            script.onload = resolve;
-            script.onerror = () => reject(new Error('Failed to load TomTom SDK'));
-            setTimeout(() => {
+          // Load JS
+          if (!document.querySelector('script[src*="tomtom"]')) {
+            const script = document.createElement('script');
+            script.src = 'https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps-web.min.js';
+            
+            await new Promise((resolve, reject) => {
+              script.onload = resolve;
+              script.onerror = () => reject(new Error('Failed to load TomTom SDK'));
               document.head.appendChild(script);
-            }, 250);
-          });
+            });
+          }
 
-          // Load CSS
-          const link = document.createElement('link');
-          link.href = 'https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps.css';
-          link.rel = 'stylesheet';
-          document.head.appendChild(link);
-
-          // Wait a moment for SDK to initialize
-          await new Promise(resolve => setTimeout(resolve, 100));
+          // Wait for SDK to be ready
+          let attempts = 0;
+          while (!window.tt && attempts < 50) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+          }
         }
 
         // Verify SDK is ready
         if (!window.tt || !window.tt.map) {
-          throw new Error('TomTom SDK not properly loaded');
+          throw new Error('TomTom SDK not available');
         }
 
         console.log('✅ TomTom SDK ready');
 
-        // Get container element
-        const container = mapContainer.current;
-        if (!container) {
-          throw new Error('Container element not found');
+        // Wait for container to be ready
+        let container = mapContainer.current;
+        let attempts = 0;
+        
+        while ((!container || !document.contains(container) || container.offsetWidth === 0) && attempts < 100) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+          container = mapContainer.current;
+          attempts++;
+          
+          if (!mountedRef.current) return;
+        }
+
+        if (!container || container.offsetWidth === 0) {
+          throw new Error('Container not ready');
         }
         
-        // Ensure container is in DOM and has dimensions
-        if (!document.contains(container) || container.offsetWidth === 0 || container.offsetHeight === 0) {
-          throw new Error('Container not properly rendered');
-        }
-        
-        console.log('✅ Container ready:', container);
+        console.log('✅ Container ready:', `${container.offsetWidth}x${container.offsetHeight}`);
 
         // Create map
-        console.log('🗺️ Creating map instance...');
         const map = window.tt.map({
           key: TOMTOM_API_KEY,
           container: container,
@@ -97,8 +96,10 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
 
         mapRef.current = map;
 
-        // Wait for map to load
+        // Handle map load
         map.on('load', () => {
+          if (!mountedRef.current) return;
+          
           console.log('✅ Map loaded successfully');
           setMapLoaded(true);
           setMapError(null);
@@ -124,23 +125,17 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
       }
     };
 
-    const waitForContainer = () => {
-      const check = () => {
-        const container = mapContainer.current;
-        if (container && document.contains(container) && container.offsetWidth > 0 && container.offsetHeight > 0) {
-          initializeMap();
-        } else {
-          requestAnimationFrame(check);
-        }
-      };
-      requestAnimationFrame(check);
-    };
+    // Use requestAnimationFrame for better timing
+    const initTimer = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setTimeout(initializeMap, 100);
+      });
+    });
 
-    waitForContainer();
-
-    // Cleanup
     return () => {
       mountedRef.current = false;
+      cancelAnimationFrame(initTimer);
+      
       if (mapRef.current) {
         try {
           mapRef.current.remove();
