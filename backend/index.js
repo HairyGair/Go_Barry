@@ -1530,8 +1530,8 @@ startServer().catch(error => {
       timestamp: new Date().toISOString()
     }));
   });
-  emergencyServer.listen(process.env.PORT || 3001, () => {
-    const port = process.env.PORT || 3001;
+  emergencyServer.listen(3456, () => {
+    const port = 3456;
     console.log(`🚨 Emergency server listening on port ${port}`);
   });
 
