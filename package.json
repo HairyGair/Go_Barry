@@ -22,7 +22,11 @@
     "deploy:render": "git add . && git commit -m 'Deploy to Render' && git push origin main",
     "deploy:cpanel": "./deploy-to-cpanel.sh",
     "deploy:cpanel:test": "cd Go_BARRY && npm run serve:cpanel",
-    "configure:cpanel": "echo 'Configuring for cPanel deployment with gobarry.co.uk...' && npm run deploy:cpanel"
+    "configure:cpanel": "echo 'Configuring for cPanel deployment with gobarry.co.uk...' && npm run deploy:cpanel",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "install:playwright": "playwright install"
   },
   "dependencies": {
     "expo": "^53.0.11",
@@ -31,7 +35,9 @@
     "ws": "^8.18.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.44.0",
     "concurrently": "^8.2.0",
+    "playwright": "^1.44.0",
     "serve": "^14.2.0"
   },
   "keywords": [
