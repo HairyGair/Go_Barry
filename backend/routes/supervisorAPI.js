@@ -22,6 +22,60 @@ router.use((req, res, next) => {
   next();
 });
 
+// Supervisor authentication (both paths for compatibility)
+router.post('/login', async (req, res) => {
+  try {
+    const { supervisorId, badge } = req.body;
+    
+    if (!supervisorId || !badge) {
+      return res.status(400).json({
+        success: false,
+        error: 'Supervisor ID and badge are required'
+      });
+    }
+    
+    console.log(`🔐 Auth attempt: ${supervisorId} with badge ${badge}`);
+    
+    const result = supervisorManager.authenticateSupervisor(supervisorId, badge);
+    
+    if (result.success) {
+      // Force session into polling state for immediate sync
+      const sessionInfo = {
+        supervisorId: result.supervisor.id,
+        supervisorName: result.supervisor.name,
+        startTime: new Date().toISOString(),
+        lastActivity: new Date().toISOString(),
+        active: true
+      };
+      
+      // Add to polling state for display sync
+      console.log(`✅ Adding supervisor to active list: ${result.supervisor.name}`);
+      
+      // Log supervisor login activity
+      await supervisorActivityLogger.logLogin(result.supervisor.badge, result.supervisor.name);
+      
+      res.json({
+        success: true,
+        message: 'Authentication successful',
+        sessionId: result.sessionId,
+        supervisor: result.supervisor
+      });
+    } else {
+      console.log(`❌ Auth failed: ${result.error}`);
+      res.status(401).json({
+        success: false,
+        error: result.error
+      });
+    }
+  } catch (error) {
+    console.error('❌ Supervisor auth error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Authentication failed'
+    });
+  }
+});
+
 // Supervisor authentication
 router.post('/auth/login', async (req, res) => {
   try {

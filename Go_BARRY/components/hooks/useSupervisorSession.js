@@ -284,7 +284,7 @@ export const useSupervisorSession = () => {
       console.log('🔍 Debug info:');
       console.log('- API_BASE_URL:', API_BASE_URL);
       console.log('- loginData:', loginData);
-      console.log('- supervisor found:', !!supervisor);
+      console.log('- supervisor found:', !!SUPERVISOR_DB[loginData.supervisorId]);
       console.log('- isClient:', typeof window !== 'undefined');
       
       return { success: false, error: errorMessage };
