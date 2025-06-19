@@ -45,12 +45,14 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
           const script = document.createElement('script');
           script.src = 'https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps-web.min.js';
           script.async = true;
-          
-          // Wait for script to load
+
+          // Wait for script to load, but delay injection by 250ms to ensure DOM is stable
           await new Promise((resolve, reject) => {
             script.onload = resolve;
             script.onerror = () => reject(new Error('Failed to load TomTom SDK'));
-            document.head.appendChild(script);
+            setTimeout(() => {
+              document.head.appendChild(script);
+            }, 250);
           });
 
           // Load CSS
