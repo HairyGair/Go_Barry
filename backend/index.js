@@ -129,23 +129,28 @@ async function initializeApplication() {
     await initializeEnhancedGTFS();
     console.log('✅ Enhanced GTFS route matching ready');
     
-    console.log('🚌 Initializing Service Frequency Analyzer...');
-    await serviceFrequencyAnalyzer.initialize();
-    console.log('✅ Service Frequency Analyzer ready');
+    // FIXED: Non-blocking Service Frequency Analyzer initialization
+    console.log('🚌 Starting Service Frequency Analyzer (background)...');
+    serviceFrequencyAnalyzer.initialize().then(() => {
+      console.log('✅ Service Frequency Analyzer ready');
+    }).catch(error => {
+      console.warn('⚠️ Service Frequency Analyzer failed - continuing without it:', error.message);
+    });
     
-    const routesTxt = await fs.readFile(path.join(__dirname, 'data/routes.txt'), 'utf-8');
-    const records = parse(routesTxt, { columns: true, skip_empty_lines: true });
-    for (const rec of records) {
-      if (rec.route_short_name) {
-        GTFS_ROUTES.add(rec.route_short_name.trim());
+    try {
+      const routesTxt = await fs.readFile(path.join(__dirname, 'data/routes.txt'), 'utf-8');
+      const records = parse(routesTxt, { columns: true, skip_empty_lines: true });
+      for (const rec of records) {
+        if (rec.route_short_name) {
+          GTFS_ROUTES.add(rec.route_short_name.trim());
+        }
       }
+      console.log(`🚌 Loaded ${GTFS_ROUTES.size} GTFS routes`);
+    } catch (err) {
+      console.error('❌ Failed to load routes.txt:', err);
+      // Don't fail startup for missing routes - use fallback
+      console.log('⚠️ Using fallback route matching');
     }
-    console.log(`🚌 Loaded ${GTFS_ROUTES.size} GTFS routes`);
-  } catch (err) {
-    console.error('❌ Failed to load routes.txt:', err);
-    // Don't fail startup for missing routes - use fallback
-    console.log('⚠️ Using fallback route matching');
-  }
   
   // Load dismissed alerts for persistence across restarts
   try {
@@ -726,18 +731,29 @@ async function processAlertsOptimized(alerts) {
         }
       }
       
-      // Add frequency data for affected routes
+      // Add frequency data for affected routes (if analyzer is ready)
       if (alert.affectsRoutes && alert.affectsRoutes.length > 0) {
-        const frequencies = serviceFrequencyAnalyzer.getMultipleRouteFrequencies(alert.affectsRoutes);
-        const summaries = {};
-        for (const routeId of alert.affectsRoutes) {
-          summaries[routeId] = serviceFrequencyAnalyzer.getFrequencySummary(routeId);
+        try {
+          if (serviceFrequencyAnalyzer.isInitialized) {
+            const frequencies = serviceFrequencyAnalyzer.getMultipleRouteFrequencies(alert.affectsRoutes);
+            const summaries = {};
+            for (const routeId of alert.affectsRoutes) {
+              summaries[routeId] = serviceFrequencyAnalyzer.getFrequencySummary(routeId);
+            }
+            const impact = serviceFrequencyAnalyzer.getImpactScore(alert.affectsRoutes);
+            
+            alert.routeFrequencies = frequencies;
+            alert.routeFrequencySummaries = summaries;
+            alert.frequencyImpact = impact;
+          } else {
+            // Analyzer not ready yet - skip frequency data
+            alert.routeFrequencies = {};
+            alert.routeFrequencySummaries = {};
+            alert.frequencyImpact = { score: 0, impactLevel: 'unknown' };
+          }
+        } catch (error) {
+          console.warn(`⚠️ Error getting frequency data for ${alert.id}:`, error.message);
         }
-        const impact = serviceFrequencyAnalyzer.getImpactScore(alert.affectsRoutes);
-        
-        alert.routeFrequencies = frequencies;
-        alert.routeFrequencySummaries = summaries;
-        alert.frequencyImpact = impact;
       }
       
       alert.lastUpdated = alert.lastUpdated || new Date().toISOString();
