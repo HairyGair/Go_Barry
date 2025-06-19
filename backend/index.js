@@ -41,7 +41,9 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
-console.log('🚀 Go BARRY Backend Starting - Render.com Compatible Version...');
+// RENDER FIX: Immediate startup signal
+console.log(`🚀 Go BARRY Backend Starting - PORT: ${process.env.PORT || 3001}`);
+console.log('📡 Render.com Optimized Version - Immediate Port Binding...');
 
 // Enhanced GTFS route matching function
 function findRoutesNearCoordinatesFixed(lat, lng, radiusMeters = 250) {
@@ -198,7 +200,6 @@ async function initializeApplication() {
 }
 
 const app = express();
-const PORT = process.env.PORT || 3001;
 
 // Create HTTP server for WebSocket support
 const server = createServer(app);
@@ -1458,22 +1459,23 @@ async function startServer() {
   try {
     console.log('🚀 Starting Go BARRY Backend...');
     
-    // Initialize application with timeout
-    console.log('🔄 Running initialization...');
-    await Promise.race([
-      initializeApplication(),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Initialization timeout after 60 seconds')), 60000)
-      )
-    ]);
-    
-    // Initialize WebSocket service
-    supervisorSyncService.initialize(server);
-    
-    // Start listening
-    server.listen(process.env.PORT || 3001, () => {
-      const port = process.env.PORT || 3001;
-      console.log(`✅ Server started on port ${port}`);
+    // RENDER FIX: Bind to port IMMEDIATELY
+    const port = process.env.PORT || 3001;
+    server.listen(port, () => {
+      console.log(`✅ PORT ${port} BOUND SUCCESSFULLY`);
+      console.log('🏃 Starting async initialization...');
+      
+      // Initialize AFTER port binding
+      initializeApplication().then(() => {
+        console.log('✅ Initialization complete');
+      }).catch(error => {
+        console.error('⚠️ Initialization error:', error.message);
+        console.log('⚠️ Continuing with limited functionality...');
+      });
+      
+      // Initialize WebSocket service
+      supervisorSyncService.initialize(server);
+      
       console.log(`\n🚀 Go BARRY Backend Started Successfully`);
       console.log(`📡 Server: http://localhost:${port}`);
       console.log(`🌐 Public: https://go-barry.onrender.com`);
@@ -1508,16 +1510,18 @@ async function startServer() {
     
     // Start server anyway with minimal functionality for health checks
     console.log('⚠️ Starting server in degraded mode...');
-    server.listen(PORT, () => {
-      console.log(`✅ Server started on port ${PORT}`);
+    const port = process.env.PORT || 3001;
+    server.listen(port, () => {
+      console.log(`✅ Server started on port ${port}`);
       console.log(`🚑 Go BARRY Backend Started (Degraded Mode)`);
-      console.log(`📡 Server: http://localhost:${PORT}`);
+      console.log(`📡 Server: http://localhost:${port}`);
       console.log(`⚠️ Some features may not work due to initialization failure`);
     });
   }
 }
 
 // Start the server with immediate port binding for Render
+console.log('🎯 CRITICAL FIX: Binding to port BEFORE initialization to satisfy Render requirements');
 startServer().catch(error => {
   console.error('❌ Critical startup error:', error);
   
@@ -1551,4 +1555,4 @@ process.on('unhandledRejection', err => {
 });
 });
 
-export default app;// Deployment timestamp: Thu 19 Jun 2025 22:17:00 BST
+export default app;// Deployment timestamp: Thu 19 Jun 2025 22:25:00 BST
