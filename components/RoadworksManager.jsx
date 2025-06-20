@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
+import CreateRoadworkModal from './CreateRoadworkModal';
 
 const RoadworksManager = ({ baseUrl }) => {
   // Get the supervisor session from the existing auth system
@@ -316,46 +317,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
     setRefreshing(false);
   };
 
-  const handleCreateRoadwork = async (formData) => {
-    if (!isLoggedIn) {
-      Alert.alert('Error', 'You must be logged in to create roadworks');
-      return;
-    }
 
-    try {
-      setLoading(true);
-      console.log('🚧 Creating new roadwork...');
-      
-      const response = await fetch(`${apiBaseUrl}/api/roadworks`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...formData,
-          sessionId: sessionId
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        console.log('✅ Roadwork created successfully');
-        setShowCreateModal(false);
-        Alert.alert('Success', 'Roadwork created successfully');
-        // Reload roadworks to get updated list
-        await loadRoadworks();
-      } else {
-        console.error('❌ Failed to create roadwork:', data.error);
-        Alert.alert('Error', data.error || 'Failed to create roadwork');
-      }
-    } catch (error) {
-      console.error('❌ Error creating roadwork:', error);
-      Alert.alert('Error', `Failed to create roadwork: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handlePromoteToDisplay = async (roadworkId) => {
     if (!isLoggedIn) {
@@ -546,9 +508,11 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
       <CreateRoadworkModal
         visible={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onCreate={handleCreateRoadwork}
-        loading={loading}
-        session={{ supervisorName, supervisorRole, sessionId }}
+        supervisorData={{ id: sessionId, name: supervisorName, email: supervisorRole }}
+        onRoadworkCreated={(newRoadwork) => {
+          console.log('New roadwork created:', newRoadwork);
+          loadRoadworks();
+        }}
       />
 
       {/* Details Modal */}
@@ -577,197 +541,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
   );
 };
 
-// Create Roadwork Modal Component
-const CreateRoadworkModal = ({ visible, onClose, onCreate, loading, session }) => {
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    location: '',
-    authority: '',
-    contactPerson: '',
-    contactPhone: '',
-    contactEmail: '',
-    plannedStartDate: '',
-    plannedEndDate: '',
-    estimatedDuration: '',
-    roadworkType: 'general',
-    trafficManagement: 'traffic_control',
-    priority: 'medium'
-  });
 
-  const priorities = [
-    { value: 'critical', label: 'Critical', color: '#DC2626' },
-    { value: 'high', label: 'High', color: '#EA580C' },
-    { value: 'medium', label: 'Medium', color: '#D97706' },
-    { value: 'low', label: 'Low', color: '#65A30D' },
-    { value: 'planned', label: 'Planned', color: '#7C3AED' }
-  ];
-
-  const handleSubmit = () => {
-    if (!formData.title.trim() || !formData.location.trim()) {
-      Alert.alert('Error', 'Title and location are required');
-      return;
-    }
-
-    onCreate(formData);
-  };
-
-  if (!visible) return null;
-
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Create New Roadwork</Text>
-            <TouchableOpacity onPress={onClose} style={styles.modalCloseButton}>
-              <Ionicons name="close" size={24} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalContent}>
-            {/* Basic Information */}
-            <Text style={styles.sectionTitle}>Basic Information</Text>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Title *</Text>
-              <TextInput
-                style={styles.textInput}
-                value={formData.title}
-                onChangeText={(text) => setFormData({...formData, title: text})}
-                placeholder="e.g., A1 Northbound Road Surface Repairs"
-                placeholderTextColor="#9CA3AF"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Location *</Text>
-              <TextInput
-                style={styles.textInput}
-                value={formData.location}
-                onChangeText={(text) => setFormData({...formData, location: text})}
-                placeholder="e.g., A1 Northbound, Newcastle"
-                placeholderTextColor="#9CA3AF"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Description</Text>
-              <TextInput
-                style={[styles.textInput, styles.textArea]}
-                value={formData.description}
-                onChangeText={(text) => setFormData({...formData, description: text})}
-                placeholder="Describe the roadworks and expected impact..."
-                placeholderTextColor="#9CA3AF"
-                multiline={true}
-                numberOfLines={3}
-              />
-            </View>
-
-            {/* Contact Information */}
-            <Text style={styles.sectionTitle}>Contact Information</Text>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Authority</Text>
-              <TextInput
-                style={styles.textInput}
-                value={formData.authority}
-                onChangeText={(text) => setFormData({...formData, authority: text})}
-                placeholder="e.g., Newcastle City Council"
-                placeholderTextColor="#9CA3AF"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Contact Person</Text>
-              <TextInput
-                style={styles.textInput}
-                value={formData.contactPerson}
-                onChangeText={(text) => setFormData({...formData, contactPerson: text})}
-                placeholder="Contact person name"
-                placeholderTextColor="#9CA3AF"
-              />
-            </View>
-
-            {/* Classification */}
-            <Text style={styles.sectionTitle}>Classification</Text>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Priority Level</Text>
-              <View style={styles.prioritySelector}>
-                {priorities.map((priority) => (
-                  <TouchableOpacity
-                    key={priority.value}
-                    style={[
-                      styles.priorityOption,
-                      formData.priority === priority.value && {
-                        backgroundColor: `${priority.color}15`,
-                        borderColor: priority.color
-                      }
-                    ]}
-                    onPress={() => setFormData({...formData, priority: priority.value})}
-                  >
-                    <Text style={[
-                      styles.priorityOptionText,
-                      formData.priority === priority.value && { color: priority.color }
-                    ]}>
-                      {priority.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Timing */}
-            <Text style={styles.sectionTitle}>Timing</Text>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Estimated Duration</Text>
-              <TextInput
-                style={styles.textInput}
-                value={formData.estimatedDuration}
-                onChangeText={(text) => setFormData({...formData, estimatedDuration: text})}
-                placeholder="e.g., 3 days, 2 weeks"
-                placeholderTextColor="#9CA3AF"
-              />
-            </View>
-          </ScrollView>
-
-          {/* Actions */}
-          <View style={styles.modalActions}>
-            <TouchableOpacity 
-              style={styles.cancelButton}
-              onPress={onClose}
-              disabled={loading}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.createSubmitButton, loading && styles.buttonDisabled]}
-              onPress={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-                  <Text style={styles.createSubmitButtonText}>Create Roadwork</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-};
 
 // Roadwork Details Modal Component
 const RoadworkDetailsModal = ({ visible, roadwork, onClose, onPromoteToDisplay, onDismiss, onAcknowledge, isAdmin }) => {
@@ -1217,46 +991,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 12,
   },
-  inputGroup: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 6,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#1F2937',
-    backgroundColor: '#FFFFFF',
-  },
-  textArea: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  prioritySelector: {
-    flexDirection: 'row',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  priorityOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  priorityOptionText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
+
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -1279,23 +1014,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#6B7280',
   },
-  createSubmitButton: {
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  createSubmitButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
+
   // Details Modal Styles
   detailsHeader: {
     flexDirection: 'row',

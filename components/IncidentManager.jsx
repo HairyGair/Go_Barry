@@ -1,5 +1,5 @@
 // Go_BARRY/components/IncidentManager.jsx
-// Phase 2: GTFS-Powered Incident Management System
+// Sector 4: Incident Manager - Manual incident creation & detailed tracking
 
 import React, { useState, useEffect, useMemo } from 'react';
 import {
@@ -13,16 +13,115 @@ import {
   Alert,
   ActivityIndicator,
   Dimensions,
-  Platform
+  Platform,
+  Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
+import { useSupervisorSync } from './hooks/useSupervisorSync';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
 
-// Incident types and subtypes based on Go North East operations
+// Helper function for priority colors
+const getPriorityColor = (priority) => {
+  switch (priority) {
+    case 'CRITICAL': return '#DC2626';
+    case 'HIGH': return '#EF4444';
+    case 'MEDIUM': return '#F59E0B';
+    case 'LOW': return '#10B981';
+    default: return '#6B7280';
+  }
+};
+
+// Updated Incident types and subtypes based on Go North East operations
 const INCIDENT_TYPES = {
+  rtc: {
+    label: 'RTC',
+    icon: 'car-sport',
+    color: '#DC2626',
+    subtypes: [
+      'RTC',
+      'RTC (LANE CLOSURE)',
+      'RTC (ROAD CLOSURE)'
+    ]
+  },
+  breakdown: {
+    label: 'Vehicle Issues',
+    icon: 'car',
+    color: '#F59E0B',
+    subtypes: [
+      'BROKEN DOWN VEHICLE',
+      'PARKING ISSUE'
+    ]
+  },
+  traffic: {
+    label: 'Traffic Conditions',
+    icon: 'speedometer',
+    color: '#EF4444',
+    subtypes: [
+      'HEAVY TRAFFIC',
+      'HEAVY TRAFFIC (EVENT)',
+      'HEAVY TRAFFIC (LANE CLOSURE)',
+      'DEBRIS IN ROAD',
+      'SPILLAGE'
+    ]
+  },
+  infrastructure: {
+    label: 'Infrastructure',
+    icon: 'build',
+    color: '#10B981',
+    subtypes: [
+      'INFRASTRUCTURE',
+      'TRAFFIC LIGHT FAILURE',
+      'RAILWAY BARRIER FAILURE',
+      'UNSAFE BUILDING',
+      'UTILITIES INCIDENT'
+    ]
+  },
+  emergency: {
+    label: 'Emergency Services',
+    icon: 'medical',
+    color: '#7C3AED',
+    subtypes: [
+      'POLICE INCIDENT',
+      'BUILDING FIRE'
+    ]
+  },
+  environmental: {
+    label: 'Environmental',
+    icon: 'leaf',
+    color: '#059669',
+    subtypes: [
+      'OVERGROWN / FALLEN TREE'
+    ]
+  },
+  social: {
+    label: 'Social Issues',
+    icon: 'people',
+    color: '#DC2626',
+    subtypes: [
+      'ANTI-SOCIAL BEHAVIOUR',
+      'SCHOOL CLOSURE'
+    ]
+  },
+  network: {
+    label: 'Network Issues',
+    icon: 'globe',
+    color: '#6B7280',
+    subtypes: [
+      'OFF-NETWORK INCIDENT'
+    ]
+  },
+  other: {
+    label: 'Other',
+    icon: 'help-circle',
+    color: '#9CA3AF',
+    subtypes: [
+      'OTHER',
+      'UNKNOWN INCIDENT'
+    ]
+  },
   roadwork: {
     label: 'Roadworks',
     icon: 'construct',
@@ -36,51 +135,6 @@ const INCIDENT_TYPES = {
       'Bridge Works',
       'Traffic Signals',
       'Other Utilities'
-    ]
-  },
-  incident: {
-    label: 'Traffic Incident',
-    icon: 'car-sport',
-    color: '#EF4444',
-    subtypes: [
-      'Road Traffic Accident',
-      'Vehicle Breakdown',
-      'Emergency Services',
-      'Police Incident',
-      'Road Closure',
-      'Flooding',
-      'Ice/Snow',
-      'High Winds'
-    ]
-  },
-  event: {
-    label: 'Planned Event',
-    icon: 'calendar',
-    color: '#8B5CF6',
-    subtypes: [
-      'Football Match',
-      'Concert/Festival',
-      'Marathon/Race',
-      'Parade',
-      'Market',
-      'Road Race',
-      'Demonstration',
-      'Other Event'
-    ]
-  },
-  infrastructure: {
-    label: 'Infrastructure',
-    icon: 'business',
-    color: '#10B981',
-    subtypes: [
-      'Bus Stop Closure',
-      'Bus Station Issue',
-      'Bridge Closure',
-      'Tunnel Closure',
-      'Ferry Disruption',
-      'Metro Disruption',
-      'Rail Disruption',
-      'Other Transport'
     ]
   }
 };
@@ -105,7 +159,7 @@ const COMMON_LOCATIONS = [
   'High Level Bridge'
 ];
 
-const IncidentManager = ({ baseUrl }) => {
+const IncidentManager = ({ baseUrl, sector = 4 }) => {
   const { 
     isLoggedIn, 
     supervisorName, 
@@ -114,12 +168,27 @@ const IncidentManager = ({ baseUrl }) => {
     logActivity 
   } = useSupervisorSession();
 
+  // WebSocket sync for display control
+  const {
+    isConnected,
+    lockOnDisplay,
+    broadcastMessage
+  } = useSupervisorSync({
+    clientType: 'supervisor',
+    supervisorId: supervisorName,
+    autoConnect: isLoggedIn
+  });
+
   // State management
   const [incidents, setIncidents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showNewIncident, setShowNewIncident] = useState(false);
+  const [showIncidentDetails, setShowIncidentDetails] = useState(null);
+  const [showAddNote, setShowAddNote] = useState(null);
   const [affectedRoutes, setAffectedRoutes] = useState([]);
   const [gtfsData, setGtfsData] = useState(null);
+  const [newNote, setNewNote] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   // New incident form state
   const [newIncident, setNewIncident] = useState({
@@ -132,8 +201,11 @@ const IncidentManager = ({ baseUrl }) => {
     startTime: '',
     endTime: '',
     severity: 'Medium',
+    priority: 'MEDIUM',
     affectsRoutes: [],
-    notes: ''
+    notes: '',
+    images: [],
+    status: 'active'
   });
 
   // Auto-complete states
@@ -145,6 +217,17 @@ const IncidentManager = ({ baseUrl }) => {
   const API_BASE = baseUrl || (isWeb 
     ? (window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://go-barry.onrender.com')
     : 'https://go-barry.onrender.com'
+  );
+
+  // Filter incidents by status
+  const activeIncidents = useMemo(() => 
+    incidents.filter(incident => incident.status !== 'closed'),
+    [incidents]
+  );
+
+  const closedIncidents = useMemo(() => 
+    incidents.filter(incident => incident.status === 'closed'),
+    [incidents]
   );
 
   // Load GTFS data and existing incidents
@@ -269,15 +352,49 @@ const IncidentManager = ({ baseUrl }) => {
     }
   };
 
-  // Create new incident
+  // Show notification helper
+  const showNotification = (message, type = 'info') => {
+    if (isWeb) {
+      console.log(`[${type.toUpperCase()}] ${message}`);
+    } else {
+      Alert.alert(
+        type === 'error' ? 'Error' : type === 'success' ? 'Success' : 'Info',
+        message
+      );
+    }
+  };
+
+  // Reset form
+  const resetForm = () => {
+    setNewIncident({
+      type: '',
+      subtype: '',
+      location: '',
+      coordinates: null,
+      area: '',
+      description: '',
+      startTime: '',
+      endTime: '',
+      severity: 'Medium',
+      priority: 'MEDIUM',
+      affectsRoutes: [],
+      notes: '',
+      images: [],
+      status: 'active'
+    });
+    setAffectedRoutes([]);
+    setLocationSuggestions([]);
+  };
+
+  // Create new incident with enhanced data
   const createIncident = async () => {
     if (!isLoggedIn) {
-      alert('Please log in as a supervisor to create incidents');
+      showNotification('Please log in as a supervisor to create incidents', 'error');
       return;
     }
 
     if (!newIncident.type || !newIncident.location) {
-      alert('Please fill in required fields (Type and Location)');
+      showNotification('Please fill in required fields (Type and Location)', 'error');
       return;
     }
 
@@ -289,11 +406,19 @@ const IncidentManager = ({ baseUrl }) => {
         createdBy: supervisorName,
         createdByRole: supervisorRole,
         createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         status: 'active',
-        source: 'manual'
+        source: 'manual',
+        notes: newIncident.notes ? [{
+          id: 'note_' + Date.now(),
+          text: newIncident.notes,
+          addedBy: supervisorName,
+          addedAt: new Date().toISOString()
+        }] : [],
+        images: newIncident.images || []
       };
 
-      // For now, store locally (in production this would go to backend)
+      // Store incident (enhanced for Sector 4)
       setIncidents(prev => [incidentData, ...prev]);
       
       // Log activity
@@ -303,29 +428,100 @@ const IncidentManager = ({ baseUrl }) => {
         incidentData.id
       );
 
-      // Reset form
-      setNewIncident({
-        type: '',
-        subtype: '',
-        location: '',
-        coordinates: null,
-        area: '',
-        description: '',
-        startTime: '',
-        endTime: '',
-        severity: 'Medium',
-        affectsRoutes: [],
-        notes: ''
-      });
+      // Auto-push to display if Critical
+      if (newIncident.priority === 'CRITICAL' && isConnected) {
+        lockOnDisplay(incidentData.id, 'Critical incident auto-pushed to display');
+        showNotification('Critical incident pushed to display automatically', 'success');
+      }
 
+      // Reset form
+      resetForm();
       setShowNewIncident(false);
-      alert('Incident created successfully');
+      showNotification('Incident created successfully', 'success');
     } catch (error) {
       console.error('Failed to create incident:', error);
-      alert('Failed to create incident');
+      showNotification('Failed to create incident', 'error');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Add note to incident
+  const addNoteToIncident = async (incidentId) => {
+    if (!newNote.trim()) {
+      showNotification('Please enter a note', 'error');
+      return;
+    }
+
+    const noteData = {
+      id: 'note_' + Date.now(),
+      text: newNote.trim(),
+      addedBy: supervisorName,
+      addedAt: new Date().toISOString()
+    };
+
+    setIncidents(prev => prev.map(incident => {
+      if (incident.id === incidentId) {
+        return {
+          ...incident,
+          notes: [...(incident.notes || []), noteData],
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return incident;
+    }));
+
+    logActivity('ADD_NOTE', `Added note to incident ${incidentId}`, incidentId);
+    setNewNote('');
+    setShowAddNote(null);
+    showNotification('Note added successfully', 'success');
+  };
+
+  // Update incident status
+  const updateIncidentStatus = async (incidentId, newStatus) => {
+    setIncidents(prev => prev.map(incident => {
+      if (incident.id === incidentId) {
+        return {
+          ...incident,
+          status: newStatus,
+          updatedAt: new Date().toISOString(),
+          closedBy: newStatus === 'closed' ? supervisorName : undefined,
+          closedAt: newStatus === 'closed' ? new Date().toISOString() : undefined
+        };
+      }
+      return incident;
+    }));
+
+    logActivity('UPDATE_STATUS', `Updated incident ${incidentId} status to ${newStatus}`, incidentId);
+    showNotification(`Incident ${newStatus === 'closed' ? 'closed' : 'updated'} successfully`, 'success');
+  };
+
+  // Push incident to display
+  const pushIncidentToDisplay = async (incident) => {
+    if (!isConnected) {
+      showNotification('Not connected to display system', 'error');
+      return;
+    }
+
+    const reason = isWeb 
+      ? prompt('Reason for pushing incident to display:')
+      : 'Incident pushed to display';
+      
+    if (!reason) return;
+
+    const success = lockOnDisplay(incident.id, reason);
+    
+    if (success) {
+      showNotification(`"${incident.location}" incident pushed to display`, 'success');
+    } else {
+      showNotification('Failed to push incident to display', 'error');
+    }
+  };
+
+  // Handle image upload (placeholder for future implementation)
+  const handleImageUpload = async () => {
+    // Placeholder for image upload functionality
+    showNotification('Image upload feature coming soon', 'info');
   };
 
   // Delete incident
@@ -349,6 +545,7 @@ const IncidentManager = ({ baseUrl }) => {
 
     setIncidents(prev => prev.filter(incident => incident.id !== incidentId));
     logActivity('DELETE_INCIDENT', `Deleted incident ${incidentId}`, incidentId);
+    showNotification('Incident deleted successfully', 'success');
   };
 
   if (!isLoggedIn) {
@@ -368,8 +565,8 @@ const IncidentManager = ({ baseUrl }) => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          <Text style={styles.title}>🚨 Incident Management</Text>
-          <Text style={styles.subtitle}>GTFS-powered service disruption tracking</Text>
+          <Text style={styles.title}>Sector 4: Incident Manager</Text>
+          <Text style={styles.subtitle}>Manual incident creation & detailed tracking</Text>
         </View>
         
         {hasPermission('create_incidents') && (
@@ -386,34 +583,38 @@ const IncidentManager = ({ baseUrl }) => {
       {/* Stats */}
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{incidents.length}</Text>
+          <Text style={styles.statNumber}>{activeIncidents.length}</Text>
           <Text style={styles.statLabel}>Active Incidents</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statNumber}>{closedIncidents.length}</Text>
+          <Text style={styles.statLabel}>Closed Today</Text>
         </View>
         <View style={styles.statCard}>
           <Text style={styles.statNumber}>{affectedRoutes.length}</Text>
           <Text style={styles.statLabel}>Affected Routes</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{gtfsData?.stops || 0}</Text>
-          <Text style={styles.statLabel}>GTFS Stops</Text>
+          <View style={[styles.connectionDot, { backgroundColor: isConnected ? '#10B981' : '#EF4444' }]} />
+          <Text style={styles.statLabel}>Display {isConnected ? 'Connected' : 'Offline'}</Text>
         </View>
       </View>
 
       {/* Incidents List */}
       <ScrollView style={styles.incidentsList}>
-        {loading && incidents.length === 0 ? (
+        {loading && activeIncidents.length === 0 ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#3B82F6" />
             <Text style={styles.loadingText}>Loading incidents...</Text>
           </View>
-        ) : incidents.length === 0 ? (
+        ) : activeIncidents.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Ionicons name="document-outline" size={48} color="#9CA3AF" />
             <Text style={styles.emptyTitle}>No Active Incidents</Text>
             <Text style={styles.emptyText}>All clear! No incidents are currently affecting services.</Text>
           </View>
         ) : (
-          incidents.map((incident, index) => (
+          activeIncidents.map((incident, index) => (
             <View key={incident.id || index} style={styles.incidentCard}>
               <View style={styles.incidentHeader}>
                 <View style={styles.incidentType}>
@@ -425,16 +626,39 @@ const IncidentManager = ({ baseUrl }) => {
                   <Text style={styles.incidentTypeText}>
                     {INCIDENT_TYPES[incident.type]?.label || incident.type}
                   </Text>
+                  {incident.priority === 'CRITICAL' && (
+                    <View style={styles.criticalBadge}>
+                      <Text style={styles.criticalBadgeText}>CRITICAL</Text>
+                    </View>
+                  )}
                 </View>
                 
-                {hasPermission('create_incidents') && (
+                <View style={styles.incidentActions}>
+                  {incident.priority === 'CRITICAL' && isConnected && (
+                    <TouchableOpacity
+                      style={styles.pushToDisplayButton}
+                      onPress={() => pushIncidentToDisplay(incident)}
+                    >
+                      <Ionicons name="tv" size={16} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  )}
+                  
                   <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => deleteIncident(incident.id)}
+                    style={styles.detailsButton}
+                    onPress={() => setShowIncidentDetails(incident)}
                   >
-                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                    <Ionicons name="eye" size={16} color="#3B82F6" />
                   </TouchableOpacity>
-                )}
+                  
+                  {hasPermission('create_incidents') && (
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => deleteIncident(incident.id)}
+                    >
+                      <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
 
               <Text style={styles.incidentLocation}>{incident.location}</Text>
@@ -444,21 +668,50 @@ const IncidentManager = ({ baseUrl }) => {
               )}
               
               {incident.description && (
-                <Text style={styles.incidentDescription}>{incident.description}</Text>
+                <Text style={styles.incidentDescription} numberOfLines={2}>{incident.description}</Text>
               )}
 
               {incident.affectsRoutes && incident.affectsRoutes.length > 0 && (
                 <View style={styles.routesContainer}>
                   <Text style={styles.routesLabel}>Affected Routes:</Text>
                   <View style={styles.routesList}>
-                    {incident.affectsRoutes.map((route, idx) => (
+                    {incident.affectsRoutes.slice(0, 6).map((route, idx) => (
                       <View key={idx} style={styles.routeBadge}>
                         <Text style={styles.routeBadgeText}>{route}</Text>
                       </View>
                     ))}
+                    {incident.affectsRoutes.length > 6 && (
+                      <Text style={styles.moreRoutesText}>+{incident.affectsRoutes.length - 6} more</Text>
+                    )}
                   </View>
                 </View>
               )}
+
+              {/* Quick Actions */}
+              <View style={styles.quickActions}>
+                <TouchableOpacity
+                  style={styles.addNoteButton}
+                  onPress={() => setShowAddNote(incident.id)}
+                >
+                  <Ionicons name="create" size={14} color="#6B7280" />
+                  <Text style={styles.quickActionText}>Add Note</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.closeIncidentButton}
+                  onPress={() => updateIncidentStatus(incident.id, 'closed')}
+                >
+                  <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                  <Text style={styles.quickActionText}>Close</Text>
+                </TouchableOpacity>
+
+                {incident.notes && incident.notes.length > 0 && (
+                  <View style={styles.notesIndicator}>
+                    <Ionicons name="document-text" size={14} color="#F59E0B" />
+                    <Text style={styles.notesCount}>{incident.notes.length} notes</Text>
+                  </View>
+                )}
+              </View>
 
               <View style={styles.incidentFooter}>
                 <Text style={styles.incidentTime}>
@@ -588,6 +841,31 @@ const IncidentManager = ({ baseUrl }) => {
               )}
             </View>
 
+            {/* Priority Level */}
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>Priority Level</Text>
+              <View style={styles.priorityGrid}>
+                {['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].map((priority) => (
+                  <TouchableOpacity
+                    key={priority}
+                    style={[
+                      styles.priorityButton,
+                      newIncident.priority === priority && styles.priorityButtonSelected,
+                      { backgroundColor: getPriorityColor(priority) }
+                    ]}
+                    onPress={() => setNewIncident(prev => ({ ...prev, priority }))}
+                  >
+                    <Text style={styles.priorityButtonText}>{priority}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              {newIncident.priority === 'CRITICAL' && (
+                <Text style={styles.criticalWarning}>
+                  ⚠️ Critical incidents will be automatically pushed to display
+                </Text>
+              )}
+            </View>
+
             {/* Description */}
             <View style={styles.formSection}>
               <Text style={styles.formLabel}>Description</Text>
@@ -599,6 +877,31 @@ const IncidentManager = ({ baseUrl }) => {
                 multiline
                 numberOfLines={3}
               />
+            </View>
+
+            {/* Initial Notes */}
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>Initial Notes</Text>
+              <TextInput
+                style={styles.textArea}
+                placeholder="Add any initial notes about this incident..."
+                value={newIncident.notes}
+                onChangeText={(text) => setNewIncident(prev => ({ ...prev, notes: text }))}
+                multiline
+                numberOfLines={2}
+              />
+            </View>
+
+            {/* Image Upload Placeholder */}
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>Images</Text>
+              <TouchableOpacity
+                style={styles.imageUploadButton}
+                onPress={handleImageUpload}
+              >
+                <Ionicons name="camera" size={24} color="#6B7280" />
+                <Text style={styles.imageUploadText}>Add Photos (Coming Soon)</Text>
+              </TouchableOpacity>
             </View>
 
             {/* Affected Routes */}
@@ -645,6 +948,190 @@ const IncidentManager = ({ baseUrl }) => {
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Incident Details Modal */}
+      {showIncidentDetails && (
+        <Modal
+          visible={!!showIncidentDetails}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowIncidentDetails(null)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Incident Details</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowIncidentDetails(null)}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalContent}>
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Type & Location</Text>
+                <View style={styles.detailRow}>
+                  <Ionicons 
+                    name={INCIDENT_TYPES[showIncidentDetails.type]?.icon || 'alert-circle'} 
+                    size={20} 
+                    color={INCIDENT_TYPES[showIncidentDetails.type]?.color || '#6B7280'} 
+                  />
+                  <Text style={styles.detailValue}>
+                    {INCIDENT_TYPES[showIncidentDetails.type]?.label || showIncidentDetails.type}
+                  </Text>
+                  {showIncidentDetails.priority === 'CRITICAL' && (
+                    <View style={styles.criticalBadge}>
+                      <Text style={styles.criticalBadgeText}>CRITICAL</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.detailLocation}>{showIncidentDetails.location}</Text>
+                {showIncidentDetails.subtype && (
+                  <Text style={styles.detailSubtype}>{showIncidentDetails.subtype}</Text>
+                )}
+              </View>
+
+              {showIncidentDetails.description && (
+                <View style={styles.detailSection}>
+                  <Text style={styles.detailLabel}>Description</Text>
+                  <Text style={styles.detailValue}>{showIncidentDetails.description}</Text>
+                </View>
+              )}
+
+              {showIncidentDetails.affectsRoutes && showIncidentDetails.affectsRoutes.length > 0 && (
+                <View style={styles.detailSection}>
+                  <Text style={styles.detailLabel}>Affected Routes</Text>
+                  <View style={styles.routesList}>
+                    {showIncidentDetails.affectsRoutes.map((route, idx) => (
+                      <View key={idx} style={styles.routeBadge}>
+                        <Text style={styles.routeBadgeText}>{route}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              {/* Notes Section */}
+              <View style={styles.detailSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.detailLabel}>Notes & Updates</Text>
+                  <TouchableOpacity
+                    style={styles.addNoteIconButton}
+                    onPress={() => setShowAddNote(showIncidentDetails.id)}
+                  >
+                    <Ionicons name="add" size={20} color="#3B82F6" />
+                  </TouchableOpacity>
+                </View>
+                
+                {showIncidentDetails.notes && showIncidentDetails.notes.length > 0 ? (
+                  showIncidentDetails.notes.map((note, index) => (
+                    <View key={note.id || index} style={styles.noteItem}>
+                      <View style={styles.noteHeader}>
+                        <Text style={styles.noteAuthor}>{note.addedBy}</Text>
+                        <Text style={styles.noteTime}>
+                          {new Date(note.addedAt).toLocaleString()}
+                        </Text>
+                      </View>
+                      <Text style={styles.noteText}>{note.text}</Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.noNotesText}>No notes added yet</Text>
+                )}
+              </View>
+
+              {/* Status Actions */}
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Actions</Text>
+                <View style={styles.actionButtons}>
+                  {showIncidentDetails.priority === 'CRITICAL' && isConnected && (
+                    <TouchableOpacity
+                      style={styles.pushDisplayButton}
+                      onPress={() => pushIncidentToDisplay(showIncidentDetails)}
+                    >
+                      <Ionicons name="tv" size={20} color="#FFFFFF" />
+                      <Text style={styles.actionButtonText}>Push to Display</Text>
+                    </TouchableOpacity>
+                  )}
+                  
+                  <TouchableOpacity
+                    style={styles.closeButton}
+                    onPress={() => {
+                      updateIncidentStatus(showIncidentDetails.id, 'closed');
+                      setShowIncidentDetails(null);
+                    }}
+                  >
+                    <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+                    <Text style={styles.actionButtonText}>Close Incident</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.detailSection}>
+                <Text style={styles.detailLabel}>Incident Information</Text>
+                <Text style={styles.metaText}>Created: {new Date(showIncidentDetails.createdAt).toLocaleString()}</Text>
+                <Text style={styles.metaText}>Created by: {showIncidentDetails.createdBy} ({showIncidentDetails.createdByRole})</Text>
+                {showIncidentDetails.updatedAt && (
+                  <Text style={styles.metaText}>Last updated: {new Date(showIncidentDetails.updatedAt).toLocaleString()}</Text>
+                )}
+                <Text style={styles.metaText}>Status: {showIncidentDetails.status}</Text>
+              </View>
+            </ScrollView>
+          </View>
+        </Modal>
+      )}
+
+      {/* Add Note Modal */}
+      {showAddNote && (
+        <Modal
+          visible={!!showAddNote}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowAddNote(null)}
+        >
+          <View style={styles.noteModalOverlay}>
+            <View style={styles.noteModalContent}>
+              <View style={styles.noteModalHeader}>
+                <Text style={styles.noteModalTitle}>Add Note</Text>
+                <TouchableOpacity onPress={() => setShowAddNote(null)}>
+                  <Ionicons name="close" size={24} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              
+              <TextInput
+                style={styles.noteInput}
+                placeholder="Enter your note..."
+                value={newNote}
+                onChangeText={setNewNote}
+                multiline
+                numberOfLines={4}
+                autoFocus
+              />
+              
+              <View style={styles.noteModalActions}>
+                <TouchableOpacity
+                  style={styles.noteCancelButton}
+                  onPress={() => {
+                    setNewNote('');
+                    setShowAddNote(null);
+                  }}
+                >
+                  <Text style={styles.noteCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.noteSubmitButton}
+                  onPress={() => addNoteToIncident(showAddNote)}
+                  disabled={!newNote.trim()}
+                >
+                  <Text style={styles.noteSubmitText}>Add Note</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 };
@@ -739,6 +1226,12 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
   },
+  connectionDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginBottom: 4,
+  },
   incidentsList: {
     flex: 1,
     padding: 16,
@@ -800,6 +1293,33 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#374151',
   },
+  criticalBadge: {
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  criticalBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  incidentActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pushToDisplayButton: {
+    backgroundColor: '#059669',
+    borderRadius: 4,
+    padding: 6,
+  },
+  detailsButton: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 4,
+    padding: 6,
+  },
   deleteButton: {
     padding: 4,
   },
@@ -846,6 +1366,54 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#1E40AF',
+  },
+  moreRoutesText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  quickActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  addNoteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  closeIncidentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  quickActionText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  notesIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginLeft: 'auto',
+  },
+  notesCount: {
+    fontSize: 12,
+    color: '#F59E0B',
+    fontWeight: '500',
   },
   incidentFooter: {
     flexDirection: 'row',
@@ -953,6 +1521,33 @@ const styles = StyleSheet.create({
   subtypeButtonTextSelected: {
     color: '#FFFFFF',
   },
+  priorityGrid: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  priorityButton: {
+    flex: 1,
+    minWidth: (width - 80) / 4,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    opacity: 0.7,
+  },
+  priorityButtonSelected: {
+    opacity: 1,
+  },
+  priorityButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  criticalWarning: {
+    fontSize: 12,
+    color: '#DC2626',
+    marginTop: 8,
+    fontWeight: '500',
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1009,6 +1604,22 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     minHeight: 80,
   },
+  imageUploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    paddingVertical: 24,
+  },
+  imageUploadText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
   modalActions: {
     flexDirection: 'row',
     gap: 12,
@@ -1037,6 +1648,180 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
   },
   submitButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  // Incident Details Modal Styles
+  detailSection: {
+    marginBottom: 24,
+  },
+  detailLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  detailValue: {
+    fontSize: 16,
+    color: '#1F2937',
+    lineHeight: 24,
+  },
+  detailLocation: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  detailSubtype: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  addNoteIconButton: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 6,
+    padding: 6,
+  },
+  noteItem: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  noteHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  noteAuthor: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  noteTime: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  noteText: {
+    fontSize: 14,
+    color: '#1F2937',
+    lineHeight: 20,
+  },
+  noNotesText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 16,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  pushDisplayButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#059669',
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  closeButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#10B981',
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  actionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  metaText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  // Add Note Modal Styles
+  noteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  noteModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  noteModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  noteModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  noteInput: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#1F2937',
+    textAlignVertical: 'top',
+    minHeight: 100,
+    marginBottom: 16,
+  },
+  noteModalActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  noteCancelButton: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  noteCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  noteSubmitButton: {
+    flex: 1,
+    backgroundColor: '#3B82F6',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  noteSubmitText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',

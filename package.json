@@ -42,6 +42,7 @@
     "expo-status-bar": "~2.2.3",
     "expo-system-ui": "~5.0.8",
     "mapbox-gl": "^3.12.0",
+    "maplibre-gl": "^5.6.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "react-native": "0.79.3",
@@ -49,10 +50,12 @@
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
     "react-native-url-polyfill": "^2.0.0",
-    "react-native-web": "^0.20.0"
+    "react-native-web": "^0.20.0",
+    "ws": "^8.18.2"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@types/react-native": "^0.72.8",
     "serve": "^14.2.0",
     "typescript": "~5.8.3"
   },

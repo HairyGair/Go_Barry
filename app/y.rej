@@ -1,0 +1,14 @@
+@@ -445,8 +445,11 @@
+         <View style={styles.screenContent}>
+           {activeScreen === 'supervisor' ? (
+             <SupervisorControl
+-              supervisorId={supervisorSession?.supervisor?.backendId || 'supervisor001'} // Force backend ID
+-              supervisorName={supervisorName}
++              // Use the actual supervisor info, not hardcoded
++              supervisorId={supervisorSession?.supervisor?.backendId || supervisorSession?.supervisor?.id || supervisorId}
++              supervisorName={supervisorName || supervisorSession?.supervisor?.name}
++              badge={supervisorSession?.supervisor?.badge}
++              role={supervisorRole || supervisorSession?.supervisor?.role}
+               sessionId={sessionId}
+               alerts={alerts}
+             />

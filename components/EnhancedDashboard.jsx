@@ -14,6 +14,12 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { API_CONFIG } from '../config/api';
+import SupervisorControl from './SupervisorControl';
+import SupervisorLogin from './SupervisorLogin';
+import OptimizedTomTomMap from './OptimizedTomTomMap';
+import TomTomUsageMonitor from './TomTomUsageMonitor';
+import { useSupervisorSession } from './hooks/useSupervisorSession';
+import typography, { getAlertIcon, getSeverityIcon } from '../theme/typography';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -22,7 +28,7 @@ const EnhancedDashboard = ({
   baseUrl = API_CONFIG.baseURL,
   onAlertPress,
   onViewAllPress,
-  autoRefreshInterval = 15000 
+  autoRefreshInterval = 15000 // OPTIMIZED: 15s (DisplayScreen uses 20s staggered)
 }) => {
   // State management
   const [alertsData, setAlertsData] = useState(null);
@@ -32,7 +38,22 @@ const EnhancedDashboard = ({
   const [lastUpdated, setLastUpdated] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
-  const [supervisorMode, setSupervisorMode] = useState(false);
+  const [showSupervisorLogin, setShowSupervisorLogin] = useState(false);
+  const [showSupervisorControl, setShowSupervisorControl] = useState(false);
+  const [mapZoomTarget, setMapZoomTarget] = useState(null); // For alert card -> map zoom
+  
+  // Supervisor session management
+  const { supervisorSession: session, logout } = useSupervisorSession();
+  
+  // Debug session
+  useEffect(() => {
+    console.log('🔍 EnhancedDashboard Session Debug:', {
+      session,
+      hasSession: !!session,
+      supervisor: session?.supervisor,
+      sessionId: session?.sessionId
+    });
+  }, [session]);
 
   // Enhanced data fetching
   const fetchAlertsData = useCallback(async () => {
@@ -115,6 +136,14 @@ const EnhancedDashboard = ({
             e.preventDefault();
             document.getElementById('search-input')?.focus();
             break;
+          case 's':
+            e.preventDefault();
+            if (session) {
+              setShowSupervisorControl(true);
+            } else {
+              setShowSupervisorLogin(true);
+            }
+            break;
         }
       }
     };
@@ -158,16 +187,29 @@ const EnhancedDashboard = ({
     return processedAlerts[selectedFilter] || [];
   }, [processedAlerts, selectedFilter]);
 
+  // State for alert details modal
+  const [selectedAlertDetails, setSelectedAlertDetails] = useState(null);
+
   // Handle alert interactions
   const handleAlertClick = useCallback((alert) => {
+    console.log('🎯 Alert card clicked:', alert.title, 'Coordinates:', alert.coordinates);
+    
+    // Zoom map to alert location if it has coordinates
+    if (alert.coordinates && Array.isArray(alert.coordinates) && alert.coordinates.length >= 2) {
+      setMapZoomTarget({
+        alert,
+        timestamp: Date.now() // Force re-trigger even for same alert
+      });
+      console.log('📍 Triggering map zoom to:', alert.location);
+    } else {
+      console.warn('⚠️ Alert has no coordinates for map zoom:', alert.title);
+    }
+    
     if (onAlertPress) {
       onAlertPress(alert);
     } else {
-      // Default behavior - show alert details
-      if (isWeb) {
-        const message = `${alert.description || alert.title}\n\nLocation: ${alert.location || 'Unknown'}\nAffected Routes: ${alert.affectsRoutes?.join(', ') || 'None detected'}\nSource: ${alert.source || 'Unknown'}\nTime: ${alert.timestamp ? new Date(alert.timestamp).toLocaleString() : 'Unknown'}`;
-        alert(alert.title || 'Traffic Alert', message);
-      }
+      // Show alert details in modal instead of browser alert
+      setSelectedAlertDetails(alert);
     }
   }, [onAlertPress]);
 
@@ -295,29 +337,46 @@ const EnhancedDashboard = ({
                          alert.severity?.toLowerCase() === 'medium' ? '#F59E0B' :
                          alert.severity?.toLowerCase() === 'low' ? '#3B82F6' : '#6B7280';
 
+    const isMapTarget = mapZoomTarget?.alert?.id === alert.id;
+
     return (
       <TouchableOpacity
-        style={[styles.alertItem, { borderLeftColor: priorityColor }]}
+        style={[
+          styles.alertItem, 
+          { borderLeftColor: priorityColor },
+          isMapTarget && styles.alertItemHighlighted // Highlight when map is zoomed to this alert
+        ]}
         onPress={() => handleAlertClick(alert)}
       >
         <View style={styles.alertHeader}>
-          <Text style={styles.alertTitle} numberOfLines={2}>
-            {alert.title || 'Traffic Incident'}
-          </Text>
+          <View style={styles.alertTitleRow}>
+            <Text style={styles.alertTypeIcon}>{getAlertIcon(alert.type || alert.category)}</Text>
+            <Text style={styles.alertTitle} numberOfLines={2}>
+              {alert.title || 'Traffic Incident'}
+            </Text>
+            {alert.coordinates && alert.coordinates.length >= 2 && (
+              <Text style={styles.alertMapIcon}>📍</Text>
+            )}
+          </View>
           <View style={styles.alertBadges}>
             <Text style={[styles.alertStatus, { color: priorityColor }]}>
-              {alert.severity?.toUpperCase() || 'UNKNOWN'}
+              {getSeverityIcon(alert.severity)} {alert.severity?.toUpperCase() || 'UNKNOWN'}
             </Text>
             {alert.enhanced && (
               <View style={styles.enhancedBadge}>
-                <Ionicons name="checkmark" size={12} color="#059669" />
+                <Text style={styles.enhancedBadgeText}>{typography.icons.action.check}</Text>
               </View>
             )}
           </View>
         </View>
         
         <Text style={styles.alertLocation}>
-          📍 {alert.location || 'Location being resolved...'}
+          {typography.icons.location.pin} {alert.location || 'Location being resolved...'}
+          {alert.coordinates && alert.coordinates.length >= 2 && (
+            <Text style={styles.alertCoordinates}>
+              {' '}({alert.coordinates[0].toFixed(4)}, {alert.coordinates[1].toFixed(4)})
+            </Text>
+          )}
         </Text>
         
         {alert.description && (
@@ -327,10 +386,13 @@ const EnhancedDashboard = ({
         )}
         
         {alert.affectsRoutes && alert.affectsRoutes.length > 0 && (
-          <Text style={styles.alertRoutes}>
-            🚌 Routes: {alert.affectsRoutes.slice(0, 8).join(', ')}
-            {alert.affectsRoutes.length > 8 ? ` +${alert.affectsRoutes.length - 8} more` : ''}
-          </Text>
+          <View style={styles.alertRoutesContainer}>
+            <Text style={styles.alertRoutesIcon}>🚌</Text>
+            <Text style={styles.alertRoutes}>
+              Routes: {alert.affectsRoutes.slice(0, 8).join(', ')}
+              {alert.affectsRoutes.length > 8 ? ` +${alert.affectsRoutes.length - 8} more` : ''}
+            </Text>
+          </View>
         )}
         
         <View style={styles.alertFooter}>
@@ -340,6 +402,9 @@ const EnhancedDashboard = ({
           <Text style={styles.alertTime}>
             {alert.timestamp ? new Date(alert.timestamp).toLocaleTimeString() : 'Unknown time'}
           </Text>
+          {alert.coordinates && alert.coordinates.length >= 2 && (
+            <Text style={styles.alertClickHint}>Click to zoom map 🗺️</Text>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -351,18 +416,16 @@ const EnhancedDashboard = ({
       <Text style={styles.sectionTitle}>System Status</Text>
       <View style={styles.statusGrid}>
         <View style={styles.statusItem}>
-          <Ionicons 
-            name={healthData?.status === 'healthy' ? 'checkmark-circle' : 'warning'} 
-            size={16} 
-            color={healthData?.status === 'healthy' ? '#10B981' : '#EF4444'} 
-          />
+          <Text style={styles.statusIcon}>
+            {healthData?.status === 'healthy' ? typography.icons.status.connected : typography.icons.alert.warning}
+          </Text>
           <Text style={styles.statusText}>
             Backend: {healthData?.status || 'Unknown'}
           </Text>
         </View>
         
         <View style={styles.statusItem}>
-          <Ionicons name="server" size={16} color="#3B82F6" />
+          <Ionicons name="shield-checkmark" size={16} color="#3B82F6" />
           <Text style={styles.statusText}>
             GTFS Routes: {healthData?.gtfs?.routes || 'N/A'}
           </Text>
@@ -378,11 +441,58 @@ const EnhancedDashboard = ({
     </View>
   );
 
+  // Supervisor controls
+  const SupervisorHeader = () => (
+    <View style={styles.supervisorHeader}>
+      {session ? (
+        <View style={styles.supervisorSession}>
+          <View style={styles.supervisorInfo}>
+            <Ionicons name="shield-checkmark" size={16} color="#10B981" />
+            <Text style={styles.supervisorName}>
+              {session.supervisor.name} ({session.supervisor.duty?.name || 'No Duty'})
+            </Text>
+            {session.supervisor.isAdmin && (
+              <Text style={styles.adminBadge}>ADMIN</Text>
+            )}
+          </View>
+          <View style={styles.supervisorActions}>
+            <TouchableOpacity
+              onPress={() => setShowSupervisorControl(true)}
+              style={styles.controlButton}
+            >
+              <Ionicons name="settings" size={16} color="#3B82F6" />
+              <Text style={styles.controlButtonText}>Control Panel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                logout();
+                setShowSupervisorControl(false);
+              }}
+              style={styles.logoutButton}
+            >
+              <Ionicons name="log-out" size={16} color="#EF4444" />
+              <Text style={styles.logoutButtonText}>Logout</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <TouchableOpacity
+          onPress={() => setShowSupervisorLogin(true)}
+          style={styles.loginPrompt}
+        >
+          <Ionicons name="person-circle" size={20} color="#6B7280" />
+          <Text style={styles.loginPromptText}>Supervisor Login</Text>
+          <Ionicons name="chevron-forward" size={16} color="#6B7280" />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
   // Keyboard shortcuts help
   const KeyboardHelp = () => isWeb && (
     <View style={styles.keyboardHelp}>
       <Text style={styles.keyboardHelpText}>
-        Shortcuts: Ctrl+1-4 (filters) • Ctrl+R (refresh) • Ctrl+F (search)
+        Shortcuts: Ctrl+1-4 (filters) • Ctrl+R (refresh) • Ctrl+F (search) • Ctrl+S (supervisor)
       </Text>
     </View>
   );
@@ -403,17 +513,61 @@ const EnhancedDashboard = ({
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>BARRY Intelligence Dashboard</Text>
-          <Text style={styles.headerSubtitle}>
-            Real-time Traffic Monitoring for Go North East
-          </Text>
+          <View style={styles.headerContent}>
+            {/* Logo and Title */}
+            <View style={styles.headerLeft}>
+              {isWeb && (
+                <img 
+                  src="/gobarry-logo.png" 
+                  alt="Go BARRY Logo" 
+                  style={{
+                    height: 32,
+                    width: 'auto',
+                    objectFit: 'contain',
+                    marginRight: 12
+                  }}
+                  onError={(e) => {
+                    // Hide logo if it fails to load
+                    e.target.style.display = 'none';
+                  }}
+                />
+              )}
+              <View>
+                <Text style={styles.headerTitle}>BARRY Intelligence Dashboard</Text>
+                <Text style={styles.headerSubtitle}>
+                  Real-time Traffic Monitoring for Go North East • Request Deduplication Active
+                </Text>
+              </View>
+            </View>
+          </View>
         </View>
+
+        {/* Supervisor Controls */}
+        <SupervisorHeader />
+
+        {/* TomTom Usage Monitor */}
+        <TomTomUsageMonitor />
 
         {/* Statistics */}
         <StatsHeader />
 
         {/* System Status */}
         <SystemStatus />
+
+        {/* Interactive TomTom Map */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Enhanced Traffic Map - TomTom Powered with Roadworks & Caching (OPTIMIZED)</Text>
+          <Text style={styles.mapInstructions}>Click any alert card below to zoom the map to that location • Toggle layers with controls • API calls optimized with 30s cache</Text>
+          <View style={styles.mapContainer}>
+            <OptimizedTomTomMap 
+              alerts={filteredAlerts}
+              currentAlert={mapZoomTarget?.alert || filteredAlerts[0]}
+              alertIndex={mapZoomTarget?.alert ? filteredAlerts.findIndex(a => a.id === mapZoomTarget.alert.id) : 0}
+              zoomTarget={mapZoomTarget}
+              mapId="enhanced-dashboard"
+            />
+          </View>
+        </View>
 
         {/* Search */}
         <SearchBar />
@@ -436,7 +590,7 @@ const EnhancedDashboard = ({
             ))
           ) : (
             <View style={styles.noAlertsContainer}>
-              <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+              <Text style={styles.noAlertsIcon}>{typography.icons.supervisor.shield}</Text>
               <Text style={styles.noAlertsText}>
                 {searchQuery ? 'No alerts match your search' : 'No alerts in this category'}
               </Text>
@@ -450,6 +604,123 @@ const EnhancedDashboard = ({
         {/* Footer spacing */}
         <View style={{ height: 50 }} />
       </ScrollView>
+
+      {/* Supervisor Login Modal */}
+      <SupervisorLogin
+        visible={showSupervisorLogin}
+        onClose={() => setShowSupervisorLogin(false)}
+      />
+
+      {/* Supervisor Control Panel */}
+      {showSupervisorControl && session && (
+        <SupervisorControl
+          supervisorId={session.supervisor.id}
+          supervisorName={session.supervisor.name}
+          sessionId={session.sessionId}
+          supervisorSession={session}
+          alerts={alertsData?.alerts || []}
+          onClose={() => setShowSupervisorControl(false)}
+        />
+      )}
+
+      {/* Alert Details Modal */}
+      {selectedAlertDetails && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.alertModal}>
+            <View style={styles.alertModalHeader}>
+              <Text style={styles.alertModalTitle}>
+                {selectedAlertDetails.title || 'Traffic Alert'}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setSelectedAlertDetails(null)}
+                style={styles.closeModalButton}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.alertModalContent}>
+              <View style={styles.alertModalSection}>
+                <Text style={styles.alertModalLabel}>Location:</Text>
+                <Text style={styles.alertModalValue}>
+                  {selectedAlertDetails.location || 'Unknown'}
+                </Text>
+              </View>
+              
+              {selectedAlertDetails.description && (
+                <View style={styles.alertModalSection}>
+                  <Text style={styles.alertModalLabel}>Description:</Text>
+                  <Text style={styles.alertModalValue}>
+                    {selectedAlertDetails.description}
+                  </Text>
+                </View>
+              )}
+              
+              <View style={styles.alertModalSection}>
+                <Text style={styles.alertModalLabel}>Severity:</Text>
+                <Text style={[styles.alertModalValue, {
+                  color: selectedAlertDetails.severity?.toLowerCase() === 'high' ? '#DC2626' :
+                         selectedAlertDetails.severity?.toLowerCase() === 'medium' ? '#F59E0B' : '#3B82F6'
+                }]}>
+                  {selectedAlertDetails.severity?.toUpperCase() || 'UNKNOWN'}
+                </Text>
+              </View>
+              
+              {selectedAlertDetails.affectsRoutes && selectedAlertDetails.affectsRoutes.length > 0 && (
+                <View style={styles.alertModalSection}>
+                  <Text style={styles.alertModalLabel}>Affected Routes:</Text>
+                  <Text style={styles.alertModalValue}>
+                    {selectedAlertDetails.affectsRoutes.join(', ')}
+                  </Text>
+                </View>
+              )}
+              
+              <View style={styles.alertModalSection}>
+                <Text style={styles.alertModalLabel}>Source:</Text>
+                <Text style={styles.alertModalValue}>
+                  {selectedAlertDetails.source === 'manual_incident' ? 'Manual Incident' : 
+                   selectedAlertDetails.source || 'Unknown'}
+                </Text>
+              </View>
+              
+              {selectedAlertDetails.createdBy && (
+                <View style={styles.alertModalSection}>
+                  <Text style={styles.alertModalLabel}>Created By:</Text>
+                  <Text style={styles.alertModalValue}>
+                    {selectedAlertDetails.createdBy} ({selectedAlertDetails.createdByRole || 'Unknown Role'})
+                  </Text>
+                </View>
+              )}
+              
+              <View style={styles.alertModalSection}>
+                <Text style={styles.alertModalLabel}>Time:</Text>
+                <Text style={styles.alertModalValue}>
+                  {selectedAlertDetails.timestamp ? 
+                    new Date(selectedAlertDetails.timestamp).toLocaleString() : 'Unknown'}
+                </Text>
+              </View>
+              
+              {selectedAlertDetails.notes && (
+                <View style={styles.alertModalSection}>
+                  <Text style={styles.alertModalLabel}>Notes:</Text>
+                  <Text style={styles.alertModalValue}>
+                    {selectedAlertDetails.notes}
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+            
+            <View style={styles.alertModalActions}>
+              <TouchableOpacity
+                style={styles.closeAlertButton}
+                onPress={() => setSelectedAlertDetails(null)}
+              >
+                <Text style={styles.closeAlertButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -467,14 +738,24 @@ const styles = StyleSheet.create({
     padding: 24,
     paddingTop: isWeb ? 24 : 44,
   },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  // Enhanced typography styles
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    ...typography.styles.headerMedium,
     color: '#FFFFFF',
     marginBottom: 4,
   },
   headerSubtitle: {
-    fontSize: 16,
+    ...typography.styles.bodyBase,
     color: '#9CA3AF',
   },
   keyboardHelp: {
@@ -522,22 +803,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   enhancedStatValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    ...typography.styles.headerSmall,
     color: '#1E293B',
     marginVertical: 4,
   },
   enhancedStatLabel: {
-    fontSize: 11,
+    ...typography.styles.labelSmall,
     color: '#64748B',
     textAlign: 'center',
     marginBottom: 2,
-    fontWeight: '600',
+    textTransform: 'uppercase',
   },
   enhancedStatCount: {
+    ...typography.styles.labelSmall,
     fontSize: 9,
     color: '#94A3B8',
     textAlign: 'center',
+    textTransform: 'none',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -559,7 +841,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
+    ...typography.styles.bodyBase,
     color: '#1E293B',
     outlineStyle: 'none',
   },
@@ -584,8 +866,8 @@ const styles = StyleSheet.create({
     borderColor: '#3B82F6',
   },
   filterTabText: {
-    fontSize: 14,
-    fontWeight: '500',
+    ...typography.styles.bodySmall,
+    fontWeight: typography.fontWeight.medium,
     color: '#64748B',
   },
   filterTabTextActive: {
@@ -627,9 +909,22 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  mapContainer: {
+    height: 300,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#F8FAFC',
+  },
+  mapInstructions: {
+    ...typography.styles.labelSmall,
+    color: '#6B7280',
+    marginBottom: 8,
+    fontStyle: 'italic',
+    textTransform: 'none',
+  },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    ...typography.styles.bodyLarge,
+    fontWeight: typography.fontWeight.semibold,
     color: '#1E293B',
     marginBottom: 12,
   },
@@ -644,8 +939,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   statusText: {
-    fontSize: 14,
+    ...typography.styles.bodySmall,
     color: '#64748B',
+  },
+  statusIcon: {
+    fontSize: 16,
+    marginRight: 2,
   },
   alertItem: {
     backgroundColor: '#FEF2F2',
@@ -654,18 +953,42 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderLeftWidth: 4,
   },
+  alertItemHighlighted: {
+    backgroundColor: '#EFF6FF',
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    borderLeftColor: '#3B82F6',
+    borderLeftWidth: 6,
+  },
   alertHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 4,
   },
-  alertTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1E293B',
+  alertTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     flex: 1,
     marginRight: 8,
+  },
+  alertTypeIcon: {
+    fontSize: 20,
+    marginRight: 8,
+    marginTop: -2,
+  },
+  alertTitle: {
+    ...typography.styles.bodySmall,
+    fontWeight: typography.fontWeight.semibold,
+    color: '#1E293B',
+    flex: 1,
+  },
+  alertMapIcon: {
+    fontSize: 16,
+    marginLeft: 8,
+    color: '#3B82F6',
   },
   alertBadges: {
     flexDirection: 'row',
@@ -673,33 +996,55 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   alertStatus: {
-    fontSize: 10,
-    fontWeight: 'bold',
+    ...typography.styles.labelSmall,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
+    textTransform: 'uppercase',
   },
   enhancedBadge: {
     backgroundColor: '#D1FAE5',
     borderRadius: 10,
     padding: 2,
   },
-  alertLocation: {
+  enhancedBadgeText: {
     fontSize: 12,
+  },
+  alertLocation: {
+    ...typography.styles.labelSmall,
     color: '#64748B',
     marginBottom: 4,
+    textTransform: 'none',
+  },
+  alertCoordinates: {
+    ...typography.styles.labelSmall,
+    color: '#94A3B8',
+    fontSize: 10,
+    fontStyle: 'italic',
+    textTransform: 'none',
   },
   alertDescription: {
-    fontSize: 12,
+    ...typography.styles.labelSmall,
     color: '#374151',
     marginBottom: 4,
+    textTransform: 'none',
+  },
+  alertRoutesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  alertRoutesIcon: {
+    fontSize: 14,
+    marginRight: 4,
   },
   alertRoutes: {
-    fontSize: 11,
+    ...typography.styles.labelSmall,
     color: '#7C3AED',
-    fontWeight: '500',
-    marginBottom: 4,
+    fontWeight: typography.fontWeight.medium,
+    textTransform: 'none',
+    flex: 1,
   },
   alertFooter: {
     flexDirection: 'row',
@@ -707,29 +1052,218 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   alertSource: {
+    ...typography.styles.labelSmall,
     fontSize: 10,
     color: '#94A3B8',
     fontStyle: 'italic',
+    textTransform: 'none',
   },
   alertTime: {
+    ...typography.styles.labelSmall,
     fontSize: 10,
     color: '#94A3B8',
+    textTransform: 'none',
+  },
+  alertClickHint: {
+    ...typography.styles.labelSmall,
+    fontSize: 10,
+    color: '#3B82F6',
+    fontStyle: 'italic',
+    textTransform: 'none',
   },
   noAlertsContainer: {
     alignItems: 'center',
     paddingVertical: 40,
   },
+  noAlertsIcon: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
   noAlertsText: {
-    fontSize: 16,
+    ...typography.styles.bodyBase,
     color: '#10B981',
     textAlign: 'center',
     marginTop: 12,
     marginBottom: 8,
   },
   noAlertsSubtext: {
-    fontSize: 12,
+    ...typography.styles.labelSmall,
     color: '#64748B',
     textAlign: 'center',
+    textTransform: 'none',
+  },
+  supervisorHeader: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  supervisorSession: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  supervisorInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 8,
+  },
+  supervisorName: {
+    ...typography.styles.bodySmall,
+    fontWeight: typography.fontWeight.semibold,
+    color: '#1E293B',
+  },
+  adminBadge: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#F59E0B',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  supervisorActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  controlButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  controlButtonText: {
+    ...typography.styles.labelSmall,
+    color: '#3B82F6',
+    fontWeight: typography.fontWeight.medium,
+    textTransform: 'none',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  logoutButtonText: {
+    fontSize: 12,
+    color: '#EF4444',
+    fontWeight: '500',
+  },
+  createRoadworkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  createRoadworkButtonText: {
+    fontSize: 12,
+    color: '#10B981',
+    fontWeight: '500',
+  },
+  loginPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 4,
+  },
+  loginPromptText: {
+    ...typography.styles.bodySmall,
+    color: '#6B7280',
+    fontWeight: typography.fontWeight.medium,
+    flex: 1,
+  },
+  // Alert Details Modal Styles
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  alertModal: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    width: '90%',
+    maxWidth: 500,
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  alertModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  alertModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    flex: 1,
+    marginRight: 16,
+  },
+  closeModalButton: {
+    padding: 4,
+  },
+  alertModalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  alertModalSection: {
+    marginBottom: 16,
+  },
+  alertModalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  alertModalValue: {
+    fontSize: 14,
+    color: '#1F2937',
+    lineHeight: 20,
+  },
+  alertModalActions: {
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  closeAlertButton: {
+    backgroundColor: '#3B82F6',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  closeAlertButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

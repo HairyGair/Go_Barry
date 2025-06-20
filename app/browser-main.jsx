@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 
 // Import all our v3.0 components
 import SupervisorLogin from '../components/SupervisorLogin';
+import SupervisorControl from '../components/SupervisorControl';
+import SupervisorDisplayIntegrationTest from '../components/dev/SupervisorDisplayIntegrationTest';
 import EnhancedDashboard from '../components/EnhancedDashboard';
 import IncidentManager from '../components/IncidentManager';
 import AIDisruptionManager from '../components/AIDisruptionManager';
@@ -23,15 +25,35 @@ import MessageDistributionCenter from '../components/MessageDistributionCenter';
 import AutomatedReportingSystem from '../components/AutomatedReportingSystem';
 import SystemHealthMonitor from '../components/SystemHealthMonitor';
 import TrainingHelpSystem from '../components/TrainingHelpSystem';
-import SimpleAPITest from '../components/SimpleAPITest';
+import SimpleAPITest from '../components/dev/SimpleAPITest';
 import RoadworksManager from '../components/RoadworksManager';
+import SupervisorCard from '../components/archive/SupervisorCard';
+import SupervisorCardDemo from '../components/dev/SupervisorCardDemo';
+import QuickSupervisorTest from '../components/dev/QuickSupervisorTest';
+import WebSocketTest from '../components/dev/WebSocketTest';
+import WebSocketDiagnostics from '../components/dev/WebSocketDiagnostics';
 import { useSupervisorSession } from '../components/hooks/useSupervisorSession';
+import { useBarryAPI } from '../components/hooks/useBARRYapi';
 import { API_CONFIG } from '../config/api';
 
 const { width, height } = Dimensions.get('window');
 
 // Main navigation structure for browser
 const BROWSER_NAVIGATION = {
+  supervisor: {
+    title: 'Supervisor Control',
+    icon: 'people-circle',
+    component: SupervisorControl,
+    description: 'Interactive supervisor controls & display sync',
+    color: '#DC2626'
+  },
+  integration_test: {
+    title: 'Integration Test',
+    icon: 'flask',
+    component: SupervisorDisplayIntegrationTest,
+    description: '🧪 Test supervisor ↔ display real-time sync',
+    color: '#7C3AED'
+  },
   dashboard: {
     title: 'Control Dashboard',
     icon: 'stats-chart',
@@ -89,11 +111,39 @@ const BROWSER_NAVIGATION = {
     color: '#6366F1'
   },
   test: {
+    title: 'Quick Supervisor Test',
+    icon: 'people-circle',
+    component: QuickSupervisorTest,
+    description: 'Quick test of supervisor card components',
+    color: '#10B981'
+  },
+  apitest: {
     title: 'API Test',
     icon: 'bug',
     component: SimpleAPITest,
     description: 'Test API connectivity and data flow',
     color: '#F97316'
+  },
+  supervisordemo: {
+    title: 'Supervisor Card Demo',
+    icon: 'people',
+    component: SupervisorCardDemo,
+    description: 'Demo individual supervisor tracking features',
+    color: '#7C3AED'
+  },
+  websockettest: {
+    title: 'WebSocket Test',
+    icon: 'wifi',
+    component: WebSocketTest,
+    description: 'Test WebSocket connections and authentication',
+    color: '#EC4899'
+  },
+  diagnostics: {
+    title: 'WebSocket Diagnostics',
+    icon: 'pulse',
+    component: WebSocketDiagnostics,
+    description: 'Advanced diagnostics for connection issues',
+    color: '#DC2626'
   }
 };
 
@@ -102,11 +152,17 @@ const BrowserMainApp = () => {
     isLoggedIn,
     supervisorName,
     supervisorRole,
+    supervisorId,
+    sessionId,
     isAdmin,
+    supervisorSession, // Add this to access backendId
     logout
   } = useSupervisorSession();
 
-  const [activeScreen, setActiveScreen] = useState('dashboard');
+  // Get live alerts for supervisor control
+  const { alerts } = useBarryAPI({ autoRefresh: true, refreshInterval: 15000 });
+
+  const [activeScreen, setActiveScreen] = useState('supervisor');
   const [showSupervisorLogin, setShowSupervisorLogin] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -187,6 +243,17 @@ const BrowserMainApp = () => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  // Enhanced logout function that ensures modal opens
+  const handleLogout = async () => {
+    console.log('🔄 Logout clicked - clearing session...');
+    await logout();
+    // Force login modal to open after logout
+    setTimeout(() => {
+      setShowSupervisorLogin(true);
+      console.log('✅ Login modal should now be open');
+    }, 100);
+  };
+
   // Auto-open login if not logged in
   useEffect(() => {
     if (!isLoggedIn) {
@@ -218,7 +285,7 @@ const BrowserMainApp = () => {
             <TouchableOpacity
               style={styles.helpButton}
               onPress={() => setActiveScreen('training')}
-              title="Keyboard Shortcuts: Ctrl+1-7 for navigation, Ctrl+B for sidebar, F11 for fullscreen"
+              title="Keyboard Shortcuts: Ctrl+1-9 for navigation, Ctrl+B for sidebar, F11 for fullscreen"
             >
               <Ionicons name="help-circle" size={20} color="#6B7280" />
             </TouchableOpacity>
@@ -256,7 +323,19 @@ const BrowserMainApp = () => {
         </View>
         
         <View style={styles.screenContent}>
-          <ScreenComponent baseUrl={API_CONFIG.baseURL} />
+          {activeScreen === 'supervisor' ? (
+            <SupervisorControl
+              supervisorId={supervisorSession?.supervisor?.backendId || 'supervisor001'} // Force backend ID
+              supervisorName={supervisorName}
+              sessionId={sessionId}
+              supervisorSession={supervisorSession} // Pass full session
+              alerts={alerts}
+            />
+          ) : activeScreen === 'integration_test' ? (
+            <SupervisorDisplayIntegrationTest />
+          ) : (
+            <ScreenComponent baseUrl={API_CONFIG.baseURL} />
+          )}
         </View>
       </View>
     );
@@ -309,6 +388,18 @@ const BrowserMainApp = () => {
                   {isAdmin && (
                     <Text style={styles.adminBadge}>⭐ Admin</Text>
                   )}
+                  <View style={styles.connectionStatus}>
+                    <View style={[
+                      styles.connectionDot,
+                      { backgroundColor: '#EF4444' }
+                    ]} />
+                    <Text style={[
+                      styles.connectionText,
+                      { color: '#EF4444' }
+                    ]}>
+                      Display Sync Offline (Testing Mode)
+                    </Text>
+                  </View>
                 </View>
               )}
             </View>
@@ -370,7 +461,7 @@ const BrowserMainApp = () => {
           ) : (
             <TouchableOpacity
               style={styles.footerButton}
-              onPress={logout}
+              onPress={handleLogout}
             >
               <Ionicons name="log-out" size={20} color="#EF4444" />
               {!sidebarCollapsed && (
@@ -502,6 +593,21 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#F59E0B',
     fontWeight: '600',
+  },
+  connectionStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    gap: 4,
+  },
+  connectionDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  connectionText: {
+    fontSize: 10,
+    fontWeight: '500',
   },
   navigationContainer: {
     flex: 1,

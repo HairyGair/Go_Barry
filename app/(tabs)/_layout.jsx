@@ -136,6 +136,62 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="integration"
+        options={{
+          title: 'Test',
+          headerTitle: 'Integration Test',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons 
+              name={focused ? "flask" : "flask-outline"} 
+              size={size} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="control"
+        options={{
+          title: 'Control',
+          headerTitle: 'Control Dashboard',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons 
+              name={focused ? "shield-checkmark" : "shield-checkmark-outline"} 
+              size={size} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="incidents"
+        options={{
+          title: 'Incidents',
+          headerTitle: 'Incident Manager',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons 
+              name={focused ? "document-text" : "document-text-outline"} 
+              size={size} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="services"
+        options={{
+          title: 'Services',
+          headerTitle: 'Service Information',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons 
+              name={focused ? "bus" : "bus-outline"} 
+              size={size} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="about"
         options={{
           href: null, // Hide this tab from navigation

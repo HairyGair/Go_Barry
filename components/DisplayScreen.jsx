@@ -1,32 +1,23 @@
 // Go_BARRY/components/DisplayScreen.jsx
-// 24/7 Control Room Display Screen for Traffic Monitoring
-// Designed for supervisors monitoring traffic alerts that require attention
+// Professional 24/7 Control Room Display - Fixed for React Native Web
 
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  Image
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useBarryAPI } from './hooks/useBARRYapi';
+import React, { useState, useEffect, useRef } from 'react';
+import OptimizedTomTomMap from './OptimizedTomTomMap';
 
 const DisplayScreen = () => {
-  const {
-    alerts,
-    loading,
-    lastUpdated,
-    refreshAlerts
-  } = useBarryAPI({
-    autoRefresh: true,
-    refreshInterval: 15000 // 15 seconds for critical monitoring
-  });
-
+  const [alerts, setAlerts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [acknowledgedAlerts, setAcknowledgedAlerts] = useState(new Set());
+  const [currentAlertIndex, setCurrentAlertIndex] = useState(0);
+  const [error, setError] = useState(null);
+  const [activeEvent, setActiveEvent] = useState(null);
+  const [supervisorActivity, setSupervisorActivity] = useState([]);
+  const [activeSupervisors, setActiveSupervisors] = useState([]);
+  const [apiResponseTime, setApiResponseTime] = useState(null);
+  const [lastUpdateTime, setLastUpdateTime] = useState(null);
+  const [attentionMode, setAttentionMode] = useState(false);
+  const [weather, setWeather] = useState({ condition: 'CLEAR', temp: '15°C', icon: '☀️' });
+  const [syncConnected, setSyncConnected] = useState(true);
 
   // Update time every second
   useEffect(() => {
@@ -35,6 +26,197 @@ const DisplayScreen = () => {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Fetch supervisor activity via polling
+  const fetchSupervisorActivity = async () => {
+    try {
+      // Fetch active supervisors
+      console.log('🔄 Fetching active supervisors...');
+      const response = await fetch('https://go-barry.onrender.com/api/supervisor/active');
+      if (response.ok) {
+        const activeData = await response.json();
+        console.log('👥 Active supervisors response:', activeData);
+        if (activeData.activeSupervisors) {
+          setActiveSupervisors(activeData.activeSupervisors);
+        }
+      } else {
+        console.error('❌ Failed to fetch active supervisors:', response.status);
+      }
+      
+      // Fetch activity logs from Supabase
+      const activityResponse = await fetch('https://go-barry.onrender.com/api/activity/logs?limit=10&screenType=supervisor');
+      if (activityResponse.ok) {
+        const activityData = await activityResponse.json();
+        if (activityData.logs) {
+          // Transform activities to match expected format
+          const formattedActivities = activityData.logs.map(log => ({
+            id: log.id,
+            supervisorName: log.supervisor_name || 'System',
+            action: formatActivityAction(log.action, log.details),
+            type: getActivityType(log.action),
+            timestamp: log.created_at
+          }));
+          setSupervisorActivity(formattedActivities);
+        }
+      }
+      
+      setSyncConnected(true);
+    } catch (err) {
+      console.log('Could not fetch supervisor activity');
+      setSyncConnected(false);
+    }
+  };
+  
+  // Helper functions for activity formatting
+  const formatActivityAction = (action, details) => {
+    switch (action) {
+      case 'supervisor_login':
+        return `logged in (${details?.badge || 'unknown badge'})`;
+      case 'supervisor_logout':
+        return `logged out (${details?.sessionDuration || 'unknown duration'})`;
+      case 'alert_dismissed':
+        return `dismissed alert: ${details?.reason || 'No reason'}`;
+      case 'session_timeout':
+        return `auto-timeout after ${details?.inactiveMinutes || '?'} minutes`;
+      case 'roadwork_created':
+        return `created roadwork at ${details?.location || 'unknown location'}`;
+      case 'email_sent':
+        return `sent email to ${details?.recipients?.length || 0} groups`;
+      default:
+        return action.toLowerCase().replace(/_/g, ' ');
+    }
+  };
+  
+  const getActivityType = (action) => {
+    switch (action) {
+      case 'supervisor_login':
+      case 'supervisor_logout':
+      case 'session_timeout':
+        return 'login';
+      case 'alert_dismissed':
+        return 'acknowledge';
+      case 'roadwork_created':
+        return 'roadwork';
+      case 'email_sent':
+        return 'email';
+      default:
+        return 'system';
+    }
+  };
+
+  // Polling for supervisor activity
+  useEffect(() => {
+    fetchSupervisorActivity();
+    const interval = setInterval(fetchSupervisorActivity, 15000); // 15s intervals for real-time activity
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch active events
+  const fetchActiveEvents = async () => {
+    try {
+      const response = await fetch('https://go-barry.onrender.com/api/events/active');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.mostSevere) {
+          setActiveEvent(data.mostSevere);
+        } else {
+          setActiveEvent(null);
+        }
+      }
+    } catch (err) {
+      console.log('Could not fetch events');
+    }
+  };
+
+  // Fetch alerts data
+  const fetchAlerts = async () => {
+    const startTime = performance.now();
+    try {
+      setLoading(true);
+      console.log('🔄 Fetching alerts...');
+      
+      const response = await fetch('https://go-barry.onrender.com/api/alerts-enhanced');
+      const endTime = performance.now();
+      const responseTime = Math.round(endTime - startTime);
+      setApiResponseTime(responseTime);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log('✅ Alerts received:', data.alerts?.length || 0);
+      
+      // Process alerts to ensure coordinates are in correct format
+      const processedAlerts = (data.alerts || []).map(alert => ({
+        ...alert,
+        coordinates: alert.coordinates ? 
+          (Array.isArray(alert.coordinates) ? alert.coordinates : 
+           alert.coordinates.lat && alert.coordinates.lng ? 
+           [alert.coordinates.lat, alert.coordinates.lng] : 
+           alert.coordinates.latitude && alert.coordinates.longitude ?
+           [alert.coordinates.latitude, alert.coordinates.longitude] : null) :
+          null
+      }));
+      
+      setAlerts(processedAlerts);
+      setError(null);
+      setLastUpdateTime(new Date());
+      
+      // Check for critical/high severity alerts
+      const criticalAlerts = processedAlerts.filter(alert => 
+        alert.severity === 'CRITICAL' || alert.severity === 'Critical' ||
+        alert.severity === 'HIGH' || alert.severity === 'High'
+      );
+      setAttentionMode(criticalAlerts.length > 0);
+      
+      // Log display screen view
+      try {
+        await fetch('https://go-barry.onrender.com/api/activity/display-view', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            alertCount: processedAlerts.length,
+            criticalCount: criticalAlerts.length,
+            viewTime: new Date().toISOString()
+          })
+        });
+      } catch (err) {
+        console.log('Failed to log display view');
+      }
+      
+    } catch (err) {
+      console.error('❌ Error fetching alerts:', err);
+      setError(err.message);
+      setLastUpdateTime(new Date());
+      setApiResponseTime(Math.round(performance.now() - startTime));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial load and auto-refresh
+  useEffect(() => {
+    fetchAlerts();
+    fetchActiveEvents();
+    const alertInterval = setInterval(fetchAlerts, 20000);
+    const eventInterval = setInterval(fetchActiveEvents, 60000);
+    return () => {
+      clearInterval(alertInterval);
+      clearInterval(eventInterval);
+    };
+  }, []);
+
+  // Auto-rotate alerts
+  useEffect(() => {
+    if (alerts.length <= 1) return;
+    
+    const interval = setInterval(() => {
+      setCurrentAlertIndex((prev) => (prev + 1) % alerts.length);
+    }, 15000);
+    
+    return () => clearInterval(interval);
+  }, [alerts.length]);
 
   const formatTime = (date) => {
     return date.toLocaleTimeString('en-GB', {
@@ -54,548 +236,670 @@ const DisplayScreen = () => {
     });
   };
 
-  const acknowledgeAlert = (alertId) => {
-    setAcknowledgedAlerts(prev => new Set([...prev, alertId]));
+  const getCurrentAlert = () => {
+    if (!alerts.length || currentAlertIndex >= alerts.length) return null;
+    return alerts[currentAlertIndex];
   };
 
-  const criticalAlerts = alerts.filter(alert => 
-    alert.severity === 'High' || 
-    (alert.affectsRoutes && alert.affectsRoutes.length >= 3)
-  );
+  const getSeverityColor = (severity) => {
+    switch (severity?.toLowerCase()) {
+      case 'critical':
+      case 'high':
+        return '#ef4444';
+      case 'medium':
+        return '#f59e0b';
+      case 'low':
+        return '#06b6d4';
+      default:
+        return '#64748b';
+    }
+  };
 
-  const urgentAlerts = alerts.filter(alert => 
-    alert.severity === 'Medium' && 
-    alert.affectsRoutes && 
-    alert.affectsRoutes.length > 0
-  );
+  const getTimeSinceUpdate = () => {
+    if (!lastUpdateTime) return 'Never';
+    const seconds = Math.floor((new Date() - lastUpdateTime) / 1000);
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes}m ago`;
+  };
+
+  const currentAlert = getCurrentAlert();
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.logoContainer}>
-            <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoText}>GO BARRY</Text>
-            </View>
-            <View style={styles.titleContainer}>
-              <Text style={styles.systemTitle}>GO NORTH EAST CONTROL ROOM</Text>
-              <Text style={styles.displayTitle}>24/7 TRAFFIC MONITORING DISPLAY</Text>
-            </View>
-          </View>
-        </View>
+    <div style={{
+      minHeight: '100vh',
+      backgroundColor: '#0f0f23',
+      color: '#ffffff',
+      fontFamily: "'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif",
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* Header Command Bar */}
+      <div style={{
+        height: '60px',
+        backgroundColor: '#1a1a3e',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 24px',
+        position: 'relative',
+        zIndex: 100
+      }}>
+        {/* Company Branding */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <img 
+            src="/gobarry-logo.png" 
+            alt="Go BARRY Logo" 
+            style={{
+              height: '36px',
+              width: 'auto',
+              objectFit: 'contain'
+            }}
+            onError={(e) => {
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'flex';
+            }}
+          />
+          {/* Fallback branding if logo doesn't load */}
+          <div style={{ display: 'none' }}>
+            <div style={{
+              width: '36px',
+              height: '36px',
+              backgroundColor: '#3b82f6',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '16px',
+              fontWeight: '700'
+            }}>
+              GNE
+            </div>
+          </div>
+          <div>
+            <h1 style={{
+              margin: 0,
+              fontSize: '18px',
+              fontWeight: '700',
+              color: '#ffffff'
+            }}>
+              GO BARRY INTELLIGENCE
+            </h1>
+            <p style={{
+              margin: 0,
+              fontSize: '10px',
+              color: '#64748b',
+              fontWeight: '600',
+              letterSpacing: '1px',
+              textTransform: 'uppercase'
+            }}>
+              Control Room • Live Operations
+            </p>
+          </div>
+        </div>
         
-        <View style={styles.headerCenter}>
-          <Text style={styles.timeDisplay}>{formatTime(currentTime)}</Text>
-          <Text style={styles.dateDisplay}>{formatDate(currentTime)}</Text>
-        </View>
+        {/* Central Time Display */}
+        <div style={{ 
+          textAlign: 'center',
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          padding: '12px 20px',
+          borderRadius: '12px',
+          border: '1px solid rgba(255, 255, 255, 0.1)'
+        }}>
+          <div style={{
+            fontSize: '28px',
+            fontWeight: '300',
+            fontFamily: "'SF Mono', 'Monaco', monospace",
+            color: '#ffffff',
+            letterSpacing: '-1px'
+          }}>
+            {formatTime(currentTime)}
+          </div>
+          <div style={{
+            fontSize: '11px',
+            color: '#94a3b8',
+            fontWeight: '500',
+            marginTop: '2px'
+          }}>
+            {formatDate(currentTime)}
+          </div>
+        </div>
         
-        <View style={styles.headerRight}>
-          <View style={styles.statusIndicator}>
-            <Text style={styles.statusText}>
-              {loading ? 'UPDATING' : 'LIVE MONITORING'}
-            </Text>
-          </View>
-          <Text style={styles.lastUpdate}>
-            Last Update: {lastUpdated ? new Date(lastUpdated).toLocaleTimeString('en-GB') : 'Never'}
-          </Text>
-        </View>
-      </View>
+        {/* Status Grid */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <StatusBadge 
+            icon={loading ? '🔄' : '🟢'} 
+            label={loading ? 'SYNCING' : 'LIVE'} 
+            color={loading ? '#f59e0b' : '#10b981'}
+            pulse={loading}
+          />
+          <StatusBadge 
+            icon="👥" 
+            label={`${activeSupervisors.length} SUPERVISORS`} 
+            color="#3b82f6"
+          />
+          <StatusBadge 
+            icon="📡" 
+            label={`${apiResponseTime || '---'}ms`} 
+            color={apiResponseTime && apiResponseTime < 1000 ? '#10b981' : '#f59e0b'}
+          />
+          <StatusBadge 
+            icon="🔌" 
+            label={syncConnected ? 'SYNC' : 'OFFLINE'} 
+            color={syncConnected ? '#10b981' : '#ef4444'}
+          />
+          {attentionMode && (
+            <StatusBadge 
+              icon="🚨" 
+              label="CRITICAL" 
+              color="#ef4444"
+              pulse={true}
+            />
+          )}
+        </div>
+      </div>
 
-      {/* Priority Summary */}
-      <View style={styles.prioritySummary}>
-        <View style={[styles.priorityCount, { backgroundColor: '#FEE2E2' }]}>
-          <Text style={[styles.priorityNumber, { color: '#DC2626' }]}>
-            {criticalAlerts.length}
-          </Text>
-          <Text style={[styles.priorityLabel, { color: '#DC2626' }]}>
-            CRITICAL
-          </Text>
-        </View>
-        
-        <View style={[styles.priorityCount, { backgroundColor: '#FED7AA' }]}>
-          <Text style={[styles.priorityNumber, { color: '#EA580C' }]}>
-            {urgentAlerts.length}
-          </Text>
-          <Text style={[styles.priorityLabel, { color: '#EA580C' }]}>
-            URGENT
-          </Text>
-        </View>
-        
-        <View style={[styles.priorityCount, { backgroundColor: '#FEF3C7' }]}>
-          <Text style={[styles.priorityNumber, { color: '#CA8A04' }]}>
-            {alerts.length - criticalAlerts.length - urgentAlerts.length}
-          </Text>
-          <Text style={[styles.priorityLabel, { color: '#CA8A04' }]}>
-            MONITOR
-          </Text>
-        </View>
-        
-        <TouchableOpacity 
-          style={styles.refreshButton}
-          onPress={refreshAlerts}
-        >
-          <Ionicons name="refresh" size={20} color="#FFFFFF" />
-          <Text style={styles.refreshText}>REFRESH</Text>
-        </TouchableOpacity>
-      </View>
+      {/* Critical Event Banner */}
+      {activeEvent && (
+        <div style={{
+          backgroundColor: '#ef4444',
+          padding: '10px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
+        }}>
+          <div style={{
+            width: '28px',
+            height: '28px',
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '14px'
+          }}>
+            ⚠️
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '14px', fontWeight: '700' }}>
+              MAJOR EVENT: {activeEvent.venue} - {activeEvent.event}
+            </div>
+            <div style={{ fontSize: '12px', opacity: 0.9 }}>
+              {activeEvent.time} • Expect significant service disruption
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Alerts Feed */}
-      <ScrollView style={styles.alertsFeed} showsVerticalScrollIndicator={false}>
-        {alerts.length > 0 ? (
-          alerts.map((alert, index) => {
-            const isCritical = criticalAlerts.includes(alert);
-            const isUrgent = urgentAlerts.includes(alert);
-            const isAcknowledged = acknowledgedAlerts.has(alert.id);
-            
-            let priority = 'MONITOR';
-            let priorityColor = '#CA8A04';
-            if (isCritical) {
-              priority = 'CRITICAL';
-              priorityColor = '#DC2626';
-            } else if (isUrgent) {
-              priority = 'URGENT';
-              priorityColor = '#EA580C';
-            }
+      {/* Main Dashboard Grid */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gridTemplateRows: 'auto 1fr',
+        gap: '20px',
+        padding: '20px',
+        height: activeEvent ? 'calc(100vh - 110px)' : 'calc(100vh - 60px)',
+        position: 'relative',
+        zIndex: 1
+      }}>
+        {/* Live Traffic Map Panel */}
+        <div style={{
+          gridColumn: '1 / -1',
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          borderRadius: '20px',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          padding: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          height: '50vh',
+          minHeight: '400px'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '16px'
+          }}>
+            <h2 style={{
+              margin: 0,
+              fontSize: '16px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              color: '#f8fafc'
+            }}>
+              <span style={{
+                width: '28px',
+                height: '28px',
+                backgroundColor: '#3b82f6',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '14px'
+              }}>
+                🗺️
+              </span>
+              LIVE TRAFFIC INTELLIGENCE
+            </h2>
+            <div style={{
+              backgroundColor: 'rgba(59, 130, 246, 0.2)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              padding: '6px 12px',
+              borderRadius: '10px',
+              fontSize: '11px',
+              fontWeight: '600',
+              color: '#93c5fd'
+            }}>
+              {alerts.filter(a => a.coordinates).length} ALERTS MAPPED
+            </div>
+          </div>
+          
+          <div style={{
+            flex: 1,
+            backgroundColor: 'rgba(0, 0, 0, 0.2)',
+            borderRadius: '12px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            overflow: 'hidden',
+            position: 'relative',
+            minHeight: '300px'
+          }}>
+            <OptimizedTomTomMap 
+              alerts={alerts}
+              currentAlert={currentAlert}
+              alertIndex={currentAlertIndex}
+              mapId="display-screen"
+            />
+          </div>
+        </div>
 
-            return (
-              <TouchableOpacity
-                key={alert.id || index}
-                style={[
-                  styles.alertCard,
-                  { borderLeftColor: priorityColor },
-                  isAcknowledged && styles.alertCardAcknowledged
-                ]}
-                onPress={() => acknowledgeAlert(alert.id)}
-              >
-                {/* Priority Banner */}
-                <View style={[styles.priorityBanner, { backgroundColor: priorityColor }]}>
-                  <Text style={styles.priorityText}>{priority}</Text>
-                  {isCritical && (
-                    <Ionicons name="warning" size={16} color="#FFFFFF" />
+        {/* Alert Center */}
+        <div style={{
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          borderRadius: '20px',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          padding: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '16px'
+          }}>
+            <h2 style={{
+              margin: 0,
+              fontSize: '16px',
+              fontWeight: '600',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              color: '#f8fafc'
+            }}>
+              <span style={{
+                width: '28px',
+                height: '28px',
+                backgroundColor: '#ef4444',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '14px'
+              }}>
+                🚨
+              </span>
+              ALERT CENTER
+              <span style={{
+                backgroundColor: alerts.length > 0 ? '#ef4444' : '#10b981',
+                color: '#ffffff',
+                padding: '3px 10px',
+                borderRadius: '10px',
+                fontSize: '11px',
+                fontWeight: '700',
+                minWidth: '20px',
+                textAlign: 'center'
+              }}>
+                {alerts.length}
+              </span>
+            </h2>
+            <div style={{
+              fontSize: '11px',
+              color: '#64748b'
+            }}>
+              Updated {getTimeSinceUpdate()}
+            </div>
+          </div>
+
+          {error && (
+            <div style={{
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              padding: '12px',
+              borderRadius: '10px',
+              marginBottom: '16px',
+              color: '#fca5a5',
+              fontSize: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <span>⚠️</span>
+              {error}
+            </div>
+          )}
+
+          {alerts.length > 0 ? (
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              {currentAlert && (
+                <div style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                  border: `2px solid ${getSeverityColor(currentAlert.severity)}`,
+                  borderRadius: '12px',
+                  padding: '20px',
+                  position: 'relative'
+                }}>
+                  <div style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: '12px',
+                    backgroundColor: getSeverityColor(currentAlert.severity),
+                    color: '#ffffff',
+                    padding: '4px 10px',
+                    borderRadius: '16px',
+                    fontSize: '10px',
+                    fontWeight: '700',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px'
+                  }}>
+                    {currentAlert.severity || 'UNKNOWN'}
+                  </div>
+
+                  <h3 style={{
+                    margin: '0 0 12px 0',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    color: '#f8fafc',
+                    paddingRight: '60px',
+                    lineHeight: '1.4'
+                  }}>
+                    {currentAlert.title}
+                  </h3>
+
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    marginBottom: '12px',
+                    color: '#cbd5e1',
+                    fontSize: '12px'
+                  }}>
+                    <span>📍</span>
+                    {currentAlert.location || 'Location not specified'}
+                  </div>
+
+                  {currentAlert.description && (
+                    <p style={{
+                      margin: '0 0 16px 0',
+                      fontSize: '12px',
+                      color: '#94a3b8',
+                      lineHeight: '1.5'
+                    }}>
+                      {currentAlert.description}
+                    </p>
                   )}
-                </View>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center',
+              padding: '40px 20px'
+            }}>
+              <div style={{
+                width: '64px',
+                height: '64px',
+                backgroundColor: '#10b981',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '28px',
+                marginBottom: '16px'
+              }}>
+                ✅
+              </div>
+              <h3 style={{
+                margin: '0 0 8px 0',
+                fontSize: '18px',
+                fontWeight: '600',
+                color: '#10b981'
+              }}>
+                ALL CLEAR
+              </h3>
+              <p style={{
+                margin: 0,
+                fontSize: '12px',
+                color: '#64748b'
+              }}>
+                No active traffic alerts detected
+              </p>
+            </div>
+          )}
+        </div>
 
-                {/* Alert Content */}
-                <View style={styles.alertContent}>
-                  <View style={styles.alertHeader}>
-                    <Ionicons 
-                      name={alert.type === 'incident' ? 'alert-circle' : 'construct'} 
-                      size={24} 
-                      color={priorityColor}
-                    />
-                    <Text style={styles.alertTitle}>{alert.title}</Text>
-                  </View>
-                  
-                  <Text style={styles.alertLocation}>{alert.location}</Text>
-                  <Text style={styles.alertDescription} numberOfLines={3}>
-                    {alert.description}
-                  </Text>
+        {/* Operations Panel */}
+        <div style={{
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          borderRadius: '20px',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          padding: '20px',
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%'
+        }}>
+          <h3 style={{
+            margin: '0 0 16px 0',
+            fontSize: '16px',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            color: '#f8fafc'
+          }}>
+            <span style={{
+              width: '28px',
+              height: '28px',
+              backgroundColor: '#8b5cf6',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '14px'
+            }}>
+              👮‍♂️
+            </span>
+            OPERATIONS
+          </h3>
+          
+          <div style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.2)',
+            padding: '14px',
+            borderRadius: '10px',
+            marginBottom: '16px'
+          }}>
+            <div style={{
+              fontSize: '11px',
+              fontWeight: '600',
+              color: '#64748b',
+              marginBottom: '10px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              👥 Active Personnel ({activeSupervisors.length})
+            </div>
+            {activeSupervisors.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {activeSupervisors.map((supervisor, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '8px 10px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                    borderRadius: '6px'
+                  }}>
+                    <span style={{
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      color: '#f1f5f9'
+                    }}>
+                      {supervisor.name}
+                    </span>
+                    <span style={{
+                      fontSize: '9px',
+                      color: '#10b981',
+                      backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                      padding: '3px 6px',
+                      borderRadius: '10px',
+                      fontWeight: '600'
+                    }}>
+                      {supervisor.role === 'admin' ? 'ADMIN' : 'ACTIVE'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{
+                fontSize: '12px',
+                color: '#64748b',
+                textAlign: 'center',
+                padding: '12px',
+                fontStyle: 'italic'
+              }}>
+                No active personnel
+              </div>
+            )}
+          </div>
 
-                  {/* Service Impact */}
-                  {alert.affectsRoutes && alert.affectsRoutes.length > 0 && (
-                    <View style={styles.serviceImpact}>
-                      <Text style={styles.serviceImpactLabel}>AFFECTED SERVICES:</Text>
-                      <View style={styles.routesList}>
-                        {alert.affectsRoutes.slice(0, 6).map((route, idx) => (
-                          <View key={idx} style={[styles.routeBadge, { borderColor: priorityColor }]}>
-                            <Text style={[styles.routeText, { color: priorityColor }]}>
-                              {route}
-                            </Text>
-                          </View>
-                        ))}
-                        {alert.affectsRoutes.length > 6 && (
-                          <Text style={styles.moreRoutes}>
-                            +{alert.affectsRoutes.length - 6} more
-                          </Text>
-                        )}
-                      </View>
-                    </View>
-                  )}
+          <div style={{
+            fontSize: '11px',
+            fontWeight: '600',
+            color: '#64748b',
+            marginBottom: '10px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px'
+          }}>
+            📋 Recent Activity
+          </div>
+          
+          <div style={{
+            flex: 1,
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '6px'
+          }}>
+            {supervisorActivity.length > 0 ? (
+              supervisorActivity.map((activity, idx) => (
+                <div key={activity.id} style={{
+                  padding: '10px',
+                  backgroundColor: idx === 0 ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255, 255, 255, 0.03)',
+                  border: idx === 0 ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)',
+                  borderRadius: '6px',
+                  borderLeft: `3px solid ${
+                    activity.type === 'login' ? '#10b981' :
+                    activity.type === 'acknowledge' ? '#f59e0b' :
+                    activity.type === 'roadwork' ? '#ef4444' :
+                    activity.type === 'email' ? '#3b82f6' :
+                    'rgba(255, 255, 255, 0.1)'
+                  }`
+                }}>
+                  <div style={{
+                    fontSize: '12px',
+                    fontWeight: '500',
+                    color: '#f1f5f9',
+                    marginBottom: '3px'
+                  }}>
+                    {activity.supervisorName}
+                  </div>
+                  <div style={{
+                    fontSize: '11px',
+                    color: '#94a3b8',
+                    marginBottom: '4px'
+                  }}>
+                    {activity.action}
+                  </div>
+                  <div style={{
+                    fontSize: '9px',
+                    color: '#64748b'
+                  }}>
+                    {new Date(activity.timestamp).toLocaleTimeString('en-GB', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                color: '#64748b',
+                fontStyle: 'italic'
+              }}>
+                No recent activity
+              </div>
+            )}
+          </div>
 
-                  {/* Supervisor Action */}
-                  <View style={styles.supervisorActions}>
-                    <Text style={styles.actionPrompt}>
-                      {isCritical && 'IMMEDIATE: Check service status and consider diversions'}
-                      {isUrgent && !isCritical && 'URGENT: Review affected routes and passenger impact'}
-                      {!isCritical && !isUrgent && 'MONITOR: Keep watching for service disruption'}
-                    </Text>
-                    
-                    {!isAcknowledged && (isCritical || isUrgent) && (
-                      <View style={styles.acknowledgementPrompt}>
-                        <Ionicons name="hand-left" size={16} color={priorityColor} />
-                        <Text style={[styles.ackText, { color: priorityColor }]}>
-                          TAP TO ACKNOWLEDGE
-                        </Text>
-                      </View>
-                    )}
-                    
-                    {isAcknowledged && (
-                      <View style={styles.acknowledgedBadge}>
-                        <Ionicons name="checkmark-circle" size={16} color="#059669" />
-                        <Text style={styles.acknowledgedText}>ACKNOWLEDGED</Text>
-                      </View>
-                    )}
-                  </View>
-
-                  {/* Source Info */}
-                  <View style={styles.alertFooter}>
-                    <Text style={styles.sourceText}>
-                      Source: {alert.source?.toUpperCase() || 'SYSTEM'} • 
-                      Severity: {alert.severity?.toUpperCase() || 'UNKNOWN'}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            );
-          })
-        ) : (
-          <View style={styles.noAlertsContainer}>
-            <Ionicons name="shield-checkmark" size={64} color="#059669" />
-            <Text style={styles.noAlertsTitle}>ALL CLEAR</Text>
-            <Text style={styles.noAlertsText}>
-              No traffic alerts requiring supervisor attention
-            </Text>
-            <Text style={styles.noAlertsSubtext}>
-              Services operating normally across the network
-            </Text>
-          </View>
-        )}
-      </ScrollView>
-
-      {/* Footer */}
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          Go North East Control Room • 24/7 Traffic Intelligence • Supervisor Display
-        </Text>
-        <Text style={styles.instructionText}>
-          TAP alerts to acknowledge • Critical alerts require immediate supervisor review
-        </Text>
-      </View>
-    </View>
+          <div style={{
+            marginTop: '12px',
+            padding: '10px',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            borderRadius: '6px',
+            textAlign: 'center',
+            fontSize: '10px',
+            color: '#93c5fd',
+            fontWeight: '500'
+          }}>
+            Go BARRY v3.0 • Control Room Operations
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000000',
-    minHeight: '100vh',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+// Status Badge Component
+const StatusBadge = ({ icon, label, color, pulse = false }) => (
+  <div style={{
+    display: 'flex',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#1F2937',
-    borderBottomWidth: 3,
-    borderBottomColor: '#DC2626',
-  },
-  headerLeft: {
-    flex: 1,
-  },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  logoPlaceholder: {
-    width: 60,
-    height: 60,
-    backgroundColor: '#E31E24',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  logoText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    letterSpacing: 1,
-  },
-  titleContainer: {
-    flex: 1,
-  },
-  systemTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    letterSpacing: 1,
-  },
-  displayTitle: {
-    fontSize: 14,
-    color: '#F59E0B',
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  headerCenter: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  timeDisplay: {
-    fontSize: 42,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    fontFamily: 'monospace',
-  },
-  dateDisplay: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    fontWeight: '500',
-  },
-  headerRight: {
-    flex: 1,
-    alignItems: 'flex-end',
-  },
-  statusIndicator: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-    marginBottom: 8,
-    backgroundColor: '#059669',
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    letterSpacing: 1,
-  },
-  lastUpdate: {
-    fontSize: 11,
-    color: '#9CA3AF',
-    fontFamily: 'monospace',
-  },
-  prioritySummary: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#111827',
-    borderBottomWidth: 1,
-    borderBottomColor: '#374151',
-  },
-  priorityCount: {
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    minWidth: 80,
-  },
-  priorityNumber: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  priorityLabel: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
-  refreshButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#3B82F6',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  refreshText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
-  alertsFeed: {
-    flex: 1,
-    padding: 16,
-  },
-  alertCard: {
-    backgroundColor: '#FFFFFF',
-    marginBottom: 16,
-    borderRadius: 8,
-    borderLeftWidth: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  alertCardAcknowledged: {
-    opacity: 0.7,
-    backgroundColor: '#F9FAFB',
-  },
-  priorityBanner: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  priorityText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
-  alertContent: {
-    padding: 16,
-  },
-  alertHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-  },
-  alertTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  alertLocation: {
-    fontSize: 16,
-    color: '#3B82F6',
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  alertDescription: {
-    fontSize: 14,
-    color: '#4B5563',
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  serviceImpact: {
-    marginBottom: 12,
-  },
-  serviceImpactLabel: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#DC2626',
-    marginBottom: 8,
-    letterSpacing: 1,
-  },
-  routesList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    alignItems: 'center',
-  },
-  routeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    borderWidth: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  routeText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    fontFamily: 'monospace',
-  },
-  moreRoutes: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontStyle: 'italic',
-  },
-  supervisorActions: {
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-    paddingTop: 12,
-    marginBottom: 12,
-  },
-  actionPrompt: {
-    fontSize: 13,
-    color: '#374151',
-    fontWeight: '500',
-    marginBottom: 8,
-    lineHeight: 18,
-  },
-  acknowledgementPrompt: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#FEF2F2',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  ackText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
-  acknowledgedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#F0FDF4',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-  },
-  acknowledgedText: {
-    fontSize: 11,
-    color: '#059669',
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  },
-  alertFooter: {
-    marginTop: 8,
-  },
-  sourceText: {
-    fontSize: 11,
-    color: '#9CA3AF',
-    fontFamily: 'monospace',
-  },
-  noAlertsContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  noAlertsTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#059669',
-    marginTop: 16,
-    marginBottom: 8,
-    letterSpacing: 2,
-  },
-  noAlertsText: {
-    fontSize: 18,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  noAlertsSubtext: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#1F2937',
-    borderTopWidth: 1,
-    borderTopColor: '#374151',
-  },
-  footerText: {
-    fontSize: 11,
-    color: '#9CA3AF',
-    letterSpacing: 0.5,
-  },
-  instructionText: {
-    fontSize: 11,
-    color: '#F59E0B',
-    fontWeight: '500',
-    letterSpacing: 0.5,
-  },
-});
+    gap: '4px',
+    backgroundColor: `${color}20`,
+    border: `1px solid ${color}40`,
+    color: color,
+    padding: '5px 10px',
+    borderRadius: '8px',
+    fontSize: '10px',
+    fontWeight: '600'
+  }}>
+    <span>{icon}</span>
+    <span>{label}</span>
+  </div>
+);
 
 export default DisplayScreen;

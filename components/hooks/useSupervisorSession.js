@@ -1,33 +1,84 @@
 // Go_BARRY/components/hooks/useSupervisorSession.js
-// Enhanced supervisor session management with browser persistence
+// Enhanced supervisor session management with inline storage
 
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { Alert } from 'react-native';
-import sessionStorage from '../../services/sessionStorage';
+
+// Inline session storage to avoid import issues
+const sessionStorageService = {
+  memoryStorage: new Map(),
+  storageKey: 'barry_supervisor_session',
+  
+  saveSession(sessionData) {
+    try {
+      const sessionWithTimestamp = {
+        ...sessionData,
+        savedAt: Date.now(),
+        expiresAt: Date.now() + (8 * 60 * 60 * 1000) // 8 hours
+      };
+      
+      this.memoryStorage.set(this.storageKey, sessionWithTimestamp);
+      console.log('✅ Session saved to memory storage');
+      return true;
+    } catch (error) {
+      console.error('Failed to save session:', error);
+      return false;
+    }
+  },
+  
+  loadSession() {
+    try {
+      const session = this.memoryStorage.get(this.storageKey);
+      if (!session) return null;
+      
+      // Check if session has expired
+      if (session.expiresAt && Date.now() > session.expiresAt) {
+        this.clearSession();
+        return null;
+      }
+      
+      return session;
+    } catch (error) {
+      console.error('Failed to load session:', error);
+      this.clearSession();
+      return null;
+    }
+  },
+  
+  clearSession() {
+    try {
+      this.memoryStorage.delete(this.storageKey);
+      console.log('✅ Session cleared from memory storage');
+    } catch (error) {
+      console.error('Failed to clear session:', error);
+    }
+  },
+  
+  isSessionValid() {
+    const session = this.loadSession();
+    return session !== null;
+  },
+  
+  updateActivity() {
+    const session = this.loadSession();
+    if (session) {
+      session.lastActivity = Date.now();
+      this.saveSession(session);
+    }
+  }
+};
 
 // Create context for supervisor session
 const SupervisorContext = createContext();
 
-// API configuration with fallback for development
-const API_BASE_URL = (() => {
-  if (typeof window !== 'undefined') {
-    // Browser environment
-    return window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-      ? 'http://localhost:3001'
-      : 'https://go-barry.onrender.com';
-  } else {
-    // React Native environment
-    return __DEV__ 
-      ? 'http://192.168.1.132:3001' 
-      : 'https://go-barry.onrender.com';
-  }
-})();
+// FORCE PRODUCTION URL - Never use localhost
+const API_BASE_URL = 'https://go-barry.onrender.com';
 
 // Supervisor database
 const SUPERVISOR_DB = {
   'alex_woodcock': { name: 'Alex Woodcock', role: 'Supervisor', requiresPassword: false },
   'andrew_cowley': { name: 'Andrew Cowley', role: 'Supervisor', requiresPassword: false },
-  'anthony_gair': { name: 'Anthony Gair', role: 'Supervisor', requiresPassword: false },
+  'anthony_gair': { name: 'Anthony Gair', role: 'Developer/Admin', requiresPassword: false, isAdmin: true },
   'claire_fiddler': { name: 'Claire Fiddler', role: 'Supervisor', requiresPassword: false },
   'david_hall': { name: 'David Hall', role: 'Supervisor', requiresPassword: false },
   'james_daglish': { name: 'James Daglish', role: 'Supervisor', requiresPassword: false },
@@ -62,7 +113,7 @@ export const useSupervisorSession = () => {
 
   // Initialize session from storage on mount
   useEffect(() => {
-    const savedSession = sessionStorage.loadSession();
+    const savedSession = sessionStorageService.loadSession();
     if (savedSession) {
       setSupervisorSession(savedSession);
       console.log('✅ Restored supervisor session:', savedSession.supervisor?.name);
@@ -90,7 +141,7 @@ export const useSupervisorSession = () => {
       activityLog = activityLog.slice(0, 100);
     }
 
-    sessionStorage.updateActivity();
+    sessionStorageService.updateActivity();
     console.log('📝 Activity logged:', type, details);
   }, [supervisorSession]);
 
@@ -100,38 +151,155 @@ export const useSupervisorSession = () => {
     setError(null);
     
     try {
-      // Validate supervisor
+      // Validate supervisor locally first
       const supervisor = SUPERVISOR_DB[loginData.supervisorId];
       if (!supervisor) {
         throw new Error('Supervisor not found');
       }
 
       // Check password if required
-      if (supervisor.requiresPassword) {
+      if (supervisor?.requiresPassword) {
         if (!loginData.password || loginData.password !== supervisor.password) {
           throw new Error('Incorrect password for Line Manager access');
         }
       }
 
-      // Create session
+      // **NEW: Authenticate with backend**
+      console.log('🔐 Authenticating with backend...');
+      console.log('🌐 Using API URL:', API_BASE_URL);
+      
+      // Map frontend IDs to backend IDs and badges
+      const backendMapping = {
+        'alex_woodcock': { id: 'supervisor001', badge: 'AW001' },
+        'andrew_cowley': { id: 'supervisor002', badge: 'AC002' },
+        'anthony_gair': { id: 'supervisor003', badge: 'AG003' },
+        'claire_fiddler': { id: 'supervisor004', badge: 'CF004' },
+        'david_hall': { id: 'supervisor005', badge: 'DH005' },
+        'james_daglish': { id: 'supervisor006', badge: 'JD006' },
+        'john_paterson': { id: 'supervisor007', badge: 'JP007' },
+        'simon_glass': { id: 'supervisor008', badge: 'SG008' },
+        'barry_perryman': { id: 'supervisor009', badge: 'BP009' },
+      };
+      
+      const backendSupervisor = backendMapping[loginData.supervisorId];
+      if (!backendSupervisor) {
+        throw new Error('Backend mapping not found for supervisor');
+      }
+      
+      let authResult = null; // Declare here so it's accessible outside try block
+      
+      // Add timeout to prevent hanging (increased for Render.com wake-up)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 45000); // Increased to 45 seconds
+      
+      try {
+        // Wake up backend first with health check
+        console.log('🏥 Checking backend health first...');
+        try {
+          const healthResponse = await fetch(`${API_BASE_URL}/api/health`, {
+            method: 'GET',
+            signal: controller.signal,
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          });
+          if (healthResponse.ok) {
+            console.log('✅ Backend is awake and healthy');
+          } else {
+            console.warn('⚠️ Backend health check returned non-OK status, continuing with auth');
+          }
+        } catch (healthError) {
+          console.warn('⚠️ Health check failed, continuing with auth:', healthError.message);
+        }
+        
+        // Authenticate with backend
+        const authUrl = `${API_BASE_URL}/api/supervisor/login`;
+        console.log('🔐 Authenticating with backend...', authUrl);
+        
+        const authResponse = await fetch(authUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            supervisorId: backendSupervisor.id,
+            badge: backendSupervisor.badge
+          }),
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        console.log('📡 Auth response status:', authResponse.status);
+        console.log('📡 Auth response headers:', authResponse.headers);
+        
+        const responseText = await authResponse.text();
+        console.log('📡 Raw response text:', responseText);
+        
+        // Try to parse as JSON
+        // authResult already declared above
+        try {
+          authResult = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('❌ Failed to parse response as JSON:', parseError);
+          throw new Error(`Invalid response format: ${responseText.substring(0, 100)}`);
+        }
+        
+        console.log('📋 Auth result:', authResult);
+        console.log('🔍 Auth result structure:', {
+          hasSuccess: 'success' in authResult,
+          hasSessionId: 'sessionId' in authResult,
+          hasSupervisor: 'supervisor' in authResult,
+          supervisorName: authResult?.supervisor?.name,
+          supervisorKeys: authResult?.supervisor ? Object.keys(authResult.supervisor) : []
+        });
+        
+        if (!authResult || !authResult.success) {
+          throw new Error((authResult && authResult.error) || 'Backend authentication failed');
+        }
+        
+        console.log('✅ Backend authentication successful:', authResult.sessionId);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        console.error('❌ Fetch error details:', fetchError);
+        
+        if (fetchError.name === 'AbortError') {
+          throw new Error('Login timeout - backend may be waking up, please try again in a moment');
+        }
+        
+        // Don't fallback to local auth - require backend authentication
+        throw new Error(`Backend authentication required but failed: ${fetchError.message}`);
+      }
+
+      // Create session with backend data
+      console.log('🏗️ Building session object...');
+      console.log('- Backend supervisor data:', authResult?.supervisor);
+      console.log('- Local supervisor data:', supervisor);
+      console.log('- Duty data:', loginData.duty);
+      
       const session = {
-        sessionId: 'browser_' + Date.now(),
+        sessionId: authResult?.sessionId || 'local-' + Date.now(),
         supervisor: {
-          id: loginData.supervisorId,
-          name: supervisor.name,
-          role: supervisor.role,
-          duty: loginData.duty,
-          isAdmin: supervisor.isAdmin || false,
-          permissions: supervisor.isAdmin ? 
+          id: loginData.supervisorId, // Keep frontend ID for UI
+          name: authResult?.supervisor?.name || supervisor?.name || 'Unknown Supervisor', // Use backend name first
+          role: authResult?.supervisor?.role || supervisor?.role || 'Supervisor',
+          duty: DUTY_OPTIONS.find((d) => d.id === loginData.duty) || { id: loginData.duty, name: loginData.duty },
+          isAdmin: authResult?.supervisor?.isAdmin || supervisor?.isAdmin || false,
+          permissions: authResult?.supervisor?.permissions || (supervisor?.isAdmin ? 
             ['dismiss_alerts', 'view_all_activity', 'manage_supervisors', 'create_incidents', 'send_messages'] : 
-            ['dismiss_alerts', 'create_incidents'],
+            ['dismiss_alerts', 'create_incidents']),
+          backendId: backendSupervisor?.id, // Store backend ID for WebSocket
+          badge: authResult?.supervisor?.badge || backendSupervisor?.badge
         },
         loginTime: new Date().toISOString(),
         lastActivity: Date.now(),
       };
       
+      console.log('📦 Final session object:', session);
+      console.log('👤 Supervisor name in session:', session.supervisor.name);
+      
       // Save to persistent storage
-      const saved = sessionStorage.saveSession(session);
+      const saved = sessionStorageService.saveSession(session);
       if (!saved) {
         console.warn('⚠️ Failed to save session to storage, session will not persist');
       }
@@ -139,15 +307,24 @@ export const useSupervisorSession = () => {
       setSupervisorSession(session);
       
       // Log login activity
-      logActivity('LOGIN', `${supervisor.name} logged in on ${loginData.duty?.name || 'Unknown Duty'}`);
+      logActivity('LOGIN', `${supervisor?.name || 'Unknown'} logged in on ${loginData.duty?.name || 'Unknown Duty'}`);
       
-      console.log('✅ Supervisor logged in:', supervisor.name, 'Duty:', loginData.duty?.name);
+      console.log('✅ Supervisor logged in:', supervisor?.name || 'Unknown', 'Duty:', loginData.duty?.name, 'Session:', authResult.sessionId);
       return { success: true, session };
       
     } catch (err) {
       const errorMessage = err.message || 'Login failed';
       setError(errorMessage);
       console.error('❌ Login error:', err);
+      console.error('❌ Error stack:', err.stack);
+      
+      // Additional debugging info
+      console.log('🔍 Debug info:');
+      console.log('- API_BASE_URL:', API_BASE_URL);
+      console.log('- loginData:', loginData);
+      console.log('- supervisor found:', !!SUPERVISOR_DB[loginData.supervisorId]);
+      console.log('- isClient:', typeof window !== 'undefined');
+      
       return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
@@ -165,7 +342,7 @@ export const useSupervisorSession = () => {
       logActivity('LOGOUT', `${supervisorSession.supervisor.name} logged out`);
       
       // Clear persistent storage
-      sessionStorage.clearSession();
+      sessionStorageService.clearSession();
       
       setSupervisorSession(null);
       setError(null);
@@ -173,7 +350,7 @@ export const useSupervisorSession = () => {
     } catch (err) {
       console.error('❌ Logout error:', err);
       // Still clear session even if logging fails
-      sessionStorage.clearSession();
+      sessionStorageService.clearSession();
       setSupervisorSession(null);
     } finally {
       setIsLoading(false);
@@ -260,7 +437,7 @@ export const useSupervisorSession = () => {
   useEffect(() => {
     if (supervisorSession) {
       const interval = setInterval(() => {
-        sessionStorage.updateActivity();
+        sessionStorageService.updateActivity();
       }, 30000); // 30 seconds
       
       return () => clearInterval(interval);
@@ -270,7 +447,7 @@ export const useSupervisorSession = () => {
   // Check for session expiry
   useEffect(() => {
     const checkExpiry = () => {
-      if (supervisorSession && !sessionStorage.isSessionValid()) {
+      if (supervisorSession && !sessionStorageService.isSessionValid()) {
         setSupervisorSession(null);
         setError('Session expired - please log in again');
       }
@@ -281,7 +458,7 @@ export const useSupervisorSession = () => {
   }, [supervisorSession]);
 
   return {
-    supervisorSession,
+    supervisorSession, // Add this so we can access backendId
     isLoading,
     error,
     login,
@@ -293,7 +470,9 @@ export const useSupervisorSession = () => {
     isLoggedIn: !!supervisorSession,
     supervisorName: supervisorSession?.supervisor?.name,
     supervisorRole: supervisorSession?.supervisor?.role,
+    supervisorId: supervisorSession?.supervisor?.id, // Frontend ID
     supervisorDuty: supervisorSession?.supervisor?.duty?.name,
+    sessionId: supervisorSession?.sessionId,
     isAdmin: supervisorSession?.supervisor?.isAdmin || false,
     hasPermission: (permission) => {
       return supervisorSession?.supervisor?.permissions?.includes(permission) ?? false;
