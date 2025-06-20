@@ -328,6 +328,7 @@ const BrowserMainApp = () => {
               supervisorId={supervisorSession?.supervisor?.backendId || 'supervisor001'} // Force backend ID
               supervisorName={supervisorName}
               sessionId={sessionId}
+              supervisorSession={supervisorSession} // Pass full session
               alerts={alerts}
             />
           ) : activeScreen === 'integration_test' ? (

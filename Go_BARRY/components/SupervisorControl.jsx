@@ -240,15 +240,19 @@ const SupervisorControl = ({
   supervisorId,
   supervisorName,
   sessionId,
+  supervisorSession: passedSession, // Accept passed session
   alerts = [],
   onClose,
   sector = 1 // Sector 1: Supervisor Control
 }) => {
-  // Get full supervisor session data
-  const { supervisorSession, getSupervisorActivity, logout } = useSupervisorSession();
-  const supervisorBadge = supervisorSession?.supervisor?.badge || 'Unknown';
-  const supervisorDuty = supervisorSession?.supervisor?.duty || {};
-  const loginTime = supervisorSession?.loginTime;
+  // Get session management functions
+  const { getSupervisorActivity, logout } = useSupervisorSession();
+  
+  // Use passed session data if available, otherwise fall back to hook data
+  const session = passedSession || {};
+  const supervisorBadge = session?.supervisor?.badge || supervisorName?.match(/\((\w+)\)/)?.[1] || 'Unknown';
+  const supervisorDuty = session?.supervisor?.duty || {};
+  const loginTime = session?.loginTime;
   
   // Session timer state
   const [sessionTimeRemaining, setSessionTimeRemaining] = useState(600); // 10 minutes
@@ -1117,8 +1121,8 @@ const SupervisorControl = ({
                 supervisorSession={{
                   supervisor: {
                     name: supervisorName,
-                    badge: supervisorId,
-                    role: 'Supervisor'
+                    badge: supervisorBadge,
+                    role: session?.supervisor?.role || 'Supervisor'
                   },
                   sessionId: sessionId
                 }}
