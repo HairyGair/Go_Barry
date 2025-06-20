@@ -65,6 +65,7 @@ async function saveSessionToSupabase(sessionId, sessionData) {
         supervisor_badge: sessionData.supervisorBadge, // Changed from badge_number
         session_token: sessionData.sessionToken,
         is_admin: sessionData.isAdmin || false,
+        start_time: sessionData.startTime,  // Add this field
         login_time: sessionData.startTime,
         last_activity: sessionData.lastActivity,
         expires_at: sessionData.expiresAt,

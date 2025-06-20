@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorPolling, CONNECTION_STATES } from './hooks/useSupervisorPolling';
 import MessageTemplates from './MessageTemplates';
 import RoadworksDatabase from './RoadworksDatabase';
+import MonitoringDashboard from './MonitoringDashboard';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
 // Simple Alert Card component for supervisor control
 const SimpleAlertCard = ({ alert, supervisorSession, onDismiss, onAcknowledge, style }) => {
@@ -266,6 +267,9 @@ const SupervisorControl = ({
   const supervisorDuty = session?.supervisor?.duty || {};
   const loginTime = session?.loginTime;
   
+  // Check if supervisor is admin (AG003 or BP009)
+  const isAdmin = supervisorBadge === 'AG003' || supervisorBadge === 'BP009';
+  
   // Session timer state
   const [sessionTimeRemaining, setSessionTimeRemaining] = useState(600); // 10 minutes
   const [recentActivity, setRecentActivity] = useState([]);
@@ -330,6 +334,7 @@ const SupervisorControl = ({
   const [showMessageTemplates, setShowMessageTemplates] = useState(false);
   const [showDisplayQueue, setShowDisplayQueue] = useState(false);
   const [showRoadworksDatabase, setShowRoadworksDatabase] = useState(false);
+  const [showMonitoringDashboard, setShowMonitoringDashboard] = useState(false);
   const [loading, setLoading] = useState(false);
   
   // Display queue state
@@ -1036,6 +1041,16 @@ const SupervisorControl = ({
               </View>
             )}
           </TouchableOpacity>
+          
+          {isAdmin && (
+            <TouchableOpacity
+              style={[styles.controlButton, styles.monitoringControlButton]}
+              onPress={() => setShowMonitoringDashboard(true)}
+            >
+              <Ionicons name="analytics" size={20} color="#FFFFFF" />
+              <Text style={styles.controlButtonText}>System Monitor</Text>
+            </TouchableOpacity>
+          )}
         </View>
         
         <View style={styles.modeSelector}>
@@ -1280,6 +1295,35 @@ const SupervisorControl = ({
       
       <HandoverModal />
       <DisplayQueueModal />
+      
+      {/* Monitoring Dashboard Modal - Admin Only */}
+      {isAdmin && (
+        <Modal
+          visible={showMonitoringDashboard}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={() => setShowMonitoringDashboard(false)}
+        >
+          <View style={styles.monitoringModalContainer}>
+            <View style={styles.monitoringModalHeader}>
+              <Text style={styles.monitoringModalTitle}>System Monitoring Dashboard</Text>
+              <TouchableOpacity 
+                onPress={() => setShowMonitoringDashboard(false)}
+                style={styles.monitoringCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <MonitoringDashboard 
+              supervisorInfo={{
+                name: supervisorName,
+                badge: supervisorBadge,
+                isAdmin: true
+              }}
+            />
+          </View>
+        </Modal>
+      )}
     </View>
   );
 };
@@ -2046,6 +2090,37 @@ const styles = StyleSheet.create({
     color: '#1F2937',
   },
   roadworksCloseButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+  },
+  monitoringControlButton: {
+    backgroundColor: '#7C3AED', // Purple for admin features
+  },
+  monitoringModalContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  monitoringModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    ...Platform.select({
+      web: { paddingTop: 16 },
+      default: { paddingTop: 44 }
+    }),
+  },
+  monitoringModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  monitoringCloseButton: {
     padding: 8,
     borderRadius: 8,
     backgroundColor: '#F3F4F6',

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Activity Log Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #1a1a1a;
+            color: white;
+        }
+        .activity {
+            background: #2a2a2a;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border-left: 3px solid #4a90e2;
+        }
+        .error {
+            background: #5a2a2a;
+            padding: 10px;
+            color: #ff6b6b;
+            border-radius: 5px;
+        }
+        .success {
+            background: #2a5a2a;
+            padding: 10px;
+            color: #51cf66;
+            border-radius: 5px;
+        }
+        button {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #357abd;
+        }
+        pre {
+            background: #333;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Go BARRY Activity Log Test</h1>
+    
+    <div>
+        <button onclick="fetchActivities()">Fetch Activities</button>
+        <button onclick="testLogin()">Test Login Activity</button>
+        <button onclick="testDuty()">Test Duty Activity</button>
+        <button onclick="clearDisplay()">Clear</button>
+    </div>
+
+    <div id="status"></div>
+    <div id="raw-response"></div>
+    <div id="activities"></div>
+
+    <script>
+        const API_URL = 'https://go-barry.onrender.com';
+        let sessionId = null;
+
+        function log(message, type = 'info') {
+            const status = document.getElementById('status');
+            status.className = type;
+            status.textContent = message;
+            console.log(message);
+        }
+
+        async function fetchActivities() {
+            log('Fetching activities...');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/activity/logs?limit=20`);
+                const data = await response.json();
+                
+                // Show raw response
+                document.getElementById('raw-response').innerHTML = 
+                    '<h3>Raw Response:</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                
+                if (!data.logs || !Array.isArray(data.logs)) {
+                    log('No logs found in response', 'error');
+                    return;
+                }
+                
+                log(`Found ${data.logs.length} activities`, 'success');
+                
+                // Display activities
+                const container = document.getElementById('activities');
+                container.innerHTML = '<h3>Formatted Activities:</h3>';
+                
+                data.logs.forEach(log => {
+                    const activity = document.createElement('div');
+                    activity.className = 'activity';
+                    
+                    // Parse details if string
+                    let details = log.details;
+                    if (typeof details === 'string') {
+                        try {
+                            details = JSON.parse(details);
+                        } catch (e) {
+                            console.warn('Failed to parse details:', details);
+                        }
+                    }
+                    
+                    activity.innerHTML = `
+                        <strong>${log.supervisor_name || 'System'}</strong> - 
+                        ${formatAction(log.action, details)}
+                        <br>
+                        <small>${new Date(log.created_at).toLocaleString()}</small>
+                        <br>
+                        <small>Action: ${log.action} | Details: ${JSON.stringify(details)}</small>
+                    `;
+                    container.appendChild(activity);
+                });
+                
+            } catch (error) {
+                log('Error: ' + error.message, 'error');
+                console.error(error);
+            }
+        }
+
+        function formatAction(action, details) {
+            switch (action) {
+                case 'supervisor_login':
+                    return `logged in (${details?.badge || 'unknown'})`;
+                case 'supervisor_logout':
+                    return `logged out`;
+                case 'duty_started':
+                    return `began Duty ${details?.duty_number || 'unknown'}`;
+                case 'duty_ended':
+                    return `ended Duty ${details?.duty_number || 'unknown'}`;
+                case 'roadwork_created':
+                    return `created roadwork at ${details?.location || 'unknown'}`;
+                case 'alert_dismissed':
+                    return `dismissed alert: ${details?.reason || 'unknown'}`;
+                default:
+                    return action.replace(/_/g, ' ');
+            }
+        }
+
+        async function testLogin() {
+            log('Testing login...');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/supervisor/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        supervisorId: 'supervisor005',
+                        badge: 'DH005'
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    sessionId = data.sessionId;
+                    log(`Logged in as ${data.supervisor.name}`, 'success');
+                    setTimeout(fetchActivities, 1000);
+                } else {
+                    log('Login failed: ' + data.error, 'error');
+                }
+            } catch (error) {
+                log('Login error: ' + error.message, 'error');
+            }
+        }
+
+        async function testDuty() {
+            if (!sessionId) {
+                log('Please login first', 'error');
+                return;
+            }
+            
+            log('Starting duty 100...');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/duty/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sessionId: sessionId,
+                        dutyNumber: 100
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    log(data.message, 'success');
+                    setTimeout(fetchActivities, 1000);
+                } else {
+                    log('Duty start failed: ' + data.error, 'error');
+                }
+            } catch (error) {
+                log('Duty error: ' + error.message, 'error');
+            }
+        }
+
+        function clearDisplay() {
+            document.getElementById('status').innerHTML = '';
+            document.getElementById('raw-response').innerHTML = '';
+            document.getElementById('activities').innerHTML = '';
+        }
+
+        // Auto-fetch on load
+        window.onload = () => {
+            fetchActivities();
+        };
+    </script>
+</body>
+</html>

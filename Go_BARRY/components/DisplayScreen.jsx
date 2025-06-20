@@ -44,44 +44,69 @@ const DisplayScreen = () => {
       }
       
       // Fetch activity logs from Supabase
-      const activityResponse = await fetch('https://go-barry.onrender.com/api/activity/logs?limit=10&screenType=supervisor');
+      console.log('🔄 Fetching activity logs...');
+      const activityResponse = await fetch('https://go-barry.onrender.com/api/activity/logs?limit=10');
+      console.log('📊 Activity response status:', activityResponse.status);
+      
       if (activityResponse.ok) {
         const activityData = await activityResponse.json();
-        if (activityData.logs) {
+        console.log('📊 Activity data received:', activityData);
+        
+        if (activityData.logs && Array.isArray(activityData.logs)) {
           // Transform activities to match expected format
           const formattedActivities = activityData.logs.map(log => ({
-            id: log.id,
+            id: log.id || `${log.action}_${log.created_at}`,
             supervisorName: log.supervisor_name || 'System',
             action: formatActivityAction(log.action, log.details),
             type: getActivityType(log.action),
             timestamp: log.created_at
           }));
+          console.log('✅ Formatted activities:', formattedActivities.length);
           setSupervisorActivity(formattedActivities);
+        } else {
+          console.log('⚠️ No logs in response or invalid format');
         }
+      } else {
+        console.error('❌ Failed to fetch activity logs:', activityResponse.status);
       }
       
       setSyncConnected(true);
     } catch (err) {
-      console.log('Could not fetch supervisor activity');
+      console.error('❌ Activity fetch error:', err);
       setSyncConnected(false);
     }
   };
   
   // Helper functions for activity formatting
   const formatActivityAction = (action, details) => {
+    // Parse details if it's a string
+    let parsedDetails = details;
+    if (typeof details === 'string') {
+      try {
+        parsedDetails = JSON.parse(details);
+      } catch (e) {
+        console.warn('Failed to parse details:', details);
+        parsedDetails = {};
+      }
+    }
+    
     switch (action) {
       case 'supervisor_login':
-        return `logged in (${details?.badge || 'unknown badge'})`;
+        return `logged in (${parsedDetails?.badge || 'unknown badge'})`;
       case 'supervisor_logout':
-        return `logged out (${details?.sessionDuration || 'unknown duration'})`;
+        return `logged out (${parsedDetails?.sessionDuration || 'unknown duration'})`;
       case 'alert_dismissed':
-        return `dismissed alert: ${details?.reason || 'No reason'}`;
+        return `dismissed alert: ${parsedDetails?.reason || 'No reason'}`;
       case 'session_timeout':
-        return `auto-timeout after ${details?.inactiveMinutes || '?'} minutes`;
+        return `auto-timeout after ${parsedDetails?.inactiveMinutes || '?'} minutes`;
       case 'roadwork_created':
-        return `created roadwork at ${details?.location || 'unknown location'}`;
+        return `created roadwork at ${parsedDetails?.location || 'unknown location'}`;
       case 'email_sent':
-        return `sent email to ${details?.recipients?.length || 0} groups`;
+        return `sent email to ${parsedDetails?.recipients?.length || 0} groups`;
+      case 'duty_started':
+        return `began Duty ${parsedDetails?.duty_number || 'unknown'}`;
+      case 'duty_ended':
+        return `ended Duty ${parsedDetails?.duty_number || 'unknown'}`;
       default:
         return action.toLowerCase().replace(/_/g, ' ');
     }
@@ -99,6 +124,9 @@ const DisplayScreen = () => {
         return 'roadwork';
       case 'email_sent':
         return 'email';
+      case 'duty_started':
+      case 'duty_ended':
+        return 'duty';
       default:
         return 'system';
     }
@@ -821,6 +849,7 @@ const DisplayScreen = () => {
                     activity.type === 'acknowledge' ? '#f59e0b' :
                     activity.type === 'roadwork' ? '#ef4444' :
                     activity.type === 'email' ? '#3b82f6' :
+                    activity.type === 'duty' ? '#8b5cf6' :
                     'rgba(255, 255, 255, 0.1)'
                   }`
                 }}>
