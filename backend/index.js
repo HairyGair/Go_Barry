@@ -357,7 +357,9 @@ app.use('/api/tiles', tileAPI);
 app.use('/api/tomtom/usage', tomtomUsageAPI);
 
 // Activity logs routes
+console.log('📦 Registering activity logs routes...');
 app.use(activityLogsAPI);
+console.log('✅ Activity logs routes registered');
 
 // TomTom API key endpoint for frontend
 app.get('/api/config/tomtom-key', (req, res) => {
@@ -1542,6 +1544,7 @@ async function startServer() {
       console.log(`   📊 Tile Status: /api/tiles/status`);
       console.log(`   📝 Activity Logs: /api/activity-logs`);
       console.log(`   📊 Activity Summary: /api/activity-logs/summary`);
+      console.log(`   💻 Display View Log: /api/activity/display-view`);
       console.log(`\n💡 Active Data Sources:`);
       console.log(`   ✅ TomTom API - Primary traffic intelligence`);
       console.log(`   ✅ National Highways DATEX II - Official UK roadworks`);
