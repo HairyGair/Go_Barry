@@ -47,21 +47,29 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
         console.log('🗺️ Initializing TomTom map...');
         setDebugInfo('Getting TomTom API key...');
         
-        // Get TomTom API key from backend
-        let apiKey;
-        try {
-          const keyResponse = await fetch('https://go-barry.onrender.com/api/config/tomtom-key');
-          if (keyResponse.ok) {
-            const keyData = await keyResponse.json();
-            apiKey = keyData.apiKey;
-            console.log('✅ Got TomTom API key:', apiKey ? 'Present' : 'Missing');
-          } else {
-            throw new Error('API key fetch failed');
+        // Get TomTom API key - try environment variable first
+        let apiKey = process.env.EXPO_PUBLIC_TOMTOM_API_KEY;
+        
+        if (!apiKey) {
+          // Fallback to backend API
+          try {
+            const keyResponse = await fetch('https://go-barry.onrender.com/api/config/tomtom-key');
+            if (keyResponse.ok) {
+              const keyData = await keyResponse.json();
+              apiKey = keyData.apiKey;
+              console.log('✅ Got TomTom API key from backend');
+            }
+          } catch (keyError) {
+            console.warn('⚠️ Backend API key fetch failed');
           }
-        } catch (keyError) {
-          console.warn('⚠️ API key fetch failed, using fallback');
-          // Use hardcoded fallback
+        } else {
+          console.log('✅ Using environment TomTom API key');
+        }
+        
+        // Final fallback
+        if (!apiKey) {
           apiKey = '9rZJqtnfYpOzlqnypI97nFb5oX17SNzp';
+          console.log('⚠️ Using hardcoded fallback API key');
         }
         
         if (!apiKey) {
@@ -71,8 +79,48 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
         console.log('✅ Using API key:', apiKey.substring(0, 8) + '...');
         setDebugInfo('Loading MapLibre GL JS...');
         
-        // Use MapLibre GL JS which we already have installed
-        const maplibregl = await import('maplibre-gl');
+        // Load MapLibre GL JS from CDN with CSS
+        if (!window.maplibregl) {
+          console.log('📦 Loading MapLibre GL JS from CDN...');
+          setDebugInfo('Loading map library from CDN...');
+          
+          try {
+            // Load CSS first
+            const cssLink = document.createElement('link');
+            cssLink.rel = 'stylesheet';
+            cssLink.href = 'https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css';
+            document.head.appendChild(cssLink);
+            
+            // Load JS
+            await new Promise((resolve, reject) => {
+              const script = document.createElement('script');
+              script.src = 'https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js';
+              script.onload = () => {
+                console.log('✅ MapLibre GL JS loaded from CDN');
+                resolve();
+              };
+              script.onerror = (err) => {
+                console.error('❌ Failed to load MapLibre GL JS:', err);
+                reject(new Error('Failed to load MapLibre GL JS from CDN'));
+              };
+              document.body.appendChild(script);
+            });
+          } catch (loadError) {
+            console.error('❌ MapLibre loading failed:', loadError);
+            setMapError('Failed to load map library');
+            setDebugInfo('Map library load failed');
+            return;
+          }
+        }
+        
+        const maplibregl = window.maplibregl;
+        if (!maplibregl) {
+          console.error('❌ MapLibre GL not found on window object');
+          setMapError('Map library not available');
+          setDebugInfo('MapLibre GL not found after loading');
+          return;
+        }
+        
         console.log('✅ MapLibre GL JS loaded successfully');
         setDebugInfo('Creating TomTom map instance...');
         
@@ -152,7 +200,7 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
 
       } catch (error) {
         console.error('❌ Failed to initialize map:', error);
-        setMapError(error.message);
+        setMapError(error.message || 'Unknown error');
         setDebugInfo(`Init error: ${error.message}`);
       }
     };
