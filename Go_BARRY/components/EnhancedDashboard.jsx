@@ -16,7 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { API_CONFIG } from '../config/api';
 import SupervisorControl from './SupervisorControl';
 import SupervisorLogin from './SupervisorLogin';
-import EnhancedTrafficMapV2 from './EnhancedTrafficMapV2';
+import OptimizedTomTomMap from './OptimizedTomTomMap';
+import TomTomUsageMonitor from './TomTomUsageMonitor';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
 import typography, { getAlertIcon, getSeverityIcon } from '../theme/typography';
 
@@ -534,6 +535,9 @@ const EnhancedDashboard = ({
         {/* Supervisor Controls */}
         <SupervisorHeader />
 
+        {/* TomTom Usage Monitor */}
+        <TomTomUsageMonitor />
+
         {/* Statistics */}
         <StatsHeader />
 
@@ -545,11 +549,12 @@ const EnhancedDashboard = ({
           <Text style={styles.sectionTitle}>Enhanced Traffic Map - TomTom Powered with Roadworks & Caching (OPTIMIZED)</Text>
           <Text style={styles.mapInstructions}>Click any alert card below to zoom the map to that location • Toggle layers with controls • API calls optimized with 30s cache</Text>
           <View style={styles.mapContainer}>
-            <EnhancedTrafficMapV2 
+            <OptimizedTomTomMap 
               alerts={filteredAlerts}
-              currentAlert={mapZoomTarget?.alert || filteredAlerts[0]} // Use clicked alert or first alert
+              currentAlert={mapZoomTarget?.alert || filteredAlerts[0]}
               alertIndex={mapZoomTarget?.alert ? filteredAlerts.findIndex(a => a.id === mapZoomTarget.alert.id) : 0}
-              zoomTarget={mapZoomTarget} // Pass zoom target for triggering
+              zoomTarget={mapZoomTarget}
+              mapId="enhanced-dashboard"
             />
           </View>
         </View>

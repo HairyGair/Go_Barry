@@ -29,6 +29,7 @@ import frequencyAPI from './routes/frequencyAPI.js';
 import throttleAPI from './routes/throttleAPI.js';
 import tileAPI from './routes/tileAPI.js';
 import eventAPI from './routes/eventAPI.js';
+import tomtomUsageAPI from './routes/tomtomUsageAPI.js';
 import serviceFrequencyAnalyzer from './services/serviceFrequencyAnalyzer.js';
 import supervisorSyncService from './services/supervisorSync.js';
 import enhancedDataSourceManager from './services/enhancedDataSourceManager.js';
@@ -349,6 +350,9 @@ app.use('/api/throttle', throttleAPI);
 
 // TomTom tile serving routes
 app.use('/api/tiles', tileAPI);
+
+// TomTom usage monitoring routes
+app.use('/api/tomtom/usage', tomtomUsageAPI);
 
 // TomTom API key endpoint for frontend
 app.get('/api/config/tomtom-key', (req, res) => {

@@ -2,7 +2,7 @@
 // Professional 24/7 Control Room Display - Fixed for React Native Web
 
 import React, { useState, useEffect, useRef } from 'react';
-import TomTomTrafficMap from './TomTomTrafficMap';
+import OptimizedTomTomMap from './OptimizedTomTomMap';
 
 const DisplayScreen = () => {
   const [alerts, setAlerts] = useState([]);
@@ -484,10 +484,11 @@ const DisplayScreen = () => {
             position: 'relative',
             minHeight: '300px'
           }}>
-            <TomTomTrafficMap 
+            <OptimizedTomTomMap 
               alerts={alerts}
               currentAlert={currentAlert}
               alertIndex={currentAlertIndex}
+              mapId="display-screen"
             />
           </div>
         </div>

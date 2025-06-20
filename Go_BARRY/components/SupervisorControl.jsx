@@ -1,6 +1,6 @@
 // Go_BARRY/components/SupervisorControl.jsx
-// Enhanced Supervisor Control Panel using shared WebSocket hook
-// Real-time control of display screens with improved state management
+// Enhanced Supervisor Control Panel with real-time sync
+// Improved supervisor identity display, session management, and polling-based updates
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorPolling, CONNECTION_STATES } from './hooks/useSupervisorPolling';
 import MessageTemplates from './MessageTemplates';
 import RoadworksDatabase from './RoadworksDatabase';
+import { useSupervisorSession } from './hooks/useSupervisorSession';
 // Simple Alert Card component for supervisor control
 const SimpleAlertCard = ({ alert, supervisorSession, onDismiss, onAcknowledge, style }) => {
   const getStatusColor = (status) => {
@@ -243,6 +244,19 @@ const SupervisorControl = ({
   onClose,
   sector = 1 // Sector 1: Supervisor Control
 }) => {
+  // Get full supervisor session data
+  const { supervisorSession, getSupervisorActivity, logout } = useSupervisorSession();
+  const supervisorBadge = supervisorSession?.supervisor?.badge || 'Unknown';
+  const supervisorDuty = supervisorSession?.supervisor?.duty || {};
+  const loginTime = supervisorSession?.loginTime;
+  
+  // Session timer state
+  const [sessionTimeRemaining, setSessionTimeRemaining] = useState(600); // 10 minutes
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [showRouteFilter, setShowRouteFilter] = useState(false);
+  const [selectedRoutes, setSelectedRoutes] = useState([]);
+  const [handoverNotes, setHandoverNotes] = useState('');
+  const [showHandoverModal, setShowHandoverModal] = useState(false);
   // Debug polling authentication
   useEffect(() => {
     console.log('🚀 SupervisorControl Polling Auth:', {
@@ -297,12 +311,9 @@ const SupervisorControl = ({
 
   // UI state
   const [selectedAlert, setSelectedAlert] = useState(null);
-  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [showMessageTemplates, setShowMessageTemplates] = useState(false);
   const [showDisplayQueue, setShowDisplayQueue] = useState(false);
   const [showRoadworksDatabase, setShowRoadworksDatabase] = useState(false);
-  const [broadcastMessageText, setBroadcastMessageText] = useState('');
-  const [broadcastPriority, setBroadcastPriority] = useState('info');
   const [loading, setLoading] = useState(false);
   
   // Display queue state
@@ -315,6 +326,38 @@ const SupervisorControl = ({
     }
   }, [alerts, isConnected, updateAlerts]);
 
+  // Session timer effect
+  useEffect(() => {
+    if (!loginTime) return;
+    
+    const timer = setInterval(() => {
+      const elapsed = Date.now() - new Date(loginTime).getTime();
+      const remaining = Math.max(0, 600 - Math.floor(elapsed / 1000)); // 10 minutes
+      setSessionTimeRemaining(remaining);
+      
+      // Auto-logout at 0
+      if (remaining === 0) {
+        showNotification('Session expired. Please log in again.', 'warning');
+        logout();
+      }
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [loginTime, logout]);
+  
+  // Load recent activity
+  useEffect(() => {
+    const loadActivity = async () => {
+      const activity = await getSupervisorActivity(10);
+      setRecentActivity(activity);
+    };
+    
+    loadActivity();
+    const interval = setInterval(loadActivity, 30000); // Refresh every 30s
+    
+    return () => clearInterval(interval);
+  }, [getSupervisorActivity]);
+  
   // Show notification helper
   const showNotification = useCallback((message, type = 'info') => {
     if (isWeb) {
@@ -427,27 +470,32 @@ const SupervisorControl = ({
     }
   }, [addNoteToAlert, showNotification]);
 
-  // Handle broadcast message
-  const handleBroadcastMessage = useCallback(async () => {
-    if (!broadcastMessageText.trim()) {
-      showNotification('Please enter a message', 'error');
-      return;
-    }
+  // Format session time
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+  
+  // Get alert stats
+  const getAlertStats = () => {
+    const severityCount = {
+      High: alerts.filter(a => a.severity === 'High').length,
+      Medium: alerts.filter(a => a.severity === 'Medium').length,
+      Low: alerts.filter(a => a.severity === 'Low').length
+    };
     
-    const duration = broadcastPriority === 'critical' ? 60000 : 30000;
+    const avgResponseTime = recentActivity
+      .filter(a => a.type === 'DISMISS_ALERT')
+      .slice(0, 5)
+      .reduce((acc, act, idx, arr) => {
+        if (idx === 0) return 0;
+        const timeDiff = new Date(act.timestamp) - new Date(arr[idx - 1].timestamp);
+        return acc + timeDiff;
+      }, 0) / Math.max(1, recentActivity.filter(a => a.type === 'DISMISS_ALERT').length - 1);
     
-    setLoading(true);
-    const success = broadcastMessage(broadcastMessageText, broadcastPriority, duration);
-    setLoading(false);
-    
-    if (success) {
-      showNotification('Message broadcast to all displays', 'success');
-      setBroadcastMessageText('');
-      setShowBroadcastModal(false);
-    } else {
-      showNotification('Failed to broadcast message', 'error');
-    }
-  }, [broadcastMessage, broadcastMessageText, broadcastPriority, showNotification]);
+    return { severityCount, avgResponseTime };
+  };
 
   // Handle display control actions
   const handleDismissFromDisplay = useCallback(async (alert) => {
@@ -672,66 +720,88 @@ const SupervisorControl = ({
     );
   };
 
-  // Broadcast modal
-  const BroadcastModal = () => (
+  // Handover modal
+  const HandoverModal = () => (
     <Modal
-      visible={showBroadcastModal}
+      visible={showHandoverModal}
       transparent
       animationType="slide"
-      onRequestClose={() => setShowBroadcastModal(false)}
+      onRequestClose={() => setShowHandoverModal(false)}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Broadcast Message</Text>
-            <TouchableOpacity onPress={() => setShowBroadcastModal(false)}>
+            <Text style={styles.modalTitle}>Shift Handover Notes</Text>
+            <TouchableOpacity onPress={() => setShowHandoverModal(false)}>
               <Ionicons name="close" size={24} color="#6B7280" />
             </TouchableOpacity>
           </View>
           
           <TextInput
-            style={styles.broadcastInput}
-            placeholder="Enter message to broadcast to all displays..."
-            value={broadcastMessageText}
-            onChangeText={setBroadcastMessageText}
+            style={styles.handoverInput}
+            placeholder="Enter handover notes for the next shift..."
+            value={handoverNotes}
+            onChangeText={setHandoverNotes}
             multiline
-            numberOfLines={3}
+            numberOfLines={6}
             placeholderTextColor="#9CA3AF"
           />
           
-          <View style={styles.prioritySelector}>
-            <Text style={styles.priorityLabel}>Message Priority:</Text>
-            <View style={styles.priorityOptions}>
-              {['info', 'warning', 'critical'].map(priority => (
-                <TouchableOpacity
-                  key={priority}
-                  style={[
-                    styles.priorityOption,
-                    broadcastPriority === priority && styles.priorityOptionActive
-                  ]}
-                  onPress={() => setBroadcastPriority(priority)}
-                >
-                  <Text style={[
-                    styles.priorityOptionText,
-                    broadcastPriority === priority && styles.priorityOptionTextActive
-                  ]}>
-                    {priority.toUpperCase()}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+          <View style={styles.handoverInfo}>
+            <Ionicons name="information-circle" size={16} color="#3B82F6" />
+            <Text style={styles.handoverInfoText}>
+              These notes will be visible to the next supervisor on {supervisorDuty.name}
+            </Text>
           </View>
           
           <TouchableOpacity
-            style={[styles.broadcastButton, { backgroundColor: getPriorityColor(broadcastPriority.toUpperCase()) }]}
-            onPress={handleBroadcastMessage}
+            style={styles.saveHandoverButton}
+            onPress={() => {
+              showNotification('Handover notes saved', 'success');
+              setShowHandoverModal(false);
+            }}
           >
-            <Ionicons name="megaphone" size={20} color="#FFFFFF" />
-            <Text style={styles.broadcastButtonText}>Broadcast Message</Text>
+            <Ionicons name="save" size={20} color="#FFFFFF" />
+            <Text style={styles.saveHandoverText}>Save Handover Notes</Text>
           </TouchableOpacity>
         </View>
       </View>
     </Modal>
+  );
+  
+  // Recent Activity Panel
+  const RecentActivityPanel = () => (
+    <View style={styles.activityPanel}>
+      <Text style={styles.activityTitle}>Recent Activity</Text>
+      <ScrollView style={styles.activityList} nestedScrollEnabled>
+        {recentActivity.length > 0 ? (
+          recentActivity.map((activity) => (
+            <View key={activity.id} style={styles.activityItem}>
+              <View style={styles.activityIcon}>
+                <Ionicons 
+                  name={activity.type === 'LOGIN' ? 'log-in' : 
+                        activity.type === 'DISMISS_ALERT' ? 'close-circle' : 
+                        activity.type === 'LOGOUT' ? 'log-out' : 'checkmark'}
+                  size={16} 
+                  color={activity.type === 'DISMISS_ALERT' ? '#EF4444' : '#3B82F6'} 
+                />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityText}>{activity.details}</Text>
+                <Text style={styles.activityTime}>
+                  {new Date(activity.timestamp).toLocaleTimeString('en-GB', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                </Text>
+              </View>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.noActivityText}>No recent activity</Text>
+        )}
+      </ScrollView>
+    </View>
   );
 
   // Loading screen
@@ -885,16 +955,28 @@ const SupervisorControl = ({
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={styles.subtitle}>
-            {supervisorName} ({supervisorId})
-          </Text>
+          <View style={styles.supervisorIdentity}>
+            <Text style={styles.supervisorNameHeader}>
+              {supervisorName} ({supervisorBadge})
+            </Text>
+            <Text style={styles.dutyInfo}>
+              {supervisorDuty.name || 'No duty selected'}
+            </Text>
+          </View>
         </View>
         
         <View style={styles.headerRight}>
+          <View style={styles.sessionTimer}>
+            <Ionicons name="timer" size={16} color={sessionTimeRemaining < 120 ? '#EF4444' : '#6B7280'} />
+            <Text style={[styles.sessionTimerText, sessionTimeRemaining < 120 && styles.sessionTimerWarning]}>
+              Session: {formatTime(sessionTimeRemaining)}
+            </Text>
+          </View>
           <ConnectionStatus />
           {onClose && (
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#6B7280" />
+            <TouchableOpacity onPress={logout} style={styles.logoutButton}>
+              <Ionicons name="log-out" size={20} color="#EF4444" />
+              <Text style={styles.logoutText}>Logout</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -902,14 +984,6 @@ const SupervisorControl = ({
 
       <View style={styles.controlBar}>
         <View style={styles.controlButtonGroup}>
-          <TouchableOpacity
-            style={[styles.controlButton, styles.broadcastControlButton]}
-            onPress={() => setShowBroadcastModal(true)}
-          >
-            <Ionicons name="megaphone" size={20} color="#FFFFFF" />
-            <Text style={styles.controlButtonText}>Broadcast Message</Text>
-          </TouchableOpacity>
-          
           <TouchableOpacity
             style={[styles.controlButton, styles.queueControlButton]}
             onPress={() => setShowDisplayQueue(true)}
@@ -924,6 +998,27 @@ const SupervisorControl = ({
           >
             <Ionicons name="construct" size={20} color="#FFFFFF" />
             <Text style={styles.controlButtonText}>Roadworks Database</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.controlButton, styles.handoverControlButton]}
+            onPress={() => setShowHandoverModal(true)}
+          >
+            <Ionicons name="clipboard" size={20} color="#FFFFFF" />
+            <Text style={styles.controlButtonText}>Handover Notes</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.controlButton, styles.filterControlButton]}
+            onPress={() => setShowRouteFilter(!showRouteFilter)}
+          >
+            <Ionicons name="filter" size={20} color="#FFFFFF" />
+            <Text style={styles.controlButtonText}>Route Filter</Text>
+            {selectedRoutes.length > 0 && (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>{selectedRoutes.length}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
         
@@ -1009,10 +1104,12 @@ const SupervisorControl = ({
         return null;
       })()}
 
-      <ScrollView style={styles.alertsList} showsVerticalScrollIndicator={false}>
-        <Text style={styles.sectionTitle}>Active Alerts ({alerts.length})</Text>
-        
-        {alerts.length > 0 ? (
+      <View style={styles.mainContent}>
+        <View style={styles.leftPanel}>
+          <ScrollView style={styles.alertsList} showsVerticalScrollIndicator={false}>
+            <Text style={styles.sectionTitle}>Active Alerts ({alerts.length})</Text>
+            
+            {alerts.length > 0 ? (
           alerts.map((alert) => (
             <View key={alert.id} style={styles.alertWrapper}>
               <SimpleAlertCard
@@ -1074,7 +1171,52 @@ const SupervisorControl = ({
             <Text style={styles.noAlertsText}>No active alerts</Text>
           </View>
         )}
-      </ScrollView>
+          </ScrollView>
+        </View>
+        
+        <View style={styles.rightPanel}>
+          <RecentActivityPanel />
+          
+          <View style={styles.quickStats}>
+            <Text style={styles.quickStatsTitle}>Quick Stats</Text>
+            {(() => {
+              const stats = getAlertStats();
+              return (
+                <>
+                  <View style={styles.statRow}>
+                    <Text style={styles.statLabel}>High Severity:</Text>
+                    <Text style={[styles.statValue, { color: '#DC2626' }]}>
+                      {stats.severityCount.High}
+                    </Text>
+                  </View>
+                  <View style={styles.statRow}>
+                    <Text style={styles.statLabel}>Medium Severity:</Text>
+                    <Text style={[styles.statValue, { color: '#F59E0B' }]}>
+                      {stats.severityCount.Medium}
+                    </Text>
+                  </View>
+                  <View style={styles.statRow}>
+                    <Text style={styles.statLabel}>Low Severity:</Text>
+                    <Text style={[styles.statValue, { color: '#10B981' }]}>
+                      {stats.severityCount.Low}
+                    </Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statRow}>
+                    <Text style={styles.statLabel}>Avg Response:</Text>
+                    <Text style={styles.statValue}>
+                      {stats.avgResponseTime > 0 ? 
+                        `${Math.round(stats.avgResponseTime / 60000)}m` : 
+                        'N/A'
+                      }
+                    </Text>
+                  </View>
+                </>
+              );
+            })()}
+          </View>
+        </View>
+      </View>
       
       {/* Message Templates Modal */}
       <Modal
@@ -1120,7 +1262,7 @@ const SupervisorControl = ({
         </View>
       </Modal>
       
-      <BroadcastModal />
+      <HandoverModal />
       <DisplayQueueModal />
     </View>
   );
@@ -1895,6 +2037,209 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
     backgroundColor: '#F3F4F6',
+  },
+  // New styles for enhanced supervisor identity
+  supervisorIdentity: {
+    marginLeft: 8,
+  },
+  supervisorNameHeader: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    letterSpacing: 0.2,
+  },
+  dutyInfo: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 2,
+    fontWeight: '500',
+  },
+  sessionTimer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  sessionTimerText: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  sessionTimerWarning: {
+    color: '#EF4444',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#FEE2E2',
+  },
+  logoutText: {
+    fontSize: 14,
+    color: '#EF4444',
+    fontWeight: '600',
+  },
+  handoverControlButton: {
+    backgroundColor: '#8B5CF6',
+  },
+  filterControlButton: {
+    backgroundColor: '#6B7280',
+    position: 'relative',
+  },
+  filterBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#DC2626',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  handoverInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#1F2937',
+    minHeight: 120,
+    textAlignVertical: 'top',
+    marginBottom: 16,
+  },
+  handoverInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#EFF6FF',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  handoverInfoText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#3B82F6',
+  },
+  saveHandoverButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#8B5CF6',
+  },
+  saveHandoverText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  mainContent: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  leftPanel: {
+    flex: 2,
+  },
+  rightPanel: {
+    flex: 1,
+    padding: 20,
+    paddingTop: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(0, 0, 0, 0.06)',
+  },
+  activityPanel: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  activityTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  activityList: {
+    maxHeight: 200,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  activityIcon: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityContent: {
+    flex: 1,
+  },
+  activityText: {
+    fontSize: 13,
+    color: '#374151',
+    marginBottom: 2,
+  },
+  activityTime: {
+    fontSize: 11,
+    color: '#9CA3AF',
+  },
+  noActivityText: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
+  quickStats: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  quickStatsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 16,
+  },
+  statRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  statDivider: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 8,
   },
 });
 
