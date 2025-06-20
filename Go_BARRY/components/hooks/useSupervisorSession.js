@@ -186,11 +186,11 @@ export const useSupervisorSession = () => {
         throw new Error('Backend mapping not found for supervisor');
       }
       
+      let authResult = null; // Declare authResult in proper scope
+      
       // Add timeout to prevent hanging (increased for Render.com wake-up)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 45000); // Increased to 45 seconds
-      
-      let authResult; // Declare authResult in proper scope
       
       try {
         // Wake up backend first with health check
@@ -241,8 +241,8 @@ export const useSupervisorSession = () => {
         authResult = await authResponse.json();
         console.log('📋 Auth result:', authResult);
         
-        if (!authResult.success) {
-          throw new Error(authResult.error || 'Backend authentication failed');
+        if (!authResult || !authResult.success) {
+          throw new Error((authResult && authResult.error) || 'Backend authentication failed');
         }
         
         console.log('✅ Backend authentication successful:', authResult.sessionId);
@@ -261,7 +261,7 @@ export const useSupervisorSession = () => {
 
       // Create session with backend sessionId
       const session = {
-        sessionId: authResult.sessionId, // Use backend session ID
+        sessionId: authResult?.sessionId || 'local-' + Date.now(), // Use backend session ID or fallback
         supervisor: {
           id: loginData.supervisorId, // Keep frontend ID for UI
           name: supervisor?.name || 'Unknown Supervisor',

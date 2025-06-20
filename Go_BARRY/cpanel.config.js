@@ -7,7 +7,7 @@ export const CPANEL_CONFIG = {
   subdomain: 'www.gobarry.co.uk',
   
   // Backend API configuration
-  apiUrl: 'https://api.gobarry.co.uk',
+  apiUrl: 'https://go-barry.onrender.com',
   
   // Build settings for cPanel
   build: {

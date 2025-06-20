@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go BARRY Supervisor Authentication Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        .header h1 {
+            color: #1f2937;
+            margin: 0 0 8px 0;
+        }
+        .header p {
+            color: #6b7280;
+            margin: 0;
+        }
+        .test-section {
+            margin-bottom: 24px;
+            padding: 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+        }
+        .test-section h3 {
+            margin: 0 0 12px 0;
+            color: #374151;
+        }
+        .supervisor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+        .supervisor-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .supervisor-card:hover {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        .supervisor-card.testing {
+            border-color: #f59e0b;
+            background-color: #fef3c7;
+        }
+        .supervisor-card.success {
+            border-color: #10b981;
+            background-color: #d1fae5;
+        }
+        .supervisor-card.error {
+            border-color: #ef4444;
+            background-color: #fee2e2;
+        }
+        .supervisor-name {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+        .supervisor-badge {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+        .supervisor-role {
+            font-size: 12px;
+            color: #9ca3af;
+        }
+        .status {
+            margin-top: 8px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .log {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        button {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #2563eb;
+        }
+        button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+        .backend-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+            padding: 12px;
+            border-radius: 8px;
+        }
+        .backend-status.healthy {
+            background-color: #d1fae5;
+            border: 1px solid #10b981;
+        }
+        .backend-status.unhealthy {
+            background-color: #fee2e2;
+            border: 1px solid #ef4444;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        .healthy .status-dot {
+            background-color: #10b981;
+        }
+        .unhealthy .status-dot {
+            background-color: #ef4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ Go BARRY Supervisor Authentication Test</h1>
+            <p>Test the supervisor login system and backend authentication</p>
+        </div>
+
+        <div class="backend-status" id="backendStatus">
+            <div class="status-dot"></div>
+            <span id="backendStatusText">Checking backend status...</span>
+        </div>
+
+        <div class="controls">
+            <button onclick="checkBackendHealth()">Check Backend Health</button>
+            <button onclick="testAllSupervisors()">Test All Supervisors</button>
+            <button onclick="clearLog()">Clear Log</button>
+        </div>
+
+        <div class="test-section">
+            <h3>👥 Supervisor Authentication Tests</h3>
+            <p>Click any supervisor card to test their authentication:</p>
+            
+            <div class="supervisor-grid" id="supervisorGrid">
+                <!-- Supervisor cards will be generated here -->
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 Test Log</h3>
+            <div class="log" id="testLog">Ready to test supervisor authentication...\n</div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:3001';
+        
+        const supervisors = [
+            { frontendId: 'alex_woodcock', backendId: 'supervisor001', badge: 'AW001', name: 'Alex Woodcock', role: 'Supervisor' },
+            { frontendId: 'andrew_cowley', backendId: 'supervisor002', badge: 'AC002', name: 'Andrew Cowley', role: 'Supervisor' },
+            { frontendId: 'anthony_gair', backendId: 'supervisor003', badge: 'AG003', name: 'Anthony Gair', role: 'Developer/Admin' },
+            { frontendId: 'claire_fiddler', backendId: 'supervisor004', badge: 'CF004', name: 'Claire Fiddler', role: 'Supervisor' },
+            { frontendId: 'david_hall', backendId: 'supervisor005', badge: 'DH005', name: 'David Hall', role: 'Supervisor' },
+            { frontendId: 'james_daglish', backendId: 'supervisor006', badge: 'JD006', name: 'James Daglish', role: 'Supervisor' },
+            { frontendId: 'john_paterson', backendId: 'supervisor007', badge: 'JP007', name: 'John Paterson', role: 'Supervisor' },
+            { frontendId: 'simon_glass', backendId: 'supervisor008', badge: 'SG008', name: 'Simon Glass', role: 'Supervisor' },
+            { frontendId: 'barry_perryman', backendId: 'supervisor009', badge: 'BP009', name: 'Barry Perryman', role: 'Service Delivery Controller' }
+        ];
+
+        function log(message) {
+            const logElement = document.getElementById('testLog');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('testLog').textContent = 'Log cleared...\n';
+        }
+
+        function updateBackendStatus(healthy, message) {
+            const statusElement = document.getElementById('backendStatus');
+            const textElement = document.getElementById('backendStatusText');
+            
+            statusElement.className = `backend-status ${healthy ? 'healthy' : 'unhealthy'}`;
+            textElement.textContent = message;
+        }
+
+        function updateSupervisorCard(supervisor, status, message) {
+            const card = document.getElementById(`supervisor-${supervisor.frontendId}`);
+            if (card) {
+                card.className = `supervisor-card ${status}`;
+                const statusElement = card.querySelector('.status');
+                if (statusElement) {
+                    statusElement.textContent = message;
+                    statusElement.className = `status ${status}`;
+                }
+            }
+        }
+
+        async function checkBackendHealth() {
+            log('🏥 Checking backend health...');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    log(`✅ Backend healthy: ${data.status}`);
+                    updateBackendStatus(true, `Backend is healthy (${data.status})`);
+                    return true;
+                } else {
+                    log(`❌ Backend unhealthy: ${response.status}`);
+                    updateBackendStatus(false, `Backend error: ${response.status}`);
+                    return false;
+                }
+            } catch (error) {
+                log(`❌ Backend connection failed: ${error.message}`);
+                updateBackendStatus(false, `Connection failed: ${error.message}`);
+                return false;
+            }
+        }
+
+        async function testSupervisorLogin(supervisor) {
+            log(`🔐 Testing login for ${supervisor.name} (${supervisor.badge})...`);
+            updateSupervisorCard(supervisor, 'testing', 'Testing...');
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/supervisor/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        supervisorId: supervisor.backendId,
+                        badge: supervisor.badge
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    log(`✅ ${supervisor.name} login successful!`);
+                    log(`   Session ID: ${data.sessionId}`);
+                    log(`   Badge: ${data.supervisor.badge}`);
+                    updateSupervisorCard(supervisor, 'success', '✅ Success');
+                    return { success: true, data };
+                } else {
+                    log(`❌ ${supervisor.name} login failed: ${data.error || 'Unknown error'}`);
+                    updateSupervisorCard(supervisor, 'error', '❌ Failed');
+                    return { success: false, error: data.error };
+                }
+            } catch (error) {
+                log(`❌ ${supervisor.name} request error: ${error.message}`);
+                updateSupervisorCard(supervisor, 'error', '❌ Error');
+                return { success: false, error: error.message };
+            }
+        }
+
+        async function testAllSupervisors() {
+            log('🚀 Testing all supervisors...');
+            
+            // Check backend first
+            const backendHealthy = await checkBackendHealth();
+            if (!backendHealthy) {
+                log('⚠️ Backend not available - tests may fail');
+            }
+            
+            let successCount = 0;
+            
+            for (const supervisor of supervisors) {
+                const result = await testSupervisorLogin(supervisor);
+                if (result.success) {
+                    successCount++;
+                }
+                // Small delay between tests
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            log(`📊 Test Results: ${successCount}/${supervisors.length} supervisors authenticated successfully`);
+            
+            if (successCount === supervisors.length) {
+                log('🎉 All supervisor logins working correctly!');
+                log('🌐 Ready for frontend testing in Go BARRY dashboard');
+            } else {
+                log('❌ Some supervisor logins failed - check backend configuration');
+            }
+        }
+
+        function createSupervisorCards() {
+            const grid = document.getElementById('supervisorGrid');
+            
+            supervisors.forEach(supervisor => {
+                const card = document.createElement('div');
+                card.id = `supervisor-${supervisor.frontendId}`;
+                card.className = 'supervisor-card';
+                card.onclick = () => testSupervisorLogin(supervisor);
+                
+                card.innerHTML = `
+                    <div class="supervisor-name">${supervisor.name}</div>
+                    <div class="supervisor-badge">Badge: ${supervisor.badge}</div>
+                    <div class="supervisor-role">${supervisor.role}</div>
+                    <div class="status">Click to test</div>
+                `;
+                
+                grid.appendChild(card);
+            });
+        }
+
+        // Initialize the page
+        window.onload = function() {
+            createSupervisorCards();
+            checkBackendHealth();
+            log('🚀 Go BARRY Supervisor Authentication Test loaded');
+            log('💡 Make sure backend is running: cd backend && npm start');
+        };
+    </script>
+</body>
+</html>

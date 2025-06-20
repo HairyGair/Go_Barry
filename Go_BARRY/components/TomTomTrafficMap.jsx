@@ -67,20 +67,39 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
 
         console.log('✅ TomTom SDK ready');
 
-        // Wait for container to be ready
+        // Add minimum delay to ensure DOM is ready
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Wait for container to be ready with better checks
         let container = mapContainer.current;
         let attempts = 0;
         
-        while ((!container || !document.contains(container) || container.offsetWidth === 0) && attempts < 100) {
-          await new Promise(resolve => setTimeout(resolve, 50));
+        while (attempts < 150) { // Increased max attempts
           container = mapContainer.current;
-          attempts++;
           
+          // Check if component is still mounted
           if (!mountedRef.current) return;
+          
+          // Check container exists and is properly sized
+          if (container && 
+              document.contains(container) && 
+              container.offsetWidth > 0 && 
+              container.offsetHeight > 0 &&
+              getComputedStyle(container).display !== 'none') {
+            break;
+          }
+          
+          // Longer delay for CSS layout completion
+          await new Promise(resolve => setTimeout(resolve, 100));
+          attempts++;
         }
 
-        if (!container || container.offsetWidth === 0) {
-          throw new Error('Container not ready');
+        if (!container) {
+          throw new Error('Map container element not found');
+        }
+        
+        if (container.offsetWidth === 0 || container.offsetHeight === 0) {
+          throw new Error(`Container not properly sized: ${container.offsetWidth}x${container.offsetHeight}`);
         }
         
         console.log('✅ Container ready:', `${container.offsetWidth}x${container.offsetHeight}`);
@@ -125,10 +144,10 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
       }
     };
 
-    // Use requestAnimationFrame for better timing
+    // Use requestAnimationFrame for better timing with longer delay
     const initTimer = requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        setTimeout(initializeMap, 100);
+        setTimeout(initializeMap, 300); // Increased delay
       });
     });
 
