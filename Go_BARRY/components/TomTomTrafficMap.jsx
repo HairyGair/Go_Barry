@@ -1,439 +1,351 @@
 // Go_BARRY/components/TomTomTrafficMap.jsx
-// Fixed TomTom Maps implementation for Display Screen
+// Working TomTom Traffic Map - Fixed container ref issue
 
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Platform } from 'react-native';
 
 const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) => {
-  const mapContainer = useRef(null);
-  const mapRef = useRef(null);
-  const markersRef = useRef([]);
+  // Use callback ref to ensure we get the container element
+  const [containerElement, setContainerElement] = useState(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState(null);
-  const mountedRef = useRef(true);
+  const [debugInfo, setDebugInfo] = useState('Starting initialization...');
 
-  // TomTom API key
-  const TOMTOM_API_KEY = process.env.EXPO_PUBLIC_TOMTOM_API_KEY || '9rZJqtnfYpOzlqnypI97nFb5oX17SNzp';
-
-  // North East England center coordinates
-  const NE_ENGLAND_CENTER = [-1.6131, 54.9783]; // Newcastle area
-  const DEFAULT_ZOOM = 10;
+  const mapContainerCallback = (element) => {
+    console.log('🔗 Callback ref called with element:', element);
+    if (element) {
+      setContainerElement(element);
+      setDebugInfo('Container element captured!');
+    }
+  };
 
   useEffect(() => {
-    if (Platform.OS !== 'web') return;
+    console.log('🔍 useEffect triggered:', {
+      platformOS: Platform.OS,
+      isWeb: Platform.OS === 'web',
+      hasContainer: !!containerElement,
+      containerElement: containerElement
+    });
+    
+    setDebugInfo(`Platform: ${Platform.OS}, Container: ${!!containerElement}`);
+    
+    if (Platform.OS !== 'web') {
+      console.log('❌ Not web platform, exiting');
+      setDebugInfo('Not web platform');
+      return;
+    }
+    
+    if (!containerElement) {
+      console.log('❌ No container element, exiting');
+      setDebugInfo('No container element - waiting...');
+      return;
+    }
 
+    // Initialize map when container becomes available
     const initializeMap = async () => {
       try {
-        if (!mountedRef.current) return;
-
-        console.log('🗺️ Starting TomTom Map initialization...');
+        console.log('🗺️ Initializing TomTom map...');
+        setDebugInfo('Getting TomTom API key...');
         
-        // Load TomTom SDK if not already loaded
-        if (!window.tt) {
-          console.log('📦 Loading TomTom Maps SDK...');
-          
-          // Load CSS first
-          if (!document.querySelector('link[href*="tomtom"]')) {
-            const link = document.createElement('link');
-            link.href = 'https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps.css';
-            link.rel = 'stylesheet';
-            document.head.appendChild(link);
+        // Get TomTom API key from backend
+        let apiKey;
+        try {
+          const keyResponse = await fetch('https://go-barry.onrender.com/api/config/tomtom-key');
+          if (keyResponse.ok) {
+            const keyData = await keyResponse.json();
+            apiKey = keyData.apiKey;
+            console.log('✅ Got TomTom API key:', apiKey ? 'Present' : 'Missing');
+          } else {
+            throw new Error('API key fetch failed');
           }
-
-          // Load JS
-          if (!document.querySelector('script[src*="tomtom"]')) {
-            const script = document.createElement('script');
-            script.src = 'https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps-web.min.js';
-            
-            await new Promise((resolve, reject) => {
-              script.onload = resolve;
-              script.onerror = () => reject(new Error('Failed to load TomTom SDK'));
-              document.head.appendChild(script);
-            });
-          }
-
-          // Wait for SDK to be ready
-          let attempts = 0;
-          while (!window.tt && attempts < 50) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-          }
-        }
-
-        // Verify SDK is ready
-        if (!window.tt || !window.tt.map) {
-          throw new Error('TomTom SDK not available');
-        }
-
-        console.log('✅ TomTom SDK ready');
-
-        // Add minimum delay to ensure DOM is ready
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Wait for container to be ready with better checks
-        let container = mapContainer.current;
-        let attempts = 0;
-        
-        while (attempts < 150) { // Increased max attempts
-          container = mapContainer.current;
-          
-          // Check if component is still mounted
-          if (!mountedRef.current) return;
-          
-          // Check container exists and is properly sized
-          if (container && 
-              document.contains(container) && 
-              container.offsetWidth > 0 && 
-              container.offsetHeight > 0 &&
-              getComputedStyle(container).display !== 'none') {
-            break;
-          }
-          
-          // Longer delay for CSS layout completion
-          await new Promise(resolve => setTimeout(resolve, 100));
-          attempts++;
-        }
-
-        if (!container) {
-          throw new Error('Map container element not found');
+        } catch (keyError) {
+          console.warn('⚠️ API key fetch failed, using fallback');
+          // Use hardcoded fallback
+          apiKey = '9rZJqtnfYpOzlqnypI97nFb5oX17SNzp';
         }
         
-        if (container.offsetWidth === 0 || container.offsetHeight === 0) {
-          throw new Error(`Container not properly sized: ${container.offsetWidth}x${container.offsetHeight}`);
+        if (!apiKey) {
+          throw new Error('No TomTom API key available');
         }
         
-        console.log('✅ Container ready:', `${container.offsetWidth}x${container.offsetHeight}`);
-
-        // Create map
-        const map = window.tt.map({
-          key: TOMTOM_API_KEY,
-          container: container,
-          center: NE_ENGLAND_CENTER,
-          zoom: DEFAULT_ZOOM,
-          language: 'en-GB'
+        console.log('✅ Using API key:', apiKey.substring(0, 8) + '...');
+        setDebugInfo('Loading MapLibre GL JS...');
+        
+        // Use MapLibre GL JS which we already have installed
+        const maplibregl = await import('maplibre-gl');
+        console.log('✅ MapLibre GL JS loaded successfully');
+        setDebugInfo('Creating TomTom map instance...');
+        
+        // Build tile URLs with API key
+        const baseTileUrl = `https://api.tomtom.com/map/1/tile/basic/main/{z}/{x}/{y}.png?key=${apiKey}`;
+        const trafficTileUrl = `https://api.tomtom.com/traffic/map/4/tile/flow/relative-delay/{z}/{x}/{y}.png?key=${apiKey}`;
+        
+        console.log('🔗 Base tile URL template:', baseTileUrl.replace(apiKey, 'API_KEY'));
+        
+        // Create map with TomTom tiles directly (no backend proxy)
+        const map = new maplibregl.Map({
+          container: containerElement,
+          style: {
+            version: 8,
+            sources: {
+              'tomtom-base': {
+                type: 'raster',
+                tiles: [baseTileUrl],
+                tileSize: 256,
+                attribution: '© TomTom'
+              }
+            },
+            layers: [{
+              id: 'tomtom-base',
+              type: 'raster',
+              source: 'tomtom-base'
+            }]
+          },
+          center: [-1.6178, 54.9783], // Newcastle upon Tyne
+          zoom: 10
         });
 
-        mapRef.current = map;
+        console.log('✅ Map instance created');
+        setDebugInfo('Waiting for map to load...');
 
-        // Handle map load
         map.on('load', () => {
-          if (!mountedRef.current) return;
-          
-          console.log('✅ Map loaded successfully');
+          console.log('✅ TomTom map loaded successfully');
           setMapLoaded(true);
-          setMapError(null);
+          setDebugInfo('Adding TomTom traffic layer...');
           
-          // Enable traffic layers
+          // Add TomTom traffic layer directly
           try {
-            map.showTrafficFlow();
-            map.showTrafficIncidents();
-            console.log('✅ Traffic layers enabled');
-          } catch (err) {
-            console.warn('⚠️ Could not enable traffic layers:', err);
+            map.addSource('tomtom-traffic', {
+              type: 'raster',
+              tiles: [trafficTileUrl],
+              tileSize: 256
+            });
+            
+            map.addLayer({
+              id: 'traffic-flow',
+              type: 'raster',
+              source: 'tomtom-traffic',
+              paint: {
+                'raster-opacity': 0.6
+              }
+            });
+            
+            console.log('✅ TomTom traffic layer added');
+            setDebugInfo('TomTom map with live traffic loaded!');
+          } catch (trafficError) {
+            console.warn('⚠️ Traffic layer failed:', trafficError);
+            setDebugInfo('TomTom map loaded (base tiles only)');
           }
+          
+          // Add alerts as markers
+          addAlerts(map, maplibregl);
         });
 
-        map.on('error', (e) => {
-          console.error('❌ Map error:', e);
-          setMapError('Map loading error');
+        map.on('error', (error) => {
+          console.error('❌ Map error:', error);
+          setMapError(error.message);
+          setDebugInfo(`Map error: ${error.message}`);
         });
+
+        // Store map reference for cleanup
+        containerElement.mapInstance = map;
 
       } catch (error) {
-        console.error('❌ TomTom initialization error:', error);
+        console.error('❌ Failed to initialize map:', error);
         setMapError(error.message);
+        setDebugInfo(`Init error: ${error.message}`);
       }
     };
 
-    // Use requestAnimationFrame for better timing with longer delay
-    const initTimer = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        setTimeout(initializeMap, 300); // Increased delay
-      });
-    });
-
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(initializeMap, 100);
+    
     return () => {
-      mountedRef.current = false;
-      cancelAnimationFrame(initTimer);
-      
-      if (mapRef.current) {
-        try {
-          mapRef.current.remove();
-          console.log('✅ Map cleaned up');
-        } catch (e) {
-          console.error('Error removing map:', e);
-        }
-        mapRef.current = null;
+      clearTimeout(timer);
+      if (containerElement?.mapInstance) {
+        containerElement.mapInstance.remove();
       }
-      markersRef.current = [];
     };
-  }, [TOMTOM_API_KEY]);
+  }, [containerElement]);
 
-  // Update markers when alerts change
-  useEffect(() => {
-    if (!mapRef.current || !mapLoaded || !window.tt) return;
+  const addAlerts = (map, maplibregl) => {
+    if (!alerts || alerts.length === 0) return;
 
-    try {
-      const map = mapRef.current;
+    console.log(`📍 Adding ${alerts.length} alerts to map`);
+    
+    alerts.forEach((alert, index) => {
+      if (!alert.coordinates || !Array.isArray(alert.coordinates)) return;
+
+      const [lat, lng] = alert.coordinates;
+      const isCurrentAlert = index === alertIndex;
       
-      // Clear existing markers
-      markersRef.current.forEach(marker => {
-        try {
-          marker.remove();
-        } catch (e) {
-          console.error('Error removing marker:', e);
-        }
-      });
-      markersRef.current = [];
+      // Create marker element
+      const markerElement = document.createElement('div');
+      markerElement.style.cssText = `
+        width: ${isCurrentAlert ? 16 : 12}px;
+        height: ${isCurrentAlert ? 16 : 12}px;
+        background-color: ${getSeverityColor(alert.severity)};
+        border: 2px solid white;
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        ${isCurrentAlert ? 'animation: pulse 2s infinite;' : ''}
+      `;
 
-      // Add new markers
-      alerts
-        .filter(alert => {
-          const coords = alert.coordinates;
-          return coords && Array.isArray(coords) && coords.length >= 2 && 
-                 !isNaN(coords[0]) && !isNaN(coords[1]);
-        })
-        .forEach((alert, index) => {
-          try {
-            const isCurrent = index === alertIndex;
-            const [lat, lng] = alert.coordinates;
-            
-            // Create marker element
-            const el = document.createElement('div');
-            el.style.width = isCurrent ? '24px' : '16px';
-            el.style.height = isCurrent ? '24px' : '16px';
-            el.style.borderRadius = '50%';
-            el.style.border = isCurrent ? '3px solid #FFFFFF' : '2px solid #FFFFFF';
-            el.style.boxShadow = '0 2px 4px rgba(0,0,0,0.3)';
-            el.style.cursor = 'pointer';
-            
-            // Set color based on severity
-            let color = '#10B981'; // Low
-            const severity = (alert.severity || '').toLowerCase();
-            if (severity === 'critical' || severity === 'high') {
-              color = '#EF4444';
-            } else if (severity === 'medium') {
-              color = '#F59E0B';
-            }
-            
-            el.style.backgroundColor = color;
-            
-            // Add animation for current alert
-            if (isCurrent) {
-              el.style.animation = 'pulse 2s ease-in-out infinite';
-            }
-            
-            // Create marker
-            const marker = new window.tt.Marker({ element: el })
-              .setLngLat([lng, lat])
-              .addTo(map);
-            
-            markersRef.current.push(marker);
-          } catch (markerError) {
-            console.error('Error creating marker:', markerError);
+      // Add CSS animation for current alert
+      if (isCurrentAlert && !document.getElementById('marker-pulse-style')) {
+        const style = document.createElement('style');
+        style.id = 'marker-pulse-style';
+        style.textContent = `
+          @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
           }
+        `;
+        document.head.appendChild(style);
+      }
+
+      // Create marker
+      const marker = new maplibregl.Marker({ element: markerElement })
+        .setLngLat([lng, lat])
+        .addTo(map);
+
+      // Create popup
+      const popup = new maplibregl.Popup({ offset: 25 })
+        .setHTML(`
+          <div style="padding: 8px; font-family: system-ui; max-width: 200px;">
+            <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #1f2937;">${alert.title}</h3>
+            <p style="margin: 0 0 4px 0; font-size: 12px; color: #6b7280;">${alert.location || 'Location not specified'}</p>
+            <span style="
+              background-color: ${getSeverityColor(alert.severity)};
+              color: white;
+              padding: 2px 6px;
+              border-radius: 4px;
+              font-size: 10px;
+              font-weight: bold;
+            ">${alert.severity || 'UNKNOWN'}</span>
+          </div>
+        `);
+
+      marker.setPopup(popup);
+
+      // Auto-focus on current alert
+      if (isCurrentAlert) {
+        map.flyTo({
+          center: [lng, lat],
+          zoom: 14,
+          duration: 1500
         });
+        
+        // Auto-open popup after fly animation
+        setTimeout(() => {
+          popup.addTo(map);
+        }, 1600);
+      }
+    });
+  };
 
-      console.log(`✅ Added ${markersRef.current.length} markers`);
-
-    } catch (error) {
-      console.error('❌ Error updating markers:', error);
+  const getSeverityColor = (severity) => {
+    switch (severity?.toLowerCase()) {
+      case 'critical':
+        return '#ef4444';
+      case 'high':
+        return '#f59e0b';
+      case 'medium':
+        return '#06b6d4';
+      default:
+        return '#64748b';
     }
-  }, [alerts, alertIndex, mapLoaded]);
+  };
 
-  // Auto-zoom to current alert
-  useEffect(() => {
-    if (!mapRef.current || !mapLoaded || !currentAlert) return;
-
-    const coords = currentAlert.coordinates;
-    if (!coords || !Array.isArray(coords) || coords.length < 2) return;
-
-    try {
-      const map = mapRef.current;
-      const [lat, lng] = coords;
-
-      map.flyTo({
-        center: [lng, lat],
-        zoom: 14,
-        duration: 2000
-      });
-
-    } catch (error) {
-      console.error('❌ Error zooming to alert:', error);
-    }
-  }, [currentAlert, alertIndex, mapLoaded]);
-
-  // Non-web platform
+  // Mobile fallback
   if (Platform.OS !== 'web') {
     return (
-      <View style={styles.fallbackContainer}>
-        <Text style={styles.fallbackIcon}>🗺️</Text>
-        <Text style={styles.fallbackText}>
-          Map view is only available on web
+      <View style={{
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#1a1a3e',
+        minHeight: 400
+      }}>
+        <Text style={{ color: '#94a3b8', fontSize: 14 }}>
+          🗺️ Map view available on web only
         </Text>
       </View>
     );
   }
 
-  // Loading state
-  if (!mapLoaded && !mapError) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingIcon}>🗺️</Text>
-        <Text style={styles.loadingText}>
-          Loading TomTom Maps...
-        </Text>
-        <Text style={styles.loadingSubtext}>
-          API Key: {TOMTOM_API_KEY ? 'Present' : 'Missing'}
-        </Text>
-      </View>
-    );
-  }
-
-  // Error state
-  if (mapError) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorIcon}>⚠️</Text>
-        <Text style={styles.errorTitle}>
-          Map Loading Error
-        </Text>
-        <Text style={styles.errorText}>
-          {mapError}
-        </Text>
-        <Text style={styles.errorSubtext}>
-          Check browser console for details
-        </Text>
-      </View>
-    );
-  }
-
-  // Map container
+  // Web platform - always render container, show overlays as needed
   return (
-    <View style={styles.container}>
+    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '400px' }}>
+      {/* Map container - always rendered */}
       <div
-        ref={mapContainer}
-        id="tomtom-map-container"
+        ref={mapContainerCallback}
         style={{
           width: '100%',
           height: '100%',
           minHeight: '400px',
-          borderRadius: '12px',
-          position: 'relative'
+          borderRadius: '8px',
+          position: 'relative',
+          backgroundColor: '#1a1a3e'
         }}
       />
-      {mapLoaded && alerts.length > 0 && (
-        <View style={styles.mapInfo}>
-          <Text style={styles.mapInfoText}>
-            {alerts.filter(a => a.coordinates).length} alerts on map
-          </Text>
-        </View>
+      
+      {/* Loading overlay */}
+      {!mapLoaded && !mapError && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(26, 26, 62, 0.95)',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          borderRadius: '8px',
+          zIndex: 1000
+        }}>
+          <div style={{ color: '#94a3b8', fontSize: '16px', marginBottom: '8px' }}>
+            🗺️ Loading map...
+          </div>
+          <div style={{ color: '#64748b', fontSize: '12px', marginBottom: '4px' }}>
+            Newcastle Traffic Intelligence
+          </div>
+          <div style={{ color: '#f59e0b', fontSize: '11px', fontFamily: 'monospace' }}>
+            Debug: {debugInfo}
+          </div>
+        </div>
       )}
-      <style dangerouslySetInnerHTML={{
-        __html: `
-          @keyframes pulse {
-            0% {
-              box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
-            }
-            70% {
-              box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
-            }
-            100% {
-              box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
-            }
-          }
-        `
-      }} />
-    </View>
+      
+      {/* Error overlay */}
+      {mapError && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(127, 29, 29, 0.95)',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          borderRadius: '8px',
+          zIndex: 1000
+        }}>
+          <div style={{ color: '#fca5a5', fontSize: '16px', marginBottom: '8px' }}>
+            ❌ Map error: {mapError}
+          </div>
+          <div style={{ color: '#f87171', fontSize: '12px' }}>
+            Falling back to alert list view
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    position: 'relative',
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: '#1F2937',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: 'rgba(31, 41, 55, 0.5)',
-  },
-  loadingIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  loadingText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#F3F4F6',
-    marginBottom: 8,
-  },
-  loadingSubtext: {
-    fontSize: 11,
-    color: '#9CA3AF',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-  },
-  errorIcon: {
-    fontSize: 48,
-    marginBottom: 16,
-  },
-  errorTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#EF4444',
-    marginBottom: 8,
-  },
-  errorText: {
-    fontSize: 14,
-    color: '#EF4444',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  errorSubtext: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontStyle: 'italic',
-  },
-  fallbackContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
-    backgroundColor: 'rgba(31, 41, 55, 0.5)',
-  },
-  fallbackIcon: {
-    fontSize: 64,
-    marginBottom: 20,
-  },
-  fallbackText: {
-    fontSize: 16,
-    textAlign: 'center',
-    color: '#9CA3AF',
-  },
-  mapInfo: {
-    position: 'absolute',
-    bottom: 16,
-    right: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  mapInfoText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#F3F4F6',
-  },
-});
 
 export default TomTomTrafficMap;

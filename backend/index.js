@@ -350,6 +350,32 @@ app.use('/api/throttle', throttleAPI);
 // TomTom tile serving routes
 app.use('/api/tiles', tileAPI);
 
+// TomTom API key endpoint for frontend
+app.get('/api/config/tomtom-key', (req, res) => {
+  try {
+    // Use the provided API key
+    const apiKey = process.env.TOMTOM_API_KEY || '9rZJqtnfYpOzlqnypI97nFb5oX17SNzp';
+    
+    if (!apiKey) {
+      return res.status(404).json({
+        success: false,
+        error: 'TomTom API key not configured'
+      });
+    }
+    
+    res.json({
+      success: true,
+      apiKey: apiKey
+    });
+  } catch (error) {
+    console.error('❌ Error getting TomTom API key:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get API key'
+    });
+  }
+});
+
 // Event monitoring routes
 app.use('/api/events', eventAPI);
 

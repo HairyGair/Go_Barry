@@ -1,5 +1,5 @@
 // Go_BARRY/components/DisplayScreen.jsx
-// Professional 24/7 Control Room Display - Fixed and Enhanced
+// Professional 24/7 Control Room Display - Fixed for React Native Web
 
 import React, { useState, useEffect, useRef } from 'react';
 import TomTomTrafficMap from './TomTomTrafficMap';
@@ -102,8 +102,6 @@ const DisplayScreen = () => {
     const interval = setInterval(fetchSupervisorActivity, 15000); // 15s intervals for real-time activity
     return () => clearInterval(interval);
   }, []);
-
-  // Activity feed is now managed via backend polling
 
   // Fetch active events
   const fetchActiveEvents = async () => {
@@ -247,32 +245,16 @@ const DisplayScreen = () => {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a3e 50%, #2d2d5f 100%)',
+      backgroundColor: '#0f0f23',
       color: '#ffffff',
       fontFamily: "'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif",
       position: 'relative',
       overflow: 'hidden'
     }}>
-      {/* Animated Background Pattern */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: `
-          radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-          radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.15) 0%, transparent 50%),
-          radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.1) 0%, transparent 50%)
-        `,
-        animation: 'backgroundShift 20s ease-in-out infinite alternate'
-      }} />
-
       {/* Header Command Bar */}
       <div style={{
         height: '60px',
-        background: 'rgba(15, 15, 35, 0.95)',
-        backdropFilter: 'blur(20px)',
+        backgroundColor: '#1a1a3e',
         borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
         display: 'flex',
         alignItems: 'center',
@@ -292,7 +274,6 @@ const DisplayScreen = () => {
               objectFit: 'contain'
             }}
             onError={(e) => {
-              // Fallback if logo fails to load
               e.target.style.display = 'none';
               e.target.nextSibling.style.display = 'flex';
             }}
@@ -302,7 +283,7 @@ const DisplayScreen = () => {
             <div style={{
               width: '36px',
               height: '36px',
-              background: 'linear-gradient(135deg, #3b82f6, #1e40af)',
+              backgroundColor: '#3b82f6',
               borderRadius: '8px',
               display: 'flex',
               alignItems: 'center',
@@ -318,10 +299,7 @@ const DisplayScreen = () => {
               margin: 0,
               fontSize: '18px',
               fontWeight: '700',
-              background: 'linear-gradient(135deg, #ffffff, #cbd5e1)',
-              backgroundClip: 'text',
-              WebkitBackgroundClip: 'text',
-              color: 'transparent'
+              color: '#ffffff'
             }}>
               GO BARRY INTELLIGENCE
             </h1>
@@ -341,7 +319,7 @@ const DisplayScreen = () => {
         {/* Central Time Display */}
         <div style={{ 
           textAlign: 'center',
-          background: 'rgba(255, 255, 255, 0.05)',
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
           padding: '12px 20px',
           borderRadius: '12px',
           border: '1px solid rgba(255, 255, 255, 0.1)'
@@ -350,10 +328,7 @@ const DisplayScreen = () => {
             fontSize: '28px',
             fontWeight: '300',
             fontFamily: "'SF Mono', 'Monaco', monospace",
-            background: 'linear-gradient(135deg, #ffffff, #f1f5f9)',
-            backgroundClip: 'text',
-            WebkitBackgroundClip: 'text',
-            color: 'transparent',
+            color: '#ffffff',
             letterSpacing: '-1px'
           }}>
             {formatTime(currentTime)}
@@ -405,18 +380,17 @@ const DisplayScreen = () => {
       {/* Critical Event Banner */}
       {activeEvent && (
         <div style={{
-          background: 'linear-gradient(90deg, #ef4444, #dc2626)',
+          backgroundColor: '#ef4444',
           padding: '10px 24px',
           display: 'flex',
           alignItems: 'center',
           gap: '12px',
-          animation: 'alertPulse 2s ease-in-out infinite',
           borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
         }}>
           <div style={{
             width: '28px',
             height: '28px',
-            background: 'rgba(255, 255, 255, 0.2)',
+            backgroundColor: 'rgba(255, 255, 255, 0.2)',
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
@@ -436,7 +410,7 @@ const DisplayScreen = () => {
         </div>
       )}
 
-      {/* Main Dashboard Grid - Better Layout */}
+      {/* Main Dashboard Grid */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: '1fr 1fr',
@@ -447,11 +421,10 @@ const DisplayScreen = () => {
         position: 'relative',
         zIndex: 1
       }}>
-        {/* Live Traffic Map Panel - Full Width Top */}
+        {/* Live Traffic Map Panel */}
         <div style={{
           gridColumn: '1 / -1',
-          background: 'rgba(255, 255, 255, 0.05)',
-          backdropFilter: 'blur(20px)',
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
           borderRadius: '20px',
           border: '1px solid rgba(255, 255, 255, 0.1)',
           padding: '20px',
@@ -478,7 +451,7 @@ const DisplayScreen = () => {
               <span style={{
                 width: '28px',
                 height: '28px',
-                background: 'linear-gradient(135deg, #3b82f6, #1e40af)',
+                backgroundColor: '#3b82f6',
                 borderRadius: '6px',
                 display: 'flex',
                 alignItems: 'center',
@@ -490,7 +463,7 @@ const DisplayScreen = () => {
               LIVE TRAFFIC INTELLIGENCE
             </h2>
             <div style={{
-              background: 'rgba(59, 130, 246, 0.2)',
+              backgroundColor: 'rgba(59, 130, 246, 0.2)',
               border: '1px solid rgba(59, 130, 246, 0.3)',
               padding: '6px 12px',
               borderRadius: '10px',
@@ -504,7 +477,7 @@ const DisplayScreen = () => {
           
           <div style={{
             flex: 1,
-            background: 'rgba(0, 0, 0, 0.2)',
+            backgroundColor: 'rgba(0, 0, 0, 0.2)',
             borderRadius: '12px',
             border: '1px solid rgba(255, 255, 255, 0.1)',
             overflow: 'hidden',
@@ -519,10 +492,9 @@ const DisplayScreen = () => {
           </div>
         </div>
 
-        {/* Alert Center - Bottom Left */}
+        {/* Alert Center */}
         <div style={{
-          background: 'rgba(255, 255, 255, 0.05)',
-          backdropFilter: 'blur(20px)',
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
           borderRadius: '20px',
           border: '1px solid rgba(255, 255, 255, 0.1)',
           padding: '20px',
@@ -548,7 +520,7 @@ const DisplayScreen = () => {
               <span style={{
                 width: '28px',
                 height: '28px',
-                background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                backgroundColor: '#ef4444',
                 borderRadius: '6px',
                 display: 'flex',
                 alignItems: 'center',
@@ -559,7 +531,7 @@ const DisplayScreen = () => {
               </span>
               ALERT CENTER
               <span style={{
-                background: alerts.length > 0 ? '#ef4444' : '#10b981',
+                backgroundColor: alerts.length > 0 ? '#ef4444' : '#10b981',
                 color: '#ffffff',
                 padding: '3px 10px',
                 borderRadius: '10px',
@@ -581,7 +553,7 @@ const DisplayScreen = () => {
 
           {error && (
             <div style={{
-              background: 'rgba(239, 68, 68, 0.1)',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
               border: '1px solid rgba(239, 68, 68, 0.3)',
               padding: '12px',
               borderRadius: '10px',
@@ -599,36 +571,19 @@ const DisplayScreen = () => {
 
           {alerts.length > 0 ? (
             <div style={{ flex: 1, overflowY: 'auto' }}>
-              {alerts.length > 1 && (
-                <div style={{
-                  background: 'rgba(59, 130, 246, 0.1)',
-                  border: '1px solid rgba(59, 130, 246, 0.3)',
-                  padding: '10px',
-                  borderRadius: '10px',
-                  marginBottom: '16px',
-                  textAlign: 'center',
-                  fontSize: '11px',
-                  color: '#93c5fd',
-                  fontWeight: '500'
-                }}>
-                  🔄 Alert {currentAlertIndex + 1} of {alerts.length} • Auto-cycling every 15s
-                </div>
-              )}
-
               {currentAlert && (
                 <div style={{
-                  background: 'rgba(255, 255, 255, 0.08)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
                   border: `2px solid ${getSeverityColor(currentAlert.severity)}`,
                   borderRadius: '12px',
                   padding: '20px',
-                  position: 'relative',
-                  animation: 'slideIn 0.5s ease-out'
+                  position: 'relative'
                 }}>
                   <div style={{
                     position: 'absolute',
                     top: '12px',
                     right: '12px',
-                    background: getSeverityColor(currentAlert.severity),
+                    backgroundColor: getSeverityColor(currentAlert.severity),
                     color: '#ffffff',
                     padding: '4px 10px',
                     borderRadius: '16px',
@@ -673,76 +628,6 @@ const DisplayScreen = () => {
                       {currentAlert.description}
                     </p>
                   )}
-
-                  {currentAlert.affectsRoutes && currentAlert.affectsRoutes.length > 0 && (
-                    <div style={{
-                      background: 'rgba(0, 0, 0, 0.2)',
-                      padding: '12px',
-                      borderRadius: '10px',
-                      marginBottom: '12px'
-                    }}>
-                      <div style={{
-                        fontSize: '10px',
-                        fontWeight: '600',
-                        color: '#64748b',
-                        marginBottom: '8px',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                      }}>
-                        🚌 Affected Services
-                      </div>
-                      <div style={{
-                        display: 'flex',
-                        flexWrap: 'wrap',
-                        gap: '6px'
-                      }}>
-                        {currentAlert.affectsRoutes.slice(0, 8).map((route, idx) => (
-                          <span key={idx} style={{
-                            background: 'linear-gradient(135deg, #3b82f6, #1e40af)',
-                            color: '#ffffff',
-                            padding: '6px 10px',
-                            borderRadius: '6px',
-                            fontSize: '11px',
-                            fontWeight: '600'
-                          }}>
-                            {route}
-                          </span>
-                        ))}
-                        {currentAlert.affectsRoutes.length > 8 && (
-                          <span style={{
-                            background: 'rgba(255, 255, 255, 0.1)',
-                            color: '#cbd5e1',
-                            padding: '6px 10px',
-                            borderRadius: '6px',
-                            fontSize: '11px',
-                            fontWeight: '600'
-                          }}>
-                            +{currentAlert.affectsRoutes.length - 8}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    fontSize: '10px',
-                    color: '#64748b',
-                    borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-                    paddingTop: '10px'
-                  }}>
-                    <span>{currentAlert.source || 'Traffic API'}</span>
-                    <span>
-                      {currentAlert.timestamp ? 
-                        new Date(currentAlert.timestamp).toLocaleTimeString('en-GB', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        }) : 
-                        'Unknown time'
-                      }
-                    </span>
-                  </div>
                 </div>
               )}
             </div>
@@ -759,7 +644,7 @@ const DisplayScreen = () => {
               <div style={{
                 width: '64px',
                 height: '64px',
-                background: 'linear-gradient(135deg, #10b981, #059669)',
+                backgroundColor: '#10b981',
                 borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
@@ -788,10 +673,9 @@ const DisplayScreen = () => {
           )}
         </div>
 
-        {/* Operations Panel - Bottom Right */}
+        {/* Operations Panel */}
         <div style={{
-          background: 'rgba(255, 255, 255, 0.05)',
-          backdropFilter: 'blur(20px)',
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
           borderRadius: '20px',
           border: '1px solid rgba(255, 255, 255, 0.1)',
           padding: '20px',
@@ -811,7 +695,7 @@ const DisplayScreen = () => {
             <span style={{
               width: '28px',
               height: '28px',
-              background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+              backgroundColor: '#8b5cf6',
               borderRadius: '6px',
               display: 'flex',
               alignItems: 'center',
@@ -823,9 +707,8 @@ const DisplayScreen = () => {
             OPERATIONS
           </h3>
           
-          {/* Active Supervisors */}
           <div style={{
-            background: 'rgba(0, 0, 0, 0.2)',
+            backgroundColor: 'rgba(0, 0, 0, 0.2)',
             padding: '14px',
             borderRadius: '10px',
             marginBottom: '16px'
@@ -848,7 +731,7 @@ const DisplayScreen = () => {
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '8px 10px',
-                    background: 'rgba(255, 255, 255, 0.05)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
                     borderRadius: '6px'
                   }}>
                     <span style={{
@@ -861,7 +744,7 @@ const DisplayScreen = () => {
                     <span style={{
                       fontSize: '9px',
                       color: '#10b981',
-                      background: 'rgba(16, 185, 129, 0.2)',
+                      backgroundColor: 'rgba(16, 185, 129, 0.2)',
                       padding: '3px 6px',
                       borderRadius: '10px',
                       fontWeight: '600'
@@ -884,7 +767,6 @@ const DisplayScreen = () => {
             )}
           </div>
 
-          {/* Activity Feed */}
           <div style={{
             fontSize: '11px',
             fontWeight: '600',
@@ -907,7 +789,7 @@ const DisplayScreen = () => {
               supervisorActivity.map((activity, idx) => (
                 <div key={activity.id} style={{
                   padding: '10px',
-                  background: idx === 0 ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255, 255, 255, 0.03)',
+                  backgroundColor: idx === 0 ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255, 255, 255, 0.03)',
                   border: idx === 0 ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)',
                   borderRadius: '6px',
                   borderLeft: `3px solid ${
@@ -916,8 +798,7 @@ const DisplayScreen = () => {
                     activity.type === 'roadwork' ? '#ef4444' :
                     activity.type === 'email' ? '#3b82f6' :
                     'rgba(255, 255, 255, 0.1)'
-                  }`,
-                  animation: idx === 0 ? 'fadeIn 0.5s ease-out' : 'none'
+                  }`
                 }}>
                   <div style={{
                     fontSize: '12px',
@@ -960,11 +841,10 @@ const DisplayScreen = () => {
             )}
           </div>
 
-          {/* System Status Footer */}
           <div style={{
             marginTop: '12px',
             padding: '10px',
-            background: 'rgba(59, 130, 246, 0.1)',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
             borderRadius: '6px',
             textAlign: 'center',
             fontSize: '10px',
@@ -975,48 +855,6 @@ const DisplayScreen = () => {
           </div>
         </div>
       </div>
-
-      {/* Global Animations */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
-          @keyframes backgroundShift {
-            0% { opacity: 1; }
-            100% { opacity: 0.7; }
-          }
-          
-          @keyframes alertPulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.8; }
-          }
-          
-          @keyframes slideIn {
-            from { 
-              transform: translateY(20px); 
-              opacity: 0; 
-            }
-            to { 
-              transform: translateY(0); 
-              opacity: 1; 
-            }
-          }
-          
-          @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-          }
-          
-          @keyframes statusPulse {
-            0%, 100% { 
-              transform: scale(1); 
-              opacity: 1; 
-            }
-            50% { 
-              transform: scale(1.05); 
-              opacity: 0.8; 
-            }
-          }
-        `
-      }} />
     </div>
   );
 };
@@ -1027,14 +865,13 @@ const StatusBadge = ({ icon, label, color, pulse = false }) => (
     display: 'flex',
     alignItems: 'center',
     gap: '4px',
-    background: `${color}20`,
+    backgroundColor: `${color}20`,
     border: `1px solid ${color}40`,
     color: color,
     padding: '5px 10px',
     borderRadius: '8px',
     fontSize: '10px',
-    fontWeight: '600',
-    animation: pulse ? 'statusPulse 1.5s ease-in-out infinite' : 'none'
+    fontWeight: '600'
   }}>
     <span>{icon}</span>
     <span>{label}</span>
