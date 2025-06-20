@@ -250,6 +250,18 @@ const SupervisorControl = ({
   
   // Use passed session data if available, otherwise fall back to hook data
   const session = passedSession || {};
+  
+  // Debug logging
+  console.log('🔍 SupervisorControl Session Debug:', {
+    passedSession,
+    supervisorId,
+    supervisorName,
+    sessionId,
+    session,
+    supervisorData: session?.supervisor,
+    duty: session?.supervisor?.duty
+  });
+  
   const supervisorBadge = session?.supervisor?.badge || supervisorName?.match(/\((\w+)\)/)?.[1] || 'Unknown';
   const supervisorDuty = session?.supervisor?.duty || {};
   const loginTime = session?.loginTime;
@@ -1275,8 +1287,7 @@ const SupervisorControl = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+    backgroundColor: '#f5f7fa',
   },
   loadingContainer: {
     flex: 1,
@@ -1413,7 +1424,6 @@ const styles = StyleSheet.create({
     transform: [{ scale: 1 }],
   },
   broadcastControlButton: {
-    background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
     backgroundColor: '#8B5CF6',
   },
   templatesButton: {
@@ -2007,11 +2017,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   queueControlButton: {
-    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
     backgroundColor: '#10B981',
   },
   roadworksControlButton: {
-    background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
     backgroundColor: '#F59E0B',
   },
   roadworksModalContainer: {

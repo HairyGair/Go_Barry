@@ -2,9 +2,8 @@
 // Optimized polling service to replace WebSocket communication
 // High-frequency polling with smart caching for instant supervisor-display sync
 
-const API_BASE = process.env.NODE_ENV === 'development' 
-  ? 'http://localhost:3001' 
-  : 'https://go-barry.onrender.com';
+// ALWAYS use production URL - localhost doesn't work in Expo web
+const API_BASE = 'https://go-barry.onrender.com';
 
 class SupervisorPollingService {
   constructor() {

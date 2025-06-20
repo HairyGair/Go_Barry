@@ -12,8 +12,106 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
-// In-memory storage for sessions (ephemeral by design)
-let supervisorSessions = {};
+// Supabase-backed session storage
+let supervisorSessions = {}; // Keep as cache
+let sessionCounter = 0;
+
+// Debug: Log when module is loaded
+const moduleLoadTime = new Date().toISOString();
+console.log('🔄 supervisorManager.js module loaded at', moduleLoadTime);
+
+// Initialize sessions from Supabase on startup
+async function loadSessionsFromSupabase() {
+  try {
+    const { data, error } = await supabase
+      .from('supervisor_sessions')
+      .select('*')
+      .eq('is_active', true);
+    
+    if (!error && data) {
+      // Rebuild in-memory cache from Supabase
+      supervisorSessions = {};
+      data.forEach(session => {
+        supervisorSessions[session.id] = {
+          supervisorId: session.supervisor_id,
+          supervisorName: session.supervisor_name,
+          supervisorBadge: session.supervisor_badge, // Changed from badge_number
+          sessionToken: session.session_token,
+          startTime: session.login_time,
+          lastActivity: session.last_activity,
+          expiresAt: session.expires_at,
+          active: session.is_active,
+          isAdmin: session.is_admin,
+          role: session.role,
+          shift: session.shift
+        };
+      });
+      console.log(`✅ Loaded ${Object.keys(supervisorSessions).length} active sessions from Supabase`);
+    }
+  } catch (error) {
+    console.error('❌ Failed to load sessions from Supabase:', error);
+  }
+}
+
+// Save session to Supabase
+async function saveSessionToSupabase(sessionId, sessionData) {
+  try {
+    const { error } = await supabase
+      .from('supervisor_sessions')
+      .upsert({
+        id: sessionId,
+        supervisor_id: sessionData.supervisorId,
+        supervisor_name: sessionData.supervisorName,
+        supervisor_badge: sessionData.supervisorBadge, // Changed from badge_number
+        session_token: sessionData.sessionToken,
+        is_admin: sessionData.isAdmin || false,
+        login_time: sessionData.startTime,
+        last_activity: sessionData.lastActivity,
+        expires_at: sessionData.expiresAt,
+        is_active: sessionData.active,
+        role: sessionData.role,
+        shift: sessionData.shift,
+        created_at: new Date().toISOString()
+      });
+    
+    if (error) {
+      console.error('❌ Failed to save session to Supabase:', error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('❌ Error saving session to Supabase:', error);
+    return false;
+  }
+}
+
+// Log activity to Supabase
+async function logActivity(action, details, supervisorInfo = null, req = null) {
+  try {
+    const activityLog = {
+      action,
+      details,
+      supervisor_id: supervisorInfo?.id || null,
+      supervisor_name: supervisorInfo?.name || null,
+      screen_type: details.screenType || 'supervisor',
+      ip_address: req?.ip || req?.connection?.remoteAddress || null,
+      user_agent: req?.headers?.['user-agent'] || null,
+      created_at: new Date().toISOString()
+    };
+
+    const { error } = await supabase
+      .from('activity_logs')
+      .insert(activityLog);
+
+    if (error) {
+      console.error('❌ Failed to log activity:', error);
+    } else {
+      console.log(`📝 Activity logged: ${action}`);
+    }
+  } catch (error) {
+    console.error('❌ Error logging activity:', error);
+  }
+}
 
 // Auto-timeout configuration
 const SESSION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes in milliseconds
@@ -33,7 +131,10 @@ async function initializeSupervisorData() {
       return;
     }
 
-    console.log(`✅ Supervisor system initialized with Supabase: ${data.length} supervisors available`);
+    console.log(`✅ Supervisor system initialized with Supabase`);
+    
+    // Load existing sessions from Supabase
+    await loadSessionsFromSupabase();
     
     // Start auto-timeout cleanup
     startSessionCleanup();
@@ -43,11 +144,11 @@ async function initializeSupervisorData() {
 }
 
 // Auto-timeout: Clean up inactive sessions
-function cleanupInactiveSessions() {
+async function cleanupInactiveSessions() {
   const now = Date.now();
   let cleanedCount = 0;
   
-  Object.entries(supervisorSessions).forEach(([sessionId, session]) => {
+  for (const [sessionId, session] of Object.entries(supervisorSessions)) {
     if (session.active) {
       const lastActivityTime = new Date(session.lastActivity).getTime();
       const timeSinceActivity = now - lastActivityTime;
@@ -58,9 +159,32 @@ function cleanupInactiveSessions() {
         session.endTime = new Date().toISOString();
         session.timeoutReason = 'Auto-timeout after 10 minutes of inactivity';
         cleanedCount++;
+        
+        // Update Supabase
+        try {
+          await supabase
+            .from('supervisor_sessions')
+            .update({ 
+              is_active: false,
+              end_time: session.endTime,
+              timeout_reason: session.timeoutReason
+            })
+            .eq('id', sessionId);
+            
+          // Log the auto-timeout
+          await logActivity('session_timeout', {
+            sessionId,
+            supervisorId: session.supervisorId,
+            supervisorName: session.supervisorName,
+            timeoutReason: 'Auto-timeout after 10 minutes of inactivity',
+            inactiveMinutes: Math.round(timeSinceActivity / 1000 / 60)
+          });
+        } catch (error) {
+          console.error('❌ Failed to update session timeout in Supabase:', error);
+        }
       }
     }
-  });
+  }
   
   if (cleanedCount > 0) {
     console.log(`🧹 Auto-cleanup: ${cleanedCount} inactive session(s) timed out`);
@@ -86,6 +210,7 @@ function stopSessionCleanup() {
 // Supervisor authentication with fallback
 export async function authenticateSupervisor(supervisorId, badge) {
   console.log(`🔐 Auth attempt: ${supervisorId} with badge ${badge}`);
+  console.log(`🔍 Looking for supervisor with ID: '${supervisorId}' and badge: '${badge}'`);
   
   // Fallback supervisor data (matches frontend mapping)
   const fallbackSupervisors = {
@@ -99,6 +224,8 @@ export async function authenticateSupervisor(supervisorId, badge) {
     'supervisor008': { name: 'Simon Glass', badge: 'SG008', role: 'Supervisor', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents'] },
     'supervisor009': { name: 'Barry Perryman', badge: 'BP009', role: 'Service Delivery Controller', shift: 'Day', permissions: ['dismiss-alerts', 'create-incidents', 'manage-supervisors'] }
   };
+  
+  console.log(`📋 Available supervisor IDs: ${Object.keys(fallbackSupervisors).join(', ')}`);
   
   try {
     let supervisor = null;
@@ -123,7 +250,10 @@ export async function authenticateSupervisor(supervisorId, badge) {
     
     // Fallback to local data if Supabase fails
     if (!supervisor) {
+      console.log(`🔍 Checking fallback for ID: '${supervisorId}'`);
       const fallbackSupervisor = fallbackSupervisors[supervisorId];
+      console.log(`📋 Fallback result:`, fallbackSupervisor);
+      
       if (fallbackSupervisor && fallbackSupervisor.badge === badge) {
         supervisor = {
           id: supervisorId,
@@ -131,6 +261,9 @@ export async function authenticateSupervisor(supervisorId, badge) {
           active: true
         };
         console.log(`✅ Fallback auth successful for ${supervisor.name}`);
+        console.log(`👤 Full supervisor object:`, supervisor);
+      } else {
+        console.log(`❌ No match found - fallback badge: ${fallbackSupervisor?.badge}, provided badge: ${badge}`);
       }
     }
     
@@ -139,47 +272,65 @@ export async function authenticateSupervisor(supervisorId, badge) {
       return { success: false, error: 'Invalid supervisor credentials' };
     }
     
-    // Create session
+    // Generate session token
+    const sessionToken = `token_${supervisorId}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     const sessionId = `session_${supervisorId}_${Date.now()}`;
+    const expiresAt = new Date(Date.now() + SESSION_TIMEOUT_MS).toISOString();
+    
+    // Create session with correct structure for getActiveSupervisors
     supervisorSessions[sessionId] = {
-      supervisorId,
-      supervisorName: supervisor.name,
+      supervisorId: supervisorId,
+      supervisorName: supervisor.name,  // getActiveSupervisors expects this
       supervisorBadge: supervisor.badge,
-      startTime: new Date().toISOString(),
+      sessionToken: sessionToken,
+      startTime: new Date().toISOString(),  // getActiveSupervisors expects this
       lastActivity: new Date().toISOString(),
-      active: true
+      expiresAt: expiresAt,
+      active: true,
+      isAdmin: supervisor.role?.includes('Admin') || supervisor.role?.includes('Controller') || false,
+      // Additional info
+      role: supervisor.role,
+      shift: supervisor.shift,
+      permissions: supervisor.permissions
     };
     
-    // Try to log session creation to Supabase (optional)
-    try {
-      await supabase
-        .from('supervisor_sessions')
-        .insert({
-          id: sessionId,
-          supervisor_id: supervisorId,
-          badge: badge,
-          login_time: new Date().toISOString(),
-          last_activity: new Date().toISOString(),
-          active: true
-        });
-      console.log(`✅ Session logged to Supabase: ${sessionId}`);
-    } catch (dbError) {
-      console.warn('⚠️ Failed to log session to Supabase, but session created:', dbError.message);
+    // Save session to Supabase for persistence
+    const supabaseSaved = await saveSessionToSupabase(sessionId, supervisorSessions[sessionId]);
+    if (supabaseSaved) {
+      console.log(`✅ Session saved to Supabase: ${sessionId}`);
+    } else {
+      console.warn('⚠️ Failed to save session to Supabase, but continuing with local session');
     }
     
+    sessionCounter++;
     console.log(`✅ Session created: ${sessionId} for ${supervisor.name}`);
+    console.log(`📊 Total sessions created in this process: ${sessionCounter}`);
+    console.log(`💾 Current session count in memory: ${Object.keys(supervisorSessions).length}`);
+    
+    // Log successful login
+    await logActivity('supervisor_login', {
+      supervisorId: supervisor.id,
+      supervisorName: supervisor.name,
+      badge: supervisor.badge,
+      role: supervisor.role,
+      sessionId: sessionId
+    }, { id: supervisor.id, name: supervisor.name });
     
     return {
       success: true,
       sessionId,
+      sessionToken,
       supervisor: {
         id: supervisor.id,
         name: supervisor.name,
         badge: supervisor.badge,
         role: supervisor.role,
         shift: supervisor.shift,
-        permissions: supervisor.permissions
-      }
+        permissions: supervisor.permissions,
+        isAdmin: supervisor.role?.includes('Admin') || supervisor.role?.includes('Controller') || false
+      },
+      // Also include the session for debugging
+      session: supervisorSessions[sessionId]
     };
   } catch (error) {
     console.error('❌ Auth error:', error);
@@ -246,18 +397,8 @@ export async function validateSupervisorSession(sessionId) {
       return { success: false, error: 'Supervisor account not found or inactive' };
     }
     
-    // Update last activity in memory
-    session.lastActivity = new Date().toISOString();
-    
-    // Try to update database (optional)
-    try {
-      await supabase
-        .from('supervisor_sessions')
-        .update({ last_activity: new Date().toISOString() })
-        .eq('id', sessionId);
-    } catch (dbError) {
-      console.warn('⚠️ Failed to update session in database, but session is valid');
-    }
+    // Update last activity
+    await updateSessionActivity(sessionId);
     
     console.log(`✅ Session valid for: ${supervisor.name}`);
     
@@ -279,7 +420,7 @@ export async function validateSupervisorSession(sessionId) {
 }
 
 // Dismiss alert with supervisor accountability
-export async function dismissAlert(alertId, supervisorSessionId, reason, notes = '') {
+export async function dismissAlert(alertId, supervisorSessionId, reason, notes = '', req = null) {
   try {
     // Validate supervisor session
     const sessionValidation = await validateSupervisorSession(supervisorSessionId);
@@ -320,6 +461,14 @@ export async function dismissAlert(alertId, supervisorSessionId, reason, notes =
     }
     
     console.log(`🔕 Alert ${alertId} dismissed by ${supervisor.name} (${supervisor.badge}): ${reason}`);
+    
+    // Log the dismissal activity
+    await logActivity('alert_dismissed', {
+      alertId,
+      reason,
+      notes,
+      sessionId: supervisorSessionId
+    }, { id: supervisor.id, name: supervisor.name }, req);
     
     return {
       success: true,
@@ -398,12 +547,75 @@ export async function getAllSupervisors() {
 }
 
 // Get active supervisors (currently signed in)
-export function getActiveSupervisors() {
+export async function getActiveSupervisors() {
   console.log(`🔍 getActiveSupervisors called`);
-  console.log(`💾 Sessions available: ${Object.keys(supervisorSessions).length}`);
   
+  try {
+    // Query Supabase for active sessions
+    const { data, error } = await supabase
+      .from('supervisor_sessions')
+      .select('*')
+      .eq('is_active', true)
+      .order('last_activity', { ascending: false });
+    
+    if (error) {
+      console.error('❌ Error querying Supabase for active sessions:', error);
+      // Fall back to memory cache
+      return getActiveFromMemory();
+    }
+    
+    if (data) {
+      console.log(`💾 Found ${data.length} active sessions in Supabase`);
+      
+      // Update memory cache
+      supervisorSessions = {};
+      data.forEach(session => {
+        supervisorSessions[session.id] = {
+        supervisorId: session.supervisor_id,
+        supervisorName: session.supervisor_name,
+        supervisorBadge: session.supervisor_badge, // Changed from badge_number
+        sessionToken: session.session_token,
+        startTime: session.login_time,
+        lastActivity: session.last_activity,
+        expiresAt: session.expires_at,
+        active: session.is_active,
+          isAdmin: session.is_admin,
+        role: session.role,
+        shift: session.shift
+      };
+      });
+      
+      // Check for timeouts
+      const now = Date.now();
+      const activeSessions = data.filter(session => {
+        const lastActivity = new Date(session.last_activity).getTime();
+        const timeSinceActivity = now - lastActivity;
+        return timeSinceActivity <= SESSION_TIMEOUT_MS;
+      });
+      
+      const result = activeSessions.map(session => ({
+        supervisorId: session.supervisor_id,
+        name: session.supervisor_name,
+        sessionStart: session.login_time,
+        lastActivity: session.last_activity
+      }));
+      
+      console.log(`✅ Returning ${result.length} active supervisors from Supabase:`, result.map(s => s.name));
+      return result;
+    }
+  } catch (error) {
+    console.error('❌ Exception getting active supervisors:', error);
+  }
+  
+  // Fallback to memory
+  return getActiveFromMemory();
+}
+
+// Helper function for memory-based active supervisors
+function getActiveFromMemory() {
+  console.log(`💾 Using memory cache for active supervisors`);
   const activeSessions = Object.values(supervisorSessions).filter(session => session.active);
-  console.log(`✅ Active sessions found: ${activeSessions.length}`);
+  console.log(`✅ Active sessions found in memory: ${activeSessions.length}`);
   
   const result = activeSessions.map(session => ({
     supervisorId: session.supervisorId,
@@ -412,7 +624,6 @@ export function getActiveSupervisors() {
     lastActivity: session.lastActivity
   }));
   
-  console.log(`📋 Returning ${result.length} active supervisors:`, result.map(s => s.name));
   return result;
 }
 
@@ -505,7 +716,7 @@ export async function getDismissalStatistics(timeRange = 'today') {
 }
 
 // Update session activity (call this on any API interaction)
-export function updateSessionActivity(sessionId) {
+export async function updateSessionActivity(sessionId) {
   const session = supervisorSessions[sessionId];
   if (session && session.active) {
     session.lastActivity = new Date().toISOString();
@@ -513,7 +724,10 @@ export function updateSessionActivity(sessionId) {
     // Update in database (fire and forget)
     supabase
       .from('supervisor_sessions')
-      .update({ last_activity: new Date().toISOString() })
+      .update({ 
+        last_activity: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
       .eq('id', sessionId)
       .then(({ error }) => {
         if (error) console.error('Failed to update session activity in DB:', error);
@@ -525,23 +739,39 @@ export function updateSessionActivity(sessionId) {
 }
 
 // Sign out supervisor
-export async function signOutSupervisor(sessionId) {
+export async function signOutSupervisor(sessionId, req = null) {
   const session = supervisorSessions[sessionId];
   if (session) {
     session.active = false;
     session.endTime = new Date().toISOString();
     session.signoutReason = 'Manual logout';
     
-    // Update database
-    await supabase
-      .from('supervisor_sessions')
-      .update({ 
-        active: false,
-        last_activity: new Date().toISOString()
-      })
-      .eq('id', sessionId);
+    // Update Supabase
+    try {
+      await supabase
+        .from('supervisor_sessions')
+        .update({ 
+          is_active: false,
+          end_time: session.endTime,
+          signout_reason: session.signoutReason,
+          last_activity: new Date().toISOString()
+        })
+        .eq('id', sessionId);
+    } catch (error) {
+      console.error('❌ Failed to update logout in Supabase:', error);
+    }
     
     console.log(`🚪 Supervisor signed out: ${session.supervisorName}`);
+    
+    // Log the logout activity
+    await logActivity('supervisor_logout', {
+      sessionId,
+      supervisorId: session.supervisorId,
+      supervisorName: session.supervisorName,
+      sessionDuration: Math.round((new Date() - new Date(session.startTime)) / 1000 / 60) + ' minutes',
+      logoutType: 'manual'
+    }, null, req);
+    
     // Get supervisor details for activity logging
     let supervisorInfo = null;
     try {
@@ -640,10 +870,10 @@ export async function logoutAllSupervisors(adminSessionId) {
     await supabase
       .from('supervisor_sessions')
       .update({ 
-        active: false,
+        is_active: false,
         last_activity: new Date().toISOString()
       })
-      .eq('active', true);
+      .eq('is_active', true);
     
     console.log(`🚨 ADMIN ACTION: ${adminSupervisor.name} (${adminSupervisor.badge}) logged out all ${loggedOutCount} active supervisors`);
     
@@ -695,8 +925,62 @@ export async function validateSupervisorById(supervisorId) {
   }
 }
 
+// Get activity logs with filtering options
+export async function getActivityLogs(options = {}) {
+  try {
+    let query = supabase
+      .from('activity_logs')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    // Apply filters
+    if (options.supervisorId) {
+      query = query.eq('supervisor_id', options.supervisorId);
+    }
+    if (options.action) {
+      query = query.eq('action', options.action);
+    }
+    if (options.screenType) {
+      query = query.eq('screen_type', options.screenType);
+    }
+    if (options.startDate) {
+      query = query.gte('created_at', options.startDate);
+    }
+    if (options.endDate) {
+      query = query.lte('created_at', options.endDate);
+    }
+    if (options.limit) {
+      query = query.limit(options.limit);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('❌ Error fetching activity logs:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('❌ Error getting activity logs:', error);
+    return [];
+  }
+}
+
+// Get display screen activity (view from display screen)
+export async function logDisplayScreenView(alertCount, req = null) {
+  await logActivity('display_screen_view', {
+    screenType: 'display',
+    alertCount,
+    timestamp: new Date().toISOString()
+  }, null, req);
+}
+
 // Initialize on module load
 initializeSupervisorData();
+
+// Export logActivity for other modules
+export { logActivity };
 
 export default {
   authenticateSupervisor,
@@ -715,9 +999,14 @@ export default {
   cleanupInactiveSessions,
   startSessionCleanup,
   stopSessionCleanup,
+  // Activity logging
+  logActivity,
+  getActivityLogs,
+  logDisplayScreenView,
   // Admin functions
   hasAdminPermissions,
   logoutAllSupervisors,
   // Export sessions for debugging
-  supervisorSessions
+  supervisorSessions,
+  moduleLoadTime
 };

@@ -30,6 +30,8 @@ import throttleAPI from './routes/throttleAPI.js';
 import tileAPI from './routes/tileAPI.js';
 import eventAPI from './routes/eventAPI.js';
 import tomtomUsageAPI from './routes/tomtomUsageAPI.js';
+import activityLogsAPI from './routes/activityLogs.js';
+import supervisorManager from './services/supervisorManager.js';
 import serviceFrequencyAnalyzer from './services/serviceFrequencyAnalyzer.js';
 import supervisorSyncService from './services/supervisorSync.js';
 import enhancedDataSourceManager from './services/enhancedDataSourceManager.js';
@@ -353,6 +355,9 @@ app.use('/api/tiles', tileAPI);
 
 // TomTom usage monitoring routes
 app.use('/api/tomtom/usage', tomtomUsageAPI);
+
+// Activity logs routes
+app.use(activityLogsAPI);
 
 // TomTom API key endpoint for frontend
 app.get('/api/config/tomtom-key', (req, res) => {
@@ -1450,46 +1455,24 @@ app.get('/api/supervisor/dismissed-alerts', async (req, res) => {
   }
 });
 
-// GUARANTEED WORKING: Active supervisors endpoint
-app.get('/api/supervisor/active', async (req, res) => {
-  try {
-    // For now, return mock data to ensure display screen shows supervisors
-    const mockSupervisors = [
-      {
-        id: 'sup_001',
-        name: 'Control Room Supervisor',
-        role: 'Senior Supervisor',
-        status: 'active',
-        lastActivity: new Date().toISOString(),
-        loginTime: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString() // 2 hours ago
-      },
-      {
-        id: 'sup_002', 
-        name: 'Field Supervisor',
-        role: 'Field Operations',
-        status: 'active',
-        lastActivity: new Date(Date.now() - 15 * 60 * 1000).toISOString(), // 15 mins ago
-        loginTime: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString() // 4 hours ago
-      }
-    ];
-    
-    res.json({
-      success: true,
-      activeSupervisors: mockSupervisors,
-      count: mockSupervisors.length,
-      lastUpdate: new Date().toISOString()
-    });
-    
-  } catch (error) {
-    console.error('❌ Active supervisors error:', error);
-    res.json({
-      success: true,
-      activeSupervisors: [],
-      count: 0,
-      error: error.message,
-      lastUpdate: new Date().toISOString()
-    });
+// REMOVED: Duplicate active supervisors endpoint
+// The proper implementation is in routes/supervisorAPI.js
+// This duplicate was overriding the correct route!
+
+// Log display screen views periodically
+let lastDisplayScreenLog = 0;
+app.use((req, res, next) => {
+  // Log display screen views every 5 minutes
+  if (req.path === '/api/alerts-enhanced' && req.headers.origin?.includes('gobarry.co.uk')) {
+    const now = Date.now();
+    if (now - lastDisplayScreenLog > 5 * 60 * 1000) { // 5 minutes
+      lastDisplayScreenLog = now;
+      supervisorManager.logDisplayScreenView(0, req).catch(err => {
+        console.warn('⚠️ Failed to log display screen view:', err.message);
+      });
+    }
   }
+  next();
 });
 
 // Start server with WebSocket support after initialization
@@ -1557,6 +1540,8 @@ async function startServer() {
       console.log(`   🗺️ Map Tiles: /api/tiles/map/{layer}/{style}/{zoom}/{x}/{y}.{format}`);
       console.log(`   🚦 Traffic Tiles: /api/tiles/traffic/{zoom}/{x}/{y}.{format}`);
       console.log(`   📊 Tile Status: /api/tiles/status`);
+      console.log(`   📝 Activity Logs: /api/activity-logs`);
+      console.log(`   📊 Activity Summary: /api/activity-logs/summary`);
       console.log(`\n💡 Active Data Sources:`);
       console.log(`   ✅ TomTom API - Primary traffic intelligence`);
       console.log(`   ✅ National Highways DATEX II - Official UK roadworks`);

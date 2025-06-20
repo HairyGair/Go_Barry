@@ -31,25 +31,30 @@ const DisplayScreen = () => {
   const fetchSupervisorActivity = async () => {
     try {
       // Fetch active supervisors
+      console.log('🔄 Fetching active supervisors...');
       const response = await fetch('https://go-barry.onrender.com/api/supervisor/active');
       if (response.ok) {
         const activeData = await response.json();
+        console.log('👥 Active supervisors response:', activeData);
         if (activeData.activeSupervisors) {
           setActiveSupervisors(activeData.activeSupervisors);
         }
+      } else {
+        console.error('❌ Failed to fetch active supervisors:', response.status);
       }
       
-      const activityResponse = await fetch('https://go-barry.onrender.com/api/supervisor/activity/recent?limit=10');
+      // Fetch activity logs from Supabase
+      const activityResponse = await fetch('https://go-barry.onrender.com/api/activity/logs?limit=10&screenType=supervisor');
       if (activityResponse.ok) {
         const activityData = await activityResponse.json();
-        if (activityData.activities) {
+        if (activityData.logs) {
           // Transform activities to match expected format
-          const formattedActivities = activityData.activities.map(activity => ({
-            id: activity.id,
-            supervisorName: activity.details?.supervisor_name || 'Unknown Supervisor',
-            action: formatActivityAction(activity.action, activity.details),
-            type: getActivityType(activity.action),
-            timestamp: activity.timestamp || activity.created_at
+          const formattedActivities = activityData.logs.map(log => ({
+            id: log.id,
+            supervisorName: log.supervisor_name || 'System',
+            action: formatActivityAction(log.action, log.details),
+            type: getActivityType(log.action),
+            timestamp: log.created_at
           }));
           setSupervisorActivity(formattedActivities);
         }
@@ -65,16 +70,18 @@ const DisplayScreen = () => {
   // Helper functions for activity formatting
   const formatActivityAction = (action, details) => {
     switch (action) {
-      case 'LOGIN':
-        return `logged in at ${details?.login_time || 'unknown time'}`;
-      case 'LOGOUT':
-        return `logged out at ${details?.logout_time || 'unknown time'}`;
-      case 'DISMISS_ALERT':
-        return `dismissed alert: ${details?.reason || 'No reason'} (${details?.location || 'Unknown location'})`;
-      case 'CREATE_ROADWORK':
-        return `created roadwork at ${details?.location || 'unknown location'} (Priority: ${details?.severity || 'unknown'})`;
-      case 'EMAIL_REPORT':
-        return `sent ${details?.report_type || 'report'} to ${details?.recipients || 'unknown recipients'}`;
+      case 'supervisor_login':
+        return `logged in (${details?.badge || 'unknown badge'})`;
+      case 'supervisor_logout':
+        return `logged out (${details?.sessionDuration || 'unknown duration'})`;
+      case 'alert_dismissed':
+        return `dismissed alert: ${details?.reason || 'No reason'}`;
+      case 'session_timeout':
+        return `auto-timeout after ${details?.inactiveMinutes || '?'} minutes`;
+      case 'roadwork_created':
+        return `created roadwork at ${details?.location || 'unknown location'}`;
+      case 'email_sent':
+        return `sent email to ${details?.recipients?.length || 0} groups`;
       default:
         return action.toLowerCase().replace(/_/g, ' ');
     }
@@ -82,14 +89,15 @@ const DisplayScreen = () => {
   
   const getActivityType = (action) => {
     switch (action) {
-      case 'LOGIN':
-      case 'LOGOUT':
+      case 'supervisor_login':
+      case 'supervisor_logout':
+      case 'session_timeout':
         return 'login';
-      case 'DISMISS_ALERT':
+      case 'alert_dismissed':
         return 'acknowledge';
-      case 'CREATE_ROADWORK':
+      case 'roadwork_created':
         return 'roadwork';
-      case 'EMAIL_REPORT':
+      case 'email_sent':
         return 'email';
       default:
         return 'system';
@@ -161,6 +169,21 @@ const DisplayScreen = () => {
         alert.severity === 'HIGH' || alert.severity === 'High'
       );
       setAttentionMode(criticalAlerts.length > 0);
+      
+      // Log display screen view
+      try {
+        await fetch('https://go-barry.onrender.com/api/activity/display-view', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            alertCount: processedAlerts.length,
+            criticalCount: criticalAlerts.length,
+            viewTime: new Date().toISOString()
+          })
+        });
+      } catch (err) {
+        console.log('Failed to log display view');
+      }
       
     } catch (err) {
       console.error('❌ Error fetching alerts:', err);

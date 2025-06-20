@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supervisor Session Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #3B82F6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #2563EB;
+        }
+        .success {
+            color: #10B981;
+            font-weight: bold;
+        }
+        .error {
+            color: #EF4444;
+            font-weight: bold;
+        }
+        pre {
+            background: #f3f4f6;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .log-entry {
+            margin-bottom: 10px;
+            padding: 5px;
+            border-left: 3px solid #3B82F6;
+            padding-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Supervisor Session Debug</h1>
+    
+    <div class="section">
+        <h2>API Configuration</h2>
+        <p>API URL: <strong id="apiUrl">https://go-barry.onrender.com</strong></p>
+    </div>
+
+    <div class="section">
+        <h2>Test Actions</h2>
+        <button onclick="testLogin()">1. Test Login (AG003)</button>
+        <button onclick="checkActive()">2. Check Active Supervisors</button>
+        <button onclick="checkDebugSessions()">3. Check Debug Sessions</button>
+        <button onclick="testSessionStorage()">4. Test Session Storage</button>
+        <button onclick="testFullFlow()">5. Run Full Test Flow</button>
+        <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+
+    <div class="section">
+        <h2>Current Session</h2>
+        <div id="sessionInfo">No active session</div>
+    </div>
+
+    <div class="section">
+        <h2>Test Results</h2>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_URL = 'https://go-barry.onrender.com';
+        let currentSessionId = null;
+
+        function log(message, data = null, isError = false) {
+            const resultsDiv = document.getElementById('results');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            
+            const timestamp = new Date().toLocaleTimeString();
+            let html = `<strong>[${timestamp}]</strong> ${message}`;
+            
+            if (data) {
+                html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            
+            entry.innerHTML = html;
+            if (isError) {
+                entry.style.borderColor = '#EF4444';
+                entry.style.color = '#EF4444';
+            }
+            
+            resultsDiv.insertBefore(entry, resultsDiv.firstChild);
+        }
+
+        function clearLogs() {
+            document.getElementById('results').innerHTML = '';
+            log('Logs cleared');
+        }
+
+        async function testLogin() {
+            log('🔐 Attempting login as Anthony Gair (AG003)...');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/supervisor/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        supervisorId: 'supervisor003',
+                        badge: 'AG003'
+                    })
+                });
+                
+                const data = await response.json();
+                log('Login response:', data);
+                
+                if (data.success) {
+                    currentSessionId = data.sessionId;
+                    document.getElementById('sessionInfo').innerHTML = `
+                        <div class="success">
+                            ✅ Logged in as: ${data.supervisor.name}<br>
+                            Session ID: ${data.sessionId}<br>
+                            Role: ${data.supervisor.role}
+                        </div>
+                    `;
+                    
+                    // Immediately check active supervisors
+                    setTimeout(checkActive, 500);
+                } else {
+                    log('Login failed', data.error, true);
+                }
+            } catch (error) {
+                log('Login error', error.message, true);
+            }
+        }
+
+        async function checkActive() {
+            log('👥 Checking active supervisors...');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/supervisor/active`);
+                const data = await response.json();
+                
+                log(`Active supervisors: ${data.count}`, data);
+                
+                if (data.debug) {
+                    log('Debug info:', {
+                        totalSessionsInMemory: data.debug.totalSessionsInMemory,
+                        sessionKeys: data.debug.sessionKeys,
+                        moduleLoadTime: data.debug.moduleLoadTime
+                    });
+                }
+            } catch (error) {
+                log('Error checking active supervisors', error.message, true);
+            }
+        }
+
+        async function checkDebugSessions() {
+            log('🐛 Checking debug sessions endpoint...');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/supervisor/debug/sessions`);
+                const data = await response.json();
+                
+                log(`Debug sessions - Total: ${data.totalSessions}, Active: ${data.activeSessions}`, data);
+            } catch (error) {
+                log('Error checking debug sessions', error.message, true);
+            }
+        }
+
+        async function testSessionStorage() {
+            log('🧪 Testing session storage directly...');
+            
+            try {
+                const response = await fetch(`${API_URL}/api/supervisor/test/session-storage`);
+                const data = await response.json();
+                
+                log('Session storage test results:', data);
+                
+                if (data.success) {
+                    log(`Test session created: ${data.testSessionId}`);
+                    log(`Session exists in storage: ${data.sessionExists}`);
+                    log(`Total sessions: ${data.totalSessions}`);
+                    log(`Active supervisors found: ${data.activeSupervisors.length}`);
+                }
+            } catch (error) {
+                log('Error testing session storage', error.message, true);
+            }
+        }
+
+        async function testFullFlow() {
+            log('🚀 Running full test flow...');
+            
+            // Clear any existing session
+            currentSessionId = null;
+            document.getElementById('sessionInfo').innerHTML = 'No active session';
+            
+            // Run tests in sequence
+            await testLogin();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await checkActive();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await checkDebugSessions();
+            
+            log('✅ Full test flow completed');
+        }
+
+        // Auto-refresh active supervisors every 5 seconds if we have a session
+        setInterval(() => {
+            if (currentSessionId) {
+                checkActive();
+            }
+        }, 5000);
+
+        // Initialize
+        document.getElementById('apiUrl').textContent = API_URL;
+        log('🔍 Supervisor Session Debug Tool Ready');
+        log(`API URL: ${API_URL}`);
+    </script>
+</body>
+</html>

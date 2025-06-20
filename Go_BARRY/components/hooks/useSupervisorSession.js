@@ -186,7 +186,7 @@ export const useSupervisorSession = () => {
         throw new Error('Backend mapping not found for supervisor');
       }
       
-      let authResult = null; // Declare authResult in proper scope
+      let authResult = null; // Declare here so it's accessible outside try block
       
       // Add timeout to prevent hanging (increased for Render.com wake-up)
       const controller = new AbortController();
@@ -231,22 +231,34 @@ export const useSupervisorSession = () => {
         clearTimeout(timeoutId);
         
         console.log('📡 Auth response status:', authResponse.status);
+        console.log('📡 Auth response headers:', authResponse.headers);
         
-        if (!authResponse.ok) {
-          const errorText = await authResponse.text();
-          console.error('❌ Auth response error:', errorText);
-          throw new Error(`Backend authentication failed: ${authResponse.status} - ${errorText}`);
+        const responseText = await authResponse.text();
+        console.log('📡 Raw response text:', responseText);
+        
+        // Try to parse as JSON
+        // authResult already declared above
+        try {
+          authResult = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('❌ Failed to parse response as JSON:', parseError);
+          throw new Error(`Invalid response format: ${responseText.substring(0, 100)}`);
         }
         
-        authResult = await authResponse.json();
         console.log('📋 Auth result:', authResult);
+        console.log('🔍 Auth result structure:', {
+          hasSuccess: 'success' in authResult,
+          hasSessionId: 'sessionId' in authResult,
+          hasSupervisor: 'supervisor' in authResult,
+          supervisorName: authResult?.supervisor?.name,
+          supervisorKeys: authResult?.supervisor ? Object.keys(authResult.supervisor) : []
+        });
         
         if (!authResult || !authResult.success) {
           throw new Error((authResult && authResult.error) || 'Backend authentication failed');
         }
         
         console.log('✅ Backend authentication successful:', authResult.sessionId);
-        
       } catch (fetchError) {
         clearTimeout(timeoutId);
         console.error('❌ Fetch error details:', fetchError);
@@ -259,24 +271,32 @@ export const useSupervisorSession = () => {
         throw new Error(`Backend authentication required but failed: ${fetchError.message}`);
       }
 
-      // Create session with backend sessionId
+      // Create session with backend data
+      console.log('🏗️ Building session object...');
+      console.log('- Backend supervisor data:', authResult?.supervisor);
+      console.log('- Local supervisor data:', supervisor);
+      console.log('- Duty data:', loginData.duty);
+      
       const session = {
-        sessionId: authResult?.sessionId || 'local-' + Date.now(), // Use backend session ID or fallback
+        sessionId: authResult?.sessionId || 'local-' + Date.now(),
         supervisor: {
           id: loginData.supervisorId, // Keep frontend ID for UI
-          name: supervisor?.name || 'Unknown Supervisor',
-          role: supervisor?.role || 'Supervisor',
+          name: authResult?.supervisor?.name || supervisor?.name || 'Unknown Supervisor', // Use backend name first
+          role: authResult?.supervisor?.role || supervisor?.role || 'Supervisor',
           duty: DUTY_OPTIONS.find((d) => d.id === loginData.duty) || { id: loginData.duty, name: loginData.duty },
-          isAdmin: supervisor?.isAdmin || false,
-          permissions: supervisor?.isAdmin ? 
+          isAdmin: authResult?.supervisor?.isAdmin || supervisor?.isAdmin || false,
+          permissions: authResult?.supervisor?.permissions || (supervisor?.isAdmin ? 
             ['dismiss_alerts', 'view_all_activity', 'manage_supervisors', 'create_incidents', 'send_messages'] : 
-            ['dismiss_alerts', 'create_incidents'],
+            ['dismiss_alerts', 'create_incidents']),
           backendId: backendSupervisor?.id, // Store backend ID for WebSocket
-          badge: backendSupervisor?.badge
+          badge: authResult?.supervisor?.badge || backendSupervisor?.badge
         },
         loginTime: new Date().toISOString(),
         lastActivity: Date.now(),
       };
+      
+      console.log('📦 Final session object:', session);
+      console.log('👤 Supervisor name in session:', session.supervisor.name);
       
       // Save to persistent storage
       const saved = sessionStorageService.saveSession(session);

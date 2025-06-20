@@ -44,6 +44,16 @@ const EnhancedDashboard = ({
   
   // Supervisor session management
   const { supervisorSession: session, logout } = useSupervisorSession();
+  
+  // Debug session
+  useEffect(() => {
+    console.log('🔍 EnhancedDashboard Session Debug:', {
+      session,
+      hasSession: !!session,
+      supervisor: session?.supervisor,
+      sessionId: session?.sessionId
+    });
+  }, [session]);
 
   // Enhanced data fetching
   const fetchAlertsData = useCallback(async () => {
@@ -439,7 +449,7 @@ const EnhancedDashboard = ({
           <View style={styles.supervisorInfo}>
             <Ionicons name="shield-checkmark" size={16} color="#10B981" />
             <Text style={styles.supervisorName}>
-              {session.supervisor.name} ({session.duty?.name || 'No Duty'})
+              {session.supervisor.name} ({session.supervisor.duty?.name || 'No Duty'})
             </Text>
             {session.supervisor.isAdmin && (
               <Text style={styles.adminBadge}>ADMIN</Text>
@@ -607,6 +617,7 @@ const EnhancedDashboard = ({
           supervisorId={session.supervisor.id}
           supervisorName={session.supervisor.name}
           sessionId={session.sessionId}
+          supervisorSession={session}
           alerts={alertsData?.alerts || []}
           onClose={() => setShowSupervisorControl(false)}
         />

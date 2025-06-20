@@ -50,6 +50,12 @@ router.post('/login', async (req, res) => {
       
       // Add to polling state for display sync
       console.log(`✅ Adding supervisor to active list: ${result.supervisor.name}`);
+      console.log(`📤 Sending response:`, {
+        success: true,
+        sessionId: result.sessionId,
+        supervisorName: result.supervisor?.name,
+        supervisorRole: result.supervisor?.role
+      });
       
       // Log supervisor login activity
       await supervisorActivityLogger.logLogin(result.supervisor.badge, result.supervisor.name);
@@ -298,12 +304,17 @@ router.get('/supervisors', async (req, res) => {
 // Get active supervisors (for display screen)
 router.get('/active', async (req, res) => {
   try {
-    const activeSupervisors = supervisorManager.getActiveSupervisors();
+    console.log('🔍 Active supervisors endpoint called');
+    
+    // Now async - await the result
+    const activeSupervisors = await supervisorManager.getActiveSupervisors();
+    
     res.json({
       success: true,
       activeSupervisors,
       count: activeSupervisors.length,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
+      source: 'supabase-backed'
     });
   } catch (error) {
     console.error('❌ Get active supervisors error:', error);
@@ -356,6 +367,45 @@ router.get('/statistics/dismissals', async (req, res) => {
       success: false,
       error: 'Failed to fetch dismissal statistics'
     });
+  }
+});
+
+// Test endpoint to verify session storage
+router.get('/test/session-storage', async (req, res) => {
+  try {
+    console.log('🧪 Testing session storage...');
+    
+    // Create a test session directly
+    const testSessionId = `test_session_${Date.now()}`;
+    supervisorManager.supervisorSessions[testSessionId] = {
+      supervisorId: 'test_supervisor',
+      supervisorName: 'Test Supervisor',
+      supervisorBadge: 'TEST001',
+      startTime: new Date().toISOString(),
+      lastActivity: new Date().toISOString(),
+      active: true
+    };
+    
+    console.log('💾 After adding test session:');
+    console.log('- Session keys:', Object.keys(supervisorManager.supervisorSessions));
+    console.log('- Test session exists?', testSessionId in supervisorManager.supervisorSessions);
+    
+    // Now check active supervisors
+    const active = supervisorManager.getActiveSupervisors();
+    console.log('👥 Active supervisors:', active);
+    
+    res.json({
+      success: true,
+      testSessionId,
+      sessionExists: testSessionId in supervisorManager.supervisorSessions,
+      totalSessions: Object.keys(supervisorManager.supervisorSessions).length,
+      sessionKeys: Object.keys(supervisorManager.supervisorSessions),
+      activeSupervisors: active,
+      testSession: supervisorManager.supervisorSessions[testSessionId]
+    });
+  } catch (error) {
+    console.error('❌ Test error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -868,15 +918,12 @@ let pollingState = {
 // Get current sync status for polling
 router.get('/sync-status', async (req, res) => {
   try {
-    const activeSupervisors = supervisorManager.getActiveSupervisors();
+    const activeSupervisors = await supervisorManager.getActiveSupervisors();
     
     // Debug logging
     console.log('🔍 Sync Status Debug:');
     console.log('📊 Active supervisors from manager:', activeSupervisors.length);
     console.log('👥 Supervisor details:', activeSupervisors.map(s => ({ name: s.name, sessionStart: s.sessionStart })));
-    console.log('💾 Session count:', Object.keys(supervisorManager.supervisorSessions || {}).length);
-    console.log('🗂️ Actual sessions:', Object.keys(supervisorManager.supervisorSessions || {}));
-    console.log('📋 Sessions object:', supervisorManager.supervisorSessions);
     
     res.json({
       success: true,
