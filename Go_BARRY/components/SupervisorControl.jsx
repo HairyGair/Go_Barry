@@ -223,6 +223,72 @@ const SimpleAlertCard = ({ alert, supervisorSession, onDismiss, onAcknowledge, s
 };
 
 const isWeb = Platform.OS === 'web';
+const API_BASE = 'https://go-barry.onrender.com';
+
+// Helper function to format activity details
+const formatActivityDetails = (action, details) => {
+  if (!details) return action;
+  
+  switch (action) {
+    case 'supervisor_login':
+      return `${details.supervisor_name || 'Supervisor'} logged in`;
+    case 'supervisor_logout':
+      return `${details.supervisor_name || 'Supervisor'} logged out`;
+    case 'alert_dismissed':
+      return `Dismissed alert at ${details.location || 'unknown location'}: ${details.reason || 'No reason'}`;
+    case 'roadwork_created':
+      return `Created roadwork at ${details.location || 'unknown location'} (${details.severity || 'Unknown'} severity)`;
+    case 'email_sent':
+      return `Sent ${details.type || 'notification'} email to ${details.recipients?.length || 0} recipients`;
+    case 'duty_started':
+      return `Started Duty ${details.duty_number || 'Unknown'}`;
+    case 'duty_ended':
+      return `Ended Duty ${details.duty_number || 'Unknown'}`;
+    case 'alert_acknowledged':
+      return `Acknowledged alert: ${details.reason || 'No reason'}`;
+    case 'priority_updated':
+      return `Updated alert priority to ${details.priority || 'Unknown'}`;
+    case 'note_added':
+      return `Added note to alert: ${details.note || ''}`;
+    case 'message_broadcast':
+      return `Broadcast message: "${details.message || ''}" (${details.priority || 'info'})`;
+    default:
+      return typeof details === 'object' ? JSON.stringify(details) : details;
+  }
+};
+
+// Helper function for activity icons
+const getActivityIcon = (type) => {
+  switch (type) {
+    case 'supervisor_login':
+    case 'LOGIN':
+      return { name: 'log-in', color: '#3B82F6' };
+    case 'supervisor_logout':
+    case 'LOGOUT':
+      return { name: 'log-out', color: '#6B7280' };
+    case 'alert_dismissed':
+    case 'DISMISS_ALERT':
+      return { name: 'close-circle', color: '#EF4444' };
+    case 'roadwork_created':
+      return { name: 'construct', color: '#F59E0B' };
+    case 'email_sent':
+      return { name: 'mail', color: '#10B981' };
+    case 'duty_started':
+      return { name: 'play-circle', color: '#8B5CF6' };
+    case 'duty_ended':
+      return { name: 'stop-circle', color: '#8B5CF6' };
+    case 'alert_acknowledged':
+      return { name: 'checkmark-circle', color: '#059669' };
+    case 'priority_updated':
+      return { name: 'flag', color: '#F59E0B' };
+    case 'note_added':
+      return { name: 'create', color: '#6B7280' };
+    case 'message_broadcast':
+      return { name: 'megaphone', color: '#3B82F6' };
+    default:
+      return { name: 'information-circle', color: '#6B7280' };
+  }
+};
 
 // Helper function for priority colors
 const getPriorityColor = (priority) => {
@@ -366,18 +432,37 @@ const SupervisorControl = ({
     return () => clearInterval(timer);
   }, [loginTime, logout]);
   
-  // Load recent activity
+  // Load recent activity from backend
   useEffect(() => {
     const loadActivity = async () => {
-      const activity = await getSupervisorActivity(10);
-      setRecentActivity(activity);
+      try {
+        const response = await fetch(`${API_BASE}/api/activity-logs?limit=20`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.logs) {
+            // Transform backend format to match frontend expectations
+            const transformedActivity = data.logs.map(log => ({
+              id: log.id,
+              type: log.action,
+              details: typeof log.details === 'string' ? log.details : 
+                     formatActivityDetails(log.action, log.details),
+              timestamp: log.created_at,
+              supervisorName: log.supervisor_name,
+              supervisorId: log.supervisor_id
+            }));
+            setRecentActivity(transformedActivity);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error loading activity:', error);
+      }
     };
     
     loadActivity();
     const interval = setInterval(loadActivity, 30000); // Refresh every 30s
     
     return () => clearInterval(interval);
-  }, [getSupervisorActivity]);
+  }, []);
   
   // Show notification helper
   const showNotification = useCallback((message, type = 'info') => {
@@ -793,31 +878,70 @@ const SupervisorControl = ({
   // Recent Activity Panel
   const RecentActivityPanel = () => (
     <View style={styles.activityPanel}>
-      <Text style={styles.activityTitle}>Recent Activity</Text>
+      <View style={styles.activityHeader}>
+        <Text style={styles.activityTitle}>Recent Activity</Text>
+        <TouchableOpacity 
+          onPress={() => {
+            // Refresh activity immediately
+            const loadActivity = async () => {
+              try {
+                const response = await fetch(`${API_BASE}/api/activity-logs?limit=20`);
+                if (response.ok) {
+                  const data = await response.json();
+                  if (data.success && data.logs) {
+                    const transformedActivity = data.logs.map(log => ({
+                      id: log.id,
+                      type: log.action,
+                      details: typeof log.details === 'string' ? log.details : 
+                             formatActivityDetails(log.action, log.details),
+                      timestamp: log.created_at,
+                      supervisorName: log.supervisor_name,
+                      supervisorId: log.supervisor_id
+                    }));
+                    setRecentActivity(transformedActivity);
+                  }
+                }
+              } catch (error) {
+                console.error('❌ Error refreshing activity:', error);
+              }
+            };
+            loadActivity();
+          }}
+          style={styles.refreshButton}
+        >
+          <Ionicons name="refresh" size={16} color="#3B82F6" />
+        </TouchableOpacity>
+      </View>
       <ScrollView style={styles.activityList} nestedScrollEnabled>
         {recentActivity.length > 0 ? (
-          recentActivity.map((activity) => (
-            <View key={activity.id} style={styles.activityItem}>
-              <View style={styles.activityIcon}>
-                <Ionicons 
-                  name={activity.type === 'LOGIN' ? 'log-in' : 
-                        activity.type === 'DISMISS_ALERT' ? 'close-circle' : 
-                        activity.type === 'LOGOUT' ? 'log-out' : 'checkmark'}
-                  size={16} 
-                  color={activity.type === 'DISMISS_ALERT' ? '#EF4444' : '#3B82F6'} 
-                />
+          recentActivity.map((activity) => {
+            const icon = getActivityIcon(activity.type);
+            return (
+              <View key={activity.id} style={styles.activityItem}>
+                <View style={styles.activityIcon}>
+                  <Ionicons 
+                    name={icon.name}
+                    size={16} 
+                    color={icon.color} 
+                  />
+                </View>
+                <View style={styles.activityContent}>
+                  <Text style={styles.activityText}>{activity.details}</Text>
+                  <View style={styles.activityMeta}>
+                    <Text style={styles.activitySupervisor}>
+                      {activity.supervisorName || 'System'}
+                    </Text>
+                    <Text style={styles.activityTime}>
+                      {new Date(activity.timestamp).toLocaleTimeString('en-GB', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      })}
+                    </Text>
+                  </View>
+                </View>
               </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityText}>{activity.details}</Text>
-                <Text style={styles.activityTime}>
-                  {new Date(activity.timestamp).toLocaleTimeString('en-GB', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                  })}
-                </Text>
-              </View>
-            </View>
-          ))
+            );
+          })
         ) : (
           <Text style={styles.noActivityText}>No recent activity</Text>
         )}
@@ -2260,14 +2384,22 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  activityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   activityTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#1F2937',
-    marginBottom: 12,
+  },
+  refreshButton: {
+    padding: 4,
   },
   activityList: {
-    maxHeight: 200,
+    maxHeight: 300,
   },
   activityItem: {
     flexDirection: 'row',
@@ -2290,6 +2422,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#374151',
     marginBottom: 2,
+    lineHeight: 18,
+  },
+  activityMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  activitySupervisor: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '500',
   },
   activityTime: {
     fontSize: 11,

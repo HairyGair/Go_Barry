@@ -271,25 +271,29 @@ export const useSupervisorSession = () => {
         throw new Error(`Backend authentication required but failed: ${fetchError.message}`);
       }
 
-      // Create session with backend data
+      // Create session with backend data - Fixed to ensure all data is properly set
       console.log('🏗️ Building session object...');
       console.log('- Backend supervisor data:', authResult?.supervisor);
       console.log('- Local supervisor data:', supervisor);
       console.log('- Duty data:', loginData.duty);
+      console.log('- Login data full:', loginData);
+      
+      // Find the selected duty details
+      const selectedDuty = DUTY_OPTIONS.find((d) => d.id === loginData.duty?.id || d.id === loginData.duty);
       
       const session = {
         sessionId: authResult?.sessionId || 'local-' + Date.now(),
         supervisor: {
           id: loginData.supervisorId, // Keep frontend ID for UI
-          name: authResult?.supervisor?.name || supervisor?.name || 'Unknown Supervisor', // Use backend name first
-          role: authResult?.supervisor?.role || supervisor?.role || 'Supervisor',
-          duty: DUTY_OPTIONS.find((d) => d.id === loginData.duty) || { id: loginData.duty, name: loginData.duty },
-          isAdmin: authResult?.supervisor?.isAdmin || supervisor?.isAdmin || false,
+          name: supervisor?.name || authResult?.supervisor?.name || 'Unknown Supervisor', // Use local name first (it's always available)
+          role: supervisor?.role || authResult?.supervisor?.role || 'Supervisor',
+          duty: selectedDuty || loginData.duty || { id: 'unknown', name: 'Unknown Duty' },
+          isAdmin: supervisor?.isAdmin || authResult?.supervisor?.isAdmin || false,
           permissions: authResult?.supervisor?.permissions || (supervisor?.isAdmin ? 
             ['dismiss_alerts', 'view_all_activity', 'manage_supervisors', 'create_incidents', 'send_messages'] : 
             ['dismiss_alerts', 'create_incidents']),
-          backendId: backendSupervisor?.id, // Store backend ID for WebSocket
-          badge: authResult?.supervisor?.badge || backendSupervisor?.badge
+          backendId: backendSupervisor?.id, // Store backend ID for API calls
+          badge: backendSupervisor?.badge || authResult?.supervisor?.badge
         },
         loginTime: new Date().toISOString(),
         lastActivity: Date.now(),
@@ -308,6 +312,32 @@ export const useSupervisorSession = () => {
       
       // Log login activity
       logActivity('LOGIN', `${supervisor?.name || 'Unknown'} logged in on ${loginData.duty?.name || 'Unknown Duty'}`);
+      
+      // Log duty start with backend - NEW
+      if (authResult?.sessionId && selectedDuty) {
+        try {
+          const dutyResponse = await fetch(`${API_BASE_URL}/api/supervisor/log-duty`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              sessionId: authResult.sessionId,
+              dutyNumber: selectedDuty.id,
+              dutyName: selectedDuty.name
+            })
+          });
+          
+          if (dutyResponse.ok) {
+            console.log('✅ Duty logged with backend');
+          } else {
+            console.warn('⚠️ Failed to log duty with backend');
+          }
+        } catch (dutyError) {
+          console.warn('⚠️ Error logging duty:', dutyError);
+          // Don't fail the login if duty logging fails
+        }
+      }
       
       console.log('✅ Supervisor logged in:', supervisor?.name || 'Unknown', 'Duty:', loginData.duty?.name, 'Session:', authResult.sessionId);
       return { success: true, session };

@@ -3,8 +3,13 @@
 
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-dotenv.config();
+// Load .env from backend root directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+dotenv.config({ path: join(__dirname, '..', '.env') });
 
 // Initialize Supabase client
 const supabase = createClient(

@@ -3,8 +3,18 @@
 
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-dotenv.config();
+// Load .env from backend root directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+dotenv.config({ path: join(__dirname, '..', '.env') });
+
+// Debug: Log environment variables
+console.log('🔍 Supabase Config:');
+console.log('  URL:', process.env.SUPABASE_URL ? '✅ Set' : '❌ Missing');
+console.log('  KEY:', process.env.SUPABASE_ANON_KEY ? '✅ Set (length: ' + process.env.SUPABASE_ANON_KEY.length + ')' : '❌ Missing');
 
 // Initialize Supabase client
 const supabase = createClient(

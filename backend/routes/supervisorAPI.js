@@ -1413,4 +1413,49 @@ router.post('/validate', async (req, res) => {
   }
 });
 
+// Log duty start
+router.post('/log-duty', async (req, res) => {
+  try {
+    const { sessionId, dutyNumber, dutyName } = req.body;
+    
+    if (!sessionId || !dutyNumber) {
+      return res.status(400).json({
+        success: false,
+        error: 'Session ID and duty number are required'
+      });
+    }
+    
+    // Validate supervisor session
+    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
+    if (!sessionResult.success) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid session'
+      });
+    }
+    
+    // Log duty start activity
+    await supervisorActivityLogger.logDutyStart(
+      sessionResult.supervisor.badge,
+      sessionResult.supervisor.name,
+      dutyNumber
+    );
+    
+    console.log(`🚀 Duty ${dutyNumber} started by ${sessionResult.supervisor.name}`);
+    
+    res.json({
+      success: true,
+      message: 'Duty logged successfully',
+      supervisor: sessionResult.supervisor.name,
+      duty: dutyName || dutyNumber
+    });
+  } catch (error) {
+    console.error('❌ Log duty error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to log duty'
+    });
+  }
+});
+
 export default router;

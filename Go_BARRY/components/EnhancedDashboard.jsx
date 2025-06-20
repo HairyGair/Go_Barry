@@ -614,8 +614,8 @@ const EnhancedDashboard = ({
       {/* Supervisor Control Panel */}
       {showSupervisorControl && session && (
         <SupervisorControl
-          supervisorId={session.supervisor.id}
-          supervisorName={session.supervisor.name}
+          supervisorId={session.supervisor?.backendId || session.supervisor?.id}
+          supervisorName={session.supervisor?.name}
           sessionId={session.sessionId}
           supervisorSession={session}
           alerts={alertsData?.alerts || []}
