@@ -391,11 +391,14 @@ async function sendRoadworkNotifications(roadwork, emailGroupNames, supervisorId
       const { validateSupervisorById } = await import('../services/supervisorManager.js');
       const supervisorResult = await validateSupervisorById(supervisorId);
       if (supervisorResult.success) {
-        await supervisorActivityLogger.logEmailReport(
+        await supervisorActivityLogger.logEmailSent(
           supervisorResult.supervisor.badge,
           supervisorResult.supervisor.name,
-          'Roadwork Alert',
-          emailGroupNames.join(', ')
+          {
+            recipients: emailGroupNames,
+            type: 'roadwork_notification',
+            subject: `Roadwork Alert: ${roadwork.title}`
+          }
         );
       }
     } catch (logError) {

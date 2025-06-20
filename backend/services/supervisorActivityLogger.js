@@ -1,3 +1,4 @@
+// supervisorActivityLogger.js - FIXED to use correct activity_logs table
 import { createClient } from '@supabase/supabase-js';
 import fs from 'fs/promises';
 import path from 'path';
@@ -12,19 +13,17 @@ class SupervisorActivityLogger {
 
     async initializeStorage() {
         try {
-            // Create Supabase table if it doesn't exist
+            // Verify activity_logs table exists
             const { error } = await supabase
-                .from('supervisor_activity')
+                .from('activity_logs')
                 .select('id')
                 .limit(1);
             
             if (error && error.code === '42P01') {
-                // Table doesn't exist, create it
-                console.log('Creating supervisor_activity table...');
-                // Note: In production, this would be handled by migrations
+                console.log('⚠️ activity_logs table not found');
             }
         } catch (error) {
-            console.warn('⚠️ Could not initialize Supabase table, using local storage');
+            console.warn('⚠️ Could not verify Supabase table');
         }
 
         // Ensure local directory exists
@@ -35,28 +34,33 @@ class SupervisorActivityLogger {
         }
     }
 
-    async logActivity(supervisorBadge, action, details = {}) {
+    async logActivity(supervisorBadge, supervisorName, action, details = {}) {
+        // Use the SAME format as supervisorManager.logActivity
         const activity = {
-            id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            supervisor_badge: supervisorBadge,
             action,
-            details: JSON.stringify(details),
-            timestamp: new Date().toISOString(),
+            details: details,
+            supervisor_id: details.supervisor_id || supervisorBadge,
+            supervisor_name: supervisorName,
+            screen_type: details.screenType || 'supervisor',
+            ip_address: details.ip_address || null,
+            user_agent: details.user_agent || null,
             created_at: new Date().toISOString()
         };
 
         try {
-            // Try Supabase first
-            const { error } = await supabase
-                .from('supervisor_activity')
-                .insert([activity]);
+            // Insert to activity_logs table (NOT supervisor_activity)
+            const { data, error } = await supabase
+                .from('activity_logs')
+                .insert([activity])
+                .select();
 
             if (error) {
                 throw error;
             }
 
-            console.log(`✅ Logged activity: ${supervisorBadge} - ${action}`);
-            return { success: true, activity };
+            console.log(`✅ Logged activity: ${supervisorName} - ${action}`);
+            console.log(`📊 Activity details:`, activity);
+            return { success: true, activity: data?.[0] || activity };
         } catch (error) {
             console.warn('⚠️ Supabase logging failed, using local storage:', error.message);
             
@@ -69,7 +73,7 @@ class SupervisorActivityLogger {
                 const limitedActivities = activities.slice(0, 1000);
                 
                 await fs.writeFile(this.localLogFile, JSON.stringify(limitedActivities, null, 2));
-                console.log(`✅ Logged activity locally: ${supervisorBadge} - ${action}`);
+                console.log(`✅ Logged activity locally: ${supervisorName} - ${action}`);
                 return { success: true, activity };
             } catch (localError) {
                 console.error('❌ Failed to log activity:', localError);
@@ -80,18 +84,15 @@ class SupervisorActivityLogger {
 
     async getRecentActivities(limit = 50) {
         try {
-            // Try Supabase first
+            // Query from activity_logs table
             const { data, error } = await supabase
-                .from('supervisor_activity')
+                .from('activity_logs')
                 .select('*')
                 .order('created_at', { ascending: false })
                 .limit(limit);
 
             if (!error && data) {
-                return data.map(activity => ({
-                    ...activity,
-                    details: this.parseDetails(activity.details)
-                }));
+                return data;
             }
         } catch (error) {
             console.warn('⚠️ Supabase query failed, using local storage');
@@ -100,10 +101,7 @@ class SupervisorActivityLogger {
         // Fallback to local storage
         try {
             const activities = await this.getLocalActivities();
-            return activities.slice(0, limit).map(activity => ({
-                ...activity,
-                details: this.parseDetails(activity.details)
-            }));
+            return activities.slice(0, limit);
         } catch (error) {
             console.error('❌ Failed to get activities:', error);
             return [];
@@ -130,54 +128,60 @@ class SupervisorActivityLogger {
 
     // Convenience methods for common actions
     async logLogin(supervisorBadge, supervisorName) {
-        return this.logActivity(supervisorBadge, 'LOGIN', {
-            supervisor_name: supervisorName,
-            login_time: new Date().toLocaleTimeString()
+        return this.logActivity(supervisorBadge, supervisorName, 'supervisor_login', {
+            badge: supervisorBadge,
+            login_time: new Date().toISOString()
         });
     }
 
     async logLogout(supervisorBadge, supervisorName) {
-        return this.logActivity(supervisorBadge, 'LOGOUT', {
-            supervisor_name: supervisorName,
-            logout_time: new Date().toLocaleTimeString()
+        return this.logActivity(supervisorBadge, supervisorName, 'supervisor_logout', {
+            badge: supervisorBadge,
+            logout_time: new Date().toISOString()
         });
     }
 
     async logAlertDismissal(supervisorBadge, supervisorName, alertId, reason, location) {
-        return this.logActivity(supervisorBadge, 'DISMISS_ALERT', {
-            supervisor_name: supervisorName,
+        return this.logActivity(supervisorBadge, supervisorName, 'alert_dismissed', {
             alert_id: alertId,
             reason,
-            location: location || 'Unknown location',
-            dismissed_at: new Date().toLocaleTimeString()
+            location: location || 'Unknown location'
         });
     }
 
     async logRoadworkCreation(supervisorBadge, supervisorName, roadworkData) {
-        return this.logActivity(supervisorBadge, 'CREATE_ROADWORK', {
-            supervisor_name: supervisorName,
+        return this.logActivity(supervisorBadge, supervisorName, 'roadwork_created', {
             location: roadworkData.location || 'Unknown location',
             severity: roadworkData.severity,
             status: roadworkData.status,
-            created_at: new Date().toLocaleTimeString()
+            affected_routes: roadworkData.affected_routes
         });
     }
 
-    async logEmailReport(supervisorBadge, supervisorName, reportType, recipients) {
-        return this.logActivity(supervisorBadge, 'EMAIL_REPORT', {
-            supervisor_name: supervisorName,
-            report_type: reportType,
-            recipients: recipients || 'Unknown recipients',
-            sent_at: new Date().toLocaleTimeString()
+    async logEmailSent(supervisorBadge, supervisorName, emailData) {
+        return this.logActivity(supervisorBadge, supervisorName, 'email_sent', {
+            recipients: emailData.recipients || [],
+            type: emailData.type || 'roadwork_notification',
+            subject: emailData.subject
+        });
+    }
+
+    async logDutyStart(supervisorBadge, supervisorName, dutyNumber) {
+        return this.logActivity(supervisorBadge, supervisorName, 'duty_started', {
+            duty_number: dutyNumber,
+            start_time: new Date().toISOString()
+        });
+    }
+
+    async logDutyEnd(supervisorBadge, supervisorName, dutyNumber) {
+        return this.logActivity(supervisorBadge, supervisorName, 'duty_ended', {
+            duty_number: dutyNumber,
+            end_time: new Date().toISOString()
         });
     }
 
     async logSystemAction(supervisorBadge, supervisorName, action, details = {}) {
-        return this.logActivity(supervisorBadge, action, {
-            supervisor_name: supervisorName,
-            ...details,
-            performed_at: new Date().toLocaleTimeString()
-        });
+        return this.logActivity(supervisorBadge, supervisorName, action, details);
     }
 }
 

@@ -31,6 +31,7 @@ import tileAPI from './routes/tileAPI.js';
 import eventAPI from './routes/eventAPI.js';
 import tomtomUsageAPI from './routes/tomtomUsageAPI.js';
 import activityLogsAPI from './routes/activityLogs.js';
+import dutyAPI from './routes/dutyAPI.js';
 import supervisorManager from './services/supervisorManager.js';
 import serviceFrequencyAnalyzer from './services/serviceFrequencyAnalyzer.js';
 import supervisorSyncService from './services/supervisorSync.js';
@@ -360,6 +361,11 @@ app.use('/api/tomtom/usage', tomtomUsageAPI);
 console.log('📦 Registering activity logs routes...');
 app.use(activityLogsAPI);
 console.log('✅ Activity logs routes registered');
+
+// Duty management routes
+console.log('📦 Registering duty management routes...');
+app.use('/api/duty', dutyAPI);
+console.log('✅ Duty management routes registered');
 
 // TomTom API key endpoint for frontend
 app.get('/api/config/tomtom-key', (req, res) => {
@@ -1545,6 +1551,9 @@ async function startServer() {
       console.log(`   📝 Activity Logs: /api/activity-logs`);
       console.log(`   📊 Activity Summary: /api/activity-logs/summary`);
       console.log(`   💻 Display View Log: /api/activity/display-view`);
+      console.log(`   👷 Duty Management: /api/duty/start, /api/duty/end, /api/duty/status`);
+      console.log(`   📋 Duty Types: /api/duty/types`);
+      console.log(`   👥 Active Duties: /api/duty/active`);
       console.log(`\n💡 Active Data Sources:`);
       console.log(`   ✅ TomTom API - Primary traffic intelligence`);
       console.log(`   ✅ National Highways DATEX II - Official UK roadworks`);
