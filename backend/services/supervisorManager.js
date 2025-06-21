@@ -317,6 +317,7 @@ export async function authenticateSupervisor(supervisorId, badge) {
     console.log(`✅ Session created: ${sessionId} for ${supervisor.name}`);
     console.log(`📊 Total sessions created in this process: ${sessionCounter}`);
     console.log(`💾 Current session count in memory: ${Object.keys(supervisorSessions).length}`);
+    console.log(`👥 Active supervisors after login: ${Object.values(supervisorSessions).filter(s => s.active).length}`);
     
     // Log successful login
     await logActivity('supervisor_login', {
@@ -557,12 +558,25 @@ export async function getAllSupervisors() {
   }
 }
 
-// Get active supervisors (currently signed in)
+// Get active supervisors (currently signed in) - FIXED
 export async function getActiveSupervisors() {
   console.log(`🔍 getActiveSupervisors called`);
+  console.log(`💾 Current sessions in memory: ${Object.keys(supervisorSessions).length}`);
+  console.log(`📋 Session IDs: ${Object.keys(supervisorSessions).join(', ')}`);
   
   try {
-    // Query Supabase for active sessions
+    // First, always try to use memory cache as it's most reliable
+    const memoryResult = getActiveFromMemory();
+    console.log(`💾 Memory cache returned ${memoryResult.length} active supervisors`);
+    
+    if (memoryResult.length > 0) {
+      console.log(`✅ Returning ${memoryResult.length} active supervisors from memory`);
+      return memoryResult;
+    }
+    
+    // If memory is empty, try Supabase as backup
+    console.log(`📡 Memory empty, trying Supabase...`);
+    
     const { data, error } = await supabase
       .from('supervisor_sessions')
       .select('*')
@@ -571,29 +585,29 @@ export async function getActiveSupervisors() {
     
     if (error) {
       console.error('❌ Error querying Supabase for active sessions:', error);
-      // Fall back to memory cache
-      return getActiveFromMemory();
+      // Return empty array on error
+      return [];
     }
     
-    if (data) {
+    if (data && data.length > 0) {
       console.log(`💾 Found ${data.length} active sessions in Supabase`);
       
       // Update memory cache
       supervisorSessions = {};
       data.forEach(session => {
         supervisorSessions[session.id] = {
-        supervisorId: session.supervisor_id,
-        supervisorName: session.supervisor_name,
-        supervisorBadge: session.supervisor_badge, // Changed from badge_number
-        sessionToken: session.session_token,
-        startTime: session.login_time,
-        lastActivity: session.last_activity,
-        expiresAt: session.expires_at,
-        active: session.is_active,
+          supervisorId: session.supervisor_id,
+          supervisorName: session.supervisor_name,
+          supervisorBadge: session.supervisor_badge,
+          sessionToken: session.session_token,
+          startTime: session.login_time,
+          lastActivity: session.last_activity,
+          expiresAt: session.expires_at,
+          active: session.is_active,
           isAdmin: session.is_admin,
-        role: session.role,
-        shift: session.shift
-      };
+          role: session.role,
+          shift: session.shift
+        };
       });
       
       // Check for timeouts
@@ -614,19 +628,27 @@ export async function getActiveSupervisors() {
       console.log(`✅ Returning ${result.length} active supervisors from Supabase:`, result.map(s => s.name));
       return result;
     }
+    
+    console.log(`📭 No active sessions found in Supabase either`);
+    return [];
+    
   } catch (error) {
     console.error('❌ Exception getting active supervisors:', error);
+    return [];
   }
-  
-  // Fallback to memory
-  return getActiveFromMemory();
 }
 
-// Helper function for memory-based active supervisors
+// Helper function for memory-based active supervisors - IMPROVED
 function getActiveFromMemory() {
-  console.log(`💾 Using memory cache for active supervisors`);
-  const activeSessions = Object.values(supervisorSessions).filter(session => session.active);
-  console.log(`✅ Active sessions found in memory: ${activeSessions.length}`);
+  console.log(`💾 Checking memory cache for active supervisors`);
+  console.log(`📊 Total sessions in memory: ${Object.keys(supervisorSessions).length}`);
+  
+  const activeSessions = Object.values(supervisorSessions).filter(session => {
+    console.log(`  Checking session: ${session.supervisorName}, active: ${session.active}`);
+    return session.active === true;
+  });
+  
+  console.log(`✅ Found ${activeSessions.length} active sessions in memory`);
   
   const result = activeSessions.map(session => ({
     supervisorId: session.supervisorId,
@@ -634,6 +656,10 @@ function getActiveFromMemory() {
     sessionStart: session.startTime,
     lastActivity: session.lastActivity
   }));
+  
+  if (result.length > 0) {
+    console.log(`📋 Active supervisors:`, result.map(s => s.name).join(', '));
+  }
   
   return result;
 }
