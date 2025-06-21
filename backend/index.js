@@ -39,6 +39,7 @@ import enhancedDataSourceManager from './services/enhancedDataSourceManager.js';
 import streetManagerWebhooks from './services/streetManagerWebhooksSimple.js';
 import { createServer } from 'http';
 import { deduplicateAlerts, cleanupExpiredDismissals, generateAlertHash } from './utils/alertDeduplication.js';
+import { convexSync } from './services/convexSync.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1122,6 +1123,19 @@ app.get('/api/alerts-enhanced', async (req, res) => {
     enhancedAlertsCache = response;
     enhancedCacheTime = Date.now();
     enhancedRequestInProgress = false;
+    
+    // Sync to Convex for real-time updates (non-blocking)
+    if (activeAlerts.length > 0) {
+      convexSync.syncAlerts(activeAlerts).then(result => {
+        if (result.success) {
+          console.log(`✅ [${requestId}] Synced ${result.count} alerts to Convex`);
+        } else {
+          console.log(`⚠️ [${requestId}] Convex sync skipped:`, result.reason || result.error);
+        }
+      }).catch(err => {
+        console.log(`⚠️ [${requestId}] Convex sync error:`, err.message);
+      });
+    }
     
     console.log(`🎯 [${requestId}] FIXED RESULT: ${activeAlerts.length} total alerts (${stats.trafficAlerts} traffic + ${stats.manualIncidents} manual)`);
     console.log(`📊 [${requestId}] Sources working: ${Object.keys(sources).filter(s => sources[s].success).join(', ')}`);

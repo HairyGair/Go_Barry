@@ -17,8 +17,20 @@ const sessionStorageService = {
         expiresAt: Date.now() + (8 * 60 * 60 * 1000) // 8 hours
       };
       
+      // Save to memory
       this.memoryStorage.set(this.storageKey, sessionWithTimestamp);
       console.log('✅ Session saved to memory storage');
+      
+      // Also try to save to localStorage for web persistence
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.setItem(this.storageKey, JSON.stringify(sessionWithTimestamp));
+          console.log('✅ Session also saved to localStorage');
+        } catch (e) {
+          console.warn('⚠️ Could not save to localStorage:', e);
+        }
+      }
+      
       return true;
     } catch (error) {
       console.error('Failed to save session:', error);
@@ -28,6 +40,30 @@ const sessionStorageService = {
   
   loadSession() {
     try {
+      // Try localStorage first (for web persistence)
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          const stored = window.localStorage.getItem(this.storageKey);
+          if (stored) {
+            const session = JSON.parse(stored);
+            console.log('📦 Session loaded from localStorage');
+            
+            // Check if session has expired
+            if (session.expiresAt && Date.now() > session.expiresAt) {
+              this.clearSession();
+              return null;
+            }
+            
+            // Also update memory storage
+            this.memoryStorage.set(this.storageKey, session);
+            return session;
+          }
+        } catch (e) {
+          console.warn('⚠️ Could not load from localStorage:', e);
+        }
+      }
+      
+      // Fall back to memory storage
       const session = this.memoryStorage.get(this.storageKey);
       if (!session) return null;
       
@@ -49,6 +85,16 @@ const sessionStorageService = {
     try {
       this.memoryStorage.delete(this.storageKey);
       console.log('✅ Session cleared from memory storage');
+      
+      // Also clear from localStorage
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.removeItem(this.storageKey);
+          console.log('✅ Session also cleared from localStorage');
+        } catch (e) {
+          console.warn('⚠️ Could not clear from localStorage:', e);
+        }
+      }
     } catch (error) {
       console.error('Failed to clear session:', error);
     }
@@ -107,16 +153,20 @@ let activityLog = [];
 
 // Supervisor session hook with persistence
 export const useSupervisorSession = () => {
+  console.log('🤔 useSupervisorSession hook called');
   const [supervisorSession, setSupervisorSession] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
   // Initialize session from storage on mount
   useEffect(() => {
+    console.log('🔍 Attempting to load saved session...');
     const savedSession = sessionStorageService.loadSession();
     if (savedSession) {
       setSupervisorSession(savedSession);
       console.log('✅ Restored supervisor session:', savedSession.supervisor?.name);
+    } else {
+      console.log('❌ No saved session found');
     }
   }, []);
 
@@ -259,6 +309,7 @@ export const useSupervisorSession = () => {
         }
         
         console.log('✅ Backend authentication successful:', authResult.sessionId);
+        console.log('👤 Backend returned supervisor:', authResult.supervisor);
       } catch (fetchError) {
         clearTimeout(timeoutId);
         console.error('❌ Fetch error details:', fetchError);
@@ -275,11 +326,16 @@ export const useSupervisorSession = () => {
       console.log('🏗️ Building session object...');
       console.log('- Backend supervisor data:', authResult?.supervisor);
       console.log('- Local supervisor data:', supervisor);
-      console.log('- Duty data:', loginData.duty);
+      console.log('- Duty data from loginData:', loginData.duty);
       console.log('- Login data full:', loginData);
       
       // Find the selected duty details
       const selectedDuty = DUTY_OPTIONS.find((d) => d.id === loginData.duty?.id || d.id === loginData.duty);
+      console.log('- Selected duty found:', selectedDuty);
+      
+      // Ensure we have a proper duty object
+      const finalDuty = selectedDuty || loginData.duty || { id: 'unknown', name: 'No Duty Selected' };
+      console.log('- Final duty to use:', finalDuty);
       
       const session = {
         sessionId: authResult?.sessionId || 'local-' + Date.now(),
@@ -287,7 +343,7 @@ export const useSupervisorSession = () => {
           id: loginData.supervisorId, // Keep frontend ID for UI
           name: supervisor?.name || authResult?.supervisor?.name || 'Unknown Supervisor', // Use local name first (it's always available)
           role: supervisor?.role || authResult?.supervisor?.role || 'Supervisor',
-          duty: selectedDuty || loginData.duty || { id: 'unknown', name: 'Unknown Duty' },
+          duty: finalDuty,
           isAdmin: supervisor?.isAdmin || authResult?.supervisor?.isAdmin || false,
           permissions: authResult?.supervisor?.permissions || (supervisor?.isAdmin ? 
             ['dismiss_alerts', 'view_all_activity', 'manage_supervisors', 'create_incidents', 'send_messages'] : 
@@ -308,10 +364,22 @@ export const useSupervisorSession = () => {
         console.warn('⚠️ Failed to save session to storage, session will not persist');
       }
 
+      // Set the session in state AFTER building it completely
       setSupervisorSession(session);
+      console.log('📦 Session set in state:', {
+        name: session.supervisor.name,
+        duty: session.supervisor.duty,
+        dutyName: session.supervisor.duty?.name
+      });
+      
+      // Force a re-read from state to verify
+      setTimeout(() => {
+        const currentSession = sessionStorageService.loadSession();
+        console.log('🔍 Verification - session from storage:', currentSession?.supervisor);
+      }, 100);
       
       // Log login activity
-      logActivity('LOGIN', `${supervisor?.name || 'Unknown'} logged in on ${loginData.duty?.name || 'Unknown Duty'}`);
+      logActivity('LOGIN', `${supervisor?.name || 'Unknown'} logged in on ${finalDuty?.name || 'Unknown Duty'}`);
       
       // Log duty start with backend - NEW
       if (authResult?.sessionId && selectedDuty) {

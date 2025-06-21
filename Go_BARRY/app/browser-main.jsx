@@ -32,6 +32,7 @@ import SupervisorCardDemo from '../components/dev/SupervisorCardDemo';
 import QuickSupervisorTest from '../components/dev/QuickSupervisorTest';
 import WebSocketTest from '../components/dev/WebSocketTest';
 import WebSocketDiagnostics from '../components/dev/WebSocketDiagnostics';
+import AdminPanel from '../components/admin/AdminPanel';
 import { useSupervisorSession } from '../components/hooks/useSupervisorSession';
 import { useBarryAPI } from '../components/hooks/useBARRYapi';
 import { API_CONFIG } from '../config/api';
@@ -40,6 +41,14 @@ const { width, height } = Dimensions.get('window');
 
 // Main navigation structure for browser
 const BROWSER_NAVIGATION = {
+  admin: {
+    title: 'Admin Panel',
+    icon: 'shield-checkmark',
+    component: AdminPanel,
+    description: '⭐ System administration & accountability center',
+    color: '#F59E0B',
+    adminOnly: true
+  },
   supervisor: {
     title: 'Supervisor Control',
     icon: 'people-circle',
@@ -254,12 +263,15 @@ const BrowserMainApp = () => {
     }, 100);
   };
 
-  // Auto-open login if not logged in
+  // Monitor login state for debugging
   useEffect(() => {
-    if (!isLoggedIn) {
-      setShowSupervisorLogin(true);
-    }
-  }, [isLoggedIn]);
+    console.log('🖔 Login state changed:', {
+      isLoggedIn,
+      supervisorName,
+      sessionId,
+      showSupervisorLogin
+    });
+  }, [isLoggedIn, supervisorName, sessionId, showSupervisorLogin]);
 
   const renderActiveScreen = () => {
     const screenConfig = BROWSER_NAVIGATION[activeScreen];
@@ -310,13 +322,24 @@ const BrowserMainApp = () => {
                 hour12: false 
               })}
             </Text>
-            {isLoggedIn && (
+            {isLoggedIn ? (
               <TouchableOpacity
                 style={styles.profileButton}
                 onPress={() => setShowSupervisorLogin(true)}
               >
                 <Ionicons name="person-circle" size={24} color="#6B7280" />
                 <Text style={styles.profileText}>{supervisorName}</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.profileButton, { backgroundColor: '#3B82F6' }]}
+                onPress={() => {
+                  console.log('🔓 Header login button clicked');
+                  setShowSupervisorLogin(true);
+                }}
+              >
+                <Ionicons name="log-in" size={20} color="#FFFFFF" />
+                <Text style={[styles.profileText, { color: '#FFFFFF' }]}>Login</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -333,6 +356,8 @@ const BrowserMainApp = () => {
             />
           ) : activeScreen === 'integration_test' ? (
             <SupervisorDisplayIntegrationTest />
+          ) : activeScreen === 'admin' ? (
+            <AdminPanel onClose={() => setActiveScreen('supervisor')} />
           ) : (
             <ScreenComponent baseUrl={API_CONFIG.baseURL} />
           )}
@@ -386,7 +411,10 @@ const BrowserMainApp = () => {
                   <Text style={styles.supervisorName}>{supervisorName}</Text>
                   <Text style={styles.supervisorRoleText}>{supervisorRole}</Text>
                   {isAdmin && (
-                    <Text style={styles.adminBadge}>⭐ Admin</Text>
+                    <View style={styles.adminBadgeContainer}>
+                      <Ionicons name="shield-checkmark" size={12} color="#F59E0B" />
+                      <Text style={styles.adminBadge}>Admin Access</Text>
+                    </View>
                   )}
                   <View style={styles.connectionStatus}>
                     <View style={[
@@ -408,7 +436,13 @@ const BrowserMainApp = () => {
 
         {/* Navigation Items */}
         <ScrollView style={styles.navigationContainer}>
-          {Object.entries(BROWSER_NAVIGATION).map(([screenId, screen], index) => (
+          {Object.entries(BROWSER_NAVIGATION)
+            .filter(([screenId, screen]) => {
+              // Only show admin panel to admin users
+              if (screen.adminOnly && !isAdmin) return false;
+              return true;
+            })
+            .map(([screenId, screen], index) => (
             <TouchableOpacity
               key={screenId}
               style={[
@@ -451,7 +485,10 @@ const BrowserMainApp = () => {
           {!isLoggedIn ? (
             <TouchableOpacity
               style={styles.footerButton}
-              onPress={() => setShowSupervisorLogin(true)}
+              onPress={() => {
+                console.log('🔐 Login button clicked');
+                setShowSupervisorLogin(true);
+              }}
             >
               <Ionicons name="log-in" size={20} color="#3B82F6" />
               {!sidebarCollapsed && (
@@ -480,7 +517,14 @@ const BrowserMainApp = () => {
       {/* Supervisor Login Modal */}
       <SupervisorLogin
         visible={showSupervisorLogin}
-        onClose={() => setShowSupervisorLogin(false)}
+        onClose={() => {
+          console.log('🔒 Closing login modal');
+          setShowSupervisorLogin(false);
+        }}
+        onLoginSuccess={() => {
+          console.log('✅ Login success in BrowserMainApp');
+          // Modal will close automatically after successful login
+        }}
       />
     </View>
   );
@@ -589,10 +633,20 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginBottom: 2,
   },
+  adminBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginTop: 4,
+  },
   adminBadge: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#F59E0B',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   connectionStatus: {
     flexDirection: 'row',

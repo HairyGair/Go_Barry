@@ -2,7 +2,7 @@
 // Enhanced Supervisor Control Panel with real-time sync
 // Improved supervisor identity display, session management, and polling-based updates
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,8 @@ import MessageTemplates from './MessageTemplates';
 import RoadworksDatabase from './RoadworksDatabase';
 import MonitoringDashboard from './MonitoringDashboard';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
+import SupervisorLogin from './SupervisorLogin';
+import SupervisorManagement from './SupervisorManagement';
 // Simple Alert Card component for supervisor control
 const SimpleAlertCard = ({ alert, supervisorSession, onDismiss, onAcknowledge, style }) => {
   const getStatusColor = (status) => {
@@ -312,29 +314,75 @@ const SupervisorControl = ({
   onClose,
   sector = 1 // Sector 1: Supervisor Control
 }) => {
-  // Get session management functions
-  const { getSupervisorActivity, logout } = useSupervisorSession();
+  // Get session management functions - FIXED: Use the hook properly
+  const { 
+    supervisorSession: hookSession,
+    getSupervisorActivity, 
+    logout,
+    login,
+    isLoading: sessionLoading,
+    error: sessionError
+  } = useSupervisorSession();
   
-  // Use passed session data if available, otherwise fall back to hook data
-  const session = passedSession || {};
+  // State for login modal
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginError, setLoginError] = useState(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
   
-  // Debug logging
-  console.log('🔍 SupervisorControl Session Debug:', {
-    passedSession,
-    supervisorId,
-    supervisorName,
-    sessionId,
-    session,
-    supervisorData: session?.supervisor,
-    duty: session?.supervisor?.duty
-  });
+  // Use passed session or hook session
+  const session = passedSession || hookSession || null;
   
-  const supervisorBadge = session?.supervisor?.badge || supervisorName?.match(/\((\w+)\)/)?.[1] || 'Unknown';
-  const supervisorDuty = session?.supervisor?.duty || {};
-  const loginTime = session?.loginTime;
+  // Debug logging - Enhanced
+  useEffect(() => {
+    console.log('🔍 SupervisorControl Session Debug:', {
+      passedSession,
+      hookSession,
+      finalSession: session,
+      hasValidSession: !!session?.sessionId,
+      supervisorId,
+      supervisorName,
+      sessionId,
+      supervisorData: session?.supervisor,
+      duty: session?.supervisor?.duty
+    });
+    
+    // Check if we have a valid session
+    if (!session || !session.sessionId) {
+      console.warn('⚠️ No valid session found');
+      // Don't automatically show login modal - let the parent component handle it
+    } else {
+      console.log('✅ Valid session found:', session.supervisor?.name);
+    }
+  }, [session, passedSession, hookSession, supervisorId, supervisorName, sessionId]);
   
-  // Check if supervisor is admin (AG003 or BP009)
-  const isAdmin = supervisorBadge === 'AG003' || supervisorBadge === 'BP009';
+  // Extract supervisor info from session or props
+  const supervisorData = session?.supervisor || passedSession?.supervisor || {};
+  const displayName = supervisorData?.name || supervisorName || 'Unknown';
+  const supervisorBadge = supervisorData?.badge || supervisorName?.match(/\((\w+)\)/)?.[1] || '';
+  const supervisorDuty = supervisorData?.duty || {};
+  const loginTime = session?.loginTime || passedSession?.loginTime;
+  
+  // Check if supervisor is admin (AG003 or BP009) - Enhanced check
+  const isAdmin = useMemo(() => {
+    // Check multiple sources for admin status
+    const badgeCheck = supervisorBadge === 'AG003' || supervisorBadge === 'BP009';
+    const sessionCheck = session?.supervisor?.isAdmin || passedSession?.supervisor?.isAdmin;
+    const roleCheck = supervisorData?.role?.toLowerCase().includes('admin') || 
+                      supervisorData?.role?.toLowerCase().includes('developer');
+    
+    // Return true if any check passes
+    const result = badgeCheck || sessionCheck || roleCheck;
+    
+    console.log('🔐 Admin access check:', {
+      badge: supervisorBadge,
+      badgeCheck,
+      sessionCheck,
+      roleCheck,
+      finalResult: result
+    });
+    
+    return result;
+  }, [supervisorBadge, session, passedSession, supervisorData]);
   
   // Session timer state
   const [sessionTimeRemaining, setSessionTimeRemaining] = useState(600); // 10 minutes
@@ -343,6 +391,10 @@ const SupervisorControl = ({
   const [selectedRoutes, setSelectedRoutes] = useState([]);
   const [handoverNotes, setHandoverNotes] = useState('');
   const [showHandoverModal, setShowHandoverModal] = useState(false);
+  const [showSupervisorManagement, setShowSupervisorManagement] = useState(false);
+  
+  // REMOVED: Aggressive localStorage cleanup that was preventing login
+  // The session management should be handled by the useSupervisorSession hook
   // Debug polling authentication
   useEffect(() => {
     console.log('🚀 SupervisorControl Polling Auth:', {
@@ -949,17 +1001,136 @@ const SupervisorControl = ({
     </View>
   );
 
+  // Handle login from modal
+  const handleLogin = useCallback(async (loginData) => {
+    setIsAuthenticating(true);
+    setLoginError(null);
+    
+    try {
+      console.log('🔐 Attempting login from SupervisorControl modal...');
+      const result = await login(loginData);
+      
+      if (result && result.success) {
+        console.log('✅ Login successful, closing modal');
+        setShowLoginModal(false);
+        showNotification('Login successful', 'success');
+        // Force a small delay to ensure session is established
+        setTimeout(() => {
+          // Session should now be available
+          console.log('🔍 Session after login:', session);
+        }, 100);
+      } else {
+        console.error('❌ Login failed:', result?.error || 'Unknown error');
+        setLoginError(result?.error || 'Login failed - please try again');
+        showNotification(result?.error || 'Login failed', 'error');
+      }
+    } catch (error) {
+      console.error('❌ Login error:', error);
+      setLoginError(error.message || 'An error occurred during login');
+      showNotification(error.message || 'Login failed', 'error');
+    } finally {
+      setIsAuthenticating(false);
+    }
+  }, [login, showNotification, session]);
+
   // Loading screen
-  if (loading) {
+  if (loading || sessionLoading || isAuthenticating) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Connecting to control system...</Text>
+        <Text style={styles.loadingText}>
+          {isAuthenticating ? 'Authenticating...' : 'Connecting to control system...'}
+        </Text>
       </View>
+    );
+  }
+  
+  // Show login modal if explicitly requested or no valid session
+  if (showLoginModal && (!session || !session.sessionId)) {
+    return (
+      <Modal
+        visible={true}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => {
+          setShowLoginModal(false);
+          if (onClose) onClose();
+        }}
+      >
+        <View style={styles.loginModalContainer}>
+          <View style={styles.loginModalHeader}>
+            <Text style={styles.loginModalTitle}>Supervisor Login Required</Text>
+            <TouchableOpacity 
+              onPress={() => {
+                setShowLoginModal(false);
+                if (onClose) onClose();
+              }} 
+              style={styles.loginModalClose}
+            >
+              <Ionicons name="close" size={24} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+          
+          {(loginError || sessionError) && (
+            <View style={styles.errorBanner}>
+              <Ionicons name="alert-circle" size={20} color="#DC2626" />
+              <Text style={styles.errorBannerText}>
+                {loginError || sessionError}
+              </Text>
+            </View>
+          )}
+          
+          <SupervisorLogin
+            visible={true}
+            onClose={() => {
+              setShowLoginModal(false);
+              if (onClose) onClose();
+            }}
+            onLoginSuccess={(loginData) => {
+              console.log('✅ Login success callback from SupervisorLogin');
+              handleLogin(loginData);
+            }}
+            embedded={true}
+          />
+        </View>
+      </Modal>
     );
   }
 
   // Main render
+  
+  // If no session and modal not showing, show login prompt
+  if (!session || !session.sessionId) {
+    if (!showLoginModal) {
+      return (
+        <View style={styles.loginPromptContainer}>
+          <View style={styles.loginPromptCard}>
+            <Ionicons name="shield-checkmark" size={48} color="#3B82F6" />
+            <Text style={styles.loginPromptTitle}>Supervisor Login Required</Text>
+            <Text style={styles.loginPromptText}>
+              You need to log in to access supervisor controls
+            </Text>
+            <TouchableOpacity
+              style={styles.loginPromptButton}
+              onPress={() => setShowLoginModal(true)}
+            >
+              <Ionicons name="log-in" size={20} color="#FFFFFF" />
+              <Text style={styles.loginPromptButtonText}>Log In Now</Text>
+            </TouchableOpacity>
+            {onClose && (
+              <TouchableOpacity
+                style={styles.loginPromptCancelButton}
+                onPress={onClose}
+              >
+                <Text style={styles.loginPromptCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      );
+    }
+  }
+  
   // Display Queue Modal
   const DisplayQueueModal = () => (
       <Modal
@@ -1102,11 +1273,16 @@ const SupervisorControl = ({
           />
           <View style={styles.supervisorIdentity}>
             <Text style={styles.supervisorNameHeader}>
-              {supervisorName} ({supervisorBadge})
+              {displayName} {supervisorBadge && `(${supervisorBadge})`}
             </Text>
             <Text style={styles.dutyInfo}>
-              {supervisorDuty.name || 'No duty selected'}
+              {supervisorDuty?.name || supervisorDuty?.id || 'No duty selected'}
             </Text>
+            {supervisorData?.role && (
+              <Text style={styles.roleInfo}>
+                {supervisorData.role}
+              </Text>
+            )}
           </View>
         </View>
         
@@ -1167,13 +1343,23 @@ const SupervisorControl = ({
           </TouchableOpacity>
           
           {isAdmin && (
-            <TouchableOpacity
-              style={[styles.controlButton, styles.monitoringControlButton]}
-              onPress={() => setShowMonitoringDashboard(true)}
-            >
-              <Ionicons name="analytics" size={20} color="#FFFFFF" />
-              <Text style={styles.controlButtonText}>System Monitor</Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity
+                style={[styles.controlButton, styles.monitoringControlButton]}
+                onPress={() => setShowMonitoringDashboard(true)}
+              >
+                <Ionicons name="analytics" size={20} color="#FFFFFF" />
+                <Text style={styles.controlButtonText}>System Monitor</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.controlButton, styles.supervisorManagementButton]}
+                onPress={() => setShowSupervisorManagement(true)}
+              >
+                <Ionicons name="people" size={20} color="#FFFFFF" />
+                <Text style={styles.controlButtonText}>Manage Supervisors</Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
         
@@ -1447,6 +1633,20 @@ const SupervisorControl = ({
             />
           </View>
         </Modal>
+      )}
+      
+      {/* Supervisor Management Modal - Admin Only */}
+      {isAdmin && (
+        <SupervisorManagement
+          visible={showSupervisorManagement}
+          onClose={() => setShowSupervisorManagement(false)}
+          sessionId={sessionId || session?.sessionId || passedSession?.sessionId}
+          adminInfo={{
+            name: displayName,
+            badge: supervisorBadge,
+            id: supervisorData?.id
+          }}
+        />
       )}
     </View>
   );
@@ -2220,6 +2420,15 @@ const styles = StyleSheet.create({
   },
   monitoringControlButton: {
     backgroundColor: '#7C3AED', // Purple for admin features
+    position: 'relative',
+    zIndex: 10, // Ensure it's above other elements
+    elevation: 10, // For Android shadow
+  },
+  supervisorManagementButton: {
+    backgroundColor: '#EC4899', // Pink for supervisor management
+    position: 'relative',
+    zIndex: 10,
+    elevation: 10,
   },
   monitoringModalContainer: {
     flex: 1,
@@ -2264,6 +2473,13 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 2,
     fontWeight: '500',
+  },
+  roleInfo: {
+    fontSize: 12,
+    color: '#8B5CF6',
+    marginTop: 2,
+    fontWeight: '500',
+    fontStyle: 'italic',
   },
   sessionTimer: {
     flexDirection: 'row',
@@ -2470,6 +2686,110 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#E5E7EB',
     marginVertical: 8,
+  },
+  // Login Modal Styles
+  loginModalContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  loginModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    ...Platform.select({
+      web: { paddingTop: 16 },
+      default: { paddingTop: 44 }
+    }),
+  },
+  loginModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  loginModalClose: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEE2E2',
+    padding: 12,
+    marginHorizontal: 24,
+    marginBottom: 16,
+    borderRadius: 8,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#DC2626',
+    fontWeight: '500',
+  },
+  // Login Prompt Styles
+  loginPromptContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    padding: 20,
+  },
+  loginPromptCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    maxWidth: 400,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  loginPromptTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  loginPromptText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  loginPromptButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#3B82F6',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  loginPromptButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  loginPromptCancelButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  loginPromptCancelText: {
+    color: '#6B7280',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
 

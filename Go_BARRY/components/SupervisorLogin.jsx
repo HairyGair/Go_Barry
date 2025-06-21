@@ -4,7 +4,7 @@
 import React, { useState } from 'react';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
 
-const SupervisorLogin = ({ visible, onClose }) => {
+const SupervisorLogin = ({ visible, onClose, onLoginSuccess, embedded = false }) => {
   const [supervisorId, setSupervisorId] = useState('');
   const [password, setPassword] = useState('');
   const [selectedDuty, setSelectedDuty] = useState('');
@@ -64,11 +64,25 @@ const SupervisorLogin = ({ visible, onClose }) => {
       isAdmin: selectedSupervisor.isAdmin || false
     };
 
+    console.log('🚀 Attempting login with data:', loginData);
     const result = await login(loginData);
+    console.log('📦 Login result:', result);
     
     if (result.success) {
-      resetForm();
-      onClose();
+      console.log('✅ Login successful, closing modal');
+      // Call onLoginSuccess if provided
+      if (onLoginSuccess) {
+        onLoginSuccess(loginData);
+      }
+      // Add a small delay to ensure state updates propagate
+      setTimeout(() => {
+        resetForm();
+        if (!embedded) {
+          onClose();
+        }
+      }, 100);
+    } else {
+      console.error('❌ Login failed:', result.error);
     }
   };
 

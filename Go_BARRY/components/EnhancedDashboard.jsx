@@ -20,6 +20,7 @@ import OptimizedTomTomMap from './OptimizedTomTomMap';
 import TomTomUsageMonitor from './TomTomUsageMonitor';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
 import typography, { getAlertIcon, getSeverityIcon } from '../theme/typography';
+import ConvexTest from './ConvexTest'; // Temporary test component
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -42,8 +43,16 @@ const EnhancedDashboard = ({
   const [showSupervisorControl, setShowSupervisorControl] = useState(false);
   const [mapZoomTarget, setMapZoomTarget] = useState(null); // For alert card -> map zoom
   
-  // Supervisor session management
+  // Supervisor session management with force update on change
+  const [sessionKey, setSessionKey] = useState(0);
   const { supervisorSession: session, logout } = useSupervisorSession();
+  
+  // Force re-render when session changes
+  useEffect(() => {
+    if (session) {
+      setSessionKey(prev => prev + 1);
+    }
+  }, [session?.sessionId]); // Only re-run when sessionId changes
   
   // Debug session
   useEffect(() => {
@@ -51,7 +60,10 @@ const EnhancedDashboard = ({
       session,
       hasSession: !!session,
       supervisor: session?.supervisor,
-      sessionId: session?.sessionId
+      sessionId: session?.sessionId,
+      supervisorName: session?.supervisor?.name,
+      supervisorDuty: session?.supervisor?.duty,
+      supervisorRole: session?.supervisor?.role
     });
   }, [session]);
 
@@ -449,7 +461,7 @@ const EnhancedDashboard = ({
           <View style={styles.supervisorInfo}>
             <Ionicons name="shield-checkmark" size={16} color="#10B981" />
             <Text style={styles.supervisorName}>
-              {session.supervisor.name} ({session.supervisor.duty?.name || 'No Duty'})
+              {session?.supervisor?.name || 'Unknown'} - {session?.supervisor?.duty?.name || session?.supervisor?.duty?.id || 'No Duty'}
             </Text>
             {session.supervisor.isAdmin && (
               <Text style={styles.adminBadge}>ADMIN</Text>
@@ -462,6 +474,28 @@ const EnhancedDashboard = ({
             >
               <Ionicons name="settings" size={16} color="#3B82F6" />
               <Text style={styles.controlButtonText}>Control Panel</Text>
+            </TouchableOpacity>
+            {/* Debug button - remove in production */}
+            <TouchableOpacity
+              onPress={() => {
+                console.log('🔍 CURRENT SESSION STATE:', {
+                  fullSession: session,
+                  supervisor: session?.supervisor,
+                  duty: session?.supervisor?.duty,
+                  dutyName: session?.supervisor?.duty?.name,
+                  sessionId: session?.sessionId
+                });
+                alert(`Session Debug:\n${JSON.stringify({
+                  name: session?.supervisor?.name,
+                  duty: session?.supervisor?.duty?.name,
+                  role: session?.supervisor?.role,
+                  sessionId: session?.sessionId
+                }, null, 2)}`);
+              }}
+              style={[styles.controlButton, { backgroundColor: '#FEF3C7' }]}
+            >
+              <Ionicons name="bug" size={16} color="#F59E0B" />
+              <Text style={[styles.controlButtonText, { color: '#F59E0B' }]}>Debug</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => {
@@ -545,6 +579,9 @@ const EnhancedDashboard = ({
         {/* Supervisor Controls */}
         <SupervisorHeader />
 
+        {/* Convex Test - TEMPORARY */}
+        <ConvexTest />
+
         {/* TomTom Usage Monitor */}
         <TomTomUsageMonitor />
 
@@ -612,11 +649,11 @@ const EnhancedDashboard = ({
       />
 
       {/* Supervisor Control Panel */}
-      {showSupervisorControl && session && (
+      {showSupervisorControl && (
         <SupervisorControl
-          supervisorId={session.supervisor?.backendId || session.supervisor?.id}
-          supervisorName={session.supervisor?.name}
-          sessionId={session.sessionId}
+          supervisorId={session?.supervisor?.backendId || session?.supervisor?.id || 'pending'}
+          supervisorName={session?.supervisor?.name || 'Login Required'}
+          sessionId={session?.sessionId || null}
           supervisorSession={session}
           alerts={alertsData?.alerts || []}
           onClose={() => setShowSupervisorControl(false)}

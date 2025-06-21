@@ -11,6 +11,7 @@
 6. **SUPERVISOR SYSTEM**: 9 real supervisors with badge auth - don't create mock supervisors
 7. **WEBSOCKET WORKS**: Supervisor sync via WebSocket is implemented at /ws/supervisor-sync
 8. **SUPABASE AVAILABLE**: Full Supabase account is configured and ready to use for any data storage needs
+9. **CONVEX REAL-TIME SYNC**: Convex is now integrated for real-time sync without CORS/WebSocket issues
 
 ## 📍 PROJECT OVERVIEW
 
@@ -267,3 +268,95 @@ const styles = StyleSheet.create({
 5. Can be promoted to main display screen
 
 ### ⚠️ KNOWN ISSUES
+
+1. MapQuest API authentication broken
+2. Elgin/SCOOT integrations incomplete
+3. Some manual roadworks don't appear immediately
+4. Map tiles occasionally timeout
+
+## 🌐 CONVEX REAL-TIME SYNC (JUNE 2025 UPDATE)
+
+### Overview
+Convex has been integrated to solve WebSocket/polling/CORS issues permanently. Provides cloud-based real-time sync across all clients.
+
+### Production Configuration
+- **URL**: https://standing-octopus-908.convex.cloud
+- **Dashboard**: https://dashboard.convex.dev/d/standing-octopus-908
+- **Environment Variables**:
+  - Frontend: `EXPO_PUBLIC_CONVEX_URL=https://standing-octopus-908.convex.cloud`
+  - Backend: `CONVEX_URL=https://standing-octopus-908.convex.cloud`
+  - Render.com: Add `CONVEX_URL` to environment
+
+### Convex Schema (/Go_BARRY/convex/)
+```
+✅ IMPLEMENTED:
+- schema.ts - Database schema definition
+- supervisors.ts - Authentication & sessions
+- alerts.ts - Alert management functions
+- sync.ts - Real-time sync state
+
+TABLES:
+- supervisorSessions - Active supervisor logins
+- alerts - Traffic alerts with supervisor interactions
+- supervisorActions - Full audit trail
+- syncState - Shared state across all clients
+- emailGroups - Notification groups
+- systemConfig - System settings
+```
+
+### Frontend Integration
+```javascript
+// app/_layout.jsx - ConvexProvider wraps entire app
+import { ConvexProvider, ConvexReactClient } from 'convex/react';
+const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL);
+
+// hooks/useConvexSync.js - React hooks for easy usage
+import { useConvexSync } from '../hooks/useConvexSync';
+const { activeAlerts, dismissFromDisplay, syncState } = useConvexSync();
+```
+
+### Backend Integration
+```javascript
+// services/convexSync.js - Syncs alerts to Convex
+import { convexSync } from './services/convexSync.js';
+// Automatically syncs alerts in /api/alerts-enhanced endpoint
+```
+
+### Benefits
+- ✅ **No CORS Issues** - Convex handles all cross-origin requests
+- ✅ **Real-time Updates** - Instant sync without polling
+- ✅ **Auto-reconnection** - Built-in connection management
+- ✅ **Global Access** - Works from anywhere (gobarry.co.uk, Render, local)
+- ✅ **Type Safety** - Full TypeScript support
+- ✅ **Scalable** - Handles unlimited concurrent users
+
+### Development Commands
+```bash
+# Start Convex dev server (Go_BARRY folder)
+npx convex dev
+
+# Deploy to production
+npx convex deploy --prod
+
+# View dashboard
+npx convex dashboard
+```
+
+### Migration Status
+- ✅ Schema deployed to production
+- ✅ Frontend using Convex hooks
+- ✅ Backend syncing alerts to Convex
+- 🔄 WebSocket still available as fallback
+- 🎯 Next: Migrate supervisor actions to Convex
+
+### Testing Convex
+1. Check ConvexTest component on dashboard
+2. Look for "✅ Connected" status
+3. Backend logs: "✅ Synced X alerts to Convex"
+4. Dashboard: https://dashboard.convex.dev/d/standing-octopus-908
+
+### IMPORTANT: When Using Convex
+- Always use React hooks (useQuery, useMutation) in frontend
+- Backend uses HTTP API via convexSync service
+- Don't try to import _generated files directly in backend
+- Real-time sync happens automatically - no manual refresh needed

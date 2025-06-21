@@ -78,7 +78,7 @@ class SupervisorPollingService {
         'Content-Type': 'application/json',
       };
       if (this.sessionId) {
-        headers['X-Session-Id'] = this.sessionId;
+        headers['x-session-id'] = this.sessionId;
       }
       
       const response = await fetch(url, {
@@ -265,7 +265,7 @@ class SupervisorPollingService {
         'Content-Type': 'application/json',
       };
       if (this.sessionId) {
-        headers['X-Session-Id'] = this.sessionId;
+        headers['x-session-id'] = this.sessionId;
       }
 
       const response = await fetch(`${API_BASE}/api/supervisor/acknowledge-alert`, {
@@ -300,7 +300,7 @@ class SupervisorPollingService {
         'Content-Type': 'application/json',
       };
       if (this.sessionId) {
-        headers['X-Session-Id'] = this.sessionId;
+        headers['x-session-id'] = this.sessionId;
       }
 
       const response = await fetch(`${API_BASE}/api/supervisor/update-priority`, {
@@ -335,7 +335,7 @@ class SupervisorPollingService {
         'Content-Type': 'application/json',
       };
       if (this.sessionId) {
-        headers['X-Session-Id'] = this.sessionId;
+        headers['x-session-id'] = this.sessionId;
       }
 
       const response = await fetch(`${API_BASE}/api/supervisor/add-note`, {
@@ -369,7 +369,7 @@ class SupervisorPollingService {
         'Content-Type': 'application/json',
       };
       if (this.sessionId) {
-        headers['X-Session-Id'] = this.sessionId;
+        headers['x-session-id'] = this.sessionId;
       }
 
       const response = await fetch(`${API_BASE}/api/supervisor/broadcast-message`, {
@@ -404,7 +404,7 @@ class SupervisorPollingService {
         'Content-Type': 'application/json',
       };
       if (this.sessionId) {
-        headers['X-Session-Id'] = this.sessionId;
+        headers['x-session-id'] = this.sessionId;
       }
 
       const response = await fetch(`${API_BASE}/api/supervisor/dismiss-from-display`, {
@@ -438,7 +438,7 @@ class SupervisorPollingService {
         'Content-Type': 'application/json',
       };
       if (this.sessionId) {
-        headers['X-Session-Id'] = this.sessionId;
+        headers['x-session-id'] = this.sessionId;
       }
 
       const response = await fetch(`${API_BASE}/api/supervisor/lock-on-display`, {
@@ -472,7 +472,7 @@ class SupervisorPollingService {
         'Content-Type': 'application/json',
       };
       if (this.sessionId) {
-        headers['X-Session-Id'] = this.sessionId;
+        headers['x-session-id'] = this.sessionId;
       }
 
       const response = await fetch(`${API_BASE}/api/supervisor/unlock-from-display`, {

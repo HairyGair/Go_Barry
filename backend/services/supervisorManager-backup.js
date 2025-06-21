@@ -317,7 +317,6 @@ export async function authenticateSupervisor(supervisorId, badge) {
     console.log(`✅ Session created: ${sessionId} for ${supervisor.name}`);
     console.log(`📊 Total sessions created in this process: ${sessionCounter}`);
     console.log(`💾 Current session count in memory: ${Object.keys(supervisorSessions).length}`);
-    console.log(`👥 Active supervisors after login: ${Object.values(supervisorSessions).filter(s => s.active).length}`);
     
     // Log successful login
     await logActivity('supervisor_login', {
@@ -542,66 +541,28 @@ export async function getAllSupervisors() {
   try {
     const { data, error } = await supabase
       .from('supervisors')
-      .select('id, name, badge, role, shift, active, permissions')
+      .select('id, name, badge, role, shift, active')
       .eq('active', true)
       .order('name');
 
     if (error) {
       console.error('❌ Error getting supervisors:', error);
-      // Fallback to local data if Supabase fails
-      const fallbackSupervisors = [
-        { id: 'supervisor001', name: 'Alex Woodcock', badge: 'AW001', role: 'Supervisor', shift: 'Day', permissions: ['view-alerts', 'dismiss-alerts'], active: true },
-        { id: 'supervisor002', name: 'Andrew Cowley', badge: 'AC002', role: 'Supervisor', shift: 'Day', permissions: ['view-alerts', 'dismiss-alerts'], active: true },
-        { id: 'supervisor003', name: 'Anthony Gair', badge: 'AG003', role: 'Developer/Admin', shift: 'Day', permissions: ['view-alerts', 'dismiss-alerts', 'manage-supervisors'], active: true },
-        { id: 'supervisor004', name: 'Claire Fiddler', badge: 'CF004', role: 'Supervisor', shift: 'Day', permissions: ['view-alerts', 'dismiss-alerts'], active: true },
-        { id: 'supervisor005', name: 'David Hall', badge: 'DH005', role: 'Supervisor', shift: 'Day', permissions: ['view-alerts', 'dismiss-alerts'], active: true },
-        { id: 'supervisor006', name: 'James Daglish', badge: 'JD006', role: 'Supervisor', shift: 'Day', permissions: ['view-alerts', 'dismiss-alerts'], active: true },
-        { id: 'supervisor007', name: 'John Paterson', badge: 'JP007', role: 'Supervisor', shift: 'Day', permissions: ['view-alerts', 'dismiss-alerts'], active: true },
-        { id: 'supervisor008', name: 'Simon Glass', badge: 'SG008', role: 'Supervisor', shift: 'Day', permissions: ['view-alerts', 'dismiss-alerts'], active: true },
-        { id: 'supervisor009', name: 'Barry Perryman', badge: 'BP009', role: 'Service Delivery Controller', shift: 'Day', permissions: ['view-alerts', 'dismiss-alerts', 'manage-supervisors'], active: true }
-      ];
-      return fallbackSupervisors;
+      return [];
     }
 
-    // Filter out any null/undefined entries and ensure all required fields exist
-    const validData = (data || []).filter(supervisor => 
-      supervisor && 
-      supervisor.id && 
-      supervisor.name && 
-      supervisor.badge
-    ).map(supervisor => ({
-      ...supervisor,
-      role: supervisor.role || 'Supervisor',
-      shift: supervisor.shift || 'Day',
-      permissions: supervisor.permissions || ['view-alerts', 'dismiss-alerts']
-    }));
-
-    return validData;
+    return data || [];
   } catch (error) {
     console.error('❌ Error getting supervisors:', error);
     return [];
   }
 }
 
-// Get active supervisors (currently signed in) - FIXED
+// Get active supervisors (currently signed in)
 export async function getActiveSupervisors() {
   console.log(`🔍 getActiveSupervisors called`);
-  console.log(`💾 Current sessions in memory: ${Object.keys(supervisorSessions).length}`);
-  console.log(`📋 Session IDs: ${Object.keys(supervisorSessions).join(', ')}`);
   
   try {
-    // First, always try to use memory cache as it's most reliable
-    const memoryResult = getActiveFromMemory();
-    console.log(`💾 Memory cache returned ${memoryResult.length} active supervisors`);
-    
-    if (memoryResult.length > 0) {
-      console.log(`✅ Returning ${memoryResult.length} active supervisors from memory`);
-      return memoryResult;
-    }
-    
-    // If memory is empty, try Supabase as backup
-    console.log(`📡 Memory empty, trying Supabase...`);
-    
+    // Query Supabase for active sessions
     const { data, error } = await supabase
       .from('supervisor_sessions')
       .select('*')
@@ -610,29 +571,29 @@ export async function getActiveSupervisors() {
     
     if (error) {
       console.error('❌ Error querying Supabase for active sessions:', error);
-      // Return empty array on error
-      return [];
+      // Fall back to memory cache
+      return getActiveFromMemory();
     }
     
-    if (data && data.length > 0) {
+    if (data) {
       console.log(`💾 Found ${data.length} active sessions in Supabase`);
       
       // Update memory cache
       supervisorSessions = {};
       data.forEach(session => {
         supervisorSessions[session.id] = {
-          supervisorId: session.supervisor_id,
-          supervisorName: session.supervisor_name,
-          supervisorBadge: session.supervisor_badge,
-          sessionToken: session.session_token,
-          startTime: session.login_time,
-          lastActivity: session.last_activity,
-          expiresAt: session.expires_at,
-          active: session.is_active,
+        supervisorId: session.supervisor_id,
+        supervisorName: session.supervisor_name,
+        supervisorBadge: session.supervisor_badge, // Changed from badge_number
+        sessionToken: session.session_token,
+        startTime: session.login_time,
+        lastActivity: session.last_activity,
+        expiresAt: session.expires_at,
+        active: session.is_active,
           isAdmin: session.is_admin,
-          role: session.role,
-          shift: session.shift
-        };
+        role: session.role,
+        shift: session.shift
+      };
       });
       
       // Check for timeouts
@@ -653,27 +614,19 @@ export async function getActiveSupervisors() {
       console.log(`✅ Returning ${result.length} active supervisors from Supabase:`, result.map(s => s.name));
       return result;
     }
-    
-    console.log(`📭 No active sessions found in Supabase either`);
-    return [];
-    
   } catch (error) {
     console.error('❌ Exception getting active supervisors:', error);
-    return [];
   }
+  
+  // Fallback to memory
+  return getActiveFromMemory();
 }
 
-// Helper function for memory-based active supervisors - IMPROVED
+// Helper function for memory-based active supervisors
 function getActiveFromMemory() {
-  console.log(`💾 Checking memory cache for active supervisors`);
-  console.log(`📊 Total sessions in memory: ${Object.keys(supervisorSessions).length}`);
-  
-  const activeSessions = Object.values(supervisorSessions).filter(session => {
-    console.log(`  Checking session: ${session.supervisorName}, active: ${session.active}`);
-    return session.active === true;
-  });
-  
-  console.log(`✅ Found ${activeSessions.length} active sessions in memory`);
+  console.log(`💾 Using memory cache for active supervisors`);
+  const activeSessions = Object.values(supervisorSessions).filter(session => session.active);
+  console.log(`✅ Active sessions found in memory: ${activeSessions.length}`);
   
   const result = activeSessions.map(session => ({
     supervisorId: session.supervisorId,
@@ -681,10 +634,6 @@ function getActiveFromMemory() {
     sessionStart: session.startTime,
     lastActivity: session.lastActivity
   }));
-  
-  if (result.length > 0) {
-    console.log(`📋 Active supervisors:`, result.map(s => s.name).join(', '));
-  }
   
   return result;
 }
@@ -894,219 +843,6 @@ export async function hasAdminPermissions(supervisorId) {
   }
 }
 
-// Add new supervisor (admin only)
-export async function addSupervisor(adminSessionId, supervisorData) {
-  try {
-    // Validate admin session
-    const sessionValidation = await validateSupervisorSession(adminSessionId);
-    if (!sessionValidation.success) {
-      return { success: false, error: 'Invalid admin session' };
-    }
-    
-    const adminSupervisor = sessionValidation.supervisor;
-    
-    // Check admin permissions
-    if (!(await hasAdminPermissions(adminSupervisor.id))) {
-      return { success: false, error: 'Insufficient permissions - admin access required' };
-    }
-    
-    // Generate new supervisor ID
-    const { data: existingSupervisors, error: countError } = await supabase
-      .from('supervisors')
-      .select('id')
-      .order('id', { ascending: false })
-      .limit(1);
-    
-    let newId;
-    if (existingSupervisors && existingSupervisors.length > 0) {
-      const lastId = existingSupervisors[0].id;
-      const lastNum = parseInt(lastId.replace('supervisor', ''));
-      newId = `supervisor${String(lastNum + 1).padStart(3, '0')}`;
-    } else {
-      newId = 'supervisor010'; // Start from 010 since we have 001-009
-    }
-    
-    // Check if badge already exists
-    const { data: existingBadge, error: badgeError } = await supabase
-      .from('supervisors')
-      .select('badge')
-      .eq('badge', supervisorData.badge)
-      .single();
-    
-    if (existingBadge) {
-      return { success: false, error: 'Badge number already exists' };
-    }
-    
-    // Create new supervisor
-    const newSupervisor = {
-      id: newId,
-      name: supervisorData.name,
-      badge: supervisorData.badge,
-      role: supervisorData.role || 'Supervisor',
-      shift: supervisorData.shift || 'Day',
-      permissions: supervisorData.permissions || ['view-alerts', 'dismiss-alerts'],
-      active: true,
-      created_at: new Date().toISOString(),
-      created_by: adminSupervisor.id
-    };
-    
-    // Insert into Supabase
-    const { data, error } = await supabase
-      .from('supervisors')
-      .insert(newSupervisor)
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('❌ Failed to add supervisor:', error);
-      return { success: false, error: 'Failed to add supervisor to database' };
-    }
-    
-    // Update local JSON file as backup
-    try {
-      const fs = await import('fs/promises');
-      const path = await import('path');
-      const __dirname = dirname(fileURLToPath(import.meta.url));
-      const supervisorsPath = path.join(__dirname, '..', 'data', 'supervisors.json');
-      
-      const supervisorsData = JSON.parse(await fs.readFile(supervisorsPath, 'utf8'));
-      supervisorsData[newId] = newSupervisor;
-      await fs.writeFile(supervisorsPath, JSON.stringify(supervisorsData, null, 2));
-    } catch (fileError) {
-      console.warn('⚠️ Failed to update local supervisors.json:', fileError);
-    }
-    
-    // Log the action
-    await logActivity('supervisor_added', {
-      newSupervisorId: newId,
-      newSupervisorName: supervisorData.name,
-      newSupervisorBadge: supervisorData.badge,
-      addedBy: adminSupervisor.name
-    }, { id: adminSupervisor.id, name: adminSupervisor.name });
-    
-    console.log(`✅ New supervisor added: ${supervisorData.name} (${supervisorData.badge}) by ${adminSupervisor.name}`);
-    
-    return {
-      success: true,
-      message: `Successfully added supervisor ${supervisorData.name}`,
-      supervisor: data,
-      adminSupervisor: {
-        id: adminSupervisor.id,
-        name: adminSupervisor.name,
-        badge: adminSupervisor.badge
-      }
-    };
-  } catch (error) {
-    console.error('❌ Failed to add supervisor:', error);
-    return { success: false, error: error.message };
-  }
-}
-
-// Delete supervisor (admin only)
-export async function deleteSupervisor(adminSessionId, supervisorIdToDelete) {
-  try {
-    // Validate admin session
-    const sessionValidation = await validateSupervisorSession(adminSessionId);
-    if (!sessionValidation.success) {
-      return { success: false, error: 'Invalid admin session' };
-    }
-    
-    const adminSupervisor = sessionValidation.supervisor;
-    
-    // Check admin permissions
-    if (!(await hasAdminPermissions(adminSupervisor.id))) {
-      return { success: false, error: 'Insufficient permissions - admin access required' };
-    }
-    
-    // Prevent deleting self
-    if (supervisorIdToDelete === adminSupervisor.id) {
-      return { success: false, error: 'Cannot delete your own account' };
-    }
-    
-    // Get supervisor details before deletion
-    const { data: supervisorToDelete, error: fetchError } = await supabase
-      .from('supervisors')
-      .select('*')
-      .eq('id', supervisorIdToDelete)
-      .single();
-    
-    if (fetchError || !supervisorToDelete) {
-      return { success: false, error: 'Supervisor not found' };
-    }
-    
-    // Soft delete - set active to false instead of hard delete
-    const { error } = await supabase
-      .from('supervisors')
-      .update({ 
-        active: false,
-        deleted_at: new Date().toISOString(),
-        deleted_by: adminSupervisor.id
-      })
-      .eq('id', supervisorIdToDelete);
-    
-    if (error) {
-      console.error('❌ Failed to delete supervisor:', error);
-      return { success: false, error: 'Failed to delete supervisor from database' };
-    }
-    
-    // Update local JSON file as backup
-    try {
-      const fs = await import('fs/promises');
-      const path = await import('path');
-      const __dirname = dirname(fileURLToPath(import.meta.url));
-      const supervisorsPath = path.join(__dirname, '..', 'data', 'supervisors.json');
-      
-      const supervisorsData = JSON.parse(await fs.readFile(supervisorsPath, 'utf8'));
-      if (supervisorsData[supervisorIdToDelete]) {
-        supervisorsData[supervisorIdToDelete].active = false;
-        supervisorsData[supervisorIdToDelete].deletedAt = new Date().toISOString();
-        supervisorsData[supervisorIdToDelete].deletedBy = adminSupervisor.id;
-        await fs.writeFile(supervisorsPath, JSON.stringify(supervisorsData, null, 2));
-      }
-    } catch (fileError) {
-      console.warn('⚠️ Failed to update local supervisors.json:', fileError);
-    }
-    
-    // Sign out any active sessions for the deleted supervisor
-    Object.entries(supervisorSessions).forEach(([sessionId, session]) => {
-      if (session.supervisorId === supervisorIdToDelete && session.active) {
-        session.active = false;
-        session.endTime = new Date().toISOString();
-        session.deletionLogout = true;
-        session.deletedBy = adminSupervisor.id;
-      }
-    });
-    
-    // Log the action
-    await logActivity('supervisor_deleted', {
-      deletedSupervisorId: supervisorIdToDelete,
-      deletedSupervisorName: supervisorToDelete.name,
-      deletedSupervisorBadge: supervisorToDelete.badge,
-      deletedBy: adminSupervisor.name
-    }, { id: adminSupervisor.id, name: adminSupervisor.name });
-    
-    console.log(`🗑️ Supervisor deleted: ${supervisorToDelete.name} (${supervisorToDelete.badge}) by ${adminSupervisor.name}`);
-    
-    return {
-      success: true,
-      message: `Successfully deleted supervisor ${supervisorToDelete.name}`,
-      deletedSupervisor: {
-        id: supervisorToDelete.id,
-        name: supervisorToDelete.name,
-        badge: supervisorToDelete.badge
-      },
-      adminSupervisor: {
-        id: adminSupervisor.id,
-        name: adminSupervisor.name,
-        badge: adminSupervisor.badge
-      }
-    };
-  } catch (error) {
-    console.error('❌ Failed to delete supervisor:', error);
-    return { success: false, error: error.message };
-  }
-}
-
 // Log out all supervisors (admin function)
 export async function logoutAllSupervisors(adminSessionId) {
   try {
@@ -1281,8 +1017,6 @@ export default {
   // Admin functions
   hasAdminPermissions,
   logoutAllSupervisors,
-  addSupervisor,
-  deleteSupervisor,
   // Export sessions for debugging
   supervisorSessions,
   moduleLoadTime

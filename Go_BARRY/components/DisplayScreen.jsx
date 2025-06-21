@@ -17,15 +17,25 @@ const DisplayScreen = () => {
   const [lastUpdateTime, setLastUpdateTime] = useState(null);
   const [attentionMode, setAttentionMode] = useState(false);
   const [weather, setWeather] = useState({ condition: 'CLEAR', temp: '15°C', icon: '☀️' });
-  const [syncConnected, setSyncConnected] = useState(true);
+  const [syncConnected, setSyncConnected] = useState(true); // Polling is always "connected"
+  const [lastSyncTime, setLastSyncTime] = useState(null);
+  const [syncAge, setSyncAge] = useState(0);
+
+  // Note: WebSocket disabled due to proxy/CDN not supporting WebSocket upgrades
+  // Using polling instead for reliability
 
   // Update time every second
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
+      
+      // Update sync age
+      if (lastSyncTime) {
+        setSyncAge(Math.round((new Date() - lastSyncTime) / 1000));
+      }
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [lastSyncTime]);
 
   // Fetch supervisor activity via polling
   const fetchSupervisorActivity = async () => {
@@ -36,8 +46,9 @@ const DisplayScreen = () => {
       if (response.ok) {
         const activeData = await response.json();
         console.log('👥 Active supervisors response:', activeData);
-        if (activeData.activeSupervisors) {
+        if (activeData.activeSupervisors && Array.isArray(activeData.activeSupervisors)) {
           setActiveSupervisors(activeData.activeSupervisors);
+          console.log(`✅ Updated active supervisors list: ${activeData.activeSupervisors.length} supervisors`);
         }
       } else {
         console.error('❌ Failed to fetch active supervisors:', response.status);
@@ -71,6 +82,7 @@ const DisplayScreen = () => {
       }
       
       setSyncConnected(true);
+      setLastSyncTime(new Date());
     } catch (err) {
       console.error('❌ Activity fetch error:', err);
       setSyncConnected(false);
@@ -85,22 +97,25 @@ const DisplayScreen = () => {
       try {
         parsedDetails = JSON.parse(details);
       } catch (e) {
-        console.warn('Failed to parse details:', details);
-        parsedDetails = {};
+        // If JSON parse fails, try to extract key info from string
+        console.warn('Failed to parse details as JSON:', details);
+        parsedDetails = { raw: details };
       }
+    } else if (!details) {
+      parsedDetails = {};
     }
     
     switch (action) {
       case 'supervisor_login':
-        return `logged in (${parsedDetails?.badge || 'unknown badge'})`;
+        return `logged in as ${parsedDetails?.role || 'Supervisor'}`;
       case 'supervisor_logout':
-        return `logged out (${parsedDetails?.sessionDuration || 'unknown duration'})`;
+        return `logged out after ${parsedDetails?.sessionDuration || 'session'}`;
       case 'alert_dismissed':
-        return `dismissed alert: ${parsedDetails?.reason || 'No reason'}`;
+        return `dismissed alert: ${parsedDetails?.reason || 'No reason provided'}`;
       case 'session_timeout':
-        return `auto-timeout after ${parsedDetails?.inactiveMinutes || '?'} minutes`;
+        return `timed out (inactive ${parsedDetails?.inactiveMinutes || '?'}m)`;
       case 'roadwork_created':
-        return `created roadwork at ${parsedDetails?.location || 'unknown location'}`;
+        return `created roadwork: ${parsedDetails?.location || 'unknown location'}`;
       case 'email_sent':
         return `sent email to ${parsedDetails?.recipients?.length || 0} groups`;
       case 'duty_started':
@@ -132,10 +147,16 @@ const DisplayScreen = () => {
     }
   };
 
-  // Polling for supervisor activity
+  // Polling for supervisor activity (primary method since WebSocket has proxy issues)
   useEffect(() => {
+    // Initial fetch
     fetchSupervisorActivity();
-    const interval = setInterval(fetchSupervisorActivity, 15000); // 15s intervals for real-time activity
+    
+    // Poll every 10 seconds for near real-time updates
+    const interval = setInterval(() => {
+      fetchSupervisorActivity();
+    }, 10000); // 10s intervals
+    
     return () => clearInterval(interval);
   }, []);
 
@@ -413,9 +434,10 @@ const DisplayScreen = () => {
             color={apiResponseTime && apiResponseTime < 1000 ? '#10b981' : '#f59e0b'}
           />
           <StatusBadge 
-            icon="🔌" 
-            label={syncConnected ? 'SYNC' : 'OFFLINE'} 
+            icon="🔄" 
+            label={syncConnected ? 'POLLING' : 'OFFLINE'} 
             color={syncConnected ? '#10b981' : '#ef4444'}
+            pulse={!syncConnected}
           />
           {attentionMode && (
             <StatusBadge 
@@ -774,6 +796,15 @@ const DisplayScreen = () => {
               letterSpacing: '0.5px'
             }}>
               👥 Active Personnel ({activeSupervisors.length})
+            {lastSyncTime && (
+              <span style={{
+                fontSize: '9px',
+                color: '#475569',
+                marginLeft: '8px'
+              }}>
+                • Updated {syncAge}s ago
+              </span>
+            )}
             </div>
             {activeSupervisors.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -801,7 +832,7 @@ const DisplayScreen = () => {
                       borderRadius: '10px',
                       fontWeight: '600'
                     }}>
-                      {supervisor.role === 'admin' ? 'ADMIN' : 'ACTIVE'}
+                      {supervisor.role?.includes('Admin') || supervisor.role?.includes('Controller') ? 'ADMIN' : 'ACTIVE'}
                     </span>
                   </div>
                 ))}
@@ -870,12 +901,27 @@ const DisplayScreen = () => {
                   </div>
                   <div style={{
                     fontSize: '9px',
-                    color: '#64748b'
+                    color: '#64748b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
                   }}>
                     {new Date(activity.timestamp).toLocaleTimeString('en-GB', {
                       hour: '2-digit',
                       minute: '2-digit'
                     })}
+                    {idx === 0 && (
+                      <span style={{
+                        fontSize: '8px',
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                        color: '#93c5fd',
+                        padding: '1px 4px',
+                        borderRadius: '4px',
+                        fontWeight: '600'
+                      }}>
+                        NEW
+                      </span>
+                    )}
                   </div>
                 </div>
               ))
