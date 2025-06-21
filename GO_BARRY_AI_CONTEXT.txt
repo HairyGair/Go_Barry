@@ -1,10 +1,13 @@
 # GO BARRY - CRITICAL PROJECT CONTEXT FOR AI ASSISTANTS
 # READ THIS FIRST IN EVERY NEW CHAT SESSION
+# Last Updated: June 2025
 
 ## 🚨 CRITICAL REMINDERS - DON'T FORGET THESE!
 
 1. **MEMORY LIMIT**: Backend runs on Render.com with 2GB RAM limit - ALWAYS optimize for memory
 2. **NO localStorage/sessionStorage**: These don't work in Expo/React Native web - use React state only
+   - Exception: useSupervisorSession hook uses localStorage ONLY for web persistence
+   - NEVER use browser storage in artifacts or general components
 3. **CORS IS FIXED**: Don't try to "fix" CORS - it's already properly configured for gobarry.co.uk
 4. **DEDUPLICATION WORKS**: Alert deduplication is implemented and working - don't reimplement
 5. **IMPORT STYLES**: Use ES6 imports (import X from 'Y') not CommonJS (require)
@@ -12,6 +15,8 @@
 7. **WEBSOCKET WORKS**: Supervisor sync via WebSocket is implemented at /ws/supervisor-sync
 8. **SUPABASE AVAILABLE**: Full Supabase account is configured and ready to use for any data storage needs
 9. **CONVEX REAL-TIME SYNC**: Convex is now integrated for real-time sync without CORS/WebSocket issues
+10. **SESSION MANAGEMENT**: Don't clear localStorage aggressively - it breaks login persistence
+11. **ADMIN ACCESS**: Only AG003 (Anthony Gair) and BP009 (Barry Perryman) have admin privileges
 
 ## 📍 PROJECT OVERVIEW
 
