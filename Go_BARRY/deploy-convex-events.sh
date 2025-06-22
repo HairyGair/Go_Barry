@@ -20,7 +20,7 @@ echo "✅ Found convex directory"
 echo "🔧 Deploying schema and functions to production..."
 
 # Deploy to production
-npx convex deploy --prod
+npx convex deploy
 
 if [ $? -eq 0 ]; then
     echo "✅ Convex deployment successful!"

@@ -19,8 +19,10 @@ import healthRoutes from './routes/health.js';
 import healthExtendedRouter from './routes/healthExtended.js';
 import supervisorAPI from './routes/supervisorAPI.js';
 import roadworksAPI from './routes/roadworksAPI.js';
-import roadworkAlertsAPI from './routes/roadworkAlertsAPI.js';
+import roadworkAlertsAPI from './routes/roadworkAlertsAPI-simple.js';
+console.log('✅ roadworkAlertsAPI-simple imported successfully');
 import microsoftAuthAPI from './routes/microsoftAuthAPI.js';
+console.log('✅ microsoftAuthAPI imported successfully');
 import gtfsAPI from './routes/gtfsAPI.js';
 import intelligenceAPI from './routes/intelligenceAPI.js';
 import incidentAPI from './routes/incidentAPI.js';
@@ -331,7 +333,24 @@ app.use('/api/supervisor', supervisorAPI);
 app.use('/api/roadworks', roadworksAPI);
 
 // Roadwork alerts routes (supervisor-created roadwork notifications)
+console.log('📦 Registering roadwork alerts routes at /api/roadwork-alerts...');
 app.use('/api/roadwork-alerts', roadworkAlertsAPI);
+console.log('✅ Roadwork alerts routes registered successfully');
+
+// Test endpoint for roadwork alerts debugging (after main router)
+app.get('/api/roadwork-alerts-test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Roadwork alerts endpoint is working!',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      'GET /api/roadwork-alerts': 'List all roadworks',
+      'POST /api/roadwork-alerts': 'Create new roadwork',
+      'GET /api/roadwork-alerts/email-groups': 'Get email groups',
+      'GET /api/roadwork-alerts-test': 'This test endpoint'
+    }
+  });
+});
 
 // Microsoft authentication routes
 app.use('/api/auth', microsoftAuthAPI);
