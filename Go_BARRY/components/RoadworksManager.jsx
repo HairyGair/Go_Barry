@@ -359,6 +359,48 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
 
 
 
+  const handlePushToDisplay = async (roadwork) => {
+    if (!isLoggedIn) {
+      Alert.alert('Error', 'You must be logged in to push alerts to display');
+      return;
+    }
+
+    try {
+      console.log(`📺 Pushing roadwork to display: ${roadwork.id}`);
+      
+      const response = await fetch(`${apiBaseUrl}/api/display/push-alert`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: sessionId,
+          alert: {
+            ...roadwork,
+            alertCategory: 'roadwork',
+            affectsRoutes: roadwork.affectedRoutes || [],
+            coordinates: roadwork.coordinates
+          },
+          displayDuration: 300, // 5 minutes
+          priority: roadwork.priority === 'critical' ? 'high' : 'normal'
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('✅ Roadwork pushed to display successfully');
+        Alert.alert('Success', 'Roadwork pushed to control room display screen');
+      } else {
+        console.error('❌ Failed to push to display:', data.error);
+        Alert.alert('Error', data.error || 'Failed to push to display');
+      }
+    } catch (error) {
+      console.error('❌ Error pushing to display:', error);
+      Alert.alert('Error', `Failed to push to display: ${error.message}`);
+    }
+  };
+
   const handlePromoteToDisplay = async (roadworkId) => {
     if (!isLoggedIn) {
       Alert.alert('Error', 'You must be logged in to promote roadworks');
@@ -603,6 +645,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
         roadwork={selectedRoadwork}
         onClose={() => setShowDetailsModal(false)}
         onPromoteToDisplay={handlePromoteToDisplay}
+        onPushToDisplay={handlePushToDisplay}
         onDismiss={handleDismissRoadwork}
         onAcknowledge={(roadworkId) => {
           setShowDetailsModal(false);
@@ -626,7 +669,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
 
 
 // Roadwork Details Modal Component
-const RoadworkDetailsModal = ({ visible, roadwork, onClose, onPromoteToDisplay, onDismiss, onAcknowledge, isAdmin }) => {
+const RoadworkDetailsModal = ({ visible, roadwork, onClose, onPromoteToDisplay, onPushToDisplay, onDismiss, onAcknowledge, isAdmin }) => {
   if (!visible || !roadwork) return null;
 
   const status = ROADWORKS_STATUSES[roadwork.status] || ROADWORKS_STATUSES.reported;
@@ -1284,6 +1327,23 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  // Push to Display Button Styles
+  pushToDisplayButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: '#EBF5FF',
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    gap: 8,
+  },
+  pushToDisplayButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3B82F6',
   },
 });
 

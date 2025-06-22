@@ -1,0 +1,21 @@
+GO BARRY Debug Report - Sun 22 Jun 2025 16:33:41 BST
+================================
+
+System Info:
+Darwin Anthonys-MacBook-Air.local 24.6.0 Darwin Kernel Version 24.6.0: Wed Jun 11 21:21:48 PDT 2025; root:xnu-11417.140.62.501.1~2/RELEASE_ARM64_T8132 arm64
+
+Node Version:
+v22.15.0
+
+Backend Status:
+Not running
+
+Production Status:
+{"success":true,"message":"Go BARRY Backend is running on Render.com","port":"10000","timestamp":"2025-06-22T15:33:41.618Z","path":"/api/health-extended","renderOptimized":true}
+Alert Data:
+{
+  "totalAlerts": 0,
+  "sources": {},
+  "lastUpdated": "2025-06-22T15:33:42.183Z",
+  "mode": "render_startup_mode"
+}

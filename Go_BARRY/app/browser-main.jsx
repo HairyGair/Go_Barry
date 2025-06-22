@@ -17,7 +17,6 @@ import { Ionicons } from '@expo/vector-icons';
 // Import all our v3.0 components
 import SupervisorLogin from '../components/SupervisorLogin';
 import SupervisorControl from '../components/SupervisorControl';
-import SupervisorDisplayIntegrationTest from '../components/dev/SupervisorDisplayIntegrationTest';
 import EnhancedDashboard from '../components/EnhancedDashboard';
 import IncidentManager from '../components/IncidentManager';
 import AIDisruptionManager from '../components/AIDisruptionManager';
@@ -25,13 +24,7 @@ import MessageDistributionCenter from '../components/MessageDistributionCenter';
 import AutomatedReportingSystem from '../components/AutomatedReportingSystem';
 import SystemHealthMonitor from '../components/SystemHealthMonitor';
 import TrainingHelpSystem from '../components/TrainingHelpSystem';
-import SimpleAPITest from '../components/dev/SimpleAPITest';
 import RoadworksManager from '../components/RoadworksManager';
-import SupervisorCard from '../components/archive/SupervisorCard';
-import SupervisorCardDemo from '../components/dev/SupervisorCardDemo';
-import QuickSupervisorTest from '../components/dev/QuickSupervisorTest';
-import WebSocketTest from '../components/dev/WebSocketTest';
-import WebSocketDiagnostics from '../components/dev/WebSocketDiagnostics';
 import AdminPanel from '../components/admin/AdminPanel';
 import { useSupervisorSession } from '../components/hooks/useSupervisorSession';
 import { useBarryAPI } from '../components/hooks/useBARRYapi';
@@ -56,13 +49,7 @@ const BROWSER_NAVIGATION = {
     description: 'Interactive supervisor controls & display sync',
     color: '#DC2626'
   },
-  integration_test: {
-    title: 'Integration Test',
-    icon: 'flask',
-    component: SupervisorDisplayIntegrationTest,
-    description: '🧪 Test supervisor ↔ display real-time sync',
-    color: '#7C3AED'
-  },
+
   dashboard: {
     title: 'Control Dashboard',
     icon: 'stats-chart',
@@ -119,41 +106,7 @@ const BROWSER_NAVIGATION = {
     description: 'Learn Go Barry & get support',
     color: '#6366F1'
   },
-  test: {
-    title: 'Quick Supervisor Test',
-    icon: 'people-circle',
-    component: QuickSupervisorTest,
-    description: 'Quick test of supervisor card components',
-    color: '#10B981'
-  },
-  apitest: {
-    title: 'API Test',
-    icon: 'bug',
-    component: SimpleAPITest,
-    description: 'Test API connectivity and data flow',
-    color: '#F97316'
-  },
-  supervisordemo: {
-    title: 'Supervisor Card Demo',
-    icon: 'people',
-    component: SupervisorCardDemo,
-    description: 'Demo individual supervisor tracking features',
-    color: '#7C3AED'
-  },
-  websockettest: {
-    title: 'WebSocket Test',
-    icon: 'wifi',
-    component: WebSocketTest,
-    description: 'Test WebSocket connections and authentication',
-    color: '#EC4899'
-  },
-  diagnostics: {
-    title: 'WebSocket Diagnostics',
-    icon: 'pulse',
-    component: WebSocketDiagnostics,
-    description: 'Advanced diagnostics for connection issues',
-    color: '#DC2626'
-  }
+
 };
 
 const BrowserMainApp = () => {
@@ -354,8 +307,6 @@ const BrowserMainApp = () => {
               supervisorSession={supervisorSession} // Pass full session
               alerts={alerts}
             />
-          ) : activeScreen === 'integration_test' ? (
-            <SupervisorDisplayIntegrationTest />
           ) : activeScreen === 'admin' ? (
             <AdminPanel onClose={() => setActiveScreen('supervisor')} />
           ) : (

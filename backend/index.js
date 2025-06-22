@@ -36,6 +36,7 @@ import supervisorManager from './services/supervisorManager.js';
 import serviceFrequencyAnalyzer from './services/serviceFrequencyAnalyzer.js';
 import supervisorSyncService from './services/supervisorSync.js';
 import enhancedDataSourceManager from './services/enhancedDataSourceManager.js';
+import displayAPI from './routes/displayAPI.js';
 import streetManagerWebhooks from './services/streetManagerWebhooksSimple.js';
 import { createServer } from 'http';
 import { deduplicateAlerts, cleanupExpiredDismissals, generateAlertHash } from './utils/alertDeduplication.js';
@@ -343,6 +344,9 @@ app.use('/api/gtfs', gtfsAPI);
 // Incident management routes
 app.use('/api/incidents', incidentAPI);
 
+// Display management routes
+app.use('/api/display', displayAPI);
+
 // TomTom Enhancement API routes
 app.use('/api/enhancement', enhancementAPI);
 
@@ -368,6 +372,8 @@ console.log('📦 Registering duty management routes...');
 app.use('/api/duty', dutyAPI);
 console.log('✅ Duty management routes registered');
 
+import { enhanceAlertWithCategory } from './services/alertCategorizer.js';
+
 // Filtered alerts endpoints for manager screens
 app.get('/api/roadworks-alerts', async (req, res) => {
   try {
@@ -380,14 +386,11 @@ app.get('/api/roadworks-alerts', async (req, res) => {
       return res.json({ success: true, roadworks: [] });
     }
     
+    // Enhance alerts with categories
+    const categorizedAlerts = aggregatedResult.incidents.map(enhanceAlertWithCategory);
+    
     // Filter for roadworks only
-    const roadworkAlerts = aggregatedResult.incidents.filter(alert => 
-      alert.type === 'roadwork' || 
-      alert.category === 'roadwork' ||
-      (alert.iconCategory && [6, 7, 10, 11].includes(alert.iconCategory)) ||
-      (alert.title && alert.title.toLowerCase().includes('roadwork')) ||
-      (alert.description && alert.description.toLowerCase().includes('roadwork'))
-    );
+    const roadworkAlerts = categorizedAlerts.filter(alert => alert.isRoadwork);
     
     console.log(`✅ Filtered ${roadworkAlerts.length} roadwork alerts from ${aggregatedResult.incidents.length} total`);
     
@@ -421,13 +424,11 @@ app.get('/api/incident-alerts', async (req, res) => {
       return res.json({ success: true, incidents: [] });
     }
     
+    // Enhance alerts with categories
+    const categorizedAlerts = aggregatedResult.incidents.map(enhanceAlertWithCategory);
+    
     // Filter for incidents only (not roadworks)
-    const incidentAlerts = aggregatedResult.incidents.filter(alert => 
-      alert.type === 'incident' || 
-      alert.category === 'incident' ||
-      (alert.iconCategory && ![6, 7, 10, 11].includes(alert.iconCategory)) ||
-      (!alert.type && !alert.category) // Default to incident if type not specified
-    );
+    const incidentAlerts = categorizedAlerts.filter(alert => alert.isIncident);
     
     // Also get manual incidents
     const manualIncidents = getManualIncidents();
@@ -1132,6 +1133,8 @@ app.get('/api/alerts-enhanced', async (req, res) => {
     try {
       filteredAlerts = enhancedAlertFiltering(allAlerts, requestId);
       filteredAlerts = filterDismissedAlerts(filteredAlerts, requestId);
+      // Add categorization
+      filteredAlerts = filteredAlerts.map(enhanceAlertWithCategory);
     } catch (filterError) {
       console.error(`❌ Filtering failed: ${filterError.message}`);
       // Fallback to basic filtering

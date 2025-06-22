@@ -1,6 +1,6 @@
 # GO BARRY - CRITICAL PROJECT CONTEXT FOR AI ASSISTANTS
 # READ THIS FIRST IN EVERY NEW CHAT SESSION
-# Last Updated: June 2025
+# Last Updated: June 22, 2025 - Cleaned up test screens, fixed imports
 
 ## 🚨 CRITICAL REMINDERS - DON'T FORGET THESE!
 
@@ -378,3 +378,52 @@ npx convex dashboard
 - Don't try to import _generated files directly in backend
 - Real-time sync happens automatically - no manual refresh needed
 - Supervisor login now requires Convex to be running for full sync
+
+## 🧹 RECENT CLEANUP (JUNE 2025)
+
+### Removed Test Screens
+The following test/development screens have been removed from browser-main.jsx:
+- ❌ Integration Test
+- ❌ Quick Supervisor Test
+- ❌ API Test
+- ❌ Supervisor Card Demo
+- ❌ WebSocket Test
+- ❌ WebSocket Diagnostics
+
+### Current Navigation Structure
+The Supervisor Screen (browser-main.jsx) now only shows production features:
+1. **Admin Panel** - System administration (admin only - AG003/BP009)
+2. **Supervisor Control** - Interactive supervisor controls & display sync
+3. **Control Dashboard** - Real-time traffic intelligence overview
+4. **Incident Manager** - Create & track incidents with GTFS route detection
+5. **Roadworks Manager** - Manage roadworks & create Blink diversions
+6. **AI Disruption Manager** - Smart diversions & automated messaging
+7. **Message Distribution** - Multi-channel communication system
+8. **Automated Reports** - Daily reports & operational summaries
+9. **System Health** - Real-time performance monitoring
+10. **Training & Help** - Learn Go Barry & get support
+
+### Recent Fixes
+- ✅ Fixed import path in RoadworksManager.jsx (use `./hooks/` not `../hooks/`)
+- ✅ Cleaned up navigation to remove all test screens
+- ✅ useSupervisorSession hook properly integrated across components
+
+### Current Issues (June 2025)
+1. **Backend Connection**: System showing "Error" for Backend API and Database
+   - Backend needs to be started: `cd backend && npm start`
+   - Production showing 0 alerts - API services may not be fetching data
+2. **WebSocket**: Shows as disconnected (testing mode)
+3. **HERE API**: Recently removed from services due to issues
+
+### Important File Locations
+- **Main Entry Points**:
+  - `/app/index.jsx` - Landing page with Control Room/Supervisor options
+  - `/app/browser-main.jsx` - Supervisor interface (web)
+  - `/app/display.jsx` - Control room display (web)
+- **Key Hooks**:
+  - `/components/hooks/useSupervisorSession.js` - Session management
+  - `/components/hooks/useConvexSync.js` - Real-time sync
+  - `/components/hooks/useBarryAPI.js` - API integration
+- **Admin Components**:
+  - `/components/admin/AdminPanel.jsx` - Main admin interface
+  - `/components/SupervisorManagement.jsx` - Supervisor management

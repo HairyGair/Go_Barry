@@ -324,8 +324,8 @@ export const batchInsertAlerts = mutation({
     })),
   },
   handler: async (ctx, args) => {
-    const insertedCount = 0;
-    const updatedCount = 0;
+    let insertedCount = 0;
+    let updatedCount = 0;
 
     for (const alertData of args.alerts) {
       // Check if alert exists
@@ -348,7 +348,14 @@ export const batchInsertAlerts = mutation({
           timestamp: alertData.timestamp,
           affectsRoutes: alertData.affectsRoutes,
           routeFrequencies: alertData.routeFrequencies,
+          alertCategory: alertData.alertCategory,
+          isRoadwork: alertData.isRoadwork,
+          isIncident: alertData.isIncident,
+          pushedToDisplay: alertData.pushedToDisplay || existing.pushedToDisplay,
+          pushedBy: alertData.pushedBy || existing.pushedBy,
+          displayPriority: alertData.displayPriority || existing.displayPriority,
         });
+        updatedCount++;
       } else {
         // Insert new alert
         await ctx.db.insert("alerts", {
@@ -357,13 +364,22 @@ export const batchInsertAlerts = mutation({
           notes: [],
           dismissedFromDisplay: false,
           lockedOnDisplay: false,
+          pushedToDisplay: alertData.pushedToDisplay || false,
+          pushedBy: alertData.pushedBy,
+          displayPriority: alertData.displayPriority,
+          alertCategory: alertData.alertCategory,
+          isRoadwork: alertData.isRoadwork || false,
+          isIncident: alertData.isIncident || false,
         });
+        insertedCount++;
       }
     }
 
     return { 
       success: true,
       processed: args.alerts.length,
+      inserted: insertedCount,
+      updated: updatedCount,
     };
   },
 });

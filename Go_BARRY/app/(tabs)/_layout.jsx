@@ -135,20 +135,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="integration"
-        options={{
-          title: 'Test',
-          headerTitle: 'Integration Test',
-          tabBarIcon: ({ color, size, focused }) => (
-            <Ionicons 
-              name={focused ? "flask" : "flask-outline"} 
-              size={size} 
-              color={color} 
-            />
-          ),
-        }}
-      />
+
       <Tabs.Screen
         name="control"
         options={{

@@ -207,7 +207,8 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
     affectsRoutes: [],
     notes: '',
     images: [],
-    status: 'active'
+    status: 'active',
+    receivedVia: '' // How supervisor received the information
   });
 
   // Auto-complete states
@@ -401,7 +402,8 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
       affectsRoutes: [],
       notes: '',
       images: [],
-      status: 'active'
+      status: 'active',
+      receivedVia: ''
     });
     setAffectedRoutes([]);
     setLocationSuggestions([]);
@@ -414,8 +416,8 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
       return;
     }
 
-    if (!newIncident.type || !newIncident.location) {
-      showNotification('Please fill in required fields (Type and Location)', 'error');
+    if (!newIncident.type || !newIncident.location || !newIncident.receivedVia) {
+      showNotification('Please fill in required fields (Type, Location, and Information Source)', 'error');
       return;
     }
 
@@ -590,7 +592,7 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
           <Text style={styles.subtitle}>Manual incident creation & detailed tracking</Text>
         </View>
         
-        {hasPermission('create_incidents') && (
+        {isLoggedIn && (
           <TouchableOpacity
             style={styles.createButton}
             onPress={() => setShowNewIncident(true)}
@@ -694,7 +696,7 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
                     <Ionicons name="eye" size={16} color="#3B82F6" />
                   </TouchableOpacity>
                   
-                  {hasPermission('create_incidents') && (
+                  {isLoggedIn && (
                     <TouchableOpacity
                       style={styles.deleteButton}
                       onPress={() => deleteIncident(incident.id)}
@@ -955,6 +957,35 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
               )}
             </View>
 
+            {/* How Information Was Received */}
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>How did you receive this information? *</Text>
+              <View style={styles.receivedViaGrid}>
+                {[
+                  { key: 'radio_call', label: 'Radio Call', icon: 'radio' },
+                  { key: 'call_centre', label: 'Call Centre Call', icon: 'call' },
+                  { key: 'other', label: 'Other', icon: 'help-circle' }
+                ].map((option) => (
+                  <TouchableOpacity
+                    key={option.key}
+                    style={[
+                      styles.receivedViaButton,
+                      newIncident.receivedVia === option.key && styles.receivedViaButtonSelected
+                    ]}
+                    onPress={() => setNewIncident(prev => ({ ...prev, receivedVia: option.key }))}
+                  >
+                    <Ionicons name={option.icon} size={20} color={newIncident.receivedVia === option.key ? '#3B82F6' : '#6B7280'} />
+                    <Text style={[
+                      styles.receivedViaButtonText,
+                      newIncident.receivedVia === option.key && styles.receivedViaButtonTextSelected
+                    ]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
             {/* Priority Level */}
             <View style={styles.formSection}>
               <Text style={styles.formLabel}>Priority Level</Text>
@@ -1047,10 +1078,10 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
               <TouchableOpacity
                 style={[
                   styles.submitButton,
-                  (!newIncident.type || !newIncident.location) && styles.submitButtonDisabled
+                  (!newIncident.type || !newIncident.location || !newIncident.receivedVia) && styles.submitButtonDisabled
                 ]}
                 onPress={createIncident}
-                disabled={!newIncident.type || !newIncident.location || loading}
+                disabled={!newIncident.type || !newIncident.location || !newIncident.receivedVia || loading}
               >
                 {loading ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
@@ -1186,6 +1217,14 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
                 <Text style={styles.detailLabel}>Incident Information</Text>
                 <Text style={styles.metaText}>Created: {new Date(showIncidentDetails.createdAt).toLocaleString()}</Text>
                 <Text style={styles.metaText}>Created by: {showIncidentDetails.createdBy} ({showIncidentDetails.createdByRole})</Text>
+                {showIncidentDetails.receivedVia && (
+                  <Text style={styles.metaText}>Information received via: {
+                    showIncidentDetails.receivedVia === 'radio_call' ? 'Radio Call' :
+                    showIncidentDetails.receivedVia === 'call_centre' ? 'Call Centre Call' :
+                    showIncidentDetails.receivedVia === 'other' ? 'Other' :
+                    showIncidentDetails.receivedVia
+                  }</Text>
+                )}
                 {showIncidentDetails.updatedAt && (
                   <Text style={styles.metaText}>Last updated: {new Date(showIncidentDetails.updatedAt).toLocaleString()}</Text>
                 )}
@@ -1685,6 +1724,37 @@ const styles = StyleSheet.create({
   },
   subtypeButtonTextSelected: {
     color: '#FFFFFF',
+  },
+  receivedViaGrid: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  receivedViaButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#F9FAFB',
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  receivedViaButtonSelected: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
+  },
+  receivedViaButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  receivedViaButtonTextSelected: {
+    color: '#3B82F6',
+    fontWeight: '600',
   },
   priorityGrid: {
     flexDirection: 'row',
