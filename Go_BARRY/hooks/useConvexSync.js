@@ -1,17 +1,37 @@
-// hooks/useConvexSync.js
 // React hooks for Convex real-time sync in Go BARRY
+// Gracefully handles cases where Convex is not deployed yet
 
 import { useEffect, useCallback, useRef, useState } from 'react';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../convex/_generated/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Safely import Convex with fallbacks
+let useQuery, useMutation, api;
+try {
+  const convexReact = require('convex/react');
+  const apiModule = require('../convex/_generated/api');
+  
+  if (convexReact && apiModule.api) {
+    useQuery = convexReact.useQuery;
+    useMutation = convexReact.useMutation;
+    api = apiModule.api;
+    console.log('✅ Convex imported successfully');
+  } else {
+    throw new Error('Convex API not fully available');
+  }
+} catch (error) {
+  console.warn('⚠️ Convex not available - using fallback mode:', error.message);
+  // Provide fallback functions
+  useQuery = () => undefined;
+  useMutation = () => (() => Promise.resolve({ success: false, error: 'Convex not available' }));
+  api = null;
+}
 
 // Hook for supervisor authentication
 export function useSupervisorAuth() {
   const [sessionId, setSessionId] = useState(null);
-  const login = useMutation(api.supervisors.login);
-  const logout = useMutation(api.supervisors.logout);
-  const session = useQuery(api.supervisors.getSession, sessionId ? { sessionId } : "skip");
+  const login = api ? useMutation(api.supervisors.login) : useMutation();
+  const logout = api ? useMutation(api.supervisors.logout) : useMutation();
+  const session = sessionId && api ? useQuery(api.supervisors.getSession, { sessionId }) : undefined;
 
   // Load session ID on mount
   useEffect(() => {
@@ -74,10 +94,10 @@ export function useSupervisorAuth() {
 
 // Hook for real-time sync state
 export function useSyncState() {
-  const syncState = useQuery(api.sync.getSyncState);
-  const setDisplayMode = useMutation(api.sync.setDisplayMode);
-  const addCustomMessage = useMutation(api.sync.addCustomMessage);
-  const removeCustomMessage = useMutation(api.sync.removeCustomMessage);
+  const syncState = api ? useQuery(api.sync.getSyncState) : undefined;
+  const setDisplayMode = api ? useMutation(api.sync.setDisplayMode) : useMutation();
+  const addCustomMessage = api ? useMutation(api.sync.addCustomMessage) : useMutation();
+  const removeCustomMessage = api ? useMutation(api.sync.removeCustomMessage) : useMutation();
 
   return {
     syncState,
@@ -89,14 +109,14 @@ export function useSyncState() {
 
 // Hook for alert management
 export function useAlerts() {
-  const activeAlerts = useQuery(api.alerts.getActiveAlerts);
-  const dismissedAlerts = useQuery(api.alerts.getDismissedAlerts);
+  const activeAlerts = api ? useQuery(api.alerts.getActiveAlerts) : [];
+  const dismissedAlerts = api ? useQuery(api.alerts.getDismissedAlerts) : [];
   
-  const acknowledge = useMutation(api.alerts.acknowledge);
-  const dismissFromDisplay = useMutation(api.alerts.dismissFromDisplay);
-  const toggleDisplayLock = useMutation(api.alerts.toggleDisplayLock);
-  const overridePriority = useMutation(api.alerts.overridePriority);
-  const addNote = useMutation(api.alerts.addNote);
+  const acknowledge = api ? useMutation(api.alerts.acknowledge) : useMutation();
+  const dismissFromDisplay = api ? useMutation(api.alerts.dismissFromDisplay) : useMutation();
+  const toggleDisplayLock = api ? useMutation(api.alerts.toggleDisplayLock) : useMutation();
+  const overridePriority = api ? useMutation(api.alerts.overridePriority) : useMutation();
+  const addNote = api ? useMutation(api.alerts.addNote) : useMutation();
 
   return {
     activeAlerts: activeAlerts || [],
@@ -111,8 +131,8 @@ export function useAlerts() {
 
 // Hook for active supervisors
 export function useActiveSupervisors() {
-  const activeSupervisors = useQuery(api.supervisors.getActiveSupervisors);
-  const forceLogout = useMutation(api.supervisors.forceLogout);
+  const activeSupervisors = api ? useQuery(api.supervisors.getActiveSupervisors) : [];
+  const forceLogout = api ? useMutation(api.supervisors.forceLogout) : useMutation();
 
   return {
     activeSupervisors: activeSupervisors || [],
@@ -125,7 +145,9 @@ export function useSupervisorActions(options = {}) {
   const { supervisorId, alertId, limit = 50 } = options;
 
   let actions;
-  if (supervisorId) {
+  if (!api) {
+    actions = [];
+  } else if (supervisorId) {
     actions = useQuery(api.sync.getSupervisorActions, { supervisorId, limit });
   } else if (alertId) {
     actions = useQuery(api.sync.getAlertActions, { alertId });
@@ -138,11 +160,11 @@ export function useSupervisorActions(options = {}) {
 
 // Hook for session heartbeat
 export function useHeartbeat(sessionId, interval = 30000) {
-  const heartbeat = useMutation(api.sync.heartbeat);
+  const heartbeat = api ? useMutation(api.sync.heartbeat) : useMutation();
   const intervalRef = useRef();
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!sessionId || !api) return;
 
     const sendHeartbeat = async () => {
       try {
@@ -163,16 +185,16 @@ export function useHeartbeat(sessionId, interval = 30000) {
         clearInterval(intervalRef.current);
       }
     };
-  }, [sessionId, heartbeat, interval]);
+  }, [sessionId, heartbeat, interval, api]);
 }
 
 // Hook for events management
 export function useEvents() {
-  const activeEvents = useQuery(api.sync.getActiveEvents);
-  const mostSevereEvent = useQuery(api.sync.getMostSevereEvent);
+  const activeEvents = api ? useQuery(api.sync.getActiveEvents) : [];
+  const mostSevereEvent = api ? useQuery(api.sync.getMostSevereEvent) : null;
   
-  const upsertEvent = useMutation(api.sync.upsertEvent);
-  const updateEventStatus = useMutation(api.sync.updateEventStatus);
+  const upsertEvent = api ? useMutation(api.sync.upsertEvent) : useMutation();
+  const updateEventStatus = api ? useMutation(api.sync.updateEventStatus) : useMutation();
 
   return {
     activeEvents: activeEvents || [],
@@ -184,14 +206,39 @@ export function useEvents() {
 
 // Hook for incident management
 export function useIncidents() {
-  const activeIncidents = useQuery(api.sync.getActiveIncidents);
-  const allIncidents = useQuery(api.sync.getAllIncidents);
+  let activeIncidents, allIncidents, createIncident, updateIncident, addIncidentNote, sendTicketerMessage, pushIncidentToDisplay;
   
-  const createIncident = useMutation(api.sync.createIncident);
-  const updateIncident = useMutation(api.sync.updateIncident);
-  const addIncidentNote = useMutation(api.sync.addIncidentNote);
-  const sendTicketerMessage = useMutation(api.sync.sendTicketerMessage);
-  const pushIncidentToDisplay = useMutation(api.sync.pushIncidentToDisplay);
+  if (!api || !api.sync) {
+    console.warn('⚠️ Incident management via Convex not available - API not deployed');
+    // Return empty arrays and no-op functions if Convex isn't available
+    activeIncidents = [];
+    allIncidents = [];
+    createIncident = async () => ({ success: false, error: 'Convex not deployed' });
+    updateIncident = async () => ({ success: false, error: 'Convex not deployed' });
+    addIncidentNote = async () => ({ success: false, error: 'Convex not deployed' });
+    sendTicketerMessage = async () => ({ success: false, error: 'Convex not deployed' });
+    pushIncidentToDisplay = async () => ({ success: false, error: 'Convex not deployed' });
+  } else {
+    try {
+      activeIncidents = useQuery(api.sync.getActiveIncidents);
+      allIncidents = useQuery(api.sync.getAllIncidents);
+      createIncident = useMutation(api.sync.createIncident);
+      updateIncident = useMutation(api.sync.updateIncident);
+      addIncidentNote = useMutation(api.sync.addIncidentNote);
+      sendTicketerMessage = useMutation(api.sync.sendTicketerMessage);
+      pushIncidentToDisplay = useMutation(api.sync.pushIncidentToDisplay);
+    } catch (error) {
+      console.warn('⚠️ Incident management via Convex not available:', error.message);
+      // Return empty arrays and no-op functions if Convex isn't available
+      activeIncidents = [];
+      allIncidents = [];
+      createIncident = async () => ({ success: false, error: 'Convex not deployed' });
+      updateIncident = async () => ({ success: false, error: 'Convex not deployed' });
+      addIncidentNote = async () => ({ success: false, error: 'Convex not deployed' });
+      sendTicketerMessage = async () => ({ success: false, error: 'Convex not deployed' });
+      pushIncidentToDisplay = async () => ({ success: false, error: 'Convex not deployed' });
+    }
+  }
 
   return {
     activeIncidents: activeIncidents || [],
@@ -207,10 +254,14 @@ export function useIncidents() {
 
 // Hook for alert sync from backend
 export function useAlertSync() {
-  const batchInsertAlerts = useMutation(api.alerts.batchInsertAlerts);
+  const batchInsertAlerts = api ? useMutation(api.alerts.batchInsertAlerts) : useMutation();
   
   const syncAlerts = useCallback(async (alerts) => {
     if (!alerts || alerts.length === 0) return;
+    if (!api) {
+      console.warn('⚠️ Alert sync skipped - Convex not available');
+      return { success: false, error: 'Convex not available' };
+    }
 
     try {
       // Transform alerts to match Convex schema
@@ -235,7 +286,7 @@ export function useAlertSync() {
       console.error('❌ Alert sync error:', error);
       throw error;
     }
-  }, [batchInsertAlerts]);
+  }, [batchInsertAlerts, api]);
 
   return { syncAlerts };
 }

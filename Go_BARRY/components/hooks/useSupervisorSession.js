@@ -10,7 +10,14 @@ let useMutation = null;
 try {
   const convexReact = require('convex/react');
   useMutation = convexReact.useMutation;
-  convexApi = require('../../convex/_generated/api').api;
+  // Only import if Convex is properly deployed
+  const apiModule = require('../../convex/_generated/api');
+  if (apiModule.api && apiModule.api.supervisors) {
+    convexApi = apiModule.api;
+    console.log('✅ Convex API loaded successfully');
+  } else {
+    console.warn('⚠️ Convex API not deployed yet - using local auth only');
+  }
 } catch (error) {
   console.warn('⚠️ Convex not available - supervisor sync between screens will be limited');
 }
@@ -170,8 +177,8 @@ export const useSupervisorSession = () => {
   const [error, setError] = useState(null);
   
   // Convex mutations for sync (only if Convex is available)
-  const convexLogin = useMutation && convexApi ? useMutation(convexApi.supervisors.login) : null;
-  const convexLogout = useMutation && convexApi ? useMutation(convexApi.supervisors.logout) : null;
+  const convexLogin = (useMutation && convexApi && convexApi.supervisors) ? useMutation(convexApi.supervisors.login) : null;
+  const convexLogout = (useMutation && convexApi && convexApi.supervisors) ? useMutation(convexApi.supervisors.logout) : null;
 
   // Initialize session from storage on mount
   useEffect(() => {
