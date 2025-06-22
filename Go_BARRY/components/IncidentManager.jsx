@@ -19,6 +19,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
 import { useSupervisorSync } from './hooks/useSupervisorSync';
+import { useConvexSync } from '../hooks/useConvexSync';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -179,10 +180,23 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
     autoConnect: isLoggedIn
   });
 
-  // State management
-  const [incidents, setIncidents] = useState([]);
+  // Convex real-time incident management
+  const {
+    activeIncidents,
+    allIncidents,
+    createIncident: createIncidentMutation,
+    updateIncident: updateIncidentMutation,
+    addIncidentNote: addIncidentNoteMutation,
+    sendTicketerMessage: sendTicketerMessageMutation,
+    pushIncidentToDisplay: pushIncidentToDisplayMutation,
+    incidentsLoading
+  } = useConvexSync();
+
+  // Use Convex incidents instead of local state
+  const incidents = activeIncidents || [];
   const [trafficIncidents, setTrafficIncidents] = useState([]); // New: automatic incidents from traffic APIs
   const [loading, setLoading] = useState(false);
+  const [sendingTicketer, setSendingTicketer] = useState(null);
   const [showNewIncident, setShowNewIncident] = useState(false);
   const [showIncidentDetails, setShowIncidentDetails] = useState(null);
   const [showAddNote, setShowAddNote] = useState(null);
@@ -222,15 +236,10 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
     : 'https://go-barry.onrender.com'
   );
 
-  // Filter incidents by status
-  const activeIncidents = useMemo(() => 
-    incidents.filter(incident => incident.status !== 'closed'),
-    [incidents]
-  );
-
+  // Filter incidents by status (Convex already provides activeIncidents)
   const closedIncidents = useMemo(() => 
-    incidents.filter(incident => incident.status === 'closed'),
-    [incidents]
+    allIncidents ? allIncidents.filter(incident => incident.status === 'closed') : [],
+    [allIncidents]
   );
 
   // Load GTFS data and existing incidents
@@ -409,7 +418,7 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
     setLocationSuggestions([]);
   };
 
-  // Create new incident with enhanced data
+  // Create new incident with enhanced data using Convex
   const createIncident = async () => {
     if (!isLoggedIn) {
       showNotification('Please log in as a supervisor to create incidents', 'error');
@@ -423,44 +432,61 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
 
     setLoading(true);
     try {
-      const incidentData = {
-        ...newIncident,
-        id: 'incident_' + Date.now(),
+      const incidentId = 'incident_' + Date.now();
+      const now = Date.now();
+      
+      // Prepare notes array if initial notes exist
+      const initialNotes = newIncident.notes ? [{
+        id: 'note_' + now,
+        text: newIncident.notes,
+        addedBy: supervisorName,
+        addedAt: now
+      }] : [];
+
+      // Create incident using Convex mutation
+      const result = await createIncidentMutation({
+        incidentId,
+        type: newIncident.type,
+        subtype: newIncident.subtype,
+        location: newIncident.location,
+        coordinates: newIncident.coordinates,
+        description: newIncident.description,
+        severity: newIncident.severity,
+        priority: newIncident.priority,
+        affectsRoutes: newIncident.affectsRoutes,
         createdBy: supervisorName,
         createdByRole: supervisorRole,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        status: 'active',
-        source: 'manual',
-        notes: newIncident.notes ? [{
-          id: 'note_' + Date.now(),
-          text: newIncident.notes,
-          addedBy: supervisorName,
-          addedAt: new Date().toISOString()
-        }] : [],
-        images: newIncident.images || []
-      };
+        receivedVia: newIncident.receivedVia,
+        notes: initialNotes,
+        ticketerMessage: newIncident.ticketerMessage || ''
+      });
 
-      // Store incident (enhanced for Sector 4)
-      setIncidents(prev => [incidentData, ...prev]);
-      
-      // Log activity
-      logActivity(
-        'CREATE_INCIDENT', 
-        `Created ${newIncident.type} incident at ${newIncident.location}`,
-        incidentData.id
-      );
+      if (result.success) {
+        // Log activity
+        logActivity(
+          'CREATE_INCIDENT', 
+          `Created ${newIncident.type} incident at ${newIncident.location}`,
+          incidentId
+        );
 
-      // Auto-push to display if Critical
-      if (newIncident.priority === 'CRITICAL' && isConnected) {
-        lockOnDisplay(incidentData.id, 'Critical incident auto-pushed to display');
-        showNotification('Critical incident pushed to display automatically', 'success');
+        console.log(`✅ Created incident ${incidentId} in Convex - real-time sync active`);
+
+        // Auto-push to display if Critical
+        if (newIncident.priority === 'CRITICAL' && isConnected) {
+          await pushIncidentToDisplayMutation({
+            incidentId,
+            pushedBy: supervisorName
+          });
+          showNotification('Critical incident pushed to display automatically', 'success');
+        }
+
+        // Reset form
+        resetForm();
+        setShowNewIncident(false);
+        showNotification('Incident created and synced to all supervisors', 'success');
+      } else {
+        throw new Error('Failed to create incident in Convex');
       }
-
-      // Reset form
-      resetForm();
-      setShowNewIncident(false);
-      showNotification('Incident created successfully', 'success');
     } catch (error) {
       console.error('Failed to create incident:', error);
       showNotification('Failed to create incident', 'error');
@@ -469,57 +495,63 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
     }
   };
 
-  // Add note to incident
+  // Add note to incident using Convex
   const addNoteToIncident = async (incidentId) => {
     if (!newNote.trim()) {
       showNotification('Please enter a note', 'error');
       return;
     }
 
-    const noteData = {
-      id: 'note_' + Date.now(),
-      text: newNote.trim(),
-      addedBy: supervisorName,
-      addedAt: new Date().toISOString()
-    };
+    try {
+      const result = await addIncidentNoteMutation({
+        incidentId,
+        noteText: newNote.trim(),
+        addedBy: supervisorName
+      });
 
-    setIncidents(prev => prev.map(incident => {
-      if (incident.id === incidentId) {
-        return {
-          ...incident,
-          notes: [...(incident.notes || []), noteData],
-          updatedAt: new Date().toISOString()
-        };
+      if (result.success) {
+        logActivity('ADD_NOTE', `Added note to incident ${incidentId}`, incidentId);
+        setNewNote('');
+        setShowAddNote(null);
+        showNotification('Note added and synced to all supervisors', 'success');
+        console.log(`✅ Added note to incident ${incidentId} via Convex`);
+      } else {
+        throw new Error('Failed to add note via Convex');
       }
-      return incident;
-    }));
-
-    logActivity('ADD_NOTE', `Added note to incident ${incidentId}`, incidentId);
-    setNewNote('');
-    setShowAddNote(null);
-    showNotification('Note added successfully', 'success');
+    } catch (error) {
+      console.error('Failed to add note:', error);
+      showNotification('Failed to add note', 'error');
+    }
   };
 
-  // Update incident status
+  // Update incident status using Convex
   const updateIncidentStatus = async (incidentId, newStatus) => {
-    setIncidents(prev => prev.map(incident => {
-      if (incident.id === incidentId) {
-        return {
-          ...incident,
-          status: newStatus,
-          updatedAt: new Date().toISOString(),
-          closedBy: newStatus === 'closed' ? supervisorName : undefined,
-          closedAt: newStatus === 'closed' ? new Date().toISOString() : undefined
-        };
-      }
-      return incident;
-    }));
+    try {
+      const updates = {
+        status: newStatus,
+        ...(newStatus === 'closed' && { closedBy: supervisorName })
+      };
 
-    logActivity('UPDATE_STATUS', `Updated incident ${incidentId} status to ${newStatus}`, incidentId);
-    showNotification(`Incident ${newStatus === 'closed' ? 'closed' : 'updated'} successfully`, 'success');
+      const result = await updateIncidentMutation({
+        incidentId,
+        updates,
+        updatedBy: supervisorName
+      });
+
+      if (result.success) {
+        logActivity('UPDATE_STATUS', `Updated incident ${incidentId} status to ${newStatus}`, incidentId);
+        showNotification(`Incident ${newStatus === 'closed' ? 'closed' : 'updated'} and synced to all supervisors`, 'success');
+        console.log(`✅ Updated incident ${incidentId} status to ${newStatus} via Convex`);
+      } else {
+        throw new Error('Failed to update incident status via Convex');
+      }
+    } catch (error) {
+      console.error('Failed to update incident status:', error);
+      showNotification('Failed to update incident status', 'error');
+    }
   };
 
-  // Push incident to display
+  // Push incident to display using Convex
   const pushIncidentToDisplay = async (incident) => {
     if (!isConnected) {
       showNotification('Not connected to display system', 'error');
@@ -532,12 +564,54 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
       
     if (!reason) return;
 
-    const success = lockOnDisplay(incident.id, reason);
-    
-    if (success) {
-      showNotification(`"${incident.location}" incident pushed to display`, 'success');
-    } else {
+    try {
+      // Push to display via Convex
+      const result = await pushIncidentToDisplayMutation({
+        incidentId: incident.incidentId || incident.id,
+        pushedBy: supervisorName
+      });
+
+      if (result.success) {
+        // Also use legacy display lock for compatibility
+        lockOnDisplay(incident.incidentId || incident.id, reason);
+        showNotification(`"${incident.location}" incident pushed to display and synced`, 'success');
+        console.log(`📺 Pushed incident ${incident.incidentId || incident.id} to display via Convex`);
+      } else {
+        throw new Error('Failed to push incident via Convex');
+      }
+    } catch (error) {
+      console.error('Failed to push incident to display:', error);
       showNotification('Failed to push incident to display', 'error');
+    }
+  };
+
+  // Send Ticketer message for incident
+  const sendTicketerMessageForIncident = async (incident, message) => {
+    if (!message || !message.trim()) {
+      showNotification('Please enter a Ticketer message', 'error');
+      return;
+    }
+
+    setSendingTicketer(incident.incidentId || incident.id);
+    try {
+      const result = await sendTicketerMessageMutation({
+        incidentId: incident.incidentId || incident.id,
+        message: message.trim(),
+        sentBy: supervisorName
+      });
+
+      if (result.success) {
+        logActivity('SEND_TICKETER', `Sent Ticketer message for incident ${incident.incidentId || incident.id}`, incident.incidentId || incident.id);
+        showNotification('Ticketer message sent and logged', 'success');
+        console.log(`📱 Sent Ticketer message for incident ${incident.incidentId || incident.id} via Convex`);
+      } else {
+        throw new Error('Failed to send Ticketer message via Convex');
+      }
+    } catch (error) {
+      console.error('Failed to send Ticketer message:', error);
+      showNotification('Failed to send Ticketer message', 'error');
+    } finally {
+      setSendingTicketer(null);
     }
   };
 
@@ -606,7 +680,7 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
       {/* Stats */}
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{activeIncidents.length + trafficIncidents.length}</Text>
+          <Text style={styles.statNumber}>{incidents.length + trafficIncidents.length}</Text>
           <Text style={styles.statLabel}>Total Active</Text>
         </View>
         <View style={styles.statCard}>
@@ -614,7 +688,7 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
           <Text style={styles.statLabel}>From Traffic APIs</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statNumber, { color: '#3B82F6' }]}>{activeIncidents.length}</Text>
+          <Text style={[styles.statNumber, { color: '#3B82F6' }]}>{incidents.length}</Text>
           <Text style={styles.statLabel}>Manual</Text>
         </View>
         <View style={styles.statCard}>
@@ -631,7 +705,7 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
         >
           <Ionicons name="create" size={16} color={activeTab === 'manual' ? '#3B82F6' : '#6B7280'} />
           <Text style={[styles.tabText, activeTab === 'manual' && styles.activeTabText]}>
-            Manual ({activeIncidents.length})
+            Manual ({incidents.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -647,21 +721,21 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
 
       {/* Incidents List */}
       <ScrollView style={styles.incidentsList}>
-        {loading && activeIncidents.length === 0 && trafficIncidents.length === 0 ? (
+        {(loading || incidentsLoading) && incidents.length === 0 && trafficIncidents.length === 0 ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#3B82F6" />
             <Text style={styles.loadingText}>Loading incidents...</Text>
           </View>
         ) : activeTab === 'manual' ? (
-          activeIncidents.length === 0 ? (
+          incidents.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons name="document-outline" size={48} color="#9CA3AF" />
               <Text style={styles.emptyTitle}>No Manual Incidents</Text>
               <Text style={styles.emptyText}>All clear! No supervisor-created incidents active.</Text>
             </View>
           ) : (
-            activeIncidents.map((incident, index) => (
-            <View key={incident.id || index} style={styles.incidentCard}>
+            incidents.map((incident, index) => (
+            <View key={incident.incidentId || incident.id || index} style={styles.incidentCard}>
               <View style={styles.incidentHeader}>
                 <View style={styles.incidentType}>
                   <Ionicons 
@@ -733,19 +807,56 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
                 </View>
               )}
 
+              {/* Ticketer Message Display */}
+              {incident.ticketerSent && incident.ticketerMessage && (
+                <View style={styles.ticketerContainer}>
+                  <View style={styles.ticketerHeader}>
+                    <Ionicons name="chatbubbles" size={14} color="#059669" />
+                    <Text style={styles.ticketerLabel}>Sent to Drivers:</Text>
+                    <Text style={styles.ticketerTime}>
+                      {new Date(incident.ticketerSentAt).toLocaleString()}
+                    </Text>
+                  </View>
+                  <Text style={styles.ticketerMessage}>{incident.ticketerMessage}</Text>
+                  <Text style={styles.ticketerSentBy}>Sent by: {incident.ticketerSentBy}</Text>
+                </View>
+              )}
+
               {/* Quick Actions */}
               <View style={styles.quickActions}>
                 <TouchableOpacity
                   style={styles.addNoteButton}
-                  onPress={() => setShowAddNote(incident.id)}
+                  onPress={() => setShowAddNote(incident.incidentId || incident.id)}
                 >
                   <Ionicons name="create" size={14} color="#6B7280" />
                   <Text style={styles.quickActionText}>Add Note</Text>
                 </TouchableOpacity>
+
+                {!incident.ticketerSent && (
+                  <TouchableOpacity
+                    style={styles.ticketerButton}
+                    onPress={() => {
+                      const message = isWeb 
+                        ? prompt('Enter Ticketer message for drivers:')
+                        : 'Service disruption due to incident';
+                      if (message) {
+                        sendTicketerMessageForIncident(incident, message);
+                      }
+                    }}
+                    disabled={sendingTicketer === (incident.incidentId || incident.id)}
+                  >
+                    {sendingTicketer === (incident.incidentId || incident.id) ? (
+                      <ActivityIndicator size={14} color="#3B82F6" />
+                    ) : (
+                      <Ionicons name="chatbubbles" size={14} color="#3B82F6" />
+                    )}
+                    <Text style={styles.quickActionText}>Ticketer</Text>
+                  </TouchableOpacity>
+                )}
                 
                 <TouchableOpacity
                   style={styles.closeIncidentButton}
-                  onPress={() => updateIncidentStatus(incident.id, 'closed')}
+                  onPress={() => updateIncidentStatus(incident.incidentId || incident.id, 'closed')}
                 >
                   <Ionicons name="checkmark-circle" size={14} color="#10B981" />
                   <Text style={styles.quickActionText}>Close</Text>
@@ -1618,6 +1729,51 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#F59E0B',
     fontWeight: '500',
+  },
+  // Ticketer message styles
+  ticketerContainer: {
+    backgroundColor: '#ECFDF5',
+    borderLeftWidth: 4,
+    borderLeftColor: '#059669',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  ticketerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  ticketerLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#059669',
+    flex: 1,
+  },
+  ticketerTime: {
+    fontSize: 10,
+    color: '#6B7280',
+  },
+  ticketerMessage: {
+    fontSize: 14,
+    color: '#065F46',
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  ticketerSentBy: {
+    fontSize: 10,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  ticketerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EBF5FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
   },
   incidentFooter: {
     flexDirection: 'row',

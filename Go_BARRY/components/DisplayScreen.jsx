@@ -12,8 +12,8 @@ const DisplayScreen = () => {
   const [attentionMode, setAttentionMode] = useState(false);
   const [weather, setWeather] = useState({ condition: 'CLEAR', temp: '15°C', icon: '☀️' });
 
-  // FIXED: Use Convex hooks for alerts, supervisors, AND events (real-time sync)
-  const { activeAlerts, activeSupervisors, mostSevereEvent } = useConvexSync();
+  // FIXED: Use Convex hooks for alerts, supervisors, events, AND incidents (real-time sync)
+  const { activeAlerts, activeSupervisors, mostSevereEvent, activeIncidents } = useConvexSync();
   const supervisorActivity = useSupervisorActions({ limit: 10 });
   
   // Process alerts from Convex to ensure consistent format
@@ -138,6 +138,16 @@ const DisplayScreen = () => {
         return `started ${action.details?.dutyName || 'duty'}`;
       case 'end_duty':
         return `ended ${action.details?.dutyName || 'duty'}`;
+      case 'create_incident':
+        return `created ${action.details?.type || 'incident'} at ${action.details?.location || 'unknown location'}`;
+      case 'close_incident':
+        return `closed incident at ${action.details?.location || 'unknown location'}`;
+      case 'add_incident_note':
+        return `added note to incident`;
+      case 'send_ticketer_message':
+        return `sent Ticketer message for incident`;
+      case 'push_incident_to_display':
+        return `pushed incident to main display`;
       default:
         return action.action.replace(/_/g, ' ');
     }
@@ -158,6 +168,12 @@ const DisplayScreen = () => {
       case 'start_duty':
       case 'end_duty':
         return 'duty';
+      case 'create_incident':
+      case 'close_incident':
+      case 'add_incident_note':
+      case 'send_ticketer_message':
+      case 'push_incident_to_display':
+        return 'incident';
       default:
         return 'system';
     }
@@ -762,6 +778,7 @@ const DisplayScreen = () => {
                     getActivityType(activity) === 'roadwork' ? '#ef4444' :
                     getActivityType(activity) === 'email' ? '#3b82f6' :
                     getActivityType(activity) === 'duty' ? '#8b5cf6' :
+                    getActivityType(activity) === 'incident' ? '#dc2626' :
                     'rgba(255, 255, 255, 0.1)'
                   }`
                 }}>

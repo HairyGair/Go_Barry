@@ -142,6 +142,59 @@ export default defineSchema({
     .index("by_active", ["isActive"])
     .index("by_date", ["date"]),
 
+  // Manual incidents created by supervisors
+  incidents: defineTable({
+    incidentId: v.string(),
+    type: v.string(),
+    subtype: v.optional(v.string()),
+    location: v.string(),
+    coordinates: v.optional(v.object({
+      latitude: v.number(),
+      longitude: v.number()
+    })),
+    description: v.optional(v.string()),
+    severity: v.string(),
+    priority: v.string(),
+    status: v.string(), // active, monitoring, closed
+    
+    // Route information
+    affectsRoutes: v.array(v.string()),
+    
+    // Supervisor information
+    createdBy: v.string(),
+    createdByRole: v.string(),
+    receivedVia: v.optional(v.string()), // radio_call, call_centre, other
+    
+    // Ticketer messaging
+    ticketerMessage: v.optional(v.string()),
+    ticketerSent: v.boolean(),
+    ticketerSentAt: v.optional(v.number()),
+    ticketerSentBy: v.optional(v.string()),
+    
+    // Notes and updates
+    notes: v.array(v.object({
+      id: v.string(),
+      text: v.string(),
+      addedBy: v.string(),
+      addedAt: v.number(),
+    })),
+    
+    // Display control
+    pushedToDisplay: v.boolean(),
+    pushedToDisplayBy: v.optional(v.string()),
+    pushedToDisplayAt: v.optional(v.number()),
+    
+    // Timestamps
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    closedAt: v.optional(v.number()),
+    closedBy: v.optional(v.string()),
+  })
+    .index("by_status", ["status"])
+    .index("by_priority", ["priority"])
+    .index("by_created", ["createdAt"])
+    .index("by_supervisor", ["createdBy"]),
+
   // System configuration
   systemConfig: defineTable({
     key: v.string(),

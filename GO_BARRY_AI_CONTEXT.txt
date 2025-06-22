@@ -1,6 +1,6 @@
 # GO BARRY - CRITICAL PROJECT CONTEXT FOR AI ASSISTANTS
 # READ THIS FIRST IN EVERY NEW CHAT SESSION
-# Last Updated: June 22, 2025 - Cleaned up test screens, fixed imports
+# Last Updated: June 22, 2025 - FIXED CORS + Events in Convex + Roadwork Alerts Route
 
 ## 🚨 CRITICAL REMINDERS - DON'T FORGET THESE!
 
@@ -123,7 +123,8 @@ Base URL: https://go-barry.onrender.com
 - `/api/events/*` - Event management endpoints
 - `/api/roadworks` - Roadwork creation and management
 - `/api/roadworks/{id}/status` - Update roadwork status
-- `/api/roadwork-alerts` - Email notification system
+- `/api/roadwork-alerts` - Email notification system (FIXED JUNE 2025)
+- `/api/roadwork-alerts/test` - Debug endpoint for testing
 - `/api/auth/microsoft/*` - Microsoft 365 email integration
 
 ## 👥 SUPERVISOR SYSTEM (REAL DATA)
@@ -297,7 +298,7 @@ Convex has been integrated to solve WebSocket/polling/CORS issues permanently. P
 - schema.ts - Database schema definition
 - supervisors.ts - Authentication & sessions
 - alerts.ts - Alert management functions
-- sync.ts - Real-time sync state
+- sync.ts - Real-time sync state + EVENT MANAGEMENT FUNCTIONS
 
 TABLES:
 - supervisorSessions - Active supervisor logins
@@ -306,6 +307,7 @@ TABLES:
 - syncState - Shared state across all clients
 - emailGroups - Notification groups
 - systemConfig - System settings
+- events - Major events (concerts, matches, etc) - ADDED JUNE 2025
 ```
 
 ### Frontend Integration
@@ -332,11 +334,13 @@ import { convexSync } from './services/convexSync.js';
 - DisplayScreen and EnhancedDashboard share the same supervisor sessions
 - When supervisor logs in on one screen, appears on all screens instantly
 
-### BOTH SCREENS NOW USE CONVEX FOR ALERTS
+### BOTH SCREENS NOW USE CONVEX FOR ALERTS AND EVENTS
 - **DisplayScreen**: Gets alerts from `useConvexSync()` → `activeAlerts`
 - **EnhancedDashboard**: Gets alerts from `useConvexSync()` → `activeAlerts`
+- **DisplayScreen**: Gets events from `useConvexSync()` → `mostSevereEvent` (FIXED JUNE 2025)
 - No more API polling - everything is real-time
 - Backend syncs to Convex every 30 seconds
+- CORS issues completely eliminated by using Convex instead of direct fetch
 
 ### Benefits
 - ✅ **No CORS Issues** - Convex handles all cross-origin requests
@@ -366,6 +370,76 @@ npx convex dashboard
 - ✅ Both screens show same data in real-time
 - ❌ WebSocket fallback deprecated - Convex only
 
+## 🔧 MAJOR FIXES APPLIED (JUNE 22, 2025)
+
+### ✅ CORS ERROR COMPLETELY FIXED
+**Problem**: DisplayScreen.jsx was making direct fetch() calls to backend API causing CORS errors:
+```
+Fetch API cannot load https://go-barry.onrender.com/api/alerts due to access control checks
+```
+
+**Solution Applied**:
+1. **Added Events to Convex Schema** (/Go_BARRY/convex/schema.ts)
+   - New `events` table with eventId, venue, event, time, severity, etc.
+   - Indexes for status, severity, active events, date
+
+2. **Created Event Management Functions** (/Go_BARRY/convex/sync.ts)
+   - `getActiveEvents()` - Get all active events
+   - `getMostSevereEvent()` - Get highest priority event
+   - `upsertEvent()` - Add/update events
+   - `updateEventStatus()` - Change event status
+
+3. **Enhanced Frontend Hooks** (/Go_BARRY/hooks/useConvexSync.js)
+   - Added `useEvents()` hook
+   - Enhanced main `useConvexSync()` to include events
+   - Events now available as: `mostSevereEvent`, `activeEvents`
+
+4. **Fixed DisplayScreen Component** (/Go_BARRY/components/DisplayScreen.jsx)
+   - ❌ Removed: `fetch('https://go-barry.onrender.com/api/events/active')`
+   - ✅ Added: `const { mostSevereEvent } = useConvexSync()`
+   - Real-time events via Convex, no more polling
+
+5. **Backend Event Sync** (/backend/services/)
+   - Enhanced convexSync.js with `syncEvents()` method
+   - Updated eventMonitor.js to auto-sync events to Convex
+   - Events flow: Backend → Convex → Frontend (no CORS)
+
+**Result**: ✅ Zero CORS issues, real-time events, unified data flow
+
+### ✅ ROADWORK ALERTS ROUTE FIXED
+**Problem**: "Cannot POST /api/roadwork-alerts" - Route not being registered due to import issues
+
+**Solution Applied**:
+1. **Created Simplified Route** (/backend/routes/roadworkAlertsAPI-simple.js)
+   - Removed complex Microsoft Graph dependencies
+   - Kept core roadwork CRUD functionality
+   - Added extensive logging for debugging
+
+2. **Updated Backend Registration** (/backend/index.js)
+   - Changed import to use simplified version
+   - Added debugging logs for route registration
+   - Added test endpoint: `/api/roadwork-alerts-test`
+
+3. **Maintained Core Features**:
+   - ✅ GET /api/roadwork-alerts (list roadworks)
+   - ✅ POST /api/roadwork-alerts (create roadwork)
+   - ✅ GET /api/roadwork-alerts/email-groups
+   - ⚠️ Email notifications temporarily disabled (can be re-added)
+
+**Result**: ✅ Roadwork creation works, route properly registered
+
+### ✅ DEBUGGING IMPROVEMENTS
+**Added Throughout Backend**:
+- Route registration logging
+- Import success/failure tracking
+- API endpoint testing capabilities
+- Service initialization status
+
+**Debug Tools Created**:
+- Debug HTML tool for testing roadwork endpoints
+- Test endpoints for route validation
+- Comprehensive error logging
+
 ### Testing Convex
 1. Log in as supervisor on EnhancedDashboard
 2. Check DisplayScreen shows same supervisor in "Active Personnel"
@@ -378,6 +452,8 @@ npx convex dashboard
 - Don't try to import _generated files directly in backend
 - Real-time sync happens automatically - no manual refresh needed
 - Supervisor login now requires Convex to be running for full sync
+- **Events are now in Convex** - use `mostSevereEvent` from `useConvexSync()` instead of direct API calls
+- **CORS issues solved** - no more direct fetch() calls to backend for events/alerts
 
 ## 🧹 RECENT CLEANUP (JUNE 2025)
 
@@ -407,6 +483,9 @@ The Supervisor Screen (browser-main.jsx) now only shows production features:
 - ✅ Fixed import path in RoadworksManager.jsx (use `./hooks/` not `../hooks/`)
 - ✅ Cleaned up navigation to remove all test screens
 - ✅ useSupervisorSession hook properly integrated across components
+- ✅ **CORS ERROR FIXED** - Added events to Convex, removed direct fetch() calls from DisplayScreen
+- ✅ **ROADWORK ALERTS ROUTE FIXED** - Created simplified version without Microsoft Graph dependencies
+- ✅ **DEBUGGING ENHANCED** - Added comprehensive logging throughout backend for troubleshooting
 
 ### Current Issues (June 2025)
 1. **Backend Connection**: System showing "Error" for Backend API and Database

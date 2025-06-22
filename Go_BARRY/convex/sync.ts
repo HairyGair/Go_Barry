@@ -84,6 +84,315 @@ export const setDisplayMode = mutation({
   },
 });
 
+// INCIDENT MANAGEMENT FUNCTIONS
+
+// Get all active incidents
+export const getActiveIncidents = query({
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("incidents")
+      .withIndex("by_status", q => q.eq("status", "active"))
+      .order("desc")
+      .collect();
+  },
+});
+
+// Get all incidents (for management)
+export const getAllIncidents = query({
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("incidents")
+      .withIndex("by_created")
+      .order("desc")
+      .collect();
+  },
+});
+
+// Create new incident
+export const createIncident = mutation({
+  args: {
+    incidentId: v.string(),
+    type: v.string(),
+    subtype: v.optional(v.string()),
+    location: v.string(),
+    coordinates: v.optional(v.object({
+      latitude: v.number(),
+      longitude: v.number()
+    })),
+    description: v.optional(v.string()),
+    severity: v.string(),
+    priority: v.string(),
+    affectsRoutes: v.array(v.string()),
+    createdBy: v.string(),
+    createdByRole: v.string(),
+    receivedVia: v.optional(v.string()),
+    notes: v.optional(v.array(v.object({
+      id: v.string(),
+      text: v.string(),
+      addedBy: v.string(),
+      addedAt: v.number(),
+    }))),
+    ticketerMessage: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    
+    const incidentData = {
+      incidentId: args.incidentId,
+      type: args.type,
+      subtype: args.subtype,
+      location: args.location,
+      coordinates: args.coordinates,
+      description: args.description,
+      severity: args.severity,
+      priority: args.priority,
+      status: "active",
+      affectsRoutes: args.affectsRoutes,
+      createdBy: args.createdBy,
+      createdByRole: args.createdByRole,
+      receivedVia: args.receivedVia,
+      ticketerMessage: args.ticketerMessage,
+      ticketerSent: false,
+      notes: args.notes || [],
+      pushedToDisplay: args.priority === "CRITICAL",
+      pushedToDisplayBy: args.priority === "CRITICAL" ? args.createdBy : undefined,
+      pushedToDisplayAt: args.priority === "CRITICAL" ? now : undefined,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const incidentDbId = await ctx.db.insert("incidents", incidentData);
+
+    // Log action
+    await ctx.db.insert("supervisorActions", {
+      action: "create_incident",
+      supervisorId: args.createdBy,
+      supervisorName: args.createdBy,
+      timestamp: now,
+      details: {
+        incidentId: args.incidentId,
+        type: args.type,
+        location: args.location,
+        priority: args.priority,
+        affectedRoutes: args.affectsRoutes.length,
+      },
+    });
+
+    console.log(`✅ Created incident ${args.incidentId} by ${args.createdBy}`);
+    
+    return { success: true, incidentId: args.incidentId, dbId: incidentDbId };
+  },
+});
+
+// Update incident
+export const updateIncident = mutation({
+  args: {
+    incidentId: v.string(),
+    updates: v.object({
+      status: v.optional(v.string()),
+      notes: v.optional(v.array(v.object({
+        id: v.string(),
+        text: v.string(),
+        addedBy: v.string(),
+        addedAt: v.number(),
+      }))),
+      ticketerMessage: v.optional(v.string()),
+      ticketerSent: v.optional(v.boolean()),
+      ticketerSentAt: v.optional(v.number()),
+      ticketerSentBy: v.optional(v.string()),
+      pushedToDisplay: v.optional(v.boolean()),
+      pushedToDisplayBy: v.optional(v.string()),
+      pushedToDisplayAt: v.optional(v.number()),
+      closedBy: v.optional(v.string()),
+    }),
+    updatedBy: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const incident = await ctx.db
+      .query("incidents")
+      .filter(q => q.eq(q.field("incidentId"), args.incidentId))
+      .first();
+
+    if (!incident) {
+      throw new Error("Incident not found");
+    }
+
+    const now = Date.now();
+    const updateData = {
+      ...args.updates,
+      updatedAt: now,
+    };
+
+    // If closing incident
+    if (args.updates.status === "closed") {
+      updateData.closedAt = now;
+      updateData.closedBy = args.updatedBy;
+    }
+
+    await ctx.db.patch(incident._id, updateData);
+
+    // Log action based on what was updated
+    let actionType = "update_incident";
+    if (args.updates.status === "closed") {
+      actionType = "close_incident";
+    } else if (args.updates.ticketerSent) {
+      actionType = "send_ticketer_message";
+    } else if (args.updates.pushedToDisplay) {
+      actionType = "push_incident_to_display";
+    } else if (args.updates.notes) {
+      actionType = "add_incident_note";
+    }
+
+    await ctx.db.insert("supervisorActions", {
+      action: actionType,
+      supervisorId: args.updatedBy,
+      supervisorName: args.updatedBy,
+      timestamp: now,
+      details: {
+        incidentId: args.incidentId,
+        updates: args.updates,
+      },
+    });
+
+    console.log(`✅ Updated incident ${args.incidentId} by ${args.updatedBy}`);
+    
+    return { success: true };
+  },
+});
+
+// Add note to incident
+export const addIncidentNote = mutation({
+  args: {
+    incidentId: v.string(),
+    noteText: v.string(),
+    addedBy: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const incident = await ctx.db
+      .query("incidents")
+      .filter(q => q.eq(q.field("incidentId"), args.incidentId))
+      .first();
+
+    if (!incident) {
+      throw new Error("Incident not found");
+    }
+
+    const now = Date.now();
+    const newNote = {
+      id: `note_${now}_${Math.random().toString(36).substr(2, 9)}`,
+      text: args.noteText,
+      addedBy: args.addedBy,
+      addedAt: now,
+    };
+
+    await ctx.db.patch(incident._id, {
+      notes: [...incident.notes, newNote],
+      updatedAt: now,
+    });
+
+    // Log action
+    await ctx.db.insert("supervisorActions", {
+      action: "add_incident_note",
+      supervisorId: args.addedBy,
+      supervisorName: args.addedBy,
+      timestamp: now,
+      details: {
+        incidentId: args.incidentId,
+        noteText: args.noteText,
+      },
+    });
+
+    return { success: true, note: newNote };
+  },
+});
+
+// Send Ticketer message
+export const sendTicketerMessage = mutation({
+  args: {
+    incidentId: v.string(),
+    message: v.string(),
+    sentBy: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const incident = await ctx.db
+      .query("incidents")
+      .filter(q => q.eq(q.field("incidentId"), args.incidentId))
+      .first();
+
+    if (!incident) {
+      throw new Error("Incident not found");
+    }
+
+    const now = Date.now();
+
+    await ctx.db.patch(incident._id, {
+      ticketerMessage: args.message,
+      ticketerSent: true,
+      ticketerSentAt: now,
+      ticketerSentBy: args.sentBy,
+      updatedAt: now,
+    });
+
+    // Log action
+    await ctx.db.insert("supervisorActions", {
+      action: "send_ticketer_message",
+      supervisorId: args.sentBy,
+      supervisorName: args.sentBy,
+      timestamp: now,
+      details: {
+        incidentId: args.incidentId,
+        message: args.message,
+      },
+    });
+
+    console.log(`📱 Ticketer message sent for incident ${args.incidentId} by ${args.sentBy}`);
+    
+    return { success: true };
+  },
+});
+
+// Push incident to display
+export const pushIncidentToDisplay = mutation({
+  args: {
+    incidentId: v.string(),
+    pushedBy: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const incident = await ctx.db
+      .query("incidents")
+      .filter(q => q.eq(q.field("incidentId"), args.incidentId))
+      .first();
+
+    if (!incident) {
+      throw new Error("Incident not found");
+    }
+
+    const now = Date.now();
+
+    await ctx.db.patch(incident._id, {
+      pushedToDisplay: true,
+      pushedToDisplayBy: args.pushedBy,
+      pushedToDisplayAt: now,
+      updatedAt: now,
+    });
+
+    // Log action
+    await ctx.db.insert("supervisorActions", {
+      action: "push_incident_to_display",
+      supervisorId: args.pushedBy,
+      supervisorName: args.pushedBy,
+      timestamp: now,
+      details: {
+        incidentId: args.incidentId,
+      },
+    });
+
+    console.log(`📺 Incident ${args.incidentId} pushed to display by ${args.pushedBy}`);
+    
+    return { success: true };
+  },
+});
+
 // EVENT MANAGEMENT FUNCTIONS
 
 // Get active events

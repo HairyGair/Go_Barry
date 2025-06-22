@@ -182,6 +182,29 @@ export function useEvents() {
   };
 }
 
+// Hook for incident management
+export function useIncidents() {
+  const activeIncidents = useQuery(api.sync.getActiveIncidents);
+  const allIncidents = useQuery(api.sync.getAllIncidents);
+  
+  const createIncident = useMutation(api.sync.createIncident);
+  const updateIncident = useMutation(api.sync.updateIncident);
+  const addIncidentNote = useMutation(api.sync.addIncidentNote);
+  const sendTicketerMessage = useMutation(api.sync.sendTicketerMessage);
+  const pushIncidentToDisplay = useMutation(api.sync.pushIncidentToDisplay);
+
+  return {
+    activeIncidents: activeIncidents || [],
+    allIncidents: allIncidents || [],
+    createIncident,
+    updateIncident,
+    addIncidentNote,
+    sendTicketerMessage,
+    pushIncidentToDisplay,
+    loading: activeIncidents === undefined,
+  };
+}
+
 // Hook for alert sync from backend
 export function useAlertSync() {
   const batchInsertAlerts = useMutation(api.alerts.batchInsertAlerts);
@@ -224,6 +247,7 @@ export function useConvexSync() {
   const alerts = useAlerts();
   const supervisors = useActiveSupervisors();
   const events = useEvents();
+  const incidents = useIncidents();
   const alertSync = useAlertSync();
 
   // Get stored session ID on mount
@@ -271,6 +295,16 @@ export function useConvexSync() {
     mostSevereEvent: events.mostSevereEvent,
     upsertEvent: events.upsertEvent,
     updateEventStatus: events.updateEventStatus,
+    
+    // Incidents
+    activeIncidents: incidents.activeIncidents,
+    allIncidents: incidents.allIncidents,
+    createIncident: incidents.createIncident,
+    updateIncident: incidents.updateIncident,
+    addIncidentNote: incidents.addIncidentNote,
+    sendTicketerMessage: incidents.sendTicketerMessage,
+    pushIncidentToDisplay: incidents.pushIncidentToDisplay,
+    incidentsLoading: incidents.loading,
     
     // Alert sync
     syncAlerts: alertSync.syncAlerts,
