@@ -898,8 +898,8 @@ const SupervisorControl = ({
           <TextInput
             style={styles.handoverInput}
             placeholder="Enter handover notes for the next shift..."
-            value={handoverNotes}
-            onChangeText={setHandoverNotes}
+            value={handoverNotes || ''}
+            onChangeText={(text) => setHandoverNotes(text || '')}
             multiline
             numberOfLines={6}
             placeholderTextColor="#9CA3AF"

@@ -166,6 +166,22 @@ export function useHeartbeat(sessionId, interval = 30000) {
   }, [sessionId, heartbeat, interval]);
 }
 
+// Hook for events management
+export function useEvents() {
+  const activeEvents = useQuery(api.sync.getActiveEvents);
+  const mostSevereEvent = useQuery(api.sync.getMostSevereEvent);
+  
+  const upsertEvent = useMutation(api.sync.upsertEvent);
+  const updateEventStatus = useMutation(api.sync.updateEventStatus);
+
+  return {
+    activeEvents: activeEvents || [],
+    mostSevereEvent,
+    upsertEvent,
+    updateEventStatus,
+  };
+}
+
 // Hook for alert sync from backend
 export function useAlertSync() {
   const batchInsertAlerts = useMutation(api.alerts.batchInsertAlerts);
@@ -207,6 +223,7 @@ export function useConvexSync() {
   const sync = useSyncState();
   const alerts = useAlerts();
   const supervisors = useActiveSupervisors();
+  const events = useEvents();
   const alertSync = useAlertSync();
 
   // Get stored session ID on mount
@@ -248,6 +265,12 @@ export function useConvexSync() {
     // Supervisors
     activeSupervisors: supervisors.activeSupervisors,
     forceLogout: supervisors.forceLogout,
+    
+    // Events
+    activeEvents: events.activeEvents,
+    mostSevereEvent: events.mostSevereEvent,
+    upsertEvent: events.upsertEvent,
+    updateEventStatus: events.updateEventStatus,
     
     // Alert sync
     syncAlerts: alertSync.syncAlerts,

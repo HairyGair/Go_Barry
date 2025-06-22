@@ -119,6 +119,29 @@ export default defineSchema({
   })
     .index("by_name", ["name"]),
 
+  // Major events (concerts, matches, etc)
+  events: defineTable({
+    eventId: v.string(),
+    venue: v.string(),
+    event: v.string(),
+    time: v.string(),
+    date: v.string(),
+    severity: v.string(), // LOW, MEDIUM, HIGH, CRITICAL
+    status: v.string(), // UPCOMING, ACTIVE, COMPLETED, CANCELLED
+    expectedAttendance: v.optional(v.number()),
+    affectedRoutes: v.array(v.string()),
+    description: v.optional(v.string()),
+    alertMessage: v.optional(v.string()),
+    isActive: v.boolean(),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_severity", ["severity"])
+    .index("by_active", ["isActive"])
+    .index("by_date", ["date"]),
+
   // System configuration
   systemConfig: defineTable({
     key: v.string(),

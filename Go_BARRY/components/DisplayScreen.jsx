@@ -12,8 +12,8 @@ const DisplayScreen = () => {
   const [attentionMode, setAttentionMode] = useState(false);
   const [weather, setWeather] = useState({ condition: 'CLEAR', temp: '15°C', icon: '☀️' });
 
-  // FIXED: Use Convex hooks for BOTH alerts AND supervisors (real-time sync)
-  const { activeAlerts, activeSupervisors } = useConvexSync();
+  // FIXED: Use Convex hooks for alerts, supervisors, AND events (real-time sync)
+  const { activeAlerts, activeSupervisors, mostSevereEvent } = useConvexSync();
   const supervisorActivity = useSupervisorActions({ limit: 10 });
   
   // Process alerts from Convex to ensure consistent format
@@ -51,22 +51,10 @@ const DisplayScreen = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch active events
-  const fetchActiveEvents = async () => {
-    try {
-      const response = await fetch('https://go-barry.onrender.com/api/events/active');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.mostSevere) {
-          setActiveEvent(data.mostSevere);
-        } else {
-          setActiveEvent(null);
-        }
-      }
-    } catch (err) {
-      console.log('Could not fetch events');
-    }
-  };
+  // Events now come from Convex real-time sync
+  useEffect(() => {
+    setActiveEvent(mostSevereEvent);
+  }, [mostSevereEvent]);
 
   // Check for critical/high severity alerts
   useEffect(() => {
@@ -77,14 +65,7 @@ const DisplayScreen = () => {
     setAttentionMode(criticalAlerts.length > 0);
   }, [alerts]);
 
-  // Initial load and auto-refresh for events only (alerts come from Convex)
-  useEffect(() => {
-    fetchActiveEvents();
-    const eventInterval = setInterval(fetchActiveEvents, 60000);
-    return () => {
-      clearInterval(eventInterval);
-    };
-  }, []);
+  // Events are now real-time via Convex - no need for polling
 
   // Auto-rotate alerts
   useEffect(() => {

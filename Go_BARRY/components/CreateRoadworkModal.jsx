@@ -13,6 +13,11 @@ import {
 import { Picker } from '@react-native-picker/picker';
 
 const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreated }) => {
+  // Helper to ensure string values
+  const ensureString = (value) => {
+    return (value !== null && value !== undefined) ? String(value) : '';
+  };
+  
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -26,7 +31,7 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
     allDay: false,
     routesAffected: '',
     severity: 'medium',
-    contactInfo: supervisorData?.email || '',
+    contactInfo: ensureString(supervisorData?.email),
     webLink: '',
     emailGroups: ['Traffic Control'] // Default selected groups
   });
@@ -232,7 +237,7 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
       allDay: false,
       routesAffected: '',
       severity: 'medium',
-      contactInfo: supervisorData?.email || '',
+      contactInfo: ensureString(supervisorData?.email),
       webLink: '',
       emailGroups: ['Traffic Control']
     });
@@ -270,8 +275,8 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
             <Text style={styles.label}>Title *</Text>
             <TextInput
               style={styles.input}
-              value={formData.title}
-              onChangeText={(text) => setFormData({...formData, title: text})}
+              value={ensureString(formData.title)}
+              onChangeText={(text) => setFormData({...formData, title: ensureString(text)})}
               placeholder="e.g., A1 Bridge Maintenance"
               placeholderTextColor="#999"
             />
@@ -279,8 +284,8 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
             <Text style={styles.label}>Description</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              value={formData.description}
-              onChangeText={(text) => setFormData({...formData, description: text})}
+              value={ensureString(formData.description)}
+              onChangeText={(text) => setFormData({...formData, description: ensureString(text)})}
               placeholder="Detailed description of the roadwork..."
               placeholderTextColor="#999"
               multiline
@@ -290,8 +295,8 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
             <Text style={styles.label}>Location *</Text>
             <TextInput
               style={styles.input}
-              value={formData.location}
-              onChangeText={(text) => setFormData({...formData, location: text})}
+              value={ensureString(formData.location)}
+              onChangeText={(text) => setFormData({...formData, location: ensureString(text)})}
               placeholder="e.g., A1 Western Bypass, Junction 75"
               placeholderTextColor="#999"
             />
@@ -299,8 +304,8 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
             <Text style={styles.label}>Areas Affected (comma separated)</Text>
             <TextInput
               style={styles.input}
-              value={formData.areas}
-              onChangeText={(text) => setFormData({...formData, areas: text})}
+              value={ensureString(formData.areas)}
+              onChangeText={(text) => setFormData({...formData, areas: ensureString(text)})}
               placeholder="e.g., Newcastle, Gateshead, Durham"
               placeholderTextColor="#999"
             />
@@ -324,8 +329,8 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
                 <Text style={styles.label}>Start Date *</Text>
                 <TextInput
                   style={styles.input}
-                  value={formData.startDate}
-                  onChangeText={(text) => setFormData({...formData, startDate: text})}
+                  value={ensureString(formData.startDate)}
+                  onChangeText={(text) => setFormData({...formData, startDate: ensureString(text)})}
                   placeholder="YYYY-MM-DD"
                 />
               </View>
@@ -334,8 +339,8 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
                   <Text style={styles.label}>Start Time</Text>
                   <TextInput
                     style={styles.input}
-                    value={formData.startTime}
-                    onChangeText={(text) => setFormData({...formData, startTime: text})}
+                    value={ensureString(formData.startTime)}
+                    onChangeText={(text) => setFormData({...formData, startTime: ensureString(text)})}
                     placeholder="HH:MM"
                   />
                 </View>
@@ -347,8 +352,8 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
                 <Text style={styles.label}>End Date</Text>
                 <TextInput
                   style={styles.input}
-                  value={formData.endDate}
-                  onChangeText={(text) => setFormData({...formData, endDate: text})}
+                  value={ensureString(formData.endDate)}
+                  onChangeText={(text) => setFormData({...formData, endDate: ensureString(text)})}
                   placeholder="YYYY-MM-DD (optional)"
                 />
               </View>
@@ -357,8 +362,8 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
                   <Text style={styles.label}>End Time</Text>
                   <TextInput
                     style={styles.input}
-                    value={formData.endTime}
-                    onChangeText={(text) => setFormData({...formData, endTime: text})}
+                    value={ensureString(formData.endTime)}
+                    onChangeText={(text) => setFormData({...formData, endTime: ensureString(text)})}
                     placeholder="HH:MM"
                   />
                 </View>
@@ -394,8 +399,8 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
             <Text style={styles.label}>Routes Affected (comma separated)</Text>
             <TextInput
               style={styles.input}
-              value={formData.routesAffected}
-              onChangeText={(text) => setFormData({...formData, routesAffected: text})}
+              value={ensureString(formData.routesAffected)}
+              onChangeText={(text) => setFormData({...formData, routesAffected: ensureString(text)})}
               placeholder="e.g., 21, X21, 1, 307"
               placeholderTextColor="#999"
             />
@@ -421,8 +426,8 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
             <Text style={styles.label}>Contact Information</Text>
             <TextInput
               style={styles.input}
-              value={formData.contactInfo}
-              onChangeText={(text) => setFormData({...formData, contactInfo: text})}
+              value={ensureString(formData.contactInfo)}
+              onChangeText={(text) => setFormData({...formData, contactInfo: ensureString(text)})}
               placeholder="Email or phone number"
               placeholderTextColor="#999"
             />
@@ -430,8 +435,8 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
             <Text style={styles.label}>Web Link</Text>
             <TextInput
               style={styles.input}
-              value={formData.webLink}
-              onChangeText={(text) => setFormData({...formData, webLink: text})}
+              value={ensureString(formData.webLink)}
+              onChangeText={(text) => setFormData({...formData, webLink: ensureString(text)})}
               placeholder="https://..."
               placeholderTextColor="#999"
             />

@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { convexSync } from './convexSync.js';
 
 // Load .env from backend root directory
 const __filename = fileURLToPath(import.meta.url);
@@ -60,6 +61,26 @@ class EventMonitor {
         return { active: [], mostSevere: null, count: 0 };
       }
 
+      // Sync active events to Convex for real-time updates
+      if (activeEvents && activeEvents.length > 0) {
+        const convexEvents = activeEvents.map(event => ({
+          eventId: event.id,
+          venue: event.location,
+          event: event.title,
+          time: event.start_time,
+          date: event.start_time.split('T')[0],
+          severity: event.severity,
+          status: event.status,
+          affectedRoutes: event.affected_routes || [],
+          description: event.description,
+          isActive: true
+        }));
+        
+        convexSync.syncEvents(convexEvents).catch(err => {
+          console.error('❌ Failed to sync events to Convex:', err);
+        });
+      }
+
       return {
         active: activeEvents || [],
         mostSevere: activeEvents && activeEvents.length > 0 ? activeEvents[0] : null,
@@ -102,6 +123,25 @@ class EventMonitor {
       }
 
       console.log(`✅ Added major event: ${event.title} (${event.id})`);
+      
+      // Sync to Convex
+      const convexEvent = {
+        eventId: data.id,
+        venue: data.location,
+        event: data.title,
+        time: data.start_time,
+        date: data.start_time.split('T')[0],
+        severity: data.severity,
+        status: data.status,
+        affectedRoutes: data.affected_routes || [],
+        description: data.description,
+        isActive: data.status === 'active'
+      };
+      
+      convexSync.syncEvents([convexEvent]).catch(err => {
+        console.error('❌ Failed to sync new event to Convex:', err);
+      });
+      
       return data;
     } catch (error) {
       console.error('❌ Error in addEvent:', error);
@@ -152,6 +192,25 @@ class EventMonitor {
       }
 
       console.log(`✅ Updated major event: ${eventId}`);
+      
+      // Sync to Convex
+      const convexEvent = {
+        eventId: data.id,
+        venue: data.location,
+        event: data.title,
+        time: data.start_time,
+        date: data.start_time.split('T')[0],
+        severity: data.severity,
+        status: data.status,
+        affectedRoutes: data.affected_routes || [],
+        description: data.description,
+        isActive: data.status === 'active'
+      };
+      
+      convexSync.syncEvents([convexEvent]).catch(err => {
+        console.error('❌ Failed to sync updated event to Convex:', err);
+      });
+      
       return data;
     } catch (error) {
       console.error('❌ Error in updateEvent:', error);

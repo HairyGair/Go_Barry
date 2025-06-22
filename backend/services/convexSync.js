@@ -85,6 +85,48 @@ class ConvexSyncService {
     }
   }
 
+  async syncEvents(events) {
+    if (!this.isEnabled) {
+      return { success: false, reason: 'Convex not configured' };
+    }
+
+    try {
+      // Transform events to match Convex schema
+      const convexEvents = events.map(event => ({
+        eventId: event.id || event.eventId || `event_${Date.now()}_${Math.random()}`,
+        venue: event.venue || 'Unknown Venue',
+        event: event.event || 'Unknown Event',
+        time: event.time || '',
+        date: event.date || new Date().toISOString().split('T')[0],
+        severity: event.severity || 'medium',
+        status: event.status || 'active',
+        expectedAttendance: event.expectedAttendance,
+        affectedRoutes: event.affectedRoutes || [],
+        description: event.description,
+        alertMessage: event.alertMessage,
+        isActive: event.isActive !== false, // Default to true
+        createdBy: 'system',
+      }));
+
+      // Sync each event individually to handle upserts
+      let syncedCount = 0;
+      for (const event of convexEvents) {
+        try {
+          await this.callConvexFunction('sync:upsertEvent', event);
+          syncedCount++;
+        } catch (error) {
+          console.error(`❌ Failed to sync event ${event.eventId}:`, error.message);
+        }
+      }
+
+      console.log(`✅ Synced ${syncedCount}/${convexEvents.length} events to Convex`);
+      return { success: true, count: syncedCount };
+    } catch (error) {
+      console.error('❌ Convex events sync error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   async syncSupervisorAction(action) {
     if (!this.isEnabled) {
       return { success: false, reason: 'Convex not configured' };

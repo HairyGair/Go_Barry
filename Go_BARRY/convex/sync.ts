@@ -84,6 +84,149 @@ export const setDisplayMode = mutation({
   },
 });
 
+// EVENT MANAGEMENT FUNCTIONS
+
+// Get active events
+export const getActiveEvents = query({
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("events")
+      .withIndex("by_active", q => q.eq("isActive", true))
+      .order("desc")
+      .collect();
+  },
+});
+
+// Get most severe active event
+export const getMostSevereEvent = query({
+  handler: async (ctx) => {
+    const activeEvents = await ctx.db
+      .query("events")
+      .withIndex("by_active", q => q.eq("isActive", true))
+      .collect();
+
+    if (activeEvents.length === 0) return null;
+
+    // Sort by severity: CRITICAL > HIGH > MEDIUM > LOW
+    const severityOrder = { 'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 };
+    
+    const sortedEvents = activeEvents.sort((a, b) => {
+      const aSeverity = severityOrder[a.severity.toUpperCase()] || 0;
+      const bSeverity = severityOrder[b.severity.toUpperCase()] || 0;
+      return bSeverity - aSeverity;
+    });
+
+    return sortedEvents[0];
+  },
+});
+
+// Add or update event
+export const upsertEvent = mutation({
+  args: {
+    eventId: v.string(),
+    venue: v.string(),
+    event: v.string(),
+    time: v.string(),
+    date: v.string(),
+    severity: v.string(),
+    status: v.string(),
+    expectedAttendance: v.optional(v.number()),
+    affectedRoutes: v.array(v.string()),
+    description: v.optional(v.string()),
+    alertMessage: v.optional(v.string()),
+    isActive: v.boolean(),
+    createdBy: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Check if event exists
+    const existingEvent = await ctx.db
+      .query("events")
+      .filter(q => q.eq(q.field("eventId"), args.eventId))
+      .first();
+
+    const now = Date.now();
+
+    if (existingEvent) {
+      // Update existing event
+      await ctx.db.patch(existingEvent._id, {
+        venue: args.venue,
+        event: args.event,
+        time: args.time,
+        date: args.date,
+        severity: args.severity,
+        status: args.status,
+        expectedAttendance: args.expectedAttendance,
+        affectedRoutes: args.affectedRoutes,
+        description: args.description,
+        alertMessage: args.alertMessage,
+        isActive: args.isActive,
+        updatedAt: now,
+      });
+      return existingEvent._id;
+    } else {
+      // Create new event
+      return await ctx.db.insert("events", {
+        eventId: args.eventId,
+        venue: args.venue,
+        event: args.event,
+        time: args.time,
+        date: args.date,
+        severity: args.severity,
+        status: args.status,
+        expectedAttendance: args.expectedAttendance,
+        affectedRoutes: args.affectedRoutes,
+        description: args.description,
+        alertMessage: args.alertMessage,
+        isActive: args.isActive,
+        createdBy: args.createdBy,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+  },
+});
+
+// Update event status
+export const updateEventStatus = mutation({
+  args: {
+    eventId: v.string(),
+    status: v.string(),
+    isActive: v.boolean(),
+    updatedBy: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const event = await ctx.db
+      .query("events")
+      .filter(q => q.eq(q.field("eventId"), args.eventId))
+      .first();
+
+    if (!event) {
+      throw new Error("Event not found");
+    }
+
+    await ctx.db.patch(event._id, {
+      status: args.status,
+      isActive: args.isActive,
+      updatedAt: Date.now(),
+    });
+
+    // Log action
+    await ctx.db.insert("supervisorActions", {
+      action: "update_event_status",
+      supervisorId: args.updatedBy,
+      supervisorName: args.updatedBy,
+      timestamp: Date.now(),
+      details: {
+        eventId: args.eventId,
+        newStatus: args.status,
+        isActive: args.isActive,
+      },
+    });
+
+    return { success: true };
+  },
+});
+
 // Log a supervisor action (for audit trail)
 export const logSupervisorAction = mutation({
   args: {
