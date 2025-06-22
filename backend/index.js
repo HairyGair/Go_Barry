@@ -41,6 +41,7 @@ import streetManagerWebhooks from './services/streetManagerWebhooksSimple.js';
 import { createServer } from 'http';
 import { deduplicateAlerts, cleanupExpiredDismissals, generateAlertHash } from './utils/alertDeduplication.js';
 import { convexSync } from './services/convexSync.js';
+import startupService from './services/startupService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1278,6 +1279,85 @@ app.post('/api/cache/clear-enhanced', (req, res) => {
   res.json({ success: true, message: 'Enhanced cache cleared' });
 });
 
+// System health with retention information
+app.get('/api/system/health', async (req, res) => {
+  try {
+    const health = await startupService.getSystemHealth();
+    res.json(health);
+  } catch (error) {
+    console.error('❌ Error getting system health:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Detailed retention status
+app.get('/api/system/retention-status', async (req, res) => {
+  try {
+    const { dataRetentionService } = await import('./services/dataRetentionService.js');
+    const status = await dataRetentionService.getRetentionStatus();
+    res.json({
+      success: true,
+      retention: status,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error getting retention status:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Manual cleanup trigger (admin only)
+app.post('/api/admin/cleanup', async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Session ID required'
+      });
+    }
+    
+    // Validate admin session
+    const { validateSupervisorSession } = await import('./services/supervisorManager.js');
+    const sessionValidation = validateSupervisorSession(sessionId);
+    
+    if (!sessionValidation.success || !sessionValidation.supervisor.isAdmin) {
+      return res.status(403).json({
+        success: false,
+        error: 'Admin access required'
+      });
+    }
+    
+    const results = await startupService.triggerManualCleanup();
+    
+    console.log(`📋 Manual cleanup triggered by ${sessionValidation.supervisor.name}: ${results.totalDeleted} records deleted`);
+    
+    res.json({
+      success: true,
+      cleanup: results,
+      triggeredBy: sessionValidation.supervisor.name,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Error triggering manual cleanup:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // API Usage Optimization Status Endpoint
 app.get('/api/optimization/status', async (req, res) => {
   try {
@@ -1623,8 +1703,17 @@ async function startServer() {
       console.log('🏃 Starting async initialization...');
       
       // Initialize AFTER port binding
-      initializeApplication().then(() => {
-        console.log('✅ Initialization complete');
+      initializeApplication().then(async () => {
+        console.log('✅ Basic initialization complete');
+        
+        // Initialize Go BARRY system with 3-month data retention
+        try {
+          await startupService.initializeGoBarrySystem();
+          console.log('✅ Go BARRY system initialization complete');
+        } catch (error) {
+          console.error('⚠️ Go BARRY system initialization error:', error.message);
+          console.log('⚠️ Continuing without data retention system...');
+        }
       }).catch(error => {
         console.error('⚠️ Initialization error:', error.message);
         console.log('⚠️ Continuing with limited functionality...');
@@ -1642,6 +1731,9 @@ async function startServer() {
       console.log(`   🚨 Emergency: /api/emergency-alerts`);
       console.log(`   💚 Health: /api/health`);
       console.log(`   🧑‍⚕️ Health Extended: /api/health-extended`);
+      console.log(`   🏥 System Health (3-month retention): /api/system/health`);
+      console.log(`   📊 Retention Status: /api/system/retention-status`);
+      console.log(`   🧹 Manual Cleanup (admin): /api/admin/cleanup`);
       console.log(`   👮 Supervisor: /api/supervisor`);
       console.log(`   🙅 Dismiss Alert: /api/supervisor/dismiss-alert`);
       console.log(`   🚧 Roadworks: /api/roadworks`);
@@ -1759,3 +1851,4 @@ process.on('SIGTERM', () => {
 export default app;// Deployment timestamp: Sat 21 Jun 2025 22:45:00 BST
 // Force redeploy: CONVEX_URL added Sat 21 Jun 2025 23:52:56 BST
 // CONVEX_URL environment variable added Sat 21 Jun 2025 23:57:27 BST
+// 3-Month Data Retention System COMPLETED: Sun 22 Jun 2025 16:30:00 BST

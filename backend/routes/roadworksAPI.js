@@ -8,171 +8,16 @@ import geocodingService, { geocodeLocation } from '../services/geocoding.js';
 import findGTFSRoutesNearCoordinates from '../gtfs-route-matcher.js';
 import { generateDiversionPDF, generateTicketMachineMessage } from '../services/roadworksServices.js';
 import supervisorActivityLogger from '../services/supervisorActivityLogger.js';
+import supabaseRoadworksStorage from '../services/supabaseRoadworksStorage.js';
 
 const router = express.Router();
 
-// In-memory roadworks storage (in production, use database)
-let roadworks = [];
+// Using Supabase storage for persistence
 let roadworksCounter = 1;
 
 // Initialize with current week's roadworks
-function initializeCurrentRoadworks() {
-  console.log('🚧 Initializing current week roadworks data...');
-  
-  const currentWeekRoadworks = [
-    {
-      id: `roadwork_${roadworksCounter++}`,
-      title: 'A19 Southbound Lane Restrictions',
-      description: 'Highway maintenance works affecting southbound carriageway between Seaton Burn and Wideopen. Lane 1 closed, expect 10-15 minute delays.',
-      location: 'A19 Southbound, Seaton Burn to Wideopen',
-      coordinates: { latitude: 55.0833, longitude: -1.6167 },
-      authority: 'National Highways',
-      contactPerson: 'David Richardson',
-      contactPhone: '0300 123 5000',
-      contactEmail: 'd.richardson@nationalhighways.co.uk',
-      plannedStartDate: '2025-06-09T06:00:00.000Z',
-      plannedEndDate: '2025-06-13T18:00:00.000Z',
-      estimatedDuration: '4 days',
-      roadworkType: 'road_surface',
-      trafficManagement: 'lane_closure',
-      priority: 'high',
-      affectedRoutes: ['1', '2', '22', '35', '317', '327'],
-      status: 'active',
-      assignedTo: 'supervisor001',
-      assignedToName: 'John Smith',
-      createdBy: 'system',
-      createdByName: 'BARRY System',
-      createdAt: '2025-06-08T14:30:00.000Z',
-      lastUpdated: '2025-06-09T08:00:00.000Z',
-      promotedToDisplay: true,
-      displayNotes: 'Major A19 delays affecting northern services',
-      diversions: [],
-      tasks: [
-        {
-          id: 'task_001',
-          title: 'Update passenger information systems',
-          type: 'communication',
-          status: 'completed',
-          priority: 'urgent'
-        }
-      ]
-    },
-    {
-      id: `roadwork_${roadworksCounter++}`,
-      title: 'Newcastle City Centre - Grey Street Gas Works',
-      description: 'Emergency gas main replacement on Grey Street. Road completely closed to traffic, pedestrian access maintained.',
-      location: 'Grey Street, Newcastle City Centre',
-      coordinates: { latitude: 54.9738, longitude: -1.6131 },
-      authority: 'Newcastle City Council',
-      contactPerson: 'Sarah Mitchell',
-      contactPhone: '0191 278 7878',
-      contactEmail: 's.mitchell@newcastle.gov.uk',
-      plannedStartDate: '2025-06-10T07:00:00.000Z',
-      plannedEndDate: '2025-06-14T17:00:00.000Z',
-      estimatedDuration: '4 days',
-      roadworkType: 'utilities',
-      trafficManagement: 'road_closure',
-      priority: 'critical',
-      affectedRoutes: ['Q3', 'Q3X', '12', '39', '40'],
-      status: 'planning',
-      assignedTo: 'supervisor001',
-      assignedToName: 'John Smith',
-      createdBy: 'external',
-      createdByName: 'Council Notification',
-      createdAt: '2025-06-07T16:45:00.000Z',
-      lastUpdated: '2025-06-09T09:15:00.000Z',
-      promotedToDisplay: true,
-      displayNotes: 'Critical: City centre road closure affecting Quayside services',
-      diversions: [],
-      tasks: [
-        {
-          id: 'task_002',
-          title: 'Create diversion route for Q3/Q3X',
-          type: 'diversion_planning',
-          status: 'pending',
-          priority: 'urgent'
-        },
-        {
-          id: 'task_003',
-          title: 'Coordinate with Metro for alternative travel',
-          type: 'coordination',
-          status: 'pending',
-          priority: 'high'
-        }
-      ]
-    },
-    {
-      id: `roadwork_${roadworksCounter++}`,
-      title: 'Sunderland Bridge Maintenance',
-      description: 'Planned maintenance on Sunderland Bridge affecting traffic flow. Temporary traffic lights in operation.',
-      location: 'Sunderland Bridge, Sunderland',
-      coordinates: { latitude: 54.9069, longitude: -1.3838 },
-      authority: 'Sunderland City Council',
-      contactPerson: 'Mark Thompson',
-      contactPhone: '0191 520 5555',
-      contactEmail: 'm.thompson@sunderland.gov.uk',
-      plannedStartDate: '2025-06-11T10:00:00.000Z',
-      plannedEndDate: '2025-06-11T16:00:00.000Z',
-      estimatedDuration: '6 hours',
-      roadworkType: 'maintenance',
-      trafficManagement: 'traffic_lights',
-      priority: 'medium',
-      affectedRoutes: ['16', '20', '24', '56', '61'],
-      status: 'approved',
-      assignedTo: 'supervisor002',
-      assignedToName: 'Sarah Johnson',
-      createdBy: 'planned',
-      createdByName: 'Weekly Planning',
-      createdAt: '2025-06-05T12:00:00.000Z',
-      lastUpdated: '2025-06-08T14:30:00.000Z',
-      promotedToDisplay: false,
-      diversions: [],
-      tasks: []
-    },
-    {
-      id: `roadwork_${roadworksCounter++}`,
-      title: 'Durham Road Water Main Repair',
-      description: 'Emergency water main repair affecting Durham Road near Chester-le-Street. Single lane operation.',
-      location: 'Durham Road, Chester-le-Street',
-      coordinates: { latitude: 54.8516, longitude: -1.5761 },
-      authority: 'Northumbrian Water',
-      contactPerson: 'Lisa Cummings',
-      contactPhone: '0345 717 1100',
-      contactEmail: 'l.cummings@nwl.co.uk',
-      plannedStartDate: '2025-06-12T08:00:00.000Z',
-      plannedEndDate: '2025-06-13T17:00:00.000Z',
-      estimatedDuration: '2 days',
-      roadworkType: 'utilities',
-      trafficManagement: 'traffic_control',
-      priority: 'high',
-      affectedRoutes: ['21', 'X21', '28', '50'],
-      status: 'reported',
-      assignedTo: 'supervisor001',
-      assignedToName: 'John Smith',
-      createdBy: 'external',
-      createdByName: 'Northumbrian Water',
-      createdAt: '2025-06-09T11:30:00.000Z',
-      lastUpdated: '2025-06-09T11:30:00.000Z',
-      promotedToDisplay: false,
-      diversions: [],
-      tasks: [
-        {
-          id: 'task_004',
-          title: 'Assess impact on 21/X21 services',
-          type: 'assessment',
-          status: 'pending',
-          priority: 'high'
-        }
-      ]
-    }
-  ];
-  
-  roadworks = currentWeekRoadworks;
-  console.log(`✅ Initialized ${roadworks.length} current roadworks for this week`);
-}
-
-// Initialize roadworks data on startup
-initializeCurrentRoadworks();
+// Initialize Supabase storage on startup
+supabaseRoadworksStorage.initializeStorage();
 
 // Roadworks workflow statuses
 const ROADWORKS_STATUSES = {
@@ -209,38 +54,9 @@ router.get('/', async (req, res) => {
   try {
     const { status, priority, assignedTo, dateFrom, dateTo } = req.query;
     
-    let filteredRoadworks = [...roadworks];
+    const filteredRoadworks = await supabaseRoadworksStorage.getAllRoadworks({ status, priority, assignedTo, dateFrom, dateTo });
     
-    // Apply filters
-    if (status) {
-      filteredRoadworks = filteredRoadworks.filter(rw => rw.status === status);
-    }
-    
-    if (priority) {
-      filteredRoadworks = filteredRoadworks.filter(rw => rw.priority === priority);
-    }
-    
-    if (assignedTo) {
-      filteredRoadworks = filteredRoadworks.filter(rw => rw.assignedTo === assignedTo);
-    }
-    
-    if (dateFrom) {
-      const fromDate = new Date(dateFrom);
-      filteredRoadworks = filteredRoadworks.filter(rw => new Date(rw.plannedStartDate) >= fromDate);
-    }
-    
-    if (dateTo) {
-      const toDate = new Date(dateTo);
-      filteredRoadworks = filteredRoadworks.filter(rw => new Date(rw.plannedStartDate) <= toDate);
-    }
-    
-    // Sort by priority and creation date
-    filteredRoadworks.sort((a, b) => {
-      const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3, planned: 4 };
-      const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
-      if (priorityDiff !== 0) return priorityDiff;
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    });
+    // Sorting is handled in Supabase query
     
     res.json({
       success: true,
@@ -397,9 +213,9 @@ router.post('/', async (req, res) => {
       displayNotes: ''
     };
 
-    roadworks.push(roadwork);
+    const savedRoadwork = await supabaseRoadworksStorage.addRoadwork(roadwork);
 
-    console.log(`✅ Created roadworks task: ${roadwork.id} at ${location} affecting ${affectedRoutes.length} routes`);
+    console.log(`✅ Created roadworks task: ${savedRoadwork.id} at ${location} affecting ${affectedRoutes.length} routes`);
     console.log(`   📋 Priority: ${determinedPriority} | Assigned to: ${supervisor.name}`);
     console.log(`   🚌 Routes affected: ${affectedRoutes.slice(0, 5).join(', ')}${affectedRoutes.length > 5 ? '...' : ''}`);
 
@@ -410,14 +226,14 @@ router.post('/', async (req, res) => {
       {
         location: enhancedLocationName,
         severity: determinedPriority,
-        status: roadwork.status,
+        status: savedRoadwork.status,
         affected_routes: affectedRoutes.length
       }
     );
 
     res.json({
       success: true,
-      roadwork,
+      roadwork: savedRoadwork,
       message: 'Roadworks task created successfully'
     });
 
@@ -462,37 +278,37 @@ router.put('/:id/status', async (req, res) => {
 
     const supervisor = sessionValidation.supervisor;
 
-    // Find roadwork
-    const roadworkIndex = roadworks.findIndex(rw => rw.id === id);
-    if (roadworkIndex === -1) {
+    // Get current roadwork
+    const roadwork = await supabaseRoadworksStorage.getRoadworkById(id);
+    if (!roadwork) {
       return res.status(404).json({
         success: false,
         error: 'Roadworks not found'
       });
     }
 
-    const roadwork = roadworks[roadworkIndex];
-
-    // Update status and timing
     const previousStatus = roadwork.status;
-    roadwork.status = status;
-    roadwork.lastUpdated = new Date().toISOString();
+    const updates = {
+      status,
+      notes,
+      actualStartDate,
+      actualEndDate,
+      updatedBy: supervisor.id,
+      updatedByName: supervisor.name
+    };
 
     // Handle timing updates
     if (status === ROADWORKS_STATUSES.ACTIVE && !roadwork.actualStartDate) {
-      roadwork.actualStartDate = actualStartDate || new Date().toISOString();
+      updates.actualStartDate = actualStartDate || new Date().toISOString();
     }
     
     if (status === ROADWORKS_STATUSES.COMPLETED && !roadwork.actualEndDate) {
-      roadwork.actualEndDate = actualEndDate || new Date().toISOString();
+      updates.actualEndDate = actualEndDate || new Date().toISOString();
     }
 
     // Add status change to audit trail
-    if (!roadwork.statusHistory) {
-      roadwork.statusHistory = [];
-    }
-    
-    roadwork.statusHistory.push({
+    const statusHistory = roadwork.statusHistory || [];
+    statusHistory.push({
       from: previousStatus,
       to: status,
       changedBy: supervisor.id,
@@ -500,12 +316,15 @@ router.put('/:id/status', async (req, res) => {
       changedAt: new Date().toISOString(),
       notes: notes || ''
     });
+    updates.statusHistory = statusHistory;
+
+    const updatedRoadwork = await supabaseRoadworksStorage.updateRoadwork(id, updates);
 
     console.log(`✅ Roadworks ${id} status updated: ${previousStatus} → ${status} by ${supervisor.name}`);
 
     res.json({
       success: true,
-      roadwork,
+      roadwork: updatedRoadwork,
       statusChange: {
         from: previousStatus,
         to: status,
@@ -548,7 +367,7 @@ router.post('/:id/diversion', async (req, res) => {
     const supervisor = sessionValidation.supervisor;
 
     // Find roadwork
-    const roadwork = roadworks.find(rw => rw.id === id);
+    const roadwork = await supabaseRoadworksStorage.getRoadworkById(id);
     if (!roadwork) {
       return res.status(404).json({
         success: false,
@@ -599,19 +418,21 @@ router.post('/:id/diversion', async (req, res) => {
       }
     }
 
-    // Add to roadwork
-    if (!roadwork.diversions) {
-      roadwork.diversions = [];
-    }
-    roadwork.diversions.push(diversionPlan);
-    roadwork.lastUpdated = new Date().toISOString();
+    // Add diversion to roadwork
+    const diversions = roadwork.diversions || [];
+    diversions.push(diversionPlan);
+    
+    const updatedRoadwork = await supabaseRoadworksStorage.updateRoadwork(id, {
+      diversions,
+      lastUpdated: new Date().toISOString()
+    });
 
     console.log(`✅ Created diversion plan for roadwork ${id}: Routes ${routeNumbers.join(', ')}`);
 
     res.json({
       success: true,
       diversionPlan,
-      roadwork,
+      roadwork: updatedRoadwork,
       message: 'Diversion plan created successfully'
     });
 
@@ -641,8 +462,8 @@ router.post('/:id/promote-to-display', async (req, res) => {
 
     const supervisor = sessionValidation.supervisor;
 
-    // Find roadwork
-    const roadwork = roadworks.find(rw => rw.id === id);
+    // Find and update roadwork
+    const roadwork = await supabaseRoadworksStorage.getRoadworkById(id);
     if (!roadwork) {
       return res.status(404).json({
         success: false,
@@ -650,20 +471,20 @@ router.post('/:id/promote-to-display', async (req, res) => {
       });
     }
 
-    // Promote to display
-    roadwork.promotedToDisplay = true;
-    roadwork.displayPromotedBy = supervisor.id;
-    roadwork.displayPromotedByName = supervisor.name;
-    roadwork.displayPromotedAt = new Date().toISOString();
-    roadwork.displayNotes = displayNotes || '';
-    roadwork.displayPromotionReason = reason || '';
-    roadwork.lastUpdated = new Date().toISOString();
+    const updatedRoadwork = await supabaseRoadworksStorage.updateRoadwork(id, {
+      promotedToDisplay: true,
+      displayPromotedBy: supervisor.id,
+      displayPromotedByName: supervisor.name,
+      displayPromotedAt: new Date().toISOString(),
+      displayNotes: displayNotes || '',
+      displayPromotionReason: reason || ''
+    });
 
     console.log(`📺 Roadwork ${id} promoted to display by ${supervisor.name}: ${reason || 'No reason provided'}`);
 
     res.json({
       success: true,
-      roadwork,
+      roadwork: updatedRoadwork,
       message: 'Roadworks promoted to display screen successfully'
     });
 
@@ -693,8 +514,8 @@ router.delete('/:id/remove-from-display', async (req, res) => {
 
     const supervisor = sessionValidation.supervisor;
 
-    // Find roadwork
-    const roadwork = roadworks.find(rw => rw.id === id);
+    // Find and update roadwork
+    const roadwork = await supabaseRoadworksStorage.getRoadworkById(id);
     if (!roadwork) {
       return res.status(404).json({
         success: false,
@@ -702,19 +523,19 @@ router.delete('/:id/remove-from-display', async (req, res) => {
       });
     }
 
-    // Remove from display
-    roadwork.promotedToDisplay = false;
-    roadwork.displayRemovedBy = supervisor.id;
-    roadwork.displayRemovedByName = supervisor.name;
-    roadwork.displayRemovedAt = new Date().toISOString();
-    roadwork.displayRemovalReason = reason || '';
-    roadwork.lastUpdated = new Date().toISOString();
+    const updatedRoadwork = await supabaseRoadworksStorage.updateRoadwork(id, {
+      promotedToDisplay: false,
+      displayRemovedBy: supervisor.id,
+      displayRemovedByName: supervisor.name,
+      displayRemovedAt: new Date().toISOString(),
+      displayRemovalReason: reason || ''
+    });
 
     console.log(`📺 Roadwork ${id} removed from display by ${supervisor.name}: ${reason || 'No reason provided'}`);
 
     res.json({
       success: true,
-      roadwork,
+      roadwork: updatedRoadwork,
       message: 'Roadworks removed from display screen successfully'
     });
 
@@ -730,23 +551,7 @@ router.delete('/:id/remove-from-display', async (req, res) => {
 // GET /api/roadworks/display - Get roadworks for display screen
 router.get('/display', async (req, res) => {
   try {
-    const displayRoadworks = roadworks
-      .filter(rw => rw.promotedToDisplay && 
-                   (rw.status === ROADWORKS_STATUSES.ACTIVE || 
-                    rw.status === ROADWORKS_STATUSES.PLANNING ||
-                    rw.status === ROADWORKS_STATUSES.APPROVED))
-      .map(rw => ({
-        id: rw.id,
-        title: rw.title,
-        location: rw.location,
-        status: rw.status,
-        priority: rw.priority,
-        affectedRoutes: rw.affectedRoutes,
-        displayNotes: rw.displayNotes,
-        promotedBy: rw.displayPromotedByName,
-        promotedAt: rw.displayPromotedAt,
-        lastUpdated: rw.lastUpdated
-      }));
+    const displayRoadworks = await supabaseRoadworksStorage.getDisplayRoadworks();
 
     res.json({
       success: true,
@@ -767,40 +572,7 @@ router.get('/display', async (req, res) => {
 // GET /api/roadworks/stats - Get roadworks statistics
 router.get('/stats', async (req, res) => {
   try {
-    const stats = {
-      total: roadworks.length,
-      byStatus: {},
-      byPriority: {},
-      promotedToDisplay: roadworks.filter(rw => rw.promotedToDisplay).length,
-      affectedRoutesTotal: new Set(),
-      activeDiversions: 0,
-      pendingTasks: 0
-    };
-
-    roadworks.forEach(rw => {
-      // Count by status
-      stats.byStatus[rw.status] = (stats.byStatus[rw.status] || 0) + 1;
-      
-      // Count by priority
-      stats.byPriority[rw.priority] = (stats.byPriority[rw.priority] || 0) + 1;
-      
-      // Collect affected routes
-      if (rw.affectedRoutes) {
-        rw.affectedRoutes.forEach(route => stats.affectedRoutesTotal.add(route));
-      }
-      
-      // Count active diversions
-      if (rw.diversions && rw.diversions.length > 0) {
-        stats.activeDiversions += rw.diversions.filter(d => d.status === 'active').length;
-      }
-      
-      // Count pending tasks
-      if (rw.tasks) {
-        stats.pendingTasks += rw.tasks.filter(t => t.status === 'pending').length;
-      }
-    });
-
-    stats.affectedRoutesTotal = stats.affectedRoutesTotal.size;
+    const stats = await supabaseRoadworksStorage.getRoadworksStats();
 
     res.json({
       success: true,

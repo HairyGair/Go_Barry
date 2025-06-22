@@ -11,7 +11,8 @@ const safeApiCall = async (endpoint) => {
     const data = await apiRequest(endpoint, {
       headers: {
         'User-Agent': 'BARRY-Browser/3.0'
-      }
+      },
+      maxRetries: 2 // Enable retry logic for sleeping backend
     });
     
     console.log(`✅ API Success:`, {
@@ -38,6 +39,7 @@ export const useBarryAPI = (options = {}) => {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [systemHealth, setSystemHealth] = useState({ 
     status: 'healthy', 
@@ -51,6 +53,7 @@ export const useBarryAPI = (options = {}) => {
   const fetchAlerts = useCallback(async () => {
     try {
       setLoading(true);
+      setRetryCount(0);
       console.log(`🔄 Starting fetchAlerts() - Base URL: ${API_CONFIG.baseURL}`);
       
       // Try enhanced alerts first, fallback to basic alerts
@@ -58,11 +61,13 @@ export const useBarryAPI = (options = {}) => {
       let result = await safeApiCall(API_CONFIG.endpoints.alertsEnhanced);
       
       if (!result.success) {
+        setRetryCount(1);
         console.log('⚠️ Enhanced alerts failed, trying basic alerts endpoint...');
         result = await safeApiCall(API_CONFIG.endpoints.alerts);
       }
       
       if (!result.success) {
+        setRetryCount(2);
         console.log('⚠️ Basic alerts failed, trying emergency endpoint...');
         result = await safeApiCall('/api/emergency-alerts');
       }
@@ -72,6 +77,7 @@ export const useBarryAPI = (options = {}) => {
         setAlerts(alertsData);
         setLastUpdated(result.data.metadata?.lastUpdated || new Date().toISOString());
         setError(null);
+        setRetryCount(0);
         console.log(`✅ SUCCESS: Loaded ${alertsData.length} LIVE alerts from ${API_CONFIG.baseURL}`);
         
         // Log first alert for debugging
@@ -88,7 +94,17 @@ export const useBarryAPI = (options = {}) => {
       }
     } catch (err) {
       console.error('❌ Fetch error:', err);
-      setError(err.message);
+      
+      // Provide helpful error messages based on the error type
+      let errorMessage = err.message;
+      if (err.message.includes('timed out') || err.message.includes('starting up')) {
+        errorMessage = 'Backend is starting up. This may take up to 60 seconds on first load.';
+        setRetryCount(prev => prev + 1);
+      } else if (err.message.includes('fetch')) {
+        errorMessage = 'Network connection issue. Please check your internet connection.';
+      }
+      
+      setError(errorMessage);
       
       // If we have no data, try to provide some sample data for demo
       if (alerts.length === 0) {
@@ -193,6 +209,7 @@ export const useBarryAPI = (options = {}) => {
     alerts: safeAlerts,
     loading,
     error,
+    retryCount,
     lastUpdated,
     systemHealth,
     isRefreshing: loading,
@@ -218,6 +235,8 @@ export const useBarryAPI = (options = {}) => {
     // Utilities
     hasData: safeAlerts.length > 0,
     isHealthy: systemHealth?.status === 'healthy',
+    isRetrying: retryCount > 0,
+    isBackendStarting: error && error.includes('starting up'),
     
     // Debug info
     apiBaseUrl: API_CONFIG.baseURL

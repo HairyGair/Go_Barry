@@ -4,7 +4,7 @@
 import express from 'express';
 import geocodingService, { geocodeLocation } from '../services/geocoding.js';
 import findGTFSRoutesNearCoordinates from '../gtfs-route-matcher.js';
-import sharedStorage from '../services/sharedIncidentStorage.js';
+import supabaseStorage from '../services/supabaseIncidentStorage.js';
 import { enhanceIncidentWithTomTom } from '../services/tomtomEnhancementService.js';
 
 const router = express.Router();
@@ -15,8 +15,8 @@ let incidentCounter = 1;
 // GET /api/incidents - Get all incidents
 router.get('/', async (req, res) => {
   try {
-    // Get all incidents from shared storage
-    const allIncidents = await sharedStorage.getAllIncidents();
+    // Get all incidents from Supabase storage
+    const allIncidents = await supabaseStorage.getAllIncidents();
     
     // Filter active incidents
     const activeIncidents = allIncidents.filter(incident => 
@@ -114,15 +114,15 @@ router.post('/', async (req, res) => {
       source: 'manual'
     };
 
-    // Save to shared storage
-    const savedIncident = await sharedStorage.addIncident(incident);
+    // Save to Supabase storage
+    const savedIncident = await supabaseStorage.addIncident(incident);
 
     // Try to enhance with TomTom features (non-blocking)
     try {
       const enhanced = await enhanceIncidentWithTomTom(savedIncident);
       if (enhanced.enhancedWithTomTom) {
         // Update with enhanced data
-        await sharedStorage.updateIncident(savedIncident.id, enhanced);
+        await supabaseStorage.updateIncident(savedIncident.id, enhanced);
         console.log(`✨ Enhanced incident ${savedIncident.id} with TomTom data`);
         return res.json({
           success: true,
@@ -135,11 +135,11 @@ router.post('/', async (req, res) => {
       // Continue with non-enhanced incident
     }
 
-    console.log(`✅ Created shared incident: ${savedIncident.id} at ${location} affecting ${affectedRoutes.length} routes`);
+    console.log(`✅ Created Supabase incident: ${savedIncident.id} at ${location} affecting ${affectedRoutes.length} routes`);
     
     // Get current stats
-    const stats = await sharedStorage.getIncidentStats();
-    console.log(`📊 Total incidents in system: ${stats.total} (${stats.active} active)`);
+    const stats = await supabaseStorage.getIncidentStats();
+    console.log(`📊 Total incidents in system: ${stats.total} (${stats.active} active)`);;
 
     res.json({
       success: true,
@@ -162,7 +162,7 @@ router.put('/:id', async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
-    const updatedIncident = await sharedStorage.updateIncident(id, updates);
+    const updatedIncident = await supabaseStorage.updateIncident(id, updates);
     
     if (!updatedIncident) {
       return res.status(404).json({
@@ -193,7 +193,7 @@ router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const deletedIncident = await sharedStorage.deleteIncident(id);
+    const deletedIncident = await supabaseStorage.deleteIncident(id);
     
     if (!deletedIncident) {
       return res.status(404).json({
@@ -222,8 +222,8 @@ router.delete('/:id', async (req, res) => {
 // GET /api/incidents/stats - Get incident statistics (MUST come before /:id route)
 router.get('/stats', async (req, res) => {
   try {
-    const stats = await sharedStorage.getIncidentStats();
-    const allIncidents = await sharedStorage.getAllIncidents();
+    const stats = await supabaseStorage.getIncidentStats();
+    const allIncidents = await supabaseStorage.getAllIncidents();
     
     // Enhanced stats with route information
     const affectedRoutesSet = new Set();
@@ -259,7 +259,7 @@ router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const incident = await sharedStorage.getIncidentById(id);
+    const incident = await supabaseStorage.getIncidentById(id);
     if (!incident) {
       return res.status(404).json({
         success: false,

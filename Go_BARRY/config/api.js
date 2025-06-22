@@ -25,9 +25,9 @@ export const API_CONFIG = {
   
   // Request timeouts (increased for Render cold starts)
   timeouts: {
-    default: 15000,      // 15 seconds (increased from 8s)
-    upload: 30000,       // 30 seconds
-    reports: 45000       // 45 seconds
+    default: 45000,      // 45 seconds (increased for Render wake-up)
+    upload: 60000,       // 60 seconds
+    reports: 90000       // 90 seconds
   },
   
   // Endpoints
@@ -44,46 +44,57 @@ export const API_CONFIG = {
   }
 };
 
-// Enhanced fetch function with production-only URLs
+// Enhanced fetch function with retry logic for sleeping backends
 export const apiRequest = async (endpoint, options = {}) => {
   const url = `${PRODUCTION_API_URL}${endpoint}`;
   const timeout = options.timeout || API_CONFIG.timeouts.default;
+  const maxRetries = options.maxRetries || 2;
   
-  // Create abort controller for timeout
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-  
-  try {
-    console.log(`🔄 API Request: ${url}`);
+  for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
     
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'BARRY-Browser/3.0',
-        ...options.headers
+    try {
+      console.log(`🔄 API Request (attempt ${attempt}/${maxRetries + 1}): ${url}`);
+      
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'BARRY-Browser/3.0',
+          ...options.headers
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-    });
-    
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      
+      const data = await response.json();
+      console.log(`✅ API Success (attempt ${attempt}): ${url}`);
+      return data;
+      
+    } catch (error) {
+      clearTimeout(timeoutId);
+      console.error(`❌ API Error (attempt ${attempt}) for ${endpoint}: ${error.message}`);
+      
+      // If this is the last attempt, throw the error
+      if (attempt === maxRetries + 1) {
+        if (error.name === 'AbortError') {
+          throw new Error('Request timed out - backend is likely starting up. Please wait a moment and try again.');
+        }
+        throw error;
+      }
+      
+      // Wait before retrying (exponential backoff)
+      const delay = Math.min(2000 * Math.pow(2, attempt - 1), 10000); // 2s, 4s, 8s, max 10s
+      console.log(`⏳ Retrying in ${delay/1000}s... (backend may be waking up)`);
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
-    
-    const data = await response.json();
-    console.log(`✅ API Success: ${url}`);
-    return data;
-    
-  } catch (error) {
-    clearTimeout(timeoutId);
-    console.error(`❌ API Error for ${endpoint}: ${error.message}`);
-    
-    if (error.name === 'AbortError') {
-      throw new Error('Request timed out - backend may be starting up');
-    }
-    throw error;
   }
 };
 
