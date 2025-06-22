@@ -65,24 +65,31 @@ const SupervisorLogin = ({ visible, onClose, onLoginSuccess, embedded = false })
     };
 
     console.log('🚀 Attempting login with data:', loginData);
-    const result = await login(loginData);
-    console.log('📦 Login result:', result);
+    console.log('🔄 Starting authentication process...');
     
-    if (result.success) {
-      console.log('✅ Login successful, closing modal');
-      // Call onLoginSuccess if provided
-      if (onLoginSuccess) {
-        onLoginSuccess(loginData);
-      }
-      // Add a small delay to ensure state updates propagate
-      setTimeout(() => {
-        resetForm();
-        if (!embedded) {
-          onClose();
+    try {
+      const result = await login(loginData);
+      console.log('📦 Login result:', result);
+      
+      if (result.success) {
+        console.log('✅ Login successful, closing modal');
+        // Call onLoginSuccess if provided
+        if (onLoginSuccess) {
+          onLoginSuccess(loginData);
         }
-      }, 100);
-    } else {
-      console.error('❌ Login failed:', result.error);
+        // Add a small delay to ensure state updates propagate
+        setTimeout(() => {
+          resetForm();
+          if (!embedded) {
+            onClose();
+          }
+        }, 100);
+      } else {
+        console.error('❌ Login failed:', result.error);
+      }
+    } catch (loginError) {
+      console.error('❌ Login exception:', loginError);
+      // The error will be handled by the useSupervisorSession hook
     }
   };
 
@@ -499,7 +506,28 @@ const SupervisorLogin = ({ visible, onClose, onLoginSuccess, embedded = false })
                       {duty.name}
                     </div>
                     {isLoading && selectedDuty === duty.id ? (
-                      <span style={{ color: '#FFFFFF' }}>...</span>
+                      <div style={{ 
+                        color: '#FFFFFF',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <div style={{
+                          width: '16px',
+                          height: '16px',
+                          border: '2px solid #FFFFFF',
+                          borderTop: '2px solid transparent',
+                          borderRadius: '50%',
+                          animation: 'spin 1s linear infinite'
+                        }} />
+                        <span style={{ fontSize: '14px' }}>Logging in...</span>
+                        <style>{`
+                          @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                          }
+                        `}</style>
+                      </div>
                     ) : (
                       <span style={{ 
                         color: selectedDuty === duty.id ? '#FFFFFF' : '#9CA3AF' 

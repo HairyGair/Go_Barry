@@ -253,9 +253,9 @@ export const useSupervisorSession = () => {
       
       let authResult = null; // Declare here so it's accessible outside try block
       
-      // Add timeout to prevent hanging (increased for Render.com wake-up)
+      // Add timeout to prevent hanging (reduced for better UX)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 45000); // Increased to 45 seconds
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // Reduced to 30 seconds
       
       try {
         // Wake up backend first with health check
@@ -330,7 +330,7 @@ export const useSupervisorSession = () => {
         console.error('❌ Fetch error details:', fetchError);
         
         if (fetchError.name === 'AbortError') {
-          throw new Error('Login timeout - backend may be waking up, please try again in a moment');
+          throw new Error('Login timeout after 30 seconds. The backend may be starting up - please wait a moment and try again.');
         }
         
         // Don't fallback to local auth - require backend authentication
@@ -370,49 +370,11 @@ export const useSupervisorSession = () => {
         lastActivity: Date.now(),
       };
       
-      
-      // **NEW: Also authenticate with Convex for real-time sync**
-      if (convexLogin) {
-        try {
-          console.log('🔄 Syncing login to Convex for real-time updates...');
-          const convexResult = await convexLogin({
-            supervisorId: backendSupervisor.id,
-            badge: backendSupervisor.badge,
-            password: loginData.password,
-            duty: {
-              id: finalDuty.id,
-              name: finalDuty.name
-              // Don't include shift - Convex schema doesn't expect it
-            }
-          });
-          
-          if (convexResult?.success) {
-            console.log('✅ Convex sync successful:', convexResult.sessionId);
-            // Also store Convex session ID
-            session.convexSessionId = convexResult.sessionId;
-          } else {
-            console.warn('⚠️ Convex sync failed but continuing with local session');
-          }
-        } catch (convexError) {
-          console.error('❌ Convex sync error:', convexError);
-          // Don't fail the login if Convex sync fails
-        }
-      } else {
-        console.warn('⚠️ Convex not available - screens won\'t sync in real-time');
-      }
-      
-      console.log('📦 Final session object:', session);
-      console.log('👤 Supervisor name in session:', session.supervisor.name);
-      
-      // **NEW: Store Convex session ID separately for other screens**
-      if (session.convexSessionId && typeof window !== 'undefined' && window.localStorage) {
-        try {
-          window.localStorage.setItem('convex_session_id', session.convexSessionId);
-          console.log('✅ Convex session ID stored for cross-screen sync');
-        } catch (e) {
-          console.warn('⚠️ Could not store Convex session ID:', e);
-        }
-      }
+      console.log('📦 Session built successfully:', {
+        sessionId: session.sessionId,
+        supervisorName: session.supervisor.name,
+        duty: session.supervisor.duty
+      });
       
       // Save to persistent storage
       const saved = sessionStorageService.saveSession(session);
@@ -422,25 +384,49 @@ export const useSupervisorSession = () => {
 
       // Set the session in state AFTER building it completely
       setSupervisorSession(session);
-      console.log('📦 Session set in state:', {
-        name: session.supervisor.name,
-        duty: session.supervisor.duty,
-        dutyName: session.supervisor.duty?.name
-      });
-      
-      // Force a re-read from state to verify
-      setTimeout(() => {
-        const currentSession = sessionStorageService.loadSession();
-        console.log('🔍 Verification - session from storage:', currentSession?.supervisor);
-      }, 100);
+      console.log('📦 Session set in state successfully');
       
       // Log login activity
       logActivity('LOGIN', `${supervisor?.name || 'Unknown'} logged in on ${finalDuty?.name || 'Unknown Duty'}`);
       
-      // Duty logging is now handled through Convex real-time sync
-      // No need for separate backend logging
+      // **MOVED: Convex sync to background after successful login**
+      // This prevents hanging the main login flow
+      setTimeout(async () => {
+        if (convexLogin) {
+          try {
+            console.log('🔄 Background Convex sync starting...');
+            const convexResult = await convexLogin({
+              supervisorId: backendSupervisor.id,
+              badge: backendSupervisor.badge,
+              password: loginData.password,
+              duty: {
+                id: finalDuty.id,
+                name: finalDuty.name
+              }
+            });
+            
+            if (convexResult?.success) {
+              console.log('✅ Background Convex sync successful:', convexResult.sessionId);
+              // Update session with Convex session ID
+              const updatedSession = { ...session, convexSessionId: convexResult.sessionId };
+              sessionStorageService.saveSession(updatedSession);
+              setSupervisorSession(updatedSession);
+              
+              // Store Convex session ID for other screens
+              if (typeof window !== 'undefined' && window.localStorage) {
+                window.localStorage.setItem('convex_session_id', convexResult.sessionId);
+              }
+            } else {
+              console.warn('⚠️ Background Convex sync failed but login already succeeded');
+            }
+          } catch (convexError) {
+            console.error('❌ Background Convex sync error:', convexError);
+            // Don't fail the login - just log the error
+          }
+        }
+      }, 100); // Small delay to ensure login completes first
       
-      console.log('✅ Supervisor logged in:', supervisor?.name || 'Unknown', 'Duty:', loginData.duty?.name, 'Session:', authResult.sessionId);
+      console.log('✅ Supervisor logged in successfully:', supervisor?.name || 'Unknown', 'Duty:', finalDuty?.name);
       return { success: true, session };
       
     } catch (err) {

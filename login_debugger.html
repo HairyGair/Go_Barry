@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go BARRY Login Debugger</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1f2937;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .test-title {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 15px;
+        }
+        .test-result {
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .success {
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1px solid #d1fae5;
+        }
+        .error {
+            background: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+        .warning {
+            background: #fffbeb;
+            color: #92400e;
+            border: 1px solid #fed7aa;
+        }
+        .info {
+            background: #eff6ff;
+            color: #1e40af;
+            border: 1px solid #dbeafe;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        .login-form {
+            display: grid;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        select, input {
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        .progress {
+            background: #e5e7eb;
+            border-radius: 6px;
+            height: 6px;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            background: #3b82f6;
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Go BARRY Login Debugger</h1>
+        <p>This tool will help diagnose login issues on www.gobarry.co.uk by testing each component of the authentication system.</p>
+
+        <div class="test-section">
+            <div class="test-title">1. Backend Connectivity Test</div>
+            <button onclick="testBackendConnectivity()">Test Backend Connection</button>
+            <div id="connectivity-result"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">2. CORS Configuration Test</div>
+            <button onclick="testCORS()">Test CORS Headers</button>
+            <div id="cors-result"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">3. Backend Health Check</div>
+            <button onclick="testBackendHealth()">Check Backend Health</button>
+            <div id="health-result"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">4. Authentication API Test</div>
+            <button onclick="testAuthAPI()">Test Auth Endpoint</button>
+            <div id="auth-result"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">5. Full Login Simulation</div>
+            <div class="login-form">
+                <select id="supervisor-select">
+                    <option value="supervisor001:AW001">Alex Woodcock (AW001)</option>
+                    <option value="supervisor002:AC002">Andrew Cowley (AC002)</option>
+                    <option value="supervisor003:AG003">Anthony Gair (AG003)</option>
+                    <option value="supervisor004:CF004">Claire Fiddler (CF004)</option>
+                    <option value="supervisor005:DH005">David Hall (DH005)</option>
+                    <option value="supervisor006:JD006">James Daglish (JD006)</option>
+                    <option value="supervisor007:JP007">John Paterson (JP007)</option>
+                    <option value="supervisor008:SG008">Simon Glass (SG008)</option>
+                    <option value="supervisor009:BP009">Barry Perryman (BP009)</option>
+                </select>
+                <select id="duty-select">
+                    <option value="100">Duty 100 (6am-3:30pm)</option>
+                    <option value="200">Duty 200 (7:30am-5pm)</option>
+                    <option value="400">Duty 400 (12:30pm-10pm)</option>
+                    <option value="500">Duty 500 (2:45pm-12:15am)</option>
+                    <option value="xops">XOps</option>
+                </select>
+                <input type="password" id="password-input" placeholder="Password (only for Barry Perryman)" />
+                <button onclick="testFullLogin()">Test Full Login Process</button>
+            </div>
+            <div id="login-result"></div>
+        </div>
+
+        <div class="test-section">
+            <div class="test-title">6. Browser Environment Check</div>
+            <button onclick="testBrowserEnvironment()">Check Browser Environment</button>
+            <div id="browser-result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://go-barry.onrender.com';
+        
+        function showResult(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="test-result ${type}">${message}</div>`;
+        }
+
+        function showProgress(elementId, progress) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `
+                <div class="progress">
+                    <div class="progress-bar" style="width: ${progress}%"></div>
+                </div>
+                <div class="test-result info">Testing... ${progress}%</div>
+            `;
+        }
+
+        async function testBackendConnectivity() {
+            showResult('connectivity-result', 'Testing connection to backend...', 'info');
+            
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                
+                const response = await fetch(`${API_BASE}/api/health`, {
+                    method: 'GET',
+                    signal: controller.signal,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showResult('connectivity-result', 
+                        `✅ Backend connection successful!
+                        Status: ${response.status}
+                        Response: ${JSON.stringify(data, null, 2)}`, 'success');
+                } else {
+                    showResult('connectivity-result', 
+                        `❌ Backend returned error status: ${response.status}
+                        Status Text: ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    showResult('connectivity-result', 
+                        `❌ Connection timeout after 10 seconds
+                        This could indicate the backend is sleeping on Render.com`, 'error');
+                } else {
+                    showResult('connectivity-result', 
+                        `❌ Connection failed: ${error.message}
+                        This could be a CORS, network, or DNS issue`, 'error');
+                }
+            }
+        }
+
+        async function testCORS() {
+            showResult('cors-result', 'Testing CORS configuration...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/health`, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': window.location.origin,
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type'
+                    }
+                });
+                
+                const corsHeaders = {
+                    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Methods': response.headers.get('Access-Control-Allow-Methods'),
+                    'Access-Control-Allow-Headers': response.headers.get('Access-Control-Allow-Headers'),
+                    'Access-Control-Allow-Credentials': response.headers.get('Access-Control-Allow-Credentials')
+                };
+                
+                showResult('cors-result', 
+                    `✅ CORS preflight successful!
+                    Status: ${response.status}
+                    Origin: ${window.location.origin}
+                    CORS Headers: ${JSON.stringify(corsHeaders, null, 2)}`, 'success');
+                    
+            } catch (error) {
+                showResult('cors-result', 
+                    `❌ CORS test failed: ${error.message}
+                    This indicates CORS is blocking the request`, 'error');
+            }
+        }
+
+        async function testBackendHealth() {
+            showProgress('health-result', 0);
+            
+            try {
+                // Test basic health first
+                showProgress('health-result', 25);
+                const healthResponse = await fetch(`${API_BASE}/api/health`);
+                
+                showProgress('health-result', 50);
+                if (!healthResponse.ok) {
+                    throw new Error(`Health check failed: ${healthResponse.status}`);
+                }
+                
+                const healthData = await healthResponse.json();
+                
+                // Test extended health
+                showProgress('health-result', 75);
+                const extendedResponse = await fetch(`${API_BASE}/api/health-extended`);
+                
+                showProgress('health-result', 100);
+                if (extendedResponse.ok) {
+                    const extendedData = await extendedResponse.json();
+                    showResult('health-result', 
+                        `✅ Backend health check passed!
+                        Basic Health: ${JSON.stringify(healthData, null, 2)}
+                        Extended Health: Available`, 'success');
+                } else {
+                    showResult('health-result', 
+                        `⚠️ Basic health OK, extended health failed
+                        Basic Health: ${JSON.stringify(healthData, null, 2)}
+                        Extended Status: ${extendedResponse.status}`, 'warning');
+                }
+                
+            } catch (error) {
+                showResult('health-result', 
+                    `❌ Health check failed: ${error.message}
+                    The backend may be down or sleeping`, 'error');
+            }
+        }
+
+        async function testAuthAPI() {
+            showResult('auth-result', 'Testing authentication API...', 'info');
+            
+            try {
+                // Test with invalid credentials first
+                const testResponse = await fetch(`${API_BASE}/api/supervisor/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        supervisorId: 'test_invalid',
+                        badge: 'TEST000'
+                    })
+                });
+                
+                const testData = await testResponse.json();
+                
+                if (testResponse.status === 401 && !testData.success) {
+                    showResult('auth-result', 
+                        `✅ Auth API is working correctly!
+                        Properly rejected invalid credentials
+                        Status: ${testResponse.status}
+                        Response: ${JSON.stringify(testData, null, 2)}`, 'success');
+                } else {
+                    showResult('auth-result', 
+                        `⚠️ Auth API responded but behavior is unexpected
+                        Status: ${testResponse.status}
+                        Response: ${JSON.stringify(testData, null, 2)}`, 'warning');
+                }
+                
+            } catch (error) {
+                showResult('auth-result', 
+                    `❌ Auth API test failed: ${error.message}
+                    The authentication endpoint may not be working`, 'error');
+            }
+        }
+
+        async function testFullLogin() {
+            const supervisorSelect = document.getElementById('supervisor-select');
+            const dutySelect = document.getElementById('duty-select');
+            const passwordInput = document.getElementById('password-input');
+            
+            const [supervisorId, badge] = supervisorSelect.value.split(':');
+            const dutyId = dutySelect.value;
+            const password = passwordInput.value;
+            
+            showResult('login-result', 'Starting full login simulation...', 'info');
+            
+            try {
+                // Step 1: Health check (simulate frontend behavior)
+                showResult('login-result', 'Step 1: Waking up backend...', 'info');
+                
+                const healthResponse = await fetch(`${API_BASE}/api/health`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!healthResponse.ok) {
+                    throw new Error(`Health check failed: ${healthResponse.status}`);
+                }
+                
+                // Step 2: Authentication
+                showResult('login-result', 'Step 2: Authenticating supervisor...', 'info');
+                
+                const authPayload = {
+                    supervisorId: supervisorId,
+                    badge: badge
+                };
+                
+                // Add password if provided (for Barry Perryman)
+                if (password && badge === 'BP009') {
+                    authPayload.password = password;
+                }
+                
+                const authResponse = await fetch(`${API_BASE}/api/supervisor/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(authPayload)
+                });
+                
+                const authData = await authResponse.json();
+                
+                if (authResponse.ok && authData.success) {
+                    showResult('login-result', 
+                        `✅ Full login simulation successful!
+                        Session ID: ${authData.sessionId}
+                        Supervisor: ${authData.supervisor?.name}
+                        Badge: ${authData.supervisor?.badge}
+                        
+                        Full Response: ${JSON.stringify(authData, null, 2)}`, 'success');
+                } else {
+                    showResult('login-result', 
+                        `❌ Login failed at authentication step
+                        Status: ${authResponse.status}
+                        Error: ${authData.error || 'Unknown error'}
+                        
+                        Full Response: ${JSON.stringify(authData, null, 2)}`, 'error');
+                }
+                
+            } catch (error) {
+                showResult('login-result', 
+                    `❌ Login simulation failed: ${error.message}
+                    This indicates a fundamental connectivity or API issue`, 'error');
+            }
+        }
+
+        async function testBrowserEnvironment() {
+            showResult('browser-result', 'Checking browser environment...', 'info');
+            
+            const environment = {
+                userAgent: navigator.userAgent,
+                url: window.location.href,
+                origin: window.location.origin,
+                protocol: window.location.protocol,
+                localStorage: typeof(Storage) !== "undefined",
+                fetch: typeof(fetch) !== "undefined",
+                cookies: navigator.cookieEnabled,
+                timestamp: new Date().toISOString()
+            };
+            
+            let issues = [];
+            
+            if (window.location.protocol !== 'https:' && !window.location.hostname.includes('localhost')) {
+                issues.push('Site is not using HTTPS (required for production)');
+            }
+            
+            if (!environment.localStorage) {
+                issues.push('localStorage not available (required for session persistence)');
+            }
+            
+            if (!environment.fetch) {
+                issues.push('fetch API not available (required for API calls)');
+            }
+            
+            if (!environment.cookies) {
+                issues.push('Cookies disabled (may affect session management)');
+            }
+            
+            const resultType = issues.length > 0 ? 'warning' : 'success';
+            const issueText = issues.length > 0 ? 
+                `\n\nIssues found:\n${issues.map(i => `• ${i}`).join('\n')}` : 
+                '\n\nNo issues detected!';
+            
+            showResult('browser-result', 
+                `Browser Environment:
+                ${JSON.stringify(environment, null, 2)}${issueText}`, resultType);
+        }
+
+        // Auto-run basic connectivity test on page load
+        window.addEventListener('load', () => {
+            testBackendConnectivity();
+        });
+    </script>
+</body>
+</html>

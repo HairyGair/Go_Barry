@@ -216,15 +216,17 @@ const BrowserMainApp = () => {
     }, 100);
   };
 
-  // Monitor login state for debugging
+  // Force login modal to open for non-logged-in users on first load
   useEffect(() => {
-    console.log('🖔 Login state changed:', {
-      isLoggedIn,
-      supervisorName,
-      sessionId,
-      showSupervisorLogin
-    });
-  }, [isLoggedIn, supervisorName, sessionId, showSupervisorLogin]);
+    if (!isLoggedIn) {
+      console.log('🔐 User not logged in, opening login modal automatically');
+      // Small delay to ensure component is fully mounted
+      const timer = setTimeout(() => {
+        setShowSupervisorLogin(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoggedIn]);
 
   const renderActiveScreen = () => {
     const screenConfig = BROWSER_NAVIGATION[activeScreen];
@@ -319,6 +321,32 @@ const BrowserMainApp = () => {
 
   return (
     <View style={styles.container}>
+      {/* Show login prompt if not logged in and modal isn't showing */}
+      {!isLoggedIn && !showSupervisorLogin && (
+        <View style={styles.loginPromptOverlay}>
+          <View style={styles.loginPromptCard}>
+            <Ionicons name="shield-checkmark" size={48} color="#3B82F6" />
+            <Text style={styles.loginPromptTitle}>Supervisor Access Required</Text>
+            <Text style={styles.loginPromptText}>
+              Please log in with your supervisor credentials to access Go Barry
+            </Text>
+            <TouchableOpacity
+              style={styles.loginPromptButton}
+              onPress={() => {
+                console.log('🔓 Manual login button clicked');
+                setShowSupervisorLogin(true);
+              }}
+            >
+              <Ionicons name="log-in" size={20} color="#FFFFFF" />
+              <Text style={styles.loginPromptButtonText}>Log In</Text>
+            </TouchableOpacity>
+            <Text style={styles.loginPromptHelp}>
+              If you're having trouble, try refreshing the page or contact IT support
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* Sidebar Navigation */}
       <View style={[styles.sidebar, sidebarCollapsed && styles.sidebarCollapsed]}>
         {/* Header */}
@@ -754,6 +782,67 @@ const styles = StyleSheet.create({
   screenContent: {
     flex: 1,
     overflow: 'hidden',
+  },
+  // Login prompt overlay styles
+  loginPromptOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loginPromptCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 40,
+    alignItems: 'center',
+    maxWidth: 400,
+    margin: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  loginPromptTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  loginPromptText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  loginPromptButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  loginPromptButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  loginPromptHelp: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    lineHeight: 16,
   },
 });
 
