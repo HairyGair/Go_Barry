@@ -369,7 +369,7 @@ async function fetchTomTomTrafficWithStreetNames() {
     
     if (response.data?.incidents) {
       // Process incidents with minimal geocoding (FIXED for rate limiting)
-      const incidents = response.data.incidents.slice(0, 5); // Further reduced from 8 to 5
+      const incidents = response.data.incidents.slice(0, 50); // Increased to show more incidents
       
       console.log(`🔍 Processing ${incidents.length} traffic incidents across Go North East network (filtered from ${response.data.incidents.length})`);
       

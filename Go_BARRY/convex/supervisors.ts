@@ -49,10 +49,7 @@ export const login = mutation({
       .collect();
 
     for (const session of existingSessions) {
-      const sessionToUpdate = await ctx.db.get(session._id);
-      if (sessionToUpdate) {
-        await ctx.db.replace(session._id, { ...sessionToUpdate, isActive: false });
-      }
+      await ctx.db.patch(session._id, { isActive: false });
     }
 
     // Create new session
@@ -109,7 +106,7 @@ export const logout = mutation({
     }
 
     // Deactivate session
-    await ctx.db.replace(args.sessionId, { ...session, isActive: false });
+    await ctx.db.patch(args.sessionId, { isActive: false });
 
     // Log the logout action
     await ctx.db.insert("supervisorActions", {
@@ -144,11 +141,34 @@ export const getSession = query({
     // Check if session has expired (10 minutes)
     const sessionTimeout = 10 * 60 * 1000; // 10 minutes
     if (Date.now() - session.lastActivity > sessionTimeout) {
-      await ctx.db.replace(args.sessionId, { ...session, isActive: false });
+      // Can't patch in a query - just return null for expired session
       return null;
     }
 
     return session;
+  },
+});
+
+// Clean up expired sessions (should be called periodically)
+export const cleanupExpiredSessions = mutation({
+  handler: async (ctx) => {
+    const activeSessions = await ctx.db
+      .query("supervisorSessions")
+      .withIndex("by_active", q => q.eq("isActive", true))
+      .collect();
+
+    const sessionTimeout = 10 * 60 * 1000; // 10 minutes
+    const now = Date.now();
+    let cleanedCount = 0;
+
+    for (const session of activeSessions) {
+      if (now - session.lastActivity > sessionTimeout) {
+        await ctx.db.patch(session._id, { isActive: false });
+        cleanedCount++;
+      }
+    }
+
+    return { cleanedCount };
   },
 });
 
@@ -182,8 +202,7 @@ export const updateActivity = mutation({
       throw new Error("Invalid session");
     }
 
-    await ctx.db.replace(args.sessionId, {
-      ...session,
+    await ctx.db.patch(args.sessionId, {
       lastActivity: Date.now(),
     });
 
@@ -211,7 +230,7 @@ export const forceLogout = mutation({
     }
 
     // Force logout
-    await ctx.db.replace(args.targetSessionId, { ...targetSession, isActive: false });
+    await ctx.db.patch(args.targetSessionId, { isActive: false });
 
     // Log the action
     await ctx.db.insert("supervisorActions", {
@@ -254,8 +273,7 @@ async function updateSyncState(ctx: any) {
     .first();
 
   if (existingState) {
-    await ctx.db.replace(existingState._id, {
-      ...existingState,
+    await ctx.db.patch(existingState._id, {
       connectedSupervisors: activeSessions.length,
       activeSupervisors,
       lastUpdated: Date.now(),

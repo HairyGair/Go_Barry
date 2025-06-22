@@ -47,7 +47,6 @@
 ```
 ✅ WORKING:
 - tomtom.js - TomTom traffic API with caching/throttling
-- here.js - HERE traffic API 
 - nationalHighways.js - UK official roadworks
 - streetManager.js - UK roadworks webhook
 - supervisorManager.js - Auth & session management
@@ -221,7 +220,7 @@ const styles = StyleSheet.create({
 ### ✅ WORKING WELL
 - Alert deduplication with hash-based system
 - Supervisor authentication and dismissals
-- TomTom + HERE + National Highways APIs
+- TomTom + National Highways APIs
 - WebSocket real-time updates
 - ML severity predictions
 - Event monitoring system
