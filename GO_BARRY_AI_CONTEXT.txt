@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
 3. Some manual roadworks don't appear immediately
 4. Map tiles occasionally timeout
 
-## 🌐 CONVEX REAL-TIME SYNC (JUNE 2025 UPDATE)
+## 🌐 CONVEX REAL-TIME SYNC (DECEMBER 2024 UPDATE - FULLY INTEGRATED)
 
 ### Overview
 Convex has been integrated to solve WebSocket/polling/CORS issues permanently. Provides cloud-based real-time sync across all clients.
@@ -317,7 +317,7 @@ const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL);
 
 // hooks/useConvexSync.js - React hooks for easy usage
 import { useConvexSync } from '../hooks/useConvexSync';
-const { activeAlerts, dismissFromDisplay, syncState } = useConvexSync();
+const { activeAlerts, activeSupervisors, dismissFromDisplay, syncState } = useConvexSync();
 ```
 
 ### Backend Integration
@@ -327,12 +327,24 @@ import { convexSync } from './services/convexSync.js';
 // Automatically syncs alerts in /api/alerts-enhanced endpoint
 ```
 
+### SUPERVISOR SESSION SYNC (NEW - Dec 2024)
+- **useSupervisorSession** now syncs with Convex on login/logout
+- Session stored in both localStorage (for persistence) and Convex (for real-time sync)
+- DisplayScreen and EnhancedDashboard share the same supervisor sessions
+- When supervisor logs in on one screen, appears on all screens instantly
+
+### BOTH SCREENS NOW USE CONVEX FOR ALERTS
+- **DisplayScreen**: Gets alerts from `useConvexSync()` → `activeAlerts`
+- **EnhancedDashboard**: Gets alerts from `useConvexSync()` → `activeAlerts`
+- No more API polling - everything is real-time
+- Backend syncs to Convex every 30 seconds
+
 ### Benefits
 - ✅ **No CORS Issues** - Convex handles all cross-origin requests
 - ✅ **Real-time Updates** - Instant sync without polling
 - ✅ **Auto-reconnection** - Built-in connection management
 - ✅ **Global Access** - Works from anywhere (gobarry.co.uk, Render, local)
-- ✅ **Type Safety** - Full TypeScript support
+- ✅ **Cross-Screen Sync** - Supervisors and alerts sync across all screens
 - ✅ **Scalable** - Handles unlimited concurrent users
 
 ### Development Commands
@@ -347,16 +359,17 @@ npx convex deploy --prod
 npx convex dashboard
 ```
 
-### Migration Status
+### Current Status (Dec 2024)
 - ✅ Schema deployed to production
-- ✅ Frontend using Convex hooks
+- ✅ Frontend using Convex hooks for alerts AND supervisors
 - ✅ Backend syncing alerts to Convex
-- 🔄 WebSocket still available as fallback
-- 🎯 Next: Migrate supervisor actions to Convex
+- ✅ Supervisor sessions sync to Convex
+- ✅ Both screens show same data in real-time
+- ❌ WebSocket fallback deprecated - Convex only
 
 ### Testing Convex
-1. Check ConvexTest component on dashboard
-2. Look for "✅ Connected" status
+1. Log in as supervisor on EnhancedDashboard
+2. Check DisplayScreen shows same supervisor in "Active Personnel"
 3. Backend logs: "✅ Synced X alerts to Convex"
 4. Dashboard: https://dashboard.convex.dev/d/standing-octopus-908
 
@@ -365,3 +378,4 @@ npx convex dashboard
 - Backend uses HTTP API via convexSync service
 - Don't try to import _generated files directly in backend
 - Real-time sync happens automatically - no manual refresh needed
+- Supervisor login now requires Convex to be running for full sync

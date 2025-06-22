@@ -1,5 +1,5 @@
 // components/EnhancedDashboard.jsx
-// Enhanced web dashboard with real-time traffic alerts, supervisor tools, and keyboard shortcuts
+// Enhanced web dashboard with real-time traffic alerts via Convex, supervisor tools, and keyboard shortcuts
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
@@ -19,6 +19,7 @@ import SupervisorLogin from './SupervisorLogin';
 import OptimizedTomTomMap from './OptimizedTomTomMap';
 import TomTomUsageMonitor from './TomTomUsageMonitor';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
+import { useConvexSync } from '../hooks/useConvexSync';
 import typography, { getAlertIcon, getSeverityIcon } from '../theme/typography';
 import ConvexTest from './ConvexTest'; // Temporary test component
 
@@ -28,15 +29,36 @@ const isWeb = Platform.OS === 'web';
 const EnhancedDashboard = ({ 
   baseUrl = API_CONFIG.baseURL,
   onAlertPress,
-  onViewAllPress,
-  autoRefreshInterval = 15000 // OPTIMIZED: 15s (DisplayScreen uses 20s staggered)
+  onViewAllPress
+  // autoRefreshInterval removed - Convex is real-time
 }) => {
+  // FIXED: Use Convex for real-time alerts sync
+  const { activeAlerts } = useConvexSync();
+  
+  // Process alerts from Convex to ensure consistent format
+  const alertsData = useMemo(() => {
+    if (!activeAlerts) return null;
+    return {
+      success: true,
+      alerts: activeAlerts.map(alert => ({
+        ...alert,
+        id: alert.alertId || alert.id, // Ensure consistent ID field
+        coordinates: alert.coordinates ? 
+          (Array.isArray(alert.coordinates) ? alert.coordinates : 
+           alert.coordinates.lat && alert.coordinates.lng ? 
+           [alert.coordinates.lat, alert.coordinates.lng] : 
+           alert.coordinates.latitude && alert.coordinates.longitude ?
+           [alert.coordinates.latitude, alert.coordinates.longitude] : null) :
+          null
+      }))
+    };
+  }, [activeAlerts]);
+  
   // State management
-  const [alertsData, setAlertsData] = useState(null);
   const [healthData, setHealthData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!activeAlerts); // Loading until Convex provides data
   const [error, setError] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(new Date().toISOString()); // Always current with Convex
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [showSupervisorLogin, setShowSupervisorLogin] = useState(false);
@@ -54,42 +76,28 @@ const EnhancedDashboard = ({
     }
   }, [session?.sessionId]); // Only re-run when sessionId changes
   
-  // Debug session
+  // Update loading state when Convex data changes
   useEffect(() => {
-    console.log('🔍 EnhancedDashboard Session Debug:', {
-      session,
-      hasSession: !!session,
-      supervisor: session?.supervisor,
-      sessionId: session?.sessionId,
-      supervisorName: session?.supervisor?.name,
-      supervisorDuty: session?.supervisor?.duty,
-      supervisorRole: session?.supervisor?.role
-    });
-  }, [session]);
-
-  // Enhanced data fetching
-  const fetchAlertsData = useCallback(async () => {
-    try {
-      const response = await fetch(`${baseUrl}/api/alerts-enhanced`, {
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    setLoading(!activeAlerts);
+    setLastUpdated(new Date().toISOString());
+  }, [activeAlerts]);
+  
+  // Debug session and alerts
+  useEffect(() => {
+    console.log('🔍 EnhancedDashboard Debug:', {
+      alertsFromConvex: activeAlerts?.length || 0,
+      processedAlerts: alertsData?.alerts?.length || 0,
+      convexConnected: !!activeAlerts,
+      session: {
+        hasSession: !!session,
+        supervisorName: session?.supervisor?.name,
+        supervisorDuty: session?.supervisor?.duty,
+        sessionId: session?.sessionId
       }
-      
-      const data = await response.json();
-      setAlertsData(data);
-      setLastUpdated(new Date().toISOString());
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching alerts:', err);
-      setError(err.message);
-    }
-  }, [baseUrl]);
+    });
+  }, [session, activeAlerts, alertsData]);
+
+  // Fetch health data only (alerts now come from Convex)
 
   const fetchHealthData = useCallback(async () => {
     try {
@@ -104,18 +112,15 @@ const EnhancedDashboard = ({
   }, [baseUrl]);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
-    await Promise.all([fetchAlertsData(), fetchHealthData()]);
-    setLoading(false);
-  }, [fetchAlertsData, fetchHealthData]);
+    // Only fetch health data, alerts come from Convex real-time
+    await fetchHealthData();
+  }, [fetchHealthData]);
 
-  // Auto-refresh functionality
+  // Initial load of health data only
   useEffect(() => {
-    fetchData();
-    
-    const interval = setInterval(fetchData, autoRefreshInterval);
-    return () => clearInterval(interval);
-  }, [fetchData, autoRefreshInterval]);
+    fetchHealthData();
+    // No auto-refresh needed - Convex provides real-time updates for alerts
+  }, [fetchHealthData]);
 
   // Keyboard shortcuts for web
   useEffect(() => {
@@ -142,7 +147,7 @@ const EnhancedDashboard = ({
             break;
           case 'r':
             e.preventDefault();
-            fetchData();
+            fetchHealthData(); // Only refresh health data, alerts are real-time
             break;
           case 'f':
             e.preventDefault();
@@ -162,7 +167,7 @@ const EnhancedDashboard = ({
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [fetchData]);
+  }, [fetchHealthData, session]); // Updated dependencies
 
   // Process and filter alerts
   const processedAlerts = useMemo(() => {
@@ -245,7 +250,7 @@ const EnhancedDashboard = ({
       <Text style={styles.errorText}>
         Failed to load traffic data: {error}
       </Text>
-      <TouchableOpacity style={styles.retryButton} onPress={fetchData}>
+      <TouchableOpacity style={styles.retryButton} onPress={fetchHealthData}>
         <Text style={styles.retryButtonText}>Retry</Text>
       </TouchableOpacity>
     </View>
@@ -437,6 +442,13 @@ const EnhancedDashboard = ({
         </View>
         
         <View style={styles.statusItem}>
+          <Text style={styles.statusIcon}>🔄</Text>
+          <Text style={styles.statusText}>
+            Convex: {activeAlerts ? 'Connected' : 'Connecting...'}
+          </Text>
+        </View>
+        
+        <View style={styles.statusItem}>
           <Ionicons name="shield-checkmark" size={16} color="#3B82F6" />
           <Text style={styles.statusText}>
             GTFS Routes: {healthData?.gtfs?.routes || 'N/A'}
@@ -444,9 +456,9 @@ const EnhancedDashboard = ({
         </View>
         
         <View style={styles.statusItem}>
-          <Ionicons name="time" size={16} color="#8B5CF6" />
+          <Ionicons name="analytics" size={16} color="#10B981" />
           <Text style={styles.statusText}>
-            Last Updated: {lastUpdated ? new Date(lastUpdated).toLocaleTimeString() : 'Unknown'}
+            Live Alerts: {alertsData?.alerts?.length || 0}
           </Text>
         </View>
       </View>
@@ -475,7 +487,7 @@ const EnhancedDashboard = ({
               <Ionicons name="settings" size={16} color="#3B82F6" />
               <Text style={styles.controlButtonText}>Control Panel</Text>
             </TouchableOpacity>
-            {/* Debug button - remove in production */}
+            {/* Debug button - KEEP FOR NOW to diagnose sync issues */}
             <TouchableOpacity
               onPress={() => {
                 console.log('🔍 CURRENT SESSION STATE:', {
@@ -485,11 +497,14 @@ const EnhancedDashboard = ({
                   dutyName: session?.supervisor?.duty?.name,
                   sessionId: session?.sessionId
                 });
-                alert(`Session Debug:\n${JSON.stringify({
+                alert(`Session & Sync Debug:\n${JSON.stringify({
                   name: session?.supervisor?.name,
                   duty: session?.supervisor?.duty?.name,
                   role: session?.supervisor?.role,
-                  sessionId: session?.sessionId
+                  sessionId: session?.sessionId,
+                  convexAlerts: activeAlerts?.length || 0,
+                  dashboardAlerts: alertsData?.alerts?.length || 0,
+                  convexConnected: !!activeAlerts
                 }, null, 2)}`);
               }}
               style={[styles.controlButton, { backgroundColor: '#FEF3C7' }]}
@@ -569,7 +584,7 @@ const EnhancedDashboard = ({
               <View>
                 <Text style={styles.headerTitle}>BARRY Intelligence Dashboard</Text>
                 <Text style={styles.headerSubtitle}>
-                  Real-time Traffic Monitoring for Go North East • Request Deduplication Active
+                  Real-time Traffic Monitoring for Go North East • Convex Real-time Sync Active
                 </Text>
               </View>
             </View>
@@ -582,7 +597,7 @@ const EnhancedDashboard = ({
         {/* Convex Test - TEMPORARY */}
         <ConvexTest />
 
-        {/* TomTom Usage Monitor */}
+        {/* TomTom Usage Monitor - Still useful to track map tile usage */}
         <TomTomUsageMonitor />
 
         {/* Statistics */}
@@ -593,8 +608,8 @@ const EnhancedDashboard = ({
 
         {/* Interactive TomTom Map */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Enhanced Traffic Map - TomTom Powered with Roadworks & Caching (OPTIMIZED)</Text>
-          <Text style={styles.mapInstructions}>Click any alert card below to zoom the map to that location • Toggle layers with controls • API calls optimized with 30s cache</Text>
+          <Text style={styles.sectionTitle}>Enhanced Traffic Map - TomTom Powered with Real-time Sync</Text>
+          <Text style={styles.mapInstructions}>Click any alert card below to zoom the map to that location • Toggle layers with controls • Updates automatically</Text>
           <View style={styles.mapContainer}>
             <OptimizedTomTomMap 
               alerts={filteredAlerts}
@@ -614,12 +629,17 @@ const EnhancedDashboard = ({
 
         {/* Alerts List */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            {selectedFilter === 'all' ? 'All Traffic Alerts' : 
-             selectedFilter === 'critical' ? 'Critical Alerts' :
-             selectedFilter === 'high' ? 'High Priority Alerts' :
-             'Medium Priority Alerts'} ({filteredAlerts.length})
-          </Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>
+              {selectedFilter === 'all' ? 'All Traffic Alerts' : 
+               selectedFilter === 'critical' ? 'Critical Alerts' :
+               selectedFilter === 'high' ? 'High Priority Alerts' :
+               'Medium Priority Alerts'} ({filteredAlerts.length})
+            </Text>
+            <View style={styles.realTimeBadge}>
+              <Text style={styles.realTimeBadgeText}>🔄 REAL-TIME</Text>
+            </View>
+          </View>
           
           {filteredAlerts.length > 0 ? (
             filteredAlerts.map(alert => (
@@ -822,11 +842,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
   },
   enhancedStats: {
     flexDirection: 'row',
@@ -867,11 +883,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)',
   },
   searchIcon: {
     marginRight: 8,
@@ -940,11 +952,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
   },
   mapContainer: {
     height: 300,
@@ -964,6 +972,23 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeight.semibold,
     color: '#1E293B',
     marginBottom: 12,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  realTimeBadge: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  realTimeBadgeText: {
+    fontSize: 10,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   statusGrid: {
     flexDirection: 'row',
@@ -992,10 +1017,7 @@ const styles = StyleSheet.create({
   },
   alertItemHighlighted: {
     backgroundColor: '#EFF6FF',
-    shadowColor: '#3B82F6',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    boxShadow: '0px 2px 4px rgba(59, 130, 246, 0.2)',
     borderLeftColor: '#3B82F6',
     borderLeftWidth: 6,
   },
@@ -1135,11 +1157,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 12,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
   },
   supervisorSession: {
     flexDirection: 'row',
@@ -1243,11 +1261,7 @@ const styles = StyleSheet.create({
     width: '90%',
     maxWidth: 500,
     maxHeight: '80%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 8,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.25)',
   },
   alertModalHeader: {
     flexDirection: 'row',

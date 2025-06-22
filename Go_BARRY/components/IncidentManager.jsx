@@ -181,6 +181,7 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
 
   // State management
   const [incidents, setIncidents] = useState([]);
+  const [trafficIncidents, setTrafficIncidents] = useState([]); // New: automatic incidents from traffic APIs
   const [loading, setLoading] = useState(false);
   const [showNewIncident, setShowNewIncident] = useState(false);
   const [showIncidentDetails, setShowIncidentDetails] = useState(null);
@@ -189,6 +190,7 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
   const [gtfsData, setGtfsData] = useState(null);
   const [newNote, setNewNote] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [activeTab, setActiveTab] = useState('manual'); // New: tab to switch between manual and automatic
 
   // New incident form state
   const [newIncident, setNewIncident] = useState({
@@ -233,6 +235,7 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
   // Load GTFS data and existing incidents
   useEffect(() => {
     loadIncidents();
+    loadTrafficIncidents(); // Also load automatic incidents
     loadGTFSData();
   }, []);
 
@@ -248,6 +251,24 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
       console.error('Failed to load incidents:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadTrafficIncidents = async () => {
+    try {
+      console.log('🚨 Loading automatic incident alerts from traffic APIs...');
+      const response = await fetch(`${API_BASE}/api/incident-alerts`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          // Filter out manual incidents to avoid duplicates
+          const automaticOnly = data.incidents.filter(inc => inc.source !== 'manual_incident');
+          setTrafficIncidents(automaticOnly || []);
+          console.log(`✅ Loaded ${automaticOnly.length} automatic incident alerts`);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load traffic incidents:', error);
     }
   };
 
@@ -583,16 +604,16 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
       {/* Stats */}
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{activeIncidents.length}</Text>
-          <Text style={styles.statLabel}>Active Incidents</Text>
+          <Text style={styles.statNumber}>{activeIncidents.length + trafficIncidents.length}</Text>
+          <Text style={styles.statLabel}>Total Active</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{closedIncidents.length}</Text>
-          <Text style={styles.statLabel}>Closed Today</Text>
+          <Text style={[styles.statNumber, { color: '#7C3AED' }]}>{trafficIncidents.length}</Text>
+          <Text style={styles.statLabel}>From Traffic APIs</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{affectedRoutes.length}</Text>
-          <Text style={styles.statLabel}>Affected Routes</Text>
+          <Text style={[styles.statNumber, { color: '#3B82F6' }]}>{activeIncidents.length}</Text>
+          <Text style={styles.statLabel}>Manual</Text>
         </View>
         <View style={styles.statCard}>
           <View style={[styles.connectionDot, { backgroundColor: isConnected ? '#10B981' : '#EF4444' }]} />
@@ -600,21 +621,44 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
         </View>
       </View>
 
+      {/* Tab Switcher */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'manual' && styles.activeTab]}
+          onPress={() => setActiveTab('manual')}
+        >
+          <Ionicons name="create" size={16} color={activeTab === 'manual' ? '#3B82F6' : '#6B7280'} />
+          <Text style={[styles.tabText, activeTab === 'manual' && styles.activeTabText]}>
+            Manual ({activeIncidents.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'automatic' && styles.activeTab]}
+          onPress={() => setActiveTab('automatic')}
+        >
+          <Ionicons name="radio" size={16} color={activeTab === 'automatic' ? '#3B82F6' : '#6B7280'} />
+          <Text style={[styles.tabText, activeTab === 'automatic' && styles.activeTabText]}>
+            From Traffic APIs ({trafficIncidents.length})
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Incidents List */}
       <ScrollView style={styles.incidentsList}>
-        {loading && activeIncidents.length === 0 ? (
+        {loading && activeIncidents.length === 0 && trafficIncidents.length === 0 ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#3B82F6" />
             <Text style={styles.loadingText}>Loading incidents...</Text>
           </View>
-        ) : activeIncidents.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="document-outline" size={48} color="#9CA3AF" />
-            <Text style={styles.emptyTitle}>No Active Incidents</Text>
-            <Text style={styles.emptyText}>All clear! No incidents are currently affecting services.</Text>
-          </View>
-        ) : (
-          activeIncidents.map((incident, index) => (
+        ) : activeTab === 'manual' ? (
+          activeIncidents.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="document-outline" size={48} color="#9CA3AF" />
+              <Text style={styles.emptyTitle}>No Manual Incidents</Text>
+              <Text style={styles.emptyText}>All clear! No supervisor-created incidents active.</Text>
+            </View>
+          ) : (
+            activeIncidents.map((incident, index) => (
             <View key={incident.id || index} style={styles.incidentCard}>
               <View style={styles.incidentHeader}>
                 <View style={styles.incidentType}>
@@ -723,6 +767,76 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
               </View>
             </View>
           ))
+        )
+        ) : (
+          trafficIncidents.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="radio" size={48} color="#9CA3AF" />
+              <Text style={styles.emptyTitle}>No Automatic Incident Alerts</Text>
+              <Text style={styles.emptyText}>Waiting for incident data from TomTom and National Highways</Text>
+            </View>
+          ) : (
+            trafficIncidents.map((incident, index) => (
+              <View key={incident.id || index} style={[styles.incidentCard, styles.automaticIncidentCard]}>
+                <View style={styles.incidentHeader}>
+                  <View style={styles.incidentType}>
+                    <Ionicons 
+                      name="alert-circle" 
+                      size={20} 
+                      color={incident.severity === 'High' ? '#DC2626' : incident.severity === 'Medium' ? '#F59E0B' : '#3B82F6'} 
+                    />
+                    <Text style={styles.incidentTypeText}>
+                      {incident.type === 'incident' ? 'Traffic Incident' : incident.type || 'Alert'}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.automaticBadge}>
+                    <Text style={styles.automaticBadgeText}>
+                      {incident.source === 'tomtom' ? 'TomTom' : 
+                       incident.source === 'national_highways' ? 'National Highways' :
+                       incident.source}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={styles.incidentLocation}>{incident.location}</Text>
+                
+                {incident.description && (
+                  <Text style={styles.incidentDescription} numberOfLines={2}>{incident.description}</Text>
+                )}
+
+                {incident.affectsRoutes && incident.affectsRoutes.length > 0 && (
+                  <View style={styles.routesContainer}>
+                    <Text style={styles.routesLabel}>Affected Routes:</Text>
+                    <View style={styles.routesList}>
+                      {incident.affectsRoutes.slice(0, 6).map((route, idx) => (
+                        <View key={idx} style={styles.routeBadge}>
+                          <Text style={styles.routeBadgeText}>{route}</Text>
+                        </View>
+                      ))}
+                      {incident.affectsRoutes.length > 6 && (
+                        <Text style={styles.moreRoutesText}>+{incident.affectsRoutes.length - 6} more</Text>
+                      )}
+                    </View>
+                  </View>
+                )}
+
+                <View style={styles.incidentFooter}>
+                  <Text style={styles.incidentTime}>
+                    Updated: {new Date(incident.lastUpdated || incident.timestamp).toLocaleString()}
+                  </Text>
+                  <Text style={[styles.severityBadge, {
+                    backgroundColor: incident.severity === 'High' ? '#FEF2F2' : 
+                                   incident.severity === 'Medium' ? '#FFF7ED' : '#EFF6FF',
+                    color: incident.severity === 'High' ? '#DC2626' : 
+                          incident.severity === 'Medium' ? '#F59E0B' : '#3B82F6'
+                  }]}>
+                    {incident.severity || 'Unknown'} Severity
+                  </Text>
+                </View>
+              </View>
+            ))
+          )
         )}
       </ScrollView>
 
@@ -1232,6 +1346,35 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginBottom: 4,
   },
+  // Tab Styles
+  tabContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    gap: 8,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    gap: 6,
+  },
+  activeTab: {
+    backgroundColor: '#EBF5FF',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  activeTabText: {
+    color: '#3B82F6',
+  },
   incidentsList: {
     flex: 1,
     padding: 16,
@@ -1276,6 +1419,28 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  automaticIncidentCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#7C3AED',
+  },
+  automaticBadge: {
+    backgroundColor: '#FAF5FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  automaticBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#7C3AED',
+  },
+  severityBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    fontSize: 11,
+    fontWeight: '600',
   },
   incidentHeader: {
     flexDirection: 'row',

@@ -34,6 +34,10 @@ class SupervisorPollingService {
 
   // Start optimized polling
   startPolling() {
+    // DISABLED: Using Convex for real-time sync now
+    console.warn('⚠️ SupervisorPollingService is disabled - using Convex for real-time sync');
+    return; // Exit immediately
+    
     if (this.pollInterval) return; // Already polling
     
     console.log('🚀 Starting optimized supervisor polling (2s intervals)');

@@ -358,15 +358,103 @@ app.use('/api/tiles', tileAPI);
 // TomTom usage monitoring routes
 app.use('/api/tomtom/usage', tomtomUsageAPI);
 
-// Activity logs routes
+// Activity logs routes - Fix: register at root level since routes include /api/ prefix
 console.log('📦 Registering activity logs routes...');
-app.use(activityLogsAPI);
+app.use('/', activityLogsAPI);  // Changed from app.use(activityLogsAPI)
 console.log('✅ Activity logs routes registered');
 
 // Duty management routes
 console.log('📦 Registering duty management routes...');
 app.use('/api/duty', dutyAPI);
 console.log('✅ Duty management routes registered');
+
+// Filtered alerts endpoints for manager screens
+app.get('/api/roadworks-alerts', async (req, res) => {
+  try {
+    console.log('🚧 Fetching roadwork alerts for manager...');
+    
+    // Get alerts from enhanced endpoint
+    const aggregatedResult = await enhancedDataSourceManager.aggregateAllSources();
+    
+    if (!aggregatedResult || !aggregatedResult.incidents) {
+      return res.json({ success: true, roadworks: [] });
+    }
+    
+    // Filter for roadworks only
+    const roadworkAlerts = aggregatedResult.incidents.filter(alert => 
+      alert.type === 'roadwork' || 
+      alert.category === 'roadwork' ||
+      (alert.iconCategory && [6, 7, 10, 11].includes(alert.iconCategory)) ||
+      (alert.title && alert.title.toLowerCase().includes('roadwork')) ||
+      (alert.description && alert.description.toLowerCase().includes('roadwork'))
+    );
+    
+    console.log(`✅ Filtered ${roadworkAlerts.length} roadwork alerts from ${aggregatedResult.incidents.length} total`);
+    
+    res.json({
+      success: true,
+      roadworks: roadworkAlerts,
+      metadata: {
+        total: roadworkAlerts.length,
+        sources: aggregatedResult.sourceStats,
+        lastUpdated: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching roadwork alerts:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      roadworks: [] 
+    });
+  }
+});
+
+app.get('/api/incident-alerts', async (req, res) => {
+  try {
+    console.log('🚨 Fetching incident alerts for manager...');
+    
+    // Get alerts from enhanced endpoint
+    const aggregatedResult = await enhancedDataSourceManager.aggregateAllSources();
+    
+    if (!aggregatedResult || !aggregatedResult.incidents) {
+      return res.json({ success: true, incidents: [] });
+    }
+    
+    // Filter for incidents only (not roadworks)
+    const incidentAlerts = aggregatedResult.incidents.filter(alert => 
+      alert.type === 'incident' || 
+      alert.category === 'incident' ||
+      (alert.iconCategory && ![6, 7, 10, 11].includes(alert.iconCategory)) ||
+      (!alert.type && !alert.category) // Default to incident if type not specified
+    );
+    
+    // Also get manual incidents
+    const manualIncidents = getManualIncidents();
+    const allIncidents = [...incidentAlerts, ...manualIncidents.map(convertIncidentToAlert)];
+    
+    console.log(`✅ Filtered ${incidentAlerts.length} traffic incidents + ${manualIncidents.length} manual incidents`);
+    
+    res.json({
+      success: true,
+      incidents: allIncidents,
+      metadata: {
+        total: allIncidents.length,
+        trafficIncidents: incidentAlerts.length,
+        manualIncidents: manualIncidents.length,
+        sources: aggregatedResult.sourceStats,
+        lastUpdated: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching incident alerts:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      incidents: [] 
+    });
+  }
+});
 
 // TomTom API key endpoint for frontend
 app.get('/api/config/tomtom-key', (req, res) => {

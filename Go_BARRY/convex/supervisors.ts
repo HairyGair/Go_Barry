@@ -14,6 +14,7 @@ export const login = mutation({
     duty: v.object({
       id: v.string(),
       name: v.string(),
+      shift: v.optional(v.string()),
     }),
   },
   handler: async (ctx, args) => {
@@ -48,7 +49,10 @@ export const login = mutation({
       .collect();
 
     for (const session of existingSessions) {
-      await ctx.db.patch(session._id, { isActive: false });
+      const sessionToUpdate = await ctx.db.get(session._id);
+      if (sessionToUpdate) {
+        await ctx.db.replace(session._id, { ...sessionToUpdate, isActive: false });
+      }
     }
 
     // Create new session
@@ -105,7 +109,7 @@ export const logout = mutation({
     }
 
     // Deactivate session
-    await ctx.db.patch(args.sessionId, { isActive: false });
+    await ctx.db.replace(args.sessionId, { ...session, isActive: false });
 
     // Log the logout action
     await ctx.db.insert("supervisorActions", {
@@ -140,7 +144,7 @@ export const getSession = query({
     // Check if session has expired (10 minutes)
     const sessionTimeout = 10 * 60 * 1000; // 10 minutes
     if (Date.now() - session.lastActivity > sessionTimeout) {
-      await ctx.db.patch(args.sessionId, { isActive: false });
+      await ctx.db.replace(args.sessionId, { ...session, isActive: false });
       return null;
     }
 
@@ -178,7 +182,8 @@ export const updateActivity = mutation({
       throw new Error("Invalid session");
     }
 
-    await ctx.db.patch(args.sessionId, {
+    await ctx.db.replace(args.sessionId, {
+      ...session,
       lastActivity: Date.now(),
     });
 
@@ -206,7 +211,7 @@ export const forceLogout = mutation({
     }
 
     // Force logout
-    await ctx.db.patch(args.targetSessionId, { isActive: false });
+    await ctx.db.replace(args.targetSessionId, { ...targetSession, isActive: false });
 
     // Log the action
     await ctx.db.insert("supervisorActions", {
@@ -249,7 +254,8 @@ async function updateSyncState(ctx: any) {
     .first();
 
   if (existingState) {
-    await ctx.db.patch(existingState._id, {
+    await ctx.db.replace(existingState._id, {
+      ...existingState,
       connectedSupervisors: activeSessions.length,
       activeSupervisors,
       lastUpdated: Date.now(),

@@ -4,6 +4,17 @@
 import { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { Alert } from 'react-native';
 
+// Conditionally import Convex to avoid build errors
+let convexApi = null;
+let useMutation = null;
+try {
+  const convexReact = require('convex/react');
+  useMutation = convexReact.useMutation;
+  convexApi = require('../../convex/_generated/api').api;
+} catch (error) {
+  console.warn('⚠️ Convex not available - supervisor sync between screens will be limited');
+}
+
 // Inline session storage to avoid import issues
 const sessionStorageService = {
   memoryStorage: new Map(),
@@ -157,6 +168,10 @@ export const useSupervisorSession = () => {
   const [supervisorSession, setSupervisorSession] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  
+  // Convex mutations for sync (only if Convex is available)
+  const convexLogin = useMutation && convexApi ? useMutation(convexApi.supervisors.login) : null;
+  const convexLogout = useMutation && convexApi ? useMutation(convexApi.supervisors.logout) : null;
 
   // Initialize session from storage on mount
   useEffect(() => {
@@ -166,7 +181,7 @@ export const useSupervisorSession = () => {
       setSupervisorSession(savedSession);
       console.log('✅ Restored supervisor session:', savedSession.supervisor?.name);
     } else {
-      console.log('❌ No saved session found');
+      console.log('📝 No saved session found - supervisor login required');
     }
   }, []);
 
@@ -355,8 +370,49 @@ export const useSupervisorSession = () => {
         lastActivity: Date.now(),
       };
       
+      
+      // **NEW: Also authenticate with Convex for real-time sync**
+      if (convexLogin) {
+        try {
+          console.log('🔄 Syncing login to Convex for real-time updates...');
+          const convexResult = await convexLogin({
+            supervisorId: backendSupervisor.id,
+            badge: backendSupervisor.badge,
+            password: loginData.password,
+            duty: {
+              id: finalDuty.id,
+              name: finalDuty.name
+              // Don't include shift - Convex schema doesn't expect it
+            }
+          });
+          
+          if (convexResult?.success) {
+            console.log('✅ Convex sync successful:', convexResult.sessionId);
+            // Also store Convex session ID
+            session.convexSessionId = convexResult.sessionId;
+          } else {
+            console.warn('⚠️ Convex sync failed but continuing with local session');
+          }
+        } catch (convexError) {
+          console.error('❌ Convex sync error:', convexError);
+          // Don't fail the login if Convex sync fails
+        }
+      } else {
+        console.warn('⚠️ Convex not available - screens won\'t sync in real-time');
+      }
+      
       console.log('📦 Final session object:', session);
       console.log('👤 Supervisor name in session:', session.supervisor.name);
+      
+      // **NEW: Store Convex session ID separately for other screens**
+      if (session.convexSessionId && typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.setItem('convex_session_id', session.convexSessionId);
+          console.log('✅ Convex session ID stored for cross-screen sync');
+        } catch (e) {
+          console.warn('⚠️ Could not store Convex session ID:', e);
+        }
+      }
       
       // Save to persistent storage
       const saved = sessionStorageService.saveSession(session);
@@ -381,31 +437,8 @@ export const useSupervisorSession = () => {
       // Log login activity
       logActivity('LOGIN', `${supervisor?.name || 'Unknown'} logged in on ${finalDuty?.name || 'Unknown Duty'}`);
       
-      // Log duty start with backend - NEW
-      if (authResult?.sessionId && selectedDuty) {
-        try {
-          const dutyResponse = await fetch(`${API_BASE_URL}/api/supervisor/log-duty`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              sessionId: authResult.sessionId,
-              dutyNumber: selectedDuty.id,
-              dutyName: selectedDuty.name
-            })
-          });
-          
-          if (dutyResponse.ok) {
-            console.log('✅ Duty logged with backend');
-          } else {
-            console.warn('⚠️ Failed to log duty with backend');
-          }
-        } catch (dutyError) {
-          console.warn('⚠️ Error logging duty:', dutyError);
-          // Don't fail the login if duty logging fails
-        }
-      }
+      // Duty logging is now handled through Convex real-time sync
+      // No need for separate backend logging
       
       console.log('✅ Supervisor logged in:', supervisor?.name || 'Unknown', 'Duty:', loginData.duty?.name, 'Session:', authResult.sessionId);
       return { success: true, session };
@@ -439,8 +472,29 @@ export const useSupervisorSession = () => {
       // Log logout activity
       logActivity('LOGOUT', `${supervisorSession.supervisor.name} logged out`);
       
+      // **NEW: Also logout from Convex**
+      if (supervisorSession.convexSessionId && convexLogout) {
+        try {
+          console.log('🔄 Logging out from Convex...');
+          await convexLogout({ sessionId: supervisorSession.convexSessionId });
+          console.log('✅ Convex logout successful');
+        } catch (convexError) {
+          console.error('❌ Convex logout error:', convexError);
+        }
+      }
+      
       // Clear persistent storage
       sessionStorageService.clearSession();
+      
+      // **NEW: Also clear Convex session ID**
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.removeItem('convex_session_id');
+          console.log('✅ Convex session ID cleared');
+        } catch (e) {
+          console.warn('⚠️ Could not clear Convex session ID:', e);
+        }
+      }
       
       setSupervisorSession(null);
       setError(null);

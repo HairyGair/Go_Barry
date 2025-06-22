@@ -15,6 +15,7 @@ export default defineSchema({
     duty: v.object({
       id: v.string(),
       name: v.string(),
+      shift: v.optional(v.string()),
     }),
     loginTime: v.number(),
     lastActivity: v.number(),

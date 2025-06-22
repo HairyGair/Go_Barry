@@ -1,15 +1,21 @@
 // Go_BARRY/app/index.jsx
 // Main home page that serves the beautiful HTML via React Native Web
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
 
 const IndexApp = () => {
+  const [isClient, setIsClient] = useState(false);
+  
   useEffect(() => {
-    if (Platform.OS === 'web') {
-      // For web, serve the static HTML content directly
-      // This will be handled by the Expo build process
-      const htmlContent = `
+    setIsClient(true);
+  }, []);
+
+  if (Platform.OS === 'web' && isClient) {
+    return (
+      <div
+        dangerouslySetInnerHTML={{
+          __html: `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -183,17 +189,15 @@ const IndexApp = () => {
         console.log('🚦 Go Barry Traffic Intelligence Platform Loaded');
     </script>
 </body>
-</html>`;
-      
-      document.open();
-      document.write(htmlContent);
-      document.close();
-    }
-  }, []);
+</html>`
+        }}
+      />
+    );
+  }
 
   return (
     <View style={styles.container}>
-      {/* This will be replaced by the HTML content on web */}
+      {/* Mobile fallback */}
     </View>
   );
 };

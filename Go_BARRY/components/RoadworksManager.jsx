@@ -28,17 +28,20 @@ const RoadworksManager = ({ baseUrl }) => {
 
   // State management
   const [roadworks, setRoadworks] = useState([]);
+  const [trafficRoadworks, setTrafficRoadworks] = useState([]); // New: automatic roadworks from traffic APIs
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedRoadwork, setSelectedRoadwork] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
+  const [activeTab, setActiveTab] = useState('manual'); // New: tab to switch between manual and automatic
   const [stats, setStats] = useState({
     total: 0,
     promotedToDisplay: 0,
     activeDiversions: 0,
-    pendingTasks: 0
+    pendingTasks: 0,
+    automatic: 0 // New: count of automatic roadworks
   });
 
   // Roadworks statuses with colors
@@ -269,51 +272,88 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
 
   // Load roadworks data
   useEffect(() => {
-    loadRoadworks();
+    loadAllData();
   }, [isLoggedIn, sessionId]);
 
-  const loadRoadworks = async () => {
+  const loadAllData = async () => {
     setLoading(true);
     try {
-      console.log('🚧 Loading roadworks from API...');
-      const response = await fetch(`${apiBaseUrl}/api/roadworks`);
-      const data = await response.json();
-      
-      if (data.success) {
-        setRoadworks(data.roadworks || []);
-        calculateStats(data.roadworks || []);
-        console.log(`✅ Loaded ${data.roadworks?.length || 0} roadworks`);
-      } else {
-        console.error('❌ Failed to load roadworks:', data.error);
-        Alert.alert('Error', 'Failed to load roadworks data');
-        setRoadworks([]);
-        calculateStats([]);
-      }
-    } catch (error) {
-      console.error('❌ Error loading roadworks:', error);
-      Alert.alert('Error', `Failed to connect to server: ${error.message}`);
-      setRoadworks([]);
-      calculateStats([]);
+      const [manualData, trafficData] = await Promise.all([
+        loadRoadworks(),
+        loadTrafficRoadworks()
+      ]);
+      // Calculate stats with the returned data
+      calculateStats(manualData, trafficData);
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateStats = (roadworksData) => {
+  const loadRoadworks = async () => {
+    try {
+      console.log('🚧 Loading manual roadworks from API...');
+      const response = await fetch(`${apiBaseUrl}/api/roadworks`);
+      const data = await response.json();
+      
+      if (data.success) {
+        const roadworksData = data.roadworks || [];
+        setRoadworks(roadworksData);
+        console.log(`✅ Loaded ${roadworksData.length} manual roadworks`);
+        return roadworksData;
+      } else {
+        console.error('❌ Failed to load roadworks:', data.error);
+        Alert.alert('Error', 'Failed to load roadworks data');
+        setRoadworks([]);
+        return [];
+      }
+    } catch (error) {
+      console.error('❌ Error loading roadworks:', error);
+      Alert.alert('Error', `Failed to connect to server: ${error.message}`);
+      setRoadworks([]);
+      return [];
+    }
+  };
+
+  const loadTrafficRoadworks = async () => {
+    try {
+      console.log('🚧 Loading automatic roadwork alerts from traffic APIs...');
+      const response = await fetch(`${apiBaseUrl}/api/roadworks-alerts`);
+      const data = await response.json();
+      
+      if (data.success) {
+        const trafficData = data.roadworks || [];
+        setTrafficRoadworks(trafficData);
+        console.log(`✅ Loaded ${trafficData.length} automatic roadwork alerts`);
+        return trafficData;
+      } else {
+        console.error('❌ Failed to load traffic roadworks:', data.error);
+        setTrafficRoadworks([]);
+        return [];
+      }
+    } catch (error) {
+      console.error('❌ Error loading traffic roadworks:', error);
+      setTrafficRoadworks([]);
+      return [];
+    }
+  };
+
+  const calculateStats = (manualRoadworks = [], automaticRoadworks = []) => {
+    const allRoadworks = [...manualRoadworks, ...automaticRoadworks];
     const stats = {
-      total: roadworksData.length,
-      promotedToDisplay: roadworksData.filter(r => r.promotedToDisplay).length,
-      activeDiversions: roadworksData.filter(r => r.diversions && r.diversions.length > 0).length,
-      pendingTasks: roadworksData.reduce((sum, r) => 
+      total: allRoadworks.length,
+      promotedToDisplay: manualRoadworks.filter(r => r.promotedToDisplay).length,
+      activeDiversions: manualRoadworks.filter(r => r.diversions && r.diversions.length > 0).length,
+      pendingTasks: manualRoadworks.reduce((sum, r) => 
         sum + (r.tasks ? r.tasks.filter(t => t.status === 'pending').length : 0), 0
-      )
+      ),
+      automatic: automaticRoadworks.length
     };
     setStats(stats);
   };
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await loadRoadworks();
+    await loadAllData();
     setRefreshing(false);
   };
 
@@ -357,16 +397,16 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
     }
   };
 
-  const renderRoadworkCard = (roadwork) => {
+  const renderRoadworkCard = (roadwork, isAutomatic = false) => {
     const status = ROADWORKS_STATUSES[roadwork.status] || ROADWORKS_STATUSES.reported;
-    const priority = PRIORITY_LEVELS[roadwork.priority] || PRIORITY_LEVELS.medium;
+    const priority = PRIORITY_LEVELS[roadwork.priority || roadwork.severity?.toLowerCase()] || PRIORITY_LEVELS.medium;
 
     return (
       <TouchableOpacity
         key={roadwork.id}
-        style={styles.roadworkCard}
+        style={[styles.roadworkCard, isAutomatic && styles.automaticRoadworkCard]}
         onPress={() => {
-          setSelectedRoadwork(roadwork);
+          setSelectedRoadwork({ ...roadwork, isAutomatic });
           setShowDetailsModal(true);
         }}
       >
@@ -392,6 +432,14 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
         <Text style={styles.cardLocation}>
           <Ionicons name="location" size={14} color="#6B7280" /> {roadwork.location}
         </Text>
+        
+        {isAutomatic && roadwork.source && (
+          <Text style={styles.cardSource}>
+            Source: {roadwork.source === 'tomtom' ? 'TomTom Traffic' : 
+                    roadwork.source === 'national_highways' ? 'National Highways' : 
+                    roadwork.source}
+          </Text>
+        )}
 
         {roadwork.affectedRoutes && roadwork.affectedRoutes.length > 0 && (
           <View style={styles.affectedRoutes}>
@@ -468,17 +516,39 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
           <Text style={styles.statLabel}>Total Roadworks</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statValue, { color: '#10B981' }]}>{stats.promotedToDisplay}</Text>
-          <Text style={styles.statLabel}>On Display</Text>
+          <Text style={[styles.statValue, { color: '#7C3AED' }]}>{stats.automatic}</Text>
+          <Text style={styles.statLabel}>From Traffic APIs</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statValue, { color: '#3B82F6' }]}>{stats.activeDiversions}</Text>
-          <Text style={styles.statLabel}>Active Diversions</Text>
+          <Text style={[styles.statValue, { color: '#10B981' }]}>{stats.promotedToDisplay}</Text>
+          <Text style={styles.statLabel}>On Display</Text>
         </View>
         <View style={styles.statCard}>
           <Text style={[styles.statValue, { color: '#F59E0B' }]}>{stats.pendingTasks}</Text>
           <Text style={styles.statLabel}>Pending Tasks</Text>
         </View>
+      </View>
+
+      {/* Tab Switcher */}
+      <View style={styles.tabContainer}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'manual' && styles.activeTab]}
+          onPress={() => setActiveTab('manual')}
+        >
+          <Ionicons name="hammer" size={16} color={activeTab === 'manual' ? '#3B82F6' : '#6B7280'} />
+          <Text style={[styles.tabText, activeTab === 'manual' && styles.activeTabText]}>
+            Manual ({roadworks.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'automatic' && styles.activeTab]}
+          onPress={() => setActiveTab('automatic')}
+        >
+          <Ionicons name="radio" size={16} color={activeTab === 'automatic' ? '#3B82F6' : '#6B7280'} />
+          <Text style={[styles.tabText, activeTab === 'automatic' && styles.activeTabText]}>
+            From Traffic APIs ({trafficRoadworks.length})
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Roadworks List */}
@@ -493,14 +563,26 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
             <ActivityIndicator size="large" color="#3B82F6" />
             <Text style={styles.loadingText}>Loading roadworks...</Text>
           </View>
-        ) : roadworks.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="construct" size={48} color="#E5E7EB" />
-            <Text style={styles.emptyTitle}>No Roadworks Found</Text>
-            <Text style={styles.emptyText}>Create your first roadwork to get started</Text>
-          </View>
+        ) : activeTab === 'manual' ? (
+          roadworks.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="construct" size={48} color="#E5E7EB" />
+              <Text style={styles.emptyTitle}>No Manual Roadworks</Text>
+              <Text style={styles.emptyText}>Create your first roadwork to get started</Text>
+            </View>
+          ) : (
+            roadworks.map(roadwork => renderRoadworkCard(roadwork, false))
+          )
         ) : (
-          roadworks.map(renderRoadworkCard)
+          trafficRoadworks.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="radio" size={48} color="#E5E7EB" />
+              <Text style={styles.emptyTitle}>No Automatic Roadwork Alerts</Text>
+              <Text style={styles.emptyText}>Waiting for roadwork data from TomTom and National Highways</Text>
+            </View>
+          ) : (
+            trafficRoadworks.map(roadwork => renderRoadworkCard(roadwork, true))
+          )
         )}
       </ScrollView>
 
@@ -581,7 +663,9 @@ const RoadworkDetailsModal = ({ visible, roadwork, onClose, onPromoteToDisplay, 
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Roadwork Details</Text>
+            <Text style={styles.modalTitle}>
+              {roadwork.isAutomatic ? 'Automatic Roadwork Alert' : 'Roadwork Details'}
+            </Text>
             <TouchableOpacity onPress={onClose} style={styles.modalCloseButton}>
               <Ionicons name="close" size={24} color="#6B7280" />
             </TouchableOpacity>
@@ -860,6 +944,12 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginBottom: 12,
   },
+  cardSource: {
+    fontSize: 12,
+    color: '#7C3AED',
+    fontStyle: 'italic',
+    marginBottom: 8,
+  },
   affectedRoutes: {
     marginBottom: 12,
   },
@@ -948,6 +1038,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
     textAlign: 'center',
+  },
+  // Tab Styles
+  tabContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    gap: 8,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    gap: 6,
+  },
+  activeTab: {
+    backgroundColor: '#EBF5FF',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  activeTabText: {
+    color: '#3B82F6',
+  },
+  automaticRoadworkCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#7C3AED',
   },
   // Modal Styles
   modalOverlay: {

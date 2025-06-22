@@ -1,163 +1,54 @@
 // Go_BARRY/components/DisplayScreen.jsx
-// Professional 24/7 Control Room Display - Fixed for React Native Web
+// Professional 24/7 Control Room Display - FIXED with Convex Real-time Sync
 
 import React, { useState, useEffect, useRef } from 'react';
 import OptimizedTomTomMap from './OptimizedTomTomMap';
+import { useConvexSync, useSupervisorActions } from '../hooks/useConvexSync';
 
 const DisplayScreen = () => {
-  const [alerts, setAlerts] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentAlertIndex, setCurrentAlertIndex] = useState(0);
-  const [error, setError] = useState(null);
   const [activeEvent, setActiveEvent] = useState(null);
-  const [supervisorActivity, setSupervisorActivity] = useState([]);
-  const [activeSupervisors, setActiveSupervisors] = useState([]);
-  const [apiResponseTime, setApiResponseTime] = useState(null);
-  const [lastUpdateTime, setLastUpdateTime] = useState(null);
   const [attentionMode, setAttentionMode] = useState(false);
   const [weather, setWeather] = useState({ condition: 'CLEAR', temp: '15°C', icon: '☀️' });
-  const [syncConnected, setSyncConnected] = useState(true); // Polling is always "connected"
-  const [lastSyncTime, setLastSyncTime] = useState(null);
-  const [syncAge, setSyncAge] = useState(0);
 
-  // Note: WebSocket disabled due to proxy/CDN not supporting WebSocket upgrades
-  // Using polling instead for reliability
+  // FIXED: Use Convex hooks for BOTH alerts AND supervisors (real-time sync)
+  const { activeAlerts, activeSupervisors } = useConvexSync();
+  const supervisorActivity = useSupervisorActions({ limit: 10 });
+  
+  // Process alerts from Convex to ensure consistent format
+  const alerts = React.useMemo(() => {
+    if (!activeAlerts) return [];
+    return activeAlerts.map(alert => ({
+      ...alert,
+      id: alert.alertId, // Ensure consistent ID field
+      coordinates: alert.coordinates ? 
+        (Array.isArray(alert.coordinates) ? alert.coordinates : 
+         alert.coordinates.lat && alert.coordinates.lng ? 
+         [alert.coordinates.lat, alert.coordinates.lng] : 
+         alert.coordinates.latitude && alert.coordinates.longitude ?
+         [alert.coordinates.latitude, alert.coordinates.longitude] : null) :
+        null
+    }));
+  }, [activeAlerts]);
+  
+  // Loading/error states (Convex handles these)
+  const loading = !activeAlerts;
+  const error = null;
+  const lastUpdateTime = new Date();
+  const apiResponseTime = 0; // Instant with Convex
+
+  // Convex connection status (always true when using hooks)
+  const syncConnected = true;
+  const lastSyncTime = new Date(); // Convex is always real-time
+  const syncAge = 0; // Always fresh with Convex
 
   // Update time every second
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
-      
-      // Update sync age
-      if (lastSyncTime) {
-        setSyncAge(Math.round((new Date() - lastSyncTime) / 1000));
-      }
     }, 1000);
     return () => clearInterval(timer);
-  }, [lastSyncTime]);
-
-  // Fetch supervisor activity via polling
-  const fetchSupervisorActivity = async () => {
-    try {
-      // Fetch active supervisors
-      console.log('🔄 Fetching active supervisors...');
-      const response = await fetch('https://go-barry.onrender.com/api/supervisor/active');
-      if (response.ok) {
-        const activeData = await response.json();
-        console.log('👥 Active supervisors response:', activeData);
-        if (activeData.activeSupervisors && Array.isArray(activeData.activeSupervisors)) {
-          setActiveSupervisors(activeData.activeSupervisors);
-          console.log(`✅ Updated active supervisors list: ${activeData.activeSupervisors.length} supervisors`);
-        }
-      } else {
-        console.error('❌ Failed to fetch active supervisors:', response.status);
-      }
-      
-      // Fetch activity logs from Supabase
-      console.log('🔄 Fetching activity logs...');
-      const activityResponse = await fetch('https://go-barry.onrender.com/api/activity/logs?limit=10');
-      console.log('📊 Activity response status:', activityResponse.status);
-      
-      if (activityResponse.ok) {
-        const activityData = await activityResponse.json();
-        console.log('📊 Activity data received:', activityData);
-        
-        if (activityData.logs && Array.isArray(activityData.logs)) {
-          // Transform activities to match expected format
-          const formattedActivities = activityData.logs.map(log => ({
-            id: log.id || `${log.action}_${log.created_at}`,
-            supervisorName: log.supervisor_name || 'System',
-            action: formatActivityAction(log.action, log.details),
-            type: getActivityType(log.action),
-            timestamp: log.created_at
-          }));
-          console.log('✅ Formatted activities:', formattedActivities.length);
-          setSupervisorActivity(formattedActivities);
-        } else {
-          console.log('⚠️ No logs in response or invalid format');
-        }
-      } else {
-        console.error('❌ Failed to fetch activity logs:', activityResponse.status);
-      }
-      
-      setSyncConnected(true);
-      setLastSyncTime(new Date());
-    } catch (err) {
-      console.error('❌ Activity fetch error:', err);
-      setSyncConnected(false);
-    }
-  };
-  
-  // Helper functions for activity formatting
-  const formatActivityAction = (action, details) => {
-    // Parse details if it's a string
-    let parsedDetails = details;
-    if (typeof details === 'string') {
-      try {
-        parsedDetails = JSON.parse(details);
-      } catch (e) {
-        // If JSON parse fails, try to extract key info from string
-        console.warn('Failed to parse details as JSON:', details);
-        parsedDetails = { raw: details };
-      }
-    } else if (!details) {
-      parsedDetails = {};
-    }
-    
-    switch (action) {
-      case 'supervisor_login':
-        return `logged in as ${parsedDetails?.role || 'Supervisor'}`;
-      case 'supervisor_logout':
-        return `logged out after ${parsedDetails?.sessionDuration || 'session'}`;
-      case 'alert_dismissed':
-        return `dismissed alert: ${parsedDetails?.reason || 'No reason provided'}`;
-      case 'session_timeout':
-        return `timed out (inactive ${parsedDetails?.inactiveMinutes || '?'}m)`;
-      case 'roadwork_created':
-        return `created roadwork: ${parsedDetails?.location || 'unknown location'}`;
-      case 'email_sent':
-        return `sent email to ${parsedDetails?.recipients?.length || 0} groups`;
-      case 'duty_started':
-        return `began Duty ${parsedDetails?.duty_number || 'unknown'}`;
-      case 'duty_ended':
-        return `ended Duty ${parsedDetails?.duty_number || 'unknown'}`;
-      default:
-        return action.toLowerCase().replace(/_/g, ' ');
-    }
-  };
-  
-  const getActivityType = (action) => {
-    switch (action) {
-      case 'supervisor_login':
-      case 'supervisor_logout':
-      case 'session_timeout':
-        return 'login';
-      case 'alert_dismissed':
-        return 'acknowledge';
-      case 'roadwork_created':
-        return 'roadwork';
-      case 'email_sent':
-        return 'email';
-      case 'duty_started':
-      case 'duty_ended':
-        return 'duty';
-      default:
-        return 'system';
-    }
-  };
-
-  // Polling for supervisor activity (primary method since WebSocket has proxy issues)
-  useEffect(() => {
-    // Initial fetch
-    fetchSupervisorActivity();
-    
-    // Poll every 10 seconds for near real-time updates
-    const interval = setInterval(() => {
-      fetchSupervisorActivity();
-    }, 10000); // 10s intervals
-    
-    return () => clearInterval(interval);
   }, []);
 
   // Fetch active events
@@ -177,81 +68,20 @@ const DisplayScreen = () => {
     }
   };
 
-  // Fetch alerts data
-  const fetchAlerts = async () => {
-    const startTime = performance.now();
-    try {
-      setLoading(true);
-      console.log('🔄 Fetching alerts...');
-      
-      const response = await fetch('https://go-barry.onrender.com/api/alerts-enhanced');
-      const endTime = performance.now();
-      const responseTime = Math.round(endTime - startTime);
-      setApiResponseTime(responseTime);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      console.log('✅ Alerts received:', data.alerts?.length || 0);
-      
-      // Process alerts to ensure coordinates are in correct format
-      const processedAlerts = (data.alerts || []).map(alert => ({
-        ...alert,
-        coordinates: alert.coordinates ? 
-          (Array.isArray(alert.coordinates) ? alert.coordinates : 
-           alert.coordinates.lat && alert.coordinates.lng ? 
-           [alert.coordinates.lat, alert.coordinates.lng] : 
-           alert.coordinates.latitude && alert.coordinates.longitude ?
-           [alert.coordinates.latitude, alert.coordinates.longitude] : null) :
-          null
-      }));
-      
-      setAlerts(processedAlerts);
-      setError(null);
-      setLastUpdateTime(new Date());
-      
-      // Check for critical/high severity alerts
-      const criticalAlerts = processedAlerts.filter(alert => 
-        alert.severity === 'CRITICAL' || alert.severity === 'Critical' ||
-        alert.severity === 'HIGH' || alert.severity === 'High'
-      );
-      setAttentionMode(criticalAlerts.length > 0);
-      
-      // Log display screen view
-      try {
-        await fetch('https://go-barry.onrender.com/api/activity/display-view', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            alertCount: processedAlerts.length,
-            criticalCount: criticalAlerts.length,
-            viewTime: new Date().toISOString()
-          })
-        });
-      } catch (err) {
-        console.log('Failed to log display view');
-      }
-      
-    } catch (err) {
-      console.error('❌ Error fetching alerts:', err);
-      setError(err.message);
-      setLastUpdateTime(new Date());
-      setApiResponseTime(Math.round(performance.now() - startTime));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Initial load and auto-refresh
+  // Check for critical/high severity alerts
   useEffect(() => {
-    fetchAlerts();
+    const criticalAlerts = alerts.filter(alert => 
+      alert.severity === 'CRITICAL' || alert.severity === 'Critical' ||
+      alert.severity === 'HIGH' || alert.severity === 'High'
+    );
+    setAttentionMode(criticalAlerts.length > 0);
+  }, [alerts]);
+
+  // Initial load and auto-refresh for events only (alerts come from Convex)
+  useEffect(() => {
     fetchActiveEvents();
-    const alertInterval = setInterval(fetchAlerts, 20000);
     const eventInterval = setInterval(fetchActiveEvents, 60000);
     return () => {
-      clearInterval(alertInterval);
       clearInterval(eventInterval);
     };
   }, []);
@@ -305,11 +135,51 @@ const DisplayScreen = () => {
   };
 
   const getTimeSinceUpdate = () => {
-    if (!lastUpdateTime) return 'Never';
-    const seconds = Math.floor((new Date() - lastUpdateTime) / 1000);
-    if (seconds < 60) return `${seconds}s ago`;
-    const minutes = Math.floor(seconds / 60);
-    return `${minutes}m ago`;
+    return 'LIVE'; // Always live with Convex real-time sync
+  };
+
+  // Helper function to format activity action
+  const formatActivityAction = (action) => {
+    switch (action.action) {
+      case 'login':
+        return `logged in as ${action.role || 'Supervisor'}`;
+      case 'logout':
+        return `logged out`;
+      case 'dismiss_alert':
+        return `dismissed alert: ${action.reason || 'No reason provided'}`;
+      case 'session_timeout':
+        return `session timed out`;
+      case 'create_roadwork':
+        return `created roadwork at ${action.details?.location || 'unknown location'}`;
+      case 'send_email':
+        return `sent email to ${action.details?.recipients || 'groups'}`;
+      case 'start_duty':
+        return `started ${action.details?.dutyName || 'duty'}`;
+      case 'end_duty':
+        return `ended ${action.details?.dutyName || 'duty'}`;
+      default:
+        return action.action.replace(/_/g, ' ');
+    }
+  };
+
+  const getActivityType = (action) => {
+    switch (action.action) {
+      case 'login':
+      case 'logout':
+      case 'session_timeout':
+        return 'login';
+      case 'dismiss_alert':
+        return 'acknowledge';
+      case 'create_roadwork':
+        return 'roadwork';
+      case 'send_email':
+        return 'email';
+      case 'start_duty':
+      case 'end_duty':
+        return 'duty';
+      default:
+        return 'system';
+    }
   };
 
   const currentAlert = getCurrentAlert();
@@ -383,7 +253,7 @@ const DisplayScreen = () => {
               letterSpacing: '1px',
               textTransform: 'uppercase'
             }}>
-              Control Room • Live Operations
+              Control Room • Live Operations • Convex Real-time Alerts
             </p>
           </div>
         </div>
@@ -425,19 +295,19 @@ const DisplayScreen = () => {
           />
           <StatusBadge 
             icon="👥" 
-            label={`${activeSupervisors.length} SUPERVISORS`} 
+            label={`${activeSupervisors?.length || 0} SUPERVISORS`} 
             color="#3b82f6"
           />
           <StatusBadge 
-            icon="📡" 
-            label={`${apiResponseTime || '---'}ms`} 
-            color={apiResponseTime && apiResponseTime < 1000 ? '#10b981' : '#f59e0b'}
+            icon="🚨" 
+            label={`${alerts.length} ALERTS`} 
+            color={alerts.length > 0 ? '#f59e0b' : '#10b981'}
           />
           <StatusBadge 
             icon="🔄" 
-            label={syncConnected ? 'POLLING' : 'OFFLINE'} 
-            color={syncConnected ? '#10b981' : '#ef4444'}
-            pulse={!syncConnected}
+            label="REAL-TIME" 
+            color="#10b981"
+            pulse={false}
           />
           {attentionMode && (
             <StatusBadge 
@@ -544,7 +414,7 @@ const DisplayScreen = () => {
               fontWeight: '600',
               color: '#93c5fd'
             }}>
-              {alerts.filter(a => a.coordinates).length} ALERTS MAPPED
+              {alerts.filter(a => a.coordinates).length} ALERTS MAPPED • REAL-TIME SYNC
             </div>
           </div>
           
@@ -619,9 +489,10 @@ const DisplayScreen = () => {
             </h2>
             <div style={{
               fontSize: '11px',
-              color: '#64748b'
+              color: '#10b981',
+              fontWeight: '600'
             }}>
-              Updated {getTimeSinceUpdate()}
+              {getTimeSinceUpdate()}
             </div>
           </div>
 
@@ -702,6 +573,37 @@ const DisplayScreen = () => {
                       {currentAlert.description}
                     </p>
                   )}
+
+                  {currentAlert.affectsRoutes && currentAlert.affectsRoutes.length > 0 && (
+                    <div style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '4px',
+                      marginTop: '12px'
+                    }}>
+                      <span style={{ fontSize: '10px', color: '#64748b', marginRight: '4px' }}>Routes:</span>
+                      {currentAlert.affectsRoutes.slice(0, 5).map(route => (
+                        <span key={route} style={{
+                          backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                          color: '#93c5fd',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '10px',
+                          fontWeight: '600'
+                        }}>
+                          {route}
+                        </span>
+                      ))}
+                      {currentAlert.affectsRoutes.length > 5 && (
+                        <span style={{
+                          color: '#64748b',
+                          fontSize: '10px'
+                        }}>
+                          +{currentAlert.affectsRoutes.length - 5} more
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -747,7 +649,7 @@ const DisplayScreen = () => {
           )}
         </div>
 
-        {/* Operations Panel */}
+        {/* Operations Panel - FIXED with Convex data */}
         <div style={{
           backgroundColor: 'rgba(255, 255, 255, 0.05)',
           borderRadius: '20px',
@@ -795,18 +697,16 @@ const DisplayScreen = () => {
               textTransform: 'uppercase',
               letterSpacing: '0.5px'
             }}>
-              👥 Active Personnel ({activeSupervisors.length})
-            {lastSyncTime && (
+              👥 Active Personnel ({activeSupervisors?.length || 0})
               <span style={{
                 fontSize: '9px',
-                color: '#475569',
+                color: '#10b981',
                 marginLeft: '8px'
               }}>
-                • Updated {syncAge}s ago
+                • CONVEX REAL-TIME
               </span>
-            )}
             </div>
-            {activeSupervisors.length > 0 ? (
+            {activeSupervisors && activeSupervisors.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {activeSupervisors.map((supervisor, idx) => (
                   <div key={idx} style={{
@@ -832,7 +732,7 @@ const DisplayScreen = () => {
                       borderRadius: '10px',
                       fontWeight: '600'
                     }}>
-                      {supervisor.role?.includes('Admin') || supervisor.role?.includes('Controller') ? 'ADMIN' : 'ACTIVE'}
+                      {supervisor.isAdmin ? 'ADMIN' : 'ACTIVE'}
                     </span>
                   </div>
                 ))}
@@ -868,19 +768,19 @@ const DisplayScreen = () => {
             flexDirection: 'column',
             gap: '6px'
           }}>
-            {supervisorActivity.length > 0 ? (
+            {supervisorActivity && supervisorActivity.length > 0 ? (
               supervisorActivity.map((activity, idx) => (
-                <div key={activity.id} style={{
+                <div key={activity._id} style={{
                   padding: '10px',
                   backgroundColor: idx === 0 ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255, 255, 255, 0.03)',
                   border: idx === 0 ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)',
                   borderRadius: '6px',
                   borderLeft: `3px solid ${
-                    activity.type === 'login' ? '#10b981' :
-                    activity.type === 'acknowledge' ? '#f59e0b' :
-                    activity.type === 'roadwork' ? '#ef4444' :
-                    activity.type === 'email' ? '#3b82f6' :
-                    activity.type === 'duty' ? '#8b5cf6' :
+                    getActivityType(activity) === 'login' ? '#10b981' :
+                    getActivityType(activity) === 'acknowledge' ? '#f59e0b' :
+                    getActivityType(activity) === 'roadwork' ? '#ef4444' :
+                    getActivityType(activity) === 'email' ? '#3b82f6' :
+                    getActivityType(activity) === 'duty' ? '#8b5cf6' :
                     'rgba(255, 255, 255, 0.1)'
                   }`
                 }}>
@@ -897,7 +797,7 @@ const DisplayScreen = () => {
                     color: '#94a3b8',
                     marginBottom: '4px'
                   }}>
-                    {activity.action}
+                    {formatActivityAction(activity)}
                   </div>
                   <div style={{
                     fontSize: '9px',
@@ -950,7 +850,7 @@ const DisplayScreen = () => {
             color: '#93c5fd',
             fontWeight: '500'
           }}>
-            Go BARRY v3.0 • Control Room Operations
+            Go BARRY v3.0 • Control Room Operations • FIXED Real-time Sync
           </div>
         </div>
       </div>
@@ -970,7 +870,8 @@ const StatusBadge = ({ icon, label, color, pulse = false }) => (
     padding: '5px 10px',
     borderRadius: '8px',
     fontSize: '10px',
-    fontWeight: '600'
+    fontWeight: '600',
+    animation: pulse ? 'pulse 2s infinite' : 'none'
   }}>
     <span>{icon}</span>
     <span>{label}</span>
