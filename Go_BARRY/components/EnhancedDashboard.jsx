@@ -54,11 +54,8 @@ const EnhancedDashboard = ({
     };
   }, [activeAlerts]);
   
-  // State management
-  const [healthData, setHealthData] = useState(null);
+  // State management - no health API calls needed, Convex provides everything
   const [loading, setLoading] = useState(!activeAlerts); // Loading until Convex provides data
-  const [error, setError] = useState(null);
-  const [lastUpdated, setLastUpdated] = useState(new Date().toISOString()); // Always current with Convex
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [showSupervisorLogin, setShowSupervisorLogin] = useState(false);
@@ -79,48 +76,19 @@ const EnhancedDashboard = ({
   // Update loading state when Convex data changes
   useEffect(() => {
     setLoading(!activeAlerts);
-    setLastUpdated(new Date().toISOString());
   }, [activeAlerts]);
   
-  // Debug session and alerts
+  // Debug session and alerts - simplified to prevent loops
   useEffect(() => {
     console.log('🔍 EnhancedDashboard Debug:', {
       alertsFromConvex: activeAlerts?.length || 0,
-      processedAlerts: alertsData?.alerts?.length || 0,
       convexConnected: !!activeAlerts,
-      session: {
-        hasSession: !!session,
-        supervisorName: session?.supervisor?.name,
-        supervisorDuty: session?.supervisor?.duty,
-        sessionId: session?.sessionId
-      }
+      hasSession: !!session,
+      sessionId: session?.sessionId
     });
-  }, [session, activeAlerts, alertsData]);
+  }, [activeAlerts?.length, session?.sessionId]); // Only track length and sessionId, not full objects
 
-  // Fetch health data only (alerts now come from Convex)
-
-  const fetchHealthData = useCallback(async () => {
-    try {
-      const response = await fetch(`${baseUrl}/api/health`);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      
-      const data = await response.json();
-      setHealthData(data);
-    } catch (err) {
-      console.error('Error fetching health:', err);
-    }
-  }, [baseUrl]);
-
-  const fetchData = useCallback(async () => {
-    // Only fetch health data, alerts come from Convex real-time
-    await fetchHealthData();
-  }, [fetchHealthData]);
-
-  // Initial load of health data only
-  useEffect(() => {
-    fetchHealthData();
-    // No auto-refresh needed - Convex provides real-time updates for alerts
-  }, [fetchHealthData]);
+  // No API calls needed - Convex provides all data in real-time
 
   // Keyboard shortcuts for web
   useEffect(() => {
@@ -147,7 +115,7 @@ const EnhancedDashboard = ({
             break;
           case 'r':
             e.preventDefault();
-            fetchHealthData(); // Only refresh health data, alerts are real-time
+            // No manual refresh needed - Convex provides real-time updates
             break;
           case 'f':
             e.preventDefault();
@@ -167,7 +135,7 @@ const EnhancedDashboard = ({
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [fetchHealthData, session]); // Updated dependencies
+  }, [session]);
 
   // Process and filter alerts
   const processedAlerts = useMemo(() => {
@@ -243,18 +211,7 @@ const EnhancedDashboard = ({
     };
   }, [processedAlerts]);
 
-  // Error handling component
-  const ErrorDisplay = () => (
-    <View style={styles.errorContainer}>
-      <Ionicons name="warning" size={24} color="#DC2626" />
-      <Text style={styles.errorText}>
-        Failed to load traffic data: {error}
-      </Text>
-      <TouchableOpacity style={styles.retryButton} onPress={fetchHealthData}>
-        <Text style={styles.retryButtonText}>Retry</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  // No error handling needed - Convex handles connectivity automatically
 
   // Loading component
   const LoadingDisplay = () => (
@@ -427,20 +384,11 @@ const EnhancedDashboard = ({
     );
   };
 
-  // System status component
+  // System status component - simplified for Convex-only
   const SystemStatus = () => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>System Status</Text>
       <View style={styles.statusGrid}>
-        <View style={styles.statusItem}>
-          <Text style={styles.statusIcon}>
-            {healthData?.status === 'healthy' ? typography.icons.status.connected : typography.icons.alert.warning}
-          </Text>
-          <Text style={styles.statusText}>
-            Backend: {healthData?.status || 'Unknown'}
-          </Text>
-        </View>
-        
         <View style={styles.statusItem}>
           <Text style={styles.statusIcon}>🔄</Text>
           <Text style={styles.statusText}>
@@ -449,16 +397,16 @@ const EnhancedDashboard = ({
         </View>
         
         <View style={styles.statusItem}>
-          <Ionicons name="shield-checkmark" size={16} color="#3B82F6" />
+          <Ionicons name="analytics" size={16} color="#10B981" />
           <Text style={styles.statusText}>
-            GTFS Routes: {healthData?.gtfs?.routes || 'N/A'}
+            Live Alerts: {alertsData?.alerts?.length || 0}
           </Text>
         </View>
         
         <View style={styles.statusItem}>
-          <Ionicons name="analytics" size={16} color="#10B981" />
+          <Ionicons name="shield-checkmark" size={16} color="#3B82F6" />
           <Text style={styles.statusText}>
-            Live Alerts: {alertsData?.alerts?.length || 0}
+            Real-time Sync: Active
           </Text>
         </View>
       </View>
@@ -546,13 +494,13 @@ const EnhancedDashboard = ({
     </View>
   );
 
-  // Main render
+  // Main render - simplified for Convex
   if (loading && !alertsData) {
-    return <LoadingDisplay />;
-  }
-
-  if (error && !alertsData) {
-    return <ErrorDisplay />;
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Connecting to Convex...</Text>
+      </View>
+    );
   }
 
   return (

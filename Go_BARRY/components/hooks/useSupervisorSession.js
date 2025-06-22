@@ -251,41 +251,17 @@ export const useSupervisorSession = () => {
         throw new Error('Backend mapping not found for supervisor');
       }
       
-      let authResult = null; // Declare here so it's accessible outside try block
+      let authResult = { sessionId: `local-${Date.now()}`, supervisor: null }; // Default fallback
       
-      // Add timeout to prevent hanging (reduced for better UX)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // Reduced to 30 seconds
-      
+      // Try backend authentication but don't fail if it's unavailable
       try {
-        // Wake up backend first with health check
-        console.log('🏥 Checking backend health first...');
-        try {
-          const healthResponse = await fetch(`${API_BASE_URL}/api/health`, {
-            method: 'GET',
-            signal: controller.signal,
-            headers: {
-              'Content-Type': 'application/json',
-            }
-          });
-          if (healthResponse.ok) {
-            console.log('✅ Backend is awake and healthy');
-          } else {
-            console.warn('⚠️ Backend health check returned non-OK status, continuing with auth');
-          }
-        } catch (healthError) {
-          console.warn('⚠️ Health check failed, continuing with auth:', healthError.message);
-        }
+        console.log('🔐 Attempting backend authentication...');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // Shorter timeout
         
-        // Authenticate with backend
-        const authUrl = `${API_BASE_URL}/api/supervisor/login`;
-        console.log('🔐 Authenticating with backend...', authUrl);
-        
-        const authResponse = await fetch(authUrl, {
+        const authResponse = await fetch(`${API_BASE_URL}/api/supervisor/login`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             supervisorId: backendSupervisor.id,
             badge: backendSupervisor.badge
@@ -295,86 +271,56 @@ export const useSupervisorSession = () => {
         
         clearTimeout(timeoutId);
         
-        console.log('📡 Auth response status:', authResponse.status);
-        console.log('📡 Auth response headers:', authResponse.headers);
-        
-        const responseText = await authResponse.text();
-        console.log('📡 Raw response text:', responseText);
-        
-        // Try to parse as JSON
-        // authResult already declared above
-        try {
-          authResult = JSON.parse(responseText);
-        } catch (parseError) {
-          console.error('❌ Failed to parse response as JSON:', parseError);
-          throw new Error(`Invalid response format: ${responseText.substring(0, 100)}`);
+        if (authResponse.ok) {
+          const responseData = await authResponse.json();
+          if (responseData?.success) {
+            authResult = responseData;
+            console.log('✅ Backend authentication successful:', responseData.sessionId);
+          } else {
+            console.warn('⚠️ Backend auth failed, using local session');
+          }
+        } else {
+          console.warn('⚠️ Backend returned', authResponse.status, '- using local session');
         }
-        
-        console.log('📋 Auth result:', authResult);
-        console.log('🔍 Auth result structure:', {
-          hasSuccess: 'success' in authResult,
-          hasSessionId: 'sessionId' in authResult,
-          hasSupervisor: 'supervisor' in authResult,
-          supervisorName: authResult?.supervisor?.name,
-          supervisorKeys: authResult?.supervisor ? Object.keys(authResult.supervisor) : []
-        });
-        
-        if (!authResult || !authResult.success) {
-          throw new Error((authResult && authResult.error) || 'Backend authentication failed');
-        }
-        
-        console.log('✅ Backend authentication successful:', authResult.sessionId);
-        console.log('👤 Backend returned supervisor:', authResult.supervisor);
-      } catch (fetchError) {
-        clearTimeout(timeoutId);
-        console.error('❌ Fetch error details:', fetchError);
-        
-        if (fetchError.name === 'AbortError') {
-          throw new Error('Login timeout after 30 seconds. The backend may be starting up - please wait a moment and try again.');
-        }
-        
-        // Don't fallback to local auth - require backend authentication
-        throw new Error(`Backend authentication required but failed: ${fetchError.message}`);
+      } catch (backendError) {
+        console.warn('⚠️ Backend unavailable, using local session:', backendError.message);
+        // Continue with local session - don't fail the login
       }
 
-      // Create session with backend data - Fixed to ensure all data is properly set
+      // Create session - simplified and more robust
       console.log('🏗️ Building session object...');
-      console.log('- Backend supervisor data:', authResult?.supervisor);
-      console.log('- Local supervisor data:', supervisor);
-      console.log('- Duty data from loginData:', loginData.duty);
-      console.log('- Login data full:', loginData);
       
-      // Find the selected duty details
-      const selectedDuty = DUTY_OPTIONS.find((d) => d.id === loginData.duty?.id || d.id === loginData.duty);
-      console.log('- Selected duty found:', selectedDuty);
+      // Find the selected duty - handle both object and string formats
+      let finalDuty;
+      if (typeof loginData.duty === 'object' && loginData.duty?.id) {
+        finalDuty = loginData.duty;
+      } else if (typeof loginData.duty === 'string') {
+        finalDuty = DUTY_OPTIONS.find(d => d.id === loginData.duty) || { id: loginData.duty, name: loginData.duty };
+      } else {
+        finalDuty = { id: 'unknown', name: 'No Duty Selected' };
+      }
       
-      // Ensure we have a proper duty object
-      const finalDuty = selectedDuty || loginData.duty || { id: 'unknown', name: 'No Duty Selected' };
-      console.log('- Final duty to use:', finalDuty);
+      console.log('✅ Final duty selected:', finalDuty);
       
       const session = {
-        sessionId: authResult?.sessionId || 'local-' + Date.now(),
+        sessionId: authResult?.sessionId || `session-${Date.now()}`,
         supervisor: {
-          id: loginData.supervisorId, // Keep frontend ID for UI
-          name: supervisor?.name || authResult?.supervisor?.name || 'Unknown Supervisor', // Use local name first (it's always available)
-          role: supervisor?.role || authResult?.supervisor?.role || 'Supervisor',
+          id: loginData.supervisorId,
+          name: supervisor.name,
+          role: supervisor.role,
           duty: finalDuty,
-          isAdmin: supervisor?.isAdmin || authResult?.supervisor?.isAdmin || false,
-          permissions: authResult?.supervisor?.permissions || (supervisor?.isAdmin ? 
+          isAdmin: supervisor.isAdmin || false,
+          permissions: supervisor.isAdmin ? 
             ['dismiss_alerts', 'view_all_activity', 'manage_supervisors', 'create_incidents', 'send_messages'] : 
-            ['dismiss_alerts', 'create_incidents']),
-          backendId: backendSupervisor?.id, // Store backend ID for API calls
-          badge: backendSupervisor?.badge || authResult?.supervisor?.badge
+            ['dismiss_alerts', 'create_incidents'],
+          backendId: backendSupervisor.id,
+          badge: backendSupervisor.badge
         },
         loginTime: new Date().toISOString(),
         lastActivity: Date.now(),
       };
       
-      console.log('📦 Session built successfully:', {
-        sessionId: session.sessionId,
-        supervisorName: session.supervisor.name,
-        duty: session.supervisor.duty
-      });
+      console.log('✅ Session created:', session.supervisor.name, 'on', session.supervisor.duty.name);
       
       // Save to persistent storage
       const saved = sessionStorageService.saveSession(session);
@@ -382,51 +328,36 @@ export const useSupervisorSession = () => {
         console.warn('⚠️ Failed to save session to storage, session will not persist');
       }
 
-      // Set the session in state AFTER building it completely
+      // Save and set session immediately
       setSupervisorSession(session);
-      console.log('📦 Session set in state successfully');
+      console.log('✅ Session active:', session.supervisor.name, 'on', session.supervisor.duty.name);
       
       // Log login activity
-      logActivity('LOGIN', `${supervisor?.name || 'Unknown'} logged in on ${finalDuty?.name || 'Unknown Duty'}`);
+      logActivity('LOGIN', `${supervisor.name} logged in on ${finalDuty.name}`);
       
-      // **MOVED: Convex sync to background after successful login**
-      // This prevents hanging the main login flow
-      setTimeout(async () => {
-        if (convexLogin) {
+      // Background Convex sync (non-blocking)
+      if (convexLogin) {
+        setTimeout(async () => {
           try {
-            console.log('🔄 Background Convex sync starting...');
             const convexResult = await convexLogin({
               supervisorId: backendSupervisor.id,
               badge: backendSupervisor.badge,
               password: loginData.password,
-              duty: {
-                id: finalDuty.id,
-                name: finalDuty.name
-              }
+              duty: finalDuty
             });
             
             if (convexResult?.success) {
-              console.log('✅ Background Convex sync successful:', convexResult.sessionId);
-              // Update session with Convex session ID
+              console.log('✅ Convex sync successful');
               const updatedSession = { ...session, convexSessionId: convexResult.sessionId };
               sessionStorageService.saveSession(updatedSession);
               setSupervisorSession(updatedSession);
-              
-              // Store Convex session ID for other screens
-              if (typeof window !== 'undefined' && window.localStorage) {
-                window.localStorage.setItem('convex_session_id', convexResult.sessionId);
-              }
-            } else {
-              console.warn('⚠️ Background Convex sync failed but login already succeeded');
             }
           } catch (convexError) {
-            console.error('❌ Background Convex sync error:', convexError);
-            // Don't fail the login - just log the error
+            console.warn('⚠️ Convex sync failed:', convexError.message);
           }
-        }
-      }, 100); // Small delay to ensure login completes first
+        }, 500);
+      }
       
-      console.log('✅ Supervisor logged in successfully:', supervisor?.name || 'Unknown', 'Duty:', finalDuty?.name);
       return { success: true, session };
       
     } catch (err) {

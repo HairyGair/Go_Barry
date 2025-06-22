@@ -58,7 +58,7 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
     try {
       const response = await fetch('https://go-barry.onrender.com/api/roadwork-alerts/email-groups');
       const result = await response.json();
-      if (result.success) {
+      if (result.success && Array.isArray(result.data)) {
         setAvailableEmailGroups(result.data);
       }
     } catch (error) {
@@ -141,6 +141,12 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
       return;
     }
 
+    // Validate supervisor data
+    if (!supervisorData || !supervisorData.id || !supervisorData.name) {
+      Alert.alert('Error', 'Supervisor session is invalid. Please log in again.');
+      return;
+    }
+
     setLoading(true);
     
     try {
@@ -170,6 +176,8 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
         email_groups: formData.emailGroups
       };
 
+      console.log('📤 Sending roadwork data:', roadworkData);
+
       const response = await fetch('https://go-barry.onrender.com/api/roadwork-alerts', {
         method: 'POST',
         headers: {
@@ -178,7 +186,21 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
         body: JSON.stringify(roadworkData)
       });
 
-      const result = await response.json();
+      console.log('📥 Response status:', response.status);
+      console.log('📥 Response headers:', response.headers.get('content-type'));
+
+      const responseText = await response.text();
+      console.log('📥 Raw response:', responseText.substring(0, 200) + '...');
+
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('❌ JSON parse error:', parseError);
+        console.error('❌ Response was:', responseText);
+        Alert.alert('Error', 'Server returned invalid response. Please try again.');
+        return;
+      }
       
       if (result.success) {
         Alert.alert('Success', 'Roadwork created and notifications sent!');
@@ -190,7 +212,7 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
       }
     } catch (error) {
       console.error('Create roadwork error:', error);
-      Alert.alert('Error', 'Failed to create roadwork');
+      Alert.alert('Error', 'Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -448,7 +470,7 @@ const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreat
           {/* Email Groups */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Notify Email Groups</Text>
-            {availableEmailGroups.map((group) => (
+            {(availableEmailGroups || []).map((group) => (
               <TouchableOpacity
                 key={group.id}
                 style={styles.emailGroupItem}
