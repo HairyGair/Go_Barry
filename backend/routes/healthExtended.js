@@ -10,7 +10,7 @@ import enhancedGeocodingService from '../services/enhancedGeocodingService.js';
 
 const router = express.Router();
 
-router.get('/health-extended', async (req, res) => {
+router.get('/', async (req, res) => {
   console.log('🏥 Running extended health check...');
   const startTime = Date.now();
   

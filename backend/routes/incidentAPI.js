@@ -281,4 +281,46 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// GET /api/incidents/:id/diversions - Get AI diversion suggestions
+router.get('/:id/diversions', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const incident = await supabaseStorage.getIncidentById(id);
+    
+    if (!incident) {
+      return res.status(404).json({
+        success: false,
+        error: 'Incident not found'
+      });
+    }
+    
+    // Get AI diversion suggestions
+    const { default: diversionEngine } = await import('../services/intelligence/diversionEngine.js');
+    const suggestions = await diversionEngine.getDiversionSuggestions(incident);
+    const formatted = diversionEngine.formatDiversionsForDisplay(suggestions);
+    
+    console.log(`🧠 Generated ${suggestions.diversions.length} diversions for incident ${id}`);
+    
+    res.json({
+      success: true,
+      incident: {
+        id: incident.id,
+        location: incident.location,
+        type: incident.type,
+        affectedRoutes: incident.affectsRoutes
+      },
+      suggestions,
+      formatted,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to generate diversions:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate diversion suggestions'
+    });
+  }
+});
+
 export default router;

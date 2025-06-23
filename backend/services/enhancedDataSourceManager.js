@@ -336,20 +336,52 @@ class EnhancedDataSourceManager {
       console.log('📝 [ACTIVATED] Fetching manual incidents...');
       timeBasedPollingManager.recordPoll('manual_incidents', false);
       
-      // TODO: Connect to Supabase/local storage for manual incidents
-      // For now, demonstrate it's activated but empty
+      // Get manual incidents from the backend global storage
+      const manualIncidents = global.manualIncidents || [];
+      
+      // Convert manual incidents to alert format
+      const alerts = manualIncidents.map(incident => ({
+        id: incident.id,
+        title: `${incident.subtype || incident.type} - ${incident.location}`,
+        description: incident.description || `${incident.type} reported at ${incident.location}`,
+        location: incident.location,
+        coordinates: incident.coordinates ? [
+          incident.coordinates.latitude || incident.coordinates[0],
+          incident.coordinates.longitude || incident.coordinates[1]
+        ] : null,
+        severity: incident.severity || 'Medium',
+        status: incident.status === 'active' ? 'red' : 'amber',
+        timestamp: incident.createdAt,
+        lastUpdated: incident.lastUpdated || incident.createdAt,
+        startDate: incident.startTime || incident.createdAt,
+        endDate: incident.endTime,
+        source: 'manual_incident',
+        type: incident.type,
+        subtype: incident.subtype,
+        affectsRoutes: incident.affectsRoutes || [],
+        enhanced: true,
+        priority: incident.severity === 'High' ? 'IMMEDIATE' : 
+                 incident.severity === 'Medium' ? 'URGENT' : 'MONITOR',
+        createdBy: incident.createdBy,
+        createdByRole: incident.createdByRole,
+        notes: incident.notes,
+        incidentData: incident // Keep original incident data
+      }));
+      
       timeBasedPollingManager.recordPoll('manual_incidents', true);
+      console.log(`✅ [ACTIVATED] Found ${alerts.length} manual incidents`);
       
       return {
         success: true,
-        incidents: [],
+        incidents: alerts,
         method: 'Local Database',
         mode: 'incident_manager',
-        count: 0,
+        count: alerts.length,
         pollingAllowed: true
       };
       
     } catch (error) {
+      console.error('❌ Manual incidents fetch error:', error);
       timeBasedPollingManager.recordPoll('manual_incidents', false);
       return {
         success: false,

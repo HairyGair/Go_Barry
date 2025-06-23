@@ -34,6 +34,7 @@ import eventAPI from './routes/eventAPI.js';
 import tomtomUsageAPI from './routes/tomtomUsageAPI.js';
 import activityLogsAPI from './routes/activityLogs.js';
 import dutyAPI from './routes/dutyAPI.js';
+import messagingAPI from './routes/messagingAPI.js';
 import supervisorManager from './services/supervisorManager.js';
 import serviceFrequencyAnalyzer from './services/serviceFrequencyAnalyzer.js';
 import supervisorSyncService from './services/supervisorSync.js';
@@ -391,6 +392,11 @@ console.log('✅ Activity logs routes registered');
 console.log('📦 Registering duty management routes...');
 app.use('/api/duty', dutyAPI);
 console.log('✅ Duty management routes registered');
+
+// Messaging routes
+console.log('📦 Registering messaging routes at /api/messaging...');
+app.use('/api/messaging', messagingAPI);
+console.log('✅ Messaging routes registered successfully');
 
 import { enhanceAlertWithCategory } from './services/alertCategorizer.js';
 
@@ -1667,6 +1673,105 @@ app.get('/api/supervisor/dismissed-alerts', async (req, res) => {
   }
 });
 
+// Production diagnostic endpoint - check what data sources are returning
+app.get('/api/diagnostic/data-sources', async (req, res) => {
+  try {
+    console.log('🅳 Running production data source diagnostics...');
+    
+    const diagnostics = {
+      timestamp: new Date().toISOString(),
+      sources: {}
+    };
+    
+    // Test TomTom
+    try {
+      const tomtomResult = await fetchTomTomTrafficWithStreetNames();
+      diagnostics.sources.tomtom = {
+        success: tomtomResult.success,
+        count: tomtomResult.data?.length || 0,
+        error: tomtomResult.error,
+        sample: tomtomResult.data?.[0] ? {
+          location: tomtomResult.data[0].location,
+          severity: tomtomResult.data[0].severity
+        } : null
+      };
+    } catch (error) {
+      diagnostics.sources.tomtom = { success: false, error: error.message };
+    }
+    
+    // Test National Highways
+    try {
+      const nhResult = await fetchNationalHighways();
+      diagnostics.sources.nationalHighways = {
+        success: nhResult.success,
+        count: nhResult.data?.length || 0,
+        error: nhResult.error,
+        method: nhResult.method,
+        sample: nhResult.data?.[0] ? {
+          location: nhResult.data[0].location,
+          road: nhResult.data[0].road
+        } : null
+      };
+    } catch (error) {
+      diagnostics.sources.nationalHighways = { success: false, error: error.message };
+    }
+    
+    // Check StreetManager webhook data
+    try {
+      const activities = streetManagerWebhooks.getWebhookActivities();
+      const permits = streetManagerWebhooks.getWebhookPermits();
+      diagnostics.sources.streetManager = {
+        success: true,
+        activities: activities.data?.length || 0,
+        permits: permits.data?.length || 0,
+        lastActivity: activities.metadata?.lastReceived,
+        lastPermit: permits.metadata?.lastReceived
+      };
+    } catch (error) {
+      diagnostics.sources.streetManager = { success: false, error: error.message };
+    }
+    
+    // Check manual incidents
+    diagnostics.sources.manualIncidents = {
+      count: global.manualIncidents?.length || 0,
+      sample: global.manualIncidents?.[0] ? {
+        type: global.manualIncidents[0].type,
+        location: global.manualIncidents[0].location
+      } : null
+    };
+    
+    // Check enhanced data source aggregation
+    try {
+      const aggregated = await enhancedDataSourceManager.aggregateAllSources();
+      diagnostics.aggregation = {
+        success: true,
+        totalIncidents: aggregated.incidents?.length || 0,
+        sources: aggregated.sourceStats,
+        performance: aggregated.performance
+      };
+    } catch (error) {
+      diagnostics.aggregation = { success: false, error: error.message };
+    }
+    
+    res.json({
+      success: true,
+      diagnostics,
+      summary: {
+        workingSources: Object.values(diagnostics.sources).filter(s => s.success !== false).length,
+        totalSources: Object.keys(diagnostics.sources).length,
+        hasData: Object.values(diagnostics.sources).some(s => (s.count || 0) > 0)
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Diagnostic error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // REMOVED: Duplicate active supervisors endpoint
 // The proper implementation is in routes/supervisorAPI.js
 // This duplicate was overriding the correct route!
@@ -1685,6 +1790,19 @@ app.use((req, res, next) => {
     }
   }
   next();
+});
+
+// Catch-all route for unmatched paths - MUST BE LAST
+app.use('*', (req, res) => {
+  console.log(`⚠️ 404: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({
+    success: false,
+    error: 'Endpoint not found',
+    path: req.originalUrl,
+    method: req.method,
+    timestamp: new Date().toISOString(),
+    hint: 'Check the API documentation for available endpoints'
+  });
 });
 
 // Start server with WebSocket support after initialization

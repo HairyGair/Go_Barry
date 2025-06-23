@@ -81,6 +81,7 @@ async function fetchNationalHighways() {
     console.log('🛣️ Fetching National Highways RSS feed...');
     
     // Use the RSS feed that works without API key
+    // Note: If this URL fails, try alternative: https://nationalhighways.co.uk/feeds/rss/unplanned-events.xml
     const response = await axios.get('https://m.highwaysengland.co.uk/feeds/rss/UnplannedEvents.xml', {
       headers: {
         'User-Agent': 'BARRY-TrafficWatch/3.0',
