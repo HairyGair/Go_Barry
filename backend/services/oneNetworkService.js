@@ -2,12 +2,6 @@ import puppeteer from 'puppeteer';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
-
 // One.Network credentials
 const ONE_NETWORK_EMAIL = 'anthony.gair@gonortheast.co.uk';
 const ONE_NETWORK_PASSWORD = 'Turnip1105!!!!!';
@@ -27,6 +21,21 @@ class OneNetworkService {
     this.browser = null;
     this.page = null;
     this.roadworks = [];
+    
+    // Initialize Supabase client
+    // Try service key first, then anon key as fallback
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
+    
+    if (!process.env.SUPABASE_URL || !supabaseKey) {
+      console.warn('⚠️ Supabase credentials not found. Data will not be saved.');
+      this.supabase = null;
+    } else {
+      this.supabase = createClient(
+        process.env.SUPABASE_URL,
+        supabaseKey
+      );
+      console.log('✅ Supabase client initialized');
+    }
   }
 
   async initialize() {
@@ -62,15 +71,30 @@ class OneNetworkService {
       await this.page.waitForSelector('input[type="email"], input[name="email"]', { timeout: 10000 });
       await this.page.type('input[type="email"], input[name="email"]', ONE_NETWORK_EMAIL);
       
-      // Click next
-      await this.page.click('button:has-text("Next")');
+      // Click next button - find all buttons and look for "Next" text
+      const nextButtons = await this.page.$$('button');
+      for (const button of nextButtons) {
+        const text = await button.evaluate(el => el.textContent);
+        if (text && text.trim().toLowerCase() === 'next') {
+          await button.click();
+          break;
+        }
+      }
       
       // Wait for password field
       await this.page.waitForSelector('input[type="password"]', { timeout: 10000 });
       await this.page.type('input[type="password"]', ONE_NETWORK_PASSWORD);
       
-      // Submit login
-      await this.page.click('button:has-text("Next")');
+      // Submit login - find and click Next button again
+      await this.page.waitForTimeout(1000);
+      const submitButtons = await this.page.$$('button');
+      for (const button of submitButtons) {
+        const text = await button.evaluate(el => el.textContent);
+        if (text && text.trim().toLowerCase() === 'next') {
+          await button.click();
+          break;
+        }
+      }
       
       // Wait for map to load
       await this.page.waitForSelector('.mapboxgl-canvas', { timeout: 20000 });
@@ -94,22 +118,30 @@ class OneNetworkService {
       await this.page.waitForTimeout(1000);
       
       // Enable Roadworks layer if not already enabled
-      const roadworksButton = await this.page.$('button:has-text("Roadworks")');
-      if (roadworksButton) {
-        const isExpanded = await roadworksButton.evaluate(el => el.getAttribute('aria-expanded') === 'true');
-        if (!isExpanded) {
-          await roadworksButton.click();
-          await this.page.waitForTimeout(500);
+      const roadworksButtons = await this.page.$$('button');
+      for (const button of roadworksButtons) {
+        const text = await button.evaluate(el => el.textContent);
+        if (text && text.includes('Roadworks')) {
+          const isExpanded = await button.evaluate(el => el.getAttribute('aria-expanded') === 'true');
+          if (!isExpanded) {
+            await button.click();
+            await this.page.waitForTimeout(500);
+          }
+          break;
         }
       }
       
       // Enable Road closures layer
-      const closuresButton = await this.page.$('button:has-text("Road closures and diversions")');
-      if (closuresButton) {
-        const isExpanded = await closuresButton.evaluate(el => el.getAttribute('aria-expanded') === 'true');
-        if (!isExpanded) {
-          await closuresButton.click();
-          await this.page.waitForTimeout(500);
+      const closuresButtons = await this.page.$$('button');
+      for (const button of closuresButtons) {
+        const text = await button.evaluate(el => el.textContent);
+        if (text && text.includes('Road closures and diversions')) {
+          const isExpanded = await button.evaluate(el => el.getAttribute('aria-expanded') === 'true');
+          if (!isExpanded) {
+            await button.click();
+            await this.page.waitForTimeout(500);
+          }
+          break;
         }
       }
       
@@ -135,11 +167,15 @@ class OneNetworkService {
       // Wait for search results
       await this.page.waitForTimeout(2000);
       
-      // Click on the first matching result
-      const firstResult = await this.page.$(`div[role="menuitem"]:has-text("${region.name}")`);
-      if (firstResult) {
-        await firstResult.click();
-        await this.page.waitForTimeout(3000); // Wait for map to pan
+      // Click on the first matching result using XPath
+      const menuItems = await this.page.$$('div[role="menuitem"]');
+      for (const item of menuItems) {
+        const text = await item.evaluate(el => el.textContent);
+        if (text && text.includes(region.name)) {
+          await item.click();
+          await this.page.waitForTimeout(3000); // Wait for map to pan
+          break;
+        }
       }
       
     } catch (error) {
@@ -337,7 +373,13 @@ class OneNetworkService {
     const transformed = uniqueRoadworks.map(rw => this.transformToSchema(rw));
     
     try {
-      const { data, error } = await supabase
+      if (!this.supabase) {
+        console.log('⚠️ Supabase not configured - skipping save');
+        console.log('📊 Would have saved:', transformed.length, 'roadworks');
+        return;
+      }
+      
+      const { data, error } = await this.supabase
         .from('roadworks')
         .upsert(transformed, {
           onConflict: 'roadworkId',
