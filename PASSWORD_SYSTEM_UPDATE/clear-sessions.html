@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Old Sessions - Go BARRY</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1f2937;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 30px;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .danger {
+            background: #ef4444;
+        }
+        .danger:hover {
+            background: #dc2626;
+        }
+        .success {
+            background: #10b981;
+        }
+        .success:hover {
+            background: #059669;
+        }
+        .message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+        .message.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+        .message.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+        .info {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+            border: 1px solid #e5e7eb;
+        }
+        .info h3 {
+            margin-top: 0;
+            color: #374151;
+        }
+        .info ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .info li {
+            color: #6b7280;
+            margin: 5px 0;
+        }
+        code {
+            background: #e5e7eb;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Go BARRY Session Manager</h1>
+        <p class="subtitle">Clear old sessions for password system testing</p>
+
+        <div class="info">
+            <h3>What this does:</h3>
+            <ul>
+                <li>Clears old supervisor sessions from before the password system</li>
+                <li>Removes saved passwords (for testing first-time setup)</li>
+                <li>Fixes the login screen disappearing issue</li>
+            </ul>
+        </div>
+
+        <div style="margin: 20px 0;">
+            <button onclick="clearSessions()">Clear Supervisor Sessions</button>
+            <button onclick="clearPasswords()" class="danger">Clear All Passwords</button>
+            <button onclick="clearEverything()" class="danger">Clear Everything</button>
+        </div>
+
+        <div style="margin: 20px 0;">
+            <button onclick="checkStatus()" class="success">Check Current Status</button>
+        </div>
+
+        <div id="message" class="message"></div>
+
+        <div class="info" style="margin-top: 30px;">
+            <h3>After clearing:</h3>
+            <ul>
+                <li>Refresh the Go BARRY app</li>
+                <li>Click "Supervisor Login"</li>
+                <li>The login screen should stay visible</li>
+                <li>First-time users will see password setup</li>
+                <li>Barry can still use "Barry123"</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function showMessage(text, type) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = 'message ' + type;
+            messageEl.style.display = 'block';
+        }
+
+        function clearSessions() {
+            try {
+                // Clear old session data
+                localStorage.removeItem('barry_supervisor_session');
+                localStorage.removeItem('supervisor_session');
+                localStorage.removeItem('supervisorSession');
+                
+                // Clear any Convex session
+                localStorage.removeItem('convex_session_id');
+                
+                showMessage('✅ Supervisor sessions cleared successfully!', 'success');
+            } catch (error) {
+                showMessage('❌ Error clearing sessions: ' + error.message, 'error');
+            }
+        }
+
+        function clearPasswords() {
+            try {
+                localStorage.removeItem('barry_supervisor_passwords');
+                showMessage('✅ All passwords cleared successfully!', 'success');
+            } catch (error) {
+                showMessage('❌ Error clearing passwords: ' + error.message, 'error');
+            }
+        }
+
+        function clearEverything() {
+            try {
+                // Clear sessions
+                localStorage.removeItem('barry_supervisor_session');
+                localStorage.removeItem('supervisor_session');
+                localStorage.removeItem('supervisorSession');
+                localStorage.removeItem('convex_session_id');
+                
+                // Clear passwords
+                localStorage.removeItem('barry_supervisor_passwords');
+                
+                // Clear any other Barry-related data
+                const keys = Object.keys(localStorage);
+                keys.forEach(key => {
+                    if (key.toLowerCase().includes('barry') || 
+                        key.toLowerCase().includes('supervisor')) {
+                        localStorage.removeItem(key);
+                    }
+                });
+                
+                showMessage('✅ All Go BARRY data cleared successfully!', 'success');
+            } catch (error) {
+                showMessage('❌ Error clearing data: ' + error.message, 'error');
+            }
+        }
+
+        function checkStatus() {
+            try {
+                const session = localStorage.getItem('barry_supervisor_session');
+                const passwords = localStorage.getItem('barry_supervisor_passwords');
+                const convexSession = localStorage.getItem('convex_session_id');
+                
+                let status = '📊 Current Status:\n\n';
+                
+                if (session) {
+                    const sessionData = JSON.parse(session);
+                    status += `✓ Active session: ${sessionData.supervisor?.name || 'Unknown'}\n`;
+                    status += `  - Duty: ${sessionData.supervisor?.duty?.name || 'None'}\n`;
+                    status += `  - Login time: ${new Date(sessionData.loginTime).toLocaleString()}\n`;
+                } else {
+                    status += '✗ No active session\n';
+                }
+                
+                if (passwords) {
+                    const passwordData = JSON.parse(passwords);
+                    const supervisorCount = Object.keys(passwordData).length;
+                    status += `\n✓ Passwords set for ${supervisorCount} supervisor(s):\n`;
+                    Object.keys(passwordData).forEach(id => {
+                        status += `  - ${id}\n`;
+                    });
+                } else {
+                    status += '\n✗ No passwords set\n';
+                }
+                
+                if (convexSession) {
+                    status += `\n✓ Convex session: ${convexSession.substring(0, 20)}...`;
+                } else {
+                    status += '\n✗ No Convex session';
+                }
+                
+                showMessage(status, 'success');
+            } catch (error) {
+                showMessage('❌ Error checking status: ' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -14,6 +14,8 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as alerts from "../alerts.js";
+import type * as dutyBoards from "../dutyBoards.js";
+import type * as storage from "../storage.js";
 import type * as supervisors from "../supervisors.js";
 import type * as sync from "../sync.js";
 
@@ -27,6 +29,8 @@ import type * as sync from "../sync.js";
  */
 declare const fullApi: ApiFromModules<{
   alerts: typeof alerts;
+  dutyBoards: typeof dutyBoards;
+  storage: typeof storage;
   supervisors: typeof supervisors;
   sync: typeof sync;
 }>;

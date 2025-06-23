@@ -5,9 +5,17 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { parse } from 'csv-parse/sync';
+import axios from 'axios';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// TomTom API configuration
+const TOMTOM_API_KEY = process.env.TOMTOM_API_KEY || '9rZJqtnfYpOzlqnypI97nFb5oX17SNzp';
+const TOMTOM_ROUTING_URL = 'https://api.tomtom.com/routing/1/calculateRoute';
 
 // Key interchange points in the Go North East network
 const KEY_INTERCHANGES = {
@@ -233,6 +241,7 @@ class IntelligentDiversionEngine {
       diversions: [],
       interchanges: [],
       generalAdvice: [],
+      tomtomRoutes: [], // New: TomTom alternative routes
       severity: this.assessIncidentSeverity(incident),
       timestamp: new Date().toISOString()
     };
@@ -253,7 +262,28 @@ class IntelligentDiversionEngine {
       }
     }
     
-    // 3. Add corridor-based suggestions
+    // 3. Add TomTom traffic-aware routing
+    if (incident.coordinates && nearbyInterchanges.length > 0) {
+      try {
+        const tomtomAlternatives = await this.getTomTomAlternativeRoutes(incident, nearbyInterchanges);
+        suggestions.tomtomRoutes = tomtomAlternatives;
+        
+        // Add TomTom advice to general advice
+        if (tomtomAlternatives.length > 0) {
+          const fastest = tomtomAlternatives[0];
+          suggestions.generalAdvice.push({
+            type: 'tomtom',
+            advice: `Fastest route: ${fastest.summary} (${fastest.duration} mins, ${fastest.distance} km)`,
+            priority: 'high',
+            trafficDelay: fastest.trafficDelay
+          });
+        }
+      } catch (error) {
+        console.warn('⚠️ TomTom routing failed:', error.message);
+      }
+    }
+    
+    // 4. Add corridor-based suggestions
     affectedCorridors.forEach(corridor => {
       if (ROUTE_CORRIDORS[corridor]) {
         suggestions.generalAdvice.push({
@@ -265,11 +295,11 @@ class IntelligentDiversionEngine {
       }
     });
     
-    // 4. Add template-based advice
+    // 5. Add template-based advice
     const templateAdvice = this.getTemplateAdvice(incident);
     suggestions.generalAdvice.push(...templateAdvice);
     
-    // 5. Add interchange-based diversions
+    // 6. Add interchange-based diversions
     if (nearbyInterchanges.length > 0) {
       suggestions.generalAdvice.push({
         type: 'interchange',
@@ -280,6 +310,141 @@ class IntelligentDiversionEngine {
     }
     
     return suggestions;
+  }
+
+  /**
+   * Get TomTom alternative routes avoiding incident
+   */
+  async getTomTomAlternativeRoutes(incident, interchanges) {
+    if (!incident.coordinates || interchanges.length < 2) {
+      return [];
+    }
+    
+    const alternatives = [];
+    const incidentLat = incident.coordinates.latitude || incident.coordinates[0];
+    const incidentLng = incident.coordinates.longitude || incident.coordinates[1];
+    
+    // Create avoid box around incident (500m radius)
+    const avoidBox = {
+      southWest: {
+        lat: incidentLat - 0.0045, // ~500m
+        lng: incidentLng - 0.0045
+      },
+      northEast: {
+        lat: incidentLat + 0.0045,
+        lng: incidentLng + 0.0045
+      }
+    };
+    
+    // Calculate routes between major interchanges avoiding incident
+    for (let i = 0; i < Math.min(2, interchanges.length - 1); i++) {
+      const origin = interchanges[i];
+      const destination = interchanges[i + 1];
+      
+      try {
+        // TomTom routing request
+        const url = `${TOMTOM_ROUTING_URL}/${origin.coordinates[0]},${origin.coordinates[1]}:${destination.coordinates[0]},${destination.coordinates[1]}/json`;
+        
+        const response = await axios.get(url, {
+          params: {
+            key: TOMTOM_API_KEY,
+            traffic: true,
+            travelMode: 'bus',
+            maxAlternatives: 2,
+            avoid: 'unpavedRoads',
+            computeBestOrder: true,
+            routeType: 'fastest',
+            departAt: 'now',
+            avoidAreas: `${avoidBox.southWest.lng},${avoidBox.southWest.lat},${avoidBox.northEast.lng},${avoidBox.northEast.lat}`
+          },
+          timeout: 5000
+        });
+        
+        if (response.data && response.data.routes) {
+          response.data.routes.forEach((route, idx) => {
+            const leg = route.legs[0];
+            const summary = route.summary;
+            
+            alternatives.push({
+              type: idx === 0 ? 'primary' : 'alternative',
+              from: origin.name,
+              to: destination.name,
+              summary: `${origin.name} → ${destination.name}`,
+              distance: (summary.lengthInMeters / 1000).toFixed(1),
+              duration: Math.round(summary.travelTimeInSeconds / 60),
+              trafficDelay: Math.round(summary.trafficDelayInSeconds / 60),
+              viaPoints: this.extractViaPoints(leg),
+              avoidedIncident: true,
+              confidence: summary.trafficDelayInSeconds > 0 ? 'live' : 'estimated'
+            });
+          });
+        }
+      } catch (error) {
+        console.warn(`⚠️ TomTom route calculation failed for ${origin.name} to ${destination.name}:`, error.message);
+      }
+    }
+    
+    // Also calculate from incident location to nearest safe interchange
+    if (alternatives.length === 0 && interchanges.length > 0) {
+      try {
+        const safeInterchange = interchanges[0];
+        const url = `${TOMTOM_ROUTING_URL}/${incidentLat},${incidentLng}:${safeInterchange.coordinates[0]},${safeInterchange.coordinates[1]}/json`;
+        
+        const response = await axios.get(url, {
+          params: {
+            key: TOMTOM_API_KEY,
+            traffic: true,
+            travelMode: 'car', // Car mode for general traffic
+            routeType: 'fastest',
+            departAt: 'now'
+          },
+          timeout: 5000
+        });
+        
+        if (response.data && response.data.routes && response.data.routes[0]) {
+          const route = response.data.routes[0];
+          const summary = route.summary;
+          
+          alternatives.push({
+            type: 'evacuation',
+            from: 'Incident Location',
+            to: safeInterchange.name,
+            summary: `Exit via ${safeInterchange.name}`,
+            distance: (summary.lengthInMeters / 1000).toFixed(1),
+            duration: Math.round(summary.travelTimeInSeconds / 60),
+            trafficDelay: Math.round(summary.trafficDelayInSeconds / 60),
+            viaPoints: [],
+            avoidedIncident: false,
+            confidence: 'live'
+          });
+        }
+      } catch (error) {
+        console.warn('⚠️ TomTom evacuation route failed:', error.message);
+      }
+    }
+    
+    return alternatives.sort((a, b) => a.duration - b.duration);
+  }
+  
+  /**
+   * Extract major via points from TomTom route
+   */
+  extractViaPoints(leg) {
+    if (!leg.points || leg.points.length < 3) return [];
+    
+    // Extract major turning points (simplified)
+    const viaPoints = [];
+    const pointCount = leg.points.length;
+    const stepSize = Math.floor(pointCount / 3); // Get 3 via points
+    
+    for (let i = stepSize; i < pointCount - 1; i += stepSize) {
+      const point = leg.points[i];
+      if (point.name || point.street) {
+        viaPoints.push(point.name || point.street);
+      }
+    }
+    
+    return viaPoints.slice(0, 2); // Maximum 2 via points
   }
 
   /**
@@ -562,7 +727,16 @@ class IntelligentDiversionEngine {
         name: i.name,
         distance: `${i.distance.toFixed(1)}km`,
         availableRoutes: i.routes.slice(0, 5).join(', ')
-      }))
+      })),
+      tomtomRoutes: suggestions.tomtomRoutes?.map(route => ({
+        type: route.type,
+        summary: route.summary,
+        duration: `${route.duration} mins`,
+        distance: `${route.distance} km`,
+        trafficDelay: route.trafficDelay > 0 ? `+${route.trafficDelay} mins delay` : 'No delays',
+        via: route.viaPoints?.join(' → ') || 'Direct route',
+        confidence: route.confidence === 'live' ? 'Live traffic data' : 'Estimated'
+      })) || []
     };
     
     return formatted;

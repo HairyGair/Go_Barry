@@ -26,6 +26,7 @@ import SystemHealthMonitor from '../components/SystemHealthMonitor';
 import TrainingHelpSystem from '../components/TrainingHelpSystem';
 import RoadworksManager from '../components/RoadworksManager';
 import AdminPanel from '../components/admin/AdminPanel';
+import DutyBoards from '../components/DutyBoards';
 import { useSupervisorSession } from '../components/hooks/useSupervisorSession';
 import { useBarryAPI } from '../components/hooks/useBARRYapi';
 import { API_CONFIG } from '../config/api';
@@ -70,6 +71,13 @@ const BROWSER_NAVIGATION = {
     component: RoadworksManager,
     description: 'Manage roadworks & create Blink diversions',
     color: '#F59E0B'
+  },
+  dutyboards: {
+    title: 'Duty Boards',
+    icon: 'document-attach',
+    component: DutyBoards,
+    description: 'View and manage driver duty board PDFs',
+    color: '#06B6D4'
   },
   ai: {
     title: 'AI Disruption Manager',
@@ -126,6 +134,11 @@ const BrowserMainApp = () => {
 
   const [activeScreen, setActiveScreen] = useState('supervisor');
   const [showSupervisorLogin, setShowSupervisorLogin] = useState(false);
+  
+  // Debug state changes
+  useEffect(() => {
+    console.log('showSupervisorLogin state changed to:', showSupervisorLogin);
+  }, [showSupervisorLogin]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -207,19 +220,19 @@ const BrowserMainApp = () => {
 
   // Enhanced logout function that ensures modal opens
   const handleLogout = async () => {
-    console.log('🔄 Logout clicked - clearing session...');
+    console.log('Logout clicked - clearing session...');
     await logout();
     // Force login modal to open after logout
     setTimeout(() => {
       setShowSupervisorLogin(true);
-      console.log('✅ Login modal should now be open');
+      console.log('Login modal should now be open');
     }, 100);
   };
 
   // Force login modal to open for non-logged-in users on first load
   useEffect(() => {
     if (!isLoggedIn) {
-      console.log('🔐 User not logged in, opening login modal automatically');
+      console.log('User not logged in, opening login modal automatically');
       // Small delay to ensure component is fully mounted
       const timer = setTimeout(() => {
         setShowSupervisorLogin(true);
@@ -289,7 +302,7 @@ const BrowserMainApp = () => {
               <TouchableOpacity
                 style={[styles.profileButton, { backgroundColor: '#3B82F6' }]}
                 onPress={() => {
-                  console.log('🔓 Header login button clicked');
+                  console.log('Header login button clicked');
                   setShowSupervisorLogin(true);
                 }}
               >
@@ -323,8 +336,20 @@ const BrowserMainApp = () => {
     <View style={styles.container}>
       {/* Show login prompt if not logged in and modal isn't showing */}
       {!isLoggedIn && !showSupervisorLogin && (
-        <View style={styles.loginPromptOverlay}>
-          <View style={styles.loginPromptCard}>
+        <TouchableOpacity 
+          style={styles.loginPromptOverlay} 
+          data-testid="login-prompt-overlay"
+          activeOpacity={1}
+          onPress={() => {
+            // Clicking overlay also opens login
+            setShowSupervisorLogin(true);
+          }}
+        >
+          <TouchableOpacity 
+            style={styles.loginPromptCard}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
             <Ionicons name="shield-checkmark" size={48} color="#3B82F6" />
             <Text style={styles.loginPromptTitle}>Supervisor Access Required</Text>
             <Text style={styles.loginPromptText}>
@@ -333,7 +358,7 @@ const BrowserMainApp = () => {
             <TouchableOpacity
               style={styles.loginPromptButton}
               onPress={() => {
-                console.log('🔓 Manual login button clicked');
+                console.log('Manual login button clicked, current state:', { showSupervisorLogin, isLoggedIn });
                 setShowSupervisorLogin(true);
               }}
             >
@@ -343,8 +368,8 @@ const BrowserMainApp = () => {
             <Text style={styles.loginPromptHelp}>
               If you're having trouble, try refreshing the page or contact IT support
             </Text>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       )}
 
       {/* Sidebar Navigation */}
@@ -465,7 +490,7 @@ const BrowserMainApp = () => {
             <TouchableOpacity
               style={styles.footerButton}
               onPress={() => {
-                console.log('🔐 Login button clicked');
+                console.log('Login button clicked');
                 setShowSupervisorLogin(true);
               }}
             >
@@ -493,18 +518,38 @@ const BrowserMainApp = () => {
         {renderActiveScreen()}
       </View>
 
-      {/* Supervisor Login Modal */}
-      <SupervisorLogin
-        visible={showSupervisorLogin}
-        onClose={() => {
-          console.log('🔒 Closing login modal');
-          setShowSupervisorLogin(false);
-        }}
-        onLoginSuccess={() => {
-          console.log('✅ Login success in BrowserMainApp');
-          // Modal will close automatically after successful login
-        }}
-      />
+      {/* Supervisor Login Modal - Always rendered to ensure it's available */}
+      {Platform.OS === 'web' ? (
+        // Web-specific render to avoid modal issues
+        showSupervisorLogin && (
+          <View style={styles.webModalWrapper}>
+            <SupervisorLogin
+              visible={true}  // Always visible when rendered on web
+              onClose={() => {
+                console.log('Closing login modal');
+                setShowSupervisorLogin(false);
+              }}
+              onLoginSuccess={() => {
+                console.log('Login success in BrowserMainApp');
+                setShowSupervisorLogin(false);  // Explicitly close modal
+              }}
+            />
+          </View>
+        )
+      ) : (
+        // Native modal for mobile
+        <SupervisorLogin
+          visible={showSupervisorLogin || false}  // Ensure boolean value
+          onClose={() => {
+            console.log('Closing login modal');
+            setShowSupervisorLogin(false);
+          }}
+          onLoginSuccess={() => {
+            console.log('Login success in BrowserMainApp');
+            setShowSupervisorLogin(false);  // Explicitly close modal
+          }}
+        />
+      )}
     </View>
   );
 };
@@ -793,7 +838,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 1000,
+    zIndex: 900,  // Lower than modal zIndex
   },
   loginPromptCard: {
     backgroundColor: '#FFFFFF',
@@ -843,6 +888,15 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     textAlign: 'center',
     lineHeight: 16,
+  },
+  webModalWrapper: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10000,
+    pointerEvents: 'auto',
   },
 });
 

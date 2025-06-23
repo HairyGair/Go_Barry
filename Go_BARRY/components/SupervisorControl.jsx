@@ -24,6 +24,7 @@ import MonitoringDashboard from './MonitoringDashboard';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
 import SupervisorLogin from './SupervisorLogin';
 import SupervisorManagement from './SupervisorManagement';
+import { formatTime24, formatDuration } from '../utils/dateTime';
 // Simple Alert Card component for supervisor control
 const SimpleAlertCard = ({ alert, supervisorSession, onDismiss, onAcknowledge, style }) => {
   const getStatusColor = (status) => {
@@ -166,7 +167,7 @@ const SimpleAlertCard = ({ alert, supervisorSession, onDismiss, onAcknowledge, s
             </Text>
             {alert.lastUpdated && (
               <Text style={{ fontSize: 12, color: '#6B7280' }}>
-                {new Date(alert.lastUpdated).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                {formatTime24(alert.lastUpdated)}
               </Text>
             )}
           </View>
@@ -628,12 +629,7 @@ const SupervisorControl = ({
     }
   }, [addNoteToAlert, showNotification]);
 
-  // Format session time
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  // Use centralized date/time formatting
   
   // Get alert stats
   const getAlertStats = () => {
@@ -984,10 +980,7 @@ const SupervisorControl = ({
                       {activity.supervisorName || 'System'}
                     </Text>
                     <Text style={styles.activityTime}>
-                      {new Date(activity.timestamp).toLocaleTimeString('en-GB', { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
+                      {formatTime24(activity.timestamp)}
                     </Text>
                   </View>
                 </View>
@@ -1248,7 +1241,7 @@ const SupervisorControl = ({
                           <Text style={styles.queuePriorityText}>{message.priority?.toUpperCase() || 'INFO'}</Text>
                         </View>
                         <Text style={styles.messageTimestamp}>
-                          {new Date(message.timestamp).toLocaleTimeString()}
+                          {formatTime24(message.timestamp)}
                         </Text>
                       </View>
                       <Text style={styles.messageText}>{message.message}</Text>
@@ -1290,7 +1283,7 @@ const SupervisorControl = ({
           <View style={styles.sessionTimer}>
             <Ionicons name="timer" size={16} color={sessionTimeRemaining < 120 ? '#EF4444' : '#6B7280'} />
             <Text style={[styles.sessionTimerText, sessionTimeRemaining < 120 && styles.sessionTimerWarning]}>
-              Session: {formatTime(sessionTimeRemaining)}
+              Session: {formatDuration(sessionTimeRemaining)}
             </Text>
           </View>
           <ConnectionStatus />

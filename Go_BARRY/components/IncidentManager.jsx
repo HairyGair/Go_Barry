@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
 import { useSupervisorSync } from './hooks/useSupervisorSync';
 import { useConvexSync } from '../hooks/useConvexSync';
+import TomTomTrafficMap from './TomTomTrafficMap';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -160,6 +161,58 @@ const COMMON_LOCATIONS = [
   'High Level Bridge'
 ];
 
+// Helper function to format diversions for copying
+function formatDiversionsForCopy(data) {
+  let text = 'AI DIVERSION SUGGESTIONS\n';
+  text += '======================\n\n';
+  
+  text += `Priority: ${data.suggestions.severity.toUpperCase()}\n`;
+  text += `Location: ${data.incident.location}\n`;
+  text += `Affected Routes: ${data.incident.affectedRoutes?.join(', ') || 'None'}\n\n`;
+  
+  // Add TomTom routes
+  if (data.formatted.tomtomRoutes?.length > 0) {
+    text += 'LIVE TRAFFIC ROUTES (TomTom):\n';
+    data.formatted.tomtomRoutes.forEach(route => {
+      text += `• ${route.summary}\n`;
+      text += `  Time: ${route.duration}, Distance: ${route.distance}\n`;
+      if (route.trafficDelay !== 'No delays') {
+        text += `  ⚠️ ${route.trafficDelay}\n`;
+      }
+      if (route.via !== 'Direct route') {
+        text += `  Via: ${route.via}\n`;
+      }
+      text += '\n';
+    });
+  }
+  
+  if (data.formatted.diversions.length > 0) {
+    text += 'ROUTE DIVERSIONS:\n';
+    data.formatted.diversions.forEach(div => {
+      text += `• Route ${div.route} → ${div.primaryAlternative}\n`;
+      text += `  ${div.instructions}\n\n`;
+    });
+  }
+  
+  if (data.formatted.keyAdvice?.length > 0) {
+    text += 'KEY ADVICE:\n';
+    data.formatted.keyAdvice.forEach(advice => {
+      text += `• ${advice}\n`;
+    });
+    text += '\n';
+  }
+  
+  if (data.formatted.interchanges?.length > 0) {
+    text += 'NEARBY INTERCHANGES:\n';
+    data.formatted.interchanges.forEach(int => {
+      text += `• ${int.name} (${int.distance})\n`;
+      text += `  Routes: ${int.availableRoutes}\n`;
+    });
+  }
+  
+  return text;
+}
+
 const IncidentManager = ({ baseUrl, sector = 4 }) => {
   const { 
     isLoggedIn, 
@@ -205,6 +258,12 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
   const [newNote, setNewNote] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [activeTab, setActiveTab] = useState('manual'); // New: tab to switch between manual and automatic
+  const [showMap, setShowMap] = useState(false);
+  const [mapIncident, setMapIncident] = useState(null);
+  const [showDiversions, setShowDiversions] = useState(false);
+  const [diversionsIncident, setDiversionsIncident] = useState(null);
+  const [diversionsLoading, setDiversionsLoading] = useState(false);
+  const [diversionsData, setDiversionsData] = useState(null);
 
   // New incident form state
   const [newIncident, setNewIncident] = useState({
@@ -250,18 +309,8 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
   }, []);
 
   const loadIncidents = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(`${API_BASE}/api/incidents`);
-      if (response.ok) {
-        const data = await response.json();
-        setIncidents(data.incidents || []);
-      }
-    } catch (error) {
-      console.error('Failed to load incidents:', error);
-    } finally {
-      setLoading(false);
-    }
+    // Manual incidents are now loaded via Convex - no need to fetch separately
+    console.log('Manual incidents loaded via Convex real-time sync');
   };
 
   const loadTrafficIncidents = async () => {
@@ -270,15 +319,22 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
       const response = await fetch(`${API_BASE}/api/incident-alerts`);
       if (response.ok) {
         const data = await response.json();
-        if (data.success) {
+        if (data.success && data.incidents && Array.isArray(data.incidents)) {
           // Filter out manual incidents to avoid duplicates
           const automaticOnly = data.incidents.filter(inc => inc.source !== 'manual_incident');
           setTrafficIncidents(automaticOnly || []);
           console.log(`✅ Loaded ${automaticOnly.length} automatic incident alerts`);
+        } else {
+          console.log('⚠️ No incidents data in response:', data);
+          setTrafficIncidents([]);
         }
+      } else {
+        console.error('❌ Server error:', response.status, response.statusText);
+        setTrafficIncidents([]);
       }
     } catch (error) {
       console.error('Failed to load traffic incidents:', error);
+      setTrafficIncidents([]);
     }
   };
 
@@ -444,24 +500,31 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
       }] : [];
 
       // Create incident using Convex mutation
-      const result = await createIncidentMutation({
-        incidentId,
-        type: newIncident.type,
-        subtype: newIncident.subtype,
-        location: newIncident.location,
-        coordinates: newIncident.coordinates,
-        description: newIncident.description,
-        severity: newIncident.severity,
-        priority: newIncident.priority,
-        affectsRoutes: newIncident.affectsRoutes,
-        createdBy: supervisorName,
-        createdByRole: supervisorRole,
-        receivedVia: newIncident.receivedVia,
-        notes: initialNotes,
-        ticketerMessage: newIncident.ticketerMessage || ''
-      });
+      try {
+        const result = await createIncidentMutation({
+          incidentId,
+          type: newIncident.type,
+          subtype: newIncident.subtype || undefined,
+          location: newIncident.location,
+          coordinates: newIncident.coordinates || undefined,
+          description: newIncident.description || undefined,
+          severity: newIncident.severity,
+          priority: newIncident.priority,
+          affectsRoutes: newIncident.affectsRoutes || [],
+          createdBy: supervisorName,
+          createdByRole: supervisorRole || 'Supervisor',
+          receivedVia: newIncident.receivedVia || undefined,
+          notes: initialNotes || undefined,
+          ticketerMessage: newIncident.ticketerMessage || undefined
+        });
+        
+        // Log the coordinates for debugging
+        if (newIncident.coordinates) {
+          console.log('✅ Incident created with coordinates:', newIncident.coordinates);
+        }
 
-      if (result.success) {
+        // Check if result exists (mutation succeeded)
+        if (result && (result.success || result.incidentId)) {
         // Log activity
         logActivity(
           'CREATE_INCIDENT', 
@@ -487,9 +550,13 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
       } else {
         throw new Error('Failed to create incident in Convex');
       }
+      } catch (mutationError) {
+        console.error('Convex mutation error:', mutationError);
+        throw mutationError;
+      }
     } catch (error) {
       console.error('Failed to create incident:', error);
-      showNotification('Failed to create incident', 'error');
+      showNotification('Failed to create incident: ' + (error.message || 'Unknown error'), 'error');
     } finally {
       setLoading(false);
     }
@@ -621,6 +688,50 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
     showNotification('Image upload feature coming soon', 'info');
   };
 
+  // Open incident location on map
+  const openIncidentMap = (incident) => {
+    console.log('🗺️ Opening map for incident:', incident.location, incident.coordinates);
+    setMapIncident(incident);
+    setShowMap(true);
+  };
+
+  // Fetch AI diversion suggestions
+  const fetchDiversions = async (incident) => {
+    console.log('🧠 Fetching AI diversions for incident:', incident.id);
+    setDiversionsIncident(incident);
+    setShowDiversions(true);
+    setDiversionsLoading(true);
+    setDiversionsData(null);
+    
+    try {
+      const response = await fetch(`${API_BASE}/api/incidents/${incident.id}/diversions`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setDiversionsData(data);
+          console.log('✅ Received diversions:', data.formatted);
+        } else {
+          throw new Error(data.error || 'Failed to get diversions');
+        }
+      } else {
+        throw new Error(`Server error: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching diversions:', error);
+      showNotification('Failed to get diversion suggestions', 'error');
+      setDiversionsData({
+        error: error.message,
+        formatted: {
+          summary: 'Unable to generate diversions',
+          keyAdvice: ['Please check route information manually']
+        }
+      });
+    } finally {
+      setDiversionsLoading(false);
+    }
+  };
+
   // Delete incident
   const deleteIncident = async (incidentId) => {
     if (!isLoggedIn) return;
@@ -640,9 +751,10 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
 
     if (!confirmDelete) return;
 
-    setIncidents(prev => prev.filter(incident => incident.id !== incidentId));
+    // Update status to closed instead of deleting (Convex will handle the sync)
+    await updateIncidentStatus(incidentId, 'closed');
     logActivity('DELETE_INCIDENT', `Deleted incident ${incidentId}`, incidentId);
-    showNotification('Incident deleted successfully', 'success');
+    showNotification('Incident closed successfully', 'success');
   };
 
   if (!isLoggedIn) {
@@ -770,6 +882,15 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
                     <Ionicons name="eye" size={16} color="#3B82F6" />
                   </TouchableOpacity>
                   
+                  {incident.coordinates && (
+                    <TouchableOpacity
+                      style={styles.mapButton}
+                      onPress={() => openIncidentMap(incident)}
+                    >
+                      <Ionicons name="map" size={16} color="#10B981" />
+                    </TouchableOpacity>
+                  )}
+                  
                   {isLoggedIn && (
                     <TouchableOpacity
                       style={styles.deleteButton}
@@ -789,6 +910,18 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
               
               {incident.description && (
                 <Text style={styles.incidentDescription} numberOfLines={2}>{incident.description}</Text>
+              )}
+
+              {/* Map Button for automatic incidents */}
+              {incident.coordinates && (
+                <View style={styles.incidentActions}>
+                  <TouchableOpacity
+                    style={styles.mapButton}
+                    onPress={() => openIncidentMap(incident)}
+                  >
+                    <Ionicons name="map" size={16} color="#10B981" />
+                  </TouchableOpacity>
+                </View>
               )}
 
               {incident.affectsRoutes && incident.affectsRoutes.length > 0 && (
@@ -861,6 +994,16 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
                   <Ionicons name="checkmark-circle" size={14} color="#10B981" />
                   <Text style={styles.quickActionText}>Close</Text>
                 </TouchableOpacity>
+                
+                {incident.affectsRoutes && incident.affectsRoutes.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.diversionButton}
+                    onPress={() => fetchDiversions(incident)}
+                  >
+                    <Ionicons name="bulb" size={14} color="#7C3AED" />
+                    <Text style={styles.quickActionText}>AI Diversions</Text>
+                  </TouchableOpacity>
+                )}
 
                 {incident.notes && incident.notes.length > 0 && (
                   <View style={styles.notesIndicator}>
@@ -1301,6 +1444,32 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
               <View style={styles.detailSection}>
                 <Text style={styles.detailLabel}>Actions</Text>
                 <View style={styles.actionButtons}>
+                  {showIncidentDetails.coordinates && (
+                    <TouchableOpacity
+                      style={styles.mapActionButton}
+                      onPress={() => {
+                        setShowIncidentDetails(null);
+                        openIncidentMap(showIncidentDetails);
+                      }}
+                    >
+                      <Ionicons name="map" size={20} color="#FFFFFF" />
+                      <Text style={styles.actionButtonText}>Show on Map</Text>
+                    </TouchableOpacity>
+                  )}
+                  
+                  {showIncidentDetails.affectsRoutes && showIncidentDetails.affectsRoutes.length > 0 && (
+                    <TouchableOpacity
+                      style={styles.diversionActionButton}
+                      onPress={() => {
+                        setShowIncidentDetails(null);
+                        fetchDiversions(showIncidentDetails);
+                      }}
+                    >
+                      <Ionicons name="bulb" size={20} color="#FFFFFF" />
+                      <Text style={styles.actionButtonText}>AI Diversions</Text>
+                    </TouchableOpacity>
+                  )}
+                  
                   {showIncidentDetails.priority === 'CRITICAL' && isConnected && (
                     <TouchableOpacity
                       style={styles.pushDisplayButton}
@@ -1341,6 +1510,266 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
                 )}
                 <Text style={styles.metaText}>Status: {showIncidentDetails.status}</Text>
               </View>
+            </ScrollView>
+          </View>
+        </Modal>
+      )}
+
+      {/* Map Modal */}
+      {showMap && mapIncident && (
+        <Modal
+          visible={showMap}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowMap(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Incident Location</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowMap(false)}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.mapContainer}>
+              <TomTomTrafficMap
+                alerts={[{
+                  id: mapIncident.id,
+                  title: mapIncident.type,
+                  location: mapIncident.location,
+                  coordinates: mapIncident.coordinates ? 
+                    [mapIncident.coordinates.latitude || mapIncident.coordinates[0], 
+                     mapIncident.coordinates.longitude || mapIncident.coordinates[1]] : null,
+                  severity: mapIncident.severity || 'Medium'
+                }]}
+                currentAlert={{
+                  id: mapIncident.id,
+                  title: mapIncident.type,
+                  location: mapIncident.location,
+                  coordinates: mapIncident.coordinates
+                }}
+                alertIndex={0}
+              />
+            </View>
+            
+            <View style={styles.mapDetails}>
+              <Text style={styles.mapDetailTitle}>{mapIncident.type}</Text>
+              <Text style={styles.mapDetailLocation}>{mapIncident.location}</Text>
+              {mapIncident.description && (
+                <Text style={styles.mapDetailDescription}>{mapIncident.description}</Text>
+              )}
+              {mapIncident.coordinates && (
+                <Text style={styles.mapDetailCoords}>
+                  Coordinates: {mapIncident.coordinates.latitude?.toFixed(4) || mapIncident.coordinates[0]?.toFixed(4)}, 
+                  {mapIncident.coordinates.longitude?.toFixed(4) || mapIncident.coordinates[1]?.toFixed(4)}
+                </Text>
+              )}
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Diversions Modal */}
+      {showDiversions && diversionsIncident && (
+        <Modal
+          visible={showDiversions}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowDiversions(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>AI Diversion Suggestions</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowDiversions(false)}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.modalContent}>
+              {/* Incident Summary */}
+              <View style={styles.diversionIncidentSummary}>
+                <Text style={styles.diversionIncidentType}>
+                  {diversionsIncident.type} at {diversionsIncident.location}
+                </Text>
+                <View style={styles.diversionAffectedRoutes}>
+                  <Text style={styles.diversionLabel}>Affected Routes:</Text>
+                  <View style={styles.routesList}>
+                    {diversionsIncident.affectsRoutes?.map((route, idx) => (
+                      <View key={idx} style={styles.routeBadge}>
+                        <Text style={styles.routeBadgeText}>{route}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              </View>
+              
+              {diversionsLoading ? (
+                <View style={styles.diversionLoadingContainer}>
+                  <ActivityIndicator size="large" color="#7C3AED" />
+                  <Text style={styles.diversionLoadingText}>Analyzing routes and generating diversions...</Text>
+                </View>
+              ) : diversionsData ? (
+                <View>
+                  {/* Summary */}
+                  <View style={styles.diversionSection}>
+                    <Text style={styles.diversionSummary}>{diversionsData.formatted.summary}</Text>
+                    <View style={[styles.severityIndicator, { backgroundColor: 
+                      diversionsData.suggestions.severity === 'critical' ? '#FEE2E2' :
+                      diversionsData.suggestions.severity === 'high' ? '#FEF3C7' :
+                      diversionsData.suggestions.severity === 'medium' ? '#DBEAFE' : '#D1FAE5'
+                    }]}>
+                      <Text style={[styles.severityText, { color:
+                        diversionsData.suggestions.severity === 'critical' ? '#DC2626' :
+                        diversionsData.suggestions.severity === 'high' ? '#F59E0B' :
+                        diversionsData.suggestions.severity === 'medium' ? '#3B82F6' : '#10B981'
+                      }]}>
+                        {diversionsData.suggestions.severity.toUpperCase()} PRIORITY
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  {/* TomTom Traffic-Aware Routes */}
+                  {diversionsData.formatted.tomtomRoutes?.length > 0 && (
+                    <View style={styles.diversionSection}>
+                      <Text style={styles.diversionSectionTitle}>
+                        <Ionicons name="navigate" size={16} color="#374151" /> Live Traffic Routes
+                      </Text>
+                      {diversionsData.formatted.tomtomRoutes.map((route, idx) => (
+                        <View key={idx} style={[styles.tomtomRouteCard, 
+                          route.type === 'primary' && styles.tomtomRoutePrimary
+                        ]}>
+                          <View style={styles.tomtomRouteHeader}>
+                            <Text style={styles.tomtomRouteType}>
+                              {route.type === 'primary' ? '🎯 Primary Route' : 
+                               route.type === 'alternative' ? '🔄 Alternative' : 
+                               '🚑 Evacuation Route'}
+                            </Text>
+                            <View style={styles.tomtomRouteTime}>
+                              <Ionicons name="time" size={14} color="#059669" />
+                              <Text style={styles.tomtomRouteDuration}>{route.duration}</Text>
+                            </View>
+                          </View>
+                          <Text style={styles.tomtomRouteSummary}>{route.summary}</Text>
+                          
+                          <View style={styles.tomtomRouteDetails}>
+                            <View style={styles.tomtomRouteMetric}>
+                              <Ionicons name="speedometer" size={12} color="#6B7280" />
+                              <Text style={styles.tomtomRouteMetricText}>{route.distance}</Text>
+                            </View>
+                            {route.trafficDelay !== 'No delays' && (
+                              <View style={[styles.tomtomRouteMetric, styles.trafficDelay]}>
+                                <Ionicons name="warning" size={12} color="#EF4444" />
+                                <Text style={[styles.tomtomRouteMetricText, { color: '#EF4444' }]}>
+                                  {route.trafficDelay}
+                                </Text>
+                              </View>
+                            )}
+                            <View style={styles.tomtomRouteMetric}>
+                              <Ionicons name="analytics" size={12} color="#10B981" />
+                              <Text style={styles.tomtomRouteMetricText}>{route.confidence}</Text>
+                            </View>
+                          </View>
+                          
+                          {route.via !== 'Direct route' && (
+                            <Text style={styles.tomtomRouteVia}>Via: {route.via}</Text>
+                          )}
+                        </View>
+                      ))}
+                      <Text style={styles.tomtomDisclaimer}>
+                        🚦 Routes calculated with live TomTom traffic data
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {/* Route-Specific Diversions */}
+                  {diversionsData.formatted.diversions.length > 0 && (
+                    <View style={styles.diversionSection}>
+                      <Text style={styles.diversionSectionTitle}>
+                        <Ionicons name="swap-horizontal" size={16} color="#374151" /> Route Diversions
+                      </Text>
+                      {diversionsData.formatted.diversions.map((div, idx) => (
+                        <View key={idx} style={styles.routeDiversionCard}>
+                          <View style={styles.routeDiversionHeader}>
+                            <Text style={styles.routeDiversionRoute}>Route {div.route}</Text>
+                            <Ionicons name="arrow-forward" size={16} color="#6B7280" />
+                            <Text style={styles.routeDiversionAlternative}>
+                              {div.primaryAlternative || 'See instructions'}
+                            </Text>
+                          </View>
+                          <Text style={styles.routeDiversionInstructions}>
+                            {div.instructions || 'Check interchange options below'}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  
+                  {/* Key Advice */}
+                  {diversionsData.formatted.keyAdvice?.length > 0 && (
+                    <View style={styles.diversionSection}>
+                      <Text style={styles.diversionSectionTitle}>
+                        <Ionicons name="information-circle" size={16} color="#374151" /> Key Advice
+                      </Text>
+                      {diversionsData.formatted.keyAdvice.map((advice, idx) => (
+                        <View key={idx} style={styles.adviceCard}>
+                          <Ionicons name="chevron-forward" size={14} color="#7C3AED" />
+                          <Text style={styles.adviceText}>{advice}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  
+                  {/* Nearby Interchanges */}
+                  {diversionsData.formatted.interchanges?.length > 0 && (
+                    <View style={styles.diversionSection}>
+                      <Text style={styles.diversionSectionTitle}>
+                        <Ionicons name="git-branch" size={16} color="#374151" /> Nearby Interchanges
+                      </Text>
+                      {diversionsData.formatted.interchanges.map((interchange, idx) => (
+                        <View key={idx} style={styles.interchangeCard}>
+                          <View style={styles.interchangeHeader}>
+                            <Text style={styles.interchangeName}>{interchange.name}</Text>
+                            <Text style={styles.interchangeDistance}>{interchange.distance}</Text>
+                          </View>
+                          <Text style={styles.interchangeRoutes}>
+                            Routes: {interchange.availableRoutes}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  
+                  {/* Copy Instructions Button */}
+                  <TouchableOpacity
+                    style={styles.copyDiversionButton}
+                    onPress={() => {
+                      // Format diversions for copying
+                      const text = formatDiversionsForCopy(diversionsData);
+                      if (Platform.OS === 'web') {
+                        navigator.clipboard.writeText(text);
+                        showNotification('Diversion suggestions copied to clipboard', 'success');
+                      } else {
+                        // On mobile, show in alert
+                        Alert.alert('Diversion Suggestions', text);
+                      }
+                    }}
+                  >
+                    <Ionicons name="copy" size={20} color="#FFFFFF" />
+                    <Text style={styles.copyDiversionText}>Copy Instructions</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.diversionErrorContainer}>
+                  <Ionicons name="alert-circle" size={48} color="#EF4444" />
+                  <Text style={styles.diversionErrorText}>Unable to generate diversions</Text>
+                </View>
+              )}
             </ScrollView>
           </View>
         </Modal>
@@ -1635,6 +2064,11 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     padding: 6,
   },
+  mapButton: {
+    backgroundColor: '#ECFDF5',
+    borderRadius: 4,
+    padding: 6,
+  },
   deleteButton: {
     padding: 4,
   },
@@ -1718,6 +2152,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     fontWeight: '500',
+  },
+  diversionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F3F0FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
   },
   notesIndicator: {
     flexDirection: 'row',
@@ -2132,6 +2575,26 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
   },
+  mapActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#10B981',
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  diversionActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#7C3AED',
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
   closeButton: {
     flex: 1,
     flexDirection: 'row',
@@ -2216,6 +2679,276 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  // Map Modal Styles
+  mapContainer: {
+    height: 400,
+    backgroundColor: '#F8FAFC',
+  },
+  mapDetails: {
+    padding: 20,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  mapDetailTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  mapDetailLocation: {
+    fontSize: 16,
+    color: '#374151',
+    marginBottom: 8,
+  },
+  mapDetailDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  mapDetailCoords: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontFamily: isWeb ? 'monospace' : 'System',
+  },
+  // Diversion Modal Styles
+  diversionIncidentSummary: {
+    backgroundColor: '#F9FAFB',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  diversionIncidentType: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  diversionAffectedRoutes: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  diversionLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  diversionLoadingContainer: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  diversionLoadingText: {
+    marginTop: 16,
+    fontSize: 14,
+    color: '#7C3AED',
+    textAlign: 'center',
+  },
+  diversionSection: {
+    marginBottom: 20,
+  },
+  diversionSummary: {
+    fontSize: 16,
+    color: '#374151',
+    marginBottom: 12,
+    lineHeight: 24,
+  },
+  severityIndicator: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  severityText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  diversionSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  routeDiversionCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  routeDiversionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  routeDiversionRoute: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  routeDiversionAlternative: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#7C3AED',
+  },
+  routeDiversionInstructions: {
+    fontSize: 13,
+    color: '#6B7280',
+    lineHeight: 18,
+  },
+  adviceCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#F9FAFB',
+    padding: 12,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  adviceText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 20,
+  },
+  interchangeCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  interchangeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  interchangeName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  interchangeDistance: {
+    fontSize: 12,
+    color: '#6B7280',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  interchangeRoutes: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  copyDiversionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#7C3AED',
+    paddingVertical: 14,
+    borderRadius: 8,
+    marginTop: 20,
+  },
+  copyDiversionText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  diversionErrorContainer: {
+    alignItems: 'center',
+    padding: 40,
+  },
+  diversionErrorText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#EF4444',
+    textAlign: 'center',
+  },
+  // TomTom Route Styles
+  tomtomRouteCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 10,
+  },
+  tomtomRoutePrimary: {
+    borderColor: '#10B981',
+    borderWidth: 2,
+  },
+  tomtomRouteHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  tomtomRouteType: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  tomtomRouteTime: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  tomtomRouteDuration: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#059669',
+  },
+  tomtomRouteSummary: {
+    fontSize: 15,
+    color: '#374151',
+    marginBottom: 10,
+    fontWeight: '500',
+  },
+  tomtomRouteDetails: {
+    flexDirection: 'row',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  tomtomRouteMetric: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  tomtomRouteMetricText: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  trafficDelay: {
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  tomtomRouteVia: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  tomtomDisclaimer: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });
 

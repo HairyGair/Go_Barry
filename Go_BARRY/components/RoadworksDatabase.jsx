@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
+import { formatDateUK, formatTime24, formatDateTimeUK } from '../utils/dateTime';
 
 const RoadworksDatabase = ({ baseUrl }) => {
   const {
@@ -414,13 +415,10 @@ const RoadworksDatabase = ({ baseUrl }) => {
         {/* Last Updated */}
         <View style={[styles.cell, styles.timeColumn]}>
           <Text style={styles.timeText}>
-            {new Date(roadwork.lastUpdated).toLocaleDateString()}
+            {formatDateUK(roadwork.lastUpdated)}
           </Text>
           <Text style={styles.timeDetailText}>
-            {new Date(roadwork.lastUpdated).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
+            {formatTime24(roadwork.lastUpdated)}
           </Text>
         </View>
 
@@ -699,8 +697,8 @@ ${roadwork.description || 'No description provided'}
 Affected Routes: ${roadwork.affectedRoutes?.join(', ') || 'None specified'}
 
 Dates:
-Start: ${roadwork.plannedStartDate ? new Date(roadwork.plannedStartDate).toLocaleDateString() : 'TBC'}
-End: ${roadwork.plannedEndDate ? new Date(roadwork.plannedEndDate).toLocaleDateString() : 'TBC'}
+Start: ${roadwork.plannedStartDate ? formatDateUK(roadwork.plannedStartDate) : 'TBC'}
+End: ${roadwork.plannedEndDate ? formatDateUK(roadwork.plannedEndDate) : 'TBC'}
 
 Contact: ${roadwork.contactPerson || 'N/A'}
 Phone: ${roadwork.contactPhone || 'N/A'}
@@ -1084,8 +1082,8 @@ const RoadworkDetailsModal = ({ visible, roadwork, onClose, onEmail, onMap }) =>
 
             <View style={styles.detailsSection}>
               <Text style={styles.detailsSectionTitle}>Timeline</Text>
-              <Text style={styles.detailsText}>📅 Created: {new Date(roadwork.createdAt).toLocaleString()}</Text>
-              <Text style={styles.detailsText}>🔄 Updated: {new Date(roadwork.lastUpdated).toLocaleString()}</Text>
+              <Text style={styles.detailsText}>📅 Created: {formatDateTimeUK(roadwork.createdAt)}</Text>
+              <Text style={styles.detailsText}>🔄 Updated: {formatDateTimeUK(roadwork.lastUpdated)}</Text>
               <Text style={styles.detailsText}>👤 Created by: {roadwork.createdByName}</Text>
             </View>
 

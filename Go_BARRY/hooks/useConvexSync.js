@@ -14,15 +14,20 @@ try {
     useQuery = convexReact.useQuery;
     useMutation = convexReact.useMutation;
     api = apiModule.api;
-    console.log('✅ Convex imported successfully');
+    console.log('Convex imported successfully');
   } else {
     throw new Error('Convex API not fully available');
   }
 } catch (error) {
-  console.warn('⚠️ Convex not available - using fallback mode:', error.message);
+  console.warn('Convex not available - using fallback mode:', error.message);
   // Provide fallback functions
   useQuery = () => undefined;
-  useMutation = () => (() => Promise.resolve({ success: false, error: 'Convex not available' }));
+  useMutation = () => {
+    // Return a stable function reference that React can track
+    return useCallback(async () => {
+      return { success: false, error: 'Convex not available' };
+    }, []);
+  };
   api = null;
 }
 
@@ -40,7 +45,7 @@ export function useSupervisorAuth() {
       const storedId = window.localStorage.getItem('convex_session_id');
       if (storedId) {
         setSessionId(storedId);
-        console.log('📦 Loaded Convex session from localStorage');
+        console.log('Loaded Convex session from localStorage');
         return;
       }
     }
@@ -66,7 +71,7 @@ export function useSupervisorAuth() {
       }
       return result;
     } catch (error) {
-      console.error('❌ Convex auth error:', error);
+      console.error('Convex auth error:', error);
       throw error;
     }
   }, [login]);
@@ -81,7 +86,7 @@ export function useSupervisorAuth() {
       }
       setSessionId(null);
     } catch (error) {
-      console.error('❌ Convex logout error:', error);
+      console.error('Convex logout error:', error);
     }
   }, [logout]);
 
@@ -170,7 +175,7 @@ export function useHeartbeat(sessionId, interval = 30000) {
       try {
         await heartbeat({ sessionId });
       } catch (error) {
-        console.error('❌ Heartbeat error:', error);
+        console.error('Heartbeat error:', error);
       }
     };
 
@@ -209,7 +214,7 @@ export function useIncidents() {
   let activeIncidents, allIncidents, createIncident, updateIncident, addIncidentNote, sendTicketerMessage, pushIncidentToDisplay;
   
   if (!api || !api.sync) {
-    console.warn('⚠️ Incident management via Convex not available - API not deployed');
+    console.warn('Incident management via Convex not available - API not deployed');
     // Return empty arrays and no-op functions if Convex isn't available
     activeIncidents = [];
     allIncidents = [];
@@ -228,7 +233,7 @@ export function useIncidents() {
       sendTicketerMessage = useMutation(api.sync.sendTicketerMessage);
       pushIncidentToDisplay = useMutation(api.sync.pushIncidentToDisplay);
     } catch (error) {
-      console.warn('⚠️ Incident management via Convex not available:', error.message);
+      console.warn('Incident management via Convex not available:', error.message);
       // Return empty arrays and no-op functions if Convex isn't available
       activeIncidents = [];
       allIncidents = [];
@@ -259,7 +264,7 @@ export function useAlertSync() {
   const syncAlerts = useCallback(async (alerts) => {
     if (!alerts || alerts.length === 0) return;
     if (!api) {
-      console.warn('⚠️ Alert sync skipped - Convex not available');
+      console.warn('Alert sync skipped - Convex not available');
       return { success: false, error: 'Convex not available' };
     }
 
@@ -280,13 +285,13 @@ export function useAlertSync() {
       }));
 
       const result = await batchInsertAlerts({ alerts: convexAlerts });
-      console.log('✅ Synced alerts to Convex:', result);
+      console.log('Synced alerts to Convex:', result);
       return result;
     } catch (error) {
-      console.error('❌ Alert sync error:', error);
+      console.error('Alert sync error:', error);
       throw error;
     }
-  }, [batchInsertAlerts, api]);
+  }, [batchInsertAlerts]);
 
   return { syncAlerts };
 }
@@ -309,7 +314,7 @@ export function useConvexSync() {
         if (typeof window !== 'undefined' && window.localStorage) {
           const storedId = window.localStorage.getItem('convex_session_id');
           if (storedId) {
-            console.log('📱 Found stored Convex session in localStorage');
+            console.log('Found stored Convex session in localStorage');
             return;
           }
         }
@@ -318,24 +323,39 @@ export function useConvexSync() {
         const sessionId = await AsyncStorage.getItem('convex_session_id');
         if (sessionId) {
           // Session will be validated by Convex query
-          console.log('📱 Found stored Convex session in AsyncStorage');
+          console.log('Found stored Convex session in AsyncStorage');
         }
       } catch (error) {
-        console.error('❌ Error loading session:', error);
+        console.error('Error loading session:', error);
       }
     };
-    loadSession();
+    
+    // Call the async function
+    if (typeof loadSession === 'function') {
+      loadSession();
+    }
   }, []);
 
   return {
     // Auth
-    ...auth,
+    login: auth.login,
+    logout: auth.logout,
+    session: auth.session,
     
     // Sync state
-    ...sync,
+    syncState: sync.syncState,
+    setDisplayMode: sync.setDisplayMode,
+    addCustomMessage: sync.addCustomMessage,
+    removeCustomMessage: sync.removeCustomMessage,
     
     // Alerts
-    ...alerts,
+    activeAlerts: alerts.activeAlerts,
+    dismissedAlerts: alerts.dismissedAlerts,
+    acknowledge: alerts.acknowledge,
+    dismissFromDisplay: alerts.dismissFromDisplay,
+    toggleDisplayLock: alerts.toggleDisplayLock,
+    overridePriority: alerts.overridePriority,
+    addNote: alerts.addNote,
     
     // Supervisors
     activeSupervisors: supervisors.activeSupervisors,

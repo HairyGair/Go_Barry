@@ -1,0 +1,536 @@
+// Go_BARRY/components/SupervisorLoginWithPasswords.jsx
+// Updated supervisor login with mandatory password system - FIXED naming conflict
+
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Modal,
+  TextInput,
+  Platform,
+  Alert,
+  KeyboardAvoidingView
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSupervisorSession, DUTY_OPTIONS } from './hooks/useSupervisorSession';
+import PasswordSetupModal from './PasswordSetupModal';
+import typography from '../theme/typography';
+
+const SupervisorLogin = ({ visible, onClose }) => {
+  const { 
+    login, 
+    setPassword: setFirstTimePassword, // Renamed to avoid conflict
+    needsPasswordSetup, 
+    isLoading, 
+    error: sessionError,
+    supervisorSession 
+  } = useSupervisorSession();
+  
+  const [selectedSupervisor, setSelectedSupervisor] = useState(null);
+  const [selectedDuty, setSelectedDuty] = useState(null);
+  const [password, setPassword] = useState(''); // Local state for password input
+  const [showPassword, setShowPassword] = useState(false);
+  const [localError, setLocalError] = useState('');
+  
+  // Supervisor list - ALL now require passwords
+  const supervisors = [
+    { id: 'alex_woodcock', name: 'Alex Woodcock', role: 'Supervisor' },
+    { id: 'andrew_cowley', name: 'Andrew Cowley', role: 'Supervisor' },
+    { id: 'anthony_gair', name: 'Anthony Gair', role: 'Developer/Admin', badge: 'admin' },
+    { id: 'claire_fiddler', name: 'Claire Fiddler', role: 'Supervisor' },
+    { id: 'david_hall', name: 'David Hall', role: 'Supervisor' },
+    { id: 'james_daglish', name: 'James Daglish', role: 'Supervisor' },
+    { id: 'john_paterson', name: 'John Paterson', role: 'Supervisor' },
+    { id: 'simon_glass', name: 'Simon Glass', role: 'Supervisor' },
+    { id: 'barry_perryman', name: 'Barry Perryman', role: 'Line Manager', badge: 'admin' }
+  ];
+
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    if (!visible) {
+      setSelectedSupervisor(null);
+      setSelectedDuty(null);
+      setPassword('');
+      setLocalError('');
+    }
+  }, [visible]);
+
+  // Auto-close if logged in
+  useEffect(() => {
+    if (supervisorSession && visible) {
+      onClose();
+    }
+  }, [supervisorSession, visible, onClose]);
+
+  const handleSupervisorSelect = (supervisor) => {
+    setSelectedSupervisor(supervisor);
+    setLocalError('');
+  };
+
+  const handleDutySelect = (duty) => {
+    setSelectedDuty(duty);
+    setLocalError('');
+  };
+
+  const handleLogin = async () => {
+    setLocalError('');
+
+    if (!selectedSupervisor) {
+      setLocalError('Please select a supervisor');
+      return;
+    }
+
+    if (!selectedDuty) {
+      setLocalError('Please select a duty');
+      return;
+    }
+
+    if (!password && !needsPasswordSetup) {
+      setLocalError('Please enter your password');
+      return;
+    }
+
+    try {
+      const result = await login({
+        supervisorId: selectedSupervisor.id,
+        password: password,
+        duty: selectedDuty
+      });
+
+      if (result.success) {
+        Alert.alert(
+          'Login Successful',
+          `Welcome, ${selectedSupervisor.name}!`,
+          [{ text: 'OK', onPress: onClose }]
+        );
+      } else if (result.needsPasswordSetup) {
+        // Password setup modal will be shown automatically
+        console.log('First-time user - showing password setup');
+      } else {
+        setLocalError(result.error || 'Login failed');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setLocalError('An unexpected error occurred');
+    }
+  };
+
+  const handlePasswordSetup = async (newPassword) => {
+    const result = await setFirstTimePassword(newPassword); // Use renamed function
+    if (result.success) {
+      onClose();
+    }
+    return result;
+  };
+
+  const renderSupervisorSelection = () => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>1. Select Supervisor</Text>
+      <ScrollView style={styles.supervisorList} showsVerticalScrollIndicator={false}>
+        {supervisors.map((supervisor) => (
+          <TouchableOpacity
+            key={supervisor.id}
+            style={[
+              styles.supervisorCard,
+              selectedSupervisor?.id === supervisor.id && styles.supervisorCardSelected
+            ]}
+            onPress={() => handleSupervisorSelect(supervisor)}
+          >
+            <View style={styles.supervisorInfo}>
+              <Ionicons 
+                name="person-circle" 
+                size={40} 
+                color={selectedSupervisor?.id === supervisor.id ? '#3B82F6' : '#6B7280'} 
+              />
+              <View style={styles.supervisorDetails}>
+                <Text style={styles.supervisorName}>{supervisor.name}</Text>
+                <Text style={styles.supervisorRole}>{supervisor.role}</Text>
+              </View>
+            </View>
+            {supervisor.badge && (
+              <View style={[
+                styles.badge,
+                supervisor.badge === 'admin' && styles.adminBadge
+              ]}>
+                <Text style={styles.badgeText}>
+                  {supervisor.badge.toUpperCase()}
+                </Text>
+              </View>
+            )}
+            {selectedSupervisor?.id === supervisor.id && (
+              <Ionicons name="checkmark-circle" size={24} color="#3B82F6" />
+            )}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
+  const renderDutySelection = () => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>2. Select Duty</Text>
+      <View style={styles.dutyGrid}>
+        {DUTY_OPTIONS.map((duty) => (
+          <TouchableOpacity
+            key={duty.id}
+            style={[
+              styles.dutyCard,
+              selectedDuty?.id === duty.id && styles.dutyCardSelected
+            ]}
+            onPress={() => handleDutySelect(duty)}
+          >
+            <Text style={[
+              styles.dutyName,
+              selectedDuty?.id === duty.id && styles.dutyNameSelected
+            ]}>
+              {duty.name}
+            </Text>
+            <Text style={[
+              styles.dutyShift,
+              selectedDuty?.id === duty.id && styles.dutyShiftSelected
+            ]}>
+              {duty.shift}
+            </Text>
+            {selectedDuty?.id === duty.id && (
+              <Ionicons 
+                name="checkmark-circle" 
+                size={20} 
+                color="#3B82F6" 
+                style={styles.dutyCheck}
+              />
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
+  const renderPasswordInput = () => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>3. Enter Password</Text>
+      <View style={styles.passwordContainer}>
+        <View style={styles.passwordInputWrapper}>
+          <TextInput
+            style={styles.passwordInput}
+            placeholder="Enter your password"
+            placeholderTextColor="#9CA3AF"
+            value={password}
+            onChangeText={(text) => {
+              setPassword(text);
+              setLocalError('');
+            }}
+            secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <TouchableOpacity
+            onPress={() => setShowPassword(!showPassword)}
+            style={styles.eyeButton}
+          >
+            <Ionicons 
+              name={showPassword ? "eye-off" : "eye"} 
+              size={20} 
+              color="#6B7280" 
+            />
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.passwordHint}>
+          All supervisors require a password. First-time users will be prompted to set one.
+        </Text>
+      </View>
+    </View>
+  );
+
+  const error = localError || sessionError;
+
+  return (
+    <>
+      <Modal
+        visible={visible && !needsPasswordSetup}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={onClose}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.title}>Supervisor Login</Text>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Error Display */}
+              {error && (
+                <View style={styles.errorContainer}>
+                  <Ionicons name="alert-circle" size={16} color="#EF4444" />
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              )}
+
+              {/* Supervisor Selection */}
+              {renderSupervisorSelection()}
+
+              {/* Duty Selection */}
+              {selectedSupervisor && renderDutySelection()}
+
+              {/* Password Input */}
+              {selectedSupervisor && selectedDuty && renderPasswordInput()}
+
+              {/* Login Button */}
+              {selectedSupervisor && selectedDuty && (
+                <TouchableOpacity
+                  style={[
+                    styles.loginButton,
+                    (!password || isLoading) && styles.loginButtonDisabled
+                  ]}
+                  onPress={handleLogin}
+                  disabled={!password || isLoading}
+                >
+                  <Text style={styles.loginButtonText}>
+                    {isLoading ? 'Logging in...' : 'Login'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Info */}
+              <View style={styles.infoContainer}>
+                <Ionicons name="information-circle" size={16} color="#6B7280" />
+                <Text style={styles.infoText}>
+                  Select your name, duty, and enter your password to access supervisor controls
+                </Text>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Password Setup Modal for first-time users */}
+      {selectedSupervisor && (
+        <PasswordSetupModal
+          visible={needsPasswordSetup}
+          supervisorName={selectedSupervisor.name}
+          onSetPassword={handlePasswordSetup}
+          onCancel={() => {
+            setSelectedSupervisor(null);
+            setSelectedDuty(null);
+            setPassword('');
+          }}
+        />
+      )}
+    </>
+  );
+};
+
+const styles = StyleSheet.create({
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    width: '90%',
+    maxWidth: 600,
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+  },
+  errorText: {
+    flex: 1,
+    color: '#DC2626',
+    fontSize: 14,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+  },
+  supervisorList: {
+    maxHeight: 200,
+  },
+  supervisorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  supervisorCardSelected: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
+  },
+  supervisorInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  supervisorDetails: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  supervisorName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  supervisorRole: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: '#E5E7EB',
+    marginRight: 8,
+  },
+  adminBadge: {
+    backgroundColor: '#FEF3C7',
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+  dutyGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  dutyCard: {
+    flex: 1,
+    minWidth: '45%',
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    position: 'relative',
+  },
+  dutyCardSelected: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
+  },
+  dutyName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  dutyNameSelected: {
+    color: '#1E40AF',
+  },
+  dutyShift: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  dutyShiftSelected: {
+    color: '#3B82F6',
+  },
+  dutyCheck: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+  },
+  passwordContainer: {
+    gap: 8,
+  },
+  passwordInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  passwordInput: {
+    flex: 1,
+    padding: 12,
+    fontSize: 14,
+    color: '#1F2937',
+  },
+  eyeButton: {
+    padding: 12,
+  },
+  passwordHint: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  loginButton: {
+    backgroundColor: '#3B82F6',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  loginButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
+  loginButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  infoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 8,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 18,
+  },
+});
+
+export default SupervisorLogin;

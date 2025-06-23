@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import OptimizedTomTomMap from './OptimizedTomTomMap';
 import { useConvexSync, useSupervisorActions } from '../hooks/useConvexSync';
+import { formatTime24WithSeconds, formatDateWithWeekday, formatTime24 } from '../utils/dateTime';
 
 const DisplayScreen = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -78,23 +79,7 @@ const DisplayScreen = () => {
     return () => clearInterval(interval);
   }, [alerts.length]);
 
-  const formatTime = (date) => {
-    return date.toLocaleTimeString('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    });
-  };
-
-  const formatDate = (date) => {
-    return date.toLocaleDateString('en-GB', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-  };
+  // Use centralized date/time formatting utilities
 
   const getCurrentAlert = () => {
     if (!alerts.length || currentAlertIndex >= alerts.length) return null;
@@ -270,7 +255,7 @@ const DisplayScreen = () => {
             color: '#ffffff',
             letterSpacing: '-1px'
           }}>
-            {formatTime(currentTime)}
+            {formatTime24WithSeconds(currentTime)}
           </div>
           <div style={{
             fontSize: '11px',
@@ -278,7 +263,7 @@ const DisplayScreen = () => {
             fontWeight: '500',
             marginTop: '2px'
           }}>
-            {formatDate(currentTime)}
+            {formatDateWithWeekday(currentTime)}
           </div>
         </div>
         
@@ -804,10 +789,7 @@ const DisplayScreen = () => {
                     alignItems: 'center',
                     gap: '4px'
                   }}>
-                    {new Date(activity.timestamp).toLocaleTimeString('en-GB', {
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
+                    {formatTime24(activity.timestamp)}
                     {idx === 0 && (
                       <span style={{
                         fontSize: '8px',

@@ -1,1 +1,0 @@
-cp -r Go_BARRY/* dist/

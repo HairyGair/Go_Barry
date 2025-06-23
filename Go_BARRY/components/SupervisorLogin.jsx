@@ -1,616 +1,576 @@
-// Go_BARRY/components/SupervisorLogin.jsx
-// Web-compatible supervisor login component
+// Go_BARRY/components/SupervisorLoginWithPasswords.jsx
+// Updated supervisor login with session validation fix
 
-import React, { useState } from 'react';
-import { useSupervisorSession } from './hooks/useSupervisorSession';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Modal,
+  TextInput,
+  Platform,
+  Alert,
+  KeyboardAvoidingView
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useSupervisorSession, DUTY_OPTIONS } from './hooks/useSupervisorSession';
+import PasswordSetupModal from './PasswordSetupModal';
+import typography from '../theme/typography';
 
-const SupervisorLogin = ({ visible, onClose, onLoginSuccess, embedded = false }) => {
-  const [supervisorId, setSupervisorId] = useState('');
+const SupervisorLogin = ({ visible, onClose, onLoginSuccess }) => {
+  const { 
+    login, 
+    setPassword: setFirstTimePassword,
+    needsPasswordSetup, 
+    isLoading, 
+    error: sessionError,
+    supervisorSession,
+    isLoggedIn // Use this instead of just supervisorSession
+  } = useSupervisorSession();
+  
+  const [selectedSupervisor, setSelectedSupervisor] = useState(null);
+  const [selectedDuty, setSelectedDuty] = useState(null);
   const [password, setPassword] = useState('');
-  const [selectedDuty, setSelectedDuty] = useState('');
-  const [currentStep, setCurrentStep] = useState('supervisor');
-  const { login, isLoading, error } = useSupervisorSession();
-
-  // Real supervisors matching backend authentication
+  const [showPassword, setShowPassword] = useState(false);
+  const [localError, setLocalError] = useState('');
+  
+  // Supervisor list - ALL now require passwords
   const supervisors = [
-    { id: 'alex_woodcock', name: 'Alex Woodcock', badge: 'AW001', role: 'Supervisor', requiresPassword: false },
-    { id: 'andrew_cowley', name: 'Andrew Cowley', badge: 'AC002', role: 'Supervisor', requiresPassword: false },
-    { id: 'anthony_gair', name: 'Anthony Gair', badge: 'AG003', role: 'Developer/Admin', requiresPassword: false, isAdmin: true },
-    { id: 'claire_fiddler', name: 'Claire Fiddler', badge: 'CF004', role: 'Supervisor', requiresPassword: false },
-    { id: 'david_hall', name: 'David Hall', badge: 'DH005', role: 'Supervisor', requiresPassword: false },
-    { id: 'james_daglish', name: 'James Daglish', badge: 'JD006', role: 'Supervisor', requiresPassword: false },
-    { id: 'john_paterson', name: 'John Paterson', badge: 'JP007', role: 'Supervisor', requiresPassword: false },
-    { id: 'simon_glass', name: 'Simon Glass', badge: 'SG008', role: 'Supervisor', requiresPassword: false },
-    { id: 'barry_perryman', name: 'Barry Perryman', badge: 'BP009', role: 'Service Delivery Controller - Line Manager', requiresPassword: true, password: 'Barry123', isAdmin: true },
+    { id: 'alex_woodcock', name: 'Alex Woodcock', role: 'Supervisor' },
+    { id: 'andrew_cowley', name: 'Andrew Cowley', role: 'Supervisor' },
+    { id: 'anthony_gair', name: 'Anthony Gair', role: 'Developer/Admin', badge: 'admin' },
+    { id: 'claire_fiddler', name: 'Claire Fiddler', role: 'Supervisor' },
+    { id: 'david_hall', name: 'David Hall', role: 'Supervisor' },
+    { id: 'james_daglish', name: 'James Daglish', role: 'Supervisor' },
+    { id: 'john_paterson', name: 'John Paterson', role: 'Supervisor' },
+    { id: 'simon_glass', name: 'Simon Glass', role: 'Supervisor' },
+    { id: 'barry_perryman', name: 'Barry Perryman', role: 'Line Manager', badge: 'admin' }
   ];
 
-  // Duty options
-  const dutyOptions = [
-    { id: '100', name: 'Duty 100 (6am-3:30pm)' },
-    { id: '200', name: 'Duty 200 (7:30am-5pm)' },
-    { id: '400', name: 'Duty 400 (12:30pm-10pm)' },
-    { id: '500', name: 'Duty 500 (2:45pm-12:15am)' },
-    { id: 'xops', name: 'XOps' },
-  ];
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    console.log('SupervisorLogin modal visibility changed:', { 
+      visible, 
+      needsPasswordSetup,
+      modalShouldShow: visible && !needsPasswordSetup 
+    });
+    if (!visible) {
+      setSelectedSupervisor(null);
+      setSelectedDuty(null);
+      setPassword('');
+      setLocalError('');
+    }
+  }, [visible, needsPasswordSetup]);
 
-  const selectedSupervisor = supervisors.find(s => s.id === supervisorId);
+  // Auto-close ONLY if properly logged in with valid session
+  useEffect(() => {
+    // Check for valid logged in state (not just presence of session)
+    if (isLoggedIn && visible && supervisorSession?.supervisor?.duty && !needsPasswordSetup) {
+      console.log('Valid session detected, closing login modal');
+      onClose();
+    }
+  }, [isLoggedIn, supervisorSession, visible, onClose, needsPasswordSetup]);
 
   const handleSupervisorSelect = (supervisor) => {
-    setSupervisorId(supervisor.id);
-    if (supervisor.requiresPassword) {
-      setCurrentStep('password');
-    } else {
-      setCurrentStep('duty');
-    }
+    setSelectedSupervisor(supervisor);
+    setLocalError('');
   };
 
-  const handlePasswordSubmit = () => {
-    if (selectedSupervisor.requiresPassword) {
-      if (!password || password !== selectedSupervisor.password) {
-        alert('Incorrect password for Line Manager access.');
-        return;
-      }
-    }
-    setCurrentStep('duty');
+  const handleDutySelect = (duty) => {
+    setSelectedDuty(duty);
+    setLocalError('');
   };
 
-  const handleDutySelect = async (duty) => {
-    setSelectedDuty(duty.id);
-    
-    const loginData = {
-      supervisorId,
-      password: selectedSupervisor.requiresPassword ? password : undefined,
-      duty: duty,
-      isAdmin: selectedSupervisor.isAdmin || false
-    };
+  const handleLogin = async () => {
+    setLocalError('');
 
-    console.log('🚀 Attempting login with data:', loginData);
-    console.log('🔄 Starting authentication process...');
-    
+    if (!selectedSupervisor) {
+      setLocalError('Please select a supervisor');
+      return;
+    }
+
+    if (!selectedDuty) {
+      setLocalError('Please select a duty');
+      return;
+    }
+
+    if (!password && !needsPasswordSetup) {
+      setLocalError('Please enter your password');
+      return;
+    }
+
     try {
-      const result = await login(loginData);
-      console.log('📦 Login result:', result);
-      
+      const result = await login({
+        supervisorId: selectedSupervisor.id,
+        password: password,
+        duty: selectedDuty
+      });
+
       if (result.success) {
-        console.log('✅ Login successful, closing modal');
-        // Call onLoginSuccess if provided
-        if (onLoginSuccess) {
-          onLoginSuccess(loginData);
-        }
-        // Add a small delay to ensure state updates propagate
-        setTimeout(() => {
-          resetForm();
-          if (!embedded) {
+        Alert.alert(
+          'Login Successful',
+          `Welcome, ${selectedSupervisor.name}!`,
+          [{ text: 'OK', onPress: () => {
             onClose();
-          }
-        }, 100);
+            onLoginSuccess?.();
+          }}]
+        );
+      } else if (result.needsPasswordSetup) {
+        // Password setup modal will be shown automatically
+        console.log('First-time user - showing password setup');
       } else {
-        console.error('❌ Login failed:', result.error);
+        setLocalError(result.error || 'Login failed');
       }
-    } catch (loginError) {
-      console.error('❌ Login exception:', loginError);
-      // The error will be handled by the useSupervisorSession hook
+    } catch (err) {
+      console.error('Login error:', err);
+      setLocalError('An unexpected error occurred');
     }
   };
 
-  const resetForm = () => {
-    setSupervisorId('');
-    setPassword('');
-    setSelectedDuty('');
-    setCurrentStep('supervisor');
-  };
-
-  const handleClose = () => {
-    resetForm();
-    onClose();
-  };
-
-  const handleBack = () => {
-    if (currentStep === 'password') {
-      setCurrentStep('supervisor');
-      setPassword('');
-    } else if (currentStep === 'duty') {
-      if (selectedSupervisor.requiresPassword) {
-        setCurrentStep('password');
-      } else {
-        setCurrentStep('supervisor');
-      }
-      setSelectedDuty('');
+  const handlePasswordSetup = async (newPassword) => {
+    const result = await setFirstTimePassword(newPassword);
+    if (result.success) {
+      onClose();
+      onLoginSuccess?.();
     }
+    return result;
   };
 
-  if (!visible) return null;
+  const renderSupervisorSelection = () => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>1. Select Supervisor</Text>
+      <ScrollView style={styles.supervisorList} showsVerticalScrollIndicator={false}>
+        {supervisors.map((supervisor) => (
+          <TouchableOpacity
+            key={supervisor.id}
+            style={[
+              styles.supervisorCard,
+              selectedSupervisor?.id === supervisor.id && styles.supervisorCardSelected
+            ]}
+            onPress={() => handleSupervisorSelect(supervisor)}
+          >
+            <View style={styles.supervisorInfo}>
+              <Ionicons 
+                name="person-circle" 
+                size={40} 
+                color={selectedSupervisor?.id === supervisor.id ? '#3B82F6' : '#6B7280'} 
+              />
+              <View style={styles.supervisorDetails}>
+                <Text style={styles.supervisorName}>{supervisor.name}</Text>
+                <Text style={styles.supervisorRole}>{supervisor.role}</Text>
+              </View>
+            </View>
+            {supervisor.badge && (
+              <View style={[
+                styles.badge,
+                supervisor.badge === 'admin' && styles.adminBadge
+              ]}>
+                <Text style={styles.badgeText}>
+                  {supervisor.badge.toUpperCase()}
+                </Text>
+              </View>
+            )}
+            {selectedSupervisor?.id === supervisor.id && (
+              <Ionicons name="checkmark-circle" size={24} color="#3B82F6" />
+            )}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+
+  const renderDutySelection = () => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>2. Select Duty</Text>
+      <View style={styles.dutyGrid}>
+        {DUTY_OPTIONS.map((duty) => (
+          <TouchableOpacity
+            key={duty.id}
+            style={[
+              styles.dutyCard,
+              selectedDuty?.id === duty.id && styles.dutyCardSelected
+            ]}
+            onPress={() => handleDutySelect(duty)}
+          >
+            <Text style={[
+              styles.dutyName,
+              selectedDuty?.id === duty.id && styles.dutyNameSelected
+            ]}>
+              {duty.name}
+            </Text>
+            <Text style={[
+              styles.dutyShift,
+              selectedDuty?.id === duty.id && styles.dutyShiftSelected
+            ]}>
+              {duty.shift}
+            </Text>
+            {selectedDuty?.id === duty.id && (
+              <Ionicons 
+                name="checkmark-circle" 
+                size={20} 
+                color="#3B82F6" 
+                style={styles.dutyCheck}
+              />
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
+  const renderPasswordInput = () => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>3. Enter Password</Text>
+      <View style={styles.passwordContainer}>
+        <View style={styles.passwordInputWrapper}>
+          <TextInput
+            style={styles.passwordInput}
+            placeholder="Enter your password"
+            placeholderTextColor="#9CA3AF"
+            value={password}
+            onChangeText={(text) => {
+              setPassword(text);
+              setLocalError('');
+            }}
+            secureTextEntry={!showPassword}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <TouchableOpacity
+            onPress={() => setShowPassword(!showPassword)}
+            style={styles.eyeButton}
+          >
+            <Ionicons 
+              name={showPassword ? "eye-off" : "eye"} 
+              size={20} 
+              color="#6B7280" 
+            />
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.passwordHint}>
+          All supervisors require a password. First-time users will be prompted to set one.
+        </Text>
+      </View>
+    </View>
+  );
+
+  const error = localError || sessionError;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 1000
-    }}>
-      <div style={{
-        backgroundColor: '#FFFFFF',
-        borderRadius: '24px',
-        maxHeight: '90%',
-        minHeight: '50%',
-        width: '90%',
-        maxWidth: '500px',
-        display: 'flex',
-        flexDirection: 'column'
-      }}>
-        {/* Header */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          padding: '24px',
-          paddingBottom: '16px'
-        }}>
-          <div style={{ flex: 1 }}>
-            <div style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: '28px',
-              backgroundColor: '#EFF6FF',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: '16px'
-            }}>
-              🛡️
-            </div>
-            <h2 style={{
-              fontSize: '24px',
-              fontWeight: '700',
-              color: '#1F2937',
-              marginBottom: '4px',
-              margin: 0
-            }}>Supervisor Access</h2>
-            <p style={{
-              fontSize: '14px',
-              color: '#6B7280',
-              lineHeight: '20px',
-              margin: 0
-            }}>Log in to manage alerts and access supervisor functions</p>
-          </div>
-          <button onClick={handleClose} style={{
-            padding: '8px',
-            borderRadius: '8px',
-            backgroundColor: '#F3F4F6',
-            border: 'none',
-            cursor: 'pointer'
-          }}>
-            ✕
-          </button>
-        </div>
+    <>
+      <Modal
+        visible={visible && !needsPasswordSetup}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={onClose}
+      >
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalContainer}
+        >
+          <View style={styles.modalContent}>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.title}>Supervisor Login</Text>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
 
-        {/* Error Display */}
-        {error && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            backgroundColor: '#FEF2F2',
-            padding: '12px',
-            marginLeft: '24px',
-            marginRight: '24px',
-            marginBottom: '16px',
-            borderRadius: '8px',
-            border: '1px solid #FECACA'
-          }}>
-            <span style={{ marginRight: '8px', color: '#EF4444' }}>⚠️</span>
-            <span style={{ color: '#DC2626', fontSize: '14px', flex: 1 }}>{error}</span>
-          </div>
-        )}
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Error Display */}
+              {error && (
+                <View style={styles.errorContainer}>
+                  <Ionicons name="alert-circle" size={16} color="#EF4444" />
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              )}
 
-        {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto', paddingLeft: '24px', paddingRight: '24px' }}>
-          {/* Step 1: Supervisor Selection */}
-          {currentStep === 'supervisor' && (
-            <div>
-              <h3 style={{
-                fontSize: '18px',
-                fontWeight: '600',
-                color: '#1F2937',
-                marginBottom: '4px'
-              }}>Select Your Profile</h3>
-              <p style={{
-                fontSize: '14px',
-                color: '#6B7280',
-                marginBottom: '20px'
-              }}>Choose your supervisor profile from the list below</p>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {supervisors.map((supervisor) => (
-                  <button
-                    key={supervisor.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '16px',
-                      borderRadius: '12px',
-                      border: `2px solid ${supervisorId === supervisor.id ? '#3B82F6' : '#E5E7EB'}`,
-                      backgroundColor: supervisorId === supervisor.id ? '#3B82F6' : '#FAFAFA',
-                      cursor: 'pointer',
-                      width: '100%'
-                    }}
-                    onClick={() => handleSupervisorSelect(supervisor)}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-                      <div style={{
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '24px',
-                        backgroundColor: '#EFF6FF',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginRight: '12px'
-                      }}>
-                        👤
-                      </div>
-                      <div style={{ flex: 1, textAlign: 'left' }}>
-                        <div style={{
-                          fontSize: '16px',
-                          fontWeight: '600',
-                          color: supervisorId === supervisor.id ? '#FFFFFF' : '#1F2937',
-                          marginBottom: '2px'
-                        }}>
-                          {supervisor.name}
-                        </div>
-                        <div style={{
-                          fontSize: '14px',
-                          color: supervisorId === supervisor.id ? '#DBEAFE' : '#6B7280',
-                          marginBottom: '2px'
-                        }}>
-                          {supervisor.role} • Badge: {supervisor.badge}
-                        </div>
-                        {supervisor.isAdmin && (
-                          <div style={{
-                            fontSize: '12px',
-                            color: '#F59E0B',
-                            fontWeight: '600'
-                          }}>
-                            ⭐ Admin Access
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {supervisorId === supervisor.id && (
-                      <span style={{ color: '#FFFFFF' }}>✓</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+              {/* Supervisor Selection */}
+              {renderSupervisorSelection()}
 
-          {/* Step 2: Password Verification */}
-          {currentStep === 'password' && selectedSupervisor && (
-            <div>
-              <button 
-                onClick={handleBack}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  background: 'none',
-                  border: 'none',
-                  color: '#3B82F6',
-                  cursor: 'pointer',
-                  marginBottom: '20px'
-                }}
-              >
-                ← <span style={{ marginLeft: '4px' }}>Back to selection</span>
-              </button>
+              {/* Duty Selection */}
+              {selectedSupervisor && renderDutySelection()}
 
-              <div style={{
-                backgroundColor: '#EFF6FF',
-                padding: '16px',
-                borderRadius: '12px',
-                border: '1px solid #DBEAFE',
-                marginBottom: '20px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <div style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '20px',
-                    backgroundColor: '#3B82F6',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: '12px'
-                  }}>
-                    <span style={{ color: '#FFFFFF' }}>👤</span>
-                  </div>
-                  <div>
-                    <div style={{
-                      fontSize: '16px',
-                      fontWeight: '600',
-                      color: '#1E40AF',
-                      marginBottom: '2px'
-                    }}>
-                      {selectedSupervisor.name}
-                    </div>
-                    <div style={{
-                      fontSize: '14px',
-                      color: '#3730A3'
-                    }}>
-                      {selectedSupervisor.role}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {/* Password Input */}
+              {selectedSupervisor && selectedDuty && renderPasswordInput()}
 
-              <h3 style={{
-                fontSize: '18px',
-                fontWeight: '600',
-                color: '#1F2937',
-                marginBottom: '4px'
-              }}>Line Manager Authentication</h3>
-              <p style={{
-                fontSize: '14px',
-                color: '#6B7280',
-                marginBottom: '20px'
-              }}>Enter your password to access Line Manager functions</p>
+              {/* Login Button */}
+              {selectedSupervisor && selectedDuty && (
+                <TouchableOpacity
+                  style={[
+                    styles.loginButton,
+                    (!password || isLoading) && styles.loginButtonDisabled
+                  ]}
+                  onPress={handleLogin}
+                  disabled={!password || isLoading}
+                >
+                  <Text style={styles.loginButtonText}>
+                    {isLoading ? 'Logging in...' : 'Login'}
+                  </Text>
+                </TouchableOpacity>
+              )}
 
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  color: '#374151',
-                  marginBottom: '8px',
-                  display: 'block'
-                }}>Password</label>
-                <input
-                  type="password"
-                  style={{
-                    width: '100%',
-                    padding: '12px',
-                    fontSize: '16px',
-                    color: '#1F2937',
-                    border: '2px solid #E5E7EB',
-                    borderRadius: '8px',
-                    backgroundColor: '#FFFFFF'
-                  }}
-                  placeholder="Enter Line Manager password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <p style={{
-                  marginTop: '4px',
-                  fontSize: '12px',
-                  color: '#6B7280'
-                }}>Required for Line Manager access and admin functions</p>
-              </div>
+              {/* Info */}
+              <View style={styles.infoContainer}>
+                <Ionicons name="information-circle" size={16} color="#6B7280" />
+                <Text style={styles.infoText}>
+                  Select your name, duty, and enter your password to access supervisor controls
+                </Text>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
 
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                backgroundColor: '#F0FDF4',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid #BBF7D0'
-              }}>
-                <span style={{ marginRight: '8px', color: '#10B981' }}>🛡️</span>
-                <span style={{
-                  fontSize: '12px',
-                  color: '#15803D',
-                  flex: 1,
-                  lineHeight: '16px'
-                }}>All Line Manager actions are logged for accountability and audit purposes</span>
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Duty Selection */}
-          {currentStep === 'duty' && (
-            <div>
-              <button 
-                onClick={handleBack}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  background: 'none',
-                  border: 'none',
-                  color: '#3B82F6',
-                  cursor: 'pointer',
-                  marginBottom: '20px'
-                }}
-              >
-                ← <span style={{ marginLeft: '4px' }}>Back</span>
-              </button>
-
-              <div style={{
-                backgroundColor: '#EFF6FF',
-                padding: '16px',
-                borderRadius: '12px',
-                border: '1px solid #DBEAFE',
-                marginBottom: '20px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <div style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '20px',
-                    backgroundColor: '#3B82F6',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginRight: '12px'
-                  }}>
-                    <span style={{ color: '#FFFFFF' }}>👤</span>
-                  </div>
-                  <div>
-                    <div style={{
-                      fontSize: '16px',
-                      fontWeight: '600',
-                      color: '#1E40AF',
-                      marginBottom: '2px'
-                    }}>
-                      {selectedSupervisor.name}
-                    </div>
-                    <div style={{
-                      fontSize: '14px',
-                      color: '#3730A3'
-                    }}>
-                      {selectedSupervisor.role}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <h3 style={{
-                fontSize: '18px',
-                fontWeight: '600',
-                color: '#1F2937',
-                marginBottom: '4px'
-              }}>Select Your Duty</h3>
-              <p style={{
-                fontSize: '14px',
-                color: '#6B7280',
-                marginBottom: '20px'
-              }}>Choose which duty you are performing today</p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {dutyOptions.map((duty) => (
-                  <button
-                    key={duty.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '16px',
-                      borderRadius: '12px',
-                      border: `2px solid ${selectedDuty === duty.id ? '#10B981' : '#E5E7EB'}`,
-                      backgroundColor: selectedDuty === duty.id ? '#10B981' : '#FAFAFA',
-                      cursor: 'pointer',
-                      width: '100%'
-                    }}
-                    onClick={() => handleDutySelect(duty)}
-                    disabled={isLoading}
-                  >
-                    <div style={{
-                      fontSize: '16px',
-                      fontWeight: '600',
-                      color: selectedDuty === duty.id ? '#FFFFFF' : '#1F2937',
-                      flex: 1,
-                      textAlign: 'left'
-                    }}>
-                      {duty.name}
-                    </div>
-                    {isLoading && selectedDuty === duty.id ? (
-                      <div style={{ 
-                        color: '#FFFFFF',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}>
-                        <div style={{
-                          width: '16px',
-                          height: '16px',
-                          border: '2px solid #FFFFFF',
-                          borderTop: '2px solid transparent',
-                          borderRadius: '50%',
-                          animation: 'spin 1s linear infinite'
-                        }} />
-                        <span style={{ fontSize: '14px' }}>Logging in...</span>
-                        <style>{`
-                          @keyframes spin {
-                            0% { transform: rotate(0deg); }
-                            100% { transform: rotate(360deg); }
-                          }
-                        `}</style>
-                      </div>
-                    ) : (
-                      <span style={{ 
-                        color: selectedDuty === duty.id ? '#FFFFFF' : '#9CA3AF' 
-                      }}>›</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Action Buttons */}
-        <div style={{ padding: '24px' }}>
-          {currentStep === 'supervisor' ? (
-            <button
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: supervisorId ? '#3B82F6' : '#E5E7EB',
-                color: supervisorId ? '#FFFFFF' : '#9CA3AF',
-                padding: '16px',
-                borderRadius: '12px',
-                border: 'none',
-                gap: '8px',
-                width: '100%',
-                cursor: supervisorId ? 'pointer' : 'not-allowed'
-              }}
-              onClick={() => {
-                if (selectedSupervisor) {
-                  if (selectedSupervisor.requiresPassword) {
-                    setCurrentStep('password');
-                  } else {
-                    setCurrentStep('duty');
-                  }
-                }
-              }}
-              disabled={!supervisorId}
-            >
-              Continue →
-            </button>
-          ) : currentStep === 'password' ? (
-            <button
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: password ? '#3B82F6' : '#E5E7EB',
-                color: password ? '#FFFFFF' : '#9CA3AF',
-                padding: '16px',
-                borderRadius: '12px',
-                border: 'none',
-                gap: '8px',
-                width: '100%',
-                cursor: password ? 'pointer' : 'not-allowed'
-              }}
-              onClick={handlePasswordSubmit}
-              disabled={!password}
-            >
-              Continue to Duty Selection →
-            </button>
-          ) : null}
-        </div>
-
-        {/* Help Section */}
-        <div style={{ paddingLeft: '24px', paddingRight: '24px', paddingBottom: '24px' }}>
-          <h4 style={{
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#374151',
-            marginBottom: '4px'
-          }}>Need Help?</h4>
-          <p style={{
-            fontSize: '12px',
-            color: '#6B7280',
-            lineHeight: '16px',
-            margin: 0
-          }}>Contact your shift manager or IT support if you're having trouble accessing your account.</p>
-        </div>
-      </div>
-    </div>
+      {/* Password Setup Modal for first-time users */}
+      {selectedSupervisor && (
+        <PasswordSetupModal
+          visible={needsPasswordSetup}
+          supervisorName={selectedSupervisor.name}
+          onSetPassword={handlePasswordSetup}
+          onCancel={() => {
+            setSelectedSupervisor(null);
+            setSelectedDuty(null);
+            setPassword('');
+          }}
+        />
+      )}
+    </>
   );
 };
+
+// Portal render for web to ensure modal is above everything
+const ModalContent = ({ visible, children }) => {
+  if (Platform.OS === 'web' && visible) {
+    return (
+      <View style={styles.webModalPortal}>
+        {children}
+      </View>
+    );
+  }
+  return children;
+};
+
+const styles = StyleSheet.create({
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 1001,  // Ensure modal is above overlay
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    pointerEvents: 'auto',  // Ensure it's interactive on web
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    width: '90%',
+    maxWidth: 600,
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 1002,  // Ensure content is above container
+  },
+  webModalPortal: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 9999,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+  },
+  errorText: {
+    flex: 1,
+    color: '#DC2626',
+    fontSize: 14,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+  },
+  supervisorList: {
+    maxHeight: 200,
+  },
+  supervisorCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  supervisorCardSelected: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
+  },
+  supervisorInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  supervisorDetails: {
+    marginLeft: 12,
+    flex: 1,
+  },
+  supervisorName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  supervisorRole: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: '#E5E7EB',
+    marginRight: 8,
+  },
+  adminBadge: {
+    backgroundColor: '#FEF3C7',
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+  dutyGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  dutyCard: {
+    flex: 1,
+    minWidth: '45%',
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    position: 'relative',
+  },
+  dutyCardSelected: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
+  },
+  dutyName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  dutyNameSelected: {
+    color: '#1E40AF',
+  },
+  dutyShift: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  dutyShiftSelected: {
+    color: '#3B82F6',
+  },
+  dutyCheck: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+  },
+  passwordContainer: {
+    gap: 8,
+  },
+  passwordInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  passwordInput: {
+    flex: 1,
+    padding: 12,
+    fontSize: 14,
+    color: '#1F2937',
+  },
+  eyeButton: {
+    padding: 12,
+  },
+  passwordHint: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  loginButton: {
+    backgroundColor: '#3B82F6',
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  loginButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
+  loginButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  infoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 8,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 18,
+  },
+});
 
 export default SupervisorLogin;

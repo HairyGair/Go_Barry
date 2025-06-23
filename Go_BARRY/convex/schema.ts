@@ -203,4 +203,21 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_key", ["key"]),
+
+  // Duty Boards - PDF storage for supervisor duty boards
+  dutyBoards: defineTable({
+    fileName: v.string(),
+    fileData: v.optional(v.string()), // Legacy: Base64 encoded PDF
+    storageId: v.optional(v.id("_storage")), // New: Convex storage ID
+    fileUrl: v.optional(v.string()), // URL to access the file
+    fileSize: v.number(),
+    uploadedBy: v.string(),
+    uploadedById: v.string(),
+    uploadedAt: v.number(),
+    isActive: v.boolean(),
+    version: v.number(),
+    searchIndex: v.optional(v.string()), // Text content for searching
+  })
+    .index("by_active", ["isActive"])
+    .index("by_upload_date", ["uploadedAt"]),
 });

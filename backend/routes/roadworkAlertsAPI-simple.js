@@ -6,6 +6,12 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANO
 
 console.log('✅ roadworkAlertsAPI-simple.js loaded successfully');
 
+// Debug: Log all routes being registered
+router.use((req, res, next) => {
+  console.log(`🔍 Roadwork alerts route hit: ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 // GET /api/roadwork-alerts - List all roadwork alerts with optional filtering
 router.get('/', async (req, res) => {
   try {

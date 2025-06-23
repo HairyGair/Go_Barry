@@ -45,6 +45,7 @@ import { createServer } from 'http';
 import { deduplicateAlerts, cleanupExpiredDismissals, generateAlertHash } from './utils/alertDeduplication.js';
 import { convexSync } from './services/convexSync.js';
 import startupService from './services/startupService.js';
+import { createClient } from '@supabase/supabase-js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -351,6 +352,82 @@ app.get('/api/roadwork-alerts-test', (req, res) => {
       'GET /api/roadwork-alerts-test': 'This test endpoint'
     }
   });
+});
+
+// TEMPORARY FIX: Direct POST handler for roadwork alerts
+app.post('/api/roadwork-alerts', async (req, res) => {
+  console.log('🚨 TEMPORARY DIRECT POST HANDLER TRIGGERED');
+  console.log('📝 Request body:', req.body);
+  
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    
+    const {
+      title,
+      description,
+      location,
+      areas,
+      status = 'pending',
+      start_date,
+      end_date,
+      all_day,
+      routes_affected,
+      severity = 'medium',
+      contact_info,
+      web_link,
+      created_by_supervisor_id,
+      created_by_name,
+      email_groups = []
+    } = req.body;
+
+    // Basic validation
+    if (!title || !location || !start_date || !created_by_supervisor_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required fields: title, location, start_date, created_by_supervisor_id' 
+      });
+    }
+
+    // Create roadwork alert
+    const { data: roadwork, error: createError } = await supabase
+      .from('roadworks')
+      .insert({
+        title: title.trim(),
+        description: description?.trim(),
+        location: location.trim(),
+        areas,
+        status,
+        start_date,
+        end_date,
+        all_day,
+        routes_affected,
+        severity,
+        contact_info: contact_info?.trim(),
+        web_link: web_link?.trim(),
+        created_by_supervisor_id,
+        created_by_name: created_by_name?.trim(),
+        email_sent: false
+      })
+      .select()
+      .single();
+
+    if (createError) {
+      console.error('❌ Create roadwork alert error:', createError);
+      return res.status(500).json({ success: false, error: createError.message });
+    }
+
+    console.log(`✅ Roadwork alert created: ${title} by ${created_by_name}`);
+    
+    res.status(201).json({ 
+      success: true, 
+      data: roadwork,
+      message: 'Roadwork created successfully (using temporary direct handler)'
+    });
+
+  } catch (error) {
+    console.error('❌ Create roadwork alert error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 // Microsoft authentication routes
@@ -678,6 +755,48 @@ app.get('/api/routes/find-near-coordinate', async (req, res) => {
       success: false,
       error: 'Failed to find routes near coordinate',
       routes: []
+    });
+  }
+});
+
+// Test endpoint for AI diversion engine
+app.get('/api/test/diversions', async (req, res) => {
+  try {
+    const testIncident = {
+      id: 'test_001',
+      type: 'road_closure',
+      location: 'Newcastle Central Station',
+      coordinates: {
+        latitude: 54.9783,
+        longitude: -1.6178
+      },
+      description: 'Test incident for diversion engine',
+      severity: 'High',
+      priority: 'CRITICAL',
+      affectsRoutes: ['21', '22', 'Q3', '1', '2']
+    };
+    
+    const { default: diversionEngine } = await import('./services/intelligence/diversionEngine.js');
+    const suggestions = await diversionEngine.getDiversionSuggestions(testIncident);
+    const formatted = diversionEngine.formatDiversionsForDisplay(suggestions);
+    
+    res.json({
+      success: true,
+      testIncident,
+      suggestions,
+      formatted,
+      summary: {
+        diversions: suggestions.diversions.length,
+        tomtomRoutes: suggestions.tomtomRoutes?.length || 0,
+        keyAdvice: suggestions.generalAdvice.filter(a => a.priority === 'high').length,
+        interchanges: suggestions.interchanges.length
+      }
+    });
+  } catch (error) {
+    console.error('❌ Test diversions error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
@@ -1888,12 +2007,20 @@ async function startServer() {
       console.log(`   👷 Duty Management: /api/duty/start, /api/duty/end, /api/duty/status`);
       console.log(`   📋 Duty Types: /api/duty/types`);
       console.log(`   👥 Active Duties: /api/duty/active`);
+      console.log(`   🧠 Test AI Diversions: /api/test/diversions`);
+      console.log(`   📍 AI Diversion Engine: /api/incidents/:id/diversions`);
       console.log(`\n💡 Active Data Sources:`);
       console.log(`   ✅ TomTom API - Primary traffic intelligence`);
       console.log(`   ✅ National Highways DATEX II - Official UK roadworks`);
       console.log(`   ✅ StreetManager UK - Webhook receiver`);
       console.log(`   ✅ Manual Incidents - Supervisor-created`);
-      console.log(`   🎆 System operational with 4 traffic data sources`);
+      console.log(`   🧠 AI Diversion Engine - GTFS + TomTom routing`);
+      console.log(`   🎆 System operational with 4 traffic data sources + AI diversions`);
+      console.log(`\n📍 New Features:`);
+      console.log(`   🗺️ Incident Map Integration - Visual location context`);
+      console.log(`   🧠 AI Diversions - Local GTFS intelligence + TomTom live routing`);
+      console.log(`   🚦 Real-time traffic-aware alternative routes`);
+      console.log(`   ⏱️ Journey times and distances with traffic delays`);
       console.log(`\n✅ Render.com deployment ready!`);
     });
     
@@ -1914,6 +2041,7 @@ async function startServer() {
 
 // Start the server with immediate port binding for Render
 console.log('🎯 CRITICAL FIX: Binding to port BEFORE initialization to satisfy Render requirements');
+console.log('📍 AI Diversion System: GTFS local intelligence + TomTom live traffic routing');
 
 // Add a small delay to ensure previous instance has released the port
 if (process.env.PORT) {

@@ -90,6 +90,18 @@ const MESSAGE_TEMPLATES = {
   }
 };
 
+// Helper function to get friendly source labels
+const getSourceLabel = (source) => {
+  switch (source) {
+    case 'tomtom_live': return 'TomTom Live Traffic';
+    case 'ai_engine': return 'AI Analysis';
+    case 'gtfs_analysis': return 'Route Intelligence';
+    case 'local_knowledge': return 'Local Knowledge';
+    case 'local_rules': return 'Rule-based';
+    default: return source;
+  }
+};
+
 const AIDisruptionManager = ({ baseUrl }) => {
   const { 
     isLoggedIn, 
@@ -120,6 +132,28 @@ const AIDisruptionManager = ({ baseUrl }) => {
 
   // Learning system
   const [diversionFeedback, setDiversionFeedback] = useState([]);
+  
+  // Map preview function
+  const openMapPreview = (incident, diversion) => {
+    if (!incident.coordinates) return;
+    
+    const lat = incident.coordinates.latitude || incident.coordinates[0];
+    const lng = incident.coordinates.longitude || incident.coordinates[1];
+    
+    // Create a simple map URL with the incident location
+    // In production, this could open a modal with TomTomMapDisplay component
+    const mapUrl = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`;
+    
+    if (isWeb) {
+      window.open(mapUrl, '_blank', 'width=800,height=600');
+    }
+    
+    logActivity(
+      'VIEW_DIVERSION_MAP',
+      `Viewed map for diversion: ${diversion.suggestion}`,
+      incident.id
+    );
+  };
 
   // API base URL
   const API_BASE = baseUrl || (isWeb 
@@ -135,41 +169,128 @@ const AIDisruptionManager = ({ baseUrl }) => {
   const loadActiveIncidents = async () => {
     setLoading(true);
     try {
-      // For now, use mock data. In production, this would come from the backend
-      const mockIncidents = [
-        {
-          id: 'inc_001',
-          type: 'roadwork',
-          location: 'Newcastle City Centre - Grainger Street',
-          coordinates: { latitude: 54.9738, longitude: -1.6131 },
-          affectsRoutes: ['Q3', '10', '21', '22'],
-          severity: 'High',
-          description: 'Gas works causing lane closure',
-          startTime: new Date().toISOString(),
-          status: 'active'
-        },
-        {
-          id: 'inc_002', 
-          type: 'incident',
-          location: 'A19 Southbound - Silverlink',
-          coordinates: { latitude: 55.0344, longitude: -1.4862 },
-          affectsRoutes: ['1', '2', '307'],
-          severity: 'Medium',
-          description: 'Traffic accident blocking one lane',
-          startTime: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-          status: 'active'
-        }
-      ];
-      setIncidents(mockIncidents);
+      // Fetch real incidents from backend
+      const response = await fetch(`${API_BASE}/api/incidents`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.incidents) {
+        // Filter for incidents that need AI assistance
+        const relevantIncidents = data.incidents.filter(incident => 
+          incident.status === 'active' && 
+          incident.affectsRoutes && 
+          incident.affectsRoutes.length > 0
+        );
+        setIncidents(relevantIncidents);
+        console.log(`✅ Loaded ${relevantIncidents.length} active incidents`);
+      } else {
+        console.warn('No incidents data received');
+        setIncidents([]);
+      }
     } catch (error) {
       console.error('Failed to load incidents:', error);
+      // Fallback to showing recent alerts as incidents
+      try {
+        const alertsResponse = await fetch(`${API_BASE}/api/incident-alerts`);
+        if (alertsResponse.ok) {
+          const alertsData = await alertsResponse.json();
+          if (alertsData.success && alertsData.incidents) {
+            const incidentAlerts = alertsData.incidents
+              .filter(alert => alert.isIncident && alert.affectsRoutes?.length > 0)
+              .slice(0, 10); // Show top 10
+            setIncidents(incidentAlerts);
+            console.log(`✅ Using ${incidentAlerts.length} incident alerts`);
+          }
+        }
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError);
+        setIncidents([]);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // AI Diversion Suggestion Engine
-  const generateDiversionSuggestions = (incident) => {
+  // AI Diversion Suggestion Engine - Now with TomTom backend!
+  const generateDiversionSuggestions = async (incident) => {
+    try {
+      // Call backend AI diversion engine
+      const response = await fetch(`${API_BASE}/api/incidents/${incident.id}/diversions`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.success && data.formatted) {
+        console.log(`🧠 Got AI diversions with ${data.formatted.tomtomRoutes?.length || 0} TomTom routes`);
+        
+        // Transform backend format to frontend format
+        const suggestions = [];
+        
+        // Add general advice as suggestions
+        data.formatted.keyAdvice?.forEach(advice => {
+          suggestions.push({
+            reason: 'AI Recommendation',
+            suggestion: advice,
+            affectedServices: incident.affectsRoutes,
+            estimatedDelay: 'See routes below',
+            confidence: 'high',
+            source: 'ai_engine'
+          });
+        });
+        
+        // Add diversion-specific suggestions
+        data.formatted.diversions?.forEach(div => {
+          suggestions.push({
+            reason: `Route ${div.route} Diversion`,
+            suggestion: div.instructions || `Use ${div.primaryAlternative} instead`,
+            affectedServices: [div.route],
+            estimatedDelay: 'Variable',
+            confidence: 'high',
+            source: 'gtfs_analysis'
+          });
+        });
+        
+        // Add TomTom routes as special suggestions
+        data.formatted.tomtomRoutes?.forEach((route, idx) => {
+          suggestions.push({
+            reason: route.type === 'primary' ? 'Fastest Route' : 'Alternative Route',
+            suggestion: `${route.summary} ${route.via ? `via ${route.via}` : ''}`,
+            affectedServices: incident.affectsRoutes,
+            estimatedDelay: route.trafficDelay ? `${route.duration} (${route.trafficDelay})` : route.duration,
+            confidence: route.confidence,
+            source: 'tomtom_live',
+            tomtomData: route
+          });
+        });
+        
+        // Store full response for later use
+        if (data.suggestions) {
+          incident.aiSuggestions = data.suggestions;
+        }
+        
+        return suggestions;
+      }
+      
+      // Fallback to local suggestions if backend fails
+      console.warn('Backend returned no suggestions, using local fallback');
+      return generateLocalSuggestions(incident);
+      
+    } catch (error) {
+      console.error('Failed to get AI diversions:', error);
+      // Fallback to local knowledge base
+      return generateLocalSuggestions(incident);
+    }
+  };
+  
+  // Local fallback suggestions (original logic)
+  const generateLocalSuggestions = (incident) => {
     const suggestions = [];
     
     // Check knowledge base for location-specific diversions
@@ -179,37 +300,18 @@ const AIDisruptionManager = ({ baseUrl }) => {
     
     if (locationKey) {
       const knownDiversions = DIVERSION_KNOWLEDGE_BASE[locationKey].diversions;
-      suggestions.push(...knownDiversions);
+      suggestions.push(...knownDiversions.map(d => ({ ...d, source: 'local_knowledge' })));
     }
     
-    // Rule-based suggestions based on incident type and location
+    // Rule-based suggestions
     if (incident.type === 'roadwork') {
       suggestions.push({
         reason: 'Roadworks detected',
         suggestion: 'Use alternative parallel route where available',
         affectedServices: incident.affectsRoutes,
         estimatedDelay: '10-15 minutes',
-        confidence: 'medium'
-      });
-    }
-    
-    if (incident.location.includes('Bridge')) {
-      suggestions.push({
-        reason: 'Bridge closure/restriction',
-        suggestion: 'Use alternative river crossing',
-        affectedServices: incident.affectsRoutes,
-        estimatedDelay: '15-25 minutes',
-        confidence: 'high'
-      });
-    }
-    
-    if (incident.location.includes('A1') || incident.location.includes('A19')) {
-      suggestions.push({
-        reason: 'Major route disruption',
-        suggestion: 'Use local roads with extended journey time',
-        affectedServices: incident.affectsRoutes,
-        estimatedDelay: '20-30 minutes',
-        confidence: 'high'
+        confidence: 'medium',
+        source: 'local_rules'
       });
     }
     
@@ -234,13 +336,26 @@ const AIDisruptionManager = ({ baseUrl }) => {
   };
 
   // Handle diversion selection
-  const selectDiversion = (incident) => {
+  const selectDiversion = async (incident) => {
     setSelectedIncident(incident);
-    const suggestions = generateDiversionSuggestions(incident);
-    setSuggestedDiversions(suggestions);
     setSelectedDiversion(null);
     setCustomDiversion('');
     setShowDiversionModal(true);
+    setSuggestedDiversions([]); // Clear old suggestions
+    
+    // Show loading state
+    setSuggestedDiversions([{
+      reason: 'Loading...',
+      suggestion: 'Fetching AI-powered diversions with live traffic data...',
+      affectedServices: [],
+      estimatedDelay: '...',
+      confidence: 'loading',
+      source: 'loading'
+    }]);
+    
+    // Fetch real suggestions
+    const suggestions = await generateDiversionSuggestions(incident);
+    setSuggestedDiversions(suggestions);
   };
 
   // Handle message generation
@@ -444,27 +559,88 @@ const AIDisruptionManager = ({ baseUrl }) => {
 
             <Text style={styles.sectionTitle}>AI-Generated Suggestions</Text>
             
+            {suggestedDiversions.length === 0 && (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No suggestions available yet.</Text>
+              </View>
+            )}
+            
             {suggestedDiversions.map((diversion, index) => (
               <TouchableOpacity
                 key={index}
                 style={[
                   styles.diversionCard,
-                  selectedDiversion === diversion && styles.diversionCardSelected
+                  selectedDiversion === diversion && styles.diversionCardSelected,
+                  diversion.source === 'loading' && styles.diversionCardLoading
                 ]}
-                onPress={() => setSelectedDiversion(diversion)}
+                onPress={() => diversion.source !== 'loading' && setSelectedDiversion(diversion)}
+                disabled={diversion.source === 'loading'}
               >
                 <View style={styles.diversionHeader}>
-                  <Text style={styles.diversionReason}>{diversion.reason}</Text>
-                  <View style={styles.confidenceBadge}>
-                    <Text style={styles.confidenceText}>
-                      {diversion.confidence || 'medium'}
-                    </Text>
+                  <View style={styles.diversionTitleRow}>
+                    {diversion.source === 'tomtom_live' && (
+                      <Ionicons name="navigate" size={16} color="#3B82F6" style={styles.sourceIcon} />
+                    )}
+                    {diversion.source === 'ai_engine' && (
+                      <Ionicons name="bulb" size={16} color="#F59E0B" style={styles.sourceIcon} />
+                    )}
+                    {diversion.source === 'gtfs_analysis' && (
+                      <Ionicons name="bus" size={16} color="#10B981" style={styles.sourceIcon} />
+                    )}
+                    {diversion.source === 'loading' && (
+                      <ActivityIndicator size="small" color="#6B7280" style={styles.sourceIcon} />
+                    )}
+                    <Text style={styles.diversionReason}>{diversion.reason}</Text>
                   </View>
+                  {diversion.confidence !== 'loading' && (
+                    <View style={[
+                      styles.confidenceBadge,
+                      diversion.confidence === 'live' && styles.confidenceBadgeLive
+                    ]}>
+                      <Text style={[
+                        styles.confidenceText,
+                        diversion.confidence === 'live' && styles.confidenceTextLive
+                      ]}>
+                        {diversion.confidence === 'live' ? 'LIVE' : diversion.confidence || 'medium'}
+                      </Text>
+                    </View>
+                  )}
                 </View>
-                <Text style={styles.diversionSuggestion}>{diversion.suggestion}</Text>
-                <Text style={styles.diversionDelay}>
-                  Estimated delay: {diversion.estimatedDelay}
+                <Text style={[
+                  styles.diversionSuggestion,
+                  diversion.source === 'loading' && styles.diversionSuggestionLoading
+                ]}>
+                  {diversion.suggestion}
                 </Text>
+                {diversion.estimatedDelay && diversion.estimatedDelay !== '...' && (
+                  <Text style={styles.diversionDelay}>
+                    {diversion.source === 'tomtom_live' ? '⏱️ ' : ''}Estimated: {diversion.estimatedDelay}
+                  </Text>
+                )}
+                {diversion.tomtomData && (
+                  <>
+                    <View style={styles.tomtomDetails}>
+                      <Text style={styles.tomtomDistance}>📍 {diversion.tomtomData.distance}</Text>
+                      {diversion.tomtomData.confidence === 'live' && (
+                        <Text style={styles.tomtomLive}>🔴 Live traffic data</Text>
+                      )}
+                    </View>
+                    {isWeb && selectedIncident?.coordinates && (
+                      <TouchableOpacity
+                        style={styles.mapPreviewButton}
+                        onPress={() => openMapPreview(selectedIncident, diversion)}
+                      >
+                        <Ionicons name="map-outline" size={14} color="#3B82F6" />
+                        <Text style={styles.mapPreviewButtonText}>View on Map</Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
+                {diversion.source && diversion.source !== 'loading' && (
+                  <Text style={styles.sourceLabel}>
+                    Source: {getSourceLabel(diversion.source)}
+                  </Text>
+                )}
               </TouchableOpacity>
             ))}
 
@@ -869,11 +1045,24 @@ const styles = StyleSheet.create({
     borderColor: '#3B82F6',
     backgroundColor: '#EFF6FF',
   },
+  diversionCardLoading: {
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F3F4F6',
+    opacity: 0.8,
+  },
   diversionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  diversionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  sourceIcon: {
+    marginRight: 6,
   },
   diversionReason: {
     fontSize: 14,
@@ -886,11 +1075,17 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4,
   },
+  confidenceBadgeLive: {
+    backgroundColor: '#DC2626',
+  },
   confidenceText: {
     fontSize: 10,
     fontWeight: '600',
     color: '#FFFFFF',
     textTransform: 'uppercase',
+  },
+  confidenceTextLive: {
+    color: '#FFFFFF',
   },
   diversionSuggestion: {
     fontSize: 14,
@@ -898,9 +1093,53 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     lineHeight: 20,
   },
+  diversionSuggestionLoading: {
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
   diversionDelay: {
     fontSize: 12,
     color: '#6B7280',
+    marginTop: 4,
+  },
+  tomtomDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    gap: 12,
+  },
+  tomtomDistance: {
+    fontSize: 12,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  tomtomLive: {
+    fontSize: 12,
+    color: '#DC2626',
+    fontWeight: '500',
+  },
+  sourceLabel: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    marginTop: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  mapPreviewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    gap: 4,
+  },
+  mapPreviewButtonText: {
+    fontSize: 12,
+    color: '#3B82F6',
+    fontWeight: '500',
   },
   customInput: {
     borderWidth: 1,
