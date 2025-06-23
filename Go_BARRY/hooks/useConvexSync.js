@@ -2,10 +2,23 @@
 // Gracefully handles cases where Convex is not deployed yet
 
 import { useEffect, useCallback, useRef, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Safely import AsyncStorage
+let AsyncStorage;
+try {
+  AsyncStorage = require('@react-native-async-storage/async-storage').default;
+} catch (error) {
+  // AsyncStorage not available on web
+  AsyncStorage = {
+    getItem: async () => null,
+    setItem: async () => {},
+    removeItem: async () => {},
+  };
+}
 
 // Safely import Convex with fallbacks
 let useQuery, useMutation, api;
+
 try {
   const convexReact = require('convex/react');
   const apiModule = require('../convex/_generated/api');
@@ -23,10 +36,8 @@ try {
   // Provide fallback functions
   useQuery = () => undefined;
   useMutation = () => {
-    // Return a stable function reference that React can track
-    return useCallback(async () => {
-      return { success: false, error: 'Convex not available' };
-    }, []);
+    // Return a stable function that can be called
+    return async () => ({ success: false, error: 'Convex not available' });
   };
   api = null;
 }
@@ -40,20 +51,37 @@ export function useSupervisorAuth() {
 
   // Load session ID on mount
   useEffect(() => {
-    // Try localStorage first for web
-    if (typeof window !== 'undefined' && window.localStorage) {
-      const storedId = window.localStorage.getItem('convex_session_id');
-      if (storedId) {
-        setSessionId(storedId);
-        console.log('Loaded Convex session from localStorage');
-        return;
+    const loadSessionId = async () => {
+      try {
+        // Try localStorage first for web
+        if (typeof window !== 'undefined' && window.localStorage) {
+          const storedId = window.localStorage.getItem('convex_session_id');
+          if (storedId) {
+            setSessionId(storedId);
+            console.log('Loaded Convex session from localStorage');
+            return;
+          }
+        }
+        
+        // Fall back to AsyncStorage only on native platforms
+        if (typeof window === 'undefined') {
+          try {
+            const id = await AsyncStorage.getItem('convex_session_id');
+            if (id) {
+              setSessionId(id);
+            }
+          } catch (error) {
+            // AsyncStorage not available on web
+            console.log('AsyncStorage not available');
+          }
+        }
+      } catch (error) {
+        // Silently handle errors
+        console.log('Session loading error:', error);
       }
-    }
+    };
     
-    // Fall back to AsyncStorage for React Native
-    AsyncStorage.getItem('convex_session_id').then(id => {
-      if (id) setSessionId(id);
-    }).catch(() => {});
+    loadSessionId();
   }, []);
 
   const authenticateSupervisor = useCallback(async (credentials) => {
@@ -161,6 +189,16 @@ export function useSupervisorActions(options = {}) {
   }
 
   return actions || [];
+}
+
+// Hook for login tracking and analytics
+export function useLoginTracking() {
+  // TEMPORARILY DISABLED for testing - Convex functions not deployed yet
+  return {
+    recentLogins: [],
+    loginHistory: [],
+    trackLogin: async () => ({ success: false, error: 'Login tracking not available' }),
+  };
 }
 
 // Hook for session heartbeat
@@ -305,6 +343,7 @@ export function useConvexSync() {
   const events = useEvents();
   const incidents = useIncidents();
   const alertSync = useAlertSync();
+  const loginTracking = useLoginTracking();
 
   // Get stored session ID on mount
   useEffect(() => {
@@ -319,11 +358,18 @@ export function useConvexSync() {
           }
         }
         
-        // Fall back to AsyncStorage
-        const sessionId = await AsyncStorage.getItem('convex_session_id');
-        if (sessionId) {
-          // Session will be validated by Convex query
-          console.log('Found stored Convex session in AsyncStorage');
+        // Fall back to AsyncStorage only on native
+        if (typeof window === 'undefined') {
+          try {
+            const sessionId = await AsyncStorage.getItem('convex_session_id');
+            if (sessionId) {
+              // Session will be validated by Convex query
+              console.log('Found stored Convex session in AsyncStorage');
+            }
+          } catch (asyncStorageError) {
+            // AsyncStorage might not be available on web
+            console.log('AsyncStorage not available, likely running on web');
+          }
         }
       } catch (error) {
         console.error('Error loading session:', error);
@@ -331,9 +377,7 @@ export function useConvexSync() {
     };
     
     // Call the async function
-    if (typeof loadSession === 'function') {
-      loadSession();
-    }
+    loadSession();
   }, []);
 
   return {
@@ -379,5 +423,10 @@ export function useConvexSync() {
     
     // Alert sync
     syncAlerts: alertSync.syncAlerts,
+    
+    // Login tracking
+    recentLogins: loginTracking.recentLogins,
+    loginHistory: loginTracking.loginHistory,
+    trackLogin: loginTracking.trackLogin,
   };
 }

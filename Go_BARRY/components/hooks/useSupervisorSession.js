@@ -65,17 +65,20 @@ const passwordStorageService = {
   }
 };
 
-// Session storage service (same as before)
+// Session storage service with configurable timeout
 const sessionStorageService = {
   memoryStorage: new Map(),
   storageKey: 'barry_supervisor_session',
+  defaultTimeout: 10 * 60 * 1000, // 10 minutes default
   
-  saveSession(sessionData) {
+  saveSession(sessionData, rememberMe = false) {
     try {
+      const timeout = rememberMe ? (60 * 60 * 1000) : this.defaultTimeout; // 1 hour if remember me
       const sessionWithTimestamp = {
         ...sessionData,
         savedAt: Date.now(),
-        expiresAt: Date.now() + (8 * 60 * 60 * 1000) // 8 hours
+        expiresAt: Date.now() + timeout,
+        rememberMe: rememberMe
       };
       
       this.memoryStorage.set(this.storageKey, sessionWithTimestamp);
@@ -289,7 +292,16 @@ export const useSupervisorSession = () => {
     return loginResult;
   }, [pendingLoginData]);
 
-  // Login function with password check
+  // Update session timeout
+  const updateSessionTimeout = useCallback((newTimeout) => {
+    const session = sessionStorageService.loadSession();
+    if (session) {
+      session.expiresAt = Date.now() + newTimeout;
+      sessionStorageService.saveSession(session, session.rememberMe);
+    }
+  }, []);
+
+  // Login function with password check and remember me
   const login = useCallback(async (loginData) => {
     setIsLoading(true);
     setError(null);
@@ -365,8 +377,8 @@ export const useSupervisorSession = () => {
         lastActivity: Date.now(),
       };
       
-      // Save and set session
-      sessionStorageService.saveSession(session);
+      // Save and set session with remember me option
+      sessionStorageService.saveSession(session, loginData.rememberMe);
       setSupervisorSession(session);
       
       // Log activity
@@ -385,7 +397,7 @@ export const useSupervisorSession = () => {
         if (convexResult?.success) {
           console.log('✅ Convex sync successful');
           const updatedSession = { ...session, convexSessionId: convexResult.sessionId };
-          sessionStorageService.saveSession(updatedSession);
+          sessionStorageService.saveSession(updatedSession, loginData.rememberMe);
           setSupervisorSession(updatedSession);
         }
       } catch (convexError) {
@@ -415,7 +427,7 @@ export const useSupervisorSession = () => {
           if (responseData?.success) {
             console.log('✅ Backend authentication successful');
             const updatedSession = { ...session, backendSessionId: responseData.sessionId };
-            sessionStorageService.saveSession(updatedSession);
+            sessionStorageService.saveSession(updatedSession, loginData.rememberMe);
             setSupervisorSession(updatedSession);
           }
         }
@@ -607,6 +619,7 @@ export const useSupervisorSession = () => {
     setPassword,
     changePassword,
     needsPasswordSetup,
+    updateSessionTimeout,
     isLoggedIn: !!supervisorSession,
     supervisorName: supervisorSession?.supervisor?.name,
     supervisorRole: supervisorSession?.supervisor?.role,

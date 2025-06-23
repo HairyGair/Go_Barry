@@ -780,3 +780,79 @@ export const heartbeat = mutation({
     return { success: true };
   },
 });
+
+// LOGIN TRACKING FUNCTIONS
+
+// Track login attempt
+export const trackLogin = mutation({
+  args: {
+    supervisorId: v.string(),
+    supervisorName: v.string(),
+    dutyId: v.string(),
+    timestamp: v.string(),
+    success: v.boolean(),
+    error: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Insert login record
+    await ctx.db.insert("loginHistory", {
+      supervisorId: args.supervisorId,
+      supervisorName: args.supervisorName,
+      dutyId: args.dutyId,
+      timestamp: args.timestamp,
+      success: args.success,
+      error: args.error,
+      createdAt: Date.now(),
+    });
+
+    console.log(`📝 Login tracked: ${args.supervisorName} - ${args.success ? 'Success' : 'Failed'}`);
+    
+    return { success: true };
+  },
+});
+
+// Get recent logins (for quick access)
+export const getRecentLogins = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 10;
+    
+    // Get only successful logins
+    const logins = await ctx.db
+      .query("loginHistory")
+      .filter(q => q.eq(q.field("success"), true))
+      .order("desc")
+      .take(limit * 2); // Get more to filter for unique supervisors
+    
+    // Filter to get unique supervisors
+    const seen = new Set();
+    const uniqueLogins = [];
+    
+    for (const login of logins) {
+      if (!seen.has(login.supervisorId)) {
+        seen.add(login.supervisorId);
+        uniqueLogins.push(login);
+        if (uniqueLogins.length >= limit) break;
+      }
+    }
+    
+    return uniqueLogins;
+  },
+});
+
+// Get full login history (admin only)
+export const getLoginHistory = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 100;
+    
+    return await ctx.db
+      .query("loginHistory")
+      .order("desc")
+      .take(limit);
+  },
+});

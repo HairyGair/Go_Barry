@@ -85,6 +85,20 @@ export default defineSchema({
     .index("by_timestamp", ["timestamp"])
     .index("by_alert", ["alertId"]),
 
+  // Login history for analytics
+  loginHistory: defineTable({
+    supervisorId: v.string(),
+    supervisorName: v.string(),
+    dutyId: v.string(),
+    timestamp: v.string(),
+    success: v.boolean(),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_supervisor", ["supervisorId"])
+    .index("by_success", ["success"])
+    .index("by_timestamp", ["createdAt"]),
+
   // Shared sync state (replaces WebSocket state)
   syncState: defineTable({
     key: v.string(), // Single record with key "global"
