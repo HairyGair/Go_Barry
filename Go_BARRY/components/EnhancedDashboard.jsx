@@ -23,6 +23,9 @@ import { useConvexSync } from '../hooks/useConvexSync';
 import typography, { getAlertIcon, getSeverityIcon } from '../theme/typography';
 import ConvexTest from './ConvexTest'; // Temporary test component
 import { formatTime24, formatDateTimeUK } from '../utils/dateTime';
+import { SkeletonAlert } from './ui/SkeletonLoader';
+import { SystemHealthMonitor } from './ui/TrustSignals';
+import { useAnalytics } from '../services/analytics';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -33,6 +36,9 @@ const EnhancedDashboard = ({
   onViewAllPress
   // autoRefreshInterval removed - Convex is real-time
 }) => {
+  // Analytics tracking
+  const { track, featureUsed } = useAnalytics();
+  
   // FIXED: Use Convex for real-time alerts sync
   const { activeAlerts } = useConvexSync();
   
@@ -241,6 +247,14 @@ const EnhancedDashboard = ({
   const handleAlertClick = useCallback((alert) => {
     console.log('🎯 Alert card clicked:', alert.title, 'Coordinates:', alert.coordinates);
     
+    // Track alert interaction
+    track('alert_clicked', {
+      alertId: alert.id,
+      severity: alert.severity,
+      hasCoordinates: !!alert.coordinates,
+      source: alert.source
+    });
+    
     // Zoom map to alert location if it has coordinates
     if (alert.coordinates && Array.isArray(alert.coordinates) && alert.coordinates.length >= 2) {
       setMapZoomTarget({
@@ -258,7 +272,7 @@ const EnhancedDashboard = ({
       // Show alert details in modal instead of browser alert
       setSelectedAlertDetails(alert);
     }
-  }, [onAlertPress]);
+  }, [onAlertPress, track]);
 
   // Statistics calculations
   const stats = useMemo(() => {
@@ -346,7 +360,10 @@ const EnhancedDashboard = ({
             styles.filterTab,
             selectedFilter === filter.key && styles.filterTabActive
           ]}
-          onPress={() => setSelectedFilter(filter.key)}
+          onPress={() => {
+            setSelectedFilter(filter.key);
+            track('filter_changed', { filter: filter.key, count: filter.count });
+          }}
         >
           <Text style={[
             styles.filterTabText,
@@ -458,32 +475,10 @@ const EnhancedDashboard = ({
     );
   };
 
-  // System status component - simplified for Convex-only
+  // System status component - using Trust Signals
   const SystemStatus = () => (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>System Status</Text>
-      <View style={styles.statusGrid}>
-        <View style={styles.statusItem}>
-          <Text style={styles.statusIcon}>🔄</Text>
-          <Text style={styles.statusText}>
-            Convex: {activeAlerts ? 'Connected' : 'Connecting...'}
-          </Text>
-        </View>
-        
-        <View style={styles.statusItem}>
-          <Ionicons name="analytics" size={16} color="#10B981" />
-          <Text style={styles.statusText}>
-            Live Alerts: {alertsData?.alerts?.length || 0}
-          </Text>
-        </View>
-        
-        <View style={styles.statusItem}>
-          <Ionicons name="shield-checkmark" size={16} color="#3B82F6" />
-          <Text style={styles.statusText}>
-            Real-time Sync: Active
-          </Text>
-        </View>
-      </View>
+      <SystemHealthMonitor compact={false} />
     </View>
   );
 
@@ -571,8 +566,45 @@ const EnhancedDashboard = ({
   // Main render - simplified for Convex
   if (loading && !alertsData) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Connecting to Convex...</Text>
+      <View style={styles.container}>
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerContent}>
+              <View style={styles.headerLeft}>
+                {isWeb && (
+                  <img 
+                    src="/gobarry-logo.png" 
+                    alt="Go BARRY Logo" 
+                    style={{
+                      height: 32,
+                      width: 'auto',
+                      objectFit: 'contain',
+                      marginRight: 12
+                    }}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                )}
+                <View>
+                  <Text style={styles.headerTitle}>BARRY Intelligence Dashboard</Text>
+                  <Text style={styles.headerSubtitle}>
+                    Connecting to Convex real-time sync...
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Skeleton Loading States */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Loading Traffic Alerts...</Text>
+            <SkeletonAlert />
+            <SkeletonAlert />
+            <SkeletonAlert />
+          </View>
+        </ScrollView>
       </View>
     );
   }

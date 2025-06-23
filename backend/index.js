@@ -35,6 +35,7 @@ import tomtomUsageAPI from './routes/tomtomUsageAPI.js';
 import activityLogsAPI from './routes/activityLogs.js';
 import dutyAPI from './routes/dutyAPI.js';
 import messagingAPI from './routes/messagingAPI.js';
+import analyticsAPI from './routes/analyticsAPI.js';
 import supervisorManager from './services/supervisorManager.js';
 import serviceFrequencyAnalyzer from './services/serviceFrequencyAnalyzer.js';
 import supervisorSyncService from './services/supervisorSync.js';
@@ -474,6 +475,11 @@ console.log('✅ Duty management routes registered');
 console.log('📦 Registering messaging routes at /api/messaging...');
 app.use('/api/messaging', messagingAPI);
 console.log('✅ Messaging routes registered successfully');
+
+// Analytics routes
+console.log('📊 Registering analytics routes at /api/analytics...');
+app.use('/api/analytics', analyticsAPI);
+console.log('✅ Analytics routes registered successfully');
 
 import { enhanceAlertWithCategory } from './services/alertCategorizer.js';
 

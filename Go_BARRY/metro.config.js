@@ -2,29 +2,32 @@ const { getDefaultConfig } = require("expo/metro-config");
 
 const config = getDefaultConfig(__dirname);
 
-// Add web platform support
-config.resolver.platforms = ["web", "ios", "android", "native"];
-
-// Production optimizations
-if (process.env.NODE_ENV === 'production') {
-  // Enable minification for production builds
-  config.transformer.minifierConfig = {
-    mangle: true,
-    output: {
-      comments: false,
-    },
-  };
-  
-  // Enable tree shaking
-  config.transformer.unstable_allowRequireContext = true;
-}
-
-// Web-specific optimizations
-config.resolver.alias = {
-  'react-native': 'react-native-web',
+// Performance optimizations
+config.resolver = {
+  ...config.resolver,
+  // Faster module resolution
+  hasteImplModulePath: null,
+  // Skip unused platforms
+  platforms: ['web', 'ios', 'android'],
 };
 
-// Resolve modules that don't exist on web
-config.resolver.resolverMainFields = ['react-native', 'browser', 'main'];
+// Minification for production
+config.transformer = {
+  ...config.transformer,
+  minifierPath: 'metro-minify-terser',
+  minifierConfig: {
+    keep_fnames: true,
+    mangle: {
+      keep_fnames: true,
+    },
+    compress: {
+      drop_console: process.env.NODE_ENV === 'production',
+    },
+  },
+};
+
+// Caching optimization
+config.cacheVersion = '1.0';
+config.resetCache = false;
 
 module.exports = config;

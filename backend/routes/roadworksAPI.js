@@ -588,6 +588,47 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+// POST /api/roadworks/sync/one-network - Sync roadworks from One.Network (manual trigger)
+router.post('/sync/one-network', async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+
+    // Optional: Validate supervisor session for manual triggers
+    if (sessionId) {
+      const sessionValidation = validateSupervisorSession(sessionId);
+      if (!sessionValidation.success) {
+        return res.status(401).json({
+          success: false,
+          error: 'Invalid supervisor session'
+        });
+      }
+    }
+
+    console.log('🔄 Starting One.Network sync...');
+    
+    // Import and run the One.Network service
+    const { default: OneNetworkService } = await import('../services/oneNetworkService.js');
+    const oneNetworkService = new OneNetworkService();
+    
+    // Run in background, don't wait
+    oneNetworkService.run().catch(error => {
+      console.error('❌ One.Network sync failed:', error);
+    });
+
+    res.json({
+      success: true,
+      message: 'One.Network sync started in background. Check logs for progress.'
+    });
+
+  } catch (error) {
+    console.error('Failed to start One.Network sync:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to start sync'
+    });
+  }
+});
+
 // Helper Functions
 
 function determinePriority(affectedRoutes, roadworkType, estimatedDuration) {

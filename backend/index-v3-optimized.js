@@ -458,6 +458,37 @@ app.listen(PORT, '0.0.0.0', () => {
       global.gc();
     }
   }, 5 * 60 * 1000); // Every 5 minutes
+  
+  // One.Network sync job (every 30 minutes)
+  if (process.env.ONE_NETWORK_SYNC_ENABLED === 'true') {
+    console.log('🔄 One.Network sync enabled - will run every 30 minutes');
+    
+    // Run immediately on startup
+    setTimeout(async () => {
+      try {
+        console.log('🚀 Running initial One.Network sync...');
+        const OneNetworkService = await import('./services/oneNetworkService.js');
+        const service = new OneNetworkService.default();
+        await service.run();
+      } catch (error) {
+        console.error('❌ Initial One.Network sync failed:', error.message);
+      }
+    }, 10000); // Wait 10 seconds after startup
+    
+    // Then run every 30 minutes
+    setInterval(async () => {
+      try {
+        console.log('🔄 Running scheduled One.Network sync...');
+        const OneNetworkService = await import('./services/oneNetworkService.js');
+        const service = new OneNetworkService.default();
+        await service.run();
+      } catch (error) {
+        console.error('❌ Scheduled One.Network sync failed:', error.message);
+      }
+    }, 30 * 60 * 1000); // Every 30 minutes
+  } else {
+    console.log('⏸️ One.Network sync disabled (set ONE_NETWORK_SYNC_ENABLED=true to enable)');
+  }
 });
 
 export default app;
