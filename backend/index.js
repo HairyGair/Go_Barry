@@ -531,30 +531,109 @@ import { enhanceAlertWithCategory } from './services/alertCategorizer.js';
 // Filtered alerts endpoints for manager screens
 app.get('/api/roadworks-alerts', async (req, res) => {
   try {
-    console.log('🚧 Fetching roadwork alerts for manager...');
+    console.log('🚧 Fetching roadwork alerts for manager (including StreetManager)...');
     
-    // Get alerts from enhanced endpoint
-    const aggregatedResult = await enhancedDataSourceManager.aggregateAllSources();
+    let allRoadworks = [];
+    let sourceStats = {};
     
-    if (!aggregatedResult || !aggregatedResult.incidents) {
-      return res.json({ success: true, roadworks: [] });
+    // 1. Get alerts from traffic APIs (TomTom, National Highways, etc.)
+    try {
+      const aggregatedResult = await enhancedDataSourceManager.aggregateAllSources();
+      
+      if (aggregatedResult && aggregatedResult.incidents) {
+        // Enhance alerts with categories
+        const categorizedAlerts = aggregatedResult.incidents.map(enhanceAlertWithCategory);
+        
+        // Filter for roadworks only
+        const trafficRoadworkAlerts = categorizedAlerts.filter(alert => alert.isRoadwork);
+        allRoadworks.push(...trafficRoadworkAlerts);
+        sourceStats = aggregatedResult.sourceStats || {};
+        
+        console.log(`✅ Found ${trafficRoadworkAlerts.length} roadwork alerts from traffic APIs`);
+      }
+    } catch (trafficError) {
+      console.error('⚠️ Error fetching traffic roadworks:', trafficError);
     }
     
-    // Enhance alerts with categories
-    const categorizedAlerts = aggregatedResult.incidents.map(enhanceAlertWithCategory);
+    // 2. Get StreetManager roadworks from database
+    try {
+      const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+      const { data: streetManagerRoadworks, error: dbError } = await supabase
+        .from('roadworks')
+        .select('*')
+        .eq('source', 'streetmanager')
+        .order('created_at', { ascending: false });
+      
+      if (dbError) {
+        console.error('⚠️ Error fetching StreetManager roadworks:', dbError);
+      } else if (streetManagerRoadworks && streetManagerRoadworks.length > 0) {
+        // Transform database roadworks to match API format
+        const transformedStreetManagerRoadworks = streetManagerRoadworks.map(rw => ({
+          id: rw.id || `streetmanager_${Date.now()}`,
+          title: rw.title,
+          description: rw.description || '',
+          location: rw.location,
+          coordinates: rw.coordinates ? [rw.coordinates.latitude, rw.coordinates.longitude] : null,
+          status: rw.status,
+          severity: rw.severity,
+          type: 'roadwork',
+          source: 'StreetManager',
+          dataSource: 'Street Manager Database',
+          
+          // StreetManager specific fields
+          authority: rw.highway_authority || rw.contact_info,
+          permitReference: rw.permit_reference,
+          activityReference: rw.activity_reference,
+          workReference: rw.work_reference,
+          workCategory: rw.work_category,
+          workType: rw.work_type,
+          isEmergency: rw.is_emergency || false,
+          trafficManagementType: rw.traffic_management_type,
+          streetName: rw.street_name,
+          areaName: rw.area_name,
+          usrn: rw.usrn,
+          eventType: rw.event_type,
+          eventTime: rw.event_time,
+          
+          // Timing
+          startDate: rw.start_date,
+          endDate: rw.end_date,
+          lastUpdated: rw.updated_at || rw.created_at,
+          
+          // Enhancement flags
+          locationAccuracy: 'high',
+          routeMatchMethod: 'streetmanager-database',
+          officialSource: true,
+          realTimeUpdate: true,
+          isRoadwork: true,
+          
+          // Routes affected
+          affectsRoutes: rw.routes_affected || []
+        }));
+        
+        allRoadworks.push(...transformedStreetManagerRoadworks);
+        sourceStats.streetManager = {
+          name: 'StreetManager Database',
+          count: transformedStreetManagerRoadworks.length,
+          status: 'active'
+        };
+        
+        console.log(`✅ Found ${transformedStreetManagerRoadworks.length} StreetManager roadworks from database`);
+      }
+    } catch (dbError) {
+      console.error('⚠️ Error fetching StreetManager roadworks from database:', dbError);
+    }
     
-    // Filter for roadworks only
-    const roadworkAlerts = categorizedAlerts.filter(alert => alert.isRoadwork);
-    
-    console.log(`✅ Filtered ${roadworkAlerts.length} roadwork alerts from ${aggregatedResult.incidents.length} total`);
+    console.log(`✅ Total roadwork alerts: ${allRoadworks.length}`);
     
     res.json({
       success: true,
-      roadworks: roadworkAlerts,
+      roadworks: allRoadworks,
       metadata: {
-        total: roadworkAlerts.length,
-        sources: aggregatedResult.sourceStats,
-        lastUpdated: new Date().toISOString()
+        total: allRoadworks.length,
+        sources: sourceStats,
+        lastUpdated: new Date().toISOString(),
+        includesStreetManager: true
       }
     });
   } catch (error) {
