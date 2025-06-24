@@ -5,7 +5,7 @@ OVERVIEW
 
 BARRY is a complete traffic intelligence platform designed for Go North East bus operations. The system provides real-time traffic monitoring, roadworks alerts, and route impact analysis to support operational decision-making and passenger information services.
 
-The platform consists of a React Native mobile application and a Node.js backend API that integrates multiple traffic data sources including Street Manager, National Highways, HERE Traffic API, and MapQuest.
+The platform consists of a React Native mobile application and a Node.js backend API that integrates multiple traffic data sources including Street Manager, National Highways, and TomTom Traffic API.
 
 PROJECT STRUCTURE
 =================
@@ -50,8 +50,7 @@ Mobile Application:
 Backend API:
 - Street Manager integration via AWS SNS webhooks
 - National Highways DATEX II API connectivity
-- HERE Traffic API for real-time congestion data
-- MapQuest Traffic API for detailed incident information
+- TomTom Traffic API for real-time congestion data
 - GTFS route mapping for bus service impact analysis
 - Multi-source data validation and deduplication
 - RESTful API endpoints for frontend consumption
@@ -77,17 +76,11 @@ National Highways:
 - Strategic road network disruptions
 - DATEX II standard compliance
 
-HERE Traffic API:
+TomTom Traffic API:
 - Real-time traffic flow data
 - Congestion level analysis
-- Lane-level precision information
-- Historical traffic patterns
-
-MapQuest Traffic API:
-- Detailed incident descriptions
+- Detailed incident information
 - Construction event information
-- Traffic delay estimates
-- Alternative route suggestions
 
 INSTALLATION
 ============
@@ -124,12 +117,6 @@ SUPABASE_ANON_KEY=your_supabase_anon_key_here
 
 # TomTom API
 TOMTOM_API_KEY=your_tomtom_api_key_here
-
-# HERE Traffic API
-HERE_API_KEY=your_here_api_key_here
-
-# MapQuest API
-MAPQUEST_API_KEY=your_mapquest_api_key_here
 
 # API URLs
 NATIONAL_HIGHWAYS_API_URL=https://api.data.nationalhighways.co.uk/roads/v2.0/closures

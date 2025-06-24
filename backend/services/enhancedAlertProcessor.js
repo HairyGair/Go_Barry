@@ -74,28 +74,6 @@ export async function getEnhancedLocation(lat, lng, fallbackDescription = '') {
     console.warn(`⚠️ Geocoding failed for ${lat}, ${lng}:`, error.message);
   }
 
-  // Fallback: Use MapQuest if available
-  if (process.env.MAPQUEST_API_KEY) {
-    try {
-      const mapquestUrl = `https://www.mapquestapi.com/geocoding/v1/reverse?key=${process.env.MAPQUEST_API_KEY}&location=${lat},${lng}&includeRoadMetadata=true&includeNearestIntersection=true`;
-      
-      const response = await axios.get(mapquestUrl, { timeout: 3000 });
-      
-      if (response.data?.results?.[0]?.locations?.[0]) {
-        const location = response.data.results[0].locations[0];
-        const street = location.street || '';
-        const city = location.adminArea5 || location.adminArea4 || '';
-        
-        if (street || city) {
-          const mapquestLocation = [street, city].filter(Boolean).join(', ');
-          console.log(`📍 MapQuest fallback: ${lat}, ${lng} → "${mapquestLocation}"`);
-          return mapquestLocation;
-        }
-      }
-    } catch (error) {
-      console.warn(`⚠️ MapQuest geocoding failed:`, error.message);
-    }
-  }
 
   // Final fallback
   return fallbackDescription || `Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;

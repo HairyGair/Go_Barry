@@ -9,9 +9,7 @@ export function addQuickTestEndpoint(app) {
       message: 'Backend is working with improved routes!',
       timestamp: new Date().toISOString(),
       apiKeys: {
-        tomtom: !!process.env.TOMTOM_API_KEY,
-        mapquest: !!process.env.MAPQUEST_API_KEY,
-        here: !!process.env.HERE_API_KEY
+        tomtom: !!process.env.TOMTOM_API_KEY
       }
     });
   });

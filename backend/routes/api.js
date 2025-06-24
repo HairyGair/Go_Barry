@@ -3,7 +3,6 @@
 
 // Import all the services and utilities
 import { fetchTomTomTrafficWithStreetNames } from "../services/tomtom.js";
-import { fetchMapQuestTrafficWithStreetNames } from "../services/mapquest.js";
 import { fetchHERETrafficWithStreetNames } from "../services/here.js";
 import { fetchNationalHighways } from "../services/nationalHighways.js";
 import { fetchSCOOTTrafficData } from "../services/scoot.js";
@@ -143,37 +142,6 @@ export function setupAPIRoutes(app, globalState) {
         };
       }
       
-      // 3. Get MapQuest alerts (if working)
-      console.log('🗺️ Fetching MapQuest alerts...');
-      try {
-        const mapquestResult = await fetchMapQuestTrafficWithStreetNames();
-        if (mapquestResult.success && mapquestResult.data && mapquestResult.data.length > 0) {
-          allAlerts.push(...mapquestResult.data);
-          sources.mapquest = {
-            success: true,
-            count: mapquestResult.data.length,
-            method: 'Enhanced with Location Processing (Live Data)',
-            mode: 'live'
-          };
-          console.log(`✅ MapQuest: ${mapquestResult.data.length} alerts fetched`);
-        } else {
-          sources.mapquest = {
-            success: false,
-            count: 0,
-            error: mapquestResult.error || 'No data returned',
-            mode: 'live'
-          };
-          console.log('⚠️ MapQuest: No alerts returned or auth issue');
-        }
-      } catch (mapquestError) {
-        console.error('❌ MapQuest fetch failed:', mapquestError.message);
-        sources.mapquest = {
-          success: false,
-          count: 0,
-          error: mapquestError.message,
-          mode: 'live'
-        };
-      }
       
       // 5. Get SCOOT real-time traffic intelligence
       console.log('😦 Fetching SCOOT traffic intelligence...');
@@ -599,21 +567,6 @@ export function setupAPIRoutes(app, globalState) {
         console.error('❌ TomTom test error:', error.message);
       }
       
-      // Test MapQuest
-      console.log('🗺️ Testing MapQuest API...');
-      try {
-        const mapquestData = await fetchMapQuestTrafficWithStreetNames();
-        results.mapquest = {
-          success: mapquestData.success,
-          dataCount: mapquestData.data ? mapquestData.data.length : 0,
-          error: mapquestData.error || null,
-          sample: mapquestData.data && mapquestData.data.length > 0 ? mapquestData.data[0] : null
-        };
-        console.log('✅ MapQuest test result:', results.mapquest.success ? 'SUCCESS' : 'FAILED');
-      } catch (error) {
-        results.mapquest = { success: false, error: error.message, dataCount: 0 };
-        console.error('❌ MapQuest test error:', error.message);
-      }
       
       console.log('📊 Debug results summary:', {
         tomtom: results.tomtom?.success || false,

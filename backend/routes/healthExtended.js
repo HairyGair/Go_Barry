@@ -47,11 +47,6 @@ router.get('/', async (req, res) => {
       params: `?bbox=54.8,-1.8;55.1,-1.4&apiKey=${process.env.HERE_API_KEY}`
     },
     {
-      name: 'mapquest',
-      url: 'https://www.mapquestapi.com/traffic/v2/incidents',
-      params: `?key=${process.env.MAPQUEST_API_KEY}&boundingBox=55.05,-2.10,54.75,-1.35`
-    },
-    {
       name: 'nationalHighways',
       url: process.env.NATIONAL_HIGHWAYS_API_URL,
       headers: { 'Ocp-Apim-Subscription-Key': process.env.NATIONAL_HIGHWAYS_API_KEY }

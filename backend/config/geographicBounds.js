@@ -88,15 +88,6 @@ export function getBoundsForAPI(apiProvider, preferredRegion = null) {
         ? config.regions[preferredRegion].bounds
         : config.combinedBounds;
         
-    case 'mapquest':
-      // MapQuest uses boundingBox format (different parameter order)
-      const bounds = preferredRegion && config.regions[preferredRegion]
-        ? config.regions[preferredRegion].bounds  
-        : config.combinedBounds;
-      // Convert from 'south,north,west,east' to 'north,west,south,east'
-      const [south, north, west, east] = bounds.split(',');
-      return `${north},${west},${south},${east}`;
-      
     case 'here':
       // HERE API uses bbox
       return preferredRegion && config.regions[preferredRegion]

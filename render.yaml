@@ -16,10 +16,6 @@ services:
       # API Keys and Environment
       - key: TOMTOM_API_KEY
         sync: false
-      - key: MAPQUEST_API_KEY  
-        sync: false
-      - key: HERE_API_KEY
-        sync: false
       - key: MAPBOX_API_KEY
         sync: false
       - key: NATIONAL_HIGHWAYS_API_KEY

@@ -94,9 +94,7 @@ export function deduplicateAlerts(alerts, requestId) {
       // Preference: newer timestamp, higher severity, better source
       const sourcePreference = { 
         tomtom: 4, 
-        here: 3, 
         national_highways: 2, 
-        mapquest: 1,
         manual_incident: 5 // Manual incidents have highest priority
       };
       

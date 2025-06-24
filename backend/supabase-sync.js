@@ -412,8 +412,6 @@ Environment variables required:
   SUPABASE_URL               - Your SupaBase project URL
   SUPABASE_SERVICE_ROLE_KEY  - Your SupaBase service role key
   NATIONAL_HIGHWAYS_API_KEY - National Highways API key
-  HERE_API_KEY          - HERE Traffic API key
-  MAPQUEST_API_KEY      - MapQuest API key
       `);
       process.exit(0);
   }

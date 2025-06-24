@@ -142,10 +142,6 @@ function isInNorthEast(location, description = '') {
   // If ANY keyword matches, include it
   const hasKeyword = keywords.some(keyword => text.includes(keyword));
   
-  // If we already filtered by bounding box (MapQuest), trust that filtering
-  if (!hasKeyword && description.includes('MAPQUEST')) {
-    return true; // Trust MapQuest's geographic filtering
-  }
   
   return hasKeyword;
 }

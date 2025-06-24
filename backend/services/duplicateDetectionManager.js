@@ -14,9 +14,7 @@ class DuplicateDetectionManager {
       sourceReliability: {
         'national_highways': 1.0,    // Government data - highest reliability
         'tomtom': 0.9,              // Commercial API - high reliability
-        'here': 0.85,               // Commercial API - high reliability  
         'streetmanager': 0.95,      // Official UK roadworks - very high
-        'mapquest': 0.75,           // Commercial API - medium-high
         'manual_incidents': 0.8     // Manual entry - depends on supervisor
       }
     };

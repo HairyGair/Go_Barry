@@ -27,14 +27,6 @@ class EnhancedGeocodingService {
         rateLimited: false,
         lastCall: 0,
         minimumInterval: 1000 // 1 second between calls (respectful)
-      },
-      here: {
-        name: 'HERE Geocoding',
-        url: 'https://geocode.search.hereapi.com/v1/geocode',
-        reliability: 0.9,
-        rateLimited: true,
-        lastCall: 0,
-        minimumInterval: 90000 // 1.5 minutes (same as HERE traffic)
       }
     };
     
@@ -154,8 +146,6 @@ class EnhancedGeocodingService {
       
       if (source === 'nominatim') {
         result = await this.geocodeWithNominatim(location);
-      } else if (source === 'here') {
-        result = await this.geocodeWithHERE(location);
       }
       
       if (api.rateLimited) {
@@ -211,40 +201,6 @@ class EnhancedGeocodingService {
     };
   }
 
-  // Geocode with HERE API (paid, high accuracy)
-  async geocodeWithHERE(location) {
-    if (!process.env.HERE_API_KEY) {
-      throw new Error('HERE API key not available');
-    }
-
-    const ukEnhancedLocation = this.enhanceLocationForUK(location);
-    const params = new URLSearchParams({
-      q: ukEnhancedLocation,
-      'in': 'countryCode:GBR',
-      limit: '5',
-      apiKey: process.env.HERE_API_KEY
-    });
-
-    const response = await fetch(`${this.geocodingAPIs.here.url}?${params}`);
-    
-    if (!response.ok) {
-      throw new Error(`HERE API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    
-    if (!data.items || data.items.length === 0) return null;
-
-    const result = data.items[0];
-    return {
-      latitude: result.position.lat,
-      longitude: result.position.lng,
-      formattedAddress: result.title,
-      confidence: this.calculateHEREConfidence(result, location),
-      components: result.address || {},
-      source: 'here'
-    };
-  }
 
   // Enhance location string for UK geocoding
   enhanceLocationForUK(location) {
@@ -290,21 +246,6 @@ class EnhancedGeocodingService {
     return Math.min(1.0, confidence);
   }
 
-  // Calculate confidence for HERE results
-  calculateHEREConfidence(result, originalLocation) {
-    let confidence = 0.8; // Base confidence for HERE (commercial service)
-    
-    // Boost based on result scoring
-    if (result.scoring && result.scoring.queryScore) {
-      confidence += result.scoring.queryScore * 0.2;
-    }
-    
-    // Boost if exact match type
-    if (result.resultType === 'houseNumber') confidence += 0.1;
-    if (result.resultType === 'street') confidence += 0.05;
-    
-    return Math.min(1.0, confidence);
-  }
 
   // Check if coordinates are within UK bounds
   isWithinUKBounds(lat, lon) {

@@ -14,7 +14,7 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 console.log('🚦 BARRY SIMPLE Traffic System Loading...');
-console.log('📊 Data Sources: TomTom + MapQuest + National Highways + HERE (simple approach)');
+console.log('📊 Data Sources: TomTom + National Highways (simple approach)');
 
 // SIMPLE: One bounding box for the entire North East
 const NORTH_EAST_BBOX = {
@@ -86,100 +86,6 @@ async function fetchTomTomTraffic() {
   // ... [Unchanged: your TomTom function] ...
 }
 
-// SIMPLE: MapQuest Traffic (single large bounding box)
-async function fetchMapQuestTraffic() {
-  if (!process.env.MAPQUEST_API_KEY) {
-    console.warn('⚠️ MapQuest API key not found');
-    return { success: false, alerts: [], apiCalls: 0 };
-  }
-
-  try {
-    console.log('🗺️ Fetching MapQuest traffic data (single large area)...');
-    const response = await axios.get('https://www.mapquestapi.com/traffic/v2/incidents', {
-      params: {
-        key: process.env.MAPQUEST_API_KEY,
-        boundingBox: `${NORTH_EAST_BBOX.north},${NORTH_EAST_BBOX.west},${NORTH_EAST_BBOX.south},${NORTH_EAST_BBOX.east}`,
-        filters: 'incidents,construction'
-      },
-      timeout: 20000,
-      headers: {
-        'User-Agent': 'BARRY-TrafficWatch/3.0',
-        'Accept': 'application/json'
-      }
-    });
-    console.log(`✅ MapQuest: HTTP ${response.status}`);
-    console.log(`📊 MapQuest total incidents found: ${response.data?.incidents?.length || 0}`);
-
-    const alerts = [];
-    let processedCount = 0;
-
-    if (response.data?.incidents) {
-      response.data.incidents.forEach((incident, index) => {
-        // Only keep currently active incidents
-        const now = new Date();
-        if (incident.startTime) {
-          const start = new Date(incident.startTime);
-          if (start > now) return; // not started yet
-        }
-        if (incident.endTime) {
-          const end = new Date(incident.endTime);
-          if (end < now) return; // already finished
-        }
-        if (typeof incident.status === 'string' && incident.status.toUpperCase() !== 'ACTIVE') return;
-
-        // Enhanced location extraction
-        let location = 'Unknown Location';
-        if (incident.street && incident.street.length > 3) {
-          location = incident.street;
-        } else if (incident.shortDesc && incident.shortDesc.length > 3) {
-          location = incident.shortDesc;
-        } else if (incident.fullDesc && incident.fullDesc.length > 10) {
-          location = incident.fullDesc.substring(0, 50);
-        } else if (incident.lat && incident.lng) {
-          location = `Coordinates: ${incident.lat.toFixed(3)}, ${incident.lng.toFixed(3)}`;
-        }
-
-        const description = incident.fullDesc || incident.shortDesc || 'Traffic incident';
-        if (isInNorthEast(`${location} ${description}`)) {
-          processedCount++;
-          const routes = matchRoutes(location, description);
-
-          alerts.push({
-            id: `mapquest_${incident.id || Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-            type: incident.type === 1 ? 'roadwork' : 'incident',
-            title: incident.shortDesc || 'Traffic Incident',
-            description: description,
-            location: location,
-            authority: 'MapQuest Traffic',
-            source: 'mapquest',
-            severity: incident.severity >= 3 ? 'High' : incident.severity >= 2 ? 'Medium' : 'Low',
-            status: 'red',
-            startDate: incident.startTime ? new Date(incident.startTime).toISOString() : null,
-            endDate: incident.endTime ? new Date(incident.endTime).toISOString() : null,
-            affectsRoutes: routes,
-            coordinates: incident.lat && incident.lng ? { lat: incident.lat, lng: incident.lng } : null,
-            lastUpdated: new Date().toISOString(),
-            dataSource: 'MapQuest Traffic API v2'
-          });
-
-          if (processedCount <= 3) {
-            console.log(`✅ MapQuest alert ${processedCount}: ${location} (${incident.shortDesc})`);
-          }
-        }
-      });
-    }
-
-    console.log(`✅ MapQuest: ${alerts.length} North East alerts from 1 API call (${((alerts.length / (response.data?.incidents?.length || 1)) * 100).toFixed(1)}% acceptance rate)`);
-    return { success: true, alerts, apiCalls: 1 };
-  } catch (error) {
-    console.error('❌ MapQuest API error:', error.message);
-    if (error.response) {
-      console.error(`📡 MapQuest response status: ${error.response.status}`);
-      console.error(`📡 MapQuest response data:`, error.response.data);
-    }
-    return { success: false, alerts: [], apiCalls: 0, error: error.message };
-  }
-}
 
 // ... [rest of your code for National Highways, HERE, main fetchComprehensiveTrafficData, etc.] ...
 

@@ -17,8 +17,6 @@ console.log(`   Architecture: ${process.arch}`);
 console.log('\n🔑 Environment Variables:');
 const requiredVars = [
   'TOMTOM_API_KEY',
-  'MAPQUEST_API_KEY', 
-  'HERE_API_KEY',
   'NATIONAL_HIGHWAYS_API_KEY'
 ];
 

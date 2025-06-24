@@ -110,8 +110,6 @@ app.get('/api/incidents', async (req, res) => {
         withEstimatedClearTime: incidents.filter(i => i.endTime || i.estimatedClearTime).length,
         averageSeverity: calculateAverageSeverity(incidents),
         sources: {
-          here: incidents.filter(i => i.source === 'here').length,
-          mapquest: incidents.filter(i => i.source === 'mapquest').length,
           nationalHighways: incidents.filter(i => i.source === 'national_highways').length
         },
         lastUpdated: latestUnifiedData.metadata.lastUpdated
@@ -296,8 +294,6 @@ app.get('/api/usage', async (req, res) => {
       success: true,
       usage,
       limits: {
-        here: { monthly: 1000, daily: Math.floor(1000 / 30) },
-        mapquest: { monthly: 15000, daily: Math.floor(15000 / 30) },
         nationalHighways: { unlimited: true },
         streetManager: { unlimited: true }
       },
@@ -585,11 +581,6 @@ async function getAPIUsageStats() {
       thisMonth: 0,
       lastReset: new Date().toISOString()
     },
-    mapquest: {
-      today: 0,
-      thisMonth: 0,
-      lastReset: new Date().toISOString()
-    }
   };
 }
 
@@ -604,13 +595,6 @@ function generateUsageRecommendations(usage) {
     });
   }
   
-  if (usage.mapquest.thisMonth > 12000) {
-    recommendations.push({
-      api: 'MapQuest',
-      type: 'warning', 
-      message: 'High usage detected. Monitor for overage charges.'
-    });
-  }
   
   return recommendations;
 }
