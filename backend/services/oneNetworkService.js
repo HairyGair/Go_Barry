@@ -63,49 +63,39 @@ class OneNetworkService {
     });
   }
 
-  async login() {
-    console.log('🔐 Logging into One.Network...');
+  async waitForManualLogin() {
+    console.log('🔐 Manual Login Required');
+    console.log('');
+    console.log('👉 Please manually log into One.Network in the browser window:');
+    console.log('   1. Enter email: ' + ONE_NETWORK_EMAIL);
+    console.log('   2. Click Next');
+    console.log('   3. Enter password (ending with !!!)');
+    console.log('   4. Complete any verification (CAPTCHA, etc.)');
+    console.log('   5. Wait for the map to appear');
+    console.log('');
+    console.log('⏳ Waiting for you to complete login (up to 3 minutes)...');
     
     try {
-      // Wait for email field
-      await this.page.waitForSelector('input[type="email"], input[name="email"]', { timeout: 10000 });
-      await this.page.type('input[type="email"], input[name="email"]', ONE_NETWORK_EMAIL);
+      // Wait for MapLibre GL canvas (not Mapbox GL)
+      await this.page.waitForSelector('.maplibregl-canvas', { timeout: 180000 }); // 3 minutes
+      console.log('✅ Login detected - map loaded!');
       
-      // Click next button - find all buttons and look for "Next" text
-      const nextButtons = await this.page.$$('button');
-      for (const button of nextButtons) {
-        const text = await button.evaluate(el => el.textContent);
-        if (text && text.trim().toLowerCase() === 'next') {
-          await button.click();
-          break;
-        }
-      }
-      
-      // Wait for password field
-      await this.page.waitForSelector('input[type="password"]', { timeout: 10000 });
-      await this.page.type('input[type="password"]', ONE_NETWORK_PASSWORD);
-      
-      // Submit login - find and click Next button again
-      await this.page.waitForTimeout(1000);
-      const submitButtons = await this.page.$$('button');
-      for (const button of submitButtons) {
-        const text = await button.evaluate(el => el.textContent);
-        if (text && text.trim().toLowerCase() === 'next') {
-          await button.click();
-          break;
-        }
-      }
-      
-      // Wait for map to load
-      await this.page.waitForSelector('.mapboxgl-canvas', { timeout: 20000 });
-      console.log('✅ Login successful');
-      
-      // Wait for map to fully initialize
+      // Give the map time to fully initialize
       await this.page.waitForTimeout(5000);
       
     } catch (error) {
-      console.error('❌ Login failed:', error.message);
-      throw error;
+      // Check for alternative indicators
+      const isLoggedIn = await this.page.evaluate(() => {
+        return !!document.querySelector('.maplibregl-canvas') || 
+               !!document.querySelector('.ons-map-container') ||
+               !!document.querySelector('button[aria-label="Open Map Layer Menu"]');
+      });
+      
+      if (isLoggedIn) {
+        console.log('✅ Login successful (alternative check)');
+      } else {
+        throw new Error('Login timeout - please restart and try again');
+      }
     }
   }
 
@@ -167,7 +157,7 @@ class OneNetworkService {
       // Wait for search results
       await this.page.waitForTimeout(2000);
       
-      // Click on the first matching result using XPath
+      // Click on the first matching result
       const menuItems = await this.page.$$('div[role="menuitem"]');
       for (const item of menuItems) {
         const text = await item.evaluate(el => el.textContent);
@@ -186,8 +176,14 @@ class OneNetworkService {
   async extractMarkerData() {
     console.log('🔍 Extracting marker data from visible area...');
     
-    const markers = await this.page.$$('.mapboxgl-marker');
+    let markers = await this.page.$('.maplibregl-marker');
     console.log(`Found ${markers.length} markers`);
+    
+    // If no markers found with maplibre class, try mapbox class as fallback
+    if (markers.length === 0) {
+      markers = await this.page.$('.mapboxgl-marker');
+      console.log(`Found ${markers.length} markers using mapbox class`);
+    }
     
     for (let i = 0; i < markers.length; i++) {
       try {
@@ -205,8 +201,11 @@ class OneNetworkService {
         await marker.click();
         await this.page.waitForTimeout(1000);
         
-        // Look for popup content
-        const popup = await this.page.$('.mapboxgl-popup-content');
+        // Look for popup content with both maplibre and mapbox classes
+        let popup = await this.page.$('.maplibregl-popup-content');
+        if (!popup) {
+          popup = await this.page.$('.mapboxgl-popup-content');
+        }
         if (popup) {
           const data = await popup.evaluate(el => {
             const getText = (selector) => {
@@ -261,8 +260,11 @@ class OneNetworkService {
             console.log(`📌 Extracted: ${data.title || 'Unnamed roadwork'}`);
           }
           
-          // Close popup
-          const closeButton = await this.page.$('.mapboxgl-popup-close-button');
+          // Close popup - try both class names
+          let closeButton = await this.page.$('.maplibregl-popup-close-button');
+          if (!closeButton) {
+            closeButton = await this.page.$('.mapboxgl-popup-close-button');
+          }
           if (closeButton) {
             await closeButton.click();
             await this.page.waitForTimeout(500);
@@ -405,7 +407,7 @@ class OneNetworkService {
   async run() {
     try {
       await this.initialize();
-      await this.login();
+      await this.waitForManualLogin();  // Changed from automatic login
       await this.enableLayers();
       await this.scrapeAllRegions();
       await this.saveToSupabase();

@@ -127,6 +127,40 @@ class ConvexSyncService {
     }
   }
 
+  async syncSingleAlert(alert) {
+    if (!this.isEnabled) {
+      return { success: false, reason: 'Convex not configured' };
+    }
+
+    try {
+      // Transform single alert to match Convex schema
+      const convexAlert = {
+        alertId: alert.id || alert.alertId || `alert_${Date.now()}_${Math.random()}`,
+        title: alert.title || 'Traffic Incident',
+        description: alert.description,
+        location: alert.location || 'Unknown Location',
+        coordinates: alert.coordinates,
+        severity: alert.severity || 'medium',
+        status: alert.status || 'active',
+        source: alert.source || 'unknown',
+        timestamp: alert.timestamp || Date.now(),
+        affectsRoutes: alert.affectsRoutes || [],
+        routeFrequencies: alert.routeFrequencies || null,
+      };
+
+      // Insert single alert
+      const result = await this.callConvexFunction('alerts:batchInsertAlerts', {
+        alerts: [convexAlert]
+      });
+
+      console.log(`✅ Synced single alert ${convexAlert.alertId} to Convex`);
+      return { success: true, alert: convexAlert, result };
+    } catch (error) {
+      console.error('❌ Convex single alert sync error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   async syncSupervisorAction(action) {
     if (!this.isEnabled) {
       return { success: false, reason: 'Convex not configured' };
