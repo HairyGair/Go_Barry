@@ -118,17 +118,7 @@ app.get('/api/alerts-enhanced', (req, res) => {
   });
 });
 
-// Catch all endpoint
-app.get('*', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Go BARRY Backend is running on Render.com',
-    port: PORT,
-    timestamp: new Date().toISOString(),
-    path: req.path,
-    renderOptimized: true
-  });
-});
+// Note: Removed catch-all to allow actual backend routes to work
 
 // RENDER FIX: Start listening immediately
 server.listen(PORT, '0.0.0.0', () => {
