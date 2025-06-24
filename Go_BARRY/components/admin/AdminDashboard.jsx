@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorSession } from '../hooks/useSupervisorSession';
+import { useConvexSync } from '../hooks/useConvexSync';
 import MonitoringDashboard from '../MonitoringDashboard';
 import { API_CONFIG } from '../../config/api';
 
@@ -24,6 +25,7 @@ const API_BASE = API_CONFIG?.baseURL || 'https://go-barry.onrender.com';
 
 const AdminDashboard = ({ onClose }) => {
   const { supervisorSession, isAdmin } = useSupervisorSession();
+  const { activeAlerts, activeSupervisors } = useConvexSync();
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -49,7 +51,7 @@ const AdminDashboard = ({ onClose }) => {
     }
   }, [isAdmin, onClose]);
 
-  // Fetch all data
+  // Fetch all data (now only non-alert data since alerts come from Convex)
   const fetchAllData = useCallback(async () => {
     try {
       setLoading(true);
@@ -58,12 +60,10 @@ const AdminDashboard = ({ onClose }) => {
       const [
         healthRes,
         activityRes,
-        alertsRes,
         supervisorsRes
       ] = await Promise.all([
         fetch(`${API_BASE}/api/health-extended`),
         fetch(`${API_BASE}/api/activity-logs?limit=100`),
-        fetch(`${API_BASE}/api/alerts-enhanced`),
         fetch(`${API_BASE}/api/supervisors/stats`)
       ]);
 
@@ -77,11 +77,6 @@ const AdminDashboard = ({ onClose }) => {
       if (activityRes.ok) {
         const activityData = await activityRes.json();
         setActivityLogs(activityData.logs || []);
-      }
-
-      if (alertsRes.ok) {
-        const alertsData = await alertsRes.json();
-        processAlertStats(alertsData.alerts || []);
       }
 
       if (supervisorsRes.ok) {
@@ -101,39 +96,41 @@ const AdminDashboard = ({ onClose }) => {
     }
   }, []);
 
-  // Process alert statistics
-  const processAlertStats = (alerts) => {
-    const stats = {
-      total: alerts.length,
-      bySeverity: {},
-      bySource: {},
-      byStatus: {},
-      avgResponseTime: 0,
-      dismissalRate: 0
-    };
+  // Process alert statistics from Convex data
+  useEffect(() => {
+    if (activeAlerts) {
+      const stats = {
+        total: activeAlerts.length,
+        bySeverity: {},
+        bySource: {},
+        byStatus: {},
+        avgResponseTime: 0,
+        dismissalRate: 0
+      };
 
-    alerts.forEach(alert => {
-      // By severity
-      const severity = alert.severity || 'Unknown';
-      stats.bySeverity[severity] = (stats.bySeverity[severity] || 0) + 1;
+      activeAlerts.forEach(alert => {
+        // By severity
+        const severity = alert.severity || 'Unknown';
+        stats.bySeverity[severity] = (stats.bySeverity[severity] || 0) + 1;
 
-      // By source
-      const source = alert.source || 'Unknown';
-      stats.bySource[source] = (stats.bySource[source] || 0) + 1;
+        // By source
+        const source = alert.source || 'Unknown';
+        stats.bySource[source] = (stats.bySource[source] || 0) + 1;
 
-      // By status
-      const status = alert.status || 'active';
-      stats.byStatus[status] = (stats.byStatus[status] || 0) + 1;
-    });
+        // By status
+        const status = alert.status || 'active';
+        stats.byStatus[status] = (stats.byStatus[status] || 0) + 1;
+      });
 
-    setAlertStats(stats);
-  };
+      setAlertStats(stats);
+    }
+  }, [activeAlerts]);
 
-  // Calculate system stats
-  const calculateSystemStats = () => {
+  // Calculate system stats (now uses Convex data for alerts and supervisors)
+  useEffect(() => {
     const stats = {
       totalAlerts: alertStats.total || 0,
-      activeSuppervisors: supervisorStats.filter(s => s.isActive).length || 0,
+      activeSuppervisors: activeSupervisors?.length || 0,
       todayActivity: activityLogs.filter(log => {
         const logDate = new Date(log.created_at);
         const today = new Date();
@@ -143,7 +140,7 @@ const AdminDashboard = ({ onClose }) => {
       apiCallsToday: apiUsage.requestsToday || 0
     };
     setSystemStats(stats);
-  };
+  }, [alertStats, activeSupervisors, activityLogs, apiUsage]);
 
   // Calculate system uptime
   const calculateUptime = () => {

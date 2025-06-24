@@ -19,6 +19,7 @@ import {
   useTouchOptimization,
   useNetworkStatus 
 } from './MobilePerformanceOptimizer';
+import { useConvexSync } from '../hooks/useConvexSync';
 import { API_CONFIG } from '../../config/api';
 
 const { width, height } = Dimensions.get('window');
@@ -28,23 +29,10 @@ const OptimizedMobileDashboard = ({ baseUrl = API_CONFIG.baseURL }) => {
   const { isConnected, connectionType } = useNetworkStatus();
   const { touchState, handleTouchStart, handleLongPress } = useTouchOptimization();
   
-  // Optimized data fetching with offline cache
-  const { data: alertsData, loading: alertsLoading, isOffline: alertsOffline, refetch: refetchAlerts } = useOfflineCache(
-    'traffic_alerts',
-    async () => {
-      const response = await fetch(`${baseUrl}/api/alerts-enhanced`, {
-        timeout: 10000,
-        headers: {
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
-        }
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return await response.json();
-    },
-    [baseUrl]
-  );
-
+  // Use Convex for real-time alerts (enhanced with GTFS route matching)
+  const { activeAlerts, loading: convexLoading } = useConvexSync();
+  
+  // Fallback to API for health data (system-level info not in Convex)
   const { data: healthData, loading: healthLoading, isOffline: healthOffline, refetch: refetchHealth } = useOfflineCache(
     'system_health',
     async () => {
@@ -55,22 +43,21 @@ const OptimizedMobileDashboard = ({ baseUrl = API_CONFIG.baseURL }) => {
     [baseUrl]
   );
 
-  // Auto-refresh with smart intervals based on connection
+  // Auto-refresh health data only (alerts are real-time via Convex)
   useEffect(() => {
     if (!isConnected) return;
 
-    const refreshInterval = connectionType === 'wifi' ? 15000 : 30000; // Faster on WiFi
+    const refreshInterval = connectionType === 'wifi' ? 30000 : 60000; // Less frequent since alerts are real-time
     const interval = setInterval(() => {
-      refetchAlerts();
       refetchHealth();
     }, refreshInterval);
 
     return () => clearInterval(interval);
-  }, [isConnected, connectionType, refetchAlerts, refetchHealth]);
+  }, [isConnected, connectionType, refetchHealth]);
 
-  // Optimized alerts processing
+  // Optimized alerts processing (now using Convex data)
   const processedAlerts = useMemo(() => {
-    if (!alertsData?.alerts) return { critical: [], high: [], medium: [], low: [] };
+    if (!activeAlerts) return { critical: [], high: [], medium: [], low: [] };
 
     const categorized = {
       critical: [],
@@ -79,7 +66,7 @@ const OptimizedMobileDashboard = ({ baseUrl = API_CONFIG.baseURL }) => {
       low: []
     };
 
-    alertsData.alerts.forEach(alert => {
+    activeAlerts.forEach(alert => {
       const priority = alert.severity?.toLowerCase() === 'high' ? 'critical' :
                      alert.severity?.toLowerCase() === 'medium' ? 'high' :
                      alert.severity?.toLowerCase() === 'low' ? 'medium' : 'low';
@@ -87,9 +74,9 @@ const OptimizedMobileDashboard = ({ baseUrl = API_CONFIG.baseURL }) => {
     });
 
     return categorized;
-  }, [alertsData]);
+  }, [activeAlerts]);
 
-  // Smart refresh with haptic feedback on mobile
+  // Smart refresh with haptic feedback on mobile (only health data needs refresh)
   const handleRefresh = useCallback(async () => {
     try {
       // Haptic feedback on mobile (with graceful fallback)
@@ -103,11 +90,11 @@ const OptimizedMobileDashboard = ({ baseUrl = API_CONFIG.baseURL }) => {
         }
       }
       
-      await Promise.all([refetchAlerts(), refetchHealth()]);
+      await refetchHealth(); // Alerts are real-time via Convex
     } catch (error) {
       Alert.alert('Refresh Error', 'Failed to refresh data. Please try again.');
     }
-  }, [refetchAlerts, refetchHealth]);
+  }, [refetchHealth]);
 
   // Enhanced touch handlers for alert cards
   const handleAlertPress = useCallback((alert) => {
@@ -151,10 +138,10 @@ const OptimizedMobileDashboard = ({ baseUrl = API_CONFIG.baseURL }) => {
         color={isConnected ? '#10B981' : '#EF4444'} 
       />
       <Text style={[styles.connectionText, !isConnected && styles.offlineText]}>
-        {isConnected ? `Online (${connectionType})` : 'Offline Mode'}
+        {isConnected ? `Online (${connectionType}) • Real-time alerts` : 'Offline Mode'}
       </Text>
-      {(alertsOffline || healthOffline) && (
-        <Text style={styles.cacheText}>• Cached Data</Text>
+      {healthOffline && (
+        <Text style={styles.cacheText}>• Cached Health</Text>
       )}
     </View>
   );
@@ -229,7 +216,7 @@ const OptimizedMobileDashboard = ({ baseUrl = API_CONFIG.baseURL }) => {
           <Ionicons name="analytics" size={24} color="#10B981" />
           <Text style={styles.statusLabel}>Alerts</Text>
           <Text style={styles.statusValue}>
-            {alertsLoading ? 'Loading...' : alertsData?.alerts?.length || 0}
+            {convexLoading ? 'Loading...' : activeAlerts?.length || 0}
           </Text>
         </View>
         
@@ -245,10 +232,7 @@ const OptimizedMobileDashboard = ({ baseUrl = API_CONFIG.baseURL }) => {
           <Ionicons name="time" size={24} color="#8B5CF6" />
           <Text style={styles.statusLabel}>Updated</Text>
           <Text style={styles.statusValue}>
-            {alertsData?.lastUpdated ? new Date(alertsData.lastUpdated).toLocaleTimeString('en-GB', { 
-              hour: '2-digit', 
-              minute: '2-digit' 
-            }) : 'Unknown'}
+            Real-time
           </Text>
         </View>
       </View>
@@ -264,7 +248,7 @@ const OptimizedMobileDashboard = ({ baseUrl = API_CONFIG.baseURL }) => {
         style={styles.scrollView}
         refreshControl={
           <RefreshControl
-            refreshing={alertsLoading || healthLoading}
+            refreshing={convexLoading || healthLoading}
             onRefresh={handleRefresh}
             tintColor="#3B82F6"
             colors={['#3B82F6']}
@@ -317,7 +301,7 @@ const OptimizedMobileDashboard = ({ baseUrl = API_CONFIG.baseURL }) => {
         )}
 
         {/* No alerts message */}
-        {!alertsLoading && (!alertsData?.alerts || alertsData.alerts.length === 0) && (
+        {!convexLoading && (!activeAlerts || activeAlerts.length === 0) && (
           <View style={styles.noAlertsContainer}>
             <Ionicons name="checkmark-circle" size={48} color="#10B981" />
             <Text style={styles.noAlertsTitle}>All Clear</Text>

@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorSession } from '../hooks/useSupervisorSession';
+import { useConvexSync } from '../hooks/useConvexSync';
 import MonitoringDashboard from '../MonitoringDashboard';
 import SupervisorManager from './SupervisorManager';
 import ActivityAuditTrail from './ActivityAuditTrail';
@@ -27,6 +28,7 @@ const API_BASE = 'https://go-barry.onrender.com';
 
 const AdminPanel = ({ onClose }) => {
   const { supervisorSession, isAdmin } = useSupervisorSession();
+  const { activeAlerts, activeSupervisors } = useConvexSync();
   const [activeTab, setActiveTab] = useState('overview');
   const [systemHealth, setSystemHealth] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -79,50 +81,33 @@ const AdminPanel = ({ onClose }) => {
     }
   }, []);
 
-  // Fetch admin stats
-  const fetchAdminStats = useCallback(async () => {
-    try {
-      const [alertsRes, supervisorsRes] = await Promise.all([
-        fetch(`${API_BASE}/api/alerts-enhanced`),
-        fetch(`${API_BASE}/api/supervisor/active-sessions`)
-      ]);
-
-      if (alertsRes.ok) {
-        const alertsData = await alertsRes.json();
-        setStats(prev => ({
-          ...prev,
-          totalAlerts: alertsData.alerts?.length || 0,
-          activeAlerts: alertsData.alerts?.filter(a => !a.dismissed).length || 0,
-          dismissedAlerts: alertsData.dismissedCount || 0
-        }));
-      }
-
-      if (supervisorsRes.ok) {
-        const supervisorsData = await supervisorsRes.json();
-        setStats(prev => ({
-          ...prev,
-          supervisorsOnline: supervisorsData.activeSessions?.length || 0
-        }));
-      }
-    } catch (error) {
-      console.error('❌ Error fetching admin stats:', error);
+  // Update stats from Convex data (real-time)
+  useEffect(() => {
+    if (activeAlerts && activeSupervisors) {
+      setStats(prev => ({
+        ...prev,
+        totalAlerts: activeAlerts.length,
+        activeAlerts: activeAlerts.filter(a => !a.dismissed).length,
+        dismissedAlerts: activeAlerts.filter(a => a.dismissed).length,
+        supervisorsOnline: activeSupervisors.length
+      }));
     }
-  }, []);
+  }, [activeAlerts, activeSupervisors]);
 
-  // Initial data load
+  // Initial data load (only system health, alerts come from Convex)
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-      await Promise.all([fetchSystemHealth(), fetchAdminStats()]);
+      await fetchSystemHealth();
       setLoading(false);
     };
 
     loadData();
     
-    // Refresh every 30 seconds
-    const interval = setInterval(loadData, 30000);
+    // Refresh system health every 30 seconds
+    const interval = setInterval(fetchSystemHealth, 30000);
     return () => clearInterval(interval);
-  }, [fetchSystemHealth, fetchAdminStats]);
+  }, [fetchSystemHealth]);
 
   // Tab navigation
   const tabs = [
