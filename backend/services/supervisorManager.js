@@ -2,6 +2,15 @@
 // Supervisor Management System for BARRY with Supabase Integration
 
 import { createClient } from '@supabase/supabase-js';
+import { 
+  hashPassword, 
+  verifyPassword, 
+  createSecureSession, 
+  isSessionValid, 
+  sanitizeSessionForClient, 
+  validateInput, 
+  checkRateLimit 
+} from '../utils/secureAuth.js';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -219,6 +228,135 @@ function stopSessionCleanup() {
 }
 
 // Supervisor authentication with fallback
+// NEW: Secure authentication with password
+export async function authenticateSupervisorSecure(supervisorId, badge, password, clientIP = null, userAgent = null) {
+  console.log(`🔐 SECURE AUTH: Attempting login for ${supervisorId}`);
+  
+  // Input validation
+  if (!validateInput(supervisorId) || !validateInput(badge) || !validateInput(password)) {
+    console.warn(`⚠️ Invalid input detected for ${supervisorId}`);
+    return { success: false, error: 'Invalid input format' };
+  }
+  
+  // Rate limiting
+  const rateLimitKey = clientIP || supervisorId;
+  const rateLimit = checkRateLimit(rateLimitKey, 5, 15 * 60 * 1000); // 5 attempts per 15 minutes
+  
+  if (!rateLimit.isAllowed) {
+    console.warn(`🚫 Rate limit exceeded for ${supervisorId} from ${clientIP}`);
+    return { 
+      success: false, 
+      error: 'Too many login attempts. Please try again later.',
+      rateLimitInfo: {
+        attempts: rateLimit.attempts,
+        resetIn: Math.ceil(rateLimit.resetIn / 1000 / 60) // minutes
+      }
+    };
+  }
+  
+  try {
+    let supervisor = null;
+    let storedPasswordHash = null;
+    
+    // Try Supabase first for secure storage
+    try {
+      const { data, error } = await supabase
+        .from('supervisors')
+        .select('*, password_hash')  // Include password hash
+        .eq('id', supervisorId)
+        .eq('badge', badge)
+        .eq('active', true)
+        .single();
+
+      if (!error && data) {
+        supervisor = data;
+        storedPasswordHash = data.password_hash;
+        console.log(`✅ Supervisor found in Supabase: ${supervisor.name}`);
+      }
+    } catch (supabaseError) {
+      console.warn('⚠️ Supabase auth failed, checking fallback:', supabaseError.message);
+    }
+    
+    // If not in Supabase, check fallback data with default password
+    if (!supervisor) {
+      const fallbackSupervisors = {
+        'supervisor001': { name: 'Alex Woodcock', badge: 'AW001', role: 'Supervisor', defaultPassword: 'Barry123' },
+        'supervisor002': { name: 'Andrew Cowley', badge: 'AC002', role: 'Supervisor', defaultPassword: 'Barry123' },
+        'supervisor003': { name: 'Anthony Gair', badge: 'AG003', role: 'Developer/Admin', defaultPassword: 'Barry123' },
+        'supervisor004': { name: 'Claire Fiddler', badge: 'CF004', role: 'Supervisor', defaultPassword: 'Barry123' },
+        'supervisor005': { name: 'David Hall', badge: 'DH005', role: 'Supervisor', defaultPassword: 'Barry123' },
+        'supervisor006': { name: 'James Daglish', badge: 'JD006', role: 'Supervisor', defaultPassword: 'Barry123' },
+        'supervisor007': { name: 'John Paterson', badge: 'JP007', role: 'Supervisor', defaultPassword: 'Barry123' },
+        'supervisor008': { name: 'Simon Glass', badge: 'SG008', role: 'Supervisor', defaultPassword: 'Barry123' },
+        'supervisor009': { name: 'Barry Perryman', badge: 'BP009', role: 'Service Delivery Controller', defaultPassword: 'Barry123' }
+      };
+      
+      const fallbackData = fallbackSupervisors[supervisorId];
+      if (fallbackData && fallbackData.badge === badge) {
+        supervisor = {
+          id: supervisorId,
+          name: fallbackData.name,
+          badge: fallbackData.badge,
+          role: fallbackData.role,
+          active: true
+        };
+        // For fallback users, check against default password
+        storedPasswordHash = await hashPassword(fallbackData.defaultPassword);
+        console.log(`🔄 Using fallback data for ${supervisor.name}`);
+      }
+    }
+    
+    if (!supervisor) {
+      console.log(`❌ Supervisor not found: ${supervisorId}/${badge}`);
+      return { success: false, error: 'Invalid credentials' };
+    }
+    
+    // Verify password
+    if (!storedPasswordHash) {
+      console.warn(`⚠️ No password hash found for ${supervisorId}`);
+      return { success: false, error: 'Account setup required. Please contact administrator.' };
+    }
+    
+    const passwordValid = await verifyPassword(password, storedPasswordHash);
+    if (!passwordValid) {
+      console.log(`❌ Invalid password for ${supervisorId}`);
+      return { success: false, error: 'Invalid credentials' };
+    }
+    
+    // Create secure session
+    const sessionRecord = createSecureSession(supervisorId, badge, supervisor.name);
+    sessionRecord.ipAddress = clientIP;
+    sessionRecord.userAgent = userAgent;
+    sessionRecord.role = supervisor.role;
+    
+    // Store session securely in memory (in production, use Redis or similar)
+    if (!global.secureSessions) {
+      global.secureSessions = new Map();
+    }
+    global.secureSessions.set(sessionRecord.sessionId, sessionRecord);
+    
+    console.log(`✅ SECURE AUTH SUCCESS: ${supervisor.name} (${supervisorId}) logged in`);
+    
+    return {
+      success: true,
+      session: sanitizeSessionForClient(sessionRecord),
+      sessionToken: sessionRecord.sessionToken, // Only send once during login
+      sessionId: sessionRecord.sessionId,
+      supervisor: {
+        id: supervisor.id,
+        name: supervisor.name,
+        badge: supervisor.badge,
+        role: supervisor.role
+      }
+    };
+    
+  } catch (error) {
+    console.error(`❌ Secure authentication error for ${supervisorId}:`, error);
+    return { success: false, error: 'Authentication failed' };
+  }
+}
+
+// LEGACY: Authenticate supervisor with badge number only (DEPRECATED - use authenticateSupervisorSecure)
 export async function authenticateSupervisor(supervisorId, badge) {
   console.log(`🔐 Auth attempt: ${supervisorId} with badge ${badge}`);
   console.log(`🔍 Looking for supervisor with ID: '${supervisorId}' and badge: '${badge}'`);
@@ -1259,6 +1397,7 @@ export { logActivity };
 
 export default {
   authenticateSupervisor,
+  authenticateSupervisorSecure,  // NEW: Secure authentication
   validateSupervisorSession,
   validateSupervisorById,
   dismissAlert,

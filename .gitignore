@@ -9,6 +9,11 @@ yarn-error.log*
 .env.local
 .env.production
 .env.development
+.env.bak
+.env.backup
+**/.env
+**/.env.local
+**/.env.production
 
 # Build outputs
 dist/
@@ -87,3 +92,11 @@ tmp/
 # Data files (for security)
 data/*.json
 !data/.gitkeep
+
+# Credential files
+credentials.json
+service-account.json
+*credentials*
+*secrets*
+*.pem
+*.key

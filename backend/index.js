@@ -35,6 +35,7 @@ import { fetchTomTomTrafficWithStreetNames } from './services/tomtom.js';
 
 import { fetchNationalHighways } from './services/nationalHighways.js';
 import { initializeEnhancedGTFS, enhancedFindRoutesNearCoordinates } from './enhanced-gtfs-route-matcher.js';
+import { initializeStreamingProcessor, findNearbyStopsFromCache } from './gtfs-streaming-processor.js';
 import healthRoutes from './routes/health.js';
 import healthExtendedRouter from './routes/healthExtended.js';
 import supervisorAPI from './routes/supervisorAPI.js';
@@ -162,9 +163,17 @@ let alertNotes = {};
 // Initialize essential data and enhanced GTFS
 async function initializeApplication() {
   try {
-    console.log('🚀 Initializing Enhanced GTFS route matching system...');
-    await initializeEnhancedGTFS();
-    console.log('✅ Enhanced GTFS route matching ready');
+    console.log('🚀 Initializing GTFS route matching system...');
+    
+    // Try memory-efficient streaming processor first
+    try {
+      await initializeStreamingProcessor();
+      console.log('✅ Memory-efficient streaming GTFS processor ready');
+    } catch (streamingError) {
+      console.warn('⚠️ Streaming processor failed, falling back to enhanced GTFS:', streamingError.message);
+      await initializeEnhancedGTFS();
+      console.log('✅ Enhanced GTFS route matching ready (fallback)');
+    }
     
     // FIXED: Truly non-blocking Service Frequency Analyzer initialization
     console.log('🚌 Starting Service Frequency Analyzer (background)...');
@@ -1137,7 +1146,16 @@ function addManualIncident(incident) {
   if (!global.manualIncidents) {
     global.manualIncidents = [];
   }
+  
   global.manualIncidents.push(incident);
+  
+  // Memory optimization: limit to 500 manual incidents
+  const MAX_MANUAL_INCIDENTS = 500;
+  if (global.manualIncidents.length > MAX_MANUAL_INCIDENTS) {
+    const removed = global.manualIncidents.shift(); // Remove oldest
+    console.log(`🗑️ Removed oldest manual incident (${removed.id}) - memory limit reached`);
+  }
+  
   return incident;
 }
 
@@ -1789,6 +1807,15 @@ app.post('/api/supervisor/dismiss-alert', async (req, res) => {
       console.log(`🙅 Alert ${alertId} dismissed by hash ${alertHash.substring(0, 8)}... for future deduplication`);
     }
     
+    // Memory optimization: limit dismissed incidents to prevent unbounded growth
+    const MAX_DISMISSED_INCIDENTS = 2000;
+    if (global.dismissedIncidents.size > MAX_DISMISSED_INCIDENTS) {
+      // Remove oldest 20% to prevent frequent cleanup
+      const keysToRemove = Array.from(global.dismissedIncidents.keys()).slice(0, Math.floor(MAX_DISMISSED_INCIDENTS * 0.2));
+      keysToRemove.forEach(key => global.dismissedIncidents.delete(key));
+      console.log(`🗑️ Removed ${keysToRemove.length} old dismissed incidents - memory limit reached`);
+    }
+    
     // Persist to file for restart recovery (async, don't wait)
     const dismissedFilePath = path.join(__dirname, 'data/dismissed-alerts.json');
     try {
@@ -2223,6 +2250,21 @@ process.on('unhandledRejection', err => {
 // Graceful shutdown on SIGTERM (Render sends this)
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM received, shutting down gracefully...');
+  
+  // Stop all intervals and cleanup
+  try {
+    supervisorManager.stopSessionCleanup();
+    console.log('✅ Session cleanup stopped');
+  } catch (error) {
+    console.warn('⚠️ Error stopping session cleanup:', error.message);
+  }
+  
+  // Force garbage collection if available
+  if (global.gc) {
+    global.gc();
+    console.log('🗑️ Final garbage collection triggered');
+  }
+  
   if (server && server.listening) {
     server.close(() => {
       console.log('✅ Server closed');
