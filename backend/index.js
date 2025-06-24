@@ -42,11 +42,12 @@ import supervisorAPI from './routes/supervisorAPI.js';
 import roadworksAPI from './routes/roadworksAPI.js';
 import roadworkAlertsAPI from './routes/roadworkAlertsAPI-simple.js';
 import gtfsAPI from './routes/gtfsAPI.js';
+import gtfsService from './services/gtfsService.js';
 console.log('✅ roadworkAlertsAPI-simple imported successfully');
 console.log('✅ gtfsAPI imported successfully');
+console.log('✅ gtfsService imported successfully');
 import microsoftAuthAPI from './routes/microsoftAuthAPI.js';
 console.log('✅ microsoftAuthAPI imported successfully');
-import gtfsAPI from './routes/gtfsAPI.js';
 import intelligenceAPI from './routes/intelligenceAPI.js';
 import incidentAPI from './routes/incidentAPI.js';
 import enhancementAPI from './routes/enhancementAPI.js';
@@ -167,14 +168,23 @@ async function initializeApplication() {
   try {
     console.log('🚀 Initializing GTFS route matching system...');
     
-    // Try memory-efficient streaming processor first
+    // Initialize new comprehensive GTFS service first
     try {
-      await initializeStreamingProcessor();
-      console.log('✅ Memory-efficient streaming GTFS processor ready');
-    } catch (streamingError) {
-      console.warn('⚠️ Streaming processor failed, falling back to enhanced GTFS:', streamingError.message);
-      await initializeEnhancedGTFS();
-      console.log('✅ Enhanced GTFS route matching ready (fallback)');
+      console.log('🚌 Initializing comprehensive GTFS service...');
+      await gtfsService.initialize();
+      console.log('✅ Comprehensive GTFS service ready');
+    } catch (gtfsError) {
+      console.warn('⚠️ Comprehensive GTFS service failed, trying fallbacks:', gtfsError.message);
+      
+      // Try memory-efficient streaming processor
+      try {
+        await initializeStreamingProcessor();
+        console.log('✅ Memory-efficient streaming GTFS processor ready');
+      } catch (streamingError) {
+        console.warn('⚠️ Streaming processor failed, falling back to enhanced GTFS:', streamingError.message);
+        await initializeEnhancedGTFS();
+        console.log('✅ Enhanced GTFS route matching ready (fallback)');
+      }
     }
     
     // FIXED: Truly non-blocking Service Frequency Analyzer initialization
@@ -489,8 +499,7 @@ app.use('/api/auth', microsoftAuthAPI);
 // Intelligence system routes
 app.use('/api/intelligence', intelligenceAPI);
 
-// Enhanced GTFS analysis routes
-app.use('/api/gtfs', gtfsAPI);
+// Enhanced GTFS analysis routes (duplicate removed)
 
 // Incident management routes
 app.use('/api/incidents', incidentAPI);
