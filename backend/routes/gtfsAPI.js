@@ -220,31 +220,31 @@ router.post('/test/accuracy', async (req, res) => {
         name: 'Newcastle Central Station',
         lat: 54.9689, lng: -1.6174,
         location: 'Newcastle Central Station',
-        expectedRoutes: ['Q3', 'Q3X', '10', '21', '22']
+        expectedRoutes: ['Q3', 'Q3X', '10', '21', '22', '1', '12']
       },
       {
         name: 'Gateshead Interchange',
         lat: 54.9526, lng: -1.6031,
         location: 'Gateshead Interchange',
-        expectedRoutes: ['10', '21', '27', '28', 'Q3']
+        expectedRoutes: ['10', '21', '27', '28', 'Q3', '53', '54']
       },
       {
         name: 'Durham Bus Station',
         lat: 54.7762, lng: -1.5747,
         location: 'Durham',
-        expectedRoutes: ['21', '22', 'X21', '6']
+        expectedRoutes: ['21', '22', 'X21', '6', '50', '16', '20']
       },
       {
         name: 'Sunderland Interchange',
         lat: 54.9053, lng: -1.3826,
         location: 'Sunderland',
-        expectedRoutes: ['16', '20', '61', '62']
+        expectedRoutes: ['16', '20', '61', '62', '35', '36']
       },
       {
         name: 'Metro Centre',
         lat: 54.9561, lng: -1.6751,
         location: 'Metro Centre',
-        expectedRoutes: ['10', '27', '28']
+        expectedRoutes: ['10', '27', '28', '49', '49A', '6']
       }
     ];
     

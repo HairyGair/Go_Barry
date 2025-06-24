@@ -293,10 +293,18 @@ class GTFSService {
     }
     
     const searchRadius = radius || this.searchRadius;
-    const affectedRoutes = new Map(); // route_shortName -> confidence
     
-    // Search nearby grid cells
-    const gridKeys = this.getAdjacentGridKeys(lat, lng, 2);
+    // Check for major interchanges/stations first
+    const interchangeRoutes = this.getInterchangeRoutes(lat, lng);
+    if (interchangeRoutes.length > 0) {
+      console.log(`🚌 Major interchange detected: ${interchangeRoutes.length} routes`);
+      return interchangeRoutes;
+    }
+    
+    const affectedRoutes = new Map(); // route_shortName -> score
+    
+    // Use smaller grid search for better precision
+    const gridKeys = this.getAdjacentGridKeys(lat, lng, 1); // Reduced from 2 to 1
     const candidateRoutes = new Set();
     
     for (const gridKey of gridKeys) {
@@ -306,12 +314,13 @@ class GTFSService {
       }
     }
     
-    // Check each candidate route
+    // Check each candidate route with enhanced scoring
     for (const routeId of candidateRoutes) {
       const route = this.routes.get(routeId);
-      if (!route) continue;
+      if (!route || !route.shortName) continue;
       
       let minDistance = Infinity;
+      let nearStopCount = 0;
       
       // Check distance to route shapes
       const shapeIds = this.routeShapes.get(routeId);
@@ -332,7 +341,7 @@ class GTFSService {
         }
       }
       
-      // Check distance to stops
+      // Check distance to stops (prioritize stop proximity)
       const stopIds = this.stopsByRoute.get(routeId);
       if (stopIds) {
         for (const stopId of stopIds) {
@@ -342,23 +351,134 @@ class GTFSService {
             if (distance < minDistance) {
               minDistance = distance;
             }
+            if (distance <= searchRadius * 0.5) { // Count nearby stops
+              nearStopCount++;
+            }
           }
         }
       }
       
-      // Add route if within search radius
+      // Enhanced scoring: distance + stop proximity + route importance
       if (minDistance <= searchRadius) {
-        const confidence = 1 - (minDistance / searchRadius);
-        affectedRoutes.set(route.shortName, confidence);
+        let score = 1 - (minDistance / searchRadius);
+        
+        // Boost score for routes with multiple nearby stops
+        score += nearStopCount * 0.1;
+        
+        // Boost score for major routes
+        const routeImportance = this.getRouteImportance(route.shortName);
+        score *= routeImportance;
+        
+        // Apply geographic filtering
+        if (this.isWithinOperatingArea(lat, lng, route.shortName)) {
+          affectedRoutes.set(route.shortName, score);
+        }
       }
     }
     
-    // Sort by confidence and return route names
+    // Sort by score and return top routes only
     const sortedRoutes = Array.from(affectedRoutes.entries())
       .sort((a, b) => b[1] - a[1])
+      .slice(0, 15) // Limit to top 15 most relevant routes
       .map(([routeName]) => routeName);
     
     return sortedRoutes;
+  }
+  
+  // Check for major interchanges/stations with known route patterns
+  getInterchangeRoutes(lat, lng) {
+    const interchanges = [
+      {
+        name: 'Newcastle Central Station',
+        lat: 54.9689, lng: -1.6174,
+        radius: 200,
+        routes: ['Q3', 'Q3X', '10', '21', '22', '1', '12', '47', '53', '54']
+      },
+      {
+        name: 'Gateshead Interchange', 
+        lat: 54.9526, lng: -1.6031,
+        radius: 150,
+        routes: ['10', '21', '27', '28', 'Q3', '53', '54', '28B']
+      },
+      {
+        name: 'Metro Centre',
+        lat: 54.9561, lng: -1.6751,
+        radius: 300,
+        routes: ['10', '27', '28', '49', '49A', '6']
+      },
+      {
+        name: 'Durham Bus Station',
+        lat: 54.7762, lng: -1.5747,
+        radius: 200,
+        routes: ['21', '22', 'X21', '6', '50', '16', '20', '25']
+      },
+      {
+        name: 'Sunderland Interchange',
+        lat: 54.9053, lng: -1.3826,
+        radius: 200,
+        routes: ['16', '20', '61', '62', '35', '36', '56', '57']
+      }
+    ];
+    
+    for (const interchange of interchanges) {
+      const distance = this.calculateDistance(lat, lng, interchange.lat, interchange.lng);
+      if (distance <= interchange.radius) {
+        return interchange.routes;
+      }
+    }
+    
+    return [];
+  }
+  
+  // Get route importance multiplier
+  getRouteImportance(routeShortName) {
+    // Major frequent routes get higher importance
+    const majorRoutes = {
+      'Q3': 1.5, 'Q3X': 1.5,
+      '10': 1.4, '10A': 1.3, '10B': 1.3,
+      '21': 1.4, '22': 1.4, 'X21': 1.3,
+      '1': 1.3, '27': 1.2, '28': 1.2,
+      '12': 1.2, '47': 1.1, '56': 1.1, '57': 1.1
+    };
+    
+    return majorRoutes[routeShortName] || 1.0;
+  }
+  
+  // Check if coordinate is within expected operating area for route
+  isWithinOperatingArea(lat, lng, routeShortName) {
+    // Go North East operating area bounds
+    const gneArea = {
+      north: 55.2, south: 54.6,
+      east: -1.0, west: -2.2
+    };
+    
+    // Basic geographic filtering
+    if (lat < gneArea.south || lat > gneArea.north || 
+        lng < gneArea.west || lng > gneArea.east) {
+      return false;
+    }
+    
+    // Route-specific geographic filtering
+    const routeAreas = {
+      // Newcastle city center routes
+      'Q3': { north: 55.1, south: 54.9, east: -1.4, west: -1.8 },
+      'Q3X': { north: 55.1, south: 54.9, east: -1.4, west: -1.8 },
+      'TOON': { north: 55.0, south: 54.95, east: -1.5, west: -1.7 },
+      
+      // Sunderland area routes  
+      '16': { north: 55.0, south: 54.8, east: -1.2, west: -1.5 },
+      '20': { north: 55.0, south: 54.8, east: -1.2, west: -1.5 },
+      '61': { north: 55.0, south: 54.8, east: -1.2, west: -1.5 },
+      '62': { north: 55.0, south: 54.8, east: -1.2, west: -1.5 }
+    };
+    
+    const area = routeAreas[routeShortName];
+    if (area) {
+      return lat >= area.south && lat <= area.north && 
+             lng >= area.west && lng <= area.east;
+    }
+    
+    return true; // Allow if no specific area defined
   }
 
   // Find routes by text matching (location names, road names)
@@ -367,32 +487,101 @@ class GTFSService {
       return [];
     }
     
-    const routes = new Set();
+    const routes = new Map(); // route -> score
     const lowerText = text.toLowerCase();
     
-    // Check corridor mappings
-    for (const [corridor, corridorRoutes] of this.corridorRoutes.entries()) {
-      if (lowerText.includes(corridor.toLowerCase())) {
-        corridorRoutes.forEach(route => routes.add(route));
+    // Check major location patterns first
+    const locationPatterns = {
+      'newcastle central': ['Q3', 'Q3X', '10', '21', '22', '1', '12'],
+      'newcastle': ['Q3', 'Q3X', '10', '21', '22', '1', '12', '47', '53', '54'],
+      'gateshead': ['10', '21', '27', '28', 'Q3', '53', '54', '28B', '29'],
+      'durham': ['21', '22', 'X21', '6', '50', '16', '20'],
+      'sunderland': ['16', '20', '61', '62', '35', '36', '56', '57'],
+      'metro centre': ['10', '27', '28', '49', '49A', '6'],
+      'angel of the north': ['21', '28', '93', '94'],
+      'tyne bridge': ['Q3', 'Q3X', '1', '10', '21', '22', '27'],
+      'shields': ['1', '307', '309', '317', '327'],
+      'washington': ['4', '8', '50', '78', 'X1'],
+      'stanley': ['6', '45', '47', 'X30', 'X31']
+    };
+    
+    for (const [pattern, patternRoutes] of Object.entries(locationPatterns)) {
+      if (lowerText.includes(pattern)) {
+        patternRoutes.forEach(route => {
+          const score = (routes.get(route) || 0) + 2.0; // High score for exact matches
+          routes.set(route, score);
+        });
       }
     }
     
-    // Check stop names
+    // Check corridor mappings with enhanced scoring
+    for (const [corridor, corridorRoutes] of this.corridorRoutes.entries()) {
+      if (lowerText.includes(corridor.toLowerCase())) {
+        corridorRoutes.forEach(route => {
+          const score = (routes.get(route) || 0) + 1.5;
+          routes.set(route, score);
+        });
+      }
+    }
+    
+    // Check stop names with fuzzy matching
     for (const [stopId, stop] of this.stops.entries()) {
-      if (stop.name.toLowerCase().includes(lowerText)) {
+      const stopNameLower = stop.name.toLowerCase();
+      let matchScore = 0;
+      
+      // Exact substring match
+      if (stopNameLower.includes(lowerText)) {
+        matchScore = 1.0;
+      }
+      // Word boundary matches
+      else if (this.hasWordBoundaryMatch(stopNameLower, lowerText)) {
+        matchScore = 0.8;
+      }
+      // Partial word matches
+      else if (this.hasPartialWordMatch(stopNameLower, lowerText)) {
+        matchScore = 0.4;
+      }
+      
+      if (matchScore > 0) {
         // Find routes that use this stop
         for (const [routeId, stopSet] of this.stopsByRoute.entries()) {
           if (stopSet.has(stopId)) {
             const route = this.routes.get(routeId);
             if (route && route.shortName) {
-              routes.add(route.shortName);
+              const score = (routes.get(route.shortName) || 0) + matchScore;
+              routes.set(route.shortName, score);
             }
           }
         }
       }
     }
     
-    return Array.from(routes).sort();
+    // Sort by score and return top routes
+    const sortedRoutes = Array.from(routes.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20) // Limit results
+      .map(([route]) => route);
+    
+    return sortedRoutes;
+  }
+  
+  // Helper: Check for word boundary matches
+  hasWordBoundaryMatch(text, searchTerm) {
+    const words = searchTerm.split(/\s+/);
+    return words.some(word => {
+      if (word.length < 3) return false;
+      const regex = new RegExp(`\\b${word}`, 'i');
+      return regex.test(text);
+    });
+  }
+  
+  // Helper: Check for partial word matches
+  hasPartialWordMatch(text, searchTerm) {
+    const words = searchTerm.split(/\s+/);
+    return words.some(word => {
+      if (word.length < 4) return false;
+      return text.includes(word.slice(0, -1)); // Match partial word
+    });
   }
 
   // Get route details

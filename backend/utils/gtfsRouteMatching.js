@@ -65,7 +65,7 @@ export function findRoutesByLocation(locationText) {
 }
 
 /**
- * Enhanced route matching combining coordinates and text
+ * Enhanced route matching combining coordinates and text with intelligent scoring
  * @param {number} lat - Latitude
  * @param {number} lng - Longitude
  * @param {string} locationText - Location description
@@ -74,25 +74,110 @@ export function findRoutesByLocation(locationText) {
  */
 export async function findAffectedRoutesEnhanced(lat, lng, locationText, radius = 250) {
   try {
-    const routes = new Set();
+    const routeScores = new Map(); // route -> combined score
     
-    // Get routes from coordinates
+    // Get routes from coordinates with confidence scores
     if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
       const coordRoutes = await findAffectedRoutes(lat, lng, radius);
-      coordRoutes.forEach(route => routes.add(route));
+      coordRoutes.forEach((route, index) => {
+        // Higher score for routes found earlier (more confident)
+        const coordScore = 2.0 - (index * 0.1);
+        routeScores.set(route, coordScore);
+      });
     }
     
-    // Get routes from text
+    // Get routes from text with scoring
     if (locationText) {
       const textRoutes = findRoutesByLocation(locationText);
-      textRoutes.forEach(route => routes.add(route));
+      textRoutes.forEach((route, index) => {
+        // Combine with coordinate score if exists
+        const textScore = 1.5 - (index * 0.05);
+        const existingScore = routeScores.get(route) || 0;
+        
+        // Boost routes that match both coordinate and text
+        const combinedScore = existingScore > 0 ? 
+          existingScore + textScore + 0.5 : // Bonus for dual match
+          textScore;
+        
+        routeScores.set(route, combinedScore);
+      });
     }
     
-    return Array.from(routes).sort();
+    // Apply validation filters
+    const validatedRoutes = new Map();
+    for (const [route, score] of routeScores.entries()) {
+      if (isValidRouteForLocation(route, lat, lng, locationText)) {
+        validatedRoutes.set(route, score);
+      }
+    }
+    
+    // Sort by combined score and return top matches
+    const sortedRoutes = Array.from(validatedRoutes.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12) // Limit to top 12 most relevant
+      .map(([route]) => route);
+    
+    return sortedRoutes;
   } catch (error) {
     console.error('Error in enhanced route matching:', error);
     return [];
   }
+}
+
+/**
+ * Validate if a route is reasonable for the given location
+ * @param {string} route - Route name
+ * @param {number} lat - Latitude
+ * @param {number} lng - Longitude  
+ * @param {string} locationText - Location description
+ * @returns {boolean} True if route is valid for location
+ */
+function isValidRouteForLocation(route, lat, lng, locationText) {
+  // Remove obviously invalid routes
+  const invalidRoutes = ['643', '644', '794', '842', '898']; // School/works services
+  if (invalidRoutes.includes(route)) {
+    return false;
+  }
+  
+  // Geographic validation
+  if (lat && lng) {
+    // Newcastle area - expect major Newcastle routes
+    if (lat > 54.95 && lat < 55.05 && lng > -1.7 && lng < -1.5) {
+      const newcastleRoutes = ['Q3', 'Q3X', '10', '21', '22', '1', '12', '47', '53', '54', '27', '28'];
+      if (!newcastleRoutes.includes(route) && !route.startsWith('X')) {
+        // Allow X routes and common routes, filter out distant area routes
+        const distantRoutes = ['61', '62', '63', '16', '20', '35', '36'];
+        if (distantRoutes.includes(route)) return false;
+      }
+    }
+    
+    // Sunderland area - expect Sunderland routes
+    if (lat > 54.85 && lat < 54.95 && lng > -1.45 && lng < -1.2) {
+      const sunderlandRoutes = ['16', '20', '61', '62', '35', '36', '56', '57', '2', '4'];
+      if (!sunderlandRoutes.includes(route) && !['X20', 'X21'].includes(route)) {
+        return false;
+      }
+    }
+  }
+  
+  // Text-based validation
+  if (locationText) {
+    const lowerText = locationText.toLowerCase();
+    
+    // Metro Centre should not have Sunderland routes
+    if (lowerText.includes('metro centre')) {
+      const sunderlandRoutes = ['16', '20', '61', '62', '35', '36'];
+      if (sunderlandRoutes.includes(route)) return false;
+    }
+    
+    // Durham should not have North Tyneside routes
+    if (lowerText.includes('durham')) {
+      const northTynesideRoutes = ['307', '309', '317', '327', '352', '353', '354', '355', '356'];
+      if (northTynesideRoutes.includes(route)) return false;
+    }
+  }
+  
+  return true;
 }
 
 /**
