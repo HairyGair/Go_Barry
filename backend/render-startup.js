@@ -7,6 +7,37 @@ import { createServer } from 'http';
 const app = express();
 const PORT = process.env.PORT || 3001;
 const server = createServer(app);
+// Store server globally for WebSocket support in index.js
+global.goBarryServer = server;
+
+// Debug: Track route registrations
+let routeCount = { get: 0, post: 0, use: 0 };
+const originalUse = app.use.bind(app);
+const originalGet = app.get.bind(app);
+const originalPost = app.post.bind(app);
+
+app.use = function(...args) {
+  if (typeof args[0] === 'string') {
+    console.log(`📍 Route registered: USE ${args[0]}`);
+    routeCount.use++;
+  }
+  return originalUse(...args);
+};
+
+app.get = function(...args) {
+  console.log(`📍 Route registered: GET ${args[0]}`);
+  routeCount.get++;
+  return originalGet(...args);
+};
+
+app.post = function(...args) {
+  console.log(`📍 Route registered: POST ${args[0]}`);
+  routeCount.post++;
+  return originalPost(...args);
+};
+
+// Export route count for debugging
+global.goBarryRouteCount = routeCount;
 
 console.log('🚀 Starting Go BARRY Backend - Render Optimized...');
 console.log(`📍 PORT configured: ${PORT}`);
@@ -118,6 +149,21 @@ app.get('/api/alerts-enhanced', (req, res) => {
   });
 });
 
+// DEBUG: Test endpoint to verify fix is working
+app.get('/api/debug/route-test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'This route is from render-startup.js BEFORE index.js loads',
+    timestamp: new Date().toISOString(),
+    routeCount: global.goBarryRouteCount || { get: 0, post: 0, use: 0 },
+    appInfo: {
+      sameApp: true,
+      serverListening: server.listening,
+      port: PORT
+    }
+  });
+});
+
 // Note: Removed catch-all to allow actual backend routes to work
 
 // RENDER FIX: Start listening immediately
@@ -132,7 +178,11 @@ server.listen(PORT, '0.0.0.0', () => {
   setTimeout(() => {
     console.log('🔄 Loading full backend functionality...');
     import('./index.js').then(() => {
-      console.log('✅ Full backend loaded');
+      console.log('✅ Full backend loaded - ALL ROUTES NOW ACTIVE');
+      console.log(`🎆 Route count - GET: ${routeCount.get}, POST: ${routeCount.post}, USE: ${routeCount.use}`);
+      console.log('🎆 All API endpoints from index.js are now accessible!');
+      console.log('🚀 Test roadwork endpoint: https://go-barry.onrender.com/api/roadwork-alerts-test');
+      console.log('🎯 FIXED: All routes now use the same Express app instance!');
     }).catch(error => {
       console.warn('⚠️ Full backend failed to load:', error.message);
       console.log('🚨 Running in minimal mode');

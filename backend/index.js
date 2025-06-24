@@ -1,7 +1,19 @@
 // backend/index.js - Go BARRY Backend
 // Traffic Intelligence with TomTom + National Highways + StreetManager + Manual Incidents
 
-import express from 'express';
+/*
+ * ARCHITECTURAL FIX (June 2025):
+ * Previously, this file created its own Express app, resulting in TWO separate app instances:
+ * 1. render-startup.js created app #1 and listened on the port
+ * 2. index.js created app #2 and registered all routes on it
+ * Result: 100% of routes returned 404 because app #2 was never served
+ * 
+ * SOLUTION: Import the app from render-startup.js instead of creating a new one
+ * Now all routes are registered on the same app that's actually being served!
+ */
+
+// FIXED: Import the app from render-startup.js instead of creating a new one
+import app from './render-startup.js';
 import axios from 'axios';
 import fs from 'fs/promises';
 import path from 'path';
@@ -45,7 +57,7 @@ import streetManagerWebhooks from './services/streetManagerWebhooksSimple.js';
 console.log('✅ streetManagerWebhooks service imported');
 import streetManagerWebhookRouter from './routes/streetManagerWebhook.js';
 console.log('✅ streetManagerWebhookRouter imported');
-import { createServer } from 'http';
+// REMOVED: import { createServer } from 'http'; - Using server from render-startup.js
 import { deduplicateAlerts, cleanupExpiredDismissals, generateAlertHash } from './utils/alertDeduplication.js';
 import { convexSync } from './services/convexSync.js';
 import startupService from './services/startupService.js';
@@ -214,17 +226,12 @@ async function initializeApplication() {
   }
 }
 
-const app = express();
+// REMOVED: const app = express(); - Now using the app from render-startup.js
 
-// Create HTTP server for WebSocket support (singleton pattern)
-let server;
-if (!global.goBarryServer) {
-  server = createServer(app);
-  global.goBarryServer = server;
-  console.log('✅ Created new server instance');
-} else {
-  server = global.goBarryServer;
-  console.log('🔄 Reusing existing server instance');
+// FIXED: Use the server from render-startup.js instead of creating a new one
+let server = global.goBarryServer;
+if (!server) {
+  console.warn('⚠️ Server not found in global, WebSocket features may not work');
 }
 
 console.log(`
@@ -2009,7 +2016,8 @@ app.use('*', (req, res) => {
   });
 });
 
-// Start server with WebSocket support after initialization
+// REMOVED: Server startup is now handled by render-startup.js
+/*
 async function startServer() {
   try {
     console.log('🚀 Starting Go BARRY Backend...');
@@ -2123,42 +2131,39 @@ async function startServer() {
     });
   }
 }
+*/
 
-// Start the server with immediate port binding for Render
+// FIXED: Server startup is now handled by render-startup.js
+// The code below has been commented out since render-startup.js handles port binding
+/*
 console.log('🎯 CRITICAL FIX: Binding to port BEFORE initialization to satisfy Render requirements');
 console.log('📍 AI Diversion System: GTFS local intelligence + TomTom live traffic routing');
 
-// Add a small delay to ensure previous instance has released the port
-if (process.env.PORT) {
-  console.log('🕒 Waiting 2 seconds for port to be released...');
-  setTimeout(() => {
-    startServer().catch(error => {
-      console.error('❌ Critical startup error:', error);
-      
-      // RENDER FIX: Still try to bind to port even on critical error
-      console.log('🚨 Attempting emergency port binding...');
-      const http = require('http');
-      const emergencyServer = http.createServer((req, res) => {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          success: false,
-          error: 'Server initialization failed',
-          status: 'emergency_mode',
-          timestamp: new Date().toISOString()
-        }));
-      });
-      emergencyServer.listen(3456, () => {
-        const port = 3456;
-        console.log(`🚨 Emergency server listening on port ${port}`);
-      });
-    });
-  }, 2000);
-} else {
-  // Local development - start immediately
-  startServer().catch(error => {
-    console.error('❌ Critical startup error:', error);
-  });
-}
+// Server startup code removed - handled by render-startup.js
+*/
+
+// Initialize the application when this module is imported
+initializeApplication().then(async () => {
+  console.log('✅ Basic initialization complete');
+  
+  // Initialize Go BARRY system with 3-month data retention
+  try {
+    await startupService.initializeGoBarrySystem();
+    console.log('✅ Go BARRY system initialization complete');
+  } catch (error) {
+    console.error('⚠️ Go BARRY system initialization error:', error.message);
+    console.log('⚠️ Continuing without data retention system...');
+  }
+  
+  // Initialize WebSocket service if server is available
+  if (server) {
+    supervisorSyncService.initialize(server);
+    console.log('✅ WebSocket service initialized');
+  }
+}).catch(error => {
+  console.error('⚠️ Initialization error:', error.message);
+  console.log('⚠️ Continuing with limited functionality...');
+});
 
 // Top-level error handling for unhandled crashes
 process.on('uncaughtException', err => {
