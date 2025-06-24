@@ -3,6 +3,10 @@
 
 import { convexSync } from './convexSync.js';
 import { geocodeLocation } from './geocoding.js';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
 // North East England area bounds
 const NORTH_EAST_BOUNDS = {
@@ -263,9 +267,10 @@ export async function processStreetManagerEvent(eventData) {
     // Mark event as processed
     processedEvents.set(eventKey, Date.now());
     
-    // Store alert in our system
-    // TODO: Add to alerts database or memory store
-    console.log('✅ Street Manager alert created:', {
+    // Store alert in our roadworks database
+    await storeStreetManagerAlert(alert);
+    
+    console.log('✅ Street Manager alert created and stored:', {
       id: alert.id,
       title: alert.title,
       severity: alert.severity,
@@ -301,6 +306,123 @@ export async function processStreetManagerEvent(eventData) {
       error: error.message
     };
   }
+}
+
+/**
+ * Store StreetManager alert in roadworks database
+ */
+async function storeStreetManagerAlert(alert) {
+  try {
+    // Map StreetManager alert to roadworks table format
+    const roadworkData = {
+      title: alert.title,
+      description: alert.description || '',
+      location: alert.location,
+      areas: [alert.areaName].filter(Boolean), // Array of areas
+      status: mapAlertStatusToRoadworkStatus(alert.status),
+      start_date: alert.startDate || new Date().toISOString(),
+      end_date: alert.endDate,
+      all_day: false,
+      routes_affected: alert.affectsRoutes || [],
+      severity: mapAlertSeverityToRoadworkSeverity(alert.severity),
+      contact_info: alert.authority || 'StreetManager',
+      web_link: null,
+      created_by_supervisor_id: 'streetmanager',
+      created_by_name: 'StreetManager System',
+      email_sent: false,
+      source: 'streetmanager',
+      
+      // StreetManager specific fields
+      permit_reference: alert.permitReference,
+      activity_reference: alert.activityReference,
+      work_reference: alert.workReference,
+      highway_authority: alert.authority,
+      work_category: alert.workCategory,
+      work_type: alert.workType,
+      is_emergency: alert.isEmergency || false,
+      traffic_management_type: alert.trafficManagementType,
+      street_name: alert.streetName,
+      area_name: alert.areaName,
+      usrn: alert.usrn,
+      event_type: alert.eventType,
+      event_time: alert.eventTime,
+      coordinates: alert.coordinates ? {
+        latitude: alert.coordinates[0],
+        longitude: alert.coordinates[1]
+      } : null
+    };
+
+    // Check if this roadwork already exists (prevent duplicates)
+    const existingCheck = await supabase
+      .from('roadworks')
+      .select('id')
+      .eq('permit_reference', alert.permitReference)
+      .eq('activity_reference', alert.activityReference)
+      .single();
+
+    if (existingCheck.data) {
+      // Update existing roadwork
+      const { data, error } = await supabase
+        .from('roadworks')
+        .update({
+          ...roadworkData,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingCheck.data.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error updating StreetManager roadwork:', error);
+        return null;
+      }
+
+      console.log('✅ Updated existing StreetManager roadwork:', data.id);
+      return data;
+    } else {
+      // Create new roadwork
+      const { data, error } = await supabase
+        .from('roadworks')
+        .insert([roadworkData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error storing StreetManager roadwork:', error);
+        return null;
+      }
+
+      console.log('✅ Stored new StreetManager roadwork:', data.id);
+      return data;
+    }
+  } catch (error) {
+    console.error('❌ Failed to store StreetManager alert:', error);
+    return null;
+  }
+}
+
+/**
+ * Map StreetManager alert status to roadwork status
+ */
+function mapAlertStatusToRoadworkStatus(alertStatus) {
+  const statusMap = {
+    'red': 'active',
+    'amber': 'pending', 
+    'green': 'completed'
+  };
+  return statusMap[alertStatus] || 'pending';
+}
+
+/**
+ * Map StreetManager alert severity to roadwork severity
+ */
+function mapAlertSeverityToRoadworkSeverity(alertSeverity) {
+  const severityMap = {
+    'High': 'high',
+    'Medium': 'medium',
+    'Low': 'low'
+  };
+  return severityMap[alertSeverity] || 'medium';
 }
 
 /**

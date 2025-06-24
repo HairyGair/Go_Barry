@@ -30,13 +30,14 @@ const RoadworksManager = ({ baseUrl }) => {
   // State management
   const [roadworks, setRoadworks] = useState([]);
   const [trafficRoadworks, setTrafficRoadworks] = useState([]); // New: automatic roadworks from traffic APIs
+  const [allTrafficAlerts, setAllTrafficAlerts] = useState([]); // ALL traffic alerts for triage
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedRoadwork, setSelectedRoadwork] = useState(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('manual'); // New: tab to switch between manual and automatic
+  const [activeTab, setActiveTab] = useState('manual'); // Tab options: manual, automatic, all-alerts
   const [showMap, setShowMap] = useState(false);
   const [mapRoadwork, setMapRoadwork] = useState(null);
   const [showDiversions, setShowDiversions] = useState(false);
@@ -48,7 +49,8 @@ const RoadworksManager = ({ baseUrl }) => {
     promotedToDisplay: 0,
     activeDiversions: 0,
     pendingTasks: 0,
-    automatic: 0 // New: count of automatic roadworks
+    automatic: 0, // New: count of automatic roadworks
+    allAlerts: 0 // Count of all traffic alerts
   });
 
   // Roadworks statuses with colors

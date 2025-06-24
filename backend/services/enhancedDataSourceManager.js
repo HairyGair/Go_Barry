@@ -281,31 +281,70 @@ class EnhancedDataSourceManager {
       const activitiesResult = streetManagerWebhooks.getWebhookActivities();
       const permitsResult = streetManagerWebhooks.getWebhookPermits();
       
-      const allData = [];
-      let totalCount = 0;
+      const allAlerts = [];
       
-      if (activitiesResult.success) {
-        const activities = activitiesResult.data || [];
-        allData.push(...activities);
-        totalCount += activities.length;
-        console.log(`✅ StreetManager Activities: ${activities.length} roadworks from webhooks`);
+      // Transform activities into alerts
+      if (activitiesResult.success && activitiesResult.data) {
+        const activityAlerts = activitiesResult.data.map(activity => ({
+          id: activity.id || `streetmanager_activity_${activity.object_reference || Date.now()}`,
+          title: `Roadworks Activity - ${activity.activity_type || activity.event_type || 'Unknown'}`,
+          description: `StreetManager Activity: ${activity.description || activity.event_type || 'Roadwork activity reported'}`,
+          location: activity.location || activity.street_name || activity.area || 'Location TBD',
+          coordinates: activity.coordinates || null,
+          severity: activity.impact === 'HIGH' ? 'High' : activity.impact === 'MEDIUM' ? 'Medium' : 'Low',
+          status: activity.status || 'active',
+          timestamp: activity.receivedAt || new Date().toISOString(),
+          lastUpdated: activity.receivedAt || new Date().toISOString(),
+          startDate: activity.start_date || activity.receivedAt,
+          endDate: activity.end_date,
+          source: 'streetmanager',
+          type: 'roadwork',
+          category: 'roadwork',
+          affectsRoutes: activity.affected_routes || [],
+          permitReference: activity.permit_reference,
+          workType: activity.activity_type || activity.work_type || 'Roadwork',
+          contractor: activity.promoter || activity.contractor,
+          enhanced: false
+        }));
+        allAlerts.push(...activityAlerts);
+        console.log(`✅ StreetManager Activities: ${activityAlerts.length} roadwork activities`);
       }
       
-      if (permitsResult.success) {
-        const permits = permitsResult.data || [];
-        allData.push(...permits);
-        totalCount += permits.length;
-        console.log(`✅ StreetManager Permits: ${permits.length} planned works from webhooks`);
+      // Transform permits into alerts
+      if (permitsResult.success && permitsResult.data) {
+        const permitAlerts = permitsResult.data.map(permit => ({
+          id: permit.id || `streetmanager_permit_${permit.object_reference || Date.now()}`,
+          title: `Planned Roadworks - ${permit.work_type || permit.event_type || 'Permit'}`,
+          description: `StreetManager Permit: ${permit.description || permit.event_type || 'Planned roadworks'}`,
+          location: permit.location || permit.street_name || permit.area || 'Location TBD',
+          coordinates: permit.coordinates || null,
+          severity: permit.impact === 'HIGH' ? 'High' : permit.impact === 'MEDIUM' ? 'Medium' : 'Low',
+          status: permit.status || 'planned',
+          timestamp: permit.receivedAt || new Date().toISOString(),
+          lastUpdated: permit.receivedAt || new Date().toISOString(),
+          startDate: permit.proposed_start_date || permit.start_date || permit.receivedAt,
+          endDate: permit.proposed_end_date || permit.end_date,
+          source: 'streetmanager',
+          type: 'roadwork',
+          category: 'roadwork',
+          affectsRoutes: permit.affected_routes || [],
+          permitReference: permit.permit_reference || permit.object_reference,
+          workType: permit.work_type || 'Planned Roadwork',
+          contractor: permit.promoter || permit.contractor,
+          enhanced: false
+        }));
+        allAlerts.push(...permitAlerts);
+        console.log(`✅ StreetManager Permits: ${permitAlerts.length} planned roadworks`);
       }
       
       timeBasedPollingManager.recordPoll('streetmanager', true);
       
       return {
         success: true,
-        incidents: allData,
+        incidents: allAlerts,
         method: 'StreetManager UK Webhooks',
         mode: 'webhook_receiver',
-        count: totalCount,
+        count: allAlerts.length,
         pollingAllowed: true
       };
       

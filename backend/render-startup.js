@@ -139,19 +139,19 @@ app.get('/api/supervisor/active', (req, res) => {
   });
 });
 
-// Basic alerts endpoint
-app.get('/api/alerts-enhanced', (req, res) => {
-  res.json({
-    success: true,
-    alerts: [],
-    metadata: {
-      totalAlerts: 0,
-      sources: {},
-      lastUpdated: new Date().toISOString(),
-      mode: 'render_startup_mode'
-    }
-  });
-});
+// Basic alerts endpoint - REMOVED to allow full version from index.js
+// app.get('/api/alerts-enhanced', (req, res) => {
+//   res.json({
+//     success: true,
+//     alerts: [],
+//     metadata: {
+//       totalAlerts: 0,
+//       sources: {},
+//       lastUpdated: new Date().toISOString(),
+//       mode: 'render_startup_mode'
+//     }
+//   });
+// });
 
 // DEBUG: Test endpoint to verify fix is working
 app.get('/api/debug/route-test', (req, res) => {
