@@ -1,7 +1,7 @@
 // Go_BARRY/components/hooks/useSupervisorSessionWithPasswords.js
 // Enhanced supervisor session management with mandatory passwords for all users
 
-import { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { Alert } from 'react-native';
 import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
@@ -228,10 +228,13 @@ export const useSupervisorSession = () => {
 
   // Initialize session from storage on mount
   useEffect(() => {
+    console.log('[useSupervisorSession] Initializing session from storage...');
     const savedSession = sessionStorageService.loadSession();
     if (savedSession) {
       setSupervisorSession(savedSession);
       console.log('✅ Restored supervisor session:', savedSession.supervisor?.name);
+    } else {
+      console.log('❌ No saved session found in storage');
     }
   }, []);
 
@@ -636,6 +639,14 @@ export const useSupervisorSession = () => {
 // Context Provider Component
 export const SupervisorProvider = ({ children }) => {
   const supervisorSession = useSupervisorSession();
+  
+  // Debug logging for context state
+  useEffect(() => {
+    console.log('[SupervisorProvider] Context state:', {
+      isLoggedIn: supervisorSession.isLoggedIn,
+      supervisorName: supervisorSession.supervisorName || 'Not logged in'
+    });
+  }, [supervisorSession.isLoggedIn, supervisorSession.supervisorName]);
 
   return (
     <SupervisorContext.Provider value={supervisorSession}>

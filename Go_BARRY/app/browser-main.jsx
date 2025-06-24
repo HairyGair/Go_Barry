@@ -28,7 +28,7 @@ import RoadworksManager from '../components/RoadworksManager';
 import DisruptionDatabase from '../components/DisruptionDatabase';
 import AdminPanel from '../components/admin/AdminPanel';
 import DutyBoards from '../components/DutyBoards';
-import { useSupervisorSession } from '../components/hooks/useSupervisorSession';
+import { useSupervisor } from '../components/hooks/useSupervisorSession';
 import { useBarryAPI } from '../components/hooks/useBARRYapi';
 import { API_CONFIG } from '../config/api';
 
@@ -135,13 +135,35 @@ const BrowserMainApp = () => {
     isAdmin,
     supervisorSession, // Add this to access backendId
     logout
-  } = useSupervisorSession();
+  } = useSupervisor();
 
   // Get live alerts for supervisor control
   const { alerts } = useBarryAPI({ autoRefresh: true, refreshInterval: 15000 });
 
   const [activeScreen, setActiveScreen] = useState('supervisor');
   const [showSupervisorLogin, setShowSupervisorLogin] = useState(false);
+  const [loginJustCompleted, setLoginJustCompleted] = useState(false);
+  const [sessionInitialized, setSessionInitialized] = useState(false);
+  
+  // Temporary debug logging to verify context fix
+  useEffect(() => {
+    console.log('[browser-main] Session state update:', { 
+      isLoggedIn, 
+      supervisorName: supervisorName || 'Not logged in',
+      sessionInitialized,
+      loginJustCompleted,
+      showSupervisorLogin,
+      timestamp: new Date().toLocaleTimeString() 
+    });
+  }, [isLoggedIn, supervisorName, sessionInitialized, loginJustCompleted, showSupervisorLogin]);
+  
+  // Mark session as initialized after a short delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSessionInitialized(true);
+    }, 200); // Give time for session to load from storage
+    return () => clearTimeout(timer);
+  }, []);
   
   // Debug state changes
   useEffect(() => {
@@ -239,15 +261,28 @@ const BrowserMainApp = () => {
 
   // Force login modal to open for non-logged-in users on first load
   useEffect(() => {
-    if (!isLoggedIn) {
+    if (!isLoggedIn && !showSupervisorLogin && !loginJustCompleted && sessionInitialized) {
       console.log('User not logged in, opening login modal automatically');
-      // Small delay to ensure component is fully mounted
+      // Small delay to ensure component is fully mounted and prevent race conditions
       const timer = setTimeout(() => {
-        setShowSupervisorLogin(true);
+        // Double-check user is still not logged in before opening modal
+        if (!isLoggedIn && !loginJustCompleted && sessionInitialized) {
+          setShowSupervisorLogin(true);
+        }
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, showSupervisorLogin, loginJustCompleted, sessionInitialized]);
+  
+  // Clear login completed flag after a delay
+  useEffect(() => {
+    if (loginJustCompleted) {
+      const timer = setTimeout(() => {
+        setLoginJustCompleted(false);
+      }, 3000); // 3 second cooldown
+      return () => clearTimeout(timer);
+    }
+  }, [loginJustCompleted]);
 
   const renderActiveScreen = () => {
     const screenConfig = BROWSER_NAVIGATION[activeScreen];
@@ -343,7 +378,7 @@ const BrowserMainApp = () => {
   return (
     <View style={styles.container}>
       {/* Show login prompt if not logged in and modal isn't showing */}
-      {!isLoggedIn && !showSupervisorLogin && (
+      {!isLoggedIn && !showSupervisorLogin && !loginJustCompleted && sessionInitialized && (
         <TouchableOpacity 
           style={styles.loginPromptOverlay} 
           data-testid="login-prompt-overlay"
@@ -540,6 +575,7 @@ const BrowserMainApp = () => {
               onLoginSuccess={() => {
                 console.log('Login success in BrowserMainApp');
                 setShowSupervisorLogin(false);  // Explicitly close modal
+                setLoginJustCompleted(true);    // Prevent immediate re-open
               }}
             />
           </View>
@@ -555,6 +591,7 @@ const BrowserMainApp = () => {
           onLoginSuccess={() => {
             console.log('Login success in BrowserMainApp');
             setShowSupervisorLogin(false);  // Explicitly close modal
+            setLoginJustCompleted(true);    // Prevent immediate re-open
           }}
         />
       )}

@@ -213,6 +213,31 @@ function formatDiversionsForCopy(data) {
   return text;
 }
 
+// Archive reason constants
+const ARCHIVE_REASONS = {
+  RESOLVED: { value: 'resolved', label: 'Resolved', color: '#10B981' },
+  DUPLICATE: { value: 'duplicate', label: 'Duplicate', color: '#F59E0B' },
+  IRRELEVANT: { value: 'irrelevant', label: 'Irrelevant', color: '#6B7280' },
+  FALSE_ALERT: { value: 'false_alert', label: 'False Alert', color: '#EF4444' },
+  NO_ACTION_REQUIRED: { value: 'no_action_required', label: 'No Action Required', color: '#8B5CF6' },
+  OTHER: { value: 'other', label: 'Other', color: '#9CA3AF' }
+};
+
+// Action types for incidents
+const ACTION_TYPES = {
+  DIVERSION_IMPLEMENTED: { value: 'diversion_implemented', label: 'Diversion Implemented', icon: 'swap-horizontal' },
+  DRIVER_NOTIFICATION: { value: 'driver_notification', label: 'Driver Notification', icon: 'megaphone' },
+  COUNCIL_CONTACTED: { value: 'council_contacted', label: 'Council Contacted', icon: 'business' },
+  EMERGENCY_SERVICES: { value: 'emergency_services_notified', label: 'Emergency Services Notified', icon: 'medical' },
+  SHUTTLE_ARRANGED: { value: 'shuttle_service_arranged', label: 'Shuttle Service Arranged', icon: 'bus' },
+  ROUTE_SUSPENSION: { value: 'route_suspension', label: 'Route Suspension', icon: 'close-circle' },
+  ROUTE_DIVERSION: { value: 'route_diversion', label: 'Route Diversion', icon: 'git-branch' },
+  PUBLIC_ANNOUNCEMENT: { value: 'public_announcement', label: 'Public Announcement', icon: 'megaphone' },
+  SOCIAL_MEDIA: { value: 'social_media_update', label: 'Social Media Update', icon: 'logo-twitter' },
+  WEBSITE_UPDATE: { value: 'website_update', label: 'Website Update', icon: 'globe' },
+  CUSTOMER_SERVICE: { value: 'customer_service_briefed', label: 'Customer Service Briefed', icon: 'people' }
+};
+
 const IncidentManager = ({ baseUrl, sector = 4 }) => {
   const { 
     isLoggedIn, 
@@ -242,7 +267,15 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
     addIncidentNote: addIncidentNoteMutation,
     sendTicketerMessage: sendTicketerMessageMutation,
     pushIncidentToDisplay: pushIncidentToDisplayMutation,
-    incidentsLoading
+    incidentsLoading,
+    // Enhanced functions
+    convertAlertToIncident: convertAlertToIncidentMutation,
+    addIncidentAction: addIncidentActionMutation,
+    archiveIncident: archiveIncidentMutation,
+    getIncidentWithActions,
+    getIncidentsByStatus,
+    searchArchivedIncidents,
+    getIncidentStats
   } = useConvexSync();
 
   // Use Convex incidents instead of local state
@@ -265,6 +298,12 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
   const [diversionsLoading, setDiversionsLoading] = useState(false);
   const [diversionsData, setDiversionsData] = useState(null);
   const [dismissedTrafficAlerts, setDismissedTrafficAlerts] = useState(new Set());
+  const [showConvertModal, setShowConvertModal] = useState(false);
+  const [alertToConvert, setAlertToConvert] = useState(null);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [incidentToArchive, setIncidentToArchive] = useState(null);
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [actionIncident, setActionIncident] = useState(null);
 
   // New incident form state
   const [newIncident, setNewIncident] = useState({
@@ -763,29 +802,120 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
     showNotification('Traffic alert dismissed', 'success');
   };
 
-  // Delete incident
-  const deleteIncident = async (incidentId) => {
-    if (!isLoggedIn) return;
+  // Convert traffic alert to managed incident
+  const handleConvertAlert = async (alert) => {
+    setAlertToConvert(alert);
+    setShowConvertModal(true);
+  };
 
-    const confirmDelete = isWeb ? 
-      window.confirm('Are you sure you want to delete this incident?') :
-      await new Promise(resolve => {
-        Alert.alert(
-          'Delete Incident',
-          'Are you sure you want to delete this incident?',
-          [
-            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-            { text: 'Delete', style: 'destructive', onPress: () => resolve(true) }
-          ]
-        );
+  const convertAlert = async (conversionData) => {
+    if (!isLoggedIn || !alertToConvert) return;
+
+    try {
+      const result = await convertAlertToIncidentMutation({
+        alertData: {
+          id: alertToConvert.id,
+          title: alertToConvert.title || alertToConvert.type,
+          location: alertToConvert.location,
+          coordinates: alertToConvert.coordinates,
+          severity: alertToConvert.severity,
+          description: alertToConvert.description,
+          source: alertToConvert.source,
+          affectsRoutes: alertToConvert.affectsRoutes || [],
+        },
+        supervisorId: supervisorName,
+        supervisorName: supervisorName,
+        supervisorRole: supervisorRole,
+        conversionNotes: conversionData.notes,
+        priority: conversionData.priority,
+        incidentType: conversionData.type,
+        subtype: conversionData.subtype,
       });
 
-    if (!confirmDelete) return;
+      if (result.success) {
+        // Dismiss the original alert
+        setDismissedTrafficAlerts(prev => new Set([...prev, alertToConvert.id]));
+        showNotification(result.message || 'Alert converted to managed incident', 'success');
+        setShowConvertModal(false);
+        setAlertToConvert(null);
+      } else {
+        throw new Error(result.error || 'Conversion failed');
+      }
+    } catch (error) {
+      console.error('Failed to convert alert:', error);
+      showNotification('Failed to convert alert: ' + error.message, 'error');
+    }
+  };
 
-    // Update status to closed instead of deleting (Convex will handle the sync)
-    await updateIncidentStatus(incidentId, 'closed');
-    logActivity('DELETE_INCIDENT', `Deleted incident ${incidentId}`, incidentId);
-    showNotification('Incident closed successfully', 'success');
+  // Archive incident with reason
+  const handleArchiveIncident = (incident) => {
+    setIncidentToArchive(incident);
+    setShowArchiveModal(true);
+  };
+
+  const archiveIncidentWithReason = async (archiveData) => {
+    if (!isLoggedIn || !incidentToArchive) return;
+
+    try {
+      const result = await archiveIncidentMutation({
+        incidentId: incidentToArchive.incidentId || incidentToArchive.id,
+        reason: archiveData.reason,
+        reasonDetails: archiveData.reasonDetails,
+        archivedBy: supervisorName,
+        resolutionNotes: archiveData.resolutionNotes,
+      });
+
+      if (result.success) {
+        showNotification('Incident archived successfully', 'success');
+        setShowArchiveModal(false);
+        setIncidentToArchive(null);
+      } else {
+        throw new Error('Archive failed');
+      }
+    } catch (error) {
+      console.error('Failed to archive incident:', error);
+      showNotification('Failed to archive incident', 'error');
+    }
+  };
+
+  // Add action to incident
+  const handleAddAction = (incident) => {
+    setActionIncident(incident);
+    setShowActionModal(true);
+  };
+
+  const addActionToIncident = async (actionData) => {
+    if (!isLoggedIn || !actionIncident) return;
+
+    try {
+      const result = await addIncidentActionMutation({
+        incidentId: actionIncident.incidentId || actionIncident.id,
+        actionType: actionData.type,
+        description: actionData.description,
+        performedBy: supervisorName,
+        details: actionData.details,
+      });
+
+      if (result.success) {
+        showNotification('Action recorded successfully', 'success');
+        setShowActionModal(false);
+        setActionIncident(null);
+      } else {
+        throw new Error('Failed to add action');
+      }
+    } catch (error) {
+      console.error('Failed to add action:', error);
+      showNotification('Failed to add action', 'error');
+    }
+  };
+
+  // Delete incident (deprecated - use archive instead)
+  const deleteIncident = async (incidentId) => {
+    // Redirect to archive with reason
+    const incident = incidents.find(i => (i.incidentId || i.id) === incidentId);
+    if (incident) {
+      handleArchiveIncident(incident);
+    }
   };
 
   if (!isLoggedIn) {
@@ -925,9 +1055,9 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
                   {isLoggedIn && (
                     <TouchableOpacity
                       style={styles.deleteButton}
-                      onPress={() => deleteIncident(incident.id)}
+                      onPress={() => handleArchiveIncident(incident)}
                     >
-                      <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                      <Ionicons name="archive-outline" size={16} color="#EF4444" />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -984,6 +1114,14 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
                 >
                   <Ionicons name="create" size={14} color="#6B7280" />
                   <Text style={styles.quickActionText}>Add Note</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.addActionButton}
+                  onPress={() => handleAddAction(incident)}
+                >
+                  <Ionicons name="flash" size={14} color="#059669" />
+                  <Text style={styles.quickActionText}>Add Action</Text>
                 </TouchableOpacity>
 
                 {!incident.ticketerSent && (
@@ -1087,6 +1225,14 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
                          incident.source}
                       </Text>
                     </View>
+                    
+                    <TouchableOpacity
+                      style={styles.convertButton}
+                      onPress={() => handleConvertAlert(incident)}
+                    >
+                      <Ionicons name="sync" size={16} color="#059669" />
+                      <Text style={styles.convertButtonText}>Convert</Text>
+                    </TouchableOpacity>
                     
                     {incident.coordinates && (
                       <TouchableOpacity
@@ -1957,7 +2103,455 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
           </View>
         </Modal>
       )}
+
+      {/* Convert Alert Modal */}
+      <ConvertAlertModal
+        visible={showConvertModal}
+        alert={alertToConvert}
+        onClose={() => {
+          setShowConvertModal(false);
+          setAlertToConvert(null);
+        }}
+        onConvert={convertAlert}
+      />
+
+      {/* Archive Incident Modal */}
+      <ArchiveIncidentModal
+        visible={showArchiveModal}
+        incident={incidentToArchive}
+        onClose={() => {
+          setShowArchiveModal(false);
+          setIncidentToArchive(null);
+        }}
+        onArchive={archiveIncidentWithReason}
+      />
+
+      {/* Add Action Modal */}
+      <AddActionModal
+        visible={showActionModal}
+        incident={actionIncident}
+        onClose={() => {
+          setShowActionModal(false);
+          setActionIncident(null);
+        }}
+        onAddAction={addActionToIncident}
+      />
     </View>
+  );
+};
+
+// Convert Alert Modal Component
+const ConvertAlertModal = ({ visible, alert, onClose, onConvert }) => {
+  const [conversionData, setConversionData] = useState({
+    type: '',
+    subtype: '',
+    priority: 'MEDIUM',
+    notes: ''
+  });
+
+  useEffect(() => {
+    if (alert) {
+      // Pre-fill with alert data
+      setConversionData({
+        type: alert.type === 'incident' ? 'traffic' : 'roadwork',
+        subtype: '',
+        priority: alert.severity === 'High' ? 'HIGH' : alert.severity === 'Medium' ? 'MEDIUM' : 'LOW',
+        notes: ''
+      });
+    }
+  }, [alert]);
+
+  if (!visible || !alert) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalDialogContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Convert to Managed Incident</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="close" size={24} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {/* Alert Summary */}
+            <View style={styles.alertSummary}>
+              <Text style={styles.alertSummaryTitle}>Converting Alert:</Text>
+              <Text style={styles.alertSummaryLocation}>{alert.location}</Text>
+              <Text style={styles.alertSummarySource}>Source: {alert.source}</Text>
+            </View>
+
+            {/* Incident Type */}
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>Incident Type *</Text>
+              <View style={styles.typeGrid}>
+                {Object.entries(INCIDENT_TYPES).map(([key, type]) => (
+                  <TouchableOpacity
+                    key={key}
+                    style={[
+                      styles.typeCard,
+                      conversionData.type === key && styles.typeCardSelected
+                    ]}
+                    onPress={() => setConversionData(prev => ({ ...prev, type: key, subtype: '' }))}
+                  >
+                    <Ionicons name={type.icon} size={24} color={type.color} />
+                    <Text style={styles.typeCardText}>{type.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Priority */}
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>Priority Level</Text>
+              <View style={styles.priorityGrid}>
+                {['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].map((priority) => (
+                  <TouchableOpacity
+                    key={priority}
+                    style={[
+                      styles.priorityButton,
+                      conversionData.priority === priority && styles.priorityButtonSelected,
+                      { backgroundColor: getPriorityColor(priority) }
+                    ]}
+                    onPress={() => setConversionData(prev => ({ ...prev, priority }))}
+                  >
+                    <Text style={styles.priorityButtonText}>{priority}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Conversion Notes */}
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>Conversion Notes *</Text>
+              <TextInput
+                style={styles.textArea}
+                placeholder="Why are you converting this alert to a managed incident?"
+                value={conversionData.notes}
+                onChangeText={(text) => setConversionData(prev => ({ ...prev, notes: text }))}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+          </ScrollView>
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                (!conversionData.type || !conversionData.notes) && styles.submitButtonDisabled
+              ]}
+              onPress={() => onConvert(conversionData)}
+              disabled={!conversionData.type || !conversionData.notes}
+            >
+              <Text style={styles.submitButtonText}>Convert to Incident</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// Archive Incident Modal Component
+const ArchiveIncidentModal = ({ visible, incident, onClose, onArchive }) => {
+  const [archiveData, setArchiveData] = useState({
+    reason: '',
+    reasonDetails: '',
+    resolutionNotes: ''
+  });
+
+  useEffect(() => {
+    if (!visible) {
+      setArchiveData({
+        reason: '',
+        reasonDetails: '',
+        resolutionNotes: ''
+      });
+    }
+  }, [visible]);
+
+  if (!visible || !incident) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalDialogContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Archive Incident</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="close" size={24} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {/* Incident Summary */}
+            <View style={styles.alertSummary}>
+              <Text style={styles.alertSummaryTitle}>Archiving:</Text>
+              <Text style={styles.alertSummaryLocation}>{incident.location}</Text>
+              <Text style={styles.alertSummarySource}>{incident.type} - {incident.subtype || 'General'}</Text>
+            </View>
+
+            {/* Archive Reason */}
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>Reason for Archiving *</Text>
+              <View style={styles.reasonGrid}>
+                {Object.entries(ARCHIVE_REASONS).map(([key, reason]) => (
+                  <TouchableOpacity
+                    key={key}
+                    style={[
+                      styles.reasonCard,
+                      archiveData.reason === reason.value && styles.reasonCardSelected,
+                      { borderColor: reason.color }
+                    ]}
+                    onPress={() => setArchiveData(prev => ({ ...prev, reason: reason.value }))}
+                  >
+                    <Text style={[
+                      styles.reasonCardText,
+                      archiveData.reason === reason.value && { color: reason.color }
+                    ]}>
+                      {reason.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Reason Details */}
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>Details *</Text>
+              <TextInput
+                style={styles.textArea}
+                placeholder="Provide specific details about why this incident is being archived..."
+                value={archiveData.reasonDetails}
+                onChangeText={(text) => setArchiveData(prev => ({ ...prev, reasonDetails: text }))}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            {/* Resolution Notes */}
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>Resolution Notes</Text>
+              <TextInput
+                style={styles.textArea}
+                placeholder="Any additional notes about how this was resolved or handled..."
+                value={archiveData.resolutionNotes}
+                onChangeText={(text) => setArchiveData(prev => ({ ...prev, resolutionNotes: text }))}
+                multiline
+                numberOfLines={2}
+              />
+            </View>
+          </ScrollView>
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.archiveButton,
+                (!archiveData.reason || !archiveData.reasonDetails) && styles.submitButtonDisabled
+              ]}
+              onPress={() => onArchive(archiveData)}
+              disabled={!archiveData.reason || !archiveData.reasonDetails}
+            >
+              <Ionicons name="archive" size={20} color="#FFFFFF" />
+              <Text style={styles.submitButtonText}>Archive Incident</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// Add Action Modal Component
+const AddActionModal = ({ visible, incident, onClose, onAddAction }) => {
+  const [actionData, setActionData] = useState({
+    type: '',
+    description: '',
+    details: {}
+  });
+  const [affectedRoutes, setAffectedRoutes] = useState([]);
+  const [notificationMessage, setNotificationMessage] = useState('');
+
+  useEffect(() => {
+    if (!visible) {
+      setActionData({
+        type: '',
+        description: '',
+        details: {}
+      });
+      setAffectedRoutes([]);
+      setNotificationMessage('');
+    }
+  }, [visible]);
+
+  if (!visible || !incident) return null;
+
+  const handleActionTypeSelect = (actionType) => {
+    setActionData(prev => ({ ...prev, type: actionType.value }));
+    
+    // Set default descriptions based on action type
+    switch (actionType.value) {
+      case 'diversion_implemented':
+        setActionData(prev => ({
+          ...prev,
+          description: 'Implemented diversion for affected routes'
+        }));
+        break;
+      case 'driver_notification':
+        setActionData(prev => ({
+          ...prev,
+          description: 'Notified drivers via Ticketer/Radio'
+        }));
+        break;
+      default:
+        break;
+    }
+  };
+
+  const submitAction = () => {
+    const finalActionData = {
+      ...actionData,
+      details: {
+        ...actionData.details,
+        ...(affectedRoutes.length > 0 && { affectedRoutes }),
+        ...(notificationMessage && { message: notificationMessage })
+      }
+    };
+    onAddAction(finalActionData);
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalDialogContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Record Action Taken</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="close" size={24} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {/* Incident Summary */}
+            <View style={styles.alertSummary}>
+              <Text style={styles.alertSummaryTitle}>For Incident:</Text>
+              <Text style={styles.alertSummaryLocation}>{incident.location}</Text>
+            </View>
+
+            {/* Action Type */}
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>Action Type *</Text>
+              <View style={styles.actionTypeGrid}>
+                {Object.entries(ACTION_TYPES).map(([key, actionType]) => (
+                  <TouchableOpacity
+                    key={key}
+                    style={[
+                      styles.actionTypeCard,
+                      actionData.type === actionType.value && styles.actionTypeCardSelected
+                    ]}
+                    onPress={() => handleActionTypeSelect(actionType)}
+                  >
+                    <Ionicons 
+                      name={actionType.icon} 
+                      size={20} 
+                      color={actionData.type === actionType.value ? '#3B82F6' : '#6B7280'} 
+                    />
+                    <Text style={[
+                      styles.actionTypeText,
+                      actionData.type === actionType.value && styles.actionTypeTextSelected
+                    ]}>
+                      {actionType.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Action Description */}
+            <View style={styles.formSection}>
+              <Text style={styles.formLabel}>Description *</Text>
+              <TextInput
+                style={styles.textArea}
+                placeholder="Describe the action taken..."
+                value={actionData.description}
+                onChangeText={(text) => setActionData(prev => ({ ...prev, description: text }))}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            {/* Conditional fields based on action type */}
+            {(actionData.type === 'diversion_implemented' || actionData.type === 'route_suspension') && (
+              <View style={styles.formSection}>
+                <Text style={styles.formLabel}>Affected Routes</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="Enter routes (comma separated)"
+                  value={affectedRoutes.join(', ')}
+                  onChangeText={(text) => setAffectedRoutes(text.split(',').map(r => r.trim()).filter(r => r))}
+                />
+              </View>
+            )}
+
+            {(actionData.type === 'driver_notification' || 
+              actionData.type === 'public_announcement' ||
+              actionData.type === 'social_media_update') && (
+              <View style={styles.formSection}>
+                <Text style={styles.formLabel}>Message/Content</Text>
+                <TextInput
+                  style={styles.textArea}
+                  placeholder="Enter the message or content shared..."
+                  value={notificationMessage}
+                  onChangeText={setNotificationMessage}
+                  multiline
+                  numberOfLines={2}
+                />
+              </View>
+            )}
+          </ScrollView>
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                (!actionData.type || !actionData.description) && styles.submitButtonDisabled
+              ]}
+              onPress={submitAction}
+              disabled={!actionData.type || !actionData.description}
+            >
+              <Ionicons name="checkmark" size={20} color="#FFFFFF" />
+              <Text style={styles.submitButtonText}>Record Action</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 };
 
@@ -3093,6 +3687,146 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#EF4444',
     textAlign: 'center',
+  },
+  // Convert button styles
+  convertButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  convertButtonText: {
+    fontSize: 12,
+    color: '#059669',
+    fontWeight: '500',
+  },
+  // Add Action button
+  addActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  // Modal overlay and dialog styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalDialogContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 480,
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  alertSummary: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+  },
+  alertSummaryTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  alertSummaryLocation: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  alertSummarySource: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  // Reason grid for archive modal
+  reasonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  reasonCard: {
+    borderWidth: 2,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginBottom: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  reasonCardSelected: {
+    backgroundColor: '#F9FAFB',
+  },
+  reasonCardText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  // Archive button
+  archiveButton: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#EF4444',
+    paddingVertical: 14,
+    borderRadius: 8,
+  },
+  // Action type grid
+  actionTypeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  actionTypeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 8,
+    backgroundColor: '#FFFFFF',
+    minWidth: '45%',
+  },
+  actionTypeCardSelected: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
+  },
+  actionTypeText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  actionTypeTextSelected: {
+    color: '#3B82F6',
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    padding: 12,
+    fontSize: 16,
+    color: '#1F2937',
   },
   // TomTom Route Styles
   tomtomRouteCard: {

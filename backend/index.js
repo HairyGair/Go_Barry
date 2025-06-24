@@ -69,6 +69,8 @@ import streetManagerWebhooks from './services/streetManagerWebhooksSimple.js';
 console.log('✅ streetManagerWebhooks service imported');
 import streetManagerWebhookRouter from './routes/streetManagerWebhook.js';
 console.log('✅ streetManagerWebhookRouter imported');
+import unifiedRoadworksAPI from './routes/unifiedRoadworksAPI.js';
+console.log('✅ unifiedRoadworksAPI imported');
 // REMOVED: import { createServer } from 'http'; - Using server from render-startup.js
 import { deduplicateAlerts, cleanupExpiredDismissals, generateAlertHash } from './utils/alertDeduplication.js';
 import { convexSync } from './services/convexSync.js';
@@ -384,6 +386,10 @@ app.use('/api/supervisor', supervisorAPI);
 
 // Roadworks management routes  
 app.use('/api/roadworks', roadworksAPI);
+
+// Unified roadworks management API (additional routes under /api/roadworks)
+app.use('/api/roadworks', unifiedRoadworksAPI);
+console.log('✅ unified roadworks API routes registered under /api/roadworks');
 
 // GTFS routes for route matching and testing
 console.log('🚌 Registering GTFS routes at /api/gtfs...');
@@ -2151,12 +2157,94 @@ app.get('/api/streetmanager/webhook/status', (req, res) => {
 
 // Test endpoint
 app.post('/api/streetmanager/webhook/test', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Test endpoint working',
-    received: req.body,
-    timestamp: new Date().toISOString()
-  });
+  // Create a comprehensive test SNS message that matches real StreetManager format
+  const testSNSMessage = {
+    Type: 'Notification',
+    MessageId: 'test-message-' + Date.now(),
+    TopicArn: 'arn:aws:sns:eu-west-2:123456789:streetmanager-notifications',
+    Subject: 'StreetManager Notification',
+    Message: JSON.stringify({
+      event_type: 'PERMIT_CREATED',
+      event_time: new Date().toISOString(),
+      object_type: 'PERMIT',
+      object_reference: 'TEST-PERMIT-' + Date.now(),
+      object_data: {
+        permit_reference_number: 'NEWC-TEST-001',
+        highway_authority_swa_code: 'NEWC',
+        highway_authority: 'Newcastle City Council',
+        promoter_organisation: 'Go North East',
+        promoter_swa_code: 'GNE',
+        work_category_ref: 'major',
+        description: 'TEST: Bus route infrastructure improvement',
+        location_description: 'Central Station approach, Newcastle',
+        street_name: 'Neville Street',
+        area_name: 'Newcastle upon Tyne',
+        town: 'Newcastle',
+        postcode: 'NE1 5DG',
+        proposed_start_date: new Date().toISOString(),
+        proposed_end_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        permit_status: 'granted',
+        work_status: 'planned',
+        geometry: {
+          type: 'Point',
+          coordinates: [-1.6178, 54.9783]
+        },
+        collaborations: [],
+        conditions: [
+          {
+            condition_type: 'traffic_management',
+            condition_text: 'Traffic lights required during works'
+          }
+        ],
+        works_coordinates: {
+          coordinates: [[-1.6178, 54.9783], [-1.6180, 54.9785]]
+        }
+      }
+    }),
+    Timestamp: new Date().toISOString(),
+    SignatureVersion: '1',
+    Signature: 'test-signature'
+  };
+
+  console.log('🧪 Processing test StreetManager webhook with comprehensive data...');
+  
+  // Process the test message through the same webhook handler
+  const mockReq = {
+    headers: {
+      'x-amz-sns-message-type': 'Notification',
+      'x-amz-sns-message-id': 'test-id-' + Date.now(),
+      'x-amz-sns-topic-arn': 'arn:aws:sns:eu-west-2:123456789:streetmanager-notifications',
+      'x-amz-sns-timestamp': new Date().toISOString()
+    },
+    body: testSNSMessage
+  };
+
+  // Test the webhook processing
+  try {
+    const result = streetManagerWebhooks.handleWebhookMessage(testSNSMessage);
+    
+    res.json({
+      success: true,
+      message: 'Comprehensive test completed',
+      test_data: {
+        sns_message_type: testSNSMessage.Type,
+        permit_reference: JSON.parse(testSNSMessage.Message).object_reference,
+        has_location_data: !!JSON.parse(testSNSMessage.Message).object_data.street_name,
+        has_coordinates: !!JSON.parse(testSNSMessage.Message).object_data.geometry,
+        has_timing: !!JSON.parse(testSNSMessage.Message).object_data.proposed_start_date,
+        data_keys_count: Object.keys(JSON.parse(testSNSMessage.Message).object_data).length
+      },
+      processing_result: result,
+      timestamp: new Date().toISOString(),
+      note: 'This test verifies ALL StreetManager data fields are captured correctly'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Test failed - webhook processing error'
+    });
+  }
 });
 
 // Main webhook endpoint - UPDATED TO SAVE TO SUPABASE
@@ -2185,32 +2273,96 @@ app.post('/api/streetmanager/webhook', async (req, res) => {
       return;
     }
     
-    // Handle notifications - SAVE TO SUPABASE
+    // Handle notifications - COMPREHENSIVE DATA CAPTURE
     if (messageType === 'Notification') {
       const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
       
       try {
-        // Parse the notification message
-        const notificationData = JSON.parse(req.body.Message);
-        console.log(`📋 StreetManager notification: ${notificationData.event_type} for ${notificationData.object_type}`);
+        // Parse the notification message with full error handling
+        let notificationData;
+        try {
+          notificationData = JSON.parse(req.body.Message);
+          console.log(`📋 StreetManager notification: ${notificationData.event_type || 'NO_EVENT_TYPE'} for ${notificationData.object_type || 'NO_OBJECT_TYPE'}`);
+          
+          // COMPREHENSIVE DATA LOGGING - Log all available fields
+          console.log('🔍 Full notification data structure:', {
+            event_type: notificationData.event_type,
+            object_type: notificationData.object_type,
+            object_reference: notificationData.object_reference,
+            event_time: notificationData.event_time,
+            all_keys: Object.keys(notificationData),
+            data_size: JSON.stringify(notificationData).length,
+            has_object_data: !!notificationData.object_data,
+            object_data_keys: notificationData.object_data ? Object.keys(notificationData.object_data) : []
+          });
+          
+          // Log first 500 characters of raw data for debugging
+          console.log('📄 Raw notification data (first 500 chars):', JSON.stringify(notificationData).substring(0, 500) + '...');
+          
+        } catch (parseError) {
+          console.error('❌ Failed to parse notification message:', parseError.message);
+          console.log('📄 Raw message that failed to parse:', req.body.Message?.substring(0, 500) + '...');
+          throw new Error(`Message parsing failed: ${parseError.message}`);
+        }
+        
+        // Validate essential fields
+        if (!notificationData.event_type) {
+          console.warn('⚠️ Missing event_type in notification');
+        }
+        if (!notificationData.object_type) {
+          console.warn('⚠️ Missing object_type in notification');
+        }
+        if (!notificationData.object_reference) {
+          console.warn('⚠️ Missing object_reference in notification');
+        }
         
         // Create notification ID for deduplication
-        const notificationId = `streetmanager_${notificationData.object_type}_${notificationData.object_reference || Date.now()}`;
+        const notificationId = `streetmanager_${notificationData.object_type || 'unknown'}_${notificationData.object_reference || Date.now()}`;
         
-        // Prepare data for Supabase
+        // ENHANCED: Preserve ALL notification data
         const webhookRecord = {
           notification_id: notificationId,
           permit_reference_number: notificationData.object_type === 'PERMIT' ? notificationData.object_reference : null,
           activity_reference_number: notificationData.object_type === 'ACTIVITY' ? notificationData.object_reference : null,
-          title: `${notificationData.object_type} - ${notificationData.event_type}`,
-          description: `StreetManager ${notificationData.object_type} ${notificationData.event_type}`,
+          title: `${notificationData.object_type || 'Unknown'} - ${notificationData.event_type || 'Unknown Event'}`,
+          description: `StreetManager ${notificationData.object_type || 'notification'} ${notificationData.event_type || 'event'}`,
           webhook_event_type: notificationData.event_type,
+          
+          // CRITICAL: Store the complete raw notification data
           raw_webhook_data: notificationData,
+          
+          // Extract location data if available
+          street_name: notificationData.object_data?.street_name || null,
+          area_name: notificationData.object_data?.area_name || null,
+          coordinates: notificationData.object_data?.geometry?.coordinates || null,
+          location_description: notificationData.object_data?.location_description || null,
+          
+          // Extract work details if available
+          work_description: notificationData.object_data?.description || null,
+          work_category: notificationData.object_data?.work_category_ref || null,
+          promoter_organisation: notificationData.object_data?.promoter_organisation || null,
+          highway_authority: notificationData.object_data?.highway_authority || null,
+          
+          // Extract timing if available
+          proposed_start_date: notificationData.object_data?.proposed_start_date || null,
+          proposed_end_date: notificationData.object_data?.proposed_end_date || null,
+          actual_start_date: notificationData.object_data?.actual_start_date || null,
+          actual_end_date: notificationData.object_data?.actual_end_date || null,
+          
+          // Extract permit status if available
+          permit_status: notificationData.object_data?.permit_status || null,
+          work_status: notificationData.object_data?.work_status || null,
+          
           activity_status: notificationData.event_type === 'CREATED' ? 'active' : notificationData.event_type,
           severity: 'Medium',
           alert_status: 'amber',
           processing_status: 'pending',
-          webhook_received_at: new Date().toISOString()
+          webhook_received_at: new Date().toISOString(),
+          
+          // Store original SNS message data
+          sns_message_id: req.headers['x-amz-sns-message-id'] || null,
+          sns_topic_arn: req.headers['x-amz-sns-topic-arn'] || null,
+          sns_timestamp: req.headers['x-amz-sns-timestamp'] || null
         };
         
         // Upsert to Supabase (insert or update if exists)

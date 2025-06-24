@@ -81,7 +81,7 @@ class OneNetworkService {
       console.log('✅ Login detected - map loaded!');
       
       // Give the map time to fully initialize
-      await this.page.waitForTimeout(5000);
+      await new Promise(resolve => setTimeout(resolve, 5000));
       
     } catch (error) {
       // Check for alternative indicators
@@ -99,13 +99,118 @@ class OneNetworkService {
     }
   }
 
+  async debugPage() {
+    console.log('\n🔍 Debugging page structure...');
+    
+    const debugInfo = await this.page.evaluate(() => {
+      const info = {
+        searchInputs: [],
+        buttons: [],
+        mapElements: [],
+        markerClasses: []
+      };
+      
+      // Find all input elements
+      document.querySelectorAll('input').forEach(input => {
+        info.searchInputs.push({
+          placeholder: input.placeholder,
+          ariaLabel: input.getAttribute('aria-label'),
+          id: input.id,
+          name: input.name,
+          type: input.type,
+          className: input.className
+        });
+      });
+      
+      // Find buttons with text
+      document.querySelectorAll('button').forEach(button => {
+        const text = button.textContent.trim();
+        if (text && text.length < 50) {
+          info.buttons.push({
+            text: text,
+            ariaLabel: button.getAttribute('aria-label'),
+            className: button.className
+          });
+        }
+      });
+      
+      // Find map-related elements
+      const mapSelectors = [
+        '.maplibregl-canvas', '.mapboxgl-canvas',
+        '.maplibregl-marker', '.mapboxgl-marker',
+        '.ons-map-marker', '.map-marker',
+        '[class*="marker"]', '[data-marker]'
+      ];
+      
+      mapSelectors.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        if (elements.length > 0) {
+          info.mapElements.push({
+            selector: selector,
+            count: elements.length
+          });
+        }
+      });
+      
+      // Look for any elements with marker in their class
+      document.querySelectorAll('[class*="marker" i]').forEach(el => {
+        if (!info.markerClasses.includes(el.className)) {
+          info.markerClasses.push(el.className);
+        }
+      });
+      
+      return info;
+    });
+    
+    console.log('📋 Debug Info:');
+    console.log('Search Inputs:', debugInfo.searchInputs);
+    console.log('Buttons (sample):', debugInfo.buttons.slice(0, 10));
+    console.log('Map Elements:', debugInfo.mapElements);
+    console.log('Marker Classes:', debugInfo.markerClasses);
+    
+    // Take a screenshot for visual debugging
+    await this.page.screenshot({ path: 'debug-screenshot.png' });
+    console.log('📸 Screenshot saved as debug-screenshot.png');
+  }
+
   async enableLayers() {
     console.log('🗺️ Enabling roadworks and closures layers...');
     
+    // First, let's debug what's on the page
+    await this.debugPage();
+    
     try {
-      // Open map layers menu
-      await this.page.click('button[aria-label="Open Map Layer Menu"]');
-      await this.page.waitForTimeout(1000);
+      // Try to find the layers menu button with various selectors
+      const layerButtonSelectors = [
+        'button[aria-label="Open Map Layer Menu"]',
+        'button[aria-label*="layer" i]',
+        'button[aria-label*="Layer" i]',
+        'button[title*="layer" i]',
+        'button:has-text("Layers")',
+        '.layers-button',
+        '[class*="layer-menu"]'
+      ];
+      
+      let layerButton = null;
+      for (const selector of layerButtonSelectors) {
+        try {
+          layerButton = await this.page.$(selector);
+          if (layerButton) {
+            console.log(`Found layer button with selector: ${selector}`);
+            break;
+          }
+        } catch (e) {
+          // Continue trying other selectors
+        }
+      }
+      
+      if (!layerButton) {
+        console.log('⚠️ Could not find layer menu button');
+        return;
+      }
+      
+      await layerButton.click();
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Enable Roadworks layer if not already enabled
       const roadworksButtons = await this.page.$$('button');
@@ -115,7 +220,7 @@ class OneNetworkService {
           const isExpanded = await button.evaluate(el => el.getAttribute('aria-expanded') === 'true');
           if (!isExpanded) {
             await button.click();
-            await this.page.waitForTimeout(500);
+            await new Promise(resolve => setTimeout(resolve, 500));
           }
           break;
         }
@@ -129,17 +234,36 @@ class OneNetworkService {
           const isExpanded = await button.evaluate(el => el.getAttribute('aria-expanded') === 'true');
           if (!isExpanded) {
             await button.click();
-            await this.page.waitForTimeout(500);
+            await new Promise(resolve => setTimeout(resolve, 500));
           }
           break;
         }
       }
       
-      // Close the menu
-      await this.page.click('button[aria-label="Close Map Layer Menu"]');
-      await this.page.waitForTimeout(2000);
+      // Try to close the menu
+      const closeSelectors = [
+        'button[aria-label="Close Map Layer Menu"]',
+        'button[aria-label*="close" i]',
+        '.close-button',
+        'button:has-text("X")',
+        'button:has-text("Close")'
+      ];
       
-      console.log('✅ Layers enabled');
+      for (const selector of closeSelectors) {
+        try {
+          const closeButton = await this.page.$(selector);
+          if (closeButton) {
+            await closeButton.click();
+            break;
+          }
+        } catch (e) {
+          // Continue
+        }
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      console.log('✅ Layers enabled (or attempted)');
     } catch (error) {
       console.error('❌ Failed to enable layers:', error.message);
     }
@@ -149,21 +273,66 @@ class OneNetworkService {
     console.log(`📍 Navigating to ${region.name}...`);
     
     try {
-      // Clear search box
-      const searchBox = await this.page.$('input[aria-label="Search"]');
+      // Try multiple search box selectors
+      const searchSelectors = [
+        'input[aria-label="Search"]',
+        'input[placeholder*="Search" i]',
+        'input[placeholder*="search" i]',
+        'input[type="search"]',
+        '.search-input',
+        'input.search',
+        '#search'
+      ];
+      
+      let searchBox = null;
+      for (const selector of searchSelectors) {
+        searchBox = await this.page.$(selector);
+        if (searchBox) {
+          console.log(`Found search box with selector: ${selector}`);
+          break;
+        }
+      }
+      
+      if (!searchBox) {
+        console.warn('Search box not found, trying alternative navigation...');
+        // Try alternative: direct map manipulation
+        await this.page.evaluate((lat, lng, zoom) => {
+          // Try various map object names
+          const mapObjects = ['map', 'Map', 'mapInstance', 'maplibreMap', 'mapboxMap'];
+          
+          for (const mapName of mapObjects) {
+            if (window[mapName] && typeof window[mapName].flyTo === 'function') {
+              console.log(`Using window.${mapName}.flyTo`);
+              window[mapName].flyTo({
+                center: [lng, lat],
+                zoom: zoom
+              });
+              return;
+            }
+          }
+          
+          // If no global map, try to find it in other places
+          if (window.app && window.app.map) {
+            window.app.map.flyTo({ center: [lng, lat], zoom: zoom });
+          }
+        }, region.lat, region.lng, region.zoom);
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        return;
+      }
+      
       await searchBox.click({ clickCount: 3 });
       await searchBox.type(region.name);
       
       // Wait for search results
-      await this.page.waitForTimeout(2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Click on the first matching result
-      const menuItems = await this.page.$$('div[role="menuitem"]');
+      const menuItems = await this.page.$$('div[role="menuitem"], li[role="option"], .search-result');
       for (const item of menuItems) {
         const text = await item.evaluate(el => el.textContent);
         if (text && text.includes(region.name)) {
           await item.click();
-          await this.page.waitForTimeout(3000); // Wait for map to pan
+          await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for map to pan
           break;
         }
       }
@@ -176,13 +345,50 @@ class OneNetworkService {
   async extractMarkerData() {
     console.log('🔍 Extracting marker data from visible area...');
     
-    let markers = await this.page.$('.maplibregl-marker');
-    console.log(`Found ${markers.length} markers`);
+    // Try a wider range of marker selectors
+    const markerSelectors = [
+      '.maplibregl-marker',
+      '.mapboxgl-marker',
+      '.ons-map-marker',
+      '.map-marker',
+      '[class*="marker"]:not([class*="cluster"])',
+      'div[data-marker]',
+      '.pin',
+      '.map-pin',
+      '[role="button"][aria-label*="marker" i]'
+    ];
     
-    // If no markers found with maplibre class, try mapbox class as fallback
+    let markers = [];
+    for (const selector of markerSelectors) {
+      const found = await this.page.$$(selector);
+      if (found.length > 0) {
+        console.log(`Found ${found.length} markers with selector: ${selector}`);
+        markers = found;
+        break;
+      }
+    }
+    
     if (markers.length === 0) {
-      markers = await this.page.$('.mapboxgl-marker');
-      console.log(`Found ${markers.length} markers using mapbox class`);
+      console.log('No markers found with any known selector');
+      
+      // Debug: print all divs with position absolute (common for map markers)
+      const absoluteDivs = await this.page.evaluate(() => {
+        const divs = Array.from(document.querySelectorAll('div'));
+        return divs
+          .filter(div => {
+            const style = window.getComputedStyle(div);
+            return style.position === 'absolute' && div.offsetWidth > 0 && div.offsetHeight > 0;
+          })
+          .slice(0, 5)
+          .map(div => ({
+            className: div.className,
+            id: div.id,
+            innerHTML: div.innerHTML.substring(0, 100)
+          }));
+      });
+      
+      console.log('Sample absolute positioned divs:', absoluteDivs);
+      return;
     }
     
     for (let i = 0; i < markers.length; i++) {
@@ -199,13 +405,25 @@ class OneNetworkService {
         
         // Click on marker
         await marker.click();
-        await this.page.waitForTimeout(1000);
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Look for popup content with both maplibre and mapbox classes
-        let popup = await this.page.$('.maplibregl-popup-content');
-        if (!popup) {
-          popup = await this.page.$('.mapboxgl-popup-content');
+        // Look for popup content with various selectors
+        const popupSelectors = [
+          '.maplibregl-popup-content',
+          '.mapboxgl-popup-content',
+          '.popup-content',
+          '.map-popup',
+          '[class*="popup"]',
+          '.tooltip',
+          '.info-window'
+        ];
+        
+        let popup = null;
+        for (const selector of popupSelectors) {
+          popup = await this.page.$(selector);
+          if (popup) break;
         }
+        
         if (popup) {
           const data = await popup.evaluate(el => {
             const getText = (selector) => {
@@ -213,61 +431,43 @@ class OneNetworkService {
               return elem ? elem.textContent.trim() : '';
             };
             
+            // Try to get text from various possible elements
+            const allText = el.textContent.trim();
+            
             return {
-              title: getText('h3, h4, .title'),
-              description: getText('.description, p'),
-              location: getText('.location, .address'),
-              dates: getText('.dates, .date-range'),
-              impact: getText('.impact, .severity'),
-              promoter: getText('.promoter, .organisation'),
-              reference: getText('.reference, .ref')
+              title: getText('h3, h4, h5, .title, .heading'),
+              description: getText('.description, p, .content'),
+              location: getText('.location, .address, .street'),
+              dates: getText('.dates, .date-range, .period'),
+              impact: getText('.impact, .severity, .level'),
+              promoter: getText('.promoter, .organisation, .company'),
+              reference: getText('.reference, .ref, .id'),
+              allText: allText // Fallback to capture everything
             };
           });
           
           // Add to collection if it has meaningful data
-          if (data.title || data.description) {
-            // Try to extract coordinates from marker position
-            const position = await marker.evaluate(el => {
-              const transform = el.style.transform;
-              const match = transform.match(/translate\((-?\d+\.?\d*)px,\s*(-?\d+\.?\d*)px\)/);
-              return match ? { x: parseFloat(match[1]), y: parseFloat(match[2]) } : null;
-            });
-            
-            // Convert pixel position to lat/lng (approximate)
-            const bounds = await this.page.evaluate(() => {
-              if (window.map && window.map.getBounds) {
-                const bounds = window.map.getBounds();
-                return {
-                  north: bounds.getNorth(),
-                  south: bounds.getSouth(),
-                  east: bounds.getEast(),
-                  west: bounds.getWest()
-                };
-              }
-              return null;
-            });
-            
-            if (bounds && position) {
-              const viewport = await this.page.viewport();
-              const lat = bounds.north - (position.y / viewport.height) * (bounds.north - bounds.south);
-              const lng = bounds.west + (position.x / viewport.width) * (bounds.east - bounds.west);
-              
-              data.lat = lat;
-              data.lng = lng;
-            }
-            
+          if (data.title || data.description || (data.allText && data.allText.length > 10)) {
             this.roadworks.push(data);
-            console.log(`📌 Extracted: ${data.title || 'Unnamed roadwork'}`);
+            console.log(`📌 Extracted: ${data.title || data.allText.substring(0, 50) || 'Unnamed roadwork'}`);
           }
           
-          // Close popup - try both class names
-          let closeButton = await this.page.$('.maplibregl-popup-close-button');
-          if (!closeButton) {
-            closeButton = await this.page.$('.mapboxgl-popup-close-button');
-          }
-          if (closeButton) {
-            await closeButton.click();
-            await this.page.waitForTimeout(500);
+          // Close popup - try various selectors
+          const closeSelectors = [
+            '.maplibregl-popup-close-button',
+            '.mapboxgl-popup-close-button',
+            '.popup-close',
+            'button[aria-label*="close" i]',
+            '.close'
+          ];
+          
+          for (const selector of closeSelectors) {
+            const closeButton = await this.page.$(selector);
+            if (closeButton) {
+              await closeButton.click();
+              await new Promise(resolve => setTimeout(resolve, 500));
+              break;
+            }
           }
         }
         
@@ -280,19 +480,32 @@ class OneNetworkService {
   async scrapeAllRegions() {
     console.log('🏁 Starting regional scraping...');
     
-    for (const region of GO_NORTH_EAST_REGIONS) {
+    // First region only for debugging
+    const testRegions = GO_NORTH_EAST_REGIONS.slice(0, 1);
+    
+    for (const region of testRegions) {
       await this.navigateToRegion(region);
-      await this.page.waitForTimeout(3000); // Wait for markers to load
+      await new Promise(resolve => setTimeout(resolve, 3000)); // Wait for markers to load
+      
+      // Debug what's on screen
+      await this.debugPage();
+      
       await this.extractMarkerData();
       
       // Try different zoom levels to catch more markers
       for (let zoom = 11; zoom <= 14; zoom++) {
         await this.page.evaluate((z) => {
-          if (window.map && window.map.setZoom) {
-            window.map.setZoom(z);
+          // Try various map object names
+          const mapObjects = ['map', 'Map', 'mapInstance', 'maplibreMap', 'mapboxMap'];
+          
+          for (const mapName of mapObjects) {
+            if (window[mapName] && typeof window[mapName].setZoom === 'function') {
+              window[mapName].setZoom(z);
+              return;
+            }
           }
         }, zoom);
-        await this.page.waitForTimeout(2000);
+        await new Promise(resolve => setTimeout(resolve, 2000));
         await this.extractMarkerData();
       }
     }
@@ -336,8 +549,8 @@ class OneNetworkService {
     return {
       id: crypto.randomUUID(),
       roadworkId: rawData.reference || `ONE-${Date.now()}`,
-      title: rawData.title || 'Roadwork',
-      description: rawData.description || '',
+      title: rawData.title || rawData.allText?.substring(0, 100) || 'Roadwork',
+      description: rawData.description || rawData.allText || '',
       location: rawData.location || '',
       lat: rawData.lat || null,
       lng: rawData.lng || null,
@@ -364,8 +577,8 @@ class OneNetworkService {
     
     // Remove duplicates based on title and location
     const uniqueRoadworks = this.roadworks.reduce((acc, current) => {
-      const key = `${current.title}-${current.location}`;
-      if (!acc.find(item => `${item.title}-${item.location}` === key)) {
+      const key = `${current.title || current.allText}-${current.location}`;
+      if (!acc.find(item => `${item.title || item.allText}-${item.location}` === key)) {
         acc.push(current);
       }
       return acc;
@@ -373,6 +586,8 @@ class OneNetworkService {
     
     // Transform to schema
     const transformed = uniqueRoadworks.map(rw => this.transformToSchema(rw));
+    
+    console.log('📋 Roadworks to save:', transformed);
     
     try {
       if (!this.supabase) {

@@ -12,35 +12,53 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSupervisorActions } from '../../hooks/useConvexSync';
 
 const API_BASE = 'https://go-barry.onrender.com';
 
 const ActivityAuditTrail = () => {
-  const [activities, setActivities] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Use Convex for real-time supervisor actions
+  const convexActivities = useSupervisorActions({ limit: 100 });
+  
+  // Fallback state for direct API calls if Convex is not available
+  const [fallbackActivities, setFallbackActivities] = useState([]);
+  const [fallbackLoading, setFallbackLoading] = useState(true);
+  
   const [filter, setFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateRange, setDateRange] = useState('today');
 
+  // Fallback: Load activities directly from API if Convex is not working
   useEffect(() => {
-    loadActivities();
-  }, [filter, dateRange]);
-
-  const loadActivities = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`${API_BASE}/api/activity-logs?limit=100`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        setActivities(data.logs || []);
+    const loadFallbackActivities = async () => {
+      try {
+        setFallbackLoading(true);
+        const response = await fetch(`${API_BASE}/api/activity-logs?limit=100`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          setFallbackActivities(data.logs || []);
+          console.log('✅ Fallback activities loaded:', data.logs?.length || 0);
+        }
+      } catch (error) {
+        console.error('❌ Error loading fallback activities:', error);
+      } finally {
+        setFallbackLoading(false);
       }
-    } catch (error) {
-      console.error('Error loading activities:', error);
-    } finally {
-      setLoading(false);
+    };
+
+    // Only use fallback if Convex activities are not available
+    if (!convexActivities && fallbackLoading) {
+      loadFallbackActivities();
+      // Refresh every 30 seconds
+      const interval = setInterval(loadFallbackActivities, 30000);
+      return () => clearInterval(interval);
     }
-  };
+  }, [convexActivities, fallbackLoading]);
+
+  // Use Convex data if available, otherwise fallback to API data
+  const activities = convexActivities || fallbackActivities;
+  const loading = !convexActivities && fallbackLoading;
 
   const getActivityIcon = (action) => {
     switch (action) {
@@ -95,15 +113,15 @@ const ActivityAuditTrail = () => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const details = formatActivityDetails(activity.action, activity.details).toLowerCase();
-      const supervisor = (activity.supervisor_name || '').toLowerCase();
+      const supervisor = (activity.supervisorName || activity.supervisor_name || '').toLowerCase();
       
       if (!details.includes(query) && !supervisor.includes(query)) {
         return false;
       }
     }
     
-    // Filter by date range
-    const activityDate = new Date(activity.created_at);
+    // Filter by date range - handle both timestamp formats
+    const activityDate = new Date(activity.timestamp || activity.created_at);
     const now = new Date();
     
     switch (dateRange) {
@@ -199,7 +217,7 @@ const ActivityAuditTrail = () => {
           const icon = getActivityIcon(activity.action);
           
           return (
-            <View key={activity.id} style={styles.activityItem}>
+            <View key={activity.id || activity._id} style={styles.activityItem}>
               <View style={[styles.activityIcon, { backgroundColor: `${icon.color}15` }]}>
                 <Ionicons name={icon.name} size={20} color={icon.color} />
               </View>
@@ -211,16 +229,21 @@ const ActivityAuditTrail = () => {
                 
                 <View style={styles.activityMeta}>
                   <Text style={styles.activitySupervisor}>
-                    {activity.supervisor_name || 'System'}
+                    {activity.supervisorName || activity.supervisor_name || 'System'}
                   </Text>
                   <Text style={styles.activityTime}>
-                    {new Date(activity.created_at).toLocaleString()}
+                    {new Date(activity.timestamp || activity.created_at).toLocaleString()}
                   </Text>
                 </View>
                 
                 {activity.ip_address && (
                   <Text style={styles.activityIp}>IP: {activity.ip_address}</Text>
                 )}
+                
+                {/* Show data source for debugging */}
+                <Text style={styles.dataSource}>
+                  {convexActivities ? '🔴 Real-time' : '🔵 Fallback'}
+                </Text>
               </View>
             </View>
           );
@@ -377,6 +400,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#D1D5DB',
     marginTop: 2,
+  },
+  dataSource: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   noActivities: {
     alignItems: 'center',

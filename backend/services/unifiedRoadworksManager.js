@@ -1,0 +1,516 @@
+// backend/services/unifiedRoadworksManager.js
+// Unified roadworks data aggregator and management system
+
+import { createClient } from '@supabase/supabase-js';
+import axios from 'axios';
+// import * as cheerio from 'cheerio'; // TODO: Add cheerio dependency for Durham scraping
+import { generateAlertHash } from '../utils/alertDeduplication.js';
+
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+
+/**
+ * Unified Roadworks Manager
+ * Aggregates data from:
+ * 1. Street Manager (national UK system)
+ * 2. Durham County Council
+ * 3. Other local council sources
+ * 4. Manual incidents
+ */
+class UnifiedRoadworksManager {
+  constructor() {
+    this.sources = {
+      streetManager: { enabled: true, priority: 1 },
+      durham: { enabled: true, priority: 2 },
+      manual: { enabled: true, priority: 3 }
+    };
+    this.lastUpdate = null;
+    this.cache = new Map();
+    this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
+  }
+
+  /**
+   * Get all roadworks from all sources
+   */
+  async getAllRoadworks(options = {}) {
+    try {
+      console.log('🔄 Fetching unified roadworks data from all sources...');
+      
+      const results = {
+        streetManager: [],
+        durham: [],
+        manual: [],
+        combined: [],
+        metadata: {
+          sources: {},
+          totalCount: 0,
+          lastUpdate: new Date().toISOString()
+        }
+      };
+
+      // Fetch from all enabled sources in parallel
+      const promises = [];
+
+      if (this.sources.streetManager.enabled) {
+        promises.push(this.getStreetManagerRoadworks());
+      }
+
+      if (this.sources.durham.enabled) {
+        promises.push(this.getDurhamRoadworks());
+      }
+
+      if (this.sources.manual.enabled) {
+        promises.push(this.getManualRoadworks());
+      }
+
+      const sourceResults = await Promise.allSettled(promises);
+
+      // Process results
+      let sourceIndex = 0;
+      if (this.sources.streetManager.enabled) {
+        const smResult = sourceResults[sourceIndex++];
+        if (smResult.status === 'fulfilled') {
+          results.streetManager = smResult.value.data || [];
+          results.metadata.sources.streetManager = {
+            success: true,
+            count: results.streetManager.length,
+            lastUpdate: smResult.value.lastUpdate
+          };
+        } else {
+          results.metadata.sources.streetManager = {
+            success: false,
+            error: smResult.reason?.message
+          };
+        }
+      }
+
+      if (this.sources.durham.enabled) {
+        const durhamResult = sourceResults[sourceIndex++];
+        if (durhamResult.status === 'fulfilled') {
+          results.durham = durhamResult.value.data || [];
+          results.metadata.sources.durham = {
+            success: true,
+            count: results.durham.length,
+            lastUpdate: durhamResult.value.lastUpdate
+          };
+        } else {
+          results.metadata.sources.durham = {
+            success: false,
+            error: durhamResult.reason?.message
+          };
+        }
+      }
+
+      if (this.sources.manual.enabled) {
+        const manualResult = sourceResults[sourceIndex++];
+        if (manualResult.status === 'fulfilled') {
+          results.manual = manualResult.value.data || [];
+          results.metadata.sources.manual = {
+            success: true,
+            count: results.manual.length,
+            lastUpdate: manualResult.value.lastUpdate
+          };
+        } else {
+          results.metadata.sources.manual = {
+            success: false,
+            error: manualResult.reason?.message
+          };
+        }
+      }
+
+      // Combine and deduplicate
+      results.combined = this.combineAndDeduplicateRoadworks([
+        ...results.streetManager,
+        ...results.durham,
+        ...results.manual
+      ]);
+
+      results.metadata.totalCount = results.combined.length;
+      this.lastUpdate = new Date();
+
+      console.log(`✅ Unified roadworks: ${results.combined.length} total from ${Object.keys(results.metadata.sources).length} sources`);
+      
+      return {
+        success: true,
+        ...results
+      };
+
+    } catch (error) {
+      console.error('❌ Error fetching unified roadworks:', error);
+      return {
+        success: false,
+        error: error.message,
+        data: []
+      };
+    }
+  }
+
+  /**
+   * Get Street Manager roadworks from Supabase
+   */
+  async getStreetManagerRoadworks() {
+    try {
+      const { data, error } = await supabase
+        .from('streetmanager_notifications')
+        .select('*')
+        .eq('processing_status', 'processed')
+        .order('webhook_received_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      const roadworks = data.map(item => this.normalizeStreetManagerData(item));
+      
+      return {
+        success: true,
+        data: roadworks,
+        lastUpdate: new Date().toISOString(),
+        source: 'street_manager'
+      };
+    } catch (error) {
+      throw new Error(`Street Manager fetch failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get Durham County Council roadworks via web scraping
+   */
+  async getDurhamRoadworks() {
+    try {
+      // Use a proxy/fallback approach for Durham
+      const durhamData = await this.scrapeDurhamRoadworks();
+      
+      const roadworks = durhamData.map(item => this.normalizeDurhamData(item));
+      
+      return {
+        success: true,
+        data: roadworks,
+        lastUpdate: new Date().toISOString(),
+        source: 'durham_council'
+      };
+    } catch (error) {
+      console.warn('⚠️ Durham roadworks fetch failed:', error.message);
+      return {
+        success: false,
+        data: [],
+        error: error.message,
+        source: 'durham_council'
+      };
+    }
+  }
+
+  /**
+   * Get manual roadworks/incidents
+   */
+  async getManualRoadworks() {
+    try {
+      const { data, error } = await supabase
+        .from('manual_incidents')
+        .select('*')
+        .eq('type', 'roadwork')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const roadworks = data.map(item => this.normalizeManualData(item));
+      
+      return {
+        success: true,
+        data: roadworks,
+        lastUpdate: new Date().toISOString(),
+        source: 'manual'
+      };
+    } catch (error) {
+      throw new Error(`Manual roadworks fetch failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Scrape Durham Council roadworks page
+   */
+  async scrapeDurhamRoadworks() {
+    try {
+      // For now, return empty array - we'll implement scraping if needed
+      // This would require careful analysis of Durham's website structure
+      console.log('📋 Durham scraping not yet implemented - using Street Manager data');
+      return [];
+      
+      // TODO: Implement Durham scraping
+      // const response = await axios.get('https://www.durham.gov.uk/roadworks', {
+      //   timeout: 10000,
+      //   headers: {
+      //     'User-Agent': 'Go-BARRY-Bot/1.0'
+      //   }
+      // });
+      
+      // const $ = cheerio.load(response.data);
+      // const roadworks = [];
+      
+      // // Parse Durham's roadworks data structure
+      // $('.roadwork-item').each((i, element) => {
+      //   roadworks.push({
+      //     // Extract data based on Durham's HTML structure
+      //   });
+      // });
+      
+      // return roadworks;
+    } catch (error) {
+      console.warn('⚠️ Durham scraping failed:', error.message);
+      return [];
+    }
+  }
+
+  /**
+   * Normalize Street Manager data to unified format
+   */
+  normalizeStreetManagerData(item) {
+    return {
+      id: `sm_${item.notification_id}`,
+      title: item.title || `${item.object_type} - ${item.webhook_event_type}`,
+      description: item.work_description || item.description,
+      location: item.location_description || item.street_name,
+      streetName: item.street_name,
+      areaName: item.area_name,
+      coordinates: item.coordinates,
+      startDate: item.proposed_start_date || item.actual_start_date,
+      endDate: item.proposed_end_date || item.actual_end_date,
+      status: item.permit_status || item.work_status || item.activity_status,
+      severity: item.severity || 'Medium',
+      source: 'street_manager',
+      sourceId: item.notification_id,
+      promoter: item.promoter_organisation,
+      authority: item.highway_authority,
+      workCategory: item.work_category,
+      lastUpdated: item.webhook_received_at,
+      managementActions: {
+        canDismiss: true,
+        canAcknowledge: true,
+        canSave: true,
+        canEdit: false
+      }
+    };
+  }
+
+  /**
+   * Normalize Durham data to unified format
+   */
+  normalizeDurhamData(item) {
+    return {
+      id: `durham_${item.id || Date.now()}`,
+      title: item.title,
+      description: item.description,
+      location: item.location,
+      streetName: item.street,
+      areaName: 'Durham',
+      coordinates: item.coordinates,
+      startDate: item.startDate,
+      endDate: item.endDate,
+      status: item.status || 'active',
+      severity: 'Medium',
+      source: 'durham_council',
+      sourceId: item.id,
+      promoter: 'Durham County Council',
+      authority: 'Durham County Council',
+      workCategory: item.category,
+      lastUpdated: new Date().toISOString(),
+      managementActions: {
+        canDismiss: true,
+        canAcknowledge: true,
+        canSave: true,
+        canEdit: false
+      }
+    };
+  }
+
+  /**
+   * Normalize manual data to unified format
+   */
+  normalizeManualData(item) {
+    return {
+      id: `manual_${item.id}`,
+      title: item.title,
+      description: item.description,
+      location: item.location,
+      streetName: item.street_name,
+      areaName: item.area,
+      coordinates: item.coordinates,
+      startDate: item.start_date,
+      endDate: item.end_date,
+      status: item.status,
+      severity: item.severity || 'Medium',
+      source: 'manual',
+      sourceId: item.id,
+      promoter: item.promoter || 'Manual Entry',
+      authority: item.authority || 'Unknown',
+      workCategory: item.category,
+      lastUpdated: item.updated_at || item.created_at,
+      managementActions: {
+        canDismiss: true,
+        canAcknowledge: true,
+        canSave: true,
+        canEdit: true
+      }
+    };
+  }
+
+  /**
+   * Combine and deduplicate roadworks from multiple sources
+   */
+  combineAndDeduplicateRoadworks(roadworks) {
+    const seen = new Set();
+    const deduped = [];
+
+    for (const roadwork of roadworks) {
+      // Create a hash based on location and description for deduplication
+      const hash = generateAlertHash({
+        location: roadwork.location,
+        description: roadwork.description,
+        streetName: roadwork.streetName
+      });
+
+      if (!seen.has(hash)) {
+        seen.add(hash);
+        roadwork.deduplicationHash = hash;
+        deduped.push(roadwork);
+      } else {
+        console.log(`🔄 Deduplicated roadwork: ${roadwork.title}`);
+      }
+    }
+
+    // Sort by priority (Street Manager first, then others)
+    return deduped.sort((a, b) => {
+      const priorityOrder = { street_manager: 1, durham_council: 2, manual: 3 };
+      return priorityOrder[a.source] - priorityOrder[b.source];
+    });
+  }
+
+  /**
+   * Dismiss a roadwork
+   */
+  async dismissRoadwork(roadworkId, reason, supervisorName) {
+    try {
+      const { data, error } = await supabase
+        .from('roadwork_dismissals')
+        .insert({
+          roadwork_id: roadworkId,
+          reason: reason,
+          dismissed_by: supervisorName,
+          dismissed_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      console.log(`✅ Dismissed roadwork ${roadworkId}: ${reason}`);
+      return { success: true, data };
+    } catch (error) {
+      console.error('❌ Error dismissing roadwork:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Acknowledge a roadwork
+   */
+  async acknowledgeRoadwork(roadworkId, note, supervisorName) {
+    try {
+      const { data, error } = await supabase
+        .from('roadwork_acknowledgments')
+        .insert({
+          roadwork_id: roadworkId,
+          note: note,
+          acknowledged_by: supervisorName,
+          acknowledged_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      console.log(`✅ Acknowledged roadwork ${roadworkId}`);
+      return { success: true, data };
+    } catch (error) {
+      console.error('❌ Error acknowledging roadwork:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Save/bookmark a roadwork
+   */
+  async saveRoadwork(roadworkId, supervisorName, notes = '') {
+    try {
+      const { data, error } = await supabase
+        .from('saved_roadworks')
+        .upsert({
+          roadwork_id: roadworkId,
+          saved_by: supervisorName,
+          notes: notes,
+          saved_at: new Date().toISOString()
+        }, {
+          onConflict: 'roadwork_id,saved_by'
+        });
+
+      if (error) throw error;
+
+      console.log(`✅ Saved roadwork ${roadworkId}`);
+      return { success: true, data };
+    } catch (error) {
+      console.error('❌ Error saving roadwork:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get roadwork management history
+   */
+  async getRoadworkHistory(roadworkId) {
+    try {
+      const [dismissals, acknowledgments, saves] = await Promise.all([
+        supabase.from('roadwork_dismissals').select('*').eq('roadwork_id', roadworkId),
+        supabase.from('roadwork_acknowledgments').select('*').eq('roadwork_id', roadworkId),
+        supabase.from('saved_roadworks').select('*').eq('roadwork_id', roadworkId)
+      ]);
+
+      return {
+        success: true,
+        history: {
+          dismissals: dismissals.data || [],
+          acknowledgments: acknowledgments.data || [],
+          saves: saves.data || []
+        }
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get statistics about roadworks management
+   */
+  async getManagementStats(timeframe = '7d') {
+    try {
+      const startDate = new Date();
+      if (timeframe === '7d') startDate.setDate(startDate.getDate() - 7);
+      else if (timeframe === '30d') startDate.setMonth(startDate.getMonth() - 1);
+      
+      const [dismissals, acknowledgments, saves] = await Promise.all([
+        supabase.from('roadwork_dismissals').select('*').gte('dismissed_at', startDate.toISOString()),
+        supabase.from('roadwork_acknowledgments').select('*').gte('acknowledged_at', startDate.toISOString()),
+        supabase.from('saved_roadworks').select('*').gte('saved_at', startDate.toISOString())
+      ]);
+
+      return {
+        success: true,
+        stats: {
+          period: timeframe,
+          dismissals: dismissals.data?.length || 0,
+          acknowledgments: acknowledgments.data?.length || 0,
+          saves: saves.data?.length || 0,
+          totalActions: (dismissals.data?.length || 0) + (acknowledgments.data?.length || 0) + (saves.data?.length || 0)
+        }
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+}
+
+export default new UnifiedRoadworksManager();

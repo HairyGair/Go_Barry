@@ -18,7 +18,7 @@ import {
   Switch
 } from 'react-native';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { useSupervisorSession, DUTY_OPTIONS } from './hooks/useSupervisorSession';
+import { useSupervisor, DUTY_OPTIONS } from './hooks/useSupervisorSession';
 import { useConvexSync } from '../hooks/useConvexSync';
 import PasswordSetupModal from './PasswordSetupModal';
 import typography from '../theme/typography';
@@ -55,7 +55,7 @@ const SupervisorLogin = ({ visible, onClose, onLoginSuccess }) => {
     supervisorSession,
     isLoggedIn,
     updateSessionTimeout
-  } = useSupervisorSession();
+  } = useSupervisor();
 
   const { recentLogins = [], trackLogin = async () => ({ success: false }) } = useConvexSync();
   
@@ -272,14 +272,12 @@ const SupervisorLogin = ({ visible, onClose, onLoginSuccess }) => {
           updateSessionTimeout(60 * 60 * 1000); // 1 hour instead of 10 minutes
         }
 
-        Alert.alert(
-          'Login Successful',
-          `Welcome, ${supervisor.name}!`,
-          [{ text: 'OK', onPress: () => {
-            onClose();
-            onLoginSuccess?.();
-          }}]
-        );
+        // Small delay to ensure context updates properly
+        console.log('[SupervisorLogin] Login successful, closing modal...');
+        setTimeout(() => {
+          onClose();
+          onLoginSuccess?.();
+        }, 100);
       } else if (result.needsPasswordSetup) {
         console.log('First-time user - showing password setup');
       } else {

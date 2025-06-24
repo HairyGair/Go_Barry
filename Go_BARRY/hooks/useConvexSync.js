@@ -250,6 +250,8 @@ export function useEvents() {
 // Hook for incident management
 export function useIncidents() {
   let activeIncidents, allIncidents, createIncident, updateIncident, addIncidentNote, sendTicketerMessage, pushIncidentToDisplay;
+  // Enhanced incident functions
+  let convertAlertToIncident, addIncidentAction, archiveIncident, getIncidentWithActions, getIncidentsByStatus, searchArchivedIncidents, getIncidentStats;
   
   if (!api || !api.sync) {
     console.warn('Incident management via Convex not available - API not deployed');
@@ -261,6 +263,14 @@ export function useIncidents() {
     addIncidentNote = async () => ({ success: false, error: 'Convex not deployed' });
     sendTicketerMessage = async () => ({ success: false, error: 'Convex not deployed' });
     pushIncidentToDisplay = async () => ({ success: false, error: 'Convex not deployed' });
+    // Enhanced functions
+    convertAlertToIncident = async () => ({ success: false, error: 'Convex not deployed' });
+    addIncidentAction = async () => ({ success: false, error: 'Convex not deployed' });
+    archiveIncident = async () => ({ success: false, error: 'Convex not deployed' });
+    getIncidentWithActions = undefined;
+    getIncidentsByStatus = undefined;
+    searchArchivedIncidents = undefined;
+    getIncidentStats = undefined;
   } else {
     try {
       activeIncidents = useQuery(api.sync.getActiveIncidents);
@@ -270,6 +280,17 @@ export function useIncidents() {
       addIncidentNote = useMutation(api.sync.addIncidentNote);
       sendTicketerMessage = useMutation(api.sync.sendTicketerMessage);
       pushIncidentToDisplay = useMutation(api.sync.pushIncidentToDisplay);
+      
+      // Try to use enhanced functions if available
+      if (api.incidentsEnhanced) {
+        convertAlertToIncident = useMutation(api.incidentsEnhanced.convertAlertToIncident);
+        addIncidentAction = useMutation(api.incidentsEnhanced.addIncidentAction);
+        archiveIncident = useMutation(api.incidentsEnhanced.archiveIncident);
+      } else {
+        convertAlertToIncident = async () => ({ success: false, error: 'Enhanced functions not deployed' });
+        addIncidentAction = async () => ({ success: false, error: 'Enhanced functions not deployed' });
+        archiveIncident = async () => ({ success: false, error: 'Enhanced functions not deployed' });
+      }
     } catch (error) {
       console.warn('Incident management via Convex not available:', error.message);
       // Return empty arrays and no-op functions if Convex isn't available
@@ -280,6 +301,9 @@ export function useIncidents() {
       addIncidentNote = async () => ({ success: false, error: 'Convex not deployed' });
       sendTicketerMessage = async () => ({ success: false, error: 'Convex not deployed' });
       pushIncidentToDisplay = async () => ({ success: false, error: 'Convex not deployed' });
+      convertAlertToIncident = async () => ({ success: false, error: 'Convex not deployed' });
+      addIncidentAction = async () => ({ success: false, error: 'Convex not deployed' });
+      archiveIncident = async () => ({ success: false, error: 'Convex not deployed' });
     }
   }
 
@@ -291,6 +315,14 @@ export function useIncidents() {
     addIncidentNote,
     sendTicketerMessage,
     pushIncidentToDisplay,
+    // Enhanced functions
+    convertAlertToIncident,
+    addIncidentAction,
+    archiveIncident,
+    getIncidentWithActions,
+    getIncidentsByStatus,
+    searchArchivedIncidents,
+    getIncidentStats,
     loading: activeIncidents === undefined,
   };
 }
@@ -420,6 +452,14 @@ export function useConvexSync() {
     sendTicketerMessage: incidents.sendTicketerMessage,
     pushIncidentToDisplay: incidents.pushIncidentToDisplay,
     incidentsLoading: incidents.loading,
+    // Enhanced incident functions
+    convertAlertToIncident: incidents.convertAlertToIncident,
+    addIncidentAction: incidents.addIncidentAction,
+    archiveIncident: incidents.archiveIncident,
+    getIncidentWithActions: incidents.getIncidentWithActions,
+    getIncidentsByStatus: incidents.getIncidentsByStatus,
+    searchArchivedIncidents: incidents.searchArchivedIncidents,
+    getIncidentStats: incidents.getIncidentStats,
     
     // Alert sync
     syncAlerts: alertSync.syncAlerts,
