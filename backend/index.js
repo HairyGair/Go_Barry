@@ -599,9 +599,10 @@ app.get('/api/config/tomtom-key', (req, res) => {
 app.use('/api/events', eventAPI);
 
 // StreetManager webhook routes (using new manage-roadworks.service.gov.uk integration)
-console.log('📨 Registering Street Manager webhook routes at /api/streetmanager...');
-app.use('/api/streetmanager', streetManagerWebhookRouter);
-console.log('✅ Street Manager webhook routes registered successfully');
+// NOTE: Routes have been moved inline before the catch-all route to ensure they work
+// console.log('📨 Registering Street Manager webhook routes at /api/streetmanager...');
+// app.use('/api/streetmanager', streetManagerWebhookRouter);
+// console.log('✅ Street Manager webhook routes registered successfully');
 
 // Legacy StreetManager webhook (keeping for backward compatibility)
 app.post('/api/streetmanager/webhook-legacy', async (req, res) => {
@@ -1924,6 +1925,76 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// StreetManager webhook routes - SIMPLIFIED INLINE VERSION
+console.log('📨 Adding Street Manager webhook routes directly...');
+
+// Status endpoint
+app.get('/api/streetmanager/webhook/status', (req, res) => {
+  res.json({
+    success: true,
+    webhook: {
+      endpoint: 'https://go-barry.onrender.com/api/streetmanager/webhook',
+      ready: true,
+      documentation: 'https://department-for-transport-streetmanager.github.io/street-manager-docs/open-data/',
+      implementation: 'simplified-inline',
+      timestamp: new Date().toISOString()
+    }
+  });
+});
+
+// Test endpoint
+app.post('/api/streetmanager/webhook/test', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Test endpoint working',
+    received: req.body,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Main webhook endpoint
+app.post('/api/streetmanager/webhook', async (req, res) => {
+  try {
+    const messageType = req.headers['x-amz-sns-message-type'];
+    console.log(`📨 Street Manager webhook received: ${messageType}`);
+    
+    // Handle subscription confirmation
+    if (messageType === 'SubscriptionConfirmation') {
+      res.json({
+        success: true,
+        message: 'Subscription confirmation received',
+        subscribeUrl: req.body.SubscribeURL,
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+    
+    // Handle notifications
+    if (messageType === 'Notification') {
+      res.json({
+        success: true,
+        message: 'Notification received',
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+    
+    res.json({
+      success: true,
+      message: 'Webhook received',
+      messageType: messageType,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(200).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+console.log('✅ Street Manager webhook routes added directly');
 
 // Catch-all route for unmatched paths - MUST BE LAST
 app.use('*', (req, res) => {
