@@ -25,6 +25,7 @@ import AutomatedReportingSystem from '../components/AutomatedReportingSystem';
 import SystemHealthMonitor from '../components/SystemHealthMonitor';
 import TrainingHelpSystem from '../components/TrainingHelpSystem';
 import RoadworksManager from '../components/RoadworksManager';
+import DisruptionDatabase from '../components/DisruptionDatabase';
 import AdminPanel from '../components/admin/AdminPanel';
 import DutyBoards from '../components/DutyBoards';
 import { useSupervisorSession } from '../components/hooks/useSupervisorSession';
@@ -71,6 +72,13 @@ const BROWSER_NAVIGATION = {
     component: RoadworksManager,
     description: 'Manage roadworks & create Blink diversions',
     color: '#F59E0B'
+  },
+  disruptions: {
+    title: 'Disruption Database',
+    icon: 'folder-open',
+    component: DisruptionDatabase,
+    description: 'Unified view of all roadworks and incidents',
+    color: '#8B5CF6'
   },
   dutyboards: {
     title: 'Duty Boards',

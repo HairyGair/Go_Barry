@@ -2,11 +2,32 @@
 // National Highways RSS Feed Integration (Fixed for XML/RSS response)
 import axios from 'axios';
 import { enhancedTextOnlyRouteMatching } from '../utils/enhancedRouteMatching.js';
+import { findAffectedRoutesEnhanced, findRoutesByLocation, isGTFSReady } from '../utils/gtfsRouteMatching.js';
 
-// Enhanced route matching using shared utility
-function matchRoutes(location, description = '') {
+// Enhanced route matching using GTFS or fallback
+async function matchRoutes(location, description = '', coordinates = null) {
   console.log(`🗺️ Enhanced National Highways route matching for: "${location}"`);
-  const routes = enhancedTextOnlyRouteMatching(location, description);
+  
+  let routes = [];
+  
+  // Use GTFS route matching if available and we have coordinates
+  if (isGTFSReady() && coordinates && coordinates[0] && coordinates[1]) {
+    try {
+      routes = await findAffectedRoutesEnhanced(coordinates[0], coordinates[1], location, 500);
+      console.log(`✅ GTFS found ${routes.length} routes for National Highways incident`);
+    } catch (error) {
+      console.warn('⚠️ GTFS route matching failed, using fallback');
+      routes = enhancedTextOnlyRouteMatching(location, description);
+    }
+  } else {
+    // Fallback to text-based matching
+    if (isGTFSReady()) {
+      routes = findRoutesByLocation(location + ' ' + description);
+    } else {
+      routes = enhancedTextOnlyRouteMatching(location, description);
+    }
+  }
+  
   console.log(`✅ Found ${routes.length} matching routes: ${routes.join(', ')}`);
   return routes;
 }
@@ -107,11 +128,12 @@ async function fetchNationalHighways() {
     }
     
     // Process each item
-    const allAlerts = itemMatches.map((itemXml, index) => {
+    const allAlerts = await Promise.all(itemMatches.map(async (itemXml, index) => {
       const item = parseRSSItem(itemXml);
       
       const location = [item.road, item.county].filter(Boolean).join(', ') || 'National Highways Network';
-      const routes = matchRoutes(location, item.description);
+      const coordinates = (item.latitude && item.longitude) ? [item.latitude, item.longitude] : null;
+      const routes = await matchRoutes(location, item.description, coordinates);
       
       // Determine severity based on description
       let severity = 'Medium';
@@ -143,7 +165,7 @@ async function fetchNationalHighways() {
         lastUpdated: new Date().toISOString(),
         dataSource: 'National Highways RSS Feed'
       };
-    });
+    }));
     
     // Filter for North East alerts
     const northEastAlerts = allAlerts.filter(isNorthEastAlert);

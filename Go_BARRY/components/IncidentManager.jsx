@@ -264,6 +264,7 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
   const [diversionsIncident, setDiversionsIncident] = useState(null);
   const [diversionsLoading, setDiversionsLoading] = useState(false);
   const [diversionsData, setDiversionsData] = useState(null);
+  const [dismissedTrafficAlerts, setDismissedTrafficAlerts] = useState(new Set());
 
   // New incident form state
   const [newIncident, setNewIncident] = useState({
@@ -732,6 +733,36 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
     }
   };
 
+  // Dismiss traffic alert
+  const dismissTrafficAlert = async (alertId) => {
+    if (!isLoggedIn) {
+      showNotification('Please log in to dismiss alerts', 'error');
+      return;
+    }
+
+    const confirmDismiss = isWeb ?
+      window.confirm('Dismiss this traffic alert? It will be hidden from view.') :
+      await new Promise(resolve => {
+        Alert.alert(
+          'Dismiss Alert',
+          'Dismiss this traffic alert? It will be hidden from view.',
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Dismiss', style: 'destructive', onPress: () => resolve(true) }
+          ]
+        );
+      });
+
+    if (!confirmDismiss) return;
+
+    // Add to dismissed set
+    setDismissedTrafficAlerts(prev => new Set([...prev, alertId]));
+    
+    // Log activity
+    logActivity('DISMISS_TRAFFIC_ALERT', `Dismissed traffic alert ${alertId}`, alertId);
+    showNotification('Traffic alert dismissed', 'success');
+  };
+
   // Delete incident
   const deleteIncident = async (incidentId) => {
     if (!isLoggedIn) return;
@@ -792,11 +823,11 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
       {/* Stats */}
       <View style={styles.statsContainer}>
         <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{incidents.length + trafficIncidents.length}</Text>
+          <Text style={styles.statNumber}>{incidents.length + trafficIncidents.filter(incident => !dismissedTrafficAlerts.has(incident.id)).length}</Text>
           <Text style={styles.statLabel}>Total Active</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statNumber, { color: '#7C3AED' }]}>{trafficIncidents.length}</Text>
+          <Text style={[styles.statNumber, { color: '#7C3AED' }]}>{trafficIncidents.filter(incident => !dismissedTrafficAlerts.has(incident.id)).length}</Text>
           <Text style={styles.statLabel}>From Traffic APIs</Text>
         </View>
         <View style={styles.statCard}>
@@ -826,7 +857,7 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
         >
           <Ionicons name="radio" size={16} color={activeTab === 'automatic' ? '#3B82F6' : '#6B7280'} />
           <Text style={[styles.tabText, activeTab === 'automatic' && styles.activeTabText]}>
-            From Traffic APIs ({trafficIncidents.length})
+            From Traffic APIs ({trafficIncidents.filter(incident => !dismissedTrafficAlerts.has(incident.id)).length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -912,17 +943,7 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
                 <Text style={styles.incidentDescription} numberOfLines={2}>{incident.description}</Text>
               )}
 
-              {/* Map Button for automatic incidents */}
-              {incident.coordinates && (
-                <View style={styles.incidentActions}>
-                  <TouchableOpacity
-                    style={styles.mapButton}
-                    onPress={() => openIncidentMap(incident)}
-                  >
-                    <Ionicons name="map" size={16} color="#10B981" />
-                  </TouchableOpacity>
-                </View>
-              )}
+
 
               {incident.affectsRoutes && incident.affectsRoutes.length > 0 && (
                 <View style={styles.routesContainer}>
@@ -1025,37 +1046,148 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
           ))
         )
         ) : (
-          trafficIncidents.length === 0 ? (
+          trafficIncidents.filter(incident => !dismissedTrafficAlerts.has(incident.id)).length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons name="radio" size={48} color="#9CA3AF" />
               <Text style={styles.emptyTitle}>No Automatic Incident Alerts</Text>
               <Text style={styles.emptyText}>Waiting for incident data from TomTom and National Highways</Text>
             </View>
           ) : (
-            trafficIncidents.map((incident, index) => (
-              <View key={incident.id || index} style={[styles.incidentCard, styles.automaticIncidentCard]}>
+            trafficIncidents.filter(incident => !dismissedTrafficAlerts.has(incident.id)).map((incident, index) => (
+              <View key={incident.id || index} style={[
+                styles.incidentCard, 
+                styles.automaticIncidentCard,
+                incident.source === 'StreetManager' && styles.streetManagerCard
+              ]}>
                 <View style={styles.incidentHeader}>
                   <View style={styles.incidentType}>
                     <Ionicons 
-                      name="alert-circle" 
+                      name={incident.source === 'StreetManager' ? 'document-text' : 'alert-circle'} 
                       size={20} 
                       color={incident.severity === 'High' ? '#DC2626' : incident.severity === 'Medium' ? '#F59E0B' : '#3B82F6'} 
                     />
                     <Text style={styles.incidentTypeText}>
-                      {incident.type === 'incident' ? 'Traffic Incident' : incident.type || 'Alert'}
+                      {incident.source === 'StreetManager' ? 
+                        (incident.workCategoryDisplay || 'Official Roadwork') : 
+                        (incident.type === 'incident' ? 'Traffic Incident' : incident.type || 'Alert')
+                      }
                     </Text>
+                    {incident.isEmergency && (
+                      <View style={styles.emergencyBadge}>
+                        <Text style={styles.emergencyBadgeText}>EMERGENCY</Text>
+                      </View>
+                    )}
                   </View>
                   
-                  <View style={styles.automaticBadge}>
-                    <Text style={styles.automaticBadgeText}>
-                      {incident.source === 'tomtom' ? 'TomTom' : 
-                       incident.source === 'national_highways' ? 'National Highways' :
-                       incident.source}
-                    </Text>
+                  <View style={styles.incidentActions}>
+                    <View style={styles.automaticBadge}>
+                      <Text style={styles.automaticBadgeText}>
+                        {incident.source === 'tomtom' ? 'TomTom' : 
+                         incident.source === 'national_highways' ? 'National Highways' :
+                         incident.source}
+                      </Text>
+                    </View>
+                    
+                    {incident.coordinates && (
+                      <TouchableOpacity
+                        style={styles.mapButton}
+                        onPress={() => openIncidentMap(incident)}
+                      >
+                        <Ionicons name="map" size={16} color="#10B981" />
+                      </TouchableOpacity>
+                    )}
+                    
+                    {incident.affectsRoutes && incident.affectsRoutes.length > 0 && (
+                      <TouchableOpacity
+                        style={styles.diversionButton}
+                        onPress={() => fetchDiversions(incident)}
+                      >
+                        <Ionicons name="bulb" size={16} color="#7C3AED" />
+                      </TouchableOpacity>
+                    )}
+                    
+                    <TouchableOpacity
+                      style={styles.dismissButton}
+                      onPress={() => dismissTrafficAlert(incident.id)}
+                    >
+                      <Ionicons name="close" size={16} color="#EF4444" />
+                    </TouchableOpacity>
                   </View>
                 </View>
 
                 <Text style={styles.incidentLocation}>{incident.location}</Text>
+                
+                {incident.source === 'StreetManager' && (
+                  <View style={styles.streetManagerDetails}>
+                    {/* Authority Information */}
+                    <View style={styles.authorityContainer}>
+                      <Ionicons name="business" size={14} color="#6B7280" />
+                      <Text style={styles.authorityText}>
+                        {incident.authorityDisplayName || incident.authority}
+                      </Text>
+                      {incident.timelineStatus && (
+                        <View style={[styles.timelineStatusBadge, {
+                          backgroundColor: 
+                            incident.timelineStatus.includes('IN PROGRESS') ? '#FEF2F2' :
+                            incident.timelineStatus.includes('TODAY') ? '#FFF7ED' :
+                            incident.timelineStatus === 'COMPLETED' ? '#F0FDF4' : '#F3F4F6'
+                        }]}>
+                          <Text style={[styles.timelineStatusText, {
+                            color: 
+                              incident.timelineStatus.includes('IN PROGRESS') ? '#DC2626' :
+                              incident.timelineStatus.includes('TODAY') ? '#EA580C' :
+                              incident.timelineStatus === 'COMPLETED' ? '#16A34A' : '#6B7280'
+                          }]}>
+                            {incident.timelineStatus}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                    
+                    {/* Reference Numbers */}
+                    {(incident.permitReference || incident.activityReference) && (
+                      <View style={styles.referenceContainer}>
+                        <Ionicons name="document-outline" size={14} color="#6B7280" />
+                        <Text style={styles.referenceText}>
+                          {incident.permitReference ? `Permit: ${incident.permitReference}` : 
+                           incident.activityReference ? `Activity: ${incident.activityReference}` : ''}
+                        </Text>
+                      </View>
+                    )}
+                    
+                    {/* Duration & Timeline */}
+                    {incident.durationEstimate && (
+                      <View style={styles.durationContainer}>
+                        <Ionicons name="time-outline" size={14} color="#6B7280" />
+                        <Text style={styles.durationText}>
+                          Duration: {incident.durationEstimate}
+                        </Text>
+                      </View>
+                    )}
+                    
+                    {/* Dates */}
+                    {incident.proposedStartDate && (
+                      <View style={styles.datesContainer}>
+                        <Text style={styles.dateLabel}>Start:</Text>
+                        <Text style={styles.dateText}>
+                          {new Date(incident.proposedStartDate).toLocaleDateString('en-GB', {
+                            day: 'numeric', month: 'short', year: 'numeric'
+                          })}
+                        </Text>
+                        {incident.proposedEndDate && (
+                          <>
+                            <Text style={styles.dateLabel}>End:</Text>
+                            <Text style={styles.dateText}>
+                              {new Date(incident.proposedEndDate).toLocaleDateString('en-GB', {
+                                day: 'numeric', month: 'short', year: 'numeric'
+                              })}
+                            </Text>
+                          </>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                )}
                 
                 {incident.description && (
                   <Text style={styles.incidentDescription} numberOfLines={2}>{incident.description}</Text>
@@ -2071,6 +2203,95 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     padding: 4,
+  },
+  dismissButton: {
+    backgroundColor: '#FEF2F2',
+    borderRadius: 4,
+    padding: 6,
+  },
+  streetManagerCard: {
+    borderLeftColor: '#059669',
+    backgroundColor: '#FEFFFE',
+  },
+  emergencyBadge: {
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  emergencyBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  streetManagerDetails: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 6,
+    padding: 10,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  authorityContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    gap: 6,
+  },
+  authorityText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#374151',
+    flex: 1,
+  },
+  timelineStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    marginLeft: 'auto',
+  },
+  timelineStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  referenceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    gap: 6,
+  },
+  referenceText: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontFamily: Platform.OS === 'web' ? 'monospace' : 'System',
+  },
+  durationContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    gap: 6,
+  },
+  durationText: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  datesContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flexWrap: 'wrap',
+  },
+  dateLabel: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    fontWeight: '500',
+  },
+  dateText: {
+    fontSize: 11,
+    color: '#374151',
+    fontWeight: '600',
+    marginRight: 8,
   },
   incidentLocation: {
     fontSize: 16,

@@ -1,182 +1,329 @@
 // backend/routes/gtfsAPI.js
-// Enhanced GTFS Analysis API with Performance Monitoring
+// GTFS API endpoints for route matching and testing
 
 import express from 'express';
-import enhancedGTFSMatcher, { 
-  findRoutesNearCoordinatesEnhanced, 
-  getDetailedRouteMatches,
-  getGTFSMatcherStats 
-} from '../services/enhancedGTFSMatcher.js';
+import gtfsService from '../services/gtfsService.js';
+import { 
+  findAffectedRoutes, 
+  findRoutesByLocation, 
+  findAffectedRoutesEnhanced,
+  getRouteDetails,
+  getGTFSStats,
+  isGTFSReady 
+} from '../utils/gtfsRouteMatching.js';
 
 const router = express.Router();
 
-// Test enhanced route matching
-router.post('/match/enhanced', async (req, res) => {
+/**
+ * GET /api/gtfs/stats
+ * Get GTFS system statistics
+ */
+router.get('/stats', (req, res) => {
+  try {
+    const stats = getGTFSStats();
+    res.json({
+      success: true,
+      data: stats,
+      ready: isGTFSReady(),
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/gtfs/match/coordinate
+ * Find routes by coordinate
+ */
+router.post('/match/coordinate', async (req, res) => {
   try {
     const { lat, lng, radius = 250 } = req.body;
     
-    if (!lat || !lng) {
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
       return res.status(400).json({
         success: false,
-        error: 'Latitude and longitude are required'
+        error: 'Valid latitude and longitude required'
       });
     }
     
-    const startTime = Date.now();
-    const detailedMatches = await getDetailedRouteMatches(lat, lng, radius);
-    const simpleRoutes = detailedMatches.map(match => match.shortName).filter(Boolean);
-    const processingTime = Date.now() - startTime;
+    if (!isGTFSReady()) {
+      return res.status(503).json({
+        success: false,
+        error: 'GTFS service not ready'
+      });
+    }
+    
+    const routes = await findAffectedRoutes(lat, lng, radius);
     
     res.json({
       success: true,
-      location: { lat, lng, radius },
-      routes: simpleRoutes,
-      detailedMatches,
-      performance: {
-        processingTimeMs: processingTime,
-        totalCandidates: detailedMatches.length,
-        highConfidenceMatches: detailedMatches.filter(m => m.confidence > 0.7).length,
-        shapeBasedMatches: detailedMatches.filter(m => m.matchType === 'shape_geometry').length
+      data: {
+        routes: routes,
+        count: routes.length,
+        coordinates: { lat, lng },
+        radius: radius
       },
-      accuracy: {
-        averageConfidence: detailedMatches.length > 0 ? 
-          Math.round((detailedMatches.reduce((sum, m) => sum + m.confidence, 0) / detailedMatches.length) * 100) / 100 : 0,
-        bestMatch: detailedMatches[0] || null,
-        methodsUsed: [...new Set(detailedMatches.map(m => m.matchType))]
-      }
+      method: 'GTFS Coordinate Matching',
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ Enhanced route matching error:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to perform enhanced route matching'
+      error: error.message
     });
   }
 });
 
-// Get GTFS matcher statistics
-router.get('/stats', async (req, res) => {
+/**
+ * POST /api/gtfs/match/location
+ * Find routes by location text
+ */
+router.post('/match/location', (req, res) => {
   try {
-    const stats = getGTFSMatcherStats();
+    const { location } = req.body;
+    
+    if (!location || typeof location !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Location text required'
+      });
+    }
+    
+    if (!isGTFSReady()) {
+      return res.status(503).json({
+        success: false,
+        error: 'GTFS service not ready'
+      });
+    }
+    
+    const routes = findRoutesByLocation(location);
     
     res.json({
       success: true,
-      statistics: stats,
-      systemHealth: {
-        status: stats.isInitialized ? 'operational' : 'initializing',
-        memoryPressure: stats.memoryUsage.heapUsed > 1800 ? 'high' : 'normal',
-        cacheEfficiency: `${stats.cacheHitRate}%`
+      data: {
+        routes: routes,
+        count: routes.length,
+        location: location
       },
-      recommendations: {
-        memoryUsage: stats.memoryUsage.heapUsed < 1536 ? 'optimal' : 'high',
-        cachePerformance: stats.cacheHitRate > 70 ? 'excellent' : 'needs_improvement'
-      }
+      method: 'GTFS Location Text Matching',
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ GTFS stats error:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to get GTFS statistics'
+      error: error.message
     });
   }
 });
 
-// Predefined test coordinates for accuracy testing
-const TEST_COORDINATES = [
-  { lat: 54.9783, lng: -1.6178, name: 'Newcastle Central Station' },
-  { lat: 54.9526, lng: -1.6014, name: 'Gateshead Interchange' },
-  { lat: 54.9069, lng: -1.3838, name: 'Sunderland City Centre' },
-  { lat: 54.7753, lng: -1.5849, name: 'Durham Bus Station' },
-  { lat: 54.9158, lng: -1.5721, name: 'A1 Junction 65' },
-  { lat: 55.0059, lng: -1.4923, name: 'Cramlington' }
-];
-
-// Run accuracy test
-router.get('/test/accuracy', async (req, res) => {
+/**
+ * POST /api/gtfs/match/enhanced
+ * Find routes using enhanced matching (coordinates + location)
+ */
+router.post('/match/enhanced', async (req, res) => {
   try {
-    console.log('🧪 Running GTFS accuracy test...');
+    const { lat, lng, location, radius = 250 } = req.body;
     
-    const startTime = Date.now();
+    if ((!lat || !lng || isNaN(lat) || isNaN(lng)) && !location) {
+      return res.status(400).json({
+        success: false,
+        error: 'Either coordinates (lat, lng) or location text required'
+      });
+    }
+    
+    if (!isGTFSReady()) {
+      return res.status(503).json({
+        success: false,
+        error: 'GTFS service not ready'
+      });
+    }
+    
+    const routes = await findAffectedRoutesEnhanced(lat, lng, location, radius);
+    
+    res.json({
+      success: true,
+      data: {
+        routes: routes,
+        count: routes.length,
+        coordinates: lat && lng ? { lat, lng } : null,
+        location: location || null,
+        radius: radius
+      },
+      method: 'GTFS Enhanced Matching (Coordinates + Location)',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/gtfs/route/:routeName
+ * Get detailed information about a specific route
+ */
+router.get('/route/:routeName', (req, res) => {
+  try {
+    const { routeName } = req.params;
+    
+    if (!isGTFSReady()) {
+      return res.status(503).json({
+        success: false,
+        error: 'GTFS service not ready'
+      });
+    }
+    
+    const routeDetails = getRouteDetails(routeName);
+    
+    if (!routeDetails) {
+      return res.status(404).json({
+        success: false,
+        error: `Route '${routeName}' not found`
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: routeDetails,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/gtfs/test/accuracy
+ * Test route matching accuracy with known locations
+ */
+router.post('/test/accuracy', async (req, res) => {
+  try {
+    if (!isGTFSReady()) {
+      return res.status(503).json({
+        success: false,
+        error: 'GTFS service not ready'
+      });
+    }
+    
+    // Test locations with known expected routes
+    const testCases = [
+      {
+        name: 'Newcastle Central Station',
+        lat: 54.9689, lng: -1.6174,
+        location: 'Newcastle Central Station',
+        expectedRoutes: ['Q3', 'Q3X', '10', '21', '22']
+      },
+      {
+        name: 'Gateshead Interchange',
+        lat: 54.9526, lng: -1.6031,
+        location: 'Gateshead Interchange',
+        expectedRoutes: ['10', '21', '27', '28', 'Q3']
+      },
+      {
+        name: 'Durham Bus Station',
+        lat: 54.7762, lng: -1.5747,
+        location: 'Durham',
+        expectedRoutes: ['21', '22', 'X21', '6']
+      },
+      {
+        name: 'Sunderland Interchange',
+        lat: 54.9053, lng: -1.3826,
+        location: 'Sunderland',
+        expectedRoutes: ['16', '20', '61', '62']
+      },
+      {
+        name: 'Metro Centre',
+        lat: 54.9561, lng: -1.6751,
+        location: 'Metro Centre',
+        expectedRoutes: ['10', '27', '28']
+      }
+    ];
+    
     const results = [];
     
-    for (const testPoint of TEST_COORDINATES) {
-      const matches = await getDetailedRouteMatches(testPoint.lat, testPoint.lng, 500);
+    for (const testCase of testCases) {
+      const foundRoutes = await findAffectedRoutesEnhanced(
+        testCase.lat, 
+        testCase.lng, 
+        testCase.location, 
+        300
+      );
+      
+      const matches = foundRoutes.filter(route => 
+        testCase.expectedRoutes.includes(route)
+      );
+      
+      const accuracy = testCase.expectedRoutes.length > 0 ? 
+        (matches.length / testCase.expectedRoutes.length) * 100 : 0;
       
       results.push({
-        location: testPoint,
-        routes: matches.map(m => m.shortName).filter(Boolean),
-        matchCount: matches.length,
-        averageConfidence: matches.length > 0 ? 
-          Math.round((matches.reduce((sum, m) => sum + m.confidence, 0) / matches.length) * 100) / 100 : 0,
-        bestMatch: matches[0] || null
+        name: testCase.name,
+        coordinates: { lat: testCase.lat, lng: testCase.lng },
+        location: testCase.location,
+        expectedRoutes: testCase.expectedRoutes,
+        foundRoutes: foundRoutes,
+        matches: matches,
+        accuracy: Math.round(accuracy),
+        passed: accuracy >= 50 // Consider 50%+ match as passing
       });
     }
     
-    const totalTime = Date.now() - startTime;
-    
-    const overallStats = {
-      totalLocations: TEST_COORDINATES.length,
-      locationsWithMatches: results.filter(r => r.routes.length > 0).length,
-      averageRoutesPerLocation: Math.round((results.reduce((sum, r) => sum + r.routes.length, 0) / TEST_COORDINATES.length) * 10) / 10,
-      averageProcessingTime: Math.round(totalTime / TEST_COORDINATES.length),
-      overallAccuracy: Math.round((results.reduce((sum, r) => sum + r.averageConfidence, 0) / TEST_COORDINATES.length) * 100) / 100
-    };
+    const overallAccuracy = results.reduce((sum, r) => sum + r.accuracy, 0) / results.length;
+    const passedTests = results.filter(r => r.passed).length;
     
     res.json({
       success: true,
-      testResults: results,
-      overallAccuracy: overallStats,
-      benchmarks: {
-        processingSpeed: overallStats.averageProcessingTime < 100 ? 'excellent' : 'good',
-        matchCoverage: overallStats.locationsWithMatches / overallStats.totalLocations >= 0.9 ? 'excellent' : 'good',
-        confidence: overallStats.overallAccuracy > 0.8 ? 'excellent' : overallStats.overallAccuracy > 0.6 ? 'good' : 'needs_improvement'
-      }
+      data: {
+        results: results,
+        summary: {
+          totalTests: results.length,
+          passedTests: passedTests,
+          failedTests: results.length - passedTests,
+          overallAccuracy: Math.round(overallAccuracy),
+          passRate: Math.round((passedTests / results.length) * 100)
+        }
+      },
+      method: 'GTFS Accuracy Testing',
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('❌ GTFS accuracy test error:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to run accuracy test'
+      error: error.message
     });
   }
 });
 
-// Performance monitoring
-router.get('/performance', async (req, res) => {
-  try {
-    const stats = getGTFSMatcherStats();
-    const memUsage = process.memoryUsage();
-    
-    const performance = {
-      memory: {
-        heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024),
-        heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024),
-        rss: Math.round(memUsage.rss / 1024 / 1024),
-        percentage: Math.round((memUsage.heapUsed / (2048 * 1024 * 1024)) * 100) // % of 2GB
-      },
-      gtfs: {
-        routes: stats.totalRoutes,
-        stops: stats.totalStops,
-        shapes: stats.totalShapes,
-        cacheHitRate: stats.cacheHitRate
-      }
-    };
-    
-    res.json({
-      success: true,
-      performance,
-      status: {
-        memoryPressure: performance.memory.percentage > 85 ? 'high' : 'normal',
-        overallHealth: performance.memory.percentage < 80 && performance.gtfs.cacheHitRate > 60 ? 'excellent' : 'good'
-      }
-    });
-  } catch (error) {
-    console.error('❌ Performance monitoring error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get performance metrics'
-    });
-  }
+/**
+ * GET /api/gtfs/health
+ * Health check for GTFS service
+ */
+router.get('/health', (req, res) => {
+  const ready = isGTFSReady();
+  const stats = getGTFSStats();
+  
+  res.status(ready ? 200 : 503).json({
+    success: ready,
+    ready: ready,
+    data: {
+      initialized: stats.initialized,
+      routes: stats.routes,
+      stops: stats.stops,
+      shapes: stats.shapes,
+      spatialIndexCells: stats.spatialIndexCells
+    },
+    message: ready ? 'GTFS service is ready' : 'GTFS service is not ready',
+    timestamp: new Date().toISOString()
+  });
 });
 
 export default router;

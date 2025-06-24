@@ -41,7 +41,9 @@ import healthExtendedRouter from './routes/healthExtended.js';
 import supervisorAPI from './routes/supervisorAPI.js';
 import roadworksAPI from './routes/roadworksAPI.js';
 import roadworkAlertsAPI from './routes/roadworkAlertsAPI-simple.js';
+import gtfsAPI from './routes/gtfsAPI.js';
 console.log('✅ roadworkAlertsAPI-simple imported successfully');
+console.log('✅ gtfsAPI imported successfully');
 import microsoftAuthAPI from './routes/microsoftAuthAPI.js';
 console.log('✅ microsoftAuthAPI imported successfully');
 import gtfsAPI from './routes/gtfsAPI.js';
@@ -372,6 +374,11 @@ app.use('/api/supervisor', supervisorAPI);
 
 // Roadworks management routes  
 app.use('/api/roadworks', roadworksAPI);
+
+// GTFS routes for route matching and testing
+console.log('🚌 Registering GTFS routes at /api/gtfs...');
+app.use('/api/gtfs', gtfsAPI);
+console.log('✅ GTFS routes registered successfully');
 
 // Roadwork alerts routes (supervisor-created roadwork notifications)
 console.log('📦 Registering roadwork alerts routes at /api/roadwork-alerts...');

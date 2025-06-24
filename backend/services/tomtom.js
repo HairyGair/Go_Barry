@@ -3,6 +3,7 @@
 import axios from 'axios';
 import { getEnhancedLocationWithFallbacks } from '../utils/productionLocation.js';
 import { geocodingThrottler } from '../utils/requestThrottler.js';
+import { findAffectedRoutesEnhanced, isGTFSReady } from '../utils/gtfsRouteMatching.js';
 
 // Enhanced route matching using both coordinates AND geocoded location names
 function findRoutesNearCoordinatesFixed(lat, lng, radiusMeters = 250) {
@@ -461,9 +462,24 @@ async function fetchTomTomTrafficWithStreetNames() {
 }`);
         console.log(`✅ Enhanced location: ${enhancedLocation}`);
 
-        // ENHANCED: Route matching using both coordinates AND geocoded location names
-        console.log(`🗺️ Enhanced route matching combining coordinates + location names...`);
-        const affectedRoutes = enhancedRouteMatchingWithLocation(lat, lng, enhancedLocation, 250);
+        // GTFS-ENHANCED: Route matching using GTFS data + coordinates + location names
+        console.log(`🗺️ GTFS-enhanced route matching...`);
+        let affectedRoutes = [];
+        let routeMatchMethod = 'Fallback Location + Coordinate Matching';
+        
+        if (isGTFSReady()) {
+          try {
+            affectedRoutes = await findAffectedRoutesEnhanced(lat, lng, enhancedLocation, 250);
+            routeMatchMethod = 'GTFS + Enhanced Location + Coordinate Matching';
+            console.log(`✅ GTFS route matching found ${affectedRoutes.length} routes: ${affectedRoutes.join(', ')}`);
+          } catch (gtfsError) {
+            console.warn('⚠️ GTFS route matching failed, using fallback:', gtfsError.message);
+            affectedRoutes = enhancedRouteMatchingWithLocation(lat, lng, enhancedLocation, 250);
+          }
+        } else {
+          console.warn('⚠️ GTFS not ready, using fallback route matching');
+          affectedRoutes = enhancedRouteMatchingWithLocation(lat, lng, enhancedLocation, 250);
+        }
         
         // Map incident types
         const getIncidentInfo = (iconCategory) => {
@@ -498,8 +514,8 @@ async function fetchTomTomTrafficWithStreetNames() {
           status: 'red',
           source: 'tomtom',
           affectsRoutes: affectedRoutes,
-          routeMatchMethod: 'Enhanced Location + Coordinate Matching',
-          routeAccuracy: affectedRoutes.length > 0 ? 'high' : 'medium',
+          routeMatchMethod: routeMatchMethod,
+          routeAccuracy: affectedRoutes.length > 0 ? (isGTFSReady() ? 'very_high' : 'high') : 'medium',
           iconCategory: props.iconCategory,
           lastUpdated: new Date().toISOString(),
           startDate: new Date().toISOString(), // Add startDate for display screen

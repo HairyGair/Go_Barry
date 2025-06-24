@@ -4,6 +4,7 @@
 import { convexSync } from './convexSync.js';
 import { geocodeLocation } from './geocoding.js';
 import { createClient } from '@supabase/supabase-js';
+import { findAffectedRoutesEnhanced, isGTFSReady } from '../utils/gtfsRouteMatching.js';
 
 // Initialize Supabase client
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
@@ -72,6 +73,52 @@ function isInNorthEast(lat, lng) {
          lat <= NORTH_EAST_BOUNDS.north && 
          lng >= NORTH_EAST_BOUNDS.west && 
          lng <= NORTH_EAST_BOUNDS.east;
+}
+
+/**
+ * Get timeline status for professional display
+ */
+function getTimelineStatus(objectData) {
+  const now = new Date();
+  const proposedStart = objectData.proposed_start_date ? new Date(objectData.proposed_start_date) : null;
+  const proposedEnd = objectData.proposed_end_date ? new Date(objectData.proposed_end_date) : null;
+  const actualStart = objectData.actual_start_date ? new Date(objectData.actual_start_date) : null;
+  const actualEnd = objectData.actual_end_date ? new Date(objectData.actual_end_date) : null;
+  
+  if (actualEnd) {
+    return 'COMPLETED';
+  }
+  
+  if (actualStart || (proposedStart && now >= proposedStart)) {
+    return 'IN PROGRESS';
+  }
+  
+  if (proposedStart && now < proposedStart) {
+    const daysUntil = Math.ceil((proposedStart - now) / (24 * 60 * 60 * 1000));
+    if (daysUntil === 0) return 'STARTS TODAY';
+    if (daysUntil === 1) return 'STARTS TOMORROW';
+    if (daysUntil <= 7) return `STARTS IN ${daysUntil} DAYS`;
+    return 'PLANNED';
+  }
+  
+  return 'PENDING';
+}
+
+/**
+ * Calculate work duration for professional display
+ */
+function calculateDuration(startDate, endDate) {
+  if (!startDate || !endDate) return null;
+  
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const diffMs = end - start;
+  const days = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
+  
+  if (days === 1) return '1 day';
+  if (days <= 7) return `${days} days`;
+  if (days <= 14) return `${Math.ceil(days / 7)} week${Math.ceil(days / 7) > 1 ? 's' : ''}`;
+  return `${Math.ceil(days / 7)} weeks`;
 }
 
 /**
@@ -160,6 +207,22 @@ async function transformEventToAlert(event) {
                        objectData.activity_description || 
                        `${objectData.work_category_ref || 'Roadwork'} activity`;
     
+    // Find affected routes using GTFS
+    let affectedRoutes = [];
+    if (isGTFSReady() && coordinates) {
+      try {
+        affectedRoutes = await findAffectedRoutesEnhanced(
+          coordinates[0], 
+          coordinates[1], 
+          location, 
+          300 // Slightly larger radius for roadworks
+        );
+        console.log(`✅ GTFS found ${affectedRoutes.length} affected routes for StreetManager roadwork`);
+      } catch (error) {
+        console.warn('⚠️ GTFS route matching failed for StreetManager event:', error);
+      }
+    }
+    
     // Create alert object
     const alert = {
       id: `streetmanager_${event.object_reference || Date.now()}`,
@@ -172,12 +235,14 @@ async function transformEventToAlert(event) {
       type: 'roadwork',
       source: 'StreetManager',
       dataSource: 'Street Manager Live',
+      affectsRoutes: affectedRoutes,
       
       // Authority information
       authority: objectData.highway_authority || 
                 objectData.promoter_organisation || 
                 'Highway Authority',
       highwayAuthoritySwaCode: objectData.highway_authority_swa_code,
+      promoterOrganisation: objectData.promoter_organisation,
       
       // Reference numbers
       permitReference: objectData.permit_reference_number,
@@ -189,8 +254,16 @@ async function transformEventToAlert(event) {
       workType: objectData.work_type_ref,
       isEmergency: objectData.is_emergency_works || false,
       trafficManagementType: objectData.traffic_management_type,
+      permitStatus: objectData.permit_status,
+      activityStatus: objectData.activity_status,
+      workflowStatus: objectData.workflow_status,
       
-      // Timing
+      // Timing - Key supervisor information
+      proposedStartDate: objectData.proposed_start_date,
+      proposedEndDate: objectData.proposed_end_date,
+      actualStartDate: objectData.actual_start_date,
+      actualEndDate: objectData.actual_end_date,
+      eventTime: eventTime,
       startDate: objectData.actual_start_date || objectData.proposed_start_date,
       endDate: objectData.actual_end_date || objectData.proposed_end_date,
       lastUpdated: eventTime,
@@ -200,13 +273,21 @@ async function transformEventToAlert(event) {
       areaName: objectData.area_name,
       usrn: objectData.usrn,
       eventType: eventType,
-      eventTime: eventTime,
       
       // Enhancement flags
       locationAccuracy: 'high',
       routeMatchMethod: 'streetmanager-realtime',
       officialSource: true,
-      realTimeUpdate: true
+      realTimeUpdate: true,
+      
+      // Professional display fields
+      professionalTitle: `${objectData.work_category_ref ? objectData.work_category_ref.replace(/_/g, ' ').toUpperCase() : 'ROADWORK'} - ${location}`,
+      authorityDisplayName: objectData.highway_authority || objectData.promoter_organisation || 'Highway Authority',
+      workCategoryDisplay: objectData.work_category_ref ? objectData.work_category_ref.replace(/_/g, ' ').toUpperCase() : 'ROADWORK',
+      emergencyIndicator: objectData.is_emergency_works ? 'EMERGENCY' : null,
+      statusDisplay: eventType.replace(/_/g, ' '),
+      timelineStatus: getTimelineStatus(objectData),
+      durationEstimate: calculateDuration(objectData.proposed_start_date, objectData.proposed_end_date)
     };
     
     return alert;
