@@ -273,10 +273,15 @@ export async function processStreetManagerEvent(eventData) {
     });
     
     // Sync to Convex for real-time updates
-    if (convexSync && typeof convexSync.syncSingleAlert === 'function') {
+    if (convexSync) {
       try {
-        await convexSync.syncSingleAlert(alert);
-        console.log('✅ Alert synced to Convex');
+        // Use syncAlerts with a single alert array
+        if (typeof convexSync.syncAlerts === 'function') {
+          await convexSync.syncAlerts([alert]);
+          console.log('✅ Alert synced to Convex');
+        } else {
+          console.log('⚠️ Convex sync not available');
+        }
       } catch (syncError) {
         console.error('⚠️ Failed to sync to Convex:', syncError);
       }

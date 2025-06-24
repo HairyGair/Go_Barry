@@ -42,7 +42,9 @@ import supervisorSyncService from './services/supervisorSync.js';
 import enhancedDataSourceManager from './services/enhancedDataSourceManager.js';
 import displayAPI from './routes/displayAPI.js';
 import streetManagerWebhooks from './services/streetManagerWebhooksSimple.js';
+console.log('✅ streetManagerWebhooks service imported');
 import streetManagerWebhookRouter from './routes/streetManagerWebhook.js';
+console.log('✅ streetManagerWebhookRouter imported');
 import { createServer } from 'http';
 import { deduplicateAlerts, cleanupExpiredDismissals, generateAlertHash } from './utils/alertDeduplication.js';
 import { convexSync } from './services/convexSync.js';
@@ -597,7 +599,9 @@ app.get('/api/config/tomtom-key', (req, res) => {
 app.use('/api/events', eventAPI);
 
 // StreetManager webhook routes (using new manage-roadworks.service.gov.uk integration)
+console.log('📨 Registering Street Manager webhook routes at /api/streetmanager...');
 app.use('/api/streetmanager', streetManagerWebhookRouter);
+console.log('✅ Street Manager webhook routes registered successfully');
 
 // Legacy StreetManager webhook (keeping for backward compatibility)
 app.post('/api/streetmanager/webhook-legacy', async (req, res) => {
