@@ -12,17 +12,55 @@ const DisplayScreen = () => {
   const [activeEvent, setActiveEvent] = useState(null);
   const [attentionMode, setAttentionMode] = useState(false);
   const [weather, setWeather] = useState({ condition: 'CLEAR', temp: '15°C', icon: '☀️' });
+  const [fallbackAlerts, setFallbackAlerts] = useState([]);
+  const [fallbackLoading, setFallbackLoading] = useState(true);
 
   // FIXED: Use Convex hooks for alerts, supervisors, events, AND incidents (real-time sync)
   const { activeAlerts, activeSupervisors, mostSevereEvent, activeIncidents } = useConvexSync();
   const supervisorActivity = useSupervisorActions({ limit: 10 });
+
+  // Fallback: Fetch alerts directly from backend if Convex is not working
+  useEffect(() => {
+    const fetchFallbackAlerts = async () => {
+      try {
+        setFallbackLoading(true);
+        const response = await fetch('https://go-barry.onrender.com/api/alerts-enhanced');
+        if (response.ok) {
+          const data = await response.json();
+          setFallbackAlerts(data.alerts || []);
+          console.log('✅ Fallback alerts loaded:', data.alerts?.length || 0);
+        }
+      } catch (error) {
+        console.error('❌ Fallback alert fetch failed:', error);
+      } finally {
+        setFallbackLoading(false);
+      }
+    };
+
+    // Only use fallback if Convex alerts are not available
+    if (!activeAlerts && fallbackLoading) {
+      fetchFallbackAlerts();
+      // Refresh fallback alerts every 30 seconds
+      const interval = setInterval(fetchFallbackAlerts, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [activeAlerts, fallbackLoading]);
   
-  // Process alerts from Convex to ensure consistent format
+  // Process alerts from Convex OR fallback backend data
   const alerts = React.useMemo(() => {
-    if (!activeAlerts) return [];
-    return activeAlerts.map(alert => ({
+    const sourceAlerts = activeAlerts || fallbackAlerts;
+    console.log('🔍 Display Screen - Alert Data:', {
+      convexAlerts: activeAlerts?.length || 0,
+      fallbackAlerts: fallbackAlerts?.length || 0,
+      totalAlerts: sourceAlerts?.length || 0,
+      usingFallback: !activeAlerts && fallbackAlerts?.length > 0
+    });
+    
+    if (!sourceAlerts || sourceAlerts.length === 0) return [];
+    
+    return sourceAlerts.map(alert => ({
       ...alert,
-      id: alert.alertId, // Ensure consistent ID field
+      id: alert.alertId || alert.id, // Handle both Convex (alertId) and backend (id) formats
       coordinates: alert.coordinates ? 
         (Array.isArray(alert.coordinates) ? alert.coordinates : 
          alert.coordinates.lat && alert.coordinates.lng ? 
@@ -31,10 +69,10 @@ const DisplayScreen = () => {
          [alert.coordinates.latitude, alert.coordinates.longitude] : null) :
         null
     }));
-  }, [activeAlerts]);
+  }, [activeAlerts, fallbackAlerts]);
   
-  // Loading/error states (Convex handles these)
-  const loading = !activeAlerts;
+  // Loading/error states (check both Convex and fallback)
+  const loading = !activeAlerts && fallbackLoading;
   const error = null;
   const lastUpdateTime = new Date();
   const apiResponseTime = 0; // Instant with Convex
@@ -235,7 +273,7 @@ const DisplayScreen = () => {
               letterSpacing: '1px',
               textTransform: 'uppercase'
             }}>
-              Control Room • Live Operations • Convex Real-time Alerts
+              Control Room • Live Operations • {activeAlerts ? 'Convex Real-time' : 'Backend Fallback'} Alerts
             </p>
           </div>
         </div>

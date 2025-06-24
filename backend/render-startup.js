@@ -29,14 +29,20 @@ app.use = function(...args) {
 };
 
 app.get = function(...args) {
-  console.log(`📍 Route registered: GET ${args[0]}`);
-  routeCount.get++;
+  // Only log actual route registrations (path + handler), not settings access
+  if (args.length >= 2 && typeof args[0] === 'string' && typeof args[1] === 'function') {
+    console.log(`📍 Route registered: GET ${args[0]}`);
+    routeCount.get++;
+  }
   return originalGet(...args);
 };
 
 app.post = function(...args) {
-  console.log(`📍 Route registered: POST ${args[0]}`);
-  routeCount.post++;
+  // Only log actual route registrations (path + handler)
+  if (args.length >= 2 && typeof args[0] === 'string' && typeof args[1] === 'function') {
+    console.log(`📍 Route registered: POST ${args[0]}`);
+    routeCount.post++;
+  }
   return originalPost(...args);
 };
 

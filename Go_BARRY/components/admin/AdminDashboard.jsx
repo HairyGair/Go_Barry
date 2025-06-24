@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorSession } from '../hooks/useSupervisorSession';
-import { useConvexSync } from '../hooks/useConvexSync';
+import { useConvexSync } from '../../hooks/useConvexSync';
 import MonitoringDashboard from '../MonitoringDashboard';
 import { API_CONFIG } from '../../config/api';
 

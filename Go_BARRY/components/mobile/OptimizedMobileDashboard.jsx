@@ -19,7 +19,7 @@ import {
   useTouchOptimization,
   useNetworkStatus 
 } from './MobilePerformanceOptimizer';
-import { useConvexSync } from '../hooks/useConvexSync';
+import { useConvexSync } from '../../hooks/useConvexSync';
 import { API_CONFIG } from '../../config/api';
 
 const { width, height } = Dimensions.get('window');
