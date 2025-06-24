@@ -7,8 +7,12 @@ import { createServer } from 'http';
 const app = express();
 const PORT = process.env.PORT || 3001;
 const server = createServer(app);
-// Store server globally for WebSocket support in index.js
+// Store app and server globally for use in index.js
+global.goBarryApp = app;
 global.goBarryServer = server;
+
+// Mark this app instance
+app._goBarryInstance = 'render-startup';
 
 // Debug: Track route registrations
 let routeCount = { get: 0, post: 0, use: 0 };
@@ -177,17 +181,37 @@ server.listen(PORT, '0.0.0.0', () => {
   // Load full backend after port is bound
   setTimeout(() => {
     console.log('🔄 Loading full backend functionality...');
+    console.log(`🔄 Route count before import - GET: ${routeCount.get}, POST: ${routeCount.post}, USE: ${routeCount.use}`);
     import('./index.js').then(() => {
       console.log('✅ Full backend loaded - ALL ROUTES NOW ACTIVE');
-      console.log(`🎆 Route count - GET: ${routeCount.get}, POST: ${routeCount.post}, USE: ${routeCount.use}`);
+      console.log(`🎆 Route count after import - GET: ${routeCount.get}, POST: ${routeCount.post}, USE: ${routeCount.use}`);
       console.log('🎆 All API endpoints from index.js are now accessible!');
       console.log('🚀 Test roadwork endpoint: https://go-barry.onrender.com/api/roadwork-alerts-test');
       console.log('🎯 FIXED: All routes now use the same Express app instance!');
+      
+      // Test if a route from index.js is actually registered
+      if (app._router && app._router.stack) {
+        const testRoute = app._router.stack.find(layer => 
+          layer.route && layer.route.path === '/api/roadwork-alerts-test'
+        );
+        console.log(`🗺️ Test route found in app: ${!!testRoute}`);
+      }
+      
+      // Add a verification endpoint to confirm routes are working
+      app.get('/api/verify-fix', (req, res) => {
+        res.json({
+          success: true,
+          message: 'Routes from index.js are now accessible!',
+          timestamp: new Date().toISOString(),
+          routeCount: routeCount,
+          source: 'Added after index.js import'
+        });
+      });
     }).catch(error => {
-      console.warn('⚠️ Full backend failed to load:', error.message);
+      console.error('⚠️ Full backend failed to load:', error);
       console.log('🚨 Running in minimal mode');
     });
   }, 5000); // 5 second delay
 });
 
-export default app;
+// No longer exporting app - it's available via global.goBarryApp

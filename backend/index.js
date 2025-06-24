@@ -1,6 +1,8 @@
 // backend/index.js - Go BARRY Backend
 // Traffic Intelligence with TomTom + National Highways + StreetManager + Manual Incidents
 
+console.log('🌟 index.js: Module loading started at', new Date().toISOString());
+
 /*
  * ARCHITECTURAL FIX (June 2025):
  * Previously, this file created its own Express app, resulting in TWO separate app instances:
@@ -8,13 +10,19 @@
  * 2. index.js created app #2 and registered all routes on it
  * Result: 100% of routes returned 404 because app #2 was never served
  * 
- * SOLUTION: Import the app from render-startup.js instead of creating a new one
- * Now all routes are registered on the same app that's actually being served!
+ * SOLUTION: Use the global app instance created by render-startup.js
+ * This avoids circular dependencies and ensures all routes use the same app!
  */
 
-// FIXED: Import the app from render-startup.js instead of creating a new one
-import app from './render-startup.js';
+// FIXED: Get the app instance from global (set by render-startup.js)
+import express from 'express';  // Need express for middleware
 import axios from 'axios';
+
+const app = global.goBarryApp;
+if (!app) {
+  console.error('❌ FATAL: No app instance found! render-startup.js must run first.');
+  throw new Error('App not initialized by render-startup.js');
+}
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -277,8 +285,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// Middleware
-app.use(express.json({ limit: '10mb' }));
+// Middleware - Moved from after active requests tracking to ensure it's applied
+// Note: Basic middleware is already applied in render-startup.js
+// This adds the higher limit for larger payloads
+if (!app._middlewareApplied) {
+  app.use(express.json({ limit: '10mb' }));
+  app._middlewareApplied = true;
+}
 
 // FIXED: Comprehensive CORS configuration
 app.use((req, res, next) => {
@@ -335,6 +348,12 @@ app.use((req, res, next) => {
   next();
 });
 
+// DEBUG: Log that we're registering routes
+console.log('🎯 index.js: Starting route registration on app instance');
+console.log(`🎯 index.js: App exists: ${!!app}, Server exists: ${!!server}`);
+console.log(`🎯 index.js: App instance marker: ${app._goBarryInstance || 'not set'}`);
+console.log(`🎯 index.js: Same app check: ${app === global.goBarryApp}`);
+
 // Health endpoint
 app.use('/api/health', healthRoutes);
 app.use('/api/health-extended', healthExtendedRouter);
@@ -356,6 +375,11 @@ app.get('/api/roadwork-alerts-test', (req, res) => {
     success: true,
     message: 'Roadwork alerts endpoint is working!',
     timestamp: new Date().toISOString(),
+    source: 'index.js',
+    debug: {
+      appInstance: 'Using global.goBarryApp',
+      routeCount: global.goBarryRouteCount || 'unknown'
+    },
     endpoints: {
       'GET /api/roadwork-alerts': 'List all roadworks',
       'POST /api/roadwork-alerts': 'Create new roadwork',
@@ -364,6 +388,8 @@ app.get('/api/roadwork-alerts-test', (req, res) => {
     }
   });
 });
+
+console.log('✅ index.js: Test route /api/roadwork-alerts-test registered');
 
 // TEMPORARY FIX: Direct POST handler for roadwork alerts
 app.post('/api/roadwork-alerts', async (req, res) => {
@@ -2141,6 +2167,10 @@ console.log('📍 AI Diversion System: GTFS local intelligence + TomTom live tra
 
 // Server startup code removed - handled by render-startup.js
 */
+
+// Log total routes registered
+console.log(`🎆 index.js: Route registration complete!`);
+console.log(`🎆 index.js: Total routes registered:`, global.goBarryRouteCount || 'tracking not available');
 
 // Initialize the application when this module is imported
 initializeApplication().then(async () => {
