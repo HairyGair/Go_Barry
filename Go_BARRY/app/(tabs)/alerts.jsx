@@ -168,9 +168,9 @@ const SimpleTrafficCard = ({ alert, supervisorSession, onDismiss, onAcknowledge,
     </View>
   );
 };
-import SupervisorLogin from '../../components/SupervisorLogin';
+import SupervisorLogin from '../../components/SupervisorLoginSimple';
 import CreateRoadworkModal from '../../components/CreateRoadworkModal';
-import { useSupervisorSession } from '../../components/hooks/useSupervisorSession';
+import { useSupervisorSession } from '../../components/hooks/useSupervisorSessionSimple';
 import { useBarryAPI } from '../../components/hooks/useBARRYapi';
 import { Colors, getStatusColor, getSeverityColor, getTrafficTypeColor } from '../../constants/Colors';
 
@@ -563,6 +563,10 @@ export default function AlertsScreen() {
       <SupervisorLogin 
         visible={showSupervisorLogin}
         onClose={() => setShowSupervisorLogin(false)}
+        onLoginSuccess={(session) => {
+          console.log('Supervisor logged in:', session.supervisor.name);
+          setShowSupervisorLogin(false);
+        }}
       />
 
       {/* Create Roadwork Modal */}
