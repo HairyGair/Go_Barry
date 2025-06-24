@@ -170,6 +170,148 @@ router.post('/auth/validate', async (req, res) => {
   }
 });
 
+// Get available supervisors (for login UI)
+router.get('/list', async (req, res) => {
+  try {
+    const supervisors = await supervisorManager.getAllSupervisors();
+    res.json({
+      success: true,
+      supervisors: supervisors.map(s => ({
+        id: s.id,
+        name: s.name,
+        badge: s.badge,
+        role: s.role,
+        isActive: s.active || s.isActive
+      }))
+    });
+  } catch (error) {
+    console.error('❌ Error getting supervisors:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get supervisors'
+    });
+  }
+});
+
+// Simple badge + password authentication (for mobile app)
+router.post('/auth/simple', async (req, res) => {
+  try {
+    const { badge, password } = req.body;
+    
+    if (!badge || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Badge and password are required'
+      });
+    }
+    
+    console.log(`🔐 Simple auth attempt with badge: ${badge}`);
+    
+    // Find supervisor by badge
+    const supervisors = await supervisorManager.getAllSupervisors();
+    const supervisor = supervisors.find(s => s.badge === badge);
+    
+    if (!supervisor) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid badge number'
+      });
+    }
+    
+    const clientIP = req.ip || req.connection.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+    
+    const result = await supervisorManager.authenticateSupervisorSecure(
+      supervisor.id, 
+      badge, 
+      password, 
+      clientIP, 
+      userAgent
+    );
+    
+    if (result.success) {
+      console.log(`✅ Simple auth successful: ${result.supervisor.name}`);
+      
+      // Log supervisor login activity
+      await supervisorActivityLogger.logLogin(result.supervisor.badge, result.supervisor.name);
+      
+      res.json({
+        success: true,
+        message: 'Authentication successful',
+        sessionId: result.sessionId,
+        supervisor: result.supervisor,
+        authMethod: 'simple'
+      });
+    } else {
+      console.log(`❌ Simple auth failed: ${result.error}`);
+      res.status(401).json({
+        success: false,
+        error: result.error || 'Invalid credentials'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Simple supervisor auth error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Authentication failed'
+    });
+  }
+});
+
+// Secure password-based authentication
+router.post('/login/secure', async (req, res) => {
+  try {
+    const { supervisorId, badge, password } = req.body;
+    
+    if (!supervisorId || !badge || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Supervisor ID, badge, and password are required'
+      });
+    }
+    
+    console.log(`🔐 Secure auth attempt: ${supervisorId} with badge ${badge}`);
+    
+    const clientIP = req.ip || req.connection.remoteAddress;
+    const userAgent = req.headers['user-agent'];
+    
+    const result = await supervisorManager.authenticateSupervisorSecure(
+      supervisorId, 
+      badge, 
+      password, 
+      clientIP, 
+      userAgent
+    );
+    
+    if (result.success) {
+      console.log(`✅ Secure auth successful: ${result.supervisor.name}`);
+      
+      // Log supervisor login activity
+      await supervisorActivityLogger.logLogin(result.supervisor.badge, result.supervisor.name);
+      
+      res.json({
+        success: true,
+        message: 'Secure authentication successful',
+        sessionId: result.sessionId,
+        supervisor: result.supervisor,
+        secureSession: true
+      });
+    } else {
+      console.log(`❌ Secure auth failed: ${result.error}`);
+      res.status(401).json({
+        success: false,
+        error: result.error || 'Invalid supervisor credentials'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Secure supervisor auth error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Authentication failed'
+    });
+  }
+});
+
 // Supervisor logout
 router.post('/auth/logout', async (req, res) => {
   try {
