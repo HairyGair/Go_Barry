@@ -28,7 +28,8 @@
     "memory-check": "node -e \"console.log('Node.js Memory Limits:'); console.log('Max Old Space:', v8.getHeapStatistics().heap_size_limit / 1024 / 1024, 'MB'); console.log('Available Memory:', process.memoryUsage());\"",
     "memory-test": "node --max-old-space-size=2048 --expose-gc -e \"console.log('Memory test passed - 2GB heap available'); if(global.gc) console.log('Garbage collection available'); else console.log('Warning: Garbage collection not available');\"",
     "migrate:supabase": "node migrate-to-supabase.js",
-    "test:supabase": "node test-supabase-migration.js"
+    "test:supabase": "node test-supabase-migration.js",
+    "scrape:onenetwork": "node runOneNetworkScraper.js"
   },
   "dependencies": {
     "@azure/identity": "^4.10.1",

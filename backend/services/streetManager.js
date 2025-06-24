@@ -526,11 +526,168 @@ export function getStreetManagerCacheStats() {
   };
 }
 
+/**
+ * Poll StreetManager API and save to Supabase
+ * This is an alternative to webhooks - run periodically
+ */
+export async function pollAndSaveToSupabase() {
+  console.log('🔄 Polling StreetManager API and saving to Supabase...');
+  
+  try {
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    
+    let totalSaved = 0;
+    
+    // 1. Fetch activities
+    const activitiesResult = await fetchStreetManagerActivities(true);
+    if (activitiesResult.success && activitiesResult.data) {
+      console.log(`🔍 Processing ${activitiesResult.data.length} activities...`);
+      
+      for (const activity of activitiesResult.data) {
+        // Convert to notification format
+        const notification = {
+          notification_id: activity.id,
+          activity_reference_number: activity.activityReference,
+          permit_reference_number: activity.permitReference,
+          title: activity.title,
+          description: activity.description,
+          location_description: activity.location,
+          street_name: activity.streetName,
+          area_name: activity.areaName,
+          usrn: activity.usrn,
+          coordinates: activity.coordinates ? 
+            { lat: activity.coordinates[0], lng: activity.coordinates[1] } : null,
+          work_category_ref: activity.workCategory,
+          activity_type: activity.workType,
+          is_emergency_works: activity.isEmergency,
+          activity_status: activity.activityStatus || 'active',
+          severity: activity.severity,
+          alert_status: activity.status,
+          proposed_start_date: activity.proposedStartDate,
+          proposed_end_date: activity.proposedEndDate,
+          actual_start_date: activity.actualStartDate,
+          actual_end_date: activity.actualEndDate,
+          highway_authority: activity.authority,
+          webhook_event_type: 'POLLED',
+          raw_webhook_data: { source: 'api_poll', activity },
+          processing_status: 'processed',
+          processed_at: new Date().toISOString(),
+          webhook_received_at: new Date().toISOString()
+        };
+        
+        // Upsert to Supabase
+        const { error } = await supabase
+          .from('streetmanager_notifications')
+          .upsert(notification, {
+            onConflict: 'notification_id',
+            ignoreDuplicates: false
+          });
+        
+        if (!error) {
+          totalSaved++;
+        } else {
+          console.error(`⚠️ Failed to save ${activity.id}:`, error.message);
+        }
+      }
+    }
+    
+    // 2. Fetch permits  
+    const permitsResult = await fetchStreetManagerPermits(true);
+    if (permitsResult.success && permitsResult.data) {
+      console.log(`🔍 Processing ${permitsResult.data.length} permits...`);
+      
+      for (const permit of permitsResult.data) {
+        // Convert to notification format
+        const notification = {
+          notification_id: permit.id,
+          permit_reference_number: permit.permitReference,
+          title: permit.title,
+          description: permit.description,
+          location_description: permit.location,
+          street_name: permit.streetName,
+          area_name: permit.areaName,
+          usrn: permit.usrn,
+          coordinates: permit.coordinates ? 
+            { lat: permit.coordinates[0], lng: permit.coordinates[1] } : null,
+          work_category_ref: permit.workCategory,
+          permit_status: permit.permitStatus,
+          severity: permit.severity,
+          alert_status: permit.status,
+          proposed_start_date: permit.proposedStartDate,
+          proposed_end_date: permit.proposedEndDate,
+          highway_authority: permit.authority,
+          webhook_event_type: 'POLLED',
+          raw_webhook_data: { source: 'api_poll', permit },
+          processing_status: 'processed',
+          processed_at: new Date().toISOString(),
+          webhook_received_at: new Date().toISOString()
+        };
+        
+        // Upsert to Supabase
+        const { error } = await supabase
+          .from('streetmanager_notifications')
+          .upsert(notification, {
+            onConflict: 'notification_id',
+            ignoreDuplicates: false
+          });
+        
+        if (!error) {
+          totalSaved++;
+        } else {
+          console.error(`⚠️ Failed to save ${permit.id}:`, error.message);
+        }
+      }
+    }
+    
+    console.log(`✅ StreetManager poll complete: ${totalSaved} records saved to Supabase`);
+    
+    return {
+      success: true,
+      totalSaved,
+      activities: activitiesResult.data?.length || 0,
+      permits: permitsResult.data?.length || 0,
+      timestamp: new Date().toISOString()
+    };
+    
+  } catch (error) {
+    console.error('❌ StreetManager poll error:', error);
+    return {
+      success: false,
+      error: error.message,
+      totalSaved: 0
+    };
+  }
+}
+
+/**
+ * Get StreetManager API configuration status
+ */
+export function getApiStatus() {
+  return {
+    configured: !!STREET_MANAGER_API_KEY,
+    apiKey: STREET_MANAGER_API_KEY ? 'Set' : 'Not configured',
+    baseUrl: STREET_MANAGER_BASE_URL,
+    cacheStats: getStreetManagerCacheStats(),
+    polling: {
+      available: !!STREET_MANAGER_API_KEY,
+      recommendation: 'Poll every 30 minutes for updates',
+      endpoints: [
+        '/api/streetmanager/poll',
+        '/api/streetmanager/activities', 
+        '/api/streetmanager/permits'
+      ]
+    }
+  };
+}
+
 export default {
   fetchStreetManagerActivities,
   fetchStreetManagerPermits,
   getPermitDetails,
   getActivityDetails,
   clearStreetManagerCache,
-  getStreetManagerCacheStats
+  getStreetManagerCacheStats,
+  pollAndSaveToSupabase,
+  getApiStatus
 };

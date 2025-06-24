@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreetManager Diagnostics - Go BARRY</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .status-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ddd;
+        }
+        .status-card.success {
+            border-left-color: #28a745;
+        }
+        .status-card.warning {
+            border-left-color: #ffc107;
+        }
+        .status-card.error {
+            border-left-color: #dc3545;
+        }
+        .status-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-icon {
+            font-size: 20px;
+        }
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .metric:last-child {
+            border-bottom: none;
+        }
+        .metric-label {
+            color: #666;
+        }
+        .metric-value {
+            font-weight: 500;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .loading {
+            color: #666;
+            font-style: italic;
+        }
+        .error-message {
+            color: #dc3545;
+            margin-top: 10px;
+        }
+        .success-message {
+            color: #28a745;
+            margin-top: 10px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .notification-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .notification-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+        .notification-title {
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+        .notification-meta {
+            font-size: 14px;
+            color: #666;
+        }
+        .map-link {
+            color: #007bff;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .map-link:hover {
+            text-decoration: underline;
+        }
+        .tab-container {
+            border-bottom: 2px solid #ddd;
+            margin-bottom: 20px;
+        }
+        .tab {
+            display: inline-block;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+        }
+        .tab.active {
+            border-bottom-color: #007bff;
+            color: #007bff;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .code-block {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚧 StreetManager Diagnostics</h1>
+        <p class="subtitle">Check webhook status and notifications for Go BARRY</p>
+
+        <div class="tab-container">
+            <div class="tab active" onclick="showTab('overview')">Overview</div>
+            <div class="tab" onclick="showTab('notifications')">Notifications</div>
+            <div class="tab" onclick="showTab('setup')">Setup Guide</div>
+        </div>
+
+        <div id="overview" class="tab-content active">
+            <div class="section">
+                <h2>System Status</h2>
+                <div id="diagnostics-container">
+                    <div class="loading">Loading diagnostics...</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Actions</h2>
+                <button onclick="refreshDiagnostics()">🔄 Refresh Status</button>
+                <button onclick="checkApiStatus()">🔌 Check API Configuration</button>
+                <button onclick="manualPoll()" id="pollButton">📥 Manual Poll (if API configured)</button>
+                <div id="action-result"></div>
+            </div>
+        </div>
+
+        <div id="notifications" class="tab-content">
+            <div class="section">
+                <h2>Recent Notifications</h2>
+                <button onclick="loadNotifications()">📋 Load Notifications</button>
+                <button onclick="loadActiveToday()">📅 Active Today</button>
+                <div id="notifications-container">
+                    <div class="loading">Click a button to load notifications</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="setup" class="tab-content">
+            <div class="section">
+                <h2>StreetManager Integration Setup</h2>
+                
+                <h3>Option 1: Webhook Registration (Recommended)</h3>
+                <ol>
+                    <li>Visit <a href="https://www.gov.uk/guidance/find-and-use-roadworks-data" target="_blank">Find and use roadworks data</a></li>
+                    <li>Register for an account with your organization details</li>
+                    <li>Configure webhook URL:
+                        <div class="code-block">https://go-barry.onrender.com/api/streetmanager/webhook</div>
+                    </li>
+                    <li>Select "North East England" as your area of interest</li>
+                    <li>Wait for AWS SNS subscription confirmation</li>
+                </ol>
+
+                <h3>Option 2: API Polling</h3>
+                <ol>
+                    <li>Register for API access at the same link above</li>
+                    <li>Get your API key from the StreetManager portal</li>
+                    <li>Add to your environment variables:
+                        <div class="code-block">STREET_MANAGER_API_KEY=your_api_key_here</div>
+                    </li>
+                    <li>Set up a cron job to poll every 30 minutes:
+                        <div class="code-block">POST https://go-barry.onrender.com/api/streetmanager/poll</div>
+                    </li>
+                </ol>
+
+                <h3>Webhook Endpoint Details</h3>
+                <div class="code-block">
+Endpoint: https://go-barry.onrender.com/api/streetmanager/webhook
+Method: POST
+Headers: Expects AWS SNS headers (x-amz-sns-message-type)
+Authentication: None required (validates SNS signatures)
+                </div>
+
+                <h3>Available API Endpoints</h3>
+                <ul>
+                    <li><code>GET /api/streetmanager/notifications</code> - List all notifications</li>
+                    <li><code>GET /api/streetmanager/active-today</code> - Today's active roadworks</li>
+                    <li><code>GET /api/streetmanager/active-roadworks</code> - All active roadworks</li>
+                    <li><code>GET /api/streetmanager/summary</code> - Summary statistics</li>
+                    <li><code>GET /api/streetmanager/diagnostics</code> - System diagnostics</li>
+                    <li><code>POST /api/streetmanager/poll</code> - Manual API poll (requires API key)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://go-barry.onrender.com/api';
+
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            document.querySelector(`.tab[onclick="showTab('${tabName}')"]`).classList.add('active');
+        }
+
+        async function refreshDiagnostics() {
+            const container = document.getElementById('diagnostics-container');
+            container.innerHTML = '<div class="loading">Loading diagnostics...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/streetmanager/diagnostics`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayDiagnostics(result.diagnostics);
+                } else {
+                    container.innerHTML = `<div class="error-message">Error: ${result.error}</div>`;
+                }
+            } catch (error) {
+                container.innerHTML = `<div class="error-message">Failed to fetch diagnostics: ${error.message}</div>`;
+            }
+        }
+
+        function displayDiagnostics(diagnostics) {
+            const container = document.getElementById('diagnostics-container');
+            const hasData = diagnostics.database.has_data;
+            const isActive = diagnostics.recent_activity.last_24_hours > 0;
+            
+            let html = '';
+            
+            // Webhook Status
+            html += `<div class="status-card ${hasData ? 'success' : 'warning'}">
+                <div class="status-title">
+                    <span class="status-icon">${hasData ? '✅' : '⚠️'}</span>
+                    Webhook Status
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Endpoint</span>
+                    <span class="metric-value">${diagnostics.webhook.endpoint}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Status</span>
+                    <span class="metric-value">${diagnostics.summary.receiving_notifications ? 'Receiving Data' : 'No Data Yet'}</span>
+                </div>
+            </div>`;
+            
+            // Database Status
+            html += `<div class="status-card ${hasData ? 'success' : 'warning'}">
+                <div class="status-title">
+                    <span class="status-icon">${hasData ? '📊' : '📭'}</span>
+                    Database Status
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Total Notifications</span>
+                    <span class="metric-value">${diagnostics.database.total_notifications}</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Last 24 Hours</span>
+                    <span class="metric-value">${diagnostics.recent_activity.last_24_hours}</span>
+                </div>
+                ${diagnostics.recent_activity.last_notification !== 'No notifications received yet' ? 
+                    `<div class="metric">
+                        <span class="metric-label">Last Received</span>
+                        <span class="metric-value">${diagnostics.recent_activity.last_notification.time_ago}</span>
+                    </div>` : ''}
+            </div>`;
+            
+            // Action Required
+            if (diagnostics.summary.action_required !== 'None - system operational') {
+                html += `<div class="status-card warning">
+                    <div class="status-title">
+                        <span class="status-icon">⚠️</span>
+                        Action Required
+                    </div>
+                    <div>${diagnostics.summary.action_required}</div>
+                </div>`;
+            }
+            
+            container.innerHTML = html;
+        }
+
+        async function checkApiStatus() {
+            const resultDiv = document.getElementById('action-result');
+            resultDiv.innerHTML = '<div class="loading">Checking API configuration...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/streetmanager/api-status`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const status = result.status;
+                    resultDiv.innerHTML = `
+                        <div class="status-card ${status.configured ? 'success' : 'warning'}">
+                            <div class="status-title">
+                                <span class="status-icon">${status.configured ? '✅' : '❌'}</span>
+                                API Configuration
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">API Key</span>
+                                <span class="metric-value">${status.apiKey}</span>
+                            </div>
+                            ${status.configured ? 
+                                `<div class="metric">
+                                    <span class="metric-label">Polling Available</span>
+                                    <span class="metric-value">Yes - Poll every 30 minutes recommended</span>
+                                </div>` : 
+                                `<div class="error-message">Set STREET_MANAGER_API_KEY in environment to enable polling</div>`
+                            }
+                        </div>
+                    `;
+                    
+                    // Enable/disable poll button based on API status
+                    document.getElementById('pollButton').disabled = !status.configured;
+                } else {
+                    resultDiv.innerHTML = `<div class="error-message">Error: ${result.error}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error-message">Failed to check API status: ${error.message}</div>`;
+            }
+        }
+
+        async function manualPoll() {
+            const resultDiv = document.getElementById('action-result');
+            const button = document.getElementById('pollButton');
+            
+            button.disabled = true;
+            resultDiv.innerHTML = '<div class="loading">Polling StreetManager API... This may take a moment.</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/streetmanager/poll`, { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.innerHTML = `
+                        <div class="success-message">
+                            ✅ Poll completed successfully!<br>
+                            Activities: ${result.result.activities}<br>
+                            Permits: ${result.result.permits}<br>
+                            Total Saved: ${result.result.totalSaved}
+                        </div>
+                    `;
+                    // Refresh diagnostics to show new data
+                    setTimeout(refreshDiagnostics, 2000);
+                } else {
+                    resultDiv.innerHTML = `<div class="error-message">Poll failed: ${result.error}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error-message">Failed to poll: ${error.message}</div>`;
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        async function loadNotifications() {
+            const container = document.getElementById('notifications-container');
+            container.innerHTML = '<div class="loading">Loading notifications...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/streetmanager/notifications?limit=20`);
+                const result = await response.json();
+                
+                if (result.success && result.notifications.length > 0) {
+                    let html = '<div class="notification-list">';
+                    
+                    result.notifications.forEach(notif => {
+                        html += `
+                            <div class="notification-item">
+                                <div class="notification-title">${notif.displayLocation}</div>
+                                <div>${notif.title || 'No title'}</div>
+                                <div class="notification-meta">
+                                    Status: ${notif.dateStatus} | 
+                                    Severity: ${notif.severity} |
+                                    ${notif.mapUrl ? `<a href="${notif.mapUrl}" target="_blank" class="map-link">📍 View on Map</a>` : 'No location data'}
+                                </div>
+                                <div class="notification-meta">
+                                    Received: ${new Date(notif.webhook_received_at).toLocaleString()}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<div class="error-message">No notifications found</div>';
+                }
+            } catch (error) {
+                container.innerHTML = `<div class="error-message">Failed to load notifications: ${error.message}</div>`;
+            }
+        }
+
+        async function loadActiveToday() {
+            const container = document.getElementById('notifications-container');
+            container.innerHTML = '<div class="loading">Loading today\'s active roadworks...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/streetmanager/active-today`);
+                const result = await response.json();
+                
+                if (result.success && result.roadworks.length > 0) {
+                    let html = `
+                        <div class="status-card">
+                            <div class="status-title">Today's Summary</div>
+                            <div class="metric">
+                                <span class="metric-label">Total Active</span>
+                                <span class="metric-value">${result.summary.total}</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">New Today</span>
+                                <span class="metric-value">${result.summary.newToday}</span>
+                            </div>
+                        </div>
+                        <div class="notification-list">
+                    `;
+                    
+                    result.roadworks.forEach(rw => {
+                        html += `
+                            <div class="notification-item">
+                                <div class="notification-title">${rw.displayLocation}</div>
+                                <div>${rw.title || 'No title'}</div>
+                                <div class="notification-meta">
+                                    ${rw.startedToday} | 
+                                    Severity: ${rw.severity} |
+                                    ${rw.mapUrl ? `<a href="${rw.mapUrl}" target="_blank" class="map-link">📍 View on Map</a>` : 'No location data'}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<div class="success-message">No active roadworks today!</div>';
+                }
+            } catch (error) {
+                container.innerHTML = `<div class="error-message">Failed to load active roadworks: ${error.message}</div>`;
+            }
+        }
+
+        // Load diagnostics on page load
+        refreshDiagnostics();
+        checkApiStatus();
+    </script>
+</body>
+</html>

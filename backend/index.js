@@ -571,50 +571,50 @@ app.get('/api/roadworks-alerts', async (req, res) => {
       console.error('⚠️ Error fetching traffic roadworks:', trafficError);
     }
     
-    // 2. Get StreetManager roadworks from database
+    // 2. Get StreetManager roadworks from NEW notifications table
     try {
       const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-      const { data: streetManagerRoadworks, error: dbError } = await supabase
-        .from('roadworks')
-        .select('*')
-        .eq('source', 'streetmanager')
-        .order('created_at', { ascending: false });
       
-      if (dbError) {
-        console.error('⚠️ Error fetching StreetManager roadworks:', dbError);
-      } else if (streetManagerRoadworks && streetManagerRoadworks.length > 0) {
+      // Get active roadworks from the view
+      const { data: streetManagerNotifications, error: notifError } = await supabase
+        .from('active_streetmanager_roadworks')
+        .select('*')
+        .order('severity', { ascending: false });
+      
+      if (notifError) {
+        console.error('⚠️ Error fetching StreetManager notifications:', notifError);
+      } else if (streetManagerNotifications && streetManagerNotifications.length > 0) {
         // Transform database roadworks to match API format
-        const transformedStreetManagerRoadworks = streetManagerRoadworks.map(rw => ({
-          id: rw.id || `streetmanager_${Date.now()}`,
+        const transformedStreetManagerRoadworks = streetManagerNotifications.map(rw => ({
+          id: rw.notification_id || `streetmanager_${Date.now()}`,
           title: rw.title,
-          description: rw.description || '',
-          location: rw.location,
-          coordinates: rw.coordinates ? [rw.coordinates.latitude, rw.coordinates.longitude] : null,
-          status: rw.status,
-          severity: rw.severity,
+          description: rw.description || rw.detailed_description || '',
+          location: rw.location_description || rw.street_name || rw.area_name || 'Location not specified',
+          coordinates: rw.coordinates ? [rw.coordinates.lat, rw.coordinates.lng] : null,
+          status: rw.alert_status || 'amber',
+          severity: rw.severity || 'Medium',
           type: 'roadwork',
           source: 'StreetManager',
-          dataSource: 'Street Manager Database',
+          dataSource: 'StreetManager Webhook Database',
           
           // StreetManager specific fields
-          authority: rw.highway_authority || rw.contact_info,
-          permitReference: rw.permit_reference,
-          activityReference: rw.activity_reference,
-          workReference: rw.work_reference,
-          workCategory: rw.work_category,
-          workType: rw.work_type,
-          isEmergency: rw.is_emergency || false,
-          trafficManagementType: rw.traffic_management_type,
+          authority: rw.highway_authority || rw.promoter_organisation || 'Highway Authority',
+          permitReference: rw.permit_reference_number,
+          activityReference: rw.activity_reference_number,
+          workCategory: rw.work_category_ref,
+          workType: rw.activity_type,
+          isEmergency: rw.is_emergency_works || false,
           streetName: rw.street_name,
           areaName: rw.area_name,
           usrn: rw.usrn,
-          eventType: rw.event_type,
-          eventTime: rw.event_time,
+          activityStatus: rw.activity_status,
+          permitStatus: rw.permit_status,
+          workflowStatus: rw.workflow_status,
           
           // Timing
-          startDate: rw.start_date,
-          endDate: rw.end_date,
-          lastUpdated: rw.updated_at || rw.created_at,
+          startDate: rw.actual_start_date || rw.proposed_start_date,
+          endDate: rw.actual_end_date || rw.proposed_end_date,
+          lastUpdated: rw.updated_at || rw.webhook_received_at,
           
           // Enhancement flags
           locationAccuracy: 'high',
@@ -623,21 +623,72 @@ app.get('/api/roadworks-alerts', async (req, res) => {
           realTimeUpdate: true,
           isRoadwork: true,
           
-          // Routes affected
-          affectsRoutes: rw.routes_affected || []
+          // Routes affected - will be populated by route matching
+          affectsRoutes: [],
+          
+          // Map URLs for easy navigation
+          mapUrl: rw.coordinates ? `https://www.google.com/maps?q=${rw.coordinates.lat},${rw.coordinates.lng}` : null,
+          directionsUrl: rw.coordinates ? `https://www.google.com/maps/dir/?api=1&destination=${rw.coordinates.lat},${rw.coordinates.lng}` : null,
+          
+          // Display fields
+          displayLocation: rw.street_name || rw.location_description || rw.area_name || 'Location not specified',
+          hasMapLink: !!rw.coordinates
         }));
         
         allRoadworks.push(...transformedStreetManagerRoadworks);
         sourceStats.streetManager = {
-          name: 'StreetManager Database',
+          name: 'StreetManager Webhook Database',
           count: transformedStreetManagerRoadworks.length,
+          status: 'active',
+          realtime: true
+        };
+        
+        console.log(`✅ Found ${transformedStreetManagerRoadworks.length} StreetManager roadworks from webhook database`);
+      }
+      
+      // Also check old roadworks table for any supervisor-created StreetManager entries
+      const { data: manualStreetManagerRoadworks, error: dbError } = await supabase
+        .from('roadworks')
+        .select('*')
+        .eq('source', 'streetmanager')
+        .order('created_at', { ascending: false });
+      
+      if (!dbError && manualStreetManagerRoadworks && manualStreetManagerRoadworks.length > 0) {
+        const transformedManualRoadworks = manualStreetManagerRoadworks.map(rw => ({
+          id: rw.id || `manual_streetmanager_${Date.now()}`,
+          title: rw.title,
+          description: rw.description || '',
+          location: rw.location,
+          coordinates: rw.coordinates ? [rw.coordinates.latitude, rw.coordinates.longitude] : null,
+          status: rw.status,
+          severity: rw.severity,
+          type: 'roadwork',
+          source: 'StreetManager',
+          dataSource: 'Manual Entry',
+          authority: rw.contact_info,
+          startDate: rw.start_date,
+          endDate: rw.end_date,
+          lastUpdated: rw.updated_at || rw.created_at,
+          locationAccuracy: 'manual',
+          routeMatchMethod: 'manual-entry',
+          officialSource: false,
+          isRoadwork: true,
+          affectsRoutes: rw.routes_affected || [],
+          mapUrl: rw.coordinates ? `https://www.google.com/maps?q=${rw.coordinates.latitude},${rw.coordinates.longitude}` : null,
+          displayLocation: rw.location || 'Location not specified'
+        }));
+        
+        allRoadworks.push(...transformedManualRoadworks);
+        sourceStats.manualStreetManager = {
+          name: 'Manual StreetManager Entries',
+          count: transformedManualRoadworks.length,
           status: 'active'
         };
         
-        console.log(`✅ Found ${transformedStreetManagerRoadworks.length} StreetManager roadworks from database`);
+        console.log(`✅ Found ${transformedManualRoadworks.length} manual StreetManager entries`);
       }
     } catch (dbError) {
-      console.error('⚠️ Error fetching StreetManager roadworks from database:', dbError);
+      console.error('⚠️ Error fetching StreetManager roadworks:', dbError);
     }
     
     console.log(`✅ Total roadwork alerts: ${allRoadworks.length}`);
@@ -2108,7 +2159,7 @@ app.post('/api/streetmanager/webhook/test', (req, res) => {
   });
 });
 
-// Main webhook endpoint
+// Main webhook endpoint - UPDATED TO SAVE TO SUPABASE
 app.post('/api/streetmanager/webhook', async (req, res) => {
   try {
     const messageType = req.headers['x-amz-sns-message-type'];
@@ -2116,6 +2167,15 @@ app.post('/api/streetmanager/webhook', async (req, res) => {
     
     // Handle subscription confirmation
     if (messageType === 'SubscriptionConfirmation') {
+      if (req.body.SubscribeURL) {
+        // Auto-confirm subscription
+        axios.get(req.body.SubscribeURL).then(() => {
+          console.log('✅ StreetManager subscription confirmed');
+        }).catch(err => {
+          console.error('❌ Failed to confirm subscription:', err.message);
+        });
+      }
+      
       res.json({
         success: true,
         message: 'Subscription confirmation received',
@@ -2125,16 +2185,155 @@ app.post('/api/streetmanager/webhook', async (req, res) => {
       return;
     }
     
-    // Handle notifications
+    // Handle notifications - SAVE TO SUPABASE
     if (messageType === 'Notification') {
+      const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+      
+      try {
+        // Parse the notification message
+        const notificationData = JSON.parse(req.body.Message);
+        console.log(`📋 StreetManager notification: ${notificationData.event_type} for ${notificationData.object_type}`);
+        
+        // Create notification ID for deduplication
+        const notificationId = `streetmanager_${notificationData.object_type}_${notificationData.object_reference || Date.now()}`;
+        
+        // Prepare data for Supabase
+        const webhookRecord = {
+          notification_id: notificationId,
+          permit_reference_number: notificationData.object_type === 'PERMIT' ? notificationData.object_reference : null,
+          activity_reference_number: notificationData.object_type === 'ACTIVITY' ? notificationData.object_reference : null,
+          title: `${notificationData.object_type} - ${notificationData.event_type}`,
+          description: `StreetManager ${notificationData.object_type} ${notificationData.event_type}`,
+          webhook_event_type: notificationData.event_type,
+          raw_webhook_data: notificationData,
+          activity_status: notificationData.event_type === 'CREATED' ? 'active' : notificationData.event_type,
+          severity: 'Medium',
+          alert_status: 'amber',
+          processing_status: 'pending',
+          webhook_received_at: new Date().toISOString()
+        };
+        
+        // Upsert to Supabase (insert or update if exists)
+        const { data, error } = await supabase
+          .from('streetmanager_notifications')
+          .upsert(webhookRecord, {
+            onConflict: 'notification_id',
+            ignoreDuplicates: false
+          })
+          .select()
+          .single();
+        
+        if (error) {
+          console.error('❌ Failed to save to Supabase:', error);
+          // Still acknowledge the webhook even if save fails
+        } else {
+          console.log(`✅ Saved StreetManager notification to Supabase: ${notificationId}`);
+          
+          // Process in background (don't wait)
+          setTimeout(async () => {
+            try {
+              // If it's a PERMIT or ACTIVITY reference, fetch full details
+              if (notificationData.object_reference) {
+                console.log(`🔍 Fetching full details for ${notificationData.object_type} ${notificationData.object_reference}`);
+                
+                if (notificationData.object_type === 'PERMIT') {
+                  const permitDetails = await import('./services/streetManager.js').then(m => 
+                    m.getPermitDetails(notificationData.object_reference)
+                  );
+                  
+                  if (permitDetails.success && permitDetails.data) {
+                    // Update with full details
+                    await supabase
+                      .from('streetmanager_notifications')
+                      .update({
+                        title: permitDetails.data.title,
+                        description: permitDetails.data.description,
+                        location_description: permitDetails.data.location,
+                        street_name: permitDetails.data.streetName,
+                        area_name: permitDetails.data.areaName,
+                        coordinates: permitDetails.data.coordinates ? 
+                          { lat: permitDetails.data.coordinates[0], lng: permitDetails.data.coordinates[1] } : null,
+                        proposed_start_date: permitDetails.data.proposedStartDate,
+                        proposed_end_date: permitDetails.data.proposedEndDate,
+                        work_category_ref: permitDetails.data.workCategory,
+                        highway_authority: permitDetails.data.authority,
+                        severity: permitDetails.data.severity,
+                        alert_status: permitDetails.data.status,
+                        processing_status: 'processed',
+                        processed_at: new Date().toISOString()
+                      })
+                      .eq('notification_id', notificationId);
+                    
+                    console.log(`✅ Updated ${notificationId} with full permit details`);
+                  }
+                } else if (notificationData.object_type === 'ACTIVITY') {
+                  const activityDetails = await import('./services/streetManager.js').then(m => 
+                    m.getActivityDetails(notificationData.object_reference)
+                  );
+                  
+                  if (activityDetails.success && activityDetails.data) {
+                    // Update with full details
+                    await supabase
+                      .from('streetmanager_notifications')
+                      .update({
+                        title: activityDetails.data.title,
+                        description: activityDetails.data.description,
+                        location_description: activityDetails.data.location,
+                        street_name: activityDetails.data.streetName,
+                        area_name: activityDetails.data.areaName,
+                        coordinates: activityDetails.data.coordinates ? 
+                          { lat: activityDetails.data.coordinates[0], lng: activityDetails.data.coordinates[1] } : null,
+                        proposed_start_date: activityDetails.data.proposedStartDate,
+                        proposed_end_date: activityDetails.data.proposedEndDate,
+                        actual_start_date: activityDetails.data.actualStartDate,
+                        actual_end_date: activityDetails.data.actualEndDate,
+                        work_category_ref: activityDetails.data.workCategory,
+                        is_emergency_works: activityDetails.data.isEmergency,
+                        highway_authority: activityDetails.data.authority,
+                        severity: activityDetails.data.severity,
+                        alert_status: activityDetails.data.status,
+                        activity_status: activityDetails.data.activityStatus,
+                        processing_status: 'processed',
+                        processed_at: new Date().toISOString()
+                      })
+                      .eq('notification_id', notificationId);
+                    
+                    console.log(`✅ Updated ${notificationId} with full activity details`);
+                  }
+                }
+              }
+            } catch (fetchError) {
+              console.error('⚠️ Failed to fetch full details:', fetchError.message);
+              // Mark as processed anyway
+              await supabase
+                .from('streetmanager_notifications')
+                .update({
+                  processing_status: 'failed',
+                  processing_error: fetchError.message,
+                  processed_at: new Date().toISOString()
+                })
+                .eq('notification_id', notificationId);
+            }
+          }, 1000); // Process after 1 second
+        }
+        
+        // Also store in memory for immediate access
+        streetManagerWebhooks.handleWebhookMessage(req.body);
+        
+      } catch (parseError) {
+        console.error('❌ Failed to parse notification:', parseError);
+      }
+      
+      // Always acknowledge the webhook quickly
       res.json({
         success: true,
-        message: 'Notification received',
+        message: 'Notification received and saved',
         timestamp: new Date().toISOString()
       });
       return;
     }
     
+    // Handle other message types
     res.json({
       success: true,
       message: 'Webhook received',
@@ -2142,7 +2341,561 @@ app.post('/api/streetmanager/webhook', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error) {
+    console.error('❌ Webhook error:', error);
+    // Always return 200 to prevent AWS SNS retries
     res.status(200).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET endpoint to retrieve StreetManager notifications from Supabase with enhanced filtering
+app.get('/api/streetmanager/notifications', async (req, res) => {
+  try {
+    const { 
+      status, 
+      event_type, 
+      object_type, 
+      limit = 100, 
+      offset = 0,
+      start_date,
+      end_date,
+      street_name,
+      active_today
+    } = req.query;
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    
+    // Build query
+    let query = supabase
+      .from('streetmanager_notifications')
+      .select('*');
+    
+    // Add filters
+    if (status) {
+      query = query.eq('activity_status', status);
+    }
+    if (event_type) {
+      query = query.eq('webhook_event_type', event_type);
+    }
+    if (object_type) {
+      query = query.or(`permit_reference_number.not.is.null,activity_reference_number.not.is.null`);
+    }
+    
+    // Date filtering
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    if (active_today === 'true') {
+      // Active today means: started before tomorrow AND (not ended OR ends after today)
+      query = query
+        .or(`proposed_start_date.lte.${tomorrow.toISOString()},actual_start_date.lte.${tomorrow.toISOString()}`)
+        .or(`proposed_end_date.is.null,proposed_end_date.gte.${today.toISOString()},actual_end_date.is.null,actual_end_date.gte.${today.toISOString()}`);
+    } else {
+      // Custom date range filtering
+      if (start_date) {
+        query = query.or(`proposed_start_date.gte.${start_date},actual_start_date.gte.${start_date}`);
+      }
+      if (end_date) {
+        query = query.or(`proposed_end_date.lte.${end_date},actual_end_date.lte.${end_date}`);
+      }
+    }
+    
+    // Street name search (case insensitive)
+    if (street_name) {
+      query = query.ilike('street_name', `%${street_name}%`);
+    }
+    
+    // Apply pagination and ordering
+    query = query
+      .order('webhook_received_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+    
+    const { data: notifications, error, count } = await query;
+    
+    // Add map URLs to each notification
+    const enhancedNotifications = (notifications || []).map(notification => {
+      const enhanced = { ...notification };
+      
+      // Add Google Maps URL if coordinates exist
+      if (notification.coordinates && notification.coordinates.lat && notification.coordinates.lng) {
+        enhanced.mapUrl = `https://www.google.com/maps?q=${notification.coordinates.lat},${notification.coordinates.lng}`;
+        enhanced.tomtomUrl = `https://www.tomtom.com/en_gb/maps/?lat=${notification.coordinates.lat}&lon=${notification.coordinates.lng}&zoom=16`;
+      }
+      
+      // Ensure street name is prominent
+      enhanced.displayLocation = notification.street_name || notification.location_description || notification.area_name || 'Location not specified';
+      
+      // Add human-readable date status
+      const now = new Date();
+      const startDate = new Date(notification.actual_start_date || notification.proposed_start_date);
+      const endDate = notification.actual_end_date || notification.proposed_end_date ? 
+        new Date(notification.actual_end_date || notification.proposed_end_date) : null;
+      
+      if (startDate <= now && (!endDate || endDate >= now)) {
+        enhanced.dateStatus = 'Active Now';
+        enhanced.isActiveToday = true;
+      } else if (startDate > now) {
+        enhanced.dateStatus = 'Planned';
+        enhanced.isActiveToday = false;
+      } else {
+        enhanced.dateStatus = 'Completed';
+        enhanced.isActiveToday = false;
+      }
+      
+      return enhanced;
+    });
+    
+    if (error) {
+      console.error('❌ Failed to fetch notifications:', error);
+      return res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+    
+    res.json({
+      success: true,
+      notifications: enhancedNotifications,
+      pagination: {
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        total: count
+      },
+      metadata: {
+        source: 'Supabase Database',
+        timestamp: new Date().toISOString(),
+        filters: {
+          activeToday: active_today === 'true',
+          streetName: street_name,
+          dateRange: { start_date, end_date }
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching StreetManager notifications:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET active StreetManager roadworks (uses the view) with enhanced data
+app.get('/api/streetmanager/active-roadworks', async (req, res) => {
+  try {
+    const { street_name, severity, limit = 100, offset = 0 } = req.query;
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    
+    let query = supabase
+      .from('active_streetmanager_roadworks')
+      .select('*', { count: 'exact' });
+    
+    // Apply filters
+    if (street_name) {
+      query = query.ilike('street_name', `%${street_name}%`);
+    }
+    if (severity) {
+      query = query.eq('severity', severity);
+    }
+    
+    // Order and paginate
+    query = query
+      .order('severity', { ascending: false })
+      .order('proposed_start_date', { ascending: true })
+      .range(offset, offset + limit - 1);
+    
+    const { data: roadworks, error, count } = await query;
+    
+    if (error) {
+      console.error('❌ Failed to fetch active roadworks:', error);
+      return res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+    
+    // Enhance roadworks with map URLs and better location display
+    const enhancedRoadworks = (roadworks || []).map(rw => {
+      const enhanced = { ...rw };
+      
+      // Add map URLs
+      if (rw.coordinates && rw.coordinates.lat && rw.coordinates.lng) {
+        enhanced.mapUrl = `https://www.google.com/maps?q=${rw.coordinates.lat},${rw.coordinates.lng}`;
+        enhanced.tomtomUrl = `https://www.tomtom.com/en_gb/maps/?lat=${rw.coordinates.lat}&lon=${rw.coordinates.lng}&zoom=16`;
+        enhanced.hasCoordinates = true;
+      } else {
+        enhanced.hasCoordinates = false;
+      }
+      
+      // Create display-friendly location
+      enhanced.displayLocation = rw.street_name || rw.location_description || rw.area_name || 'Location not specified';
+      enhanced.fullLocation = [rw.street_name, rw.area_name]
+        .filter(Boolean)
+        .join(', ') || rw.location_description || 'Location not specified';
+      
+      // Calculate days remaining
+      if (rw.proposed_end_date || rw.actual_end_date) {
+        const endDate = new Date(rw.actual_end_date || rw.proposed_end_date);
+        const now = new Date();
+        const daysRemaining = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+        enhanced.daysRemaining = daysRemaining > 0 ? daysRemaining : 0;
+        enhanced.timeStatus = daysRemaining > 0 ? `${daysRemaining} days remaining` : 'Should be completed';
+      } else {
+        enhanced.timeStatus = 'No end date specified';
+      }
+      
+      return enhanced;
+    });
+    
+    res.json({
+      success: true,
+      roadworks: enhancedRoadworks,
+      pagination: {
+        total: count,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        hasMore: offset + limit < count
+      },
+      metadata: {
+        source: 'StreetManager Active Roadworks View',
+        timestamp: new Date().toISOString(),
+        filters: {
+          streetName: street_name,
+          severity: severity
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching active roadworks:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET StreetManager roadworks active TODAY specifically
+app.get('/api/streetmanager/active-today', async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    
+    // Get today's date range
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const { data: todaysRoadworks, error } = await supabase
+      .from('streetmanager_notifications')
+      .select('*')
+      .eq('processing_status', 'processed')
+      .or(`proposed_start_date.lte.${tomorrow.toISOString()},actual_start_date.lte.${tomorrow.toISOString()}`)
+      .or(`proposed_end_date.is.null,proposed_end_date.gte.${today.toISOString()},actual_end_date.is.null,actual_end_date.gte.${today.toISOString()}`)
+      .order('severity', { ascending: false })
+      .order('street_name', { ascending: true });
+    
+    if (error) {
+      console.error('❌ Failed to fetch today\'s roadworks:', error);
+      return res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+    
+    // Group by severity and add map URLs
+    const bySeverity = {
+      Critical: [],
+      High: [],
+      Medium: [],
+      Low: []
+    };
+    
+    const enhancedRoadworks = (todaysRoadworks || []).map(rw => {
+      const enhanced = { ...rw };
+      
+      // Add map URLs
+      if (rw.coordinates && rw.coordinates.lat && rw.coordinates.lng) {
+        enhanced.mapUrl = `https://www.google.com/maps?q=${rw.coordinates.lat},${rw.coordinates.lng}`;
+        enhanced.directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${rw.coordinates.lat},${rw.coordinates.lng}`;
+      }
+      
+      // Display location with street name prominence
+      enhanced.displayLocation = rw.street_name || rw.location_description || rw.area_name || 'Location not specified';
+      
+      // Time info
+      const startDate = new Date(rw.actual_start_date || rw.proposed_start_date);
+      const isNewToday = startDate >= today && startDate < tomorrow;
+      enhanced.isNewToday = isNewToday;
+      enhanced.startedToday = isNewToday ? 'Started Today' : 'Ongoing';
+      
+      // Group by severity
+      const severity = rw.severity || 'Medium';
+      if (bySeverity[severity]) {
+        bySeverity[severity].push(enhanced);
+      }
+      
+      return enhanced;
+    });
+    
+    res.json({
+      success: true,
+      roadworks: enhancedRoadworks,
+      summary: {
+        total: enhancedRoadworks.length,
+        bySeverity: {
+          critical: bySeverity.Critical.length,
+          high: bySeverity.High.length,
+          medium: bySeverity.Medium.length,
+          low: bySeverity.Low.length
+        },
+        newToday: enhancedRoadworks.filter(rw => rw.isNewToday).length
+      },
+      groupedBySeverity: bySeverity,
+      metadata: {
+        date: today.toISOString().split('T')[0],
+        source: 'StreetManager Database',
+        timestamp: new Date().toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching today\'s roadworks:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET StreetManager summary statistics
+app.get('/api/streetmanager/summary', async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    
+    // Get counts by status
+    const { data: statusCounts, error: statusError } = await supabase
+      .from('streetmanager_notifications')
+      .select('activity_status', { count: 'exact', head: true });
+    
+    // Get counts by severity  
+    const { data: severityCounts, error: severityError } = await supabase
+      .from('streetmanager_notifications')
+      .select('severity', { count: 'exact', head: true });
+    
+    // Get recent notifications (last 24 hours)
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const { count: recentCount } = await supabase
+      .from('streetmanager_notifications')
+      .select('*', { count: 'exact', head: true })
+      .gte('webhook_received_at', yesterday.toISOString());
+    
+    // Get total count
+    const { count: totalCount } = await supabase
+      .from('streetmanager_notifications')
+      .select('*', { count: 'exact', head: true });
+    
+    res.json({
+      success: true,
+      summary: {
+        total: totalCount || 0,
+        last24Hours: recentCount || 0,
+        byStatus: statusCounts || {},
+        bySeverity: severityCounts || {},
+        lastUpdated: new Date().toISOString()
+      },
+      quickLinks: {
+        activeToday: '/api/streetmanager/active-today',
+        allActive: '/api/streetmanager/active-roadworks',
+        notifications: '/api/streetmanager/notifications',
+        search: '/api/streetmanager/notifications?street_name=YOUR_STREET'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching summary:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET StreetManager webhook diagnostics
+app.get('/api/streetmanager/diagnostics', async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    const diagnostics = {
+      timestamp: new Date().toISOString(),
+      webhook: {
+        endpoint: 'https://go-barry.onrender.com/api/streetmanager/webhook',
+        status: 'configured',
+        authentication: 'AWS SNS compatible'
+      },
+      database: {},
+      recent_activity: {},
+      registration_info: {}
+    };
+    
+    // Check database status
+    const { count: totalCount } = await supabase
+      .from('streetmanager_notifications')
+      .select('*', { count: 'exact', head: true });
+    
+    diagnostics.database.total_notifications = totalCount || 0;
+    diagnostics.database.has_data = totalCount > 0;
+    
+    // Check recent activity (last 24 hours)
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const { count: last24h } = await supabase
+      .from('streetmanager_notifications')
+      .select('*', { count: 'exact', head: true })
+      .gte('webhook_received_at', yesterday.toISOString());
+    
+    diagnostics.recent_activity.last_24_hours = last24h || 0;
+    
+    // Get last notification
+    const { data: lastNotification } = await supabase
+      .from('streetmanager_notifications')
+      .select('notification_id, webhook_received_at, title, webhook_event_type')
+      .order('webhook_received_at', { ascending: false })
+      .limit(1)
+      .single();
+    
+    if (lastNotification) {
+      diagnostics.recent_activity.last_notification = {
+        received: lastNotification.webhook_received_at,
+        time_ago: Math.round((Date.now() - new Date(lastNotification.webhook_received_at)) / (1000 * 60 * 60)) + ' hours ago',
+        title: lastNotification.title,
+        type: lastNotification.webhook_event_type
+      };
+    } else {
+      diagnostics.recent_activity.last_notification = 'No notifications received yet';
+    }
+    
+    // Get processing stats
+    const { data: processingStats } = await supabase
+      .from('streetmanager_notifications')
+      .select('processing_status');
+    
+    const statusCounts = {};
+    if (processingStats) {
+      processingStats.forEach(row => {
+        const status = row.processing_status || 'unknown';
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
+      });
+    }
+    diagnostics.database.processing_status = statusCounts;
+    
+    // Check memory storage
+    const memoryActivities = streetManagerWebhooks.getWebhookActivities();
+    const memoryPermits = streetManagerWebhooks.getWebhookPermits();
+    
+    diagnostics.memory_storage = {
+      activities: memoryActivities.data?.length || 0,
+      permits: memoryPermits.data?.length || 0,
+      last_activity: memoryActivities.metadata?.lastReceived || 'None',
+      last_permit: memoryPermits.metadata?.lastReceived || 'None'
+    };
+    
+    // Registration information
+    diagnostics.registration_info = {
+      status: totalCount > 0 ? 'Likely registered (receiving data)' : 'Unknown - no data received',
+      instructions: 'To register for StreetManager webhooks:',
+      steps: [
+        '1. Visit https://www.gov.uk/guidance/find-and-use-roadworks-data',
+        '2. Register for an account with your organization details',
+        '3. Configure webhook URL: https://go-barry.onrender.com/api/streetmanager/webhook',
+        '4. Ensure your area includes North East England'
+      ],
+      note: 'StreetManager may also require API polling instead of webhooks for some data',
+      documentation: 'https://department-for-transport-streetmanager.github.io/street-manager-docs/'
+    };
+    
+    // Summary
+    diagnostics.summary = {
+      receiving_notifications: totalCount > 0,
+      recent_activity: last24h > 0,
+      webhook_ready: true,
+      action_required: totalCount === 0 ? 'Register webhook with DfT Street Manager' : 'None - system operational'
+    };
+    
+    res.json({
+      success: true,
+      diagnostics
+    });
+    
+  } catch (error) {
+    console.error('❌ Error running diagnostics:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      diagnostics: {
+        error: 'Failed to run diagnostics',
+        webhook_endpoint: 'https://go-barry.onrender.com/api/streetmanager/webhook'
+      }
+    });
+  }
+});
+
+// Manual poll endpoint for StreetManager API
+app.post('/api/streetmanager/poll', async (req, res) => {
+  try {
+    console.log('🔄 Manual StreetManager poll triggered');
+    
+    // Check if API key is configured
+    const streetManager = await import('./services/streetManager.js');
+    const apiStatus = streetManager.getApiStatus();
+    
+    if (!apiStatus.configured) {
+      return res.status(400).json({
+        success: false,
+        error: 'StreetManager API key not configured',
+        hint: 'Set STREET_MANAGER_API_KEY in environment variables'
+      });
+    }
+    
+    // Perform the poll
+    const result = await streetManager.pollAndSaveToSupabase();
+    
+    res.json({
+      success: result.success,
+      message: result.success ? 'Poll completed successfully' : 'Poll failed',
+      result: result,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Poll error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET StreetManager API status
+app.get('/api/streetmanager/api-status', async (req, res) => {
+  try {
+    const streetManager = await import('./services/streetManager.js');
+    const status = streetManager.getApiStatus();
+    
+    res.json({
+      success: true,
+      status,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    res.status(500).json({
       success: false,
       error: error.message
     });
