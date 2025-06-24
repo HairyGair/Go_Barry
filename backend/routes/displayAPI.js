@@ -109,11 +109,37 @@ router.post('/remove-alert', async (req, res) => {
 // Get current display alerts
 router.get('/current-alerts', async (req, res) => {
   try {
-    // TODO: Get from Convex or local storage
+    // Import the alerts from main API
+    const { default: fetch } = await import('node-fetch');
+    
+    // Get all current alerts
+    const alertsResponse = await fetch('http://localhost:' + (process.env.PORT || 3001) + '/api/alerts');
+    const alertsData = await alertsResponse.json();
+    
+    if (!alertsData.success) {
+      throw new Error('Failed to fetch alerts');
+    }
+    
+    // Filter for high-priority alerts suitable for display
+    const displayAlerts = alertsData.alerts.filter(alert => {
+      // Only show high severity alerts or those affecting major routes
+      if (alert.severity === 'High') return true;
+      
+      // Show alerts affecting key routes
+      if (alert.affectsRoutes && alert.affectsRoutes.length > 0) {
+        const majorRoutes = ['Q3', 'Q3X', '10', '10A', '10B', '21', '22', '28', '28B', '56', '57', 'X30', 'X31'];
+        return alert.affectsRoutes.some(route => majorRoutes.includes(route));
+      }
+      
+      return false;
+    }).slice(0, 10); // Limit to 10 alerts for display
+    
     res.json({
       success: true,
-      alerts: [],
-      message: 'Display alerts retrieved'
+      alerts: displayAlerts,
+      count: displayAlerts.length,
+      message: 'Display alerts retrieved',
+      lastUpdated: new Date().toISOString()
     });
   } catch (error) {
     console.error('❌ Error getting display alerts:', error);

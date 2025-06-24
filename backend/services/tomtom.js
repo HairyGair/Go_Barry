@@ -395,6 +395,26 @@ async function fetchTomTomTrafficWithStreetNames() {
           continue;
         }
 
+        // GEOGRAPHIC FILTER: Check if incident is within Go North East operational area
+        const GNE_BOUNDS = {
+          north: 55.042571,  // Whitley Bay (northernmost stop)
+          south: 54.755372,  // Brandon (southernmost stop) 
+          east: -1.382834,   // Sunderland area (easternmost)
+          west: -2.095787    // Hexham (westernmost stop)
+        };
+        
+        const withinGNEBounds = lat >= GNE_BOUNDS.south && 
+                               lat <= GNE_BOUNDS.north && 
+                               lng >= GNE_BOUNDS.west && 
+                               lng <= GNE_BOUNDS.east;
+        
+        if (!withinGNEBounds) {
+          console.log(`🚫 Filtering out incident ${index} at ${lat}, ${lng} - outside GNE operational area`);
+          continue;
+        }
+        
+        console.log(`✅ Incident ${index} at ${lat}, ${lng} - within GNE bounds`);
+
         // Enhanced location processing with caching
         console.log(`🗺️ Processing location for incident ${index + 1}/${incidents.length} across Go North East network...`);
         

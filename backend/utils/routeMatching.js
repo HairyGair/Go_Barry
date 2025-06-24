@@ -120,30 +120,59 @@ async function getCurrentRoutesFromCoordinates(lat, lng) {
   return [...new Set(routes)].sort();
 }
 
-// Filter function to check if location is in North East England
-function isInNorthEast(location, description = '') {
-  // If no location info at all, assume it's relevant
-  if (!location && !description) return true;
+// Filter function to check if location is in Go North East operational area
+function isInNorthEast(location, description = '', coordinates = null) {
+  // Go North East geographic bounds (from geographicBounds.js)
+  const GNE_BOUNDS = {
+    north: 55.042571,  // Whitley Bay (northernmost stop)
+    south: 54.755372,  // Brandon (southernmost stop) 
+    east: -1.382834,   // Sunderland area (easternmost)
+    west: -2.095787    // Hexham (westernmost stop)
+  };
   
+  // If coordinates are provided, use strict geographic filtering
+  if (coordinates && Array.isArray(coordinates) && coordinates.length >= 2) {
+    const [lat, lng] = coordinates;
+    if (lat && lng) {
+      const withinBounds = lat >= GNE_BOUNDS.south && 
+                          lat <= GNE_BOUNDS.north && 
+                          lng >= GNE_BOUNDS.west && 
+                          lng <= GNE_BOUNDS.east;
+      
+      console.log(`📍 Coordinate check: ${lat}, ${lng} -> ${withinBounds ? 'INSIDE' : 'OUTSIDE'} GNE bounds`);
+      return withinBounds;
+    }
+  }
+  
+  // Fallback to text-based filtering with strict keywords
   const text = `${location} ${description}`.toUpperCase();
   
-  // If it mentions coordinates or lat/lng, accept it
-  if (text.includes('LAT') || text.includes('LNG') || text.includes('54.') || text.includes('55.')) {
+  // STRICT keyword list - only core GNE area identifiers
+  const strictKeywords = [
+    'NEWCASTLE', 'GATESHEAD', 'SUNDERLAND', 'DURHAM', 'WASHINGTON',
+    'CONSETT', 'STANLEY', 'CHESTER-LE-STREET', 'HEXHAM', 'CRAMLINGTON',
+    'BLYTH', 'ASHINGTON', 'WHITLEY BAY', 'TYNEMOUTH', 'WALLSEND',
+    'GOSFORTH', 'JESMOND', 'HEATON', 'BYKER', 'WALKER',
+    'TYNE AND WEAR', 'NORTHUMBERLAND', 'COUNTY DURHAM'
+  ];
+  
+  // Major roads in GNE area
+  const gneRoads = [
+    'A1 NEWCASTLE', 'A19 SUNDERLAND', 'A69 HEXHAM', 'A167 DURHAM',
+    'A184 GATESHEAD', 'A690 DURHAM', 'A1058 COAST ROAD'
+  ];
+  
+  // Check strict keywords
+  const hasStrictKeyword = strictKeywords.some(keyword => text.includes(keyword));
+  const hasGNERoad = gneRoads.some(road => text.includes(road));
+  
+  if (hasStrictKeyword || hasGNERoad) {
+    console.log(`✅ Text match: "${location}" -> ACCEPTED (GNE area)`);
     return true;
   }
   
-  // Simplified keyword list - just major identifiers
-  const keywords = [
-    'A1', 'A19', 'A69', 'A167', 'A184', 'A690', 'A1058',
-    'NEWCASTLE', 'GATESHEAD', 'SUNDERLAND', 'DURHAM',
-    'NORTHUMBERLAND', 'TYNE', 'WEAR'
-  ];
-  
-  // If ANY keyword matches, include it
-  const hasKeyword = keywords.some(keyword => text.includes(keyword));
-  
-  
-  return hasKeyword;
+  console.log(`❌ Text match: "${location}" -> REJECTED (outside GNE area)`);
+  return false;
 }
 
 // Enhanced route matching that combines multiple techniques for higher accuracy
