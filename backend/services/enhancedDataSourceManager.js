@@ -10,7 +10,7 @@ import streetManagerWebhooks from './streetManagerWebhooksSimple.js';
 import timeBasedPollingManager from './timeBasedPollingManager.js';
 import duplicateDetectionManager from './duplicateDetectionManager.js';
 import enhancedGeocodingService from './enhancedGeocodingService.js';
-import durhamRoadworks from './durhamRoadworks.js';
+// import durhamRoadworks from './durhamRoadworks.js'; // TEMPORARILY DISABLED - FILE NOT IN GIT
 
 class EnhancedDataSourceManager {
   constructor() {
@@ -18,8 +18,8 @@ class EnhancedDataSourceManager {
       tomtom: { name: 'TomTom Traffic', reliability: 0.9, enabled: true },
       national_highways: { name: 'National Highways', reliability: 0.95, enabled: true },
       streetmanager: { name: 'StreetManager UK', reliability: 0.98, enabled: true }, // ACTIVATED
-      manual_incidents: { name: 'Manual Incidents', reliability: 1.0, enabled: true }, // ACTIVATED
-      durham: { name: 'Durham County Council', reliability: 0.85, enabled: true } // NEW
+      manual_incidents: { name: 'Manual Incidents', reliability: 1.0, enabled: true } // ACTIVATED
+      // durham: { name: 'Durham County Council', reliability: 0.85, enabled: true } // TEMPORARILY DISABLED
     };
     
     this.aggregatedData = { incidents: [], lastUpdate: null, confidence: 0 };
@@ -51,8 +51,8 @@ class EnhancedDataSourceManager {
       this.fetchTomTomData(),
       this.fetchNationalHighwaysData(),
       this.fetchStreetManagerData(), // ACTIVATED
-      this.fetchManualIncidents(), // ACTIVATED
-      this.fetchDurhamData() // NEW
+      this.fetchManualIncidents() // ACTIVATED
+      // this.fetchDurhamData() // TEMPORARILY DISABLED
     ]);
     
     const allIncidents = [];
@@ -60,7 +60,7 @@ class EnhancedDataSourceManager {
     const sourceStats = {};
     const skippedSources = [];
     
-    const sourceNames = ['tomtom', 'national_highways', 'streetmanager', 'manual_incidents', 'durham'];
+    const sourceNames = ['tomtom', 'national_highways', 'streetmanager', 'manual_incidents']; // 'durham' temporarily removed
     
     results.forEach((result, index) => {
       const sourceName = sourceNames[index];
@@ -544,7 +544,8 @@ class EnhancedDataSourceManager {
     };
   }
 
-  // NEW: Durham roadworks fetcher
+  // NEW: Durham roadworks fetcher - TEMPORARILY DISABLED
+  /*
   async fetchDurhamData() {
     const pollingCheck = timeBasedPollingManager.canPollSource('durham');
     if (!pollingCheck.allowed) {
@@ -609,6 +610,7 @@ class EnhancedDataSourceManager {
       };
     }
   }
+  */
 
   // Clear cache to force refresh
   clearCache() {
