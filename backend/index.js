@@ -30,7 +30,7 @@ import dotenv from 'dotenv';
 import { parse } from 'csv-parse/sync';
 
 // Import ALL working services
-import { fetchTomTomTrafficWithStreetNames } from './services/tomtom.js';
+import { fetchTomTomTrafficWithStreetNames } from './services/tomtom-enhanced.js';
 
 
 import { fetchNationalHighways } from './services/nationalHighways.js';
@@ -49,6 +49,7 @@ console.log('✅ gtfsService imported successfully');
 import microsoftAuthAPI from './routes/microsoftAuthAPI.js';
 console.log('✅ microsoftAuthAPI imported successfully');
 import intelligenceAPI from './routes/intelligenceAPI.js';
+import intelligenceAPINew from './routes/intelligenceAPINew.js';
 import incidentAPI from './routes/incidentAPI.js';
 import enhancementAPI from './routes/enhancementAPI.js';
 import frequencyAPI from './routes/frequencyAPI.js';
@@ -60,6 +61,7 @@ import activityLogsAPI from './routes/activityLogs.js';
 import dutyAPI from './routes/dutyAPI.js';
 import messagingAPI from './routes/messagingAPI.js';
 import analyticsAPI from './routes/analyticsAPI.js';
+import locationCorrectionAPI from './routes/locationCorrectionAPI.js';
 import supervisorManager from './services/supervisorManager.js';
 import serviceFrequencyAnalyzer from './services/serviceFrequencyAnalyzer.js';
 import supervisorSyncService from './services/supervisorSync.js';
@@ -76,6 +78,7 @@ import { deduplicateAlerts, cleanupExpiredDismissals, generateAlertHash } from '
 import { convexSync } from './services/convexSync.js';
 import startupService from './services/startupService.js';
 import { createClient } from '@supabase/supabase-js';
+import realTimeDisruptionScoring from './services/realTimeDisruptionScoring.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -505,6 +508,10 @@ app.use('/api/auth', microsoftAuthAPI);
 // Intelligence system routes
 app.use('/api/intelligence', intelligenceAPI);
 
+// Advanced intelligence analytics routes
+app.use('/api/intelligence-new', intelligenceAPINew);
+console.log('✅ Advanced intelligence analytics routes registered at /api/intelligence-new');
+
 // Enhanced GTFS analysis routes (duplicate removed)
 
 // Incident management routes
@@ -547,6 +554,11 @@ console.log('✅ Messaging routes registered successfully');
 console.log('📊 Registering analytics routes at /api/analytics...');
 app.use('/api/analytics', analyticsAPI);
 console.log('✅ Analytics routes registered successfully');
+
+// Location correction routes
+console.log('📍 Registering location correction routes at /api/location...');
+app.use('/api/location', locationCorrectionAPI);
+console.log('✅ Location correction routes registered successfully');
 
 import { enhanceAlertWithCategory } from './services/alertCategorizer.js';
 
@@ -3216,6 +3228,14 @@ initializeApplication().then(async () => {
   if (server) {
     supervisorSyncService.initialize(server);
     console.log('✅ WebSocket service initialized');
+  }
+  
+  // Start real-time disruption scoring (5-minute intervals)
+  try {
+    realTimeDisruptionScoring.startMonitoring(5);
+    console.log('✅ Real-time disruption scoring started');
+  } catch (error) {
+    console.warn('⚠️ Disruption scoring failed to start:', error.message);
   }
 }).catch(error => {
   console.error('⚠️ Initialization error:', error.message);

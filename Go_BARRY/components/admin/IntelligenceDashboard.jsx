@@ -73,7 +73,17 @@ const IntelligenceDashboard = ({ supervisorToken }) => {
 
   const loadRouteImpactAnalysis = async () => {
     try {
-      // Mock API call - replace with actual endpoint
+      // Real API call to intelligence system
+      const response = await fetch(`${API_BASE}/api/intelligence-new/overview`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.overview.routeImpact?.success) {
+          setRouteImpactData(data.overview.routeImpact.analysis);
+          return;
+        }
+      }
+      
+      // Fallback to mock data if API fails
       const mockData = {
         totalRoadworks: 12,
         routeImpacts: [
@@ -224,6 +234,17 @@ const IntelligenceDashboard = ({ supervisorToken }) => {
 
   const loadDisruptionScore = async () => {
     try {
+      // Real API call to disruption scoring system
+      const response = await fetch(`${API_BASE}/api/intelligence-new/disruption-score?includeBreakdown=true`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setDisruptionScore(data.disruptionScore);
+          return;
+        }
+      }
+      
+      // Fallback to mock data if API fails
       const mockData = {
         currentScore: 67,
         trend: 'increasing',

@@ -26,6 +26,7 @@ import { formatTime24, formatDateTimeUK } from '../utils/dateTime';
 import { SkeletonAlert } from './ui/SkeletonLoader';
 import { SystemHealthMonitor } from './ui/TrustSignals';
 import { useAnalytics } from '../services/analytics';
+import LocationCorrectionModal from './LocationCorrectionModal';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -242,6 +243,9 @@ const EnhancedDashboard = ({
 
   // State for alert details modal
   const [selectedAlertDetails, setSelectedAlertDetails] = useState(null);
+  
+  // State for location correction modal
+  const [correctionModalAlert, setCorrectionModalAlert] = useState(null);
 
   // Handle alert interactions
   const handleAlertClick = useCallback((alert) => {
@@ -461,14 +465,34 @@ const EnhancedDashboard = ({
         )}
         
         <View style={styles.alertFooter}>
-          <Text style={styles.alertSource}>
-            Source: {alert.source || 'Unknown'}
-          </Text>
-          <Text style={styles.alertTime}>
-            {alert.timestamp ? formatTime24(alert.timestamp) : 'Unknown time'}
-          </Text>
-          {alert.coordinates && alert.coordinates.length >= 2 && (
-            <Text style={styles.alertClickHint}>Click to zoom map 🗺️</Text>
+          <View style={styles.alertFooterLeft}>
+            <Text style={styles.alertSource}>
+              Source: {alert.source || 'Unknown'}
+            </Text>
+            <Text style={styles.alertTime}>
+              {alert.timestamp ? formatTime24(alert.timestamp) : 'Unknown time'}
+            </Text>
+            {alert.coordinates && alert.coordinates.length >= 2 && (
+              <Text style={styles.alertClickHint}>Click to zoom map 🗺️</Text>
+            )}
+          </View>
+          
+          {/* Location correction button for supervisors */}
+          {session && alert.location && (
+            <TouchableOpacity
+              style={styles.locationEditButton}
+              onPress={(e) => {
+                e.stopPropagation(); // Prevent triggering alert click
+                setCorrectionModalAlert(alert);
+                track('location_correction_initiated', {
+                  alertId: alert.id,
+                  location: alert.location
+                });
+              }}
+            >
+              <Ionicons name="pencil" size={12} color="#6B7280" />
+              <Text style={styles.locationEditText}>Edit Location</Text>
+            </TouchableOpacity>
           )}
         </View>
       </TouchableOpacity>
@@ -734,6 +758,22 @@ const EnhancedDashboard = ({
         />
       )}
 
+      {/* Location Correction Modal */}
+      <LocationCorrectionModal
+        visible={!!correctionModalAlert}
+        onClose={() => setCorrectionModalAlert(null)}
+        alert={correctionModalAlert}
+        onCorrectionSaved={(correction) => {
+          console.log('✅ Location correction saved:', correction);
+          // The correction will be applied automatically on next data fetch
+          Alert.alert(
+            'Success',
+            `Location updated to: ${correction.correctedLocation}`,
+            [{ text: 'OK' }]
+          );
+        }}
+      />
+      
       {/* Alert Details Modal */}
       {selectedAlertDetails && (
         <View style={styles.modalOverlay}>
@@ -1162,7 +1202,11 @@ const styles = StyleSheet.create({
   alertFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: 4,
+  },
+  alertFooterLeft: {
+    flex: 1,
   },
   alertSource: {
     ...typography.styles.labelSmall,
@@ -1369,6 +1413,21 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  locationEditButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  locationEditText: {
+    fontSize: 10,
+    color: '#6B7280',
+    fontWeight: '500',
   },
 });
 

@@ -23,6 +23,8 @@ import ActivityAuditTrail from './ActivityAuditTrail';
 import AlertAnalytics from './AlertAnalytics';
 import ApiUsageStats from './ApiUsageStats';
 import SystemConfiguration from './SystemConfiguration';
+import IntelligenceDashboard from './IntelligenceDashboard';
+import UnifiedRoadworksManager from './UnifiedRoadworksManager';
 
 const API_BASE = 'https://go-barry.onrender.com';
 
@@ -112,6 +114,8 @@ const AdminPanel = ({ onClose }) => {
   // Tab navigation
   const tabs = [
     { id: 'overview', label: 'System Overview', icon: 'speedometer' },
+    { id: 'intelligence', label: 'Intelligence Dashboard', icon: 'analytics' },
+    { id: 'roadworks', label: 'Roadworks Manager', icon: 'construct' },
     { id: 'supervisors', label: 'Supervisor Management', icon: 'people' },
     { id: 'activity', label: 'Activity Audit Trail', icon: 'list' },
     { id: 'analytics', label: 'Alert Analytics', icon: 'stats-chart' },
@@ -242,6 +246,10 @@ const AdminPanel = ({ onClose }) => {
     switch (activeTab) {
       case 'overview':
         return <SystemOverview />;
+      case 'intelligence':
+        return <IntelligenceDashboard supervisorToken={supervisorSession?.token} />;
+      case 'roadworks':
+        return <UnifiedRoadworksManager supervisorToken={supervisorSession?.token} />;
       case 'supervisors':
         return <SupervisorManager />;
       case 'activity':
