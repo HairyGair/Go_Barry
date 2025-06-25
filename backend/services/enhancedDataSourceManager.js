@@ -10,6 +10,7 @@ import streetManagerWebhooks from './streetManagerWebhooksSimple.js';
 import timeBasedPollingManager from './timeBasedPollingManager.js';
 import duplicateDetectionManager from './duplicateDetectionManager.js';
 import enhancedGeocodingService from './enhancedGeocodingService.js';
+import durhamRoadworks from './durhamRoadworks.js';
 
 class EnhancedDataSourceManager {
   constructor() {
@@ -17,7 +18,8 @@ class EnhancedDataSourceManager {
       tomtom: { name: 'TomTom Traffic', reliability: 0.9, enabled: true },
       national_highways: { name: 'National Highways', reliability: 0.95, enabled: true },
       streetmanager: { name: 'StreetManager UK', reliability: 0.98, enabled: true }, // ACTIVATED
-      manual_incidents: { name: 'Manual Incidents', reliability: 1.0, enabled: true } // ACTIVATED
+      manual_incidents: { name: 'Manual Incidents', reliability: 1.0, enabled: true }, // ACTIVATED
+      durham: { name: 'Durham County Council', reliability: 0.85, enabled: true } // NEW
     };
     
     this.aggregatedData = { incidents: [], lastUpdate: null, confidence: 0 };
@@ -47,11 +49,10 @@ class EnhancedDataSourceManager {
     const startTime = Date.now();
     const results = await Promise.allSettled([
       this.fetchTomTomData(),
- 
-
       this.fetchNationalHighwaysData(),
       this.fetchStreetManagerData(), // ACTIVATED
-      this.fetchManualIncidents() // ACTIVATED
+      this.fetchManualIncidents(), // ACTIVATED
+      this.fetchDurhamData() // NEW
     ]);
     
     const allIncidents = [];
@@ -59,7 +60,7 @@ class EnhancedDataSourceManager {
     const sourceStats = {};
     const skippedSources = [];
     
-    const sourceNames = ['tomtom', 'national_highways', 'streetmanager', 'manual_incidents'];
+    const sourceNames = ['tomtom', 'national_highways', 'streetmanager', 'manual_incidents', 'durham'];
     
     results.forEach((result, index) => {
       const sourceName = sourceNames[index];
@@ -541,6 +542,72 @@ class EnhancedDataSourceManager {
         potential: ['weather', 'social_media']
       }
     };
+  }
+
+  // NEW: Durham roadworks fetcher
+  async fetchDurhamData() {
+    const pollingCheck = timeBasedPollingManager.canPollSource('durham');
+    if (!pollingCheck.allowed) {
+      return { 
+        success: false, 
+        error: `Polling restricted: ${pollingCheck.reason}`,
+        pollingAllowed: false
+      };
+    }
+    
+    try {
+      console.log('🚧 [NEW] Fetching Durham County Council roadworks...');
+      timeBasedPollingManager.recordPoll('durham', false);
+      
+      // Fetch Durham roadworks using the scraper
+      const roadworks = await durhamRoadworks.fetchRoadworks();
+      
+      // Transform Durham roadworks to standard alert format
+      const alerts = roadworks.map(rw => ({
+        id: rw.id,
+        title: rw.title,
+        description: rw.description,
+        location: rw.location,
+        coordinates: rw.coordinates, // null for now, would need geocoding
+        severity: rw.severity,
+        status: rw.severity === 'high' ? 'red' : rw.severity === 'medium' ? 'amber' : 'green',
+        timestamp: rw.startDate,
+        lastUpdated: new Date().toISOString(),
+        startDate: rw.startDate,
+        endDate: rw.endDate,
+        source: 'durham',
+        dataSource: rw.source,
+        type: 'roadwork',
+        category: 'roadwork',
+        isRoadwork: true,
+        affectsRoutes: rw.affectedRoutes || [],
+        authority: 'Durham County Council',
+        contractor: rw.contractor || 'Durham County Council',
+        enhanced: false
+      }));
+      
+      timeBasedPollingManager.recordPoll('durham', true);
+      console.log(`✅ [NEW] Durham roadworks: ${alerts.length} active roadworks`);
+      
+      return {
+        success: true,
+        incidents: alerts,
+        method: 'Durham County Council Website Scraper',
+        mode: 'scraper',
+        count: alerts.length,
+        pollingAllowed: true
+      };
+      
+    } catch (error) {
+      console.error('❌ Durham roadworks fetch error:', error.message);
+      timeBasedPollingManager.recordPoll('durham', false);
+      return {
+        success: false,
+        error: error.message,
+        incidents: [],
+        pollingAllowed: true
+      };
+    }
   }
 
   // Clear cache to force refresh
