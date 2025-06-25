@@ -741,6 +741,58 @@ router.delete('/admin/delete-supervisor/:supervisorId', async (req, res) => {
   }
 });
 
+// Reset supervisor password (admin only)
+router.post('/admin/reset-password', async (req, res) => {
+  try {
+    const { sessionId, supervisorId, newPassword } = req.body;
+    
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Session ID is required'
+      });
+    }
+    
+    if (!supervisorId || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'Supervisor ID and new password are required'
+      });
+    }
+    
+    // Validate password requirements
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password must be at least 6 characters long'
+      });
+    }
+    
+    const result = await supervisorManager.resetSupervisorPassword(sessionId, supervisorId, newPassword);
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        message: result.message,
+        resetSupervisor: result.resetSupervisor,
+        adminSupervisor: result.adminSupervisor,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: result.error
+      });
+    }
+  } catch (error) {
+    console.error('❌ Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to reset password'
+    });
+  }
+});
+
 // Check admin permissions (for frontend to show/hide admin features)
 router.get('/admin/check-permissions', async (req, res) => {
   try {

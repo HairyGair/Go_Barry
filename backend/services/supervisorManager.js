@@ -1389,6 +1389,102 @@ export async function logDisplayScreenView(alertCount, req = null) {
   }, null, req);
 }
 
+// Reset supervisor password (admin only)
+export async function resetSupervisorPassword(adminSessionId, supervisorIdToReset, newPassword) {
+  try {
+    // Validate admin session
+    const sessionValidation = await validateSupervisorSession(adminSessionId);
+    if (!sessionValidation.success) {
+      return { success: false, error: 'Invalid admin session' };
+    }
+    
+    const adminSupervisor = sessionValidation.supervisor;
+    
+    // Check admin permissions
+    if (!(await hasAdminPermissions(adminSupervisor.id))) {
+      return { success: false, error: 'Insufficient permissions - admin access required' };
+    }
+    
+    // Get supervisor details
+    const { data: supervisorToReset, error: fetchError } = await supabase
+      .from('supervisors')
+      .select('*')
+      .eq('id', supervisorIdToReset)
+      .single();
+    
+    if (fetchError || !supervisorToReset) {
+      return { success: false, error: 'Supervisor not found' };
+    }
+    
+    // Hash the new password
+    const passwordHash = await hashPassword(newPassword);
+    
+    // Update password in Supabase
+    const { error: updateError } = await supabase
+      .from('supervisors')
+      .update({ 
+        password_hash: passwordHash,
+        password_reset_at: new Date().toISOString(),
+        password_reset_by: adminSupervisor.id
+      })
+      .eq('id', supervisorIdToReset);
+    
+    if (updateError) {
+      console.error('❌ Failed to reset password:', updateError);
+      return { success: false, error: 'Failed to update password in database' };
+    }
+    
+    // Log out any active sessions for the user whose password was reset
+    Object.entries(supervisorSessions).forEach(([sessionId, session]) => {
+      if (session.supervisorId === supervisorIdToReset && session.active) {
+        session.active = false;
+        session.endTime = new Date().toISOString();
+        session.passwordReset = true;
+        session.resetBy = adminSupervisor.id;
+      }
+    });
+    
+    // Update Supabase sessions
+    await supabase
+      .from('supervisor_sessions')
+      .update({ 
+        is_active: false,
+        end_time: new Date().toISOString(),
+        signout_reason: 'Password reset by admin'
+      })
+      .eq('supervisor_id', supervisorIdToReset)
+      .eq('is_active', true);
+    
+    // Log the action
+    await logActivity('password_reset', {
+      targetSupervisorId: supervisorIdToReset,
+      targetSupervisorName: supervisorToReset.name,
+      targetSupervisorBadge: supervisorToReset.badge,
+      resetBy: adminSupervisor.name
+    }, { id: adminSupervisor.id, name: adminSupervisor.name });
+    
+    console.log(`🔐 Password reset for ${supervisorToReset.name} (${supervisorToReset.badge}) by ${adminSupervisor.name}`);
+    
+    return {
+      success: true,
+      message: `Successfully reset password for ${supervisorToReset.name}`,
+      resetSupervisor: {
+        id: supervisorToReset.id,
+        name: supervisorToReset.name,
+        badge: supervisorToReset.badge
+      },
+      adminSupervisor: {
+        id: adminSupervisor.id,
+        name: adminSupervisor.name,
+        badge: adminSupervisor.badge
+      }
+    };
+  } catch (error) {
+    console.error('❌ Failed to reset password:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 // Initialize on module load
 initializeSupervisorData();
 
@@ -1422,6 +1518,7 @@ export default {
   logoutAllSupervisors,
   addSupervisor,
   deleteSupervisor,
+  resetSupervisorPassword,  // NEW: Password reset
   // Export sessions for debugging
   supervisorSessions,
   moduleLoadTime

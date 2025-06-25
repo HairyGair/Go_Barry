@@ -102,10 +102,7 @@ const DisruptionDatabase = ({ baseUrl }) => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([
-      loadRoadworks(),
-      loadTrafficIncidents()
-    ]);
+    await loadRoadworks();
     setRefreshing(false);
   };
 
@@ -135,6 +132,8 @@ const DisruptionDatabase = ({ baseUrl }) => {
   // Get traffic incidents from API (includes Street Manager)
   const [trafficIncidents, setTrafficIncidents] = useState([]);
   
+  // REMOVED: Don't load traffic incidents from API - only show supervisor-created items
+  /*
   useEffect(() => {
     loadTrafficIncidents();
   }, []);
@@ -152,42 +151,12 @@ const DisruptionDatabase = ({ baseUrl }) => {
       console.error('Failed to load traffic incidents:', error);
     }
   };
+  */
   
   // Convert traffic incidents to unified format
   const getFormattedTrafficIncidents = () => {
-    return trafficIncidents.map(incident => ({
-      id: incident.id,
-      type: incident.source === 'StreetManager' ? 'streetmanager' : 'traffic',
-      title: incident.source === 'StreetManager' ? 
-        incident.professionalTitle || incident.title : 
-        incident.title,
-      location: incident.location,
-      description: incident.description,
-      status: incident.status,
-      priority: incident.severity?.toLowerCase() || 'medium',
-      affectedRoutes: incident.affectsRoutes || [],
-      createdAt: incident.eventTime || incident.lastUpdated || incident.timestamp,
-      createdBy: incident.source === 'StreetManager' ? 
-        (incident.authorityDisplayName || incident.authority || 'Street Manager') : 
-        incident.source,
-      lastUpdated: incident.lastUpdated || incident.timestamp,
-      source: incident.source,
-      
-      // Street Manager specific fields
-      ...(incident.source === 'StreetManager' && {
-        permitReference: incident.permitReference,
-        activityReference: incident.activityReference,
-        authority: incident.authorityDisplayName || incident.authority,
-        workCategory: incident.workCategoryDisplay || incident.workCategory,
-        isEmergency: incident.isEmergency,
-        timelineStatus: incident.timelineStatus,
-        proposedStartDate: incident.proposedStartDate,
-        proposedEndDate: incident.proposedEndDate,
-        eventTime: incident.eventTime,
-        durationEstimate: incident.durationEstimate,
-        officialSource: true
-      })
-    }));
+    // Return empty array - we don't want API traffic incidents
+    return [];
   };
 
   // Convert roadworks to unified format  
@@ -334,11 +303,10 @@ const DisruptionDatabase = ({ baseUrl }) => {
 
   const filteredDisruptions = getFilteredDisruptions();
   const allDisruptions = getAllDisruptions();
+  // Remove the traffic and streetmanager tabs from the stats
   const activeCount = allDisruptions.filter(item => ['active', 'monitoring'].includes(item.status)).length;
   const incidentCount = allDisruptions.filter(item => item.type === 'incident').length;
   const roadworkCount = allDisruptions.filter(item => item.type === 'roadwork').length;
-  const streetManagerCount = allDisruptions.filter(item => item.type === 'streetmanager').length;
-  const trafficCount = allDisruptions.filter(item => item.type === 'traffic').length;
   const actionNeededCount = allDisruptions.filter(item => ['reported', 'assessing'].includes(item.status)).length;
 
   return (
@@ -400,10 +368,6 @@ const DisruptionDatabase = ({ baseUrl }) => {
           <Text style={styles.statLabel}>Roadworks</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statNumber, { color: '#059669' }]}>{streetManagerCount}</Text>
-          <Text style={styles.statLabel}>Official</Text>
-        </View>
-        <View style={styles.statCard}>
           <Text style={[styles.statNumber, { color: '#DC2626' }]}>{actionNeededCount}</Text>
           <Text style={styles.statLabel}>Need Action</Text>
         </View>
@@ -442,14 +406,6 @@ const DisruptionDatabase = ({ baseUrl }) => {
           >
             <Text style={[styles.tabText, activeTab === 'roadworks' && styles.activeTabText]}>
               Roadworks ({roadworkCount})
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'streetmanager' && styles.activeTab]}
-            onPress={() => setActiveTab('streetmanager')}
-          >
-            <Text style={[styles.tabText, activeTab === 'streetmanager' && styles.activeTabText]}>
-              Official ({streetManagerCount})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
