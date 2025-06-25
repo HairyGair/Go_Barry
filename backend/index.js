@@ -2265,22 +2265,64 @@ app.post('/api/streetmanager/webhook', async (req, res) => {
     const messageType = req.headers['x-amz-sns-message-type'];
     console.log(`📨 Street Manager webhook received: ${messageType}`);
     
+    // Parse body if it's a string (SNS sends text/plain)
+    let messageBody = req.body;
+    if (typeof req.body === 'string') {
+      try {
+        console.log('📄 Body is string, parsing JSON...');
+        messageBody = JSON.parse(req.body);
+      } catch (parseErr) {
+        console.error('❌ Failed to parse body as JSON:', parseErr);
+        messageBody = req.body;
+      }
+    }
+    
     // Handle subscription confirmation
     if (messageType === 'SubscriptionConfirmation') {
-      if (req.body.SubscribeURL) {
-        // Auto-confirm subscription
-        axios.get(req.body.SubscribeURL).then(() => {
-          console.log('✅ StreetManager subscription confirmed');
-        }).catch(err => {
-          console.error('❌ Failed to confirm subscription:', err.message);
-        });
+      console.log('📧 SubscriptionConfirmation details:', {
+        hasSubscribeURL: !!messageBody.SubscribeURL,
+        subscribeURL: messageBody.SubscribeURL ? 'URL exists' : 'NO URL',
+        bodyKeys: Object.keys(messageBody || {}),
+        bodyType: typeof messageBody,
+        originalBodyType: typeof req.body
+      });
+      
+      if (messageBody.SubscribeURL) {
+        console.log('🔗 Attempting to confirm subscription...');
+        console.log('🔗 URL:', messageBody.SubscribeURL);
+        
+        // Use fetch to confirm subscription
+        fetch(messageBody.SubscribeURL)
+          .then(response => {
+            console.log(`✅ StreetManager subscription confirmed! Status: ${response.status}`);
+            return response.text();
+          })
+          .then(text => {
+            console.log('📝 Confirmation response received');
+            if (text.includes('SubscriptionArn')) {
+              console.log('✅ Successfully subscribed to StreetManager notifications!');
+            }
+          })
+          .catch(err => {
+            console.error('❌ Failed to confirm subscription:', err.message);
+            console.error('🔍 Error details:', err);
+          });
+      } else {
+        console.error('❌ NO SubscribeURL found in body!');
+        console.log('📦 Full body content:', JSON.stringify(messageBody, null, 2));
+        console.log('📦 Original body:', req.body);
       }
       
       res.json({
         success: true,
         message: 'Subscription confirmation received',
-        subscribeUrl: req.body.SubscribeURL,
-        timestamp: new Date().toISOString()
+        subscribeUrl: messageBody.SubscribeURL || 'NOT FOUND',
+        timestamp: new Date().toISOString(),
+        debug: {
+          hasSubscribeURL: !!messageBody.SubscribeURL,
+          bodyKeys: Object.keys(messageBody || {}),
+          wasStringBody: typeof req.body === 'string'
+        }
       });
       return;
     }
@@ -2736,6 +2778,89 @@ app.get('/api/streetmanager/active-roadworks', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Error fetching active roadworks:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Manual StreetManager polling endpoint
+app.post('/api/streetmanager/poll', async (req, res) => {
+  try {
+    console.log('🔄 Manual StreetManager poll triggered');
+    
+    // Check if API key is configured
+    if (!process.env.STREET_MANAGER_API_KEY || process.env.STREET_MANAGER_API_KEY === 'your_streetmanager_api_key_here') {
+      return res.json({
+        success: false,
+        error: 'StreetManager API key not configured',
+        message: 'Please set STREET_MANAGER_API_KEY in .env file',
+        webhookStatus: 'Webhook registered but not receiving data',
+        solution: 'Either configure API key for polling OR check webhook registration with StreetManager'
+      });
+    }
+    
+    // Import and run the poll function
+    const { pollAndSaveToSupabase } = await import('./services/streetManager.js');
+    const result = await pollAndSaveToSupabase();
+    
+    res.json({
+      success: result.success,
+      message: 'StreetManager poll completed',
+      result: result,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ StreetManager poll error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET StreetManager configuration status
+app.get('/api/streetmanager/config-status', async (req, res) => {
+  try {
+    const { getApiStatus } = await import('./services/streetManager.js');
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    
+    // Check webhook data in database
+    const { data: recentWebhooks, error: webhookError } = await supabase
+      .from('streetmanager_notifications')
+      .select('webhook_received_at, webhook_event_type')
+      .order('webhook_received_at', { ascending: false })
+      .limit(5);
+    
+    const { count: totalNotifications } = await supabase
+      .from('streetmanager_notifications')
+      .select('*', { count: 'exact', head: true });
+    
+    const apiStatus = getApiStatus();
+    
+    res.json({
+      success: true,
+      webhook: {
+        endpoint: 'https://go-barry.onrender.com/api/streetmanager/webhook',
+        testEndpoint: 'https://go-barry.onrender.com/api/streetmanager/webhook/test',
+        status: 'Registered and accessible',
+        recentWebhooks: recentWebhooks || [],
+        totalNotifications: totalNotifications || 0,
+        lastWebhook: recentWebhooks?.[0]?.webhook_received_at || 'Never received'
+      },
+      api: apiStatus,
+      recommendations: [
+        'Option 1: Get StreetManager API key from https://api.streetmanager.service.gov.uk/',
+        'Option 2: Contact StreetManager support to verify webhook is active',
+        'Option 3: Check if webhook needs to be verified/activated on their portal'
+      ],
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Config status error:', error);
     res.status(500).json({
       success: false,
       error: error.message
