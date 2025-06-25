@@ -1,7 +1,7 @@
 // services/tomtom-fixed.js
 // Fixed TomTom Traffic API with Working Route Matching
 import axios from 'axios';
-import { getEnhancedLocationWithFallbacks } from '../utils/productionLocation.js';
+import { getEnhancedLocationWithFallbacks, getQuickLocation } from '../utils/productionLocation.js';
 import { geocodingThrottler } from '../utils/requestThrottler.js';
 import { findAffectedRoutesEnhanced, isGTFSReady } from '../utils/gtfsRouteMatching.js';
 
@@ -288,7 +288,7 @@ async function reverseGeocodeSimple(lat, lng) {
   }
   
   // Geographic area fallback based on coordinates
-  const geographicLocation = getGeographicAreaName(lat, lng);
+  const geographicLocation = getQuickLocation(lat, lng);
   if (geographicLocation) {
     console.log(`✅ Geographic fallback: ${lat}, ${lng} → ${geographicLocation}`);
     return geographicLocation;
@@ -298,33 +298,7 @@ async function reverseGeocodeSimple(lat, lng) {
   return null;
 }
 
-// Geographic area name fallback
-function getGeographicAreaName(lat, lng) {
-  const areas = [
-    { name: 'Newcastle City Centre', bounds: { north: 55.0, south: 54.96, east: -1.58, west: -1.64 } },
-    { name: 'Gateshead Centre', bounds: { north: 54.97, south: 54.94, east: -1.58, west: -1.65 } },
-    { name: 'North Tyneside', bounds: { north: 55.08, south: 55.0, east: -1.4, west: -1.5 } },
-    { name: 'Sunderland Area', bounds: { north: 54.95, south: 54.88, east: -1.32, west: -1.45 } },
-    { name: 'Durham Area', bounds: { north: 54.85, south: 54.75, east: -1.5, west: -1.6 } },
-    { name: 'Consett Area', bounds: { north: 54.87, south: 54.82, east: -1.8, west: -1.9 } },
-    { name: 'A1 Corridor', bounds: { north: 55.1, south: 54.8, east: -1.55, west: -1.65 } },
-    { name: 'A19 Corridor', bounds: { north: 55.1, south: 54.9, east: -1.35, west: -1.55 } }
-  ];
-  
-  for (const area of areas) {
-    if (lat >= area.bounds.south && lat <= area.bounds.north &&
-        lng >= area.bounds.west && lng <= area.bounds.east) {
-      return area.name;
-    }
-  }
-  
-  // Final fallback to general area
-  if (lat >= 54.7 && lat <= 55.1 && lng >= -1.9 && lng <= -1.3) {
-    return 'North East England';
-  }
-  
-  return null;
-}
+// Note: getGeographicAreaName replaced with getQuickLocation from productionLocation.js for accurate boundaries
 
 // Geocoding cache to prevent repeated API calls
 const geocodingCache = new Map();
