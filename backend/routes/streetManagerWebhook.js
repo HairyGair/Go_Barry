@@ -350,6 +350,22 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Status endpoint (for GET requests to main webhook URL)
+router.get('/', (req, res) => {
+  res.json({
+    success: true,
+    status: 'ready',
+    message: 'StreetManager webhook is configured and ready',
+    endpoint: 'POST /api/streetmanager/webhook',
+    expects: 'AWS SNS notifications with x-amz-sns-message-type header',
+    bodyParser: 'text (as per official docs)',
+    documentation: 'https://department-for-transport-streetmanager.github.io/street-manager-docs/open-data/',
+    test: 'GET /api/streetmanager/webhook/test',
+    implementation: 'Exact match to official example',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Test endpoint
 router.get('/test', (req, res) => {
   res.json({

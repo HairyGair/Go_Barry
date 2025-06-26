@@ -70,9 +70,8 @@ import displayAPI from './routes/displayAPI.js';
 import streetManagerWebhooks from './services/streetManagerWebhooksSimple.js';
 console.log('✅ streetManagerWebhooks service imported');
 import streetManagerWebhookRouter from './routes/streetManagerWebhook.js';
-import bodyParser from 'body-parser';
 // IMPORTANT: Apply text body parser ONLY to webhook route, as per StreetManager docs
-app.use('/api/streetmanager/webhook', bodyParser.text(), streetManagerWebhookRouter);
+app.use('/api/streetmanager/webhook', express.text(), streetManagerWebhookRouter);
 console.log('✅ streetManagerWebhookRouter imported with text body parser');
 import unifiedRoadworksAPI from './routes/unifiedRoadworksAPI.js';
 console.log('✅ unifiedRoadworksAPI imported');
