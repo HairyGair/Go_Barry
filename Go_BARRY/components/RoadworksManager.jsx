@@ -37,7 +37,7 @@ const RoadworksManager = ({ baseUrl }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('manual'); // Tab options: manual, automatic, all-alerts
+  const [activeTab, setActiveTab] = useState('manual'); // Tab options: manual, automatic, durham
   const [showMap, setShowMap] = useState(false);
   const [mapRoadwork, setMapRoadwork] = useState(null);
   const [showDiversions, setShowDiversions] = useState(false);
@@ -378,11 +378,12 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
   const loadTrafficRoadworks = async () => {
     try {
       console.log('🚧 Loading automatic roadwork alerts from traffic APIs...');
-      const response = await fetch(`${apiBaseUrl}/api/roadworks-alerts`);
+      const response = await fetch(`${apiBaseUrl}/api/roadworks/unified?source=all`);
       const data = await response.json();
       
       if (data.success) {
-        const trafficData = data.roadworks || [];
+        // Filter out manual roadworks to get only automatic ones
+        const trafficData = (data.roadworks || []).filter(r => r.source !== 'manual');
         setTrafficRoadworks(trafficData);
         console.log(`✅ Loaded ${trafficData.length} automatic roadwork alerts`);
         return trafficData;
@@ -650,6 +651,8 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
           <Text style={styles.cardSource}>
             Source: {roadwork.source === 'tomtom' ? 'TomTom Traffic' : 
                     roadwork.source === 'national_highways' ? 'National Highways' : 
+                    roadwork.source === 'street_manager' ? 'Street Manager' :
+                    roadwork.source === 'durham_council' ? 'Durham County Council' :
                     roadwork.source}
           </Text>
         )}
@@ -759,7 +762,16 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
         >
           <Ionicons name="radio" size={16} color={activeTab === 'automatic' ? '#3B82F6' : '#6B7280'} />
           <Text style={[styles.tabText, activeTab === 'automatic' && styles.activeTabText]}>
-            From Traffic APIs ({trafficRoadworks.length})
+            All Traffic APIs ({trafficRoadworks.filter(r => r.source !== 'durham_council').length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'durham' && styles.activeTab]}
+          onPress={() => setActiveTab('durham')}
+        >
+          <Ionicons name="business" size={16} color={activeTab === 'durham' ? '#3B82F6' : '#6B7280'} />
+          <Text style={[styles.tabText, activeTab === 'durham' && styles.activeTabText]}>
+            Durham Council ({trafficRoadworks.filter(r => r.source === 'durham_council').length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -786,15 +798,25 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
           ) : (
             roadworks.map(roadwork => renderRoadworkCard(roadwork, false))
           )
-        ) : (
-          trafficRoadworks.length === 0 ? (
+        ) : activeTab === 'automatic' ? (
+          trafficRoadworks.filter(r => r.source !== 'durham_council').length === 0 ? (
             <View style={styles.emptyContainer}>
               <Ionicons name="radio" size={48} color="#E5E7EB" />
               <Text style={styles.emptyTitle}>No Automatic Roadwork Alerts</Text>
               <Text style={styles.emptyText}>Waiting for roadwork data from TomTom and National Highways</Text>
             </View>
           ) : (
-            trafficRoadworks.map(roadwork => renderRoadworkCard(roadwork, true))
+            trafficRoadworks.filter(r => r.source !== 'durham_council').map(roadwork => renderRoadworkCard(roadwork, true))
+          )
+        ) : (
+          trafficRoadworks.filter(r => r.source === 'durham_council').length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="business" size={48} color="#E5E7EB" />
+              <Text style={styles.emptyTitle}>No Durham Council Roadworks</Text>
+              <Text style={styles.emptyText}>Fetching Durham roadworks data...</Text>
+            </View>
+          ) : (
+            trafficRoadworks.filter(r => r.source === 'durham_council').map(roadwork => renderRoadworkCard(roadwork, true))
           )
         )}
       </ScrollView>

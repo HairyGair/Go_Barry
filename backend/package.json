@@ -29,7 +29,9 @@
     "memory-test": "node --max-old-space-size=2048 --expose-gc -e \"console.log('Memory test passed - 2GB heap available'); if(global.gc) console.log('Garbage collection available'); else console.log('Warning: Garbage collection not available');\"",
     "migrate:supabase": "node migrate-to-supabase.js",
     "test:supabase": "node test-supabase-migration.js",
-    "scrape:onenetwork": "node runOneNetworkScraper.js"
+    "scrape:onenetwork": "node runOneNetworkScraper.js",
+    "durham-scraper": "node scripts/run-durham-scraper.js",
+    "durham-scraper:watch": "node scripts/run-durham-scraper-continuous.js"
   },
   "dependencies": {
     "@azure/identity": "^4.10.1",

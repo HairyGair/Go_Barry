@@ -294,6 +294,124 @@ export const getAlert = query({
   },
 });
 
+// Push alert to display
+export const pushToDisplay = mutation({
+  args: {
+    alertId: v.string(),
+    sessionId: v.id("supervisorSessions"),
+    notes: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Verify session
+    const session = await ctx.db.get(args.sessionId);
+    if (!session || !session.isActive) {
+      throw new Error("Invalid session");
+    }
+
+    // Find the alert
+    const alert = await ctx.db
+      .query("alerts")
+      .withIndex("by_status")
+      .filter(q => q.eq(q.field("alertId"), args.alertId))
+      .first();
+
+    if (!alert) {
+      throw new Error("Alert not found");
+    }
+
+    // Update alert
+    await ctx.db.patch(alert._id, {
+      pushedToDisplay: true,
+      pushedToDisplayBy: session.supervisorName,
+      pushedToDisplayAt: Date.now(),
+      pushedToDisplayNotes: args.notes,
+      dismissedFromDisplay: false, // Reset dismissed status when pushing
+    });
+
+    // Log action
+    await ctx.db.insert("supervisorActions", {
+      action: "push_to_display",
+      supervisorId: session.supervisorId,
+      supervisorName: session.supervisorName,
+      timestamp: Date.now(),
+      alertId: args.alertId,
+      details: {
+        alertTitle: alert.title,
+        notes: args.notes,
+      },
+    });
+
+    return { success: true };
+  },
+});
+
+// Remove alert from display
+export const removeFromDisplay = mutation({
+  args: {
+    alertId: v.string(),
+    sessionId: v.id("supervisorSessions"),
+  },
+  handler: async (ctx, args) => {
+    // Verify session
+    const session = await ctx.db.get(args.sessionId);
+    if (!session || !session.isActive) {
+      throw new Error("Invalid session");
+    }
+
+    // Find the alert
+    const alert = await ctx.db
+      .query("alerts")
+      .withIndex("by_status")
+      .filter(q => q.eq(q.field("alertId"), args.alertId))
+      .first();
+
+    if (!alert) {
+      throw new Error("Alert not found");
+    }
+
+    // Update alert
+    await ctx.db.patch(alert._id, {
+      pushedToDisplay: false,
+      pushedToDisplayBy: undefined,
+      pushedToDisplayAt: undefined,
+      pushedToDisplayNotes: undefined,
+    });
+
+    // Log action
+    await ctx.db.insert("supervisorActions", {
+      action: "remove_from_display",
+      supervisorId: session.supervisorId,
+      supervisorName: session.supervisorName,
+      timestamp: Date.now(),
+      alertId: args.alertId,
+      details: {
+        alertTitle: alert.title,
+      },
+    });
+
+    return { success: true };
+  },
+});
+
+// Get pushed alerts for display
+export const getPushedAlerts = query({
+  handler: async (ctx) => {
+    const alerts = await ctx.db
+      .query("alerts")
+      .withIndex("by_timestamp")
+      .order("desc")
+      .filter(q => 
+        q.and(
+          q.eq(q.field("pushedToDisplay"), true),
+          q.neq(q.field("status"), "resolved")
+        )
+      )
+      .take(50);
+
+    return alerts;
+  },
+});
+
 // Get dismissed alerts
 export const getDismissedAlerts = query({
   handler: async (ctx) => {
@@ -321,6 +439,9 @@ export const batchInsertAlerts = mutation({
       timestamp: v.number(),
       affectsRoutes: v.array(v.string()),
       routeFrequencies: v.optional(v.any()),
+      pushedToDisplay: v.optional(v.boolean()),
+      pushedToDisplayBy: v.optional(v.string()),
+      pushedToDisplayAt: v.optional(v.number()),
     })),
   },
   handler: async (ctx, args) => {
@@ -348,12 +469,10 @@ export const batchInsertAlerts = mutation({
           timestamp: alertData.timestamp,
           affectsRoutes: alertData.affectsRoutes,
           routeFrequencies: alertData.routeFrequencies,
-          alertCategory: alertData.alertCategory,
-          isRoadwork: alertData.isRoadwork,
-          isIncident: alertData.isIncident,
-          pushedToDisplay: alertData.pushedToDisplay || existing.pushedToDisplay,
-          pushedBy: alertData.pushedBy || existing.pushedBy,
-          displayPriority: alertData.displayPriority || existing.displayPriority,
+          // Preserve push to display state unless explicitly updated
+          pushedToDisplay: alertData.pushedToDisplay !== undefined ? alertData.pushedToDisplay : existing.pushedToDisplay,
+          pushedToDisplayBy: alertData.pushedToDisplayBy || existing.pushedToDisplayBy,
+          pushedToDisplayAt: alertData.pushedToDisplayAt || existing.pushedToDisplayAt,
         });
         updatedCount++;
       } else {
@@ -365,11 +484,9 @@ export const batchInsertAlerts = mutation({
           dismissedFromDisplay: false,
           lockedOnDisplay: false,
           pushedToDisplay: alertData.pushedToDisplay || false,
-          pushedBy: alertData.pushedBy,
-          displayPriority: alertData.displayPriority,
-          alertCategory: alertData.alertCategory,
-          isRoadwork: alertData.isRoadwork || false,
-          isIncident: alertData.isIncident || false,
+          pushedToDisplayBy: alertData.pushedToDisplayBy || undefined,
+          pushedToDisplayAt: alertData.pushedToDisplayAt || undefined,
+          pushedToDisplayNotes: undefined,
         });
         insertedCount++;
       }

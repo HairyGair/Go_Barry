@@ -144,21 +144,27 @@ export function useSyncState() {
 export function useAlerts() {
   const activeAlerts = api ? useQuery(api.alerts.getActiveAlerts) : [];
   const dismissedAlerts = api ? useQuery(api.alerts.getDismissedAlerts) : [];
+  const pushedAlerts = api ? useQuery(api.alerts.getPushedAlerts) : [];
   
   const acknowledge = api ? useMutation(api.alerts.acknowledge) : useMutation();
   const dismissFromDisplay = api ? useMutation(api.alerts.dismissFromDisplay) : useMutation();
   const toggleDisplayLock = api ? useMutation(api.alerts.toggleDisplayLock) : useMutation();
   const overridePriority = api ? useMutation(api.alerts.overridePriority) : useMutation();
   const addNote = api ? useMutation(api.alerts.addNote) : useMutation();
+  const pushToDisplay = api ? useMutation(api.alerts.pushToDisplay) : useMutation();
+  const removeFromDisplay = api ? useMutation(api.alerts.removeFromDisplay) : useMutation();
 
   return {
     activeAlerts: activeAlerts || [],
     dismissedAlerts: dismissedAlerts || [],
+    pushedAlerts: pushedAlerts || [],
     acknowledge,
     dismissFromDisplay,
     toggleDisplayLock,
     overridePriority,
     addNote,
+    pushToDisplay,
+    removeFromDisplay,
   };
 }
 
@@ -427,11 +433,14 @@ export function useConvexSync() {
     // Alerts
     activeAlerts: alerts.activeAlerts,
     dismissedAlerts: alerts.dismissedAlerts,
+    pushedAlerts: alerts.pushedAlerts,
     acknowledge: alerts.acknowledge,
     dismissFromDisplay: alerts.dismissFromDisplay,
     toggleDisplayLock: alerts.toggleDisplayLock,
     overridePriority: alerts.overridePriority,
     addNote: alerts.addNote,
+    pushToDisplay: alerts.pushToDisplay,
+    removeFromDisplay: alerts.removeFromDisplay,
     
     // Supervisors
     activeSupervisors: supervisors.activeSupervisors,

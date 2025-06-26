@@ -41,7 +41,7 @@ const EnhancedDashboard = ({
   const { track, featureUsed } = useAnalytics();
   
   // FIXED: Use Convex for real-time alerts sync
-  const { activeAlerts } = useConvexSync();
+  const { activeAlerts, pushToDisplay } = useConvexSync();
   
   // Process alerts from Convex to ensure consistent format
   const alertsData = useMemo(() => {
@@ -277,6 +277,42 @@ const EnhancedDashboard = ({
       setSelectedAlertDetails(alert);
     }
   }, [onAlertPress, track]);
+  
+  // Handle push to display
+  const handlePushToDisplay = useCallback(async (alert) => {
+    if (!session?.sessionId) {
+      Alert.alert('Error', 'Please log in to push alerts to display');
+      return;
+    }
+    
+    try {
+      const result = await pushToDisplay({
+        alertId: alert.alertId || alert.id,
+        sessionId: session.sessionId,
+        notes: `${alert.title} - ${alert.location}`
+      });
+      
+      if (result.success) {
+        Alert.alert(
+          'Success',
+          'Alert pushed to control room display',
+          [{ text: 'OK' }]
+        );
+        
+        // Track the action
+        track('alert_pushed_to_display', {
+          alertId: alert.id,
+          severity: alert.severity,
+          location: alert.location
+        });
+      } else {
+        Alert.alert('Error', 'Failed to push alert to display');
+      }
+    } catch (error) {
+      console.error('❌ Push to display error:', error);
+      Alert.alert('Error', error.message || 'Failed to push alert to display');
+    }
+  }, [session, pushToDisplay, track]);
 
   // Statistics calculations
   const stats = useMemo(() => {
@@ -492,6 +528,20 @@ const EnhancedDashboard = ({
             >
               <Ionicons name="pencil" size={12} color="#6B7280" />
               <Text style={styles.locationEditText}>Edit Location</Text>
+            </TouchableOpacity>
+          )}
+          
+          {/* Push to display button for supervisors */}
+          {session && (
+            <TouchableOpacity
+              style={styles.pushToDisplayButton}
+              onPress={(e) => {
+                e.stopPropagation(); // Prevent triggering alert click
+                handlePushToDisplay(alert);
+              }}
+            >
+              <Ionicons name="tv" size={12} color="#3B82F6" />
+              <Text style={styles.pushToDisplayText}>Display to Control Room</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -1428,6 +1478,23 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#6B7280',
     fontWeight: '500',
+  },
+  pushToDisplayButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  pushToDisplayText: {
+    fontSize: 11,
+    color: '#3B82F6',
+    fontWeight: '600',
   },
 });
 

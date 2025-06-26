@@ -560,6 +560,12 @@ console.log('📍 Registering location correction routes at /api/location...');
 app.use('/api/location', locationCorrectionAPI);
 console.log('✅ Location correction routes registered successfully');
 
+// Weather API routes
+console.log('🌤️ Registering weather routes at /api/weather...');
+import weatherAPI from './routes/weatherAPI.js';
+app.use('/api/weather', weatherAPI);
+console.log('✅ Weather routes registered successfully');
+
 import { enhanceAlertWithCategory } from './services/alertCategorizer.js';
 
 // Filtered alerts endpoints for manager screens

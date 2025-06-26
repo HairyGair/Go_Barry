@@ -65,6 +65,12 @@ export default defineSchema({
     lockedOnDisplay: v.boolean(),
     lockedOnDisplayBy: v.optional(v.string()),
     lockedOnDisplayAt: v.optional(v.number()),
+    
+    // Push to display control
+    pushedToDisplay: v.boolean(),
+    pushedToDisplayBy: v.optional(v.string()),
+    pushedToDisplayAt: v.optional(v.number()),
+    pushedToDisplayNotes: v.optional(v.string()),
   })
     .index("by_status", ["status"])
     .index("by_severity", ["severity"])

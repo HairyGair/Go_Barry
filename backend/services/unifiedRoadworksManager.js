@@ -3,7 +3,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import axios from 'axios';
-// import * as cheerio from 'cheerio'; // TODO: Add cheerio dependency for Durham scraping
+import durhamRoadworks from './durhamRoadworks.js';
 import { generateAlertHash } from '../utils/alertDeduplication.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
@@ -176,14 +176,13 @@ class UnifiedRoadworksManager {
    */
   async getDurhamRoadworks() {
     try {
-      // Use a proxy/fallback approach for Durham
-      const durhamData = await this.scrapeDurhamRoadworks();
+      // Use the Durham scraper service with Puppeteer
+      const durhamData = await durhamRoadworks.fetchRoadworks();
       
-      const roadworks = durhamData.map(item => this.normalizeDurhamData(item));
-      
+      // Data is already normalized by the Durham service
       return {
         success: true,
-        data: roadworks,
+        data: durhamData,
         lastUpdate: new Date().toISOString(),
         source: 'durham_council'
       };
@@ -225,40 +224,7 @@ class UnifiedRoadworksManager {
     }
   }
 
-  /**
-   * Scrape Durham Council roadworks page
-   */
-  async scrapeDurhamRoadworks() {
-    try {
-      // For now, return empty array - we'll implement scraping if needed
-      // This would require careful analysis of Durham's website structure
-      console.log('📋 Durham scraping not yet implemented - using Street Manager data');
-      return [];
-      
-      // TODO: Implement Durham scraping
-      // const response = await axios.get('https://www.durham.gov.uk/roadworks', {
-      //   timeout: 10000,
-      //   headers: {
-      //     'User-Agent': 'Go-BARRY-Bot/1.0'
-      //   }
-      // });
-      
-      // const $ = cheerio.load(response.data);
-      // const roadworks = [];
-      
-      // // Parse Durham's roadworks data structure
-      // $('.roadwork-item').each((i, element) => {
-      //   roadworks.push({
-      //     // Extract data based on Durham's HTML structure
-      //   });
-      // });
-      
-      // return roadworks;
-    } catch (error) {
-      console.warn('⚠️ Durham scraping failed:', error.message);
-      return [];
-    }
-  }
+
 
   /**
    * Normalize Street Manager data to unified format
@@ -291,36 +257,7 @@ class UnifiedRoadworksManager {
     };
   }
 
-  /**
-   * Normalize Durham data to unified format
-   */
-  normalizeDurhamData(item) {
-    return {
-      id: `durham_${item.id || Date.now()}`,
-      title: item.title,
-      description: item.description,
-      location: item.location,
-      streetName: item.street,
-      areaName: 'Durham',
-      coordinates: item.coordinates,
-      startDate: item.startDate,
-      endDate: item.endDate,
-      status: item.status || 'active',
-      severity: 'Medium',
-      source: 'durham_council',
-      sourceId: item.id,
-      promoter: 'Durham County Council',
-      authority: 'Durham County Council',
-      workCategory: item.category,
-      lastUpdated: new Date().toISOString(),
-      managementActions: {
-        canDismiss: true,
-        canAcknowledge: true,
-        canSave: true,
-        canEdit: false
-      }
-    };
-  }
+
 
   /**
    * Normalize manual data to unified format
