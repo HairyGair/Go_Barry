@@ -240,4 +240,28 @@ export default defineSchema({
   })
     .index("by_active", ["isActive"])
     .index("by_upload_date", ["uploadedAt"]),
+
+  // VIX Late Runners data
+  vixData: defineTable({
+    lateRunners: v.array(v.object({
+      fleetNo: v.string(),
+      service: v.string(),
+      depot: v.string(),
+      rb: v.optional(v.string()),
+      stop: v.string(),
+      driverNo: v.optional(v.string()),
+      lateness: v.string(),
+      delayMinutes: v.number()
+    })),
+    stats: v.object({
+      totalLateRunners: v.number(),
+      criticalDelays: v.number(),
+      averageDelay: v.number(),
+      worstDelay: v.number()
+    }),
+    uploadedBy: v.optional(v.string()),
+    uploadedAt: v.string(),
+    timestamp: v.number()
+  })
+    .index("by_timestamp", ["timestamp"]),
 });

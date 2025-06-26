@@ -71,7 +71,7 @@ export async function runDataRetentionCleanup() {
     // Run the Supabase cleanup function
     console.log('🔧 Executing Supabase cleanup function...');
     
-    const { data, error } = await supabase.rpc('cleanup_old_data');
+    const { data, error } = await supabase.rpc('cleanup_old_alerts');
 
     if (error) {
       console.error('❌ Error during Supabase cleanup:', error);

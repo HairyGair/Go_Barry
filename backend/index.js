@@ -173,22 +173,40 @@ async function initializeApplication() {
   try {
     console.log('🚀 Initializing GTFS route matching system...');
     
-    // Initialize new comprehensive GTFS service first
+    // Initialize GTFS service - ONLY ONE will be loaded
+    let gtfsInitialized = false;
+    
+    // Try comprehensive GTFS service first (preferred)
     try {
       console.log('🚌 Initializing comprehensive GTFS service...');
       await gtfsService.initialize();
-      console.log('✅ Comprehensive GTFS service ready');
+      console.log('✅ Comprehensive GTFS service ready - USING THIS');
+      gtfsInitialized = true;
     } catch (gtfsError) {
-      console.warn('⚠️ Comprehensive GTFS service failed, trying fallbacks:', gtfsError.message);
-      
-      // Try memory-efficient streaming processor
+      console.warn('⚠️ Comprehensive GTFS service failed:', gtfsError.message);
+    }
+    
+    // Only try fallbacks if first one failed
+    if (!gtfsInitialized) {
       try {
+        console.log('🚌 Trying memory-efficient streaming processor...');
         await initializeStreamingProcessor();
-        console.log('✅ Memory-efficient streaming GTFS processor ready');
+        console.log('✅ Memory-efficient streaming GTFS processor ready - USING THIS');
+        gtfsInitialized = true;
       } catch (streamingError) {
-        console.warn('⚠️ Streaming processor failed, falling back to enhanced GTFS:', streamingError.message);
+        console.warn('⚠️ Streaming processor failed:', streamingError.message);
+      }
+    }
+    
+    // Last resort fallback
+    if (!gtfsInitialized) {
+      try {
+        console.log('🚌 Trying enhanced GTFS as last resort...');
         await initializeEnhancedGTFS();
-        console.log('✅ Enhanced GTFS route matching ready (fallback)');
+        console.log('✅ Enhanced GTFS route matching ready - USING THIS (fallback)');
+        gtfsInitialized = true;
+      } catch (enhancedError) {
+        console.error('❌ All GTFS services failed to initialize:', enhancedError.message);
       }
     }
     

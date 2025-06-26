@@ -256,6 +256,28 @@ export function useEvents() {
   };
 }
 
+// Hook for VIX late runners data
+export function useVixData() {
+  let vixData, updateVixData, clearVixData;
+  
+  try {
+    vixData = api && api.vixData ? useQuery(api.vixData.getVixData) : null;
+    updateVixData = api && api.vixData ? useMutation(api.vixData.updateVixData) : useMutation();
+    clearVixData = api && api.vixData ? useMutation(api.vixData.clearVixData) : useMutation();
+  } catch (error) {
+    console.warn('VIX data functions not available yet - Convex deployment needed');
+    vixData = null;
+    updateVixData = async () => ({ success: false, error: 'VIX functions not deployed' });
+    clearVixData = async () => ({ success: false, error: 'VIX functions not deployed' });
+  }
+
+  return {
+    vixData: vixData || null,
+    updateVixData,
+    clearVixData,
+  };
+}
+
 // Hook for incident management
 export function useIncidents() {
   let activeIncidents, allIncidents, createIncident, updateIncident, addIncidentNote, sendTicketerMessage, pushIncidentToDisplay;
@@ -385,6 +407,7 @@ export function useConvexSync() {
   const incidents = useIncidents();
   const alertSync = useAlertSync();
   const loginTracking = useLoginTracking();
+  const vixDataHook = useVixData();
 
   // Get stored session ID on mount
   useEffect(() => {
@@ -480,5 +503,10 @@ export function useConvexSync() {
     recentLogins: loginTracking.recentLogins,
     loginHistory: loginTracking.loginHistory,
     trackLogin: loginTracking.trackLogin,
+    
+    // VIX data
+    vixData: vixDataHook.vixData,
+    updateVixData: vixDataHook.updateVixData,
+    clearVixData: vixDataHook.clearVixData,
   };
 }

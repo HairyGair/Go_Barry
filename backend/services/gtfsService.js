@@ -624,9 +624,7 @@ class GTFSService {
 // Create singleton instance
 const gtfsService = new GTFSService();
 
-// Initialize on module load
-gtfsService.initialize().catch(error => {
-  console.error('Failed to initialize GTFS Service:', error);
-});
+// Don't auto-initialize to prevent duplicate loading
+// Initialization will be handled by index.js
 
 export default gtfsService;

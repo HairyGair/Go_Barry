@@ -6,8 +6,6 @@ import OptimizedTomTomMap from './OptimizedTomTomMap';
 import { useConvexSync, useSupervisorActions } from '../hooks/useConvexSync';
 import { formatTime24WithSeconds, formatDateWithWeekday, formatTime24 } from '../utils/dateTime';
 import LateRunnersWidget from './LateRunnersWidget';
-import VixUploadButton from './VixUploadButton';
-import useVixData from './hooks/useVixData';
 
 const DisplayScreen = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -17,18 +15,11 @@ const DisplayScreen = () => {
   const weatherLocations = ['Newcastle', 'Gateshead', 'Sunderland', 'Durham', 'Consett', 'Stanley'];
 
   // Use Convex for real-time sync
-  const { pushedAlerts, activeSupervisors } = useConvexSync();
+  const { pushedAlerts, activeSupervisors, vixData } = useConvexSync();
   const supervisorActivity = useSupervisorActions({ limit: 10 });
   
-  // VIX late runners data
-  const { 
-    lateRunners, 
-    lastUpdated: vixLastUpdated, 
-    isLoading: vixLoading,
-    stats: vixStats,
-    processVixFile,
-    dataAge: vixDataAge 
-  } = useVixData();
+  // Extract VIX data from Convex (with safe fallback)
+  const lateRunners = vixData?.lateRunners || [];
 
   // Update time every second
   useEffect(() => {
@@ -279,45 +270,33 @@ const DisplayScreen = () => {
               mapId="display-screen-60m"
             />
           </div>
+        </div>
 
-          {/* Late Runners Section */}
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px'
-          }}>
-            {/* VIX Upload Button */}
-            <div style={{
-              alignSelf: 'flex-end',
-              paddingRight: '10px'
-            }}>
-              <VixUploadButton
-                onUpload={processVixFile}
-                isLoading={vixLoading}
-                lastUpdated={vixLastUpdated}
-                dataAge={vixDataAge}
-                stats={vixStats}
-              />
-            </div>
-            
-            {/* Late Runners Widget */}
+        {/* Right Side Panel */}
+        <div style={{
+          width: '450px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '15px'
+        }}>
+          {/* Late Runners Widget */}
+          {lateRunners && lateRunners.length > 0 && (
             <LateRunnersWidget 
               lateRunners={lateRunners}
               limit={5}
             />
-          </div>
-        </div>
-
-        {/* Activity Panel */}
-        <div style={{
-          width: '450px',
-          backgroundColor: '#1a1a1a',
-          borderRadius: '12px',
-          padding: '20px',
-          border: '2px solid #333333',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
+          )}
+          
+          {/* Activity Panel */}
+          <div style={{
+            flex: 1,
+            backgroundColor: '#1a1a1a',
+            borderRadius: '12px',
+            padding: '20px',
+            border: '2px solid #333333',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
           <h2 style={{
             fontSize: '32px',
             marginBottom: '20px',
@@ -396,6 +375,7 @@ const DisplayScreen = () => {
                 </div>
               )}
             </div>
+          </div>
           </div>
         </div>
       </div>

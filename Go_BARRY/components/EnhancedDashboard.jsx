@@ -27,6 +27,8 @@ import { SkeletonAlert } from './ui/SkeletonLoader';
 import { SystemHealthMonitor } from './ui/TrustSignals';
 import { useAnalytics } from '../services/analytics';
 import LocationCorrectionModal from './LocationCorrectionModal';
+import VixUploadButton from './VixUploadButton';
+import useVixData from './hooks/useVixData';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -246,6 +248,16 @@ const EnhancedDashboard = ({
   
   // State for location correction modal
   const [correctionModalAlert, setCorrectionModalAlert] = useState(null);
+  
+  // VIX late runners data
+  const { 
+    lateRunners, 
+    lastUpdated: vixLastUpdated, 
+    isLoading: vixLoading,
+    stats: vixStats,
+    processVixFile,
+    dataAge: vixDataAge 
+  } = useVixData();
 
   // Handle alert interactions
   const handleAlertClick = useCallback((alert) => {
@@ -578,6 +590,16 @@ const EnhancedDashboard = ({
               <Ionicons name="settings" size={16} color="#3B82F6" />
               <Text style={styles.controlButtonText}>Control Panel</Text>
             </TouchableOpacity>
+            {/* VIX Upload Button - Only show when ready */}
+            {processVixFile && (
+              <VixUploadButton
+                onUpload={processVixFile}
+                isLoading={vixLoading}
+                lastUpdated={vixLastUpdated}
+                dataAge={vixDataAge}
+                stats={vixStats}
+              />
+            )}
             {/* Debug button - KEEP FOR NOW to diagnose sync issues */}
             <TouchableOpacity
               onPress={() => {

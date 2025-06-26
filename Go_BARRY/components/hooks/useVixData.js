@@ -2,13 +2,30 @@
 // Hook for managing VIX late runners data
 
 import { useState } from 'react';
+import { useConvexSync } from '../../hooks/useConvexSync';
+import { useSupervisorSession } from './useSupervisorSession';
 
 const useVixData = () => {
-  const [lateRunners, setLateRunners] = useState([]);
-  const [lastUpdated, setLastUpdated] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
-  const [stats, setStats] = useState(null);
+  
+  let vixData, updateConvexVixData;
+  try {
+    const convexSync = useConvexSync();
+    vixData = convexSync.vixData;
+    updateConvexVixData = convexSync.updateVixData;
+  } catch (error) {
+    console.warn('VIX Convex functions not available yet');
+    vixData = null;
+    updateConvexVixData = async () => ({ success: false, error: 'Convex not ready' });
+  }
+  
+  const { supervisorSession } = useSupervisorSession();
+  
+  // Extract data from Convex
+  const lateRunners = vixData?.lateRunners || [];
+  const lastUpdated = vixData?.uploadedAt ? new Date(vixData.uploadedAt) : null;
+  const stats = vixData?.stats || null;
 
   // Process VIX Excel file
   const processVixFile = async (file) => {
@@ -43,11 +60,19 @@ const useVixData = () => {
       const data = await response.json();
       
       if (data.success && data.lateRunners) {
-        setLateRunners(data.lateRunners);
-        setLastUpdated(new Date());
-        setStats(data.stats);
-        
-        console.log(`✅ VIX data processed: ${data.lateRunners.length} late runners`);
+        // Update Convex with the new data if available
+        if (updateConvexVixData) {
+          await updateConvexVixData({
+            lateRunners: data.lateRunners,
+            stats: data.stats,
+            uploadedBy: supervisorSession?.supervisor?.name || 'Unknown',
+            uploadedAt: new Date().toISOString()
+          });
+          
+          console.log(`✅ VIX data processed and synced to Convex: ${data.lateRunners.length} late runners`);
+        } else {
+          console.log(`✅ VIX data processed: ${data.lateRunners.length} late runners (Convex sync pending)`);
+        }
         
         return { 
           success: true, 
@@ -66,11 +91,8 @@ const useVixData = () => {
     }
   };
 
-  // Clear data
+  // Clear data function is not needed as Convex handles it
   const clearVixData = () => {
-    setLateRunners([]);
-    setLastUpdated(null);
-    setStats(null);
     setUploadError(null);
   };
 
@@ -94,4 +116,5 @@ const useVixData = () => {
   };
 };
 
+export { useVixData };
 export default useVixData;

@@ -2,7 +2,7 @@
 // Button component for uploading VIX late runners data
 
 import React, { useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 
 const VixUploadButton = ({ onUpload, isLoading, lastUpdated, dataAge, stats }) => {
   const fileInputRef = useRef(null);
@@ -16,7 +16,7 @@ const VixUploadButton = ({ onUpload, isLoading, lastUpdated, dataAge, stats }) =
   };
 
   const handlePress = () => {
-    if (Platform.OS === 'web' && fileInputRef.current) {
+    if (fileInputRef.current) {
       fileInputRef.current.click();
     }
   };
@@ -31,15 +31,13 @@ const VixUploadButton = ({ onUpload, isLoading, lastUpdated, dataAge, stats }) =
 
   return (
     <View style={styles.container}>
-      {Platform.OS === 'web' && (
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".xls,.xlsx"
-          onChange={handleFileSelect}
-          style={{ display: 'none' }}
-        />
-      )}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xls,.xlsx"
+        onChange={handleFileSelect}
+        style={{ display: 'none' }}
+      />
       
       <TouchableOpacity
         style={[styles.button, isLoading && styles.buttonDisabled]}

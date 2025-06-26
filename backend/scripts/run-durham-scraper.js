@@ -38,7 +38,7 @@ async function runDurhamScraper() {
       roadworks.slice(0, 3).forEach((rw, index) => {
         console.log(`  ${index + 1}. ${rw.title || rw.location}`);
         console.log(`     📍 Location: ${rw.location}`);
-        console.log(`     🚦 Traffic Management: ${rw.trafficManagement || 'Not specified'}`);
+        console.log(`     🚦 Severity: ${rw.severity}`);
         console.log(`     🚌 Affected Routes: ${rw.affectedRoutes?.join(', ') || 'None identified'}`);
         console.log('');
       });

@@ -25,28 +25,50 @@ class DurhamRoadworksService {
       });
       
       const page = await browser.newPage();
+      
+      // Set user agent to avoid bot detection
+      await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+      await page.setViewport({ width: 1920, height: 1080 });
+      
       await page.goto(this.baseUrl, { waitUntil: 'networkidle2', timeout: 30000 });
       
-      // Wait for the table to load
-      await page.waitForSelector('table', { timeout: 10000 });
+      // Debug: log page content
+      const pageTitle = await page.title();
+      console.log(`📄 Page title: ${pageTitle}`);
       
-      // Extract roadworks data
-      const roadworks = await page.evaluate(() => {
-        const rows = document.querySelectorAll('table tbody tr');
-        return Array.from(rows).map(row => {
-          const cells = row.querySelectorAll('td');
-          if (cells.length < 5) return null;
-          
-          return {
-            location: cells[0]?.textContent?.trim() || '',
-            description: cells[1]?.textContent?.trim() || '',
-            startDate: cells[2]?.textContent?.trim() || '',
-            endDate: cells[3]?.textContent?.trim() || '',
-            trafficManagement: cells[4]?.textContent?.trim() || '',
-            contractor: cells[5]?.textContent?.trim() || 'Durham County Council'
-          };
-        }).filter(item => item && item.location);
-      });
+      // Debug: check what's on the page
+      const hasTable = await page.$('table') !== null;
+      const hasList = await page.$('ul.roadworks-list, .roadworks-list') !== null;
+      const hasCards = await page.$('.card, .roadwork-card') !== null;
+      
+      console.log(`🔍 Page elements - Table: ${hasTable}, List: ${hasList}, Cards: ${hasCards}`);
+      
+      // Try multiple selectors
+      let roadworks = [];
+      
+      if (hasTable) {
+        // Original table-based extraction
+        await page.waitForSelector('table', { timeout: 20000 });
+        roadworks = await this.extractFromTable(page);
+      } else if (hasList || hasCards) {
+        // Try alternative selectors
+        roadworks = await this.extractFromListOrCards(page);
+      } else {
+        // Fallback: look for any text content about roadworks
+        roadworks = await this.extractFromGenericContent(page);
+        
+        // Debug: save screenshot if no roadworks found
+        if (roadworks.length === 0) {
+          try {
+            await page.screenshot({ path: 'durham-debug.png' });
+            console.log('📸 Debug screenshot saved to durham-debug.png');
+          } catch (err) {
+            console.log('⚠️ Could not save screenshot:', err.message);
+          }
+        }
+      }
+      
+      console.log(`✅ Found ${roadworks.length} roadworks entries`);
 
       // Transform to match your format
       this.roadworks = roadworks.map((rw, index) => ({
@@ -97,6 +119,90 @@ class DurhamRoadworksService {
     const routePattern = /\b(X?\d{1,3}[A-Z]?)\b/g;
     const matches = text.match(routePattern) || [];
     return matches.filter(r => !r.match(/^(A|B|M)\d/)); // Exclude road numbers
+  }
+
+  async extractFromTable(page) {
+    return await page.evaluate(() => {
+      const rows = document.querySelectorAll('table tbody tr');
+      return Array.from(rows).map(row => {
+        const cells = row.querySelectorAll('td');
+        if (cells.length < 5) return null;
+        
+        return {
+          location: cells[0]?.textContent?.trim() || '',
+          description: cells[1]?.textContent?.trim() || '',
+          startDate: cells[2]?.textContent?.trim() || '',
+          endDate: cells[3]?.textContent?.trim() || '',
+          trafficManagement: cells[4]?.textContent?.trim() || '',
+          contractor: cells[5]?.textContent?.trim() || 'Durham County Council'
+        };
+      }).filter(item => item && item.location);
+    });
+  }
+
+  async extractFromListOrCards(page) {
+    return await page.evaluate(() => {
+      // Try various selectors for modern layouts
+      const items = document.querySelectorAll('.roadwork-item, .roadworks-list li, .card, [class*="roadwork"]');
+      
+      return Array.from(items).map(item => {
+        const text = item.textContent || '';
+        
+        // Extract info using common patterns
+        const locationMatch = text.match(/Location:?\s*([^\n]+)/i);
+        const descMatch = text.match(/Description:?\s*([^\n]+)/i);
+        const startMatch = text.match(/Start:?\s*([^\n]+)/i);
+        const endMatch = text.match(/End:?\s*([^\n]+)/i);
+        
+        return {
+          location: locationMatch?.[1]?.trim() || item.querySelector('h3, h4, .title')?.textContent?.trim() || '',
+          description: descMatch?.[1]?.trim() || item.querySelector('.description, .details')?.textContent?.trim() || text.substring(0, 100),
+          startDate: startMatch?.[1]?.trim() || 'TBC',
+          endDate: endMatch?.[1]?.trim() || 'TBC',
+          trafficManagement: 'Check Durham Council website',
+          contractor: 'Durham County Council'
+        };
+      }).filter(item => item.location);
+    });
+  }
+
+  async extractFromGenericContent(page) {
+    console.log('⚠️ Using fallback content extraction');
+    
+    return await page.evaluate(() => {
+      // Look for any text that might contain roadwork info
+      const allText = document.body.innerText;
+      const lines = allText.split('\n').filter(line => line.trim());
+      
+      const roadworks = [];
+      let currentRoadwork = null;
+      
+      for (const line of lines) {
+        // Look for location patterns (road names, areas)
+        if (line.match(/(A\d{1,4}|B\d{3,4}|road|street|lane|avenue)/i) && line.length < 100) {
+          if (currentRoadwork) {
+            roadworks.push(currentRoadwork);
+          }
+          currentRoadwork = {
+            location: line.trim(),
+            description: '',
+            startDate: 'TBC',
+            endDate: 'TBC',
+            trafficManagement: 'Check Durham Council website',
+            contractor: 'Durham County Council'
+          };
+        } else if (currentRoadwork && line.length > 20) {
+          // Add as description
+          currentRoadwork.description += line + ' ';
+        }
+      }
+      
+      if (currentRoadwork) {
+        roadworks.push(currentRoadwork);
+      }
+      
+      return roadworks.slice(0, 10); // Limit to prevent too many false positives
+    });
   }
 }
 
