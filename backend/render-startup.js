@@ -52,11 +52,20 @@ global.goBarryRouteCount = routeCount;
 console.log('🚀 Starting Go BARRY Backend - Render Optimized...');
 console.log(`📍 PORT configured: ${PORT}`);
 
-// CORS middleware
+// CORS middleware - secure configuration
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  const allowedOrigins = process.env.CORS_ORIGIN ? 
+    process.env.CORS_ORIGIN.split(',') : 
+    ['https://gobarry.co.uk', 'https://go-barry.onrender.com'];
+  
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -94,8 +103,11 @@ app.post('/api/supervisor/login', (req, res) => {
   
   console.log(`🔐 Auth attempt: ${supervisorId} with badge ${badge}`);
   
-  // Simple fallback authentication
-  const validSupervisors = {
+  // SECURITY WARNING: Fallback authentication - only for development/emergency use
+  // TODO: Replace with proper database authentication for production
+  const enableFallbackAuth = process.env.ENABLE_FALLBACK_AUTH === 'true' || process.env.NODE_ENV === 'development';
+  
+  const validSupervisors = enableFallbackAuth ? {
     'supervisor001': { name: 'Alex Woodcock', badge: 'AW001' },
     'supervisor002': { name: 'Andrew Cowley', badge: 'AC002' },
     'supervisor003': { name: 'Anthony Gair', badge: 'AG003' },
@@ -105,7 +117,7 @@ app.post('/api/supervisor/login', (req, res) => {
     'supervisor007': { name: 'John Paterson', badge: 'JP007' },
     'supervisor008': { name: 'Simon Glass', badge: 'SG008' },
     'supervisor009': { name: 'Barry Perryman', badge: 'BP009' }
-  };
+  } : {};
   
   const supervisor = validSupervisors[supervisorId];
   

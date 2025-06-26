@@ -396,19 +396,26 @@ export const removeFromDisplay = mutation({
 // Get pushed alerts for display
 export const getPushedAlerts = query({
   handler: async (ctx) => {
-    const alerts = await ctx.db
-      .query("alerts")
-      .withIndex("by_timestamp")
-      .order("desc")
-      .filter(q => 
-        q.and(
-          q.eq(q.field("pushedToDisplay"), true),
-          q.neq(q.field("status"), "resolved")
-        )
-      )
-      .take(50);
-
-    return alerts;
+    try {
+      const alerts = await ctx.db
+        .query("alerts")
+        .withIndex("by_timestamp")
+        .order("desc")
+        .collect();
+      
+      // Filter manually to avoid field access issues
+      const filteredAlerts = alerts.filter(alert => {
+        const isPushed = alert.pushedToDisplay === true;
+        const isNotResolved = alert.status !== "resolved";
+        return isPushed && isNotResolved;
+      });
+      
+      return filteredAlerts.slice(0, 50);
+    } catch (error) {
+      console.error("Error in getPushedAlerts:", error);
+      // Return empty array if there's an error
+      return [];
+    }
   },
 });
 
@@ -470,7 +477,9 @@ export const batchInsertAlerts = mutation({
           affectsRoutes: alertData.affectsRoutes,
           routeFrequencies: alertData.routeFrequencies,
           // Preserve push to display state unless explicitly updated
-          pushedToDisplay: alertData.pushedToDisplay !== undefined ? alertData.pushedToDisplay : existing.pushedToDisplay,
+          pushedToDisplay: alertData.pushedToDisplay !== undefined 
+            ? (alertData.pushedToDisplay === true ? true : false) 
+            : (existing.pushedToDisplay === true ? true : false),
           pushedToDisplayBy: alertData.pushedToDisplayBy || existing.pushedToDisplayBy,
           pushedToDisplayAt: alertData.pushedToDisplayAt || existing.pushedToDisplayAt,
         });
@@ -483,7 +492,7 @@ export const batchInsertAlerts = mutation({
           notes: [],
           dismissedFromDisplay: false,
           lockedOnDisplay: false,
-          pushedToDisplay: alertData.pushedToDisplay || false,
+          pushedToDisplay: alertData.pushedToDisplay === true ? true : false, // Ensure boolean
           pushedToDisplayBy: alertData.pushedToDisplayBy || undefined,
           pushedToDisplayAt: alertData.pushedToDisplayAt || undefined,
           pushedToDisplayNotes: undefined,

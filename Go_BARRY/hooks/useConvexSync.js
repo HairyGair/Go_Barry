@@ -144,7 +144,10 @@ export function useSyncState() {
 export function useAlerts() {
   const activeAlerts = api ? useQuery(api.alerts.getActiveAlerts) : [];
   const dismissedAlerts = api ? useQuery(api.alerts.getDismissedAlerts) : [];
-  const pushedAlerts = api ? useQuery(api.alerts.getPushedAlerts) : [];
+  
+  // Temporarily disable pushedAlerts until Convex is re-deployed
+  // TODO: Re-enable after Convex deployment
+  const pushedAlerts = []; // api ? useQuery(api.alerts.getPushedAlerts) : [];
   
   const acknowledge = api ? useMutation(api.alerts.acknowledge) : useMutation();
   const dismissFromDisplay = api ? useMutation(api.alerts.dismissFromDisplay) : useMutation();

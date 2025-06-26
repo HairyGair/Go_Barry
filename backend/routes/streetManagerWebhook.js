@@ -2,6 +2,7 @@
 // AWS SNS webhook endpoint for manage-roadworks.service.gov.uk real-time notifications
 
 import express from 'express';
+import bodyParser from 'body-parser';
 import { processStreetManagerEvent } from '../services/streetManagerEvents.js';
 
 const router = express.Router();
@@ -14,25 +15,23 @@ const router = express.Router();
  * 1. First request will be SNS subscription confirmation
  * 2. Subsequent requests will be roadwork event notifications
  */
-router.post('/webhook', async (req, res) => {
+router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req, res) => {
   try {
+    const rawBody = req.body.toString('utf8');
+    const message = JSON.parse(rawBody);
+
     console.log('📨 Received Street Manager webhook:', {
-      messageType: req.headers['x-amz-sns-message-type'],
-      topicArn: req.headers['x-amz-sns-topic-arn'],
+      messageType: message.Type,
+      topicArn: message.TopicArn,
       timestamp: new Date().toISOString()
     });
 
-    const messageType = req.headers['x-amz-sns-message-type'];
-    const message = req.body;
+    const messageType = message.Type;
 
-    // Handle SNS subscription confirmation
     if (messageType === 'SubscriptionConfirmation') {
       console.log('🔔 SNS Subscription Confirmation received');
-      
-      // Log the confirmation URL for manual confirmation if needed
       console.log('Confirmation URL:', message.SubscribeURL);
-      
-      // Auto-confirm the subscription
+
       if (message.SubscribeURL) {
         try {
           const response = await fetch(message.SubscribeURL);
@@ -45,7 +44,7 @@ router.post('/webhook', async (req, res) => {
           console.error('❌ Error confirming subscription:', error);
         }
       }
-      
+
       res.status(200).json({ 
         success: true, 
         message: 'Subscription confirmation received',
@@ -54,14 +53,11 @@ router.post('/webhook', async (req, res) => {
       return;
     }
 
-    // Handle notification messages
     if (messageType === 'Notification') {
       console.log('📬 Processing Street Manager notification');
-      
-      // Parse the SNS message
+
       let eventData;
       try {
-        // SNS wraps the actual message in a Message field
         eventData = typeof message.Message === 'string' 
           ? JSON.parse(message.Message) 
           : message.Message;
@@ -70,9 +66,8 @@ router.post('/webhook', async (req, res) => {
         eventData = message;
       }
 
-      // Process the roadwork event
       const result = await processStreetManagerEvent(eventData);
-      
+
       if (result.success) {
         console.log('✅ Street Manager event processed successfully');
         res.status(200).json({ 
@@ -90,7 +85,6 @@ router.post('/webhook', async (req, res) => {
       return;
     }
 
-    // Handle unsubscribe confirmations
     if (messageType === 'UnsubscribeConfirmation') {
       console.log('🔕 SNS Unsubscribe Confirmation received');
       res.status(200).json({ 
@@ -100,7 +94,6 @@ router.post('/webhook', async (req, res) => {
       return;
     }
 
-    // Unknown message type
     console.warn('⚠️ Unknown SNS message type:', messageType);
     res.status(200).json({ 
       success: true, 
@@ -110,7 +103,6 @@ router.post('/webhook', async (req, res) => {
 
   } catch (error) {
     console.error('❌ Street Manager webhook error:', error);
-    // Always return 200 to SNS to prevent retries
     res.status(200).json({ 
       success: false, 
       error: error.message 

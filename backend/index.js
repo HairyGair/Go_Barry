@@ -566,6 +566,12 @@ import weatherAPI from './routes/weatherAPI.js';
 app.use('/api/weather', weatherAPI);
 console.log('✅ Weather routes registered successfully');
 
+// VIX Late Runners API routes
+console.log('🚌 Registering VIX routes at /api/vix...');
+import vixAPI from './routes/vixAPI.js';
+app.use('/api/vix', vixAPI);
+console.log('✅ VIX routes registered successfully');
+
 import { enhanceAlertWithCategory } from './services/alertCategorizer.js';
 
 // Filtered alerts endpoints for manager screens
