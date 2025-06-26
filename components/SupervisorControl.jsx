@@ -2,7 +2,7 @@
 // Enhanced Supervisor Control Panel with real-time sync
 // Improved supervisor identity display, session management, and polling-based updates
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorPolling, CONNECTION_STATES } from './hooks/useSupervisorPolling';
 import MessageTemplates from './MessageTemplates';
 import RoadworksDatabase from './RoadworksDatabase';
+import MonitoringDashboard from './MonitoringDashboard';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
+import SupervisorLogin from './SupervisorLogin';
+import SupervisorManagement from './SupervisorManagement';
+import { formatTime24, formatDuration } from '../utils/dateTime';
 // Simple Alert Card component for supervisor control
 const SimpleAlertCard = ({ alert, supervisorSession, onDismiss, onAcknowledge, style }) => {
   const getStatusColor = (status) => {
@@ -163,7 +167,7 @@ const SimpleAlertCard = ({ alert, supervisorSession, onDismiss, onAcknowledge, s
             </Text>
             {alert.lastUpdated && (
               <Text style={{ fontSize: 12, color: '#6B7280' }}>
-                {new Date(alert.lastUpdated).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                {formatTime24(alert.lastUpdated)}
               </Text>
             )}
           </View>
@@ -222,6 +226,72 @@ const SimpleAlertCard = ({ alert, supervisorSession, onDismiss, onAcknowledge, s
 };
 
 const isWeb = Platform.OS === 'web';
+const API_BASE = 'https://go-barry.onrender.com';
+
+// Helper function to format activity details
+const formatActivityDetails = (action, details) => {
+  if (!details) return action;
+  
+  switch (action) {
+    case 'supervisor_login':
+      return `${details.supervisor_name || 'Supervisor'} logged in`;
+    case 'supervisor_logout':
+      return `${details.supervisor_name || 'Supervisor'} logged out`;
+    case 'alert_dismissed':
+      return `Dismissed alert at ${details.location || 'unknown location'}: ${details.reason || 'No reason'}`;
+    case 'roadwork_created':
+      return `Created roadwork at ${details.location || 'unknown location'} (${details.severity || 'Unknown'} severity)`;
+    case 'email_sent':
+      return `Sent ${details.type || 'notification'} email to ${details.recipients?.length || 0} recipients`;
+    case 'duty_started':
+      return `Started Duty ${details.duty_number || 'Unknown'}`;
+    case 'duty_ended':
+      return `Ended Duty ${details.duty_number || 'Unknown'}`;
+    case 'alert_acknowledged':
+      return `Acknowledged alert: ${details.reason || 'No reason'}`;
+    case 'priority_updated':
+      return `Updated alert priority to ${details.priority || 'Unknown'}`;
+    case 'note_added':
+      return `Added note to alert: ${details.note || ''}`;
+    case 'message_broadcast':
+      return `Broadcast message: "${details.message || ''}" (${details.priority || 'info'})`;
+    default:
+      return typeof details === 'object' ? JSON.stringify(details) : details;
+  }
+};
+
+// Helper function for activity icons
+const getActivityIcon = (type) => {
+  switch (type) {
+    case 'supervisor_login':
+    case 'LOGIN':
+      return { name: 'log-in', color: '#3B82F6' };
+    case 'supervisor_logout':
+    case 'LOGOUT':
+      return { name: 'log-out', color: '#6B7280' };
+    case 'alert_dismissed':
+    case 'DISMISS_ALERT':
+      return { name: 'close-circle', color: '#EF4444' };
+    case 'roadwork_created':
+      return { name: 'construct', color: '#F59E0B' };
+    case 'email_sent':
+      return { name: 'mail', color: '#10B981' };
+    case 'duty_started':
+      return { name: 'play-circle', color: '#8B5CF6' };
+    case 'duty_ended':
+      return { name: 'stop-circle', color: '#8B5CF6' };
+    case 'alert_acknowledged':
+      return { name: 'checkmark-circle', color: '#059669' };
+    case 'priority_updated':
+      return { name: 'flag', color: '#F59E0B' };
+    case 'note_added':
+      return { name: 'create', color: '#6B7280' };
+    case 'message_broadcast':
+      return { name: 'megaphone', color: '#3B82F6' };
+    default:
+      return { name: 'information-circle', color: '#6B7280' };
+  }
+};
 
 // Helper function for priority colors
 const getPriorityColor = (priority) => {
@@ -245,26 +315,75 @@ const SupervisorControl = ({
   onClose,
   sector = 1 // Sector 1: Supervisor Control
 }) => {
-  // Get session management functions
-  const { getSupervisorActivity, logout } = useSupervisorSession();
+  // Get session management functions - FIXED: Use the hook properly
+  const { 
+    supervisorSession: hookSession,
+    getSupervisorActivity, 
+    logout,
+    login,
+    isLoading: sessionLoading,
+    error: sessionError
+  } = useSupervisorSession();
   
-  // Use passed session data if available, otherwise fall back to hook data
-  const session = passedSession || {};
+  // State for login modal
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginError, setLoginError] = useState(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
   
-  // Debug logging
-  console.log('🔍 SupervisorControl Session Debug:', {
-    passedSession,
-    supervisorId,
-    supervisorName,
-    sessionId,
-    session,
-    supervisorData: session?.supervisor,
-    duty: session?.supervisor?.duty
-  });
+  // Use passed session or hook session
+  const session = passedSession || hookSession || null;
   
-  const supervisorBadge = session?.supervisor?.badge || supervisorName?.match(/\((\w+)\)/)?.[1] || 'Unknown';
-  const supervisorDuty = session?.supervisor?.duty || {};
-  const loginTime = session?.loginTime;
+  // Debug logging - Enhanced
+  useEffect(() => {
+    console.log('🔍 SupervisorControl Session Debug:', {
+      passedSession,
+      hookSession,
+      finalSession: session,
+      hasValidSession: !!session?.sessionId,
+      supervisorId,
+      supervisorName,
+      sessionId,
+      supervisorData: session?.supervisor,
+      duty: session?.supervisor?.duty
+    });
+    
+    // Check if we have a valid session
+    if (!session || !session.sessionId) {
+      console.warn('⚠️ No valid session found');
+      // Don't automatically show login modal - let the parent component handle it
+    } else {
+      console.log('✅ Valid session found:', session.supervisor?.name);
+    }
+  }, [session, passedSession, hookSession, supervisorId, supervisorName, sessionId]);
+  
+  // Extract supervisor info from session or props
+  const supervisorData = session?.supervisor || passedSession?.supervisor || {};
+  const displayName = supervisorData?.name || supervisorName || 'Unknown';
+  const supervisorBadge = supervisorData?.badge || supervisorName?.match(/\((\w+)\)/)?.[1] || '';
+  const supervisorDuty = supervisorData?.duty || {};
+  const loginTime = session?.loginTime || passedSession?.loginTime;
+  
+  // Check if supervisor is admin (AG003 or BP009) - Enhanced check
+  const isAdmin = useMemo(() => {
+    // Check multiple sources for admin status
+    const badgeCheck = supervisorBadge === 'AG003' || supervisorBadge === 'BP009';
+    const sessionCheck = session?.supervisor?.isAdmin || passedSession?.supervisor?.isAdmin;
+    const roleCheck = supervisorData?.role?.toLowerCase().includes('admin') || 
+                      supervisorData?.role?.toLowerCase().includes('developer');
+    
+    // Return true if any check passes
+    const result = badgeCheck || sessionCheck || roleCheck;
+    
+    console.log('🔐 Admin access check:', {
+      badge: supervisorBadge,
+      badgeCheck,
+      sessionCheck,
+      roleCheck,
+      finalResult: result
+    });
+    
+    return result;
+  }, [supervisorBadge, session, passedSession, supervisorData]);
   
   // Session timer state
   const [sessionTimeRemaining, setSessionTimeRemaining] = useState(600); // 10 minutes
@@ -273,6 +392,10 @@ const SupervisorControl = ({
   const [selectedRoutes, setSelectedRoutes] = useState([]);
   const [handoverNotes, setHandoverNotes] = useState('');
   const [showHandoverModal, setShowHandoverModal] = useState(false);
+  const [showSupervisorManagement, setShowSupervisorManagement] = useState(false);
+  
+  // REMOVED: Aggressive localStorage cleanup that was preventing login
+  // The session management should be handled by the useSupervisorSession hook
   // Debug polling authentication
   useEffect(() => {
     console.log('🚀 SupervisorControl Polling Auth:', {
@@ -330,6 +453,7 @@ const SupervisorControl = ({
   const [showMessageTemplates, setShowMessageTemplates] = useState(false);
   const [showDisplayQueue, setShowDisplayQueue] = useState(false);
   const [showRoadworksDatabase, setShowRoadworksDatabase] = useState(false);
+  const [showMonitoringDashboard, setShowMonitoringDashboard] = useState(false);
   const [loading, setLoading] = useState(false);
   
   // Display queue state
@@ -361,18 +485,37 @@ const SupervisorControl = ({
     return () => clearInterval(timer);
   }, [loginTime, logout]);
   
-  // Load recent activity
+  // Load recent activity from backend
   useEffect(() => {
     const loadActivity = async () => {
-      const activity = await getSupervisorActivity(10);
-      setRecentActivity(activity);
+      try {
+        const response = await fetch(`${API_BASE}/api/activity-logs?limit=20`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.logs) {
+            // Transform backend format to match frontend expectations
+            const transformedActivity = data.logs.map(log => ({
+              id: log.id,
+              type: log.action,
+              details: typeof log.details === 'string' ? log.details : 
+                     formatActivityDetails(log.action, log.details),
+              timestamp: log.created_at,
+              supervisorName: log.supervisor_name,
+              supervisorId: log.supervisor_id
+            }));
+            setRecentActivity(transformedActivity);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error loading activity:', error);
+      }
     };
     
     loadActivity();
     const interval = setInterval(loadActivity, 30000); // Refresh every 30s
     
     return () => clearInterval(interval);
-  }, [getSupervisorActivity]);
+  }, []);
   
   // Show notification helper
   const showNotification = useCallback((message, type = 'info') => {
@@ -486,12 +629,7 @@ const SupervisorControl = ({
     }
   }, [addNoteToAlert, showNotification]);
 
-  // Format session time
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+  // Use centralized date/time formatting
   
   // Get alert stats
   const getAlertStats = () => {
@@ -756,8 +894,8 @@ const SupervisorControl = ({
           <TextInput
             style={styles.handoverInput}
             placeholder="Enter handover notes for the next shift..."
-            value={handoverNotes}
-            onChangeText={setHandoverNotes}
+            value={handoverNotes || ''}
+            onChangeText={(text) => setHandoverNotes(text || '')}
             multiline
             numberOfLines={6}
             placeholderTextColor="#9CA3AF"
@@ -788,31 +926,67 @@ const SupervisorControl = ({
   // Recent Activity Panel
   const RecentActivityPanel = () => (
     <View style={styles.activityPanel}>
-      <Text style={styles.activityTitle}>Recent Activity</Text>
+      <View style={styles.activityHeader}>
+        <Text style={styles.activityTitle}>Recent Activity</Text>
+        <TouchableOpacity 
+          onPress={() => {
+            // Refresh activity immediately
+            const loadActivity = async () => {
+              try {
+                const response = await fetch(`${API_BASE}/api/activity-logs?limit=20`);
+                if (response.ok) {
+                  const data = await response.json();
+                  if (data.success && data.logs) {
+                    const transformedActivity = data.logs.map(log => ({
+                      id: log.id,
+                      type: log.action,
+                      details: typeof log.details === 'string' ? log.details : 
+                             formatActivityDetails(log.action, log.details),
+                      timestamp: log.created_at,
+                      supervisorName: log.supervisor_name,
+                      supervisorId: log.supervisor_id
+                    }));
+                    setRecentActivity(transformedActivity);
+                  }
+                }
+              } catch (error) {
+                console.error('❌ Error refreshing activity:', error);
+              }
+            };
+            loadActivity();
+          }}
+          style={styles.refreshButton}
+        >
+          <Ionicons name="refresh" size={16} color="#3B82F6" />
+        </TouchableOpacity>
+      </View>
       <ScrollView style={styles.activityList} nestedScrollEnabled>
         {recentActivity.length > 0 ? (
-          recentActivity.map((activity) => (
-            <View key={activity.id} style={styles.activityItem}>
-              <View style={styles.activityIcon}>
-                <Ionicons 
-                  name={activity.type === 'LOGIN' ? 'log-in' : 
-                        activity.type === 'DISMISS_ALERT' ? 'close-circle' : 
-                        activity.type === 'LOGOUT' ? 'log-out' : 'checkmark'}
-                  size={16} 
-                  color={activity.type === 'DISMISS_ALERT' ? '#EF4444' : '#3B82F6'} 
-                />
+          recentActivity.map((activity) => {
+            const icon = getActivityIcon(activity.type);
+            return (
+              <View key={activity.id} style={styles.activityItem}>
+                <View style={styles.activityIcon}>
+                  <Ionicons 
+                    name={icon.name}
+                    size={16} 
+                    color={icon.color} 
+                  />
+                </View>
+                <View style={styles.activityContent}>
+                  <Text style={styles.activityText}>{activity.details}</Text>
+                  <View style={styles.activityMeta}>
+                    <Text style={styles.activitySupervisor}>
+                      {activity.supervisorName || 'System'}
+                    </Text>
+                    <Text style={styles.activityTime}>
+                      {formatTime24(activity.timestamp)}
+                    </Text>
+                  </View>
+                </View>
               </View>
-              <View style={styles.activityContent}>
-                <Text style={styles.activityText}>{activity.details}</Text>
-                <Text style={styles.activityTime}>
-                  {new Date(activity.timestamp).toLocaleTimeString('en-GB', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                  })}
-                </Text>
-              </View>
-            </View>
-          ))
+            );
+          })
         ) : (
           <Text style={styles.noActivityText}>No recent activity</Text>
         )}
@@ -820,17 +994,136 @@ const SupervisorControl = ({
     </View>
   );
 
+  // Handle login from modal
+  const handleLogin = useCallback(async (loginData) => {
+    setIsAuthenticating(true);
+    setLoginError(null);
+    
+    try {
+      console.log('🔐 Attempting login from SupervisorControl modal...');
+      const result = await login(loginData);
+      
+      if (result && result.success) {
+        console.log('✅ Login successful, closing modal');
+        setShowLoginModal(false);
+        showNotification('Login successful', 'success');
+        // Force a small delay to ensure session is established
+        setTimeout(() => {
+          // Session should now be available
+          console.log('🔍 Session after login:', session);
+        }, 100);
+      } else {
+        console.error('❌ Login failed:', result?.error || 'Unknown error');
+        setLoginError(result?.error || 'Login failed - please try again');
+        showNotification(result?.error || 'Login failed', 'error');
+      }
+    } catch (error) {
+      console.error('❌ Login error:', error);
+      setLoginError(error.message || 'An error occurred during login');
+      showNotification(error.message || 'Login failed', 'error');
+    } finally {
+      setIsAuthenticating(false);
+    }
+  }, [login, showNotification, session]);
+
   // Loading screen
-  if (loading) {
+  if (loading || sessionLoading || isAuthenticating) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={styles.loadingText}>Connecting to control system...</Text>
+        <Text style={styles.loadingText}>
+          {isAuthenticating ? 'Authenticating...' : 'Connecting to control system...'}
+        </Text>
       </View>
+    );
+  }
+  
+  // Show login modal if explicitly requested or no valid session
+  if (showLoginModal && (!session || !session.sessionId)) {
+    return (
+      <Modal
+        visible={true}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => {
+          setShowLoginModal(false);
+          if (onClose) onClose();
+        }}
+      >
+        <View style={styles.loginModalContainer}>
+          <View style={styles.loginModalHeader}>
+            <Text style={styles.loginModalTitle}>Supervisor Login Required</Text>
+            <TouchableOpacity 
+              onPress={() => {
+                setShowLoginModal(false);
+                if (onClose) onClose();
+              }} 
+              style={styles.loginModalClose}
+            >
+              <Ionicons name="close" size={24} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+          
+          {(loginError || sessionError) && (
+            <View style={styles.errorBanner}>
+              <Ionicons name="alert-circle" size={20} color="#DC2626" />
+              <Text style={styles.errorBannerText}>
+                {loginError || sessionError}
+              </Text>
+            </View>
+          )}
+          
+          <SupervisorLogin
+            visible={true}
+            onClose={() => {
+              setShowLoginModal(false);
+              if (onClose) onClose();
+            }}
+            onLoginSuccess={(loginData) => {
+              console.log('✅ Login success callback from SupervisorLogin');
+              handleLogin(loginData);
+            }}
+            embedded={true}
+          />
+        </View>
+      </Modal>
     );
   }
 
   // Main render
+  
+  // If no session and modal not showing, show login prompt
+  if (!session || !session.sessionId) {
+    if (!showLoginModal) {
+      return (
+        <View style={styles.loginPromptContainer}>
+          <View style={styles.loginPromptCard}>
+            <Ionicons name="shield-checkmark" size={48} color="#3B82F6" />
+            <Text style={styles.loginPromptTitle}>Supervisor Login Required</Text>
+            <Text style={styles.loginPromptText}>
+              You need to log in to access supervisor controls
+            </Text>
+            <TouchableOpacity
+              style={styles.loginPromptButton}
+              onPress={() => setShowLoginModal(true)}
+            >
+              <Ionicons name="log-in" size={20} color="#FFFFFF" />
+              <Text style={styles.loginPromptButtonText}>Log In Now</Text>
+            </TouchableOpacity>
+            {onClose && (
+              <TouchableOpacity
+                style={styles.loginPromptCancelButton}
+                onPress={onClose}
+              >
+                <Text style={styles.loginPromptCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      );
+    }
+  }
+  
   // Display Queue Modal
   const DisplayQueueModal = () => (
       <Modal
@@ -948,7 +1241,7 @@ const SupervisorControl = ({
                           <Text style={styles.queuePriorityText}>{message.priority?.toUpperCase() || 'INFO'}</Text>
                         </View>
                         <Text style={styles.messageTimestamp}>
-                          {new Date(message.timestamp).toLocaleTimeString()}
+                          {formatTime24(message.timestamp)}
                         </Text>
                       </View>
                       <Text style={styles.messageText}>{message.message}</Text>
@@ -973,11 +1266,16 @@ const SupervisorControl = ({
           />
           <View style={styles.supervisorIdentity}>
             <Text style={styles.supervisorNameHeader}>
-              {supervisorName} ({supervisorBadge})
+              {displayName} {supervisorBadge && `(${supervisorBadge})`}
             </Text>
             <Text style={styles.dutyInfo}>
-              {supervisorDuty.name || 'No duty selected'}
+              {supervisorDuty?.name || supervisorDuty?.id || 'No duty selected'}
             </Text>
+            {supervisorData?.role && (
+              <Text style={styles.roleInfo}>
+                {supervisorData.role}
+              </Text>
+            )}
           </View>
         </View>
         
@@ -985,7 +1283,7 @@ const SupervisorControl = ({
           <View style={styles.sessionTimer}>
             <Ionicons name="timer" size={16} color={sessionTimeRemaining < 120 ? '#EF4444' : '#6B7280'} />
             <Text style={[styles.sessionTimerText, sessionTimeRemaining < 120 && styles.sessionTimerWarning]}>
-              Session: {formatTime(sessionTimeRemaining)}
+              Session: {formatDuration(sessionTimeRemaining)}
             </Text>
           </View>
           <ConnectionStatus />
@@ -1036,6 +1334,26 @@ const SupervisorControl = ({
               </View>
             )}
           </TouchableOpacity>
+          
+          {isAdmin && (
+            <>
+              <TouchableOpacity
+                style={[styles.controlButton, styles.monitoringControlButton]}
+                onPress={() => setShowMonitoringDashboard(true)}
+              >
+                <Ionicons name="analytics" size={20} color="#FFFFFF" />
+                <Text style={styles.controlButtonText}>System Monitor</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.controlButton, styles.supervisorManagementButton]}
+                onPress={() => setShowSupervisorManagement(true)}
+              >
+                <Ionicons name="people" size={20} color="#FFFFFF" />
+                <Text style={styles.controlButtonText}>Manage Supervisors</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
         
         <View style={styles.modeSelector}>
@@ -1280,6 +1598,49 @@ const SupervisorControl = ({
       
       <HandoverModal />
       <DisplayQueueModal />
+      
+      {/* Monitoring Dashboard Modal - Admin Only */}
+      {isAdmin && (
+        <Modal
+          visible={showMonitoringDashboard}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={() => setShowMonitoringDashboard(false)}
+        >
+          <View style={styles.monitoringModalContainer}>
+            <View style={styles.monitoringModalHeader}>
+              <Text style={styles.monitoringModalTitle}>System Monitoring Dashboard</Text>
+              <TouchableOpacity 
+                onPress={() => setShowMonitoringDashboard(false)}
+                style={styles.monitoringCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <MonitoringDashboard 
+              supervisorInfo={{
+                name: supervisorName,
+                badge: supervisorBadge,
+                isAdmin: true
+              }}
+            />
+          </View>
+        </Modal>
+      )}
+      
+      {/* Supervisor Management Modal - Admin Only */}
+      {isAdmin && (
+        <SupervisorManagement
+          visible={showSupervisorManagement}
+          onClose={() => setShowSupervisorManagement(false)}
+          sessionId={sessionId || session?.sessionId || passedSession?.sessionId}
+          adminInfo={{
+            name: displayName,
+            badge: supervisorBadge,
+            id: supervisorData?.id
+          }}
+        />
+      )}
     </View>
   );
 };
@@ -1287,7 +1648,7 @@ const SupervisorControl = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f7fa',
+    backgroundColor: '#f8fafc',
   },
   loadingContainer: {
     flex: 1,
@@ -1304,15 +1665,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    backdropFilter: 'blur(20px)',
-    padding: 20,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 24,
+    paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.06)',
+    borderBottomColor: '#e2e8f0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
     elevation: 8,
     ...Platform.select({
       web: { paddingTop: 20 },
@@ -1323,30 +1684,31 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    marginRight: 16,
   },
   logo: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 52,
+    height: 52,
+    borderRadius: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+    marginRight: 16,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    marginLeft: 16,
   },
 
   subtitle: {
     fontSize: 16,
-    color: '#4B5563',
-    marginTop: 2,
+    color: '#64748b',
+    marginTop: 4,
     fontWeight: '500',
-    letterSpacing: 0.3,
+    letterSpacing: 0.25,
   },
   closeButton: {
     padding: 8,
@@ -1354,33 +1716,35 @@ const styles = StyleSheet.create({
   connectionStatus: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    backdropFilter: 'blur(10px)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.04,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: 1,
+    marginRight: 12,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 1,
+    elevation: 1,
   },
   connectionText: {
     fontSize: 13,
-    color: '#374151',
+    color: '#475569',
     fontWeight: '600',
-    letterSpacing: 0.2,
+    letterSpacing: 0.25,
   },
   errorButton: {
     marginLeft: 8,
@@ -1396,158 +1760,160 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.92)',
-    backdropFilter: 'blur(15px)',
-    padding: 20,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 24,
+    paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.04)',
+    borderBottomColor: '#e2e8f0',
     flexWrap: 'wrap',
-    gap: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 2,
   },
   controlButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-    transform: [{ scale: 1 }],
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginRight: 12,
+    marginBottom: 8,
   },
   broadcastControlButton: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: '#8b5cf6',
   },
   templatesButton: {
-    backgroundColor: '#059669',
+    backgroundColor: '#10b981',
   },
   controlButtonText: {
-    color: '#FFFFFF',
+    color: '#ffffff',
     fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-    textShadow: '0 1px 2px rgba(0,0,0,0.1)',
+    fontWeight: '600',
+    letterSpacing: 0.25,
+    marginLeft: 8,
   },
   modeSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   modeSelectorLabel: {
     fontSize: 14,
-    color: '#6B7280',
-    marginRight: 8,
+    color: '#64748b',
+    marginRight: 12,
+    fontWeight: '500',
   },
   modeButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#FFFFFF',
+    borderColor: '#cbd5e1',
+    backgroundColor: '#ffffff',
+    marginRight: 8,
   },
   modeButtonActive: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    backgroundColor: '#3b82f6',
+    borderColor: '#3b82f6',
   },
   modeButtonText: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#64748b',
     fontWeight: '500',
   },
   modeButtonTextActive: {
-    color: '#FFFFFF',
+    color: '#ffffff',
+    fontWeight: '600',
   },
   statsBar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    backdropFilter: 'blur(20px)',
-    padding: 24,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 24,
+    paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.03)',
+    borderBottomColor: '#e2e8f0',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.02,
+    shadowRadius: 3,
+    elevation: 1,
   },
   statItem: {
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderRadius: 16,
-    minWidth: 80,
+    minWidth: 90,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-    backdropFilter: 'blur(10px)',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    elevation: 1,
   },
   statValue: {
     fontSize: 28,
-    fontWeight: '800',
-    color: '#1F2937',
+    fontWeight: '700',
+    color: '#1e293b',
     letterSpacing: -0.5,
     lineHeight: 32,
   },
   statLabel: {
     fontSize: 11,
-    color: '#6B7280',
+    color: '#64748b',
     marginTop: 6,
     fontWeight: '600',
-    letterSpacing: 0.5,
+    letterSpacing: 0.75,
     textTransform: 'uppercase',
   },
   alertsList: {
     flex: 1,
-    padding: 20,
-    paddingTop: 24,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 24,
   },
   alertWrapper: {
-    marginBottom: 8,
+    marginBottom: 12,
   },
   expandControls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    backdropFilter: 'blur(10px)',
+    backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0, 0, 0, 0.04)',
+    borderTopColor: '#e2e8f0',
     borderRadius: 12,
     marginTop: -8,
     marginHorizontal: 16,
-    gap: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
   },
   expandControlsText: {
-    color: '#3B82F6',
+    color: '#3b82f6',
     fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: 0.2,
+    fontWeight: '600',
+    letterSpacing: 0.25,
+    marginLeft: 8,
   },
   sectionTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1e293b',
     marginBottom: 20,
-    letterSpacing: -0.3,
+    letterSpacing: -0.25,
     paddingLeft: 4,
   },
   alertCard: {
@@ -1744,22 +2110,23 @@ const styles = StyleSheet.create({
   noAlertsContainer: {
     alignItems: 'center',
     paddingVertical: 80,
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: '#ffffff',
     marginHorizontal: 4,
     borderRadius: 20,
-    backdropFilter: 'blur(10px)',
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
   noAlertsText: {
     fontSize: 18,
-    color: '#10B981',
+    color: '#10b981',
     marginTop: 16,
-    fontWeight: '700',
-    letterSpacing: 0.3,
+    fontWeight: '600',
+    letterSpacing: 0.25,
   },
   modalOverlay: {
     flex: 1,
@@ -1833,7 +2200,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   broadcastButtonText: {
-    color: '#FFFFFF',
+    color: '#ffffff',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -1849,182 +2216,194 @@ const styles = StyleSheet.create({
   queueStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    backgroundColor: '#F9FAFB',
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: '#f8fafc',
+    padding: 20,
+    borderRadius: 12,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   queueStat: {
     alignItems: 'center',
   },
   queueStatValue: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
+    fontWeight: '700',
+    color: '#1e293b',
   },
   queueStatLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#64748b',
     marginTop: 4,
+    fontWeight: '500',
   },
   queueSectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1e293b',
     marginBottom: 12,
     marginTop: 16,
   },
   queueItem: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
     padding: 16,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
   },
   queueItemHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     marginBottom: 8,
   },
   queuePosition: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#6B7280',
-    backgroundColor: '#F3F4F6',
+    fontWeight: '700',
+    color: '#64748b',
+    backgroundColor: '#f1f5f9',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 6,
     minWidth: 32,
     textAlign: 'center',
+    marginRight: 8,
   },
   queuePriority: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 6,
+    marginRight: 8,
   },
   queuePriorityText: {
     fontSize: 10,
-    color: '#FFFFFF',
-    fontWeight: 'bold',
+    color: '#ffffff',
+    fontWeight: '700',
   },
   queueLocked: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: '#fef3c7',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   queueLockedText: {
     fontSize: 10,
-    color: '#F59E0B',
-    fontWeight: 'bold',
+    color: '#f59e0b',
+    fontWeight: '700',
+    marginLeft: 4,
   },
   queueItemTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#1e293b',
     marginBottom: 4,
   },
   queueItemLocation: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#64748b',
     marginBottom: 12,
   },
   queueItemActions: {
     flexDirection: 'row',
-    gap: 8,
     flexWrap: 'wrap',
   },
   queueActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 4,
-    backgroundColor: '#6B7280',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: '#64748b',
+    marginRight: 8,
+    marginBottom: 4,
   },
   lockAction: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#f59e0b',
   },
   unlockAction: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#3b82f6',
   },
   hideAction: {
-    backgroundColor: '#EF4444',
+    backgroundColor: '#ef4444',
   },
   queueActionText: {
-    color: '#FFFFFF',
+    color: '#ffffff',
     fontSize: 12,
     fontWeight: '500',
+    marginLeft: 4,
   },
   messageItem: {
-    backgroundColor: '#F0F9FF',
-    borderColor: '#0EA5E9',
+    backgroundColor: '#f0f9ff',
+    borderColor: '#0ea5e9',
   },
   messageTimestamp: {
     fontSize: 10,
-    color: '#6B7280',
+    color: '#64748b',
     marginLeft: 'auto',
   },
   messageText: {
     fontSize: 14,
-    color: '#1F2937',
+    color: '#1e293b',
     fontStyle: 'italic',
   },
   frequencyImpactBar: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.04)',
+    borderBottomColor: '#e2e8f0',
   },
   frequencyImpactTitle: {
     fontSize: 14,
     fontWeight: '700',
     color: '#374151',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   frequencyStats: {
     flexDirection: 'row',
-    gap: 12,
   },
   frequencyStat: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
     alignItems: 'center',
     minWidth: 120,
+    marginRight: 12,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   frequencyStatValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1F2937',
+    color: '#1e293b',
   },
   frequencyStatLabel: {
     fontSize: 11,
-    color: '#6B7280',
-    marginTop: 2,
+    color: '#64748b',
+    marginTop: 4,
     fontWeight: '600',
   },
   // Control Button Group
   controlButtonGroup: {
     flexDirection: 'row',
-    gap: 12,
   },
   queueControlButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: '#10b981',
   },
   roadworksControlButton: {
-    backgroundColor: '#F59E0B',
+    backgroundColor: '#f59e0b',
   },
   roadworksModalContainer: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#ffffff',
   },
   roadworksModalHeader: {
     flexDirection: 'row',
@@ -2050,6 +2429,46 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#F3F4F6',
   },
+  monitoringControlButton: {
+    backgroundColor: '#7C3AED', // Purple for admin features
+    position: 'relative',
+    zIndex: 10, // Ensure it's above other elements
+    elevation: 10, // For Android shadow
+  },
+  supervisorManagementButton: {
+    backgroundColor: '#EC4899', // Pink for supervisor management
+    position: 'relative',
+    zIndex: 10,
+    elevation: 10,
+  },
+  monitoringModalContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  monitoringModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    ...Platform.select({
+      web: { paddingTop: 16 },
+      default: { paddingTop: 44 }
+    }),
+  },
+  monitoringModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  monitoringCloseButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+  },
   // New styles for enhanced supervisor identity
   supervisorIdentity: {
     marginLeft: 8,
@@ -2065,6 +2484,13 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 2,
     fontWeight: '500',
+  },
+  roleInfo: {
+    fontSize: 12,
+    color: '#8B5CF6',
+    marginTop: 2,
+    fontWeight: '500',
+    fontStyle: 'italic',
   },
   sessionTimer: {
     flexDirection: 'row',
@@ -2185,14 +2611,22 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  activityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   activityTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#1F2937',
-    marginBottom: 12,
+  },
+  refreshButton: {
+    padding: 4,
   },
   activityList: {
-    maxHeight: 200,
+    maxHeight: 300,
   },
   activityItem: {
     flexDirection: 'row',
@@ -2215,6 +2649,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#374151',
     marginBottom: 2,
+    lineHeight: 18,
+  },
+  activityMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  activitySupervisor: {
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '500',
   },
   activityTime: {
     fontSize: 11,
@@ -2252,6 +2697,110 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#E5E7EB',
     marginVertical: 8,
+  },
+  // Login Modal Styles
+  loginModalContainer: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  loginModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    ...Platform.select({
+      web: { paddingTop: 16 },
+      default: { paddingTop: 44 }
+    }),
+  },
+  loginModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  loginModalClose: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEE2E2',
+    padding: 12,
+    marginHorizontal: 24,
+    marginBottom: 16,
+    borderRadius: 8,
+  },
+  errorBannerText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#DC2626',
+    fontWeight: '500',
+  },
+  // Login Prompt Styles
+  loginPromptContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    padding: 20,
+  },
+  loginPromptCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    maxWidth: 400,
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  loginPromptTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  loginPromptText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  loginPromptButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#3B82F6',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  loginPromptButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  loginPromptCancelButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  loginPromptCancelText: {
+    color: '#6B7280',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
 

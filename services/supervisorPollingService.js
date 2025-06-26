@@ -34,6 +34,10 @@ class SupervisorPollingService {
 
   // Start optimized polling
   startPolling() {
+    // DISABLED: Using Convex for real-time sync now
+    console.warn('⚠️ SupervisorPollingService is disabled - using Convex for real-time sync');
+    return; // Exit immediately
+    
     if (this.pollInterval) return; // Already polling
     
     console.log('🚀 Starting optimized supervisor polling (2s intervals)');
@@ -78,7 +82,7 @@ class SupervisorPollingService {
         'Content-Type': 'application/json',
       };
       if (this.sessionId) {
-        headers['X-Session-Id'] = this.sessionId;
+        headers['x-session-id'] = this.sessionId;
       }
       
       const response = await fetch(url, {
@@ -265,7 +269,7 @@ class SupervisorPollingService {
         'Content-Type': 'application/json',
       };
       if (this.sessionId) {
-        headers['X-Session-Id'] = this.sessionId;
+        headers['x-session-id'] = this.sessionId;
       }
 
       const response = await fetch(`${API_BASE}/api/supervisor/acknowledge-alert`, {
@@ -300,7 +304,7 @@ class SupervisorPollingService {
         'Content-Type': 'application/json',
       };
       if (this.sessionId) {
-        headers['X-Session-Id'] = this.sessionId;
+        headers['x-session-id'] = this.sessionId;
       }
 
       const response = await fetch(`${API_BASE}/api/supervisor/update-priority`, {
@@ -335,7 +339,7 @@ class SupervisorPollingService {
         'Content-Type': 'application/json',
       };
       if (this.sessionId) {
-        headers['X-Session-Id'] = this.sessionId;
+        headers['x-session-id'] = this.sessionId;
       }
 
       const response = await fetch(`${API_BASE}/api/supervisor/add-note`, {
@@ -369,7 +373,7 @@ class SupervisorPollingService {
         'Content-Type': 'application/json',
       };
       if (this.sessionId) {
-        headers['X-Session-Id'] = this.sessionId;
+        headers['x-session-id'] = this.sessionId;
       }
 
       const response = await fetch(`${API_BASE}/api/supervisor/broadcast-message`, {
@@ -404,7 +408,7 @@ class SupervisorPollingService {
         'Content-Type': 'application/json',
       };
       if (this.sessionId) {
-        headers['X-Session-Id'] = this.sessionId;
+        headers['x-session-id'] = this.sessionId;
       }
 
       const response = await fetch(`${API_BASE}/api/supervisor/dismiss-from-display`, {
@@ -438,7 +442,7 @@ class SupervisorPollingService {
         'Content-Type': 'application/json',
       };
       if (this.sessionId) {
-        headers['X-Session-Id'] = this.sessionId;
+        headers['x-session-id'] = this.sessionId;
       }
 
       const response = await fetch(`${API_BASE}/api/supervisor/lock-on-display`, {
@@ -472,7 +476,7 @@ class SupervisorPollingService {
         'Content-Type': 'application/json',
       };
       if (this.sessionId) {
-        headers['X-Session-Id'] = this.sessionId;
+        headers['x-session-id'] = this.sessionId;
       }
 
       const response = await fetch(`${API_BASE}/api/supervisor/unlock-from-display`, {

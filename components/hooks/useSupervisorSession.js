@@ -1,24 +1,96 @@
-// Go_BARRY/components/hooks/useSupervisorSession.js
-// Enhanced supervisor session management with inline storage
+// Go_BARRY/components/hooks/useSupervisorSessionWithPasswords.js
+// Enhanced supervisor session management with mandatory passwords for all users
 
-import { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { Alert } from 'react-native';
+import { useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 
-// Inline session storage to avoid import issues
+// Password storage service
+const passwordStorageService = {
+  storageKey: 'barry_supervisor_passwords',
+  
+  loadPasswords() {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const stored = window.localStorage.getItem(this.storageKey);
+        if (stored) {
+          return JSON.parse(stored);
+        }
+      }
+      return {};
+    } catch (error) {
+      console.error('Failed to load passwords:', error);
+      return {};
+    }
+  },
+  
+  savePassword(supervisorId, password) {
+    try {
+      const passwords = this.loadPasswords();
+      // Simple hash for basic security (not cryptographically secure but better than plaintext)
+      const hashedPassword = btoa(password + supervisorId); // Basic encoding
+      passwords[supervisorId] = {
+        password: hashedPassword,
+        setAt: Date.now(),
+        isFirstTime: false
+      };
+      
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem(this.storageKey, JSON.stringify(passwords));
+      }
+      return true;
+    } catch (error) {
+      console.error('Failed to save password:', error);
+      return false;
+    }
+  },
+  
+  checkPassword(supervisorId, password) {
+    const passwords = this.loadPasswords();
+    if (!passwords[supervisorId]) return false;
+    
+    const hashedPassword = btoa(password + supervisorId);
+    return passwords[supervisorId].password === hashedPassword;
+  },
+  
+  hasPassword(supervisorId) {
+    const passwords = this.loadPasswords();
+    return !!passwords[supervisorId] && !passwords[supervisorId].isFirstTime;
+  },
+  
+  isFirstTimeUser(supervisorId) {
+    const passwords = this.loadPasswords();
+    return !passwords[supervisorId];
+  }
+};
+
+// Session storage service with configurable timeout
 const sessionStorageService = {
   memoryStorage: new Map(),
   storageKey: 'barry_supervisor_session',
+  defaultTimeout: 10 * 60 * 1000, // 10 minutes default
   
-  saveSession(sessionData) {
+  saveSession(sessionData, rememberMe = false) {
     try {
+      const timeout = rememberMe ? (60 * 60 * 1000) : this.defaultTimeout; // 1 hour if remember me
       const sessionWithTimestamp = {
         ...sessionData,
         savedAt: Date.now(),
-        expiresAt: Date.now() + (8 * 60 * 60 * 1000) // 8 hours
+        expiresAt: Date.now() + timeout,
+        rememberMe: rememberMe
       };
       
       this.memoryStorage.set(this.storageKey, sessionWithTimestamp);
-      console.log('✅ Session saved to memory storage');
+      
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.setItem(this.storageKey, JSON.stringify(sessionWithTimestamp));
+        } catch (e) {
+          console.warn('Could not save to localStorage:', e);
+        }
+      }
+      
       return true;
     } catch (error) {
       console.error('Failed to save session:', error);
@@ -28,10 +100,28 @@ const sessionStorageService = {
   
   loadSession() {
     try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          const stored = window.localStorage.getItem(this.storageKey);
+          if (stored) {
+            const session = JSON.parse(stored);
+            
+            if (session.expiresAt && Date.now() > session.expiresAt) {
+              this.clearSession();
+              return null;
+            }
+            
+            this.memoryStorage.set(this.storageKey, session);
+            return session;
+          }
+        } catch (e) {
+          console.warn('Could not load from localStorage:', e);
+        }
+      }
+      
       const session = this.memoryStorage.get(this.storageKey);
       if (!session) return null;
       
-      // Check if session has expired
       if (session.expiresAt && Date.now() > session.expiresAt) {
         this.clearSession();
         return null;
@@ -48,7 +138,14 @@ const sessionStorageService = {
   clearSession() {
     try {
       this.memoryStorage.delete(this.storageKey);
-      console.log('✅ Session cleared from memory storage');
+      
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.removeItem(this.storageKey);
+        } catch (e) {
+          console.warn('Could not clear from localStorage:', e);
+        }
+      }
     } catch (error) {
       console.error('Failed to clear session:', error);
     }
@@ -68,28 +165,27 @@ const sessionStorageService = {
   }
 };
 
-// Create context for supervisor session
+// Create context
 const SupervisorContext = createContext();
 
-// FORCE PRODUCTION URL - Never use localhost
+// FORCE PRODUCTION URL
 const API_BASE_URL = 'https://go-barry.onrender.com';
 
-// Supervisor database
+// Supervisor database - ALL now require passwords
 const SUPERVISOR_DB = {
-  'alex_woodcock': { name: 'Alex Woodcock', role: 'Supervisor', requiresPassword: false },
-  'andrew_cowley': { name: 'Andrew Cowley', role: 'Supervisor', requiresPassword: false },
-  'anthony_gair': { name: 'Anthony Gair', role: 'Developer/Admin', requiresPassword: false, isAdmin: true },
-  'claire_fiddler': { name: 'Claire Fiddler', role: 'Supervisor', requiresPassword: false },
-  'david_hall': { name: 'David Hall', role: 'Supervisor', requiresPassword: false },
-  'james_daglish': { name: 'James Daglish', role: 'Supervisor', requiresPassword: false },
-  'john_paterson': { name: 'John Paterson', role: 'Supervisor', requiresPassword: false },
-  'simon_glass': { name: 'Simon Glass', role: 'Supervisor', requiresPassword: false },
+  'alex_woodcock': { name: 'Alex Woodcock', role: 'Supervisor' },
+  'andrew_cowley': { name: 'Andrew Cowley', role: 'Supervisor' },
+  'anthony_gair': { name: 'Anthony Gair', role: 'Developer/Admin', isAdmin: true },
+  'claire_fiddler': { name: 'Claire Fiddler', role: 'Supervisor' },
+  'david_hall': { name: 'David Hall', role: 'Supervisor' },
+  'james_daglish': { name: 'James Daglish', role: 'Supervisor' },
+  'john_paterson': { name: 'John Paterson', role: 'Supervisor' },
+  'simon_glass': { name: 'Simon Glass', role: 'Supervisor' },
   'barry_perryman': { 
     name: 'Barry Perryman', 
-    role: 'Service Delivery Controller - Line Manager', 
-    requiresPassword: true, 
-    password: 'Barry123', 
-    isAdmin: true 
+    role: 'Service Delivery Controller - Line Manager',
+    isAdmin: true,
+    defaultPassword: 'Barry123' // Keep Barry's existing password as default
   },
 };
 
@@ -102,21 +198,43 @@ export const DUTY_OPTIONS = [
   { id: 'xops', name: 'XOps', shift: 'Operations' },
 ];
 
+// Backend mapping
+const BACKEND_MAPPING = {
+  'alex_woodcock': { id: 'supervisor001', badge: 'AW001' },
+  'andrew_cowley': { id: 'supervisor002', badge: 'AC002' },
+  'anthony_gair': { id: 'supervisor003', badge: 'AG003' },
+  'claire_fiddler': { id: 'supervisor004', badge: 'CF004' },
+  'david_hall': { id: 'supervisor005', badge: 'DH005' },
+  'james_daglish': { id: 'supervisor006', badge: 'JD006' },
+  'john_paterson': { id: 'supervisor007', badge: 'JP007' },
+  'simon_glass': { id: 'supervisor008', badge: 'SG008' },
+  'barry_perryman': { id: 'supervisor009', badge: 'BP009' },
+};
+
 // Activity tracking
 let activityLog = [];
 
-// Supervisor session hook with persistence
+// Supervisor session hook with password management
 export const useSupervisorSession = () => {
   const [supervisorSession, setSupervisorSession] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [needsPasswordSetup, setNeedsPasswordSetup] = useState(false);
+  const [pendingLoginData, setPendingLoginData] = useState(null);
+  
+  // Convex mutations
+  const convexLogin = useMutation(api.supervisors.login);
+  const convexLogout = useMutation(api.supervisors.logout);
 
   // Initialize session from storage on mount
   useEffect(() => {
+    console.log('[useSupervisorSession] Initializing session from storage...');
     const savedSession = sessionStorageService.loadSession();
     if (savedSession) {
       setSupervisorSession(savedSession);
       console.log('✅ Restored supervisor session:', savedSession.supervisor?.name);
+    } else {
+      console.log('❌ No saved session found in storage');
     }
   }, []);
 
@@ -136,91 +254,168 @@ export const useSupervisorSession = () => {
     };
 
     activityLog.unshift(activity);
-    // Keep only last 100 activities
     if (activityLog.length > 100) {
       activityLog = activityLog.slice(0, 100);
     }
 
     sessionStorageService.updateActivity();
-    console.log('📝 Activity logged:', type, details);
   }, [supervisorSession]);
 
-  // Login function with enhanced persistence
+  // Set password for first-time users
+  const setPassword = useCallback(async (newPassword) => {
+    if (!pendingLoginData) {
+      setError('No pending login data');
+      return { success: false, error: 'Invalid state' };
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      setError('Password must be at least 6 characters');
+      return { success: false, error: 'Password too short' };
+    }
+
+    // Save the password
+    const saved = passwordStorageService.savePassword(pendingLoginData.supervisorId, newPassword);
+    if (!saved) {
+      setError('Failed to save password');
+      return { success: false, error: 'Password save failed' };
+    }
+
+    // Continue with login using the new password
+    const loginResult = await login({
+      ...pendingLoginData,
+      password: newPassword,
+      isPasswordSetup: true
+    });
+
+    if (loginResult.success) {
+      setNeedsPasswordSetup(false);
+      setPendingLoginData(null);
+    }
+
+    return loginResult;
+  }, [pendingLoginData]);
+
+  // Update session timeout
+  const updateSessionTimeout = useCallback((newTimeout) => {
+    const session = sessionStorageService.loadSession();
+    if (session) {
+      session.expiresAt = Date.now() + newTimeout;
+      sessionStorageService.saveSession(session, session.rememberMe);
+    }
+  }, []);
+
+  // Login function with password check and remember me
   const login = useCallback(async (loginData) => {
     setIsLoading(true);
     setError(null);
     
     try {
-      // Validate supervisor locally first
+      // Validate supervisor
       const supervisor = SUPERVISOR_DB[loginData.supervisorId];
       if (!supervisor) {
         throw new Error('Supervisor not found');
       }
 
-      // Check password if required
-      if (supervisor?.requiresPassword) {
-        if (!loginData.password || loginData.password !== supervisor.password) {
-          throw new Error('Incorrect password for Line Manager access');
+      // Check if this is a first-time user who needs password setup
+      if (!loginData.isPasswordSetup && passwordStorageService.isFirstTimeUser(loginData.supervisorId)) {
+        // Special case for Barry - migrate existing password
+        if (loginData.supervisorId === 'barry_perryman' && supervisor.defaultPassword) {
+          passwordStorageService.savePassword(loginData.supervisorId, supervisor.defaultPassword);
+        } else {
+          // Show password setup screen
+          setNeedsPasswordSetup(true);
+          setPendingLoginData(loginData);
+          setIsLoading(false);
+          return { success: false, needsPasswordSetup: true };
         }
       }
 
-      // **NEW: Authenticate with backend**
-      console.log('🔐 Authenticating with backend...');
-      console.log('🌐 Using API URL:', API_BASE_URL);
-      
-      // Map frontend IDs to backend IDs and badges
-      const backendMapping = {
-        'alex_woodcock': { id: 'supervisor001', badge: 'AW001' },
-        'andrew_cowley': { id: 'supervisor002', badge: 'AC002' },
-        'anthony_gair': { id: 'supervisor003', badge: 'AG003' },
-        'claire_fiddler': { id: 'supervisor004', badge: 'CF004' },
-        'david_hall': { id: 'supervisor005', badge: 'DH005' },
-        'james_daglish': { id: 'supervisor006', badge: 'JD006' },
-        'john_paterson': { id: 'supervisor007', badge: 'JP007' },
-        'simon_glass': { id: 'supervisor008', badge: 'SG008' },
-        'barry_perryman': { id: 'supervisor009', badge: 'BP009' },
-      };
-      
-      const backendSupervisor = backendMapping[loginData.supervisorId];
+      // Validate password
+      if (!loginData.password) {
+        throw new Error('Password is required');
+      }
+
+      // Check password (special case for Barry's migration)
+      const isValidPassword = passwordStorageService.checkPassword(loginData.supervisorId, loginData.password) ||
+        (loginData.supervisorId === 'barry_perryman' && loginData.password === supervisor.defaultPassword);
+
+      if (!isValidPassword) {
+        throw new Error('Incorrect password');
+      }
+
+      // Get backend mapping
+      const backendSupervisor = BACKEND_MAPPING[loginData.supervisorId];
       if (!backendSupervisor) {
         throw new Error('Backend mapping not found for supervisor');
       }
       
-      let authResult = null; // Declare here so it's accessible outside try block
+      // Find the selected duty
+      let finalDuty;
+      if (typeof loginData.duty === 'object' && loginData.duty?.id) {
+        finalDuty = loginData.duty;
+      } else if (typeof loginData.duty === 'string') {
+        finalDuty = DUTY_OPTIONS.find(d => d.id === loginData.duty) || { id: loginData.duty, name: loginData.duty };
+      } else {
+        throw new Error('Please select a duty to continue');
+      }
       
-      // Add timeout to prevent hanging (increased for Render.com wake-up)
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 45000); // Increased to 45 seconds
+      console.log('✅ Duty selected:', finalDuty);
       
+      // Create session
+      const session = {
+        sessionId: `session-${Date.now()}`,
+        supervisor: {
+          id: loginData.supervisorId,
+          name: supervisor.name,
+          role: supervisor.role,
+          duty: finalDuty,
+          isAdmin: supervisor.isAdmin || false,
+          permissions: supervisor.isAdmin ? 
+            ['dismiss_alerts', 'view_all_activity', 'manage_supervisors', 'create_incidents', 'send_messages'] : 
+            ['dismiss_alerts', 'create_incidents'],
+          backendId: backendSupervisor.id,
+          badge: backendSupervisor.badge
+        },
+        loginTime: new Date().toISOString(),
+        lastActivity: Date.now(),
+      };
+      
+      // Save and set session with remember me option
+      sessionStorageService.saveSession(session, loginData.rememberMe);
+      setSupervisorSession(session);
+      
+      // Log activity
+      logActivity('LOGIN', `${supervisor.name} logged in on ${finalDuty.name}`);
+      
+      // Try Convex sync (non-blocking)
       try {
-        // Wake up backend first with health check
-        console.log('🏥 Checking backend health first...');
-        try {
-          const healthResponse = await fetch(`${API_BASE_URL}/api/health`, {
-            method: 'GET',
-            signal: controller.signal,
-            headers: {
-              'Content-Type': 'application/json',
-            }
-          });
-          if (healthResponse.ok) {
-            console.log('✅ Backend is awake and healthy');
-          } else {
-            console.warn('⚠️ Backend health check returned non-OK status, continuing with auth');
-          }
-        } catch (healthError) {
-          console.warn('⚠️ Health check failed, continuing with auth:', healthError.message);
+        console.log('🔄 Syncing with Convex...');
+        const convexResult = await convexLogin({
+          supervisorId: backendSupervisor.id,
+          badge: backendSupervisor.badge,
+          password: loginData.password,
+          duty: finalDuty
+        });
+        
+        if (convexResult?.success) {
+          console.log('✅ Convex sync successful');
+          const updatedSession = { ...session, convexSessionId: convexResult.sessionId };
+          sessionStorageService.saveSession(updatedSession, loginData.rememberMe);
+          setSupervisorSession(updatedSession);
         }
+      } catch (convexError) {
+        console.warn('⚠️ Convex sync error (non-blocking):', convexError.message);
+      }
+      
+      // Try backend auth (non-blocking)
+      try {
+        console.log('🔐 Authenticating with backend...');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
         
-        // Authenticate with backend
-        const authUrl = `${API_BASE_URL}/api/supervisor/login`;
-        console.log('🔐 Authenticating with backend...', authUrl);
-        
-        const authResponse = await fetch(authUrl, {
+        const authResponse = await fetch(`${API_BASE_URL}/api/supervisor/login`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             supervisorId: backendSupervisor.id,
             badge: backendSupervisor.badge
@@ -230,106 +425,58 @@ export const useSupervisorSession = () => {
         
         clearTimeout(timeoutId);
         
-        console.log('📡 Auth response status:', authResponse.status);
-        console.log('📡 Auth response headers:', authResponse.headers);
-        
-        const responseText = await authResponse.text();
-        console.log('📡 Raw response text:', responseText);
-        
-        // Try to parse as JSON
-        // authResult already declared above
-        try {
-          authResult = JSON.parse(responseText);
-        } catch (parseError) {
-          console.error('❌ Failed to parse response as JSON:', parseError);
-          throw new Error(`Invalid response format: ${responseText.substring(0, 100)}`);
+        if (authResponse.ok) {
+          const responseData = await authResponse.json();
+          if (responseData?.success) {
+            console.log('✅ Backend authentication successful');
+            const updatedSession = { ...session, backendSessionId: responseData.sessionId };
+            sessionStorageService.saveSession(updatedSession, loginData.rememberMe);
+            setSupervisorSession(updatedSession);
+          }
         }
-        
-        console.log('📋 Auth result:', authResult);
-        console.log('🔍 Auth result structure:', {
-          hasSuccess: 'success' in authResult,
-          hasSessionId: 'sessionId' in authResult,
-          hasSupervisor: 'supervisor' in authResult,
-          supervisorName: authResult?.supervisor?.name,
-          supervisorKeys: authResult?.supervisor ? Object.keys(authResult.supervisor) : []
-        });
-        
-        if (!authResult || !authResult.success) {
-          throw new Error((authResult && authResult.error) || 'Backend authentication failed');
-        }
-        
-        console.log('✅ Backend authentication successful:', authResult.sessionId);
-      } catch (fetchError) {
-        clearTimeout(timeoutId);
-        console.error('❌ Fetch error details:', fetchError);
-        
-        if (fetchError.name === 'AbortError') {
-          throw new Error('Login timeout - backend may be waking up, please try again in a moment');
-        }
-        
-        // Don't fallback to local auth - require backend authentication
-        throw new Error(`Backend authentication required but failed: ${fetchError.message}`);
+      } catch (backendError) {
+        console.warn('⚠️ Backend auth error (non-blocking):', backendError.message);
       }
-
-      // Create session with backend data
-      console.log('🏗️ Building session object...');
-      console.log('- Backend supervisor data:', authResult?.supervisor);
-      console.log('- Local supervisor data:', supervisor);
-      console.log('- Duty data:', loginData.duty);
       
-      const session = {
-        sessionId: authResult?.sessionId || 'local-' + Date.now(),
-        supervisor: {
-          id: loginData.supervisorId, // Keep frontend ID for UI
-          name: authResult?.supervisor?.name || supervisor?.name || 'Unknown Supervisor', // Use backend name first
-          role: authResult?.supervisor?.role || supervisor?.role || 'Supervisor',
-          duty: DUTY_OPTIONS.find((d) => d.id === loginData.duty) || { id: loginData.duty, name: loginData.duty },
-          isAdmin: authResult?.supervisor?.isAdmin || supervisor?.isAdmin || false,
-          permissions: authResult?.supervisor?.permissions || (supervisor?.isAdmin ? 
-            ['dismiss_alerts', 'view_all_activity', 'manage_supervisors', 'create_incidents', 'send_messages'] : 
-            ['dismiss_alerts', 'create_incidents']),
-          backendId: backendSupervisor?.id, // Store backend ID for WebSocket
-          badge: authResult?.supervisor?.badge || backendSupervisor?.badge
-        },
-        loginTime: new Date().toISOString(),
-        lastActivity: Date.now(),
-      };
-      
-      console.log('📦 Final session object:', session);
-      console.log('👤 Supervisor name in session:', session.supervisor.name);
-      
-      // Save to persistent storage
-      const saved = sessionStorageService.saveSession(session);
-      if (!saved) {
-        console.warn('⚠️ Failed to save session to storage, session will not persist');
-      }
-
-      setSupervisorSession(session);
-      
-      // Log login activity
-      logActivity('LOGIN', `${supervisor?.name || 'Unknown'} logged in on ${loginData.duty?.name || 'Unknown Duty'}`);
-      
-      console.log('✅ Supervisor logged in:', supervisor?.name || 'Unknown', 'Duty:', loginData.duty?.name, 'Session:', authResult.sessionId);
       return { success: true, session };
       
     } catch (err) {
       const errorMessage = err.message || 'Login failed';
       setError(errorMessage);
       console.error('❌ Login error:', err);
-      console.error('❌ Error stack:', err.stack);
-      
-      // Additional debugging info
-      console.log('🔍 Debug info:');
-      console.log('- API_BASE_URL:', API_BASE_URL);
-      console.log('- loginData:', loginData);
-      console.log('- supervisor found:', !!SUPERVISOR_DB[loginData.supervisorId]);
-      console.log('- isClient:', typeof window !== 'undefined');
-      
       return { success: false, error: errorMessage };
     } finally {
       setIsLoading(false);
     }
-  }, [logActivity]);
+  }, [logActivity, convexLogin]);
+
+  // Change password function
+  const changePassword = useCallback(async (currentPassword, newPassword) => {
+    if (!supervisorSession) {
+      return { success: false, error: 'Not logged in' };
+    }
+
+    // Validate current password
+    const isValid = passwordStorageService.checkPassword(supervisorSession.supervisor.id, currentPassword);
+    if (!isValid) {
+      return { success: false, error: 'Current password is incorrect' };
+    }
+
+    // Validate new password
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, error: 'New password must be at least 6 characters' };
+    }
+
+    // Save new password
+    const saved = passwordStorageService.savePassword(supervisorSession.supervisor.id, newPassword);
+    if (!saved) {
+      return { success: false, error: 'Failed to save new password' };
+    }
+
+    logActivity('PASSWORD_CHANGE', 'Password changed successfully');
+    
+    return { success: true };
+  }, [supervisorSession, logActivity]);
 
   // Logout function
   const logout = useCallback(async () => {
@@ -341,23 +488,31 @@ export const useSupervisorSession = () => {
       // Log logout activity
       logActivity('LOGOUT', `${supervisorSession.supervisor.name} logged out`);
       
-      // Clear persistent storage
-      sessionStorageService.clearSession();
+      // Try Convex logout (non-blocking)
+      if (supervisorSession.convexSessionId) {
+        try {
+          await convexLogout({ sessionId: supervisorSession.convexSessionId });
+          console.log('✅ Convex logout successful');
+        } catch (convexError) {
+          console.warn('⚠️ Convex logout error:', convexError);
+        }
+      }
       
+      // Clear session
+      sessionStorageService.clearSession();
       setSupervisorSession(null);
       setError(null);
       console.log('✅ Supervisor logged out');
     } catch (err) {
       console.error('❌ Logout error:', err);
-      // Still clear session even if logging fails
       sessionStorageService.clearSession();
       setSupervisorSession(null);
     } finally {
       setIsLoading(false);
     }
-  }, [supervisorSession, logActivity]);
+  }, [supervisorSession, logActivity, convexLogout]);
 
-  // Dismiss alert function
+  // Other methods remain the same...
   const dismissAlert = useCallback(async (alertId, reason, notes = '') => {
     if (!supervisorSession) {
       const alertMessage = 'Please log in as a supervisor to dismiss alerts.';
@@ -372,7 +527,6 @@ export const useSupervisorSession = () => {
     setIsLoading(true);
     
     try {
-      // Create dismissal record
       const dismissal = {
         id: 'dismiss_' + Date.now(),
         alertId,
@@ -384,7 +538,6 @@ export const useSupervisorSession = () => {
         duty: supervisorSession.supervisor.duty?.name,
       };
 
-      // Log dismissal activity
       logActivity('DISMISS_ALERT', `Dismissed alert ${alertId}: ${reason}`, alertId);
 
       console.log('✅ Alert dismissed:', alertId, 'by', supervisorSession.supervisor.name);
@@ -418,7 +571,6 @@ export const useSupervisorSession = () => {
   const getSupervisorActivity = useCallback(async (limit = 20) => {
     if (!supervisorSession) return [];
 
-    // Return activities for current supervisor
     const supervisorActivities = activityLog
       .filter(activity => activity.supervisorId === supervisorSession.supervisor.id)
       .slice(0, limit);
@@ -458,7 +610,7 @@ export const useSupervisorSession = () => {
   }, [supervisorSession]);
 
   return {
-    supervisorSession, // Add this so we can access backendId
+    supervisorSession,
     isLoading,
     error,
     login,
@@ -467,10 +619,14 @@ export const useSupervisorSession = () => {
     getSupervisorActivity,
     getAllActivity,
     logActivity,
+    setPassword,
+    changePassword,
+    needsPasswordSetup,
+    updateSessionTimeout,
     isLoggedIn: !!supervisorSession,
     supervisorName: supervisorSession?.supervisor?.name,
     supervisorRole: supervisorSession?.supervisor?.role,
-    supervisorId: supervisorSession?.supervisor?.id, // Frontend ID
+    supervisorId: supervisorSession?.supervisor?.id,
     supervisorDuty: supervisorSession?.supervisor?.duty?.name,
     sessionId: supervisorSession?.sessionId,
     isAdmin: supervisorSession?.supervisor?.isAdmin || false,
@@ -483,6 +639,14 @@ export const useSupervisorSession = () => {
 // Context Provider Component
 export const SupervisorProvider = ({ children }) => {
   const supervisorSession = useSupervisorSession();
+  
+  // Debug logging for context state
+  useEffect(() => {
+    console.log('[SupervisorProvider] Context state:', {
+      isLoggedIn: supervisorSession.isLoggedIn,
+      supervisorName: supervisorSession.supervisorName || 'Not logged in'
+    });
+  }, [supervisorSession.isLoggedIn, supervisorSession.supervisorName]);
 
   return (
     <SupervisorContext.Provider value={supervisorSession}>

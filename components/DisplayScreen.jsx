@@ -1,23 +1,34 @@
 // Go_BARRY/components/DisplayScreen.jsx
-// Professional 24/7 Control Room Display - Fixed for React Native Web
+// Control Room Display - Optimized for 60 metre viewing distance
 
 import React, { useState, useEffect, useRef } from 'react';
 import OptimizedTomTomMap from './OptimizedTomTomMap';
+import { useConvexSync, useSupervisorActions } from '../hooks/useConvexSync';
+import { formatTime24WithSeconds, formatDateWithWeekday, formatTime24 } from '../utils/dateTime';
+import LateRunnersWidget from './LateRunnersWidget';
+import VixUploadButton from './VixUploadButton';
+import useVixData from './hooks/useVixData';
 
 const DisplayScreen = () => {
-  const [alerts, setAlerts] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentAlertIndex, setCurrentAlertIndex] = useState(0);
-  const [error, setError] = useState(null);
-  const [activeEvent, setActiveEvent] = useState(null);
-  const [supervisorActivity, setSupervisorActivity] = useState([]);
-  const [activeSupervisors, setActiveSupervisors] = useState([]);
-  const [apiResponseTime, setApiResponseTime] = useState(null);
-  const [lastUpdateTime, setLastUpdateTime] = useState(null);
-  const [attentionMode, setAttentionMode] = useState(false);
-  const [weather, setWeather] = useState({ condition: 'CLEAR', temp: '15°C', icon: '☀️' });
-  const [syncConnected, setSyncConnected] = useState(true);
+  const [weather, setWeather] = useState(null);
+  const [weatherLocationIndex, setWeatherLocationIndex] = useState(0);
+  const weatherLocations = ['Newcastle', 'Gateshead', 'Sunderland', 'Durham', 'Consett', 'Stanley'];
+
+  // Use Convex for real-time sync
+  const { pushedAlerts, activeSupervisors } = useConvexSync();
+  const supervisorActivity = useSupervisorActions({ limit: 10 });
+  
+  // VIX late runners data
+  const { 
+    lateRunners, 
+    lastUpdated: vixLastUpdated, 
+    isLoading: vixLoading,
+    stats: vixStats,
+    processVixFile,
+    dataAge: vixDataAge 
+  } = useVixData();
 
   // Update time every second
   useEffect(() => {
@@ -27,879 +38,400 @@ const DisplayScreen = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch supervisor activity via polling
-  const fetchSupervisorActivity = async () => {
-    try {
-      // Fetch active supervisors
-      console.log('🔄 Fetching active supervisors...');
-      const response = await fetch('https://go-barry.onrender.com/api/supervisor/active');
-      if (response.ok) {
-        const activeData = await response.json();
-        console.log('👥 Active supervisors response:', activeData);
-        if (activeData.activeSupervisors) {
-          setActiveSupervisors(activeData.activeSupervisors);
-        }
-      } else {
-        console.error('❌ Failed to fetch active supervisors:', response.status);
-      }
-      
-      // Fetch activity logs from Supabase
-      const activityResponse = await fetch('https://go-barry.onrender.com/api/activity/logs?limit=10&screenType=supervisor');
-      if (activityResponse.ok) {
-        const activityData = await activityResponse.json();
-        if (activityData.logs) {
-          // Transform activities to match expected format
-          const formattedActivities = activityData.logs.map(log => ({
-            id: log.id,
-            supervisorName: log.supervisor_name || 'System',
-            action: formatActivityAction(log.action, log.details),
-            type: getActivityType(log.action),
-            timestamp: log.created_at
-          }));
-          setSupervisorActivity(formattedActivities);
-        }
-      }
-      
-      setSyncConnected(true);
-    } catch (err) {
-      console.log('Could not fetch supervisor activity');
-      setSyncConnected(false);
-    }
-  };
-  
-  // Helper functions for activity formatting
-  const formatActivityAction = (action, details) => {
-    switch (action) {
-      case 'supervisor_login':
-        return `logged in (${details?.badge || 'unknown badge'})`;
-      case 'supervisor_logout':
-        return `logged out (${details?.sessionDuration || 'unknown duration'})`;
-      case 'alert_dismissed':
-        return `dismissed alert: ${details?.reason || 'No reason'}`;
-      case 'session_timeout':
-        return `auto-timeout after ${details?.inactiveMinutes || '?'} minutes`;
-      case 'roadwork_created':
-        return `created roadwork at ${details?.location || 'unknown location'}`;
-      case 'email_sent':
-        return `sent email to ${details?.recipients?.length || 0} groups`;
-      default:
-        return action.toLowerCase().replace(/_/g, ' ');
-    }
-  };
-  
-  const getActivityType = (action) => {
-    switch (action) {
-      case 'supervisor_login':
-      case 'supervisor_logout':
-      case 'session_timeout':
-        return 'login';
-      case 'alert_dismissed':
-        return 'acknowledge';
-      case 'roadwork_created':
-        return 'roadwork';
-      case 'email_sent':
-        return 'email';
-      default:
-        return 'system';
-    }
-  };
-
-  // Polling for supervisor activity
+  // Fetch weather data
   useEffect(() => {
-    fetchSupervisorActivity();
-    const interval = setInterval(fetchSupervisorActivity, 15000); // 15s intervals for real-time activity
-    return () => clearInterval(interval);
-  }, []);
-
-  // Fetch active events
-  const fetchActiveEvents = async () => {
-    try {
-      const response = await fetch('https://go-barry.onrender.com/api/events/active');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.mostSevere) {
-          setActiveEvent(data.mostSevere);
-        } else {
-          setActiveEvent(null);
-        }
-      }
-    } catch (err) {
-      console.log('Could not fetch events');
-    }
-  };
-
-  // Fetch alerts data
-  const fetchAlerts = async () => {
-    const startTime = performance.now();
-    try {
-      setLoading(true);
-      console.log('🔄 Fetching alerts...');
-      
-      const response = await fetch('https://go-barry.onrender.com/api/alerts-enhanced');
-      const endTime = performance.now();
-      const responseTime = Math.round(endTime - startTime);
-      setApiResponseTime(responseTime);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      console.log('✅ Alerts received:', data.alerts?.length || 0);
-      
-      // Process alerts to ensure coordinates are in correct format
-      const processedAlerts = (data.alerts || []).map(alert => ({
-        ...alert,
-        coordinates: alert.coordinates ? 
-          (Array.isArray(alert.coordinates) ? alert.coordinates : 
-           alert.coordinates.lat && alert.coordinates.lng ? 
-           [alert.coordinates.lat, alert.coordinates.lng] : 
-           alert.coordinates.latitude && alert.coordinates.longitude ?
-           [alert.coordinates.latitude, alert.coordinates.longitude] : null) :
-          null
-      }));
-      
-      setAlerts(processedAlerts);
-      setError(null);
-      setLastUpdateTime(new Date());
-      
-      // Check for critical/high severity alerts
-      const criticalAlerts = processedAlerts.filter(alert => 
-        alert.severity === 'CRITICAL' || alert.severity === 'Critical' ||
-        alert.severity === 'HIGH' || alert.severity === 'High'
-      );
-      setAttentionMode(criticalAlerts.length > 0);
-      
-      // Log display screen view
+    const fetchWeather = async () => {
       try {
-        await fetch('https://go-barry.onrender.com/api/activity/display-view', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            alertCount: processedAlerts.length,
-            criticalCount: criticalAlerts.length,
-            viewTime: new Date().toISOString()
-          })
-        });
-      } catch (err) {
-        console.log('Failed to log display view');
+        const response = await fetch('https://go-barry.onrender.com/api/weather/current');
+        const data = await response.json();
+        if (data.success) {
+          setWeather(data.data);
+          console.log('🌤️ Weather data updated');
+        }
+      } catch (error) {
+        console.error('Weather fetch error:', error);
       }
-      
-    } catch (err) {
-      console.error('❌ Error fetching alerts:', err);
-      setError(err.message);
-      setLastUpdateTime(new Date());
-      setApiResponseTime(Math.round(performance.now() - startTime));
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  // Initial load and auto-refresh
-  useEffect(() => {
-    fetchAlerts();
-    fetchActiveEvents();
-    const alertInterval = setInterval(fetchAlerts, 20000);
-    const eventInterval = setInterval(fetchActiveEvents, 60000);
+    // Only fetch weather during working hours (06:00 - 00:15)
+    const checkAndFetch = async () => {
+      const now = new Date();
+      const currentHour = now.getHours() + (now.getMinutes() / 60);
+      
+      // Working hours: 06:00 to 00:15 (crosses midnight)
+      const isInWorkingHours = currentHour >= 6 || currentHour <= 0.25;
+      
+      if (isInWorkingHours) {
+        await fetchWeather();
+      } else {
+        console.log('🌙 Outside working hours - skipping weather fetch');
+      }
+    };
+    
+    // Initial fetch after 5 seconds (if in working hours)
+    const initialTimer = setTimeout(checkAndFetch, 5000);
+    
+    // Then check every 30 minutes
+    // With working hours: ~36 fetches/day * 7 locations = 252 calls/day
+    const interval = setInterval(checkAndFetch, 30 * 60 * 1000);
+    
     return () => {
-      clearInterval(alertInterval);
-      clearInterval(eventInterval);
+      clearTimeout(initialTimer);
+      clearInterval(interval);
     };
   }, []);
 
-  // Auto-rotate alerts
+  // Cycle through weather locations
   useEffect(() => {
-    if (alerts.length <= 1) return;
+    const interval = setInterval(() => {
+      setWeatherLocationIndex((prev) => (prev + 1) % weatherLocations.length);
+    }, 10000); // 10 seconds
+    return () => clearInterval(interval);
+  }, []);
+
+  // Auto-rotate alerts every 30 seconds
+  useEffect(() => {
+    if (pushedAlerts.length <= 1) return;
     
     const interval = setInterval(() => {
-      setCurrentAlertIndex((prev) => (prev + 1) % alerts.length);
-    }, 15000);
+      setCurrentAlertIndex((prev) => (prev + 1) % pushedAlerts.length);
+    }, 30000);
     
     return () => clearInterval(interval);
-  }, [alerts.length]);
-
-  const formatTime = (date) => {
-    return date.toLocaleTimeString('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    });
-  };
-
-  const formatDate = (date) => {
-    return date.toLocaleDateString('en-GB', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-  };
+  }, [pushedAlerts.length]);
 
   const getCurrentAlert = () => {
-    if (!alerts.length || currentAlertIndex >= alerts.length) return null;
-    return alerts[currentAlertIndex];
-  };
-
-  const getSeverityColor = (severity) => {
-    switch (severity?.toLowerCase()) {
-      case 'critical':
-      case 'high':
-        return '#ef4444';
-      case 'medium':
-        return '#f59e0b';
-      case 'low':
-        return '#06b6d4';
-      default:
-        return '#64748b';
-    }
-  };
-
-  const getTimeSinceUpdate = () => {
-    if (!lastUpdateTime) return 'Never';
-    const seconds = Math.floor((new Date() - lastUpdateTime) / 1000);
-    if (seconds < 60) return `${seconds}s ago`;
-    const minutes = Math.floor(seconds / 60);
-    return `${minutes}m ago`;
+    if (!pushedAlerts.length || currentAlertIndex >= pushedAlerts.length) return null;
+    return pushedAlerts[currentAlertIndex];
   };
 
   const currentAlert = getCurrentAlert();
+  const currentWeatherLocation = weatherLocations[weatherLocationIndex];
+  const currentWeatherData = weather?.locations?.[currentWeatherLocation];
 
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#0f0f23',
+      backgroundColor: '#000000',
       color: '#ffffff',
-      fontFamily: "'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif",
+      fontFamily: "'Arial', sans-serif",
       position: 'relative',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column'
     }}>
-      {/* Header Command Bar */}
+      {/* Header - Weather & Time */}
       <div style={{
-        height: '60px',
-        backgroundColor: '#1a1a3e',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+        height: '80px',
+        backgroundColor: '#111111',
+        borderBottom: '2px solid #333333',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 24px',
-        position: 'relative',
-        zIndex: 100
+        padding: '0 30px',
       }}>
-        {/* Company Branding */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <img 
-            src="/gobarry-logo.png" 
-            alt="Go BARRY Logo" 
-            style={{
-              height: '36px',
-              width: 'auto',
-              objectFit: 'contain'
-            }}
-            onError={(e) => {
-              e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'flex';
-            }}
-          />
-          {/* Fallback branding if logo doesn't load */}
-          <div style={{ display: 'none' }}>
-            <div style={{
-              width: '36px',
-              height: '36px',
-              backgroundColor: '#3b82f6',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '16px',
-              fontWeight: '700'
-            }}>
-              GNE
-            </div>
-          </div>
-          <div>
-            <h1 style={{
-              margin: 0,
-              fontSize: '18px',
-              fontWeight: '700',
-              color: '#ffffff'
-            }}>
-              GO BARRY INTELLIGENCE
-            </h1>
-            <p style={{
-              margin: 0,
-              fontSize: '10px',
-              color: '#64748b',
-              fontWeight: '600',
-              letterSpacing: '1px',
-              textTransform: 'uppercase'
-            }}>
-              Control Room • Live Operations
-            </p>
-          </div>
-        </div>
-        
-        {/* Central Time Display */}
-        <div style={{ 
-          textAlign: 'center',
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
-          padding: '12px 20px',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.1)'
+        {/* Weather Display */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '20px',
+          fontSize: '28px',
+          fontWeight: 'bold'
         }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '36px' }}>{currentWeatherData?.icon || '🌤️'}</span>
+            <span>{currentWeatherLocation}: {currentWeatherData?.temp || '--'}°C</span>
+          </div>
+          {weather?.redheughBridge && weather.redheughBridge.windSpeedMph > 30 && (
+            <div style={{
+              backgroundColor: weather.redheughBridge.windSpeedMph > 40 ? '#DC2626' : '#F59E0B',
+              padding: '10px 20px',
+              borderRadius: '8px',
+              animation: 'pulse 2s infinite',
+              fontSize: '24px'
+            }}>
+              ⚠️ HIGH WIND: Redheugh Bridge {weather.redheughBridge.windSpeedMph}mph
+            </div>
+          )}
+        </div>
+
+        {/* Time Display */}
+        <div style={{ textAlign: 'center' }}>
           <div style={{
-            fontSize: '28px',
+            fontSize: '48px',
             fontWeight: '300',
-            fontFamily: "'SF Mono', 'Monaco', monospace",
-            color: '#ffffff',
+            fontFamily: 'monospace',
             letterSpacing: '-1px'
           }}>
-            {formatTime(currentTime)}
+            {formatTime24WithSeconds(currentTime)}
           </div>
           <div style={{
-            fontSize: '11px',
-            color: '#94a3b8',
-            fontWeight: '500',
-            marginTop: '2px'
+            fontSize: '18px',
+            color: '#999999',
+            marginTop: '-5px'
           }}>
-            {formatDate(currentTime)}
+            {formatDateWithWeekday(currentTime)}
           </div>
-        </div>
-        
-        {/* Status Grid */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <StatusBadge 
-            icon={loading ? '🔄' : '🟢'} 
-            label={loading ? 'SYNCING' : 'LIVE'} 
-            color={loading ? '#f59e0b' : '#10b981'}
-            pulse={loading}
-          />
-          <StatusBadge 
-            icon="👥" 
-            label={`${activeSupervisors.length} SUPERVISORS`} 
-            color="#3b82f6"
-          />
-          <StatusBadge 
-            icon="📡" 
-            label={`${apiResponseTime || '---'}ms`} 
-            color={apiResponseTime && apiResponseTime < 1000 ? '#10b981' : '#f59e0b'}
-          />
-          <StatusBadge 
-            icon="🔌" 
-            label={syncConnected ? 'SYNC' : 'OFFLINE'} 
-            color={syncConnected ? '#10b981' : '#ef4444'}
-          />
-          {attentionMode && (
-            <StatusBadge 
-              icon="🚨" 
-              label="CRITICAL" 
-              color="#ef4444"
-              pulse={true}
-            />
-          )}
         </div>
       </div>
 
-      {/* Critical Event Banner */}
-      {activeEvent && (
-        <div style={{
-          backgroundColor: '#ef4444',
-          padding: '10px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.2)'
-        }}>
-          <div style={{
-            width: '28px',
-            height: '28px',
-            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '14px'
-          }}>
-            ⚠️
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '14px', fontWeight: '700' }}>
-              MAJOR EVENT: {activeEvent.venue} - {activeEvent.event}
-            </div>
-            <div style={{ fontSize: '12px', opacity: 0.9 }}>
-              {activeEvent.time} • Expect significant service disruption
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Dashboard Grid */}
+      {/* Main Content */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gridTemplateRows: 'auto 1fr',
-        gap: '20px',
-        padding: '20px',
-        height: activeEvent ? 'calc(100vh - 110px)' : 'calc(100vh - 60px)',
-        position: 'relative',
-        zIndex: 1
+        flex: 1,
+        display: 'flex',
+        padding: '15px',
+        gap: '15px'
       }}>
-        {/* Live Traffic Map Panel */}
+        {/* Alert & Map Section */}
         <div style={{
-          gridColumn: '1 / -1',
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
-          borderRadius: '20px',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          padding: '20px',
+          flex: 2,
           display: 'flex',
           flexDirection: 'column',
-          height: '50vh',
-          minHeight: '400px'
+          gap: '15px'
         }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '16px'
-          }}>
-            <h2 style={{
-              margin: 0,
-              fontSize: '16px',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              color: '#f8fafc'
+          {/* Current Alert */}
+          {currentAlert ? (
+            <div style={{
+              backgroundColor: '#1a1a1a',
+              borderRadius: '12px',
+              padding: '25px',
+              border: '2px solid #ff0000',
+              boxShadow: '0 0 20px rgba(255, 0, 0, 0.3)'
             }}>
-              <span style={{
-                width: '28px',
-                height: '28px',
-                backgroundColor: '#3b82f6',
-                borderRadius: '6px',
+              <h1 style={{
+                fontSize: '60px',
+                fontWeight: 'bold',
+                margin: '0 0 15px 0',
+                lineHeight: '1.1',
+                color: '#ffffff'
+              }}>
+                {currentAlert.title}
+              </h1>
+              
+              <div style={{
+                fontSize: '36px',
+                color: '#ffcc00',
+                marginBottom: '15px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '14px'
+                gap: '15px'
               }}>
-                🗺️
-              </span>
-              LIVE TRAFFIC INTELLIGENCE
-            </h2>
-            <div style={{
-              backgroundColor: 'rgba(59, 130, 246, 0.2)',
-              border: '1px solid rgba(59, 130, 246, 0.3)',
-              padding: '6px 12px',
-              borderRadius: '10px',
-              fontSize: '11px',
-              fontWeight: '600',
-              color: '#93c5fd'
-            }}>
-              {alerts.filter(a => a.coordinates).length} ALERTS MAPPED
+                <span>📍</span>
+                <span>{currentAlert.location || 'Location not specified'}</span>
+              </div>
+
+              {currentAlert.affectsRoutes && currentAlert.affectsRoutes.length > 0 && (
+                <div style={{
+                  fontSize: '30px',
+                  marginTop: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '15px'
+                }}>
+                  <span>🚌</span>
+                  <span>Routes: {currentAlert.affectsRoutes.slice(0, 8).join(', ')}</span>
+                </div>
+              )}
+
+              <div style={{
+                fontSize: '24px',
+                color: '#999999',
+                marginTop: '20px',
+                display: 'flex',
+                justifyContent: 'space-between'
+              }}>
+                <span>Pushed by: {currentAlert.pushedToDisplayBy}</span>
+                <span>Alert {currentAlertIndex + 1} of {pushedAlerts.length}</span>
+              </div>
             </div>
-          </div>
-          
+          ) : (
+            <div style={{
+              backgroundColor: '#1a1a1a',
+              borderRadius: '12px',
+              padding: '40px',
+              textAlign: 'center',
+              border: '2px solid #10b981',
+              boxShadow: '0 0 20px rgba(16, 185, 129, 0.3)'
+            }}>
+              <div style={{ fontSize: '60px', marginBottom: '20px' }}>✅</div>
+              <h1 style={{ fontSize: '48px', color: '#10b981', margin: 0 }}>
+                ALL CLEAR
+              </h1>
+              <p style={{ fontSize: '28px', color: '#666666', marginTop: '15px' }}>
+                No alerts on display
+              </p>
+            </div>
+          )}
+
+          {/* Map */}
           <div style={{
             flex: 1,
-            backgroundColor: 'rgba(0, 0, 0, 0.2)',
+            backgroundColor: '#1a1a1a',
             borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
             overflow: 'hidden',
-            position: 'relative',
+            border: '2px solid #333333',
             minHeight: '300px'
           }}>
             <OptimizedTomTomMap 
-              alerts={alerts}
+              alerts={pushedAlerts}
               currentAlert={currentAlert}
               alertIndex={currentAlertIndex}
-              mapId="display-screen"
+              mapId="display-screen-60m"
+            />
+          </div>
+
+          {/* Late Runners Section */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px'
+          }}>
+            {/* VIX Upload Button */}
+            <div style={{
+              alignSelf: 'flex-end',
+              paddingRight: '10px'
+            }}>
+              <VixUploadButton
+                onUpload={processVixFile}
+                isLoading={vixLoading}
+                lastUpdated={vixLastUpdated}
+                dataAge={vixDataAge}
+                stats={vixStats}
+              />
+            </div>
+            
+            {/* Late Runners Widget */}
+            <LateRunnersWidget 
+              lateRunners={lateRunners}
+              limit={5}
             />
           </div>
         </div>
 
-        {/* Alert Center */}
+        {/* Activity Panel */}
         <div style={{
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
-          borderRadius: '20px',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
+          width: '450px',
+          backgroundColor: '#1a1a1a',
+          borderRadius: '12px',
           padding: '20px',
+          border: '2px solid #333333',
           display: 'flex',
-          flexDirection: 'column',
-          height: '100%'
+          flexDirection: 'column'
         }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '16px'
+          <h2 style={{
+            fontSize: '32px',
+            marginBottom: '20px',
+            color: '#ffffff'
           }}>
-            <h2 style={{
-              margin: 0,
-              fontSize: '16px',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              color: '#f8fafc'
-            }}>
-              <span style={{
-                width: '28px',
-                height: '28px',
-                backgroundColor: '#ef4444',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '14px'
-              }}>
-                🚨
-              </span>
-              ALERT CENTER
-              <span style={{
-                backgroundColor: alerts.length > 0 ? '#ef4444' : '#10b981',
-                color: '#ffffff',
-                padding: '3px 10px',
-                borderRadius: '10px',
-                fontSize: '11px',
-                fontWeight: '700',
-                minWidth: '20px',
-                textAlign: 'center'
-              }}>
-                {alerts.length}
-              </span>
-            </h2>
-            <div style={{
-              fontSize: '11px',
-              color: '#64748b'
-            }}>
-              Updated {getTimeSinceUpdate()}
-            </div>
-          </div>
+            SUPERVISOR ACTIVITY
+          </h2>
 
-          {error && (
-            <div style={{
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              padding: '12px',
-              borderRadius: '10px',
-              marginBottom: '16px',
-              color: '#fca5a5',
-              fontSize: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}>
-              <span>⚠️</span>
-              {error}
-            </div>
-          )}
-
-          {alerts.length > 0 ? (
-            <div style={{ flex: 1, overflowY: 'auto' }}>
-              {currentAlert && (
-                <div style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                  border: `2px solid ${getSeverityColor(currentAlert.severity)}`,
-                  borderRadius: '12px',
-                  padding: '20px',
-                  position: 'relative'
+          {/* Active Supervisors */}
+          <div style={{
+            marginBottom: '25px',
+            backgroundColor: '#222222',
+            padding: '15px',
+            borderRadius: '10px'
+          }}>
+            <h3 style={{ fontSize: '24px', color: '#10b981', marginBottom: '15px' }}>
+              Active Personnel ({activeSupervisors?.length || 0})
+            </h3>
+            {activeSupervisors && activeSupervisors.length > 0 ? (
+              activeSupervisors.map((supervisor, idx) => (
+                <div key={idx} style={{
+                  fontSize: '20px',
+                  padding: '8px 0',
+                  borderBottom: '1px solid #333333',
+                  display: 'flex',
+                  justifyContent: 'space-between'
                 }}>
-                  <div style={{
-                    position: 'absolute',
-                    top: '12px',
-                    right: '12px',
-                    backgroundColor: getSeverityColor(currentAlert.severity),
-                    color: '#ffffff',
-                    padding: '4px 10px',
-                    borderRadius: '16px',
-                    fontSize: '10px',
-                    fontWeight: '700',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px'
-                  }}>
-                    {currentAlert.severity || 'UNKNOWN'}
-                  </div>
-
-                  <h3 style={{
-                    margin: '0 0 12px 0',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    color: '#f8fafc',
-                    paddingRight: '60px',
-                    lineHeight: '1.4'
-                  }}>
-                    {currentAlert.title}
-                  </h3>
-
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    marginBottom: '12px',
-                    color: '#cbd5e1',
-                    fontSize: '12px'
-                  }}>
-                    <span>📍</span>
-                    {currentAlert.location || 'Location not specified'}
-                  </div>
-
-                  {currentAlert.description && (
-                    <p style={{
-                      margin: '0 0 16px 0',
-                      fontSize: '12px',
-                      color: '#94a3b8',
-                      lineHeight: '1.5'
-                    }}>
-                      {currentAlert.description}
-                    </p>
-                  )}
+                  <span>{supervisor.name}</span>
+                  <span style={{ color: '#10b981' }}>{supervisor.isAdmin ? 'ADMIN' : 'ACTIVE'}</span>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              textAlign: 'center',
-              padding: '40px 20px'
-            }}>
-              <div style={{
-                width: '64px',
-                height: '64px',
-                backgroundColor: '#10b981',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '28px',
-                marginBottom: '16px'
-              }}>
-                ✅
-              </div>
-              <h3 style={{
-                margin: '0 0 8px 0',
-                fontSize: '18px',
-                fontWeight: '600',
-                color: '#10b981'
-              }}>
-                ALL CLEAR
-              </h3>
-              <p style={{
-                margin: 0,
-                fontSize: '12px',
-                color: '#64748b'
-              }}>
-                No active traffic alerts detected
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Operations Panel */}
-        <div style={{
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
-          borderRadius: '20px',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          padding: '20px',
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100%'
-        }}>
-          <h3 style={{
-            margin: '0 0 16px 0',
-            fontSize: '16px',
-            fontWeight: '600',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            color: '#f8fafc'
-          }}>
-            <span style={{
-              width: '28px',
-              height: '28px',
-              backgroundColor: '#8b5cf6',
-              borderRadius: '6px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '14px'
-            }}>
-              👮‍♂️
-            </span>
-            OPERATIONS
-          </h3>
-          
-          <div style={{
-            backgroundColor: 'rgba(0, 0, 0, 0.2)',
-            padding: '14px',
-            borderRadius: '10px',
-            marginBottom: '16px'
-          }}>
-            <div style={{
-              fontSize: '11px',
-              fontWeight: '600',
-              color: '#64748b',
-              marginBottom: '10px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px'
-            }}>
-              👥 Active Personnel ({activeSupervisors.length})
-            </div>
-            {activeSupervisors.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {activeSupervisors.map((supervisor, idx) => (
-                  <div key={idx} style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '8px 10px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                    borderRadius: '6px'
-                  }}>
-                    <span style={{
-                      fontSize: '12px',
-                      fontWeight: '500',
-                      color: '#f1f5f9'
-                    }}>
-                      {supervisor.name}
-                    </span>
-                    <span style={{
-                      fontSize: '9px',
-                      color: '#10b981',
-                      backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                      padding: '3px 6px',
-                      borderRadius: '10px',
-                      fontWeight: '600'
-                    }}>
-                      {supervisor.role === 'admin' ? 'ADMIN' : 'ACTIVE'}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              ))
             ) : (
-              <div style={{
-                fontSize: '12px',
-                color: '#64748b',
-                textAlign: 'center',
-                padding: '12px',
-                fontStyle: 'italic'
-              }}>
+              <div style={{ fontSize: '18px', color: '#666666', textAlign: 'center', padding: '15px' }}>
                 No active personnel
               </div>
             )}
           </div>
 
-          <div style={{
-            fontSize: '11px',
-            fontWeight: '600',
-            color: '#64748b',
-            marginBottom: '10px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px'
-          }}>
-            📋 Recent Activity
-          </div>
-          
-          <div style={{
-            flex: 1,
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '6px'
-          }}>
-            {supervisorActivity.length > 0 ? (
-              supervisorActivity.map((activity, idx) => (
-                <div key={activity.id} style={{
-                  padding: '10px',
-                  backgroundColor: idx === 0 ? 'rgba(59, 130, 246, 0.1)' : 'rgba(255, 255, 255, 0.03)',
-                  border: idx === 0 ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)',
-                  borderRadius: '6px',
-                  borderLeft: `3px solid ${
-                    activity.type === 'login' ? '#10b981' :
-                    activity.type === 'acknowledge' ? '#f59e0b' :
-                    activity.type === 'roadwork' ? '#ef4444' :
-                    activity.type === 'email' ? '#3b82f6' :
-                    'rgba(255, 255, 255, 0.1)'
-                  }`
-                }}>
-                  <div style={{
-                    fontSize: '12px',
-                    fontWeight: '500',
-                    color: '#f1f5f9',
-                    marginBottom: '3px'
+          {/* Recent Activity */}
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <h3 style={{ fontSize: '24px', color: '#ffffff', marginBottom: '15px' }}>
+              Recent Actions
+            </h3>
+            <div style={{ 
+              overflowY: 'auto', 
+              maxHeight: '400px',
+              paddingRight: '5px'
+            }}>
+              {supervisorActivity && supervisorActivity.length > 0 ? (
+                supervisorActivity.slice(0, 10).map((activity, idx) => (
+                  <div key={activity._id} style={{
+                    marginBottom: '12px',
+                    padding: '10px',
+                    backgroundColor: idx === 0 ? '#333333' : '#222222',
+                    borderRadius: '8px',
+                    borderLeft: `4px solid ${
+                      activity.action === 'push_to_display' ? '#3B82F6' :
+                      activity.action === 'dismiss_alert' ? '#F59E0B' :
+                      activity.action === 'login' ? '#10B981' : '#666666'
+                    }`
                   }}>
-                    {activity.supervisorName}
+                    <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '3px' }}>
+                      {activity.supervisorName}
+                    </div>
+                    <div style={{ fontSize: '16px', color: '#cccccc' }}>
+                      {formatActivityAction(activity)}
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#999999', marginTop: '3px' }}>
+                      {formatTime24(activity.timestamp)}
+                    </div>
                   </div>
-                  <div style={{
-                    fontSize: '11px',
-                    color: '#94a3b8',
-                    marginBottom: '4px'
-                  }}>
-                    {activity.action}
-                  </div>
-                  <div style={{
-                    fontSize: '9px',
-                    color: '#64748b'
-                  }}>
-                    {new Date(activity.timestamp).toLocaleTimeString('en-GB', {
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
-                  </div>
+                ))
+              ) : (
+                <div style={{ fontSize: '18px', color: '#666666', textAlign: 'center', padding: '30px' }}>
+                  No recent activity
                 </div>
-              ))
-            ) : (
-              <div style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '12px',
-                color: '#64748b',
-                fontStyle: 'italic'
-              }}>
-                No recent activity
-              </div>
-            )}
-          </div>
-
-          <div style={{
-            marginTop: '12px',
-            padding: '10px',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            borderRadius: '6px',
-            textAlign: 'center',
-            fontSize: '10px',
-            color: '#93c5fd',
-            fontWeight: '500'
-          }}>
-            Go BARRY v3.0 • Control Room Operations
+              )}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* CSS for animations */}
+      <style jsx>{`
+        @keyframes pulse {
+          0% { opacity: 1; }
+          50% { opacity: 0.7; }
+          100% { opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 };
 
-// Status Badge Component
-const StatusBadge = ({ icon, label, color, pulse = false }) => (
-  <div style={{
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-    backgroundColor: `${color}20`,
-    border: `1px solid ${color}40`,
-    color: color,
-    padding: '5px 10px',
-    borderRadius: '8px',
-    fontSize: '10px',
-    fontWeight: '600'
-  }}>
-    <span>{icon}</span>
-    <span>{label}</span>
-  </div>
-);
+// Helper function to format activity action
+const formatActivityAction = (action) => {
+  switch (action.action) {
+    case 'login':
+      return `logged in as ${action.role || 'Supervisor'}`;
+    case 'logout':
+      return `logged out`;
+    case 'dismiss_alert':
+      return `dismissed alert: ${action.reason || 'No reason provided'}`;
+    case 'push_to_display':
+      return `pushed alert to display`;
+    case 'remove_from_display':
+      return `removed alert from display`;
+    case 'create_roadwork':
+      return `created roadwork at ${action.details?.location || 'unknown location'}`;
+    case 'create_incident':
+      return `created ${action.details?.type || 'incident'}`;
+    default:
+      return action.action.replace(/_/g, ' ');
+  }
+};
 
 export default DisplayScreen;

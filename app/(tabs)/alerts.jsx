@@ -86,7 +86,7 @@ const SimpleTrafficCard = ({ alert, supervisorSession, onDismiss, onAcknowledge,
       {alert.affectsRoutes && alert.affectsRoutes.length > 0 && (
         <View style={{ marginBottom: 12 }}>
           <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>Affects Routes:</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
             {alert.affectsRoutes.slice(0, 6).map((route, index) => (
               <View key={index} style={[
                 {
@@ -95,7 +95,9 @@ const SimpleTrafficCard = ({ alert, supervisorSession, onDismiss, onAcknowledge,
                   borderWidth: 1,
                   paddingHorizontal: 6,
                   paddingVertical: 2,
-                  borderRadius: 4
+                  borderRadius: 4,
+                  marginRight: 4,
+                  marginBottom: 4
                 }
               ]}>
                 <Text style={{ fontSize: 11, color: '#3B82F6', fontWeight: '600' }}>
@@ -114,7 +116,7 @@ const SimpleTrafficCard = ({ alert, supervisorSession, onDismiss, onAcknowledge,
 
       {/* Footer with actions */}
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F3F4F6' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Text style={{ fontSize: 12, color: '#6B7280' }}>
             {alert.type || 'Alert'} • {alert.status || 'Unknown'}
           </Text>
@@ -126,7 +128,7 @@ const SimpleTrafficCard = ({ alert, supervisorSession, onDismiss, onAcknowledge,
         </View>
         
         {supervisorSession && (
-          <View style={{ flexDirection: 'row', gap: 6 }}>
+          <View style={{ flexDirection: 'row' }}>
             <TouchableOpacity
               style={{
                 backgroundColor: '#10B981',
@@ -166,9 +168,9 @@ const SimpleTrafficCard = ({ alert, supervisorSession, onDismiss, onAcknowledge,
     </View>
   );
 };
-import SupervisorLogin from '../../components/SupervisorLogin';
+import SupervisorLogin from '../../components/SupervisorLoginSimple';
 import CreateRoadworkModal from '../../components/CreateRoadworkModal';
-import { useSupervisorSession } from '../../components/hooks/useSupervisorSession';
+import { useSupervisorSession } from '../../components/hooks/useSupervisorSessionSimple';
 import { useBarryAPI } from '../../components/hooks/useBARRYapi';
 import { Colors, getStatusColor, getSeverityColor, getTrafficTypeColor } from '../../constants/Colors';
 
@@ -561,6 +563,10 @@ export default function AlertsScreen() {
       <SupervisorLogin 
         visible={showSupervisorLogin}
         onClose={() => setShowSupervisorLogin(false)}
+        onLoginSuccess={(session) => {
+          console.log('Supervisor logged in:', session.supervisor.name);
+          setShowSupervisorLogin(false);
+        }}
       />
 
       {/* Create Roadwork Modal */}
@@ -806,7 +812,6 @@ const styles = StyleSheet.create({
   supervisorInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
   },
   supervisorName: {
     fontSize: 14,
@@ -825,7 +830,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
-    gap: 4,
   },
   loginButtonText: {
     color: '#FFFFFF',
@@ -859,7 +863,6 @@ const styles = StyleSheet.create({
   },
   controlButtons: {
     flexDirection: 'row',
-    gap: 12,
   },
   controlButton: {
     backgroundColor: Colors.primary,
@@ -869,6 +872,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     position: 'relative',
+    marginRight: 12,
   },
   controlButtonText: {
     color: Colors.white,
@@ -994,7 +998,6 @@ const styles = StyleSheet.create({
   modalFilterRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
     marginBottom: 8,
   },
   modalFilterButton: {
@@ -1002,6 +1005,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     backgroundColor: Colors.lightGrey,
+    marginRight: 8,
+    marginBottom: 8,
   },
   modalFilterButtonActive: {
     backgroundColor: Colors.primary,
@@ -1041,7 +1046,6 @@ const styles = StyleSheet.create({
   },
   modalActions: {
     flexDirection: 'row',
-    gap: 12,
     marginTop: 24,
   },
   modalResetButton: {
@@ -1050,6 +1054,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',
+    marginRight: 12,
   },
   modalResetButtonText: {
     fontSize: 16,

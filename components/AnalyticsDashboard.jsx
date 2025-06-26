@@ -1,250 +1,611 @@
-// Go_BARRY/components/AnalyticsDashboard.jsx
-// Intelligent Analytics Dashboard for Go BARRY
-
-import React, { useState, useEffect, useCallback } from 'react';
+// Analytics Dashboard Component
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
-  Platform
+  Platform,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { API_BASE_URL } from '../config/api';
+import analytics, { useAnalytics } from '../services/analytics';
 
-const AnalyticsDashboard = ({ supervisorId, sessionId, onClose }) => {
-  const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
-  const [systemHealth, setSystemHealth] = useState(null);
-  const [insights, setInsights] = useState(null);
-  const [hotspots, setHotspots] = useState([]);
-  const [vulnerableRoutes, setVulnerableRoutes] = useState([]);
-  const [recommendations, setRecommendations] = useState([]);
+const { width } = Dimensions.get('window');
 
-  const loadAnalyticsData = useCallback(async () => {
-    try {
-      setLoading(true);
-      
-      const responses = await Promise.allSettled([
-        fetch(`${API_BASE_URL}/api/intelligence/health`),
-        fetch(`${API_BASE_URL}/api/intelligence/analytics/insights`),
-        fetch(`${API_BASE_URL}/api/intelligence/analytics/hotspots`),
-        fetch(`${API_BASE_URL}/api/intelligence/analytics/route-vulnerability`),
-        fetch(`${API_BASE_URL}/api/intelligence/analytics/recommendations`)
-      ]);
-
-      const [healthRes, insightsRes, hotspotsRes, routesRes, recRes] = responses;
-
-      if (healthRes.status === 'fulfilled') {
-        const data = await healthRes.value.json();
-        if (data.success) setSystemHealth(data.health);
-      }
-
-      if (hotspotsRes.status === 'fulfilled') {
-        const data = await hotspotsRes.value.json();
-        if (data.success) setHotspots(data.hotspots || []);
-      }
-
-      if (routesRes.status === 'fulfilled') {
-        const data = await routesRes.value.json();
-        if (data.success) setVulnerableRoutes(data.vulnerableRoutes || []);
-      }
-
-      if (recRes.status === 'fulfilled') {
-        const data = await recRes.value.json();
-        if (data.success) setRecommendations(data.recommendations || []);
-      }
-
-    } catch (error) {
-      console.error('Error loading analytics:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+const AnalyticsDashboard = ({ supervisorSession }) => {
+  const [timeRange, setTimeRange] = useState('today'); // today, week, month
+  const [analyticsData, setAnalyticsData] = useState({
+    overview: {
+      totalEvents: 0,
+      uniqueUsers: 0,
+      avgSessionDuration: 0,
+      bounceRate: 0,
+    },
+    traffic: {
+      pageViews: [],
+      topPages: [],
+      userFlow: [],
+    },
+    engagement: {
+      featureUsage: [],
+      interactions: [],
+      errorRate: 0,
+    },
+    performance: {
+      avgLoadTime: 0,
+      avgResponseTime: 0,
+      uptime: 99.9,
+    },
+  });
+  const [loading, setLoading] = useState(true);
+  const { track } = useAnalytics();
 
   useEffect(() => {
-    loadAnalyticsData();
-  }, [loadAnalyticsData]);
+    fetchAnalyticsData();
+    track('analytics_dashboard_viewed', { timeRange });
+  }, [timeRange]);
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'operational':
-      case 'healthy': return '#10B981';
-      case 'degraded': return '#F59E0B';
-      case 'critical': return '#DC2626';
-      default: return '#6B7280';
+  const fetchAnalyticsData = async () => {
+    setLoading(true);
+    try {
+      // In production, this would fetch from your analytics API
+      // For now, we'll simulate with mock data
+      setTimeout(() => {
+        setAnalyticsData({
+          overview: {
+            totalEvents: Math.floor(Math.random() * 10000) + 5000,
+            uniqueUsers: Math.floor(Math.random() * 100) + 50,
+            avgSessionDuration: Math.floor(Math.random() * 600) + 300, // seconds
+            bounceRate: Math.floor(Math.random() * 30) + 10, // percentage
+          },
+          traffic: {
+            pageViews: generateTimeSeriesData(),
+            topPages: [
+              { page: '/dashboard', views: 2456, avgTime: 185 },
+              { page: '/display', views: 1823, avgTime: 420 },
+              { page: '/incidents', views: 945, avgTime: 90 },
+              { page: '/roadworks', views: 612, avgTime: 120 },
+              { page: '/help', views: 234, avgTime: 60 },
+            ],
+          },
+          engagement: {
+            featureUsage: [
+              { feature: 'Alert Dismissal', count: 342, users: 8 },
+              { feature: 'Map Interaction', count: 1523, users: 9 },
+              { feature: 'Incident Creation', count: 67, users: 6 },
+              { feature: 'Quick Actions', count: 489, users: 9 },
+              { feature: 'Search', count: 234, users: 7 },
+            ],
+            interactions: generateInteractionData(),
+            errorRate: Math.random() * 2, // percentage
+          },
+          performance: {
+            avgLoadTime: Math.floor(Math.random() * 1000) + 500, // ms
+            avgResponseTime: Math.floor(Math.random() * 200) + 50, // ms
+            uptime: 99.9,
+          },
+        });
+        setLoading(false);
+      }, 1000);
+    } catch (error) {
+      console.error('Failed to fetch analytics:', error);
+      setLoading(false);
     }
   };
 
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'HIGH': return '#DC2626';
-      case 'MEDIUM': return '#F59E0B';
-      case 'LOW': return '#10B981';
-      default: return '#6B7280';
+  const generateTimeSeriesData = () => {
+    const data = [];
+    const hours = timeRange === 'today' ? 24 : timeRange === 'week' ? 7 : 30;
+    for (let i = 0; i < hours; i++) {
+      data.push({
+        time: i,
+        views: Math.floor(Math.random() * 200) + 50,
+      });
     }
+    return data;
   };
 
-  const OverviewTab = () => (
-    <ScrollView style={styles.tabContent}>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>System Health</Text>
-        {systemHealth ? (
-          <View style={styles.healthCard}>
-            <Text style={[styles.healthStatus, { color: getStatusColor(systemHealth.status) }]}>
-              {systemHealth.status.toUpperCase()}
-            </Text>
-            <Text style={styles.healthDetail}>
-              Data Sources: {systemHealth.components?.dataSources?.activeSources || 0}/
-              {systemHealth.components?.dataSources?.totalSources || 0}
-            </Text>
-          </View>
-        ) : (
-          <Text style={styles.noData}>Loading...</Text>
-        )}
+  const generateInteractionData = () => {
+    return [
+      { type: 'clicks', count: Math.floor(Math.random() * 1000) + 500 },
+      { type: 'scrolls', count: Math.floor(Math.random() * 2000) + 1000 },
+      { type: 'forms', count: Math.floor(Math.random() * 100) + 20 },
+      { type: 'downloads', count: Math.floor(Math.random() * 50) + 10 },
+    ];
+  };
+
+  const formatDuration = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}m ${secs}s`;
+  };
+
+  const MetricCard = ({ icon, title, value, subtitle, color = '#3B82F6' }) => (
+    <View style={styles.metricCard}>
+      <View style={[styles.metricIcon, { backgroundColor: `${color}20` }]}>
+        <Ionicons name={icon} size={24} color={color} />
+      </View>
+      <Text style={styles.metricTitle}>{title}</Text>
+      <Text style={styles.metricValue}>{value}</Text>
+      {subtitle && <Text style={styles.metricSubtitle}>{subtitle}</Text>}
+    </View>
+  );
+
+  const TimeRangeSelector = () => (
+    <View style={styles.timeRangeContainer}>
+      {['today', 'week', 'month'].map((range) => (
+        <TouchableOpacity
+          key={range}
+          style={[
+            styles.timeRangeButton,
+            timeRange === range && styles.timeRangeButtonActive,
+          ]}
+          onPress={() => {
+            setTimeRange(range);
+            track('analytics_time_range_changed', { range });
+          }}
+        >
+          <Text
+            style={[
+              styles.timeRangeText,
+              timeRange === range && styles.timeRangeTextActive,
+            ]}
+          >
+            {range.charAt(0).toUpperCase() + range.slice(1)}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading analytics...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.title}>Analytics Dashboard</Text>
+          <Text style={styles.subtitle}>
+            Track usage, performance, and engagement metrics
+          </Text>
+        </View>
+        <TimeRangeSelector />
       </View>
 
+      {/* Overview Metrics */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Key Metrics</Text>
+        <Text style={styles.sectionTitle}>Overview</Text>
         <View style={styles.metricsGrid}>
-          <View style={styles.metricCard}>
-            <Ionicons name="location" size={24} color="#EF4444" />
-            <Text style={styles.metricValue}>{hotspots.length}</Text>
-            <Text style={styles.metricLabel}>Hotspots</Text>
+          <MetricCard
+            icon="analytics"
+            title="Total Events"
+            value={analyticsData.overview.totalEvents.toLocaleString()}
+            subtitle={`Last ${timeRange}`}
+            color="#3B82F6"
+          />
+          <MetricCard
+            icon="people"
+            title="Unique Users"
+            value={analyticsData.overview.uniqueUsers}
+            subtitle="Active supervisors"
+            color="#10B981"
+          />
+          <MetricCard
+            icon="time"
+            title="Avg Session"
+            value={formatDuration(analyticsData.overview.avgSessionDuration)}
+            subtitle="Duration per user"
+            color="#8B5CF6"
+          />
+          <MetricCard
+            icon="exit"
+            title="Bounce Rate"
+            value={`${analyticsData.overview.bounceRate}%`}
+            subtitle="Single page sessions"
+            color="#F59E0B"
+          />
+        </View>
+      </View>
+
+      {/* Traffic Analytics */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Traffic Analytics</Text>
+        
+        {/* Page Views Chart (simplified representation) */}
+        <View style={styles.chartContainer}>
+          <Text style={styles.chartTitle}>Page Views Over Time</Text>
+          <View style={styles.chart}>
+            {analyticsData.traffic.pageViews.slice(-12).map((data, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.chartBar,
+                  {
+                    height: `${(data.views / 200) * 100}%`,
+                    backgroundColor: '#3B82F6',
+                  },
+                ]}
+              />
+            ))}
           </View>
-          <View style={styles.metricCard}>
-            <Ionicons name="bus" size={24} color="#F59E0B" />
-            <Text style={styles.metricValue}>{vulnerableRoutes.length}</Text>
-            <Text style={styles.metricLabel}>Vulnerable Routes</Text>
+          <Text style={styles.chartLabel}>
+            {timeRange === 'today' ? 'Last 12 hours' : 
+             timeRange === 'week' ? 'Last 7 days' : 'Last 30 days'}
+          </Text>
+        </View>
+
+        {/* Top Pages */}
+        <View style={styles.topPagesContainer}>
+          <Text style={styles.chartTitle}>Top Pages</Text>
+          {analyticsData.traffic.topPages.map((page, index) => (
+            <View key={index} style={styles.topPageItem}>
+              <View style={styles.topPageInfo}>
+                <Text style={styles.topPageRank}>#{index + 1}</Text>
+                <Text style={styles.topPageName}>{page.page}</Text>
+              </View>
+              <View style={styles.topPageStats}>
+                <Text style={styles.topPageViews}>{page.views.toLocaleString()} views</Text>
+                <Text style={styles.topPageTime}>{page.avgTime}s avg</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* Feature Usage */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Feature Engagement</Text>
+        {analyticsData.engagement.featureUsage.map((feature, index) => (
+          <View key={index} style={styles.featureItem}>
+            <View style={styles.featureInfo}>
+              <Text style={styles.featureName}>{feature.feature}</Text>
+              <Text style={styles.featureUsers}>{feature.users} users</Text>
+            </View>
+            <View style={styles.featureBar}>
+              <View
+                style={[
+                  styles.featureProgress,
+                  {
+                    width: `${(feature.count / 1500) * 100}%`,
+                    backgroundColor: ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444'][index],
+                  },
+                ]}
+              />
+            </View>
+            <Text style={styles.featureCount}>{feature.count}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Performance Metrics */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Performance</Text>
+        <View style={styles.performanceGrid}>
+          <View style={styles.performanceItem}>
+            <Ionicons name="speedometer" size={32} color="#10B981" />
+            <Text style={styles.performanceLabel}>Avg Load Time</Text>
+            <Text style={styles.performanceValue}>
+              {analyticsData.performance.avgLoadTime}ms
+            </Text>
+          </View>
+          <View style={styles.performanceItem}>
+            <Ionicons name="flash" size={32} color="#3B82F6" />
+            <Text style={styles.performanceLabel}>Response Time</Text>
+            <Text style={styles.performanceValue}>
+              {analyticsData.performance.avgResponseTime}ms
+            </Text>
+          </View>
+          <View style={styles.performanceItem}>
+            <Ionicons name="checkmark-circle" size={32} color="#10B981" />
+            <Text style={styles.performanceLabel}>Uptime</Text>
+            <Text style={styles.performanceValue}>
+              {analyticsData.performance.uptime}%
+            </Text>
+          </View>
+          <View style={styles.performanceItem}>
+            <Ionicons name="warning" size={32} color="#EF4444" />
+            <Text style={styles.performanceLabel}>Error Rate</Text>
+            <Text style={styles.performanceValue}>
+              {analyticsData.engagement.errorRate.toFixed(1)}%
+            </Text>
           </View>
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>AI Recommendations</Text>
-        {recommendations.slice(0, 3).map((rec, index) => (
-          <View key={index} style={[styles.recommendationCard, { borderLeftColor: getPriorityColor(rec.priority) }]}>
-            <Text style={styles.recTitle}>{rec.title}</Text>
-            <Text style={styles.recDescription}>{rec.description}</Text>
-            <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(rec.priority) }]}>
-              <Text style={styles.priorityText}>{rec.priority}</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-    </ScrollView>
-  );
-
-  const HotspotsTab = () => (
-    <ScrollView style={styles.tabContent}>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Traffic Hotspots</Text>
-        {hotspots.map((hotspot, index) => (
-          <View key={index} style={styles.hotspotCard}>
-            <Text style={styles.hotspotLocation}>{hotspot.location}</Text>
-            <Text style={styles.hotspotRisk}>Risk Score: {Math.round(hotspot.riskScore)}</Text>
-            <Text style={styles.hotspotIncidents}>{hotspot.incidentCount} incidents</Text>
-          </View>
-        ))}
-      </View>
-    </ScrollView>
-  );
-
-  const RoutesTab = () => (
-    <ScrollView style={styles.tabContent}>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Vulnerable Routes</Text>
-        {vulnerableRoutes.map((route, index) => (
-          <View key={index} style={styles.routeCard}>
-            <Text style={styles.routeNumber}>Route {route.route}</Text>
-            <Text style={styles.routeScore}>Score: {Math.round(route.vulnerabilityScore)}</Text>
-            <Text style={styles.routeDetails}>
-              {route.incidentCount} incidents, {Math.round(route.averageDelay)}min avg delay
-            </Text>
-          </View>
-        ))}
-      </View>
-    </ScrollView>
-  );
-
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Analytics Dashboard</Text>
-        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-          <Ionicons name="close" size={24} color="#6B7280" />
+      {/* Export Actions */}
+      <View style={styles.exportSection}>
+        <TouchableOpacity
+          style={styles.exportButton}
+          onPress={() => {
+            track('analytics_export_clicked', { format: 'csv' });
+            alert('Export functionality coming soon!');
+          }}
+        >
+          <Ionicons name="download" size={20} color="#fff" />
+          <Text style={styles.exportButtonText}>Export to CSV</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.exportButton, styles.exportButtonSecondary]}
+          onPress={() => {
+            track('analytics_share_clicked');
+            alert('Share functionality coming soon!');
+          }}
+        >
+          <Ionicons name="share" size={20} color="#3B82F6" />
+          <Text style={[styles.exportButtonText, { color: '#3B82F6' }]}>
+            Share Report
+          </Text>
         </TouchableOpacity>
       </View>
 
-      <View style={styles.tabBar}>
-        {['overview', 'hotspots', 'routes'].map(tab => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tab, activeTab === tab && styles.tabActive]}
-            onPress={() => setActiveTab(tab)}
-          >
-            <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>Loading analytics...</Text>
-        </View>
-      ) : (
-        <View style={styles.content}>
-          {activeTab === 'overview' && <OverviewTab />}
-          {activeTab === 'hotspots' && <HotspotsTab />}
-          {activeTab === 'routes' && <RoutesTab />}
-        </View>
-      )}
-    </View>
+      <View style={{ height: 50 }} />
+    </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F3F4F6' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#1F2937' },
-  closeButton: { padding: 8 },
-  tabBar: { flexDirection: 'row', backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
-  tab: { flex: 1, paddingVertical: 16, alignItems: 'center' },
-  tabActive: { borderBottomWidth: 2, borderBottomColor: '#3B82F6' },
-  tabText: { fontSize: 14, color: '#6B7280', fontWeight: '500' },
-  tabTextActive: { color: '#3B82F6', fontWeight: '600' },
-  content: { flex: 1 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 16, fontSize: 16, color: '#6B7280' },
-  tabContent: { flex: 1, padding: 16 },
-  section: { marginBottom: 24 },
-  sectionTitle: { fontSize: 18, fontWeight: '600', color: '#1F2937', marginBottom: 16 },
-  healthCard: { backgroundColor: '#FFFFFF', padding: 16, borderRadius: 8 },
-  healthStatus: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
-  healthDetail: { fontSize: 14, color: '#6B7280' },
-  metricsGrid: { flexDirection: 'row', gap: 12 },
-  metricCard: { backgroundColor: '#FFFFFF', padding: 16, borderRadius: 8, alignItems: 'center', flex: 1 },
-  metricValue: { fontSize: 24, fontWeight: 'bold', color: '#1F2937', marginVertical: 8 },
-  metricLabel: { fontSize: 12, color: '#6B7280' },
-  recommendationCard: { backgroundColor: '#FFFFFF', padding: 16, borderRadius: 8, borderLeftWidth: 4, marginBottom: 12 },
-  recTitle: { fontSize: 16, fontWeight: '600', color: '#1F2937', marginBottom: 8 },
-  recDescription: { fontSize: 14, color: '#4B5563', marginBottom: 8 },
-  priorityBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, alignSelf: 'flex-start' },
-  priorityText: { fontSize: 10, color: '#FFFFFF', fontWeight: 'bold' },
-  hotspotCard: { backgroundColor: '#FFFFFF', padding: 16, borderRadius: 8, marginBottom: 12 },
-  hotspotLocation: { fontSize: 16, fontWeight: '600', color: '#1F2937' },
-  hotspotRisk: { fontSize: 14, color: '#EF4444', fontWeight: '500' },
-  hotspotIncidents: { fontSize: 12, color: '#6B7280' },
-  routeCard: { backgroundColor: '#FFFFFF', padding: 16, borderRadius: 8, marginBottom: 12 },
-  routeNumber: { fontSize: 18, fontWeight: 'bold', color: '#1F2937' },
-  routeScore: { fontSize: 14, color: '#F59E0B', fontWeight: '500' },
-  routeDetails: { fontSize: 12, color: '#6B7280' },
-  noData: { fontSize: 14, color: '#9CA3AF', textAlign: 'center', padding: 24 }
+  container: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#64748B',
+    fontSize: 16,
+  },
+  header: {
+    padding: 24,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#E5E7EB',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#64748B',
+  },
+  timeRangeContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  timeRangeButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#1E293B',
+  },
+  timeRangeButtonActive: {
+    backgroundColor: '#3B82F6',
+  },
+  timeRangeText: {
+    color: '#94A3B8',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  timeRangeTextActive: {
+    color: '#fff',
+  },
+  section: {
+    padding: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E293B',
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#E5E7EB',
+    marginBottom: 20,
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  metricCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 20,
+    flex: 1,
+    minWidth: width > 768 ? 200 : '45%',
+    alignItems: 'center',
+  },
+  metricIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  metricTitle: {
+    fontSize: 14,
+    color: '#94A3B8',
+    marginBottom: 4,
+  },
+  metricValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#E5E7EB',
+  },
+  metricSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 4,
+  },
+  chartContainer: {
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+  },
+  chartTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#E5E7EB',
+    marginBottom: 16,
+  },
+  chart: {
+    height: 120,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  chartBar: {
+    flex: 1,
+    backgroundColor: '#3B82F6',
+    borderRadius: 4,
+    minHeight: 4,
+  },
+  chartLabel: {
+    fontSize: 12,
+    color: '#64748B',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  topPagesContainer: {
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 20,
+  },
+  topPageItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+  },
+  topPageInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  topPageRank: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  topPageName: {
+    fontSize: 14,
+    color: '#E5E7EB',
+  },
+  topPageStats: {
+    alignItems: 'flex-end',
+  },
+  topPageViews: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3B82F6',
+  },
+  topPageTime: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  featureInfo: {
+    width: 140,
+  },
+  featureName: {
+    fontSize: 14,
+    color: '#E5E7EB',
+    fontWeight: '600',
+  },
+  featureUsers: {
+    fontSize: 12,
+    color: '#64748B',
+  },
+  featureBar: {
+    flex: 1,
+    height: 20,
+    backgroundColor: '#1E293B',
+    borderRadius: 10,
+    marginHorizontal: 12,
+    overflow: 'hidden',
+  },
+  featureProgress: {
+    height: '100%',
+    borderRadius: 10,
+  },
+  featureCount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#E5E7EB',
+    width: 50,
+    textAlign: 'right',
+  },
+  performanceGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  performanceItem: {
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 20,
+    flex: 1,
+    minWidth: width > 768 ? 200 : '45%',
+    alignItems: 'center',
+  },
+  performanceLabel: {
+    fontSize: 14,
+    color: '#94A3B8',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  performanceValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#E5E7EB',
+  },
+  exportSection: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 24,
+  },
+  exportButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#3B82F6',
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  exportButtonSecondary: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+  },
+  exportButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 });
 
 export default AnalyticsDashboard;

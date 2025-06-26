@@ -13,7 +13,7 @@ import {
   Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSupervisorSession } from '../../components/hooks/useSupervisorSession';
+import { useSupervisorSession } from '../../components/hooks/useSupervisorSessionSimple';
 import SystemHealthMonitor from '../../components/SystemHealthMonitor';
 import TrainingHelpSystem from '../../components/TrainingHelpSystem';
 import { API_CONFIG } from '../../config/api';

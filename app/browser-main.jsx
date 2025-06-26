@@ -17,7 +17,6 @@ import { Ionicons } from '@expo/vector-icons';
 // Import all our v3.0 components
 import SupervisorLogin from '../components/SupervisorLogin';
 import SupervisorControl from '../components/SupervisorControl';
-import SupervisorDisplayIntegrationTest from '../components/dev/SupervisorDisplayIntegrationTest';
 import EnhancedDashboard from '../components/EnhancedDashboard';
 import IncidentManager from '../components/IncidentManager';
 import AIDisruptionManager from '../components/AIDisruptionManager';
@@ -25,14 +24,11 @@ import MessageDistributionCenter from '../components/MessageDistributionCenter';
 import AutomatedReportingSystem from '../components/AutomatedReportingSystem';
 import SystemHealthMonitor from '../components/SystemHealthMonitor';
 import TrainingHelpSystem from '../components/TrainingHelpSystem';
-import SimpleAPITest from '../components/dev/SimpleAPITest';
 import RoadworksManager from '../components/RoadworksManager';
-import SupervisorCard from '../components/archive/SupervisorCard';
-import SupervisorCardDemo from '../components/dev/SupervisorCardDemo';
-import QuickSupervisorTest from '../components/dev/QuickSupervisorTest';
-import WebSocketTest from '../components/dev/WebSocketTest';
-import WebSocketDiagnostics from '../components/dev/WebSocketDiagnostics';
-import { useSupervisorSession } from '../components/hooks/useSupervisorSession';
+import DisruptionDatabase from '../components/DisruptionDatabase';
+import AdminPanel from '../components/admin/AdminPanel';
+import DutyBoards from '../components/DutyBoards';
+import { useSupervisor } from '../components/hooks/useSupervisorSession';
 import { useBarryAPI } from '../components/hooks/useBARRYapi';
 import { API_CONFIG } from '../config/api';
 
@@ -40,6 +36,14 @@ const { width, height } = Dimensions.get('window');
 
 // Main navigation structure for browser
 const BROWSER_NAVIGATION = {
+  admin: {
+    title: 'Admin Panel',
+    icon: 'shield-checkmark',
+    component: AdminPanel,
+    description: '⭐ System administration & accountability center',
+    color: '#F59E0B',
+    adminOnly: true
+  },
   supervisor: {
     title: 'Supervisor Control',
     icon: 'people-circle',
@@ -47,13 +51,7 @@ const BROWSER_NAVIGATION = {
     description: 'Interactive supervisor controls & display sync',
     color: '#DC2626'
   },
-  integration_test: {
-    title: 'Integration Test',
-    icon: 'flask',
-    component: SupervisorDisplayIntegrationTest,
-    description: '🧪 Test supervisor ↔ display real-time sync',
-    color: '#7C3AED'
-  },
+
   dashboard: {
     title: 'Control Dashboard',
     icon: 'stats-chart',
@@ -74,6 +72,20 @@ const BROWSER_NAVIGATION = {
     component: RoadworksManager,
     description: 'Manage roadworks & create Blink diversions',
     color: '#F59E0B'
+  },
+  disruptions: {
+    title: 'Disruption Database',
+    icon: 'folder-open',
+    component: DisruptionDatabase,
+    description: 'Unified view of all roadworks and incidents',
+    color: '#8B5CF6'
+  },
+  dutyboards: {
+    title: 'Duty Boards',
+    icon: 'document-attach',
+    component: DutyBoards,
+    description: 'View and manage driver duty board PDFs',
+    color: '#06B6D4'
   },
   ai: {
     title: 'AI Disruption Manager',
@@ -110,41 +122,7 @@ const BROWSER_NAVIGATION = {
     description: 'Learn Go Barry & get support',
     color: '#6366F1'
   },
-  test: {
-    title: 'Quick Supervisor Test',
-    icon: 'people-circle',
-    component: QuickSupervisorTest,
-    description: 'Quick test of supervisor card components',
-    color: '#10B981'
-  },
-  apitest: {
-    title: 'API Test',
-    icon: 'bug',
-    component: SimpleAPITest,
-    description: 'Test API connectivity and data flow',
-    color: '#F97316'
-  },
-  supervisordemo: {
-    title: 'Supervisor Card Demo',
-    icon: 'people',
-    component: SupervisorCardDemo,
-    description: 'Demo individual supervisor tracking features',
-    color: '#7C3AED'
-  },
-  websockettest: {
-    title: 'WebSocket Test',
-    icon: 'wifi',
-    component: WebSocketTest,
-    description: 'Test WebSocket connections and authentication',
-    color: '#EC4899'
-  },
-  diagnostics: {
-    title: 'WebSocket Diagnostics',
-    icon: 'pulse',
-    component: WebSocketDiagnostics,
-    description: 'Advanced diagnostics for connection issues',
-    color: '#DC2626'
-  }
+
 };
 
 const BrowserMainApp = () => {
@@ -157,13 +135,40 @@ const BrowserMainApp = () => {
     isAdmin,
     supervisorSession, // Add this to access backendId
     logout
-  } = useSupervisorSession();
+  } = useSupervisor();
 
   // Get live alerts for supervisor control
   const { alerts } = useBarryAPI({ autoRefresh: true, refreshInterval: 15000 });
 
   const [activeScreen, setActiveScreen] = useState('supervisor');
   const [showSupervisorLogin, setShowSupervisorLogin] = useState(false);
+  const [loginJustCompleted, setLoginJustCompleted] = useState(false);
+  const [sessionInitialized, setSessionInitialized] = useState(false);
+  
+  // Temporary debug logging to verify context fix
+  useEffect(() => {
+    console.log('[browser-main] Session state update:', { 
+      isLoggedIn, 
+      supervisorName: supervisorName || 'Not logged in',
+      sessionInitialized,
+      loginJustCompleted,
+      showSupervisorLogin,
+      timestamp: new Date().toLocaleTimeString() 
+    });
+  }, [isLoggedIn, supervisorName, sessionInitialized, loginJustCompleted, showSupervisorLogin]);
+  
+  // Mark session as initialized after a short delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSessionInitialized(true);
+    }, 200); // Give time for session to load from storage
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // Debug state changes
+  useEffect(() => {
+    console.log('showSupervisorLogin state changed to:', showSupervisorLogin);
+  }, [showSupervisorLogin]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -245,21 +250,39 @@ const BrowserMainApp = () => {
 
   // Enhanced logout function that ensures modal opens
   const handleLogout = async () => {
-    console.log('🔄 Logout clicked - clearing session...');
+    console.log('Logout clicked - clearing session...');
     await logout();
     // Force login modal to open after logout
     setTimeout(() => {
       setShowSupervisorLogin(true);
-      console.log('✅ Login modal should now be open');
+      console.log('Login modal should now be open');
     }, 100);
   };
 
-  // Auto-open login if not logged in
+  // Force login modal to open for non-logged-in users on first load
   useEffect(() => {
-    if (!isLoggedIn) {
-      setShowSupervisorLogin(true);
+    if (!isLoggedIn && !showSupervisorLogin && !loginJustCompleted && sessionInitialized) {
+      console.log('User not logged in, opening login modal automatically');
+      // Small delay to ensure component is fully mounted and prevent race conditions
+      const timer = setTimeout(() => {
+        // Double-check user is still not logged in before opening modal
+        if (!isLoggedIn && !loginJustCompleted && sessionInitialized) {
+          setShowSupervisorLogin(true);
+        }
+      }, 500);
+      return () => clearTimeout(timer);
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, showSupervisorLogin, loginJustCompleted, sessionInitialized]);
+  
+  // Clear login completed flag after a delay
+  useEffect(() => {
+    if (loginJustCompleted) {
+      const timer = setTimeout(() => {
+        setLoginJustCompleted(false);
+      }, 3000); // 3 second cooldown
+      return () => clearTimeout(timer);
+    }
+  }, [loginJustCompleted]);
 
   const renderActiveScreen = () => {
     const screenConfig = BROWSER_NAVIGATION[activeScreen];
@@ -310,13 +333,24 @@ const BrowserMainApp = () => {
                 hour12: false 
               })}
             </Text>
-            {isLoggedIn && (
+            {isLoggedIn ? (
               <TouchableOpacity
                 style={styles.profileButton}
                 onPress={() => setShowSupervisorLogin(true)}
               >
                 <Ionicons name="person-circle" size={24} color="#6B7280" />
                 <Text style={styles.profileText}>{supervisorName}</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.profileButton, { backgroundColor: '#3B82F6' }]}
+                onPress={() => {
+                  console.log('Header login button clicked');
+                  setShowSupervisorLogin(true);
+                }}
+              >
+                <Ionicons name="log-in" size={20} color="#FFFFFF" />
+                <Text style={[styles.profileText, { color: '#FFFFFF' }]}>Login</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -331,8 +365,8 @@ const BrowserMainApp = () => {
               supervisorSession={supervisorSession} // Pass full session
               alerts={alerts}
             />
-          ) : activeScreen === 'integration_test' ? (
-            <SupervisorDisplayIntegrationTest />
+          ) : activeScreen === 'admin' ? (
+            <AdminPanel onClose={() => setActiveScreen('supervisor')} />
           ) : (
             <ScreenComponent baseUrl={API_CONFIG.baseURL} />
           )}
@@ -343,6 +377,44 @@ const BrowserMainApp = () => {
 
   return (
     <View style={styles.container}>
+      {/* Show login prompt if not logged in and modal isn't showing */}
+      {!isLoggedIn && !showSupervisorLogin && !loginJustCompleted && sessionInitialized && (
+        <TouchableOpacity 
+          style={styles.loginPromptOverlay} 
+          data-testid="login-prompt-overlay"
+          activeOpacity={1}
+          onPress={() => {
+            // Clicking overlay also opens login
+            setShowSupervisorLogin(true);
+          }}
+        >
+          <TouchableOpacity 
+            style={styles.loginPromptCard}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Ionicons name="shield-checkmark" size={48} color="#3B82F6" />
+            <Text style={styles.loginPromptTitle}>Supervisor Access Required</Text>
+            <Text style={styles.loginPromptText}>
+              Please log in with your supervisor credentials to access Go Barry
+            </Text>
+            <TouchableOpacity
+              style={styles.loginPromptButton}
+              onPress={() => {
+                console.log('Manual login button clicked, current state:', { showSupervisorLogin, isLoggedIn });
+                setShowSupervisorLogin(true);
+              }}
+            >
+              <Ionicons name="log-in" size={20} color="#FFFFFF" />
+              <Text style={styles.loginPromptButtonText}>Log In</Text>
+            </TouchableOpacity>
+            <Text style={styles.loginPromptHelp}>
+              If you're having trouble, try refreshing the page or contact IT support
+            </Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      )}
+
       {/* Sidebar Navigation */}
       <View style={[styles.sidebar, sidebarCollapsed && styles.sidebarCollapsed]}>
         {/* Header */}
@@ -386,7 +458,10 @@ const BrowserMainApp = () => {
                   <Text style={styles.supervisorName}>{supervisorName}</Text>
                   <Text style={styles.supervisorRoleText}>{supervisorRole}</Text>
                   {isAdmin && (
-                    <Text style={styles.adminBadge}>⭐ Admin</Text>
+                    <View style={styles.adminBadgeContainer}>
+                      <Ionicons name="shield-checkmark" size={12} color="#F59E0B" />
+                      <Text style={styles.adminBadge}>Admin Access</Text>
+                    </View>
                   )}
                   <View style={styles.connectionStatus}>
                     <View style={[
@@ -408,7 +483,13 @@ const BrowserMainApp = () => {
 
         {/* Navigation Items */}
         <ScrollView style={styles.navigationContainer}>
-          {Object.entries(BROWSER_NAVIGATION).map(([screenId, screen], index) => (
+          {Object.entries(BROWSER_NAVIGATION)
+            .filter(([screenId, screen]) => {
+              // Only show admin panel to admin users
+              if (screen.adminOnly && !isAdmin) return false;
+              return true;
+            })
+            .map(([screenId, screen], index) => (
             <TouchableOpacity
               key={screenId}
               style={[
@@ -451,7 +532,10 @@ const BrowserMainApp = () => {
           {!isLoggedIn ? (
             <TouchableOpacity
               style={styles.footerButton}
-              onPress={() => setShowSupervisorLogin(true)}
+              onPress={() => {
+                console.log('Login button clicked');
+                setShowSupervisorLogin(true);
+              }}
             >
               <Ionicons name="log-in" size={20} color="#3B82F6" />
               {!sidebarCollapsed && (
@@ -477,11 +561,40 @@ const BrowserMainApp = () => {
         {renderActiveScreen()}
       </View>
 
-      {/* Supervisor Login Modal */}
-      <SupervisorLogin
-        visible={showSupervisorLogin}
-        onClose={() => setShowSupervisorLogin(false)}
-      />
+      {/* Supervisor Login Modal - Always rendered to ensure it's available */}
+      {Platform.OS === 'web' ? (
+        // Web-specific render to avoid modal issues
+        showSupervisorLogin && (
+          <View style={styles.webModalWrapper}>
+            <SupervisorLogin
+              visible={true}  // Always visible when rendered on web
+              onClose={() => {
+                console.log('Closing login modal');
+                setShowSupervisorLogin(false);
+              }}
+              onLoginSuccess={() => {
+                console.log('Login success in BrowserMainApp');
+                setShowSupervisorLogin(false);  // Explicitly close modal
+                setLoginJustCompleted(true);    // Prevent immediate re-open
+              }}
+            />
+          </View>
+        )
+      ) : (
+        // Native modal for mobile
+        <SupervisorLogin
+          visible={showSupervisorLogin || false}  // Ensure boolean value
+          onClose={() => {
+            console.log('Closing login modal');
+            setShowSupervisorLogin(false);
+          }}
+          onLoginSuccess={() => {
+            console.log('Login success in BrowserMainApp');
+            setShowSupervisorLogin(false);  // Explicitly close modal
+            setLoginJustCompleted(true);    // Prevent immediate re-open
+          }}
+        />
+      )}
     </View>
   );
 };
@@ -589,10 +702,20 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginBottom: 2,
   },
+  adminBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    marginTop: 4,
+  },
   adminBadge: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#F59E0B',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   connectionStatus: {
     flexDirection: 'row',
@@ -749,6 +872,76 @@ const styles = StyleSheet.create({
   screenContent: {
     flex: 1,
     overflow: 'hidden',
+  },
+  // Login prompt overlay styles
+  loginPromptOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 900,  // Lower than modal zIndex
+  },
+  loginPromptCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 40,
+    alignItems: 'center',
+    maxWidth: 400,
+    margin: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  loginPromptTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  loginPromptText: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 24,
+  },
+  loginPromptButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  loginPromptButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  loginPromptHelp: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
+  webModalWrapper: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10000,
+    pointerEvents: 'auto',
   },
 });
 
