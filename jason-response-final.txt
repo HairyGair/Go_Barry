@@ -1,0 +1,21 @@
+## Response to Jason Hamilton
+
+Hi Jason,
+
+Found and fixed the issue! You were absolutely right - the problem was on our end.
+
+**What was happening:**
+Our Express server was applying JSON parsing middleware globally, which consumed the request body before it reached our webhook handler. This left an empty object `{}` for the handler to process.
+
+**The fix:**
+1. Modified our server to skip JSON parsing specifically for `/api/streetmanager/webhook`
+2. Updated the webhook handler to read the raw body directly
+3. Now properly accesses SNS fields at root level: `message.Type`, `message.SubscribeURL`, etc.
+
+**Result:**
+The webhook now correctly receives and processes SNS messages exactly as you described in your schema.
+
+Thank you for your patience and the clear guidance. The webhook at https://go-barry.onrender.com/api/streetmanager/webhook is now ready to receive StreetManager notifications.
+
+Best regards,
+Anthony

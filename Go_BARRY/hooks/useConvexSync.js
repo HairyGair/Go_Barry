@@ -19,6 +19,9 @@ try {
 // Safely import Convex with fallbacks
 let useQuery, useMutation, api;
 
+// No-op mutation function for when Convex is not available
+const noOpMutation = () => Promise.resolve({ success: false, error: 'Convex not available' });
+
 try {
   const convexReact = require('convex/react');
   const apiModule = require('../convex/_generated/api');
@@ -33,21 +36,18 @@ try {
   }
 } catch (error) {
   console.warn('Convex not available - using fallback mode:', error.message);
-  // Provide fallback functions
-  useQuery = () => undefined;
-  useMutation = () => {
-    // Return a stable function that can be called
-    return async () => ({ success: false, error: 'Convex not available' });
-  };
+  // Provide fallback functions that return appropriate default values
+  useQuery = () => undefined; // Match Convex behavior when loading
+  useMutation = () => noOpMutation;
   api = null;
 }
 
 // Hook for supervisor authentication
 export function useSupervisorAuth() {
   const [sessionId, setSessionId] = useState(null);
-  const login = api ? useMutation(api.supervisors.login) : useMutation();
-  const logout = api ? useMutation(api.supervisors.logout) : useMutation();
-  const session = sessionId && api ? useQuery(api.supervisors.getSession, { sessionId }) : undefined;
+  const login = api ? useMutation(api.supervisors.login) : noOpMutation;
+  const logout = api ? useMutation(api.supervisors.logout) : noOpMutation;
+  const session = sessionId && api ? useQuery(api.supervisors.getSession, { sessionId }) : null;
 
   // Load session ID on mount
   useEffect(() => {
@@ -128,9 +128,9 @@ export function useSupervisorAuth() {
 // Hook for real-time sync state
 export function useSyncState() {
   const syncState = api ? useQuery(api.sync.getSyncState) : undefined;
-  const setDisplayMode = api ? useMutation(api.sync.setDisplayMode) : useMutation();
-  const addCustomMessage = api ? useMutation(api.sync.addCustomMessage) : useMutation();
-  const removeCustomMessage = api ? useMutation(api.sync.removeCustomMessage) : useMutation();
+  const setDisplayMode = api ? useMutation(api.sync.setDisplayMode) : noOpMutation;
+  const addCustomMessage = api ? useMutation(api.sync.addCustomMessage) : noOpMutation;
+  const removeCustomMessage = api ? useMutation(api.sync.removeCustomMessage) : noOpMutation;
 
   return {
     syncState,
@@ -142,25 +142,30 @@ export function useSyncState() {
 
 // Hook for alert management
 export function useAlerts() {
-  const activeAlerts = api ? useQuery(api.alerts.getActiveAlerts) : [];
-  const dismissedAlerts = api ? useQuery(api.alerts.getDismissedAlerts) : [];
+  const activeAlertsRaw = api ? useQuery(api.alerts.getActiveAlerts) : undefined;
+  const dismissedAlertsRaw = api ? useQuery(api.alerts.getDismissedAlerts) : undefined;
   
-  // Temporarily disable pushedAlerts until Convex is re-deployed
-  // TODO: Re-enable after Convex deployment
+  // Ensure we always have arrays, even during loading
+  const activeAlerts = Array.isArray(activeAlertsRaw) ? activeAlertsRaw : [];
+  const dismissedAlerts = Array.isArray(dismissedAlertsRaw) ? dismissedAlertsRaw : [];
+  
+  // TEMPORARY FIX: getPushedAlerts causes Convex server error
+  // The function exists in alerts.ts but the deployment seems out of sync
+  // TODO: Fix by running `npx convex deploy` to update the Convex deployment
   const pushedAlerts = []; // api ? useQuery(api.alerts.getPushedAlerts) : [];
   
-  const acknowledge = api ? useMutation(api.alerts.acknowledge) : useMutation();
-  const dismissFromDisplay = api ? useMutation(api.alerts.dismissFromDisplay) : useMutation();
-  const toggleDisplayLock = api ? useMutation(api.alerts.toggleDisplayLock) : useMutation();
-  const overridePriority = api ? useMutation(api.alerts.overridePriority) : useMutation();
-  const addNote = api ? useMutation(api.alerts.addNote) : useMutation();
-  const pushToDisplay = api ? useMutation(api.alerts.pushToDisplay) : useMutation();
-  const removeFromDisplay = api ? useMutation(api.alerts.removeFromDisplay) : useMutation();
+  const acknowledge = api ? useMutation(api.alerts.acknowledge) : noOpMutation;
+  const dismissFromDisplay = api ? useMutation(api.alerts.dismissFromDisplay) : noOpMutation;
+  const toggleDisplayLock = api ? useMutation(api.alerts.toggleDisplayLock) : noOpMutation;
+  const overridePriority = api ? useMutation(api.alerts.overridePriority) : noOpMutation;
+  const addNote = api ? useMutation(api.alerts.addNote) : noOpMutation;
+  const pushToDisplay = api ? useMutation(api.alerts.pushToDisplay) : noOpMutation;
+  const removeFromDisplay = api ? useMutation(api.alerts.removeFromDisplay) : noOpMutation;
 
   return {
-    activeAlerts: activeAlerts || [],
-    dismissedAlerts: dismissedAlerts || [],
-    pushedAlerts: pushedAlerts || [],
+    activeAlerts: activeAlerts, // Already ensured to be an array above
+    dismissedAlerts: dismissedAlerts, // Already ensured to be an array above
+    pushedAlerts: pushedAlerts, // Already hardcoded as empty array
     acknowledge,
     dismissFromDisplay,
     toggleDisplayLock,
@@ -173,11 +178,14 @@ export function useAlerts() {
 
 // Hook for active supervisors
 export function useActiveSupervisors() {
-  const activeSupervisors = api ? useQuery(api.supervisors.getActiveSupervisors) : [];
-  const forceLogout = api ? useMutation(api.supervisors.forceLogout) : useMutation();
+  const activeSupervisorsRaw = api ? useQuery(api.supervisors.getActiveSupervisors) : undefined;
+  const forceLogout = api ? useMutation(api.supervisors.forceLogout) : noOpMutation;
+  
+  // Ensure we always have an array
+  const activeSupervisors = Array.isArray(activeSupervisorsRaw) ? activeSupervisorsRaw : [];
 
   return {
-    activeSupervisors: activeSupervisors || [],
+    activeSupervisors: activeSupervisors, // Already ensured to be an array above
     forceLogout,
   };
 }
@@ -206,13 +214,13 @@ export function useLoginTracking() {
   return {
     recentLogins: [],
     loginHistory: [],
-    trackLogin: async () => ({ success: false, error: 'Login tracking not available' }),
+    trackLogin: noOpMutation,
   };
 }
 
 // Hook for session heartbeat
 export function useHeartbeat(sessionId, interval = 30000) {
-  const heartbeat = api ? useMutation(api.sync.heartbeat) : useMutation();
+  const heartbeat = api ? useMutation(api.sync.heartbeat) : noOpMutation;
   const intervalRef = useRef();
 
   useEffect(() => {
@@ -242,14 +250,17 @@ export function useHeartbeat(sessionId, interval = 30000) {
 
 // Hook for events management
 export function useEvents() {
-  const activeEvents = api ? useQuery(api.sync.getActiveEvents) : [];
+  const activeEventsRaw = api ? useQuery(api.sync.getActiveEvents) : undefined;
   const mostSevereEvent = api ? useQuery(api.sync.getMostSevereEvent) : null;
   
-  const upsertEvent = api ? useMutation(api.sync.upsertEvent) : useMutation();
-  const updateEventStatus = api ? useMutation(api.sync.updateEventStatus) : useMutation();
+  // Ensure we always have an array
+  const activeEvents = Array.isArray(activeEventsRaw) ? activeEventsRaw : [];
+  
+  const upsertEvent = api ? useMutation(api.sync.upsertEvent) : noOpMutation;
+  const updateEventStatus = api ? useMutation(api.sync.updateEventStatus) : noOpMutation;
 
   return {
-    activeEvents: activeEvents || [],
+    activeEvents: activeEvents, // Already ensured to be an array above
     mostSevereEvent,
     upsertEvent,
     updateEventStatus,
@@ -262,13 +273,13 @@ export function useVixData() {
   
   try {
     vixData = api && api.vixData ? useQuery(api.vixData.getVixData) : null;
-    updateVixData = api && api.vixData ? useMutation(api.vixData.updateVixData) : useMutation();
-    clearVixData = api && api.vixData ? useMutation(api.vixData.clearVixData) : useMutation();
+    updateVixData = api && api.vixData ? useMutation(api.vixData.updateVixData) : noOpMutation;
+    clearVixData = api && api.vixData ? useMutation(api.vixData.clearVixData) : noOpMutation;
   } catch (error) {
     console.warn('VIX data functions not available yet - Convex deployment needed');
     vixData = null;
-    updateVixData = async () => ({ success: false, error: 'VIX functions not deployed' });
-    clearVixData = async () => ({ success: false, error: 'VIX functions not deployed' });
+    updateVixData = noOpMutation;
+    clearVixData = noOpMutation;
   }
 
   return {
@@ -289,15 +300,15 @@ export function useIncidents() {
     // Return empty arrays and no-op functions if Convex isn't available
     activeIncidents = [];
     allIncidents = [];
-    createIncident = async () => ({ success: false, error: 'Convex not deployed' });
-    updateIncident = async () => ({ success: false, error: 'Convex not deployed' });
-    addIncidentNote = async () => ({ success: false, error: 'Convex not deployed' });
-    sendTicketerMessage = async () => ({ success: false, error: 'Convex not deployed' });
-    pushIncidentToDisplay = async () => ({ success: false, error: 'Convex not deployed' });
+    createIncident = noOpMutation;
+    updateIncident = noOpMutation;
+    addIncidentNote = noOpMutation;
+    sendTicketerMessage = noOpMutation;
+    pushIncidentToDisplay = noOpMutation;
     // Enhanced functions
-    convertAlertToIncident = async () => ({ success: false, error: 'Convex not deployed' });
-    addIncidentAction = async () => ({ success: false, error: 'Convex not deployed' });
-    archiveIncident = async () => ({ success: false, error: 'Convex not deployed' });
+    convertAlertToIncident = noOpMutation;
+    addIncidentAction = noOpMutation;
+    archiveIncident = noOpMutation;
     getIncidentWithActions = undefined;
     getIncidentsByStatus = undefined;
     searchArchivedIncidents = undefined;
@@ -318,23 +329,23 @@ export function useIncidents() {
         addIncidentAction = useMutation(api.incidentsEnhanced.addIncidentAction);
         archiveIncident = useMutation(api.incidentsEnhanced.archiveIncident);
       } else {
-        convertAlertToIncident = async () => ({ success: false, error: 'Enhanced functions not deployed' });
-        addIncidentAction = async () => ({ success: false, error: 'Enhanced functions not deployed' });
-        archiveIncident = async () => ({ success: false, error: 'Enhanced functions not deployed' });
+        convertAlertToIncident = noOpMutation;
+        addIncidentAction = noOpMutation;
+        archiveIncident = noOpMutation;
       }
     } catch (error) {
       console.warn('Incident management via Convex not available:', error.message);
       // Return empty arrays and no-op functions if Convex isn't available
       activeIncidents = [];
       allIncidents = [];
-      createIncident = async () => ({ success: false, error: 'Convex not deployed' });
-      updateIncident = async () => ({ success: false, error: 'Convex not deployed' });
-      addIncidentNote = async () => ({ success: false, error: 'Convex not deployed' });
-      sendTicketerMessage = async () => ({ success: false, error: 'Convex not deployed' });
-      pushIncidentToDisplay = async () => ({ success: false, error: 'Convex not deployed' });
-      convertAlertToIncident = async () => ({ success: false, error: 'Convex not deployed' });
-      addIncidentAction = async () => ({ success: false, error: 'Convex not deployed' });
-      archiveIncident = async () => ({ success: false, error: 'Convex not deployed' });
+      createIncident = noOpMutation;
+      updateIncident = noOpMutation;
+      addIncidentNote = noOpMutation;
+      sendTicketerMessage = noOpMutation;
+      pushIncidentToDisplay = noOpMutation;
+      convertAlertToIncident = noOpMutation;
+      addIncidentAction = noOpMutation;
+      archiveIncident = noOpMutation;
     }
   }
 
@@ -360,10 +371,15 @@ export function useIncidents() {
 
 // Hook for alert sync from backend
 export function useAlertSync() {
-  const batchInsertAlerts = api ? useMutation(api.alerts.batchInsertAlerts) : useMutation();
+  const batchInsertAlerts = api ? useMutation(api.alerts.batchInsertAlerts) : noOpMutation;
   
   const syncAlerts = useCallback(async (alerts) => {
-    if (!alerts || alerts.length === 0) return;
+    // Add defensive check for alerts parameter
+    if (!alerts || !Array.isArray(alerts)) {
+      console.warn('syncAlerts called with invalid alerts:', alerts);
+      return { success: false, error: 'Invalid alerts parameter' };
+    }
+    if (alerts.length === 0) return { success: true, synced: 0 };
     if (!api) {
       console.warn('Alert sync skipped - Convex not available');
       return { success: false, error: 'Convex not available' };
@@ -408,6 +424,11 @@ export function useConvexSync() {
   const alertSync = useAlertSync();
   const loginTracking = useLoginTracking();
   const vixDataHook = useVixData();
+  
+  // Add defensive checks to ensure hooks are properly initialized
+  if (!auth || !sync || !alerts || !supervisors || !events || !incidents || !alertSync || !loginTracking || !vixDataHook) {
+    console.warn('Some Convex hooks are not yet initialized');
+  }
 
   // Get stored session ID on mount
   useEffect(() => {
@@ -415,10 +436,14 @@ export function useConvexSync() {
       try {
         // Try localStorage first for web
         if (typeof window !== 'undefined' && window.localStorage) {
-          const storedId = window.localStorage.getItem('convex_session_id');
-          if (storedId) {
-            console.log('Found stored Convex session in localStorage');
-            return;
+          try {
+            const storedId = window.localStorage.getItem('convex_session_id');
+            if (storedId) {
+              console.log('Found stored Convex session in localStorage');
+              return;
+            }
+          } catch (localStorageError) {
+            console.log('localStorage access error:', localStorageError);
           }
         }
         
@@ -442,71 +467,71 @@ export function useConvexSync() {
     
     // Call the async function
     loadSession();
-  }, []);
+  }, []); // Empty dependency array - only run on mount
 
   return {
     // Auth
-    login: auth.login,
-    logout: auth.logout,
-    session: auth.session,
+    login: auth?.login || noOpMutation,
+    logout: auth?.logout || noOpMutation,
+    session: auth?.session || null,
     
     // Sync state
-    syncState: sync.syncState,
-    setDisplayMode: sync.setDisplayMode,
-    addCustomMessage: sync.addCustomMessage,
-    removeCustomMessage: sync.removeCustomMessage,
+    syncState: sync?.syncState || null,
+    setDisplayMode: sync?.setDisplayMode || noOpMutation,
+    addCustomMessage: sync?.addCustomMessage || noOpMutation,
+    removeCustomMessage: sync?.removeCustomMessage || noOpMutation,
     
-    // Alerts
-    activeAlerts: alerts.activeAlerts,
-    dismissedAlerts: alerts.dismissedAlerts,
-    pushedAlerts: alerts.pushedAlerts,
-    acknowledge: alerts.acknowledge,
-    dismissFromDisplay: alerts.dismissFromDisplay,
-    toggleDisplayLock: alerts.toggleDisplayLock,
-    overridePriority: alerts.overridePriority,
-    addNote: alerts.addNote,
-    pushToDisplay: alerts.pushToDisplay,
-    removeFromDisplay: alerts.removeFromDisplay,
+    // Alerts (with extra safety checks)
+    activeAlerts: Array.isArray(alerts?.activeAlerts) ? alerts.activeAlerts : [],
+    dismissedAlerts: Array.isArray(alerts?.dismissedAlerts) ? alerts.dismissedAlerts : [],
+    pushedAlerts: Array.isArray(alerts?.pushedAlerts) ? alerts.pushedAlerts : [],
+    acknowledge: alerts?.acknowledge || noOpMutation,
+    dismissFromDisplay: alerts?.dismissFromDisplay || noOpMutation,
+    toggleDisplayLock: alerts?.toggleDisplayLock || noOpMutation,
+    overridePriority: alerts?.overridePriority || noOpMutation,
+    addNote: alerts?.addNote || noOpMutation,
+    pushToDisplay: alerts?.pushToDisplay || noOpMutation,
+    removeFromDisplay: alerts?.removeFromDisplay || noOpMutation,
     
-    // Supervisors
-    activeSupervisors: supervisors.activeSupervisors,
-    forceLogout: supervisors.forceLogout,
+    // Supervisors (with extra safety checks)
+    activeSupervisors: Array.isArray(supervisors?.activeSupervisors) ? supervisors.activeSupervisors : [],
+    forceLogout: supervisors?.forceLogout || noOpMutation,
     
-    // Events
-    activeEvents: events.activeEvents,
-    mostSevereEvent: events.mostSevereEvent,
-    upsertEvent: events.upsertEvent,
-    updateEventStatus: events.updateEventStatus,
+    // Events (with extra safety checks)
+    activeEvents: Array.isArray(events?.activeEvents) ? events.activeEvents : [],
+    mostSevereEvent: events?.mostSevereEvent || null,
+    upsertEvent: events?.upsertEvent || noOpMutation,
+    updateEventStatus: events?.updateEventStatus || noOpMutation,
     
-    // Incidents
-    activeIncidents: incidents.activeIncidents,
-    allIncidents: incidents.allIncidents,
-    createIncident: incidents.createIncident,
-    updateIncident: incidents.updateIncident,
-    addIncidentNote: incidents.addIncidentNote,
-    sendTicketerMessage: incidents.sendTicketerMessage,
-    pushIncidentToDisplay: incidents.pushIncidentToDisplay,
-    incidentsLoading: incidents.loading,
+    // Incidents (with extra safety checks)
+    activeIncidents: Array.isArray(incidents?.activeIncidents) ? incidents.activeIncidents : [],
+    allIncidents: Array.isArray(incidents?.allIncidents) ? incidents.allIncidents : [],
+    createIncident: incidents?.createIncident || noOpMutation,
+    updateIncident: incidents?.updateIncident || noOpMutation,
+    addIncidentNote: incidents?.addIncidentNote || noOpMutation,
+    sendTicketerMessage: incidents?.sendTicketerMessage || noOpMutation,
+    pushIncidentToDisplay: incidents?.pushIncidentToDisplay || noOpMutation,
+    incidentsLoading: incidents?.loading || false,
     // Enhanced incident functions
-    convertAlertToIncident: incidents.convertAlertToIncident,
-    addIncidentAction: incidents.addIncidentAction,
-    archiveIncident: incidents.archiveIncident,
-    getIncidentWithActions: incidents.getIncidentWithActions,
-    getIncidentsByStatus: incidents.getIncidentsByStatus,
-    searchArchivedIncidents: incidents.searchArchivedIncidents,
-    getIncidentStats: incidents.getIncidentStats,
+    convertAlertToIncident: incidents?.convertAlertToIncident || noOpMutation,
+    addIncidentAction: incidents?.addIncidentAction || noOpMutation,
+    archiveIncident: incidents?.archiveIncident || noOpMutation,
+    getIncidentWithActions: incidents?.getIncidentWithActions,
+    getIncidentsByStatus: incidents?.getIncidentsByStatus,
+    searchArchivedIncidents: incidents?.searchArchivedIncidents,
+    getIncidentStats: incidents?.getIncidentStats,
     
     // Alert sync
-    syncAlerts: alertSync.syncAlerts,
+    syncAlerts: alertSync?.syncAlerts || (() => {}),
     
-    // Login tracking
-    recentLogins: loginTracking.recentLogins,
-    loginHistory: loginTracking.loginHistory,
-    trackLogin: loginTracking.trackLogin,
+    // Login tracking (with extra safety checks)
+    recentLogins: Array.isArray(loginTracking?.recentLogins) ? loginTracking.recentLogins : [],
+    loginHistory: Array.isArray(loginTracking?.loginHistory) ? loginTracking.loginHistory : [],
+    trackLogin: loginTracking?.trackLogin || noOpMutation,
     
     // VIX data
-    vixData: vixDataHook.vixData,
-    updateVixData: vixDataHook.updateVixData,
-    clearVixData: vixDataHook.clearVixData,
+    vixData: vixDataHook?.vixData || null,
+    updateVixData: vixDataHook?.updateVixData || noOpMutation,
+    clearVixData: vixDataHook?.clearVixData || noOpMutation,
   };
 }

@@ -3,10 +3,9 @@
 
 import express from 'express';
 import { createServer } from 'http';
-import bodyParser from 'body-parser';
 
 const app = express();
-app.use('/api/streetmanager/webhook', bodyParser.raw({ type: 'application/json' }));
+// Raw body parser for webhook will be handled in the route itself
 
 const PORT = process.env.PORT || 3001;
 const server = createServer(app);
@@ -76,6 +75,8 @@ app.use((req, res, next) => {
   next();
 });
 
+// Apply JSON parsing to all routes
+// StreetManager webhook will override with bodyParser.text() in its route
 app.use(express.json());
 
 // Basic health endpoint

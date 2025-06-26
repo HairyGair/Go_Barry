@@ -1,179 +1,363 @@
-// backend/routes/streetManagerWebhook.js
-// AWS SNS webhook endpoint for manage-roadworks.service.gov.uk real-time notifications
+// backend/routes/streetmanagerWebhook.js
+// StreetManager SNS Webhook Handler - Following Official Documentation Exactly
 
 import express from 'express';
-import bodyParser from 'body-parser';
-import { processStreetManagerEvent } from '../services/streetManagerEvents.js';
+import https from 'https';
+import crypto from 'crypto';
+import fetch from 'node-fetch';
+import { createClient } from '@supabase/supabase-js';
 
 const router = express.Router();
 
-/**
- * POST /api/streetmanager/webhook
- * Receives AWS SNS notifications from manage-roadworks.service.gov.uk
- * 
- * Flow:
- * 1. First request will be SNS subscription confirmation
- * 2. Subsequent requests will be roadwork event notifications
- */
-router.post('/webhook', bodyParser.raw({ type: 'application/json' }), async (req, res) => {
-  try {
-    const rawBody = req.body.toString('utf8');
-    const message = JSON.parse(rawBody);
+// Initialize Supabase
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
-    console.log('📨 Received Street Manager webhook:', {
-      messageType: message.Type,
-      topicArn: message.TopicArn,
-      timestamp: new Date().toISOString()
-    });
+// Signature validation functions - EXACTLY as per official docs
+async function isValidSignature(body) {
+  verifyMessageSignatureVersion(body.SignatureVersion);
+  const certificate = await downloadCertificate(body.SigningCertURL);
+  return validateSignature(body, certificate);
+}
 
-    const messageType = message.Type;
-
-    if (messageType === 'SubscriptionConfirmation') {
-      console.log('🔔 SNS Subscription Confirmation received');
-      console.log('Confirmation URL:', message.SubscribeURL);
-
-      if (message.SubscribeURL) {
-        try {
-          const response = await fetch(message.SubscribeURL);
-          if (response.ok) {
-            console.log('✅ SNS Subscription confirmed automatically');
-          } else {
-            console.error('❌ Failed to confirm subscription:', response.statusText);
-          }
-        } catch (error) {
-          console.error('❌ Error confirming subscription:', error);
-        }
-      }
-
-      res.status(200).json({ 
-        success: true, 
-        message: 'Subscription confirmation received',
-        subscribeUrl: message.SubscribeURL 
-      });
-      return;
-    }
-
-    if (messageType === 'Notification') {
-      console.log('📬 Processing Street Manager notification');
-
-      let eventData;
-      try {
-        eventData = typeof message.Message === 'string' 
-          ? JSON.parse(message.Message) 
-          : message.Message;
-      } catch (parseError) {
-        console.error('❌ Failed to parse SNS message:', parseError);
-        eventData = message;
-      }
-
-      const result = await processStreetManagerEvent(eventData);
-
-      if (result.success) {
-        console.log('✅ Street Manager event processed successfully');
-        res.status(200).json({ 
-          success: true, 
-          message: 'Event processed',
-          alertId: result.alertId 
-        });
-      } else {
-        console.error('❌ Failed to process event:', result.error);
-        res.status(200).json({ 
-          success: false, 
-          error: result.error 
-        });
-      }
-      return;
-    }
-
-    if (messageType === 'UnsubscribeConfirmation') {
-      console.log('🔕 SNS Unsubscribe Confirmation received');
-      res.status(200).json({ 
-        success: true, 
-        message: 'Unsubscribe confirmation received' 
-      });
-      return;
-    }
-
-    console.warn('⚠️ Unknown SNS message type:', messageType);
-    res.status(200).json({ 
-      success: true, 
-      message: 'Message received',
-      type: messageType 
-    });
-
-  } catch (error) {
-    console.error('❌ Street Manager webhook error:', error);
-    res.status(200).json({ 
-      success: false, 
-      error: error.message 
-    });
+function verifyMessageSignatureVersion(version) {
+  if (version != 1) {
+    throw "Signature verification failed";
   }
-});
+}
 
-/**
- * GET /api/streetmanager/webhook/status
- * Check webhook configuration and subscription status
- */
-router.get('/webhook/status', (req, res) => {
-  res.json({
-    success: true,
-    webhook: {
-      endpoint: `${process.env.BACKEND_URL || 'https://go-barry.onrender.com'}/api/streetmanager/webhook`,
-      ready: true,
-      documentation: 'https://department-for-transport-streetmanager.github.io/street-manager-docs/open-data/',
-      instructions: [
-        '1. Register this endpoint at: https://www.manage-roadworks.service.gov.uk/open-data-onboarding',
-        '2. Wait for subscription confirmation request',
-        '3. Endpoint will auto-confirm the subscription',
-        '4. Start receiving real-time roadwork events'
-      ]
-    }
-  });
-});
+function verifyMessageSignatureURL(certURL) {
+  const url = new URL(certURL);
+  if (url.protocol != 'https:') {
+    throw "SigningCertURL was not using HTTPS";
+  }
+}
 
-/**
- * POST /api/streetmanager/webhook/test
- * Test endpoint to simulate Street Manager events
- */
-router.post('/webhook/test', async (req, res) => {
+async function downloadCertificate(certURL) {
+  verifyMessageSignatureURL(certURL);
   try {
-    const testEvent = {
-      event_type: 'PERMIT_CREATED',
-      event_time: new Date().toISOString(),
-      object_reference: 'TEST-' + Date.now(),
-      object_data: {
-        permit_reference_number: 'TEST-PERMIT-001',
-        highway_authority_swa_code: 'NEWC',
-        highway_authority: 'Newcastle City Council',
-        promoter_organisation: 'Test Utility Company',
-        work_category_ref: 'standard',
-        description: 'Test roadwork for webhook integration',
-        location_description: 'A1 Newcastle',
-        street_name: 'A1',
-        area_name: 'Newcastle',
-        proposed_start_date: new Date().toISOString(),
-        proposed_end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        permit_status: 'granted',
-        geometry: {
-          type: 'Point',
-          coordinates: [-1.6178, 54.9783] // Newcastle coordinates
-        }
-      }
-    };
+    const response = await fetch(certURL);
+    return await response.text();
+  } catch (err) {
+    throw `Error fetching certificate: ${err}`;
+  }
+}
 
-    const result = await processStreetManagerEvent(testEvent);
+async function validateSignature(message, certificate) {
+  const verify = crypto.createVerify('sha1WithRSAEncryption');
+  verify.write(getMessageToSign(message));
+  verify.end();
+  return verify.verify(certificate, message.Signature, 'base64');
+}
+
+function getMessageToSign(body) {
+  switch(body.Type) {
+    case 'SubscriptionConfirmation':
+      return buildSubscriptionStringToSign(body);
+    case 'Notification':
+      return buildNotificationStringToSign(body);
+    default:
+      return;
+  }
+}
+
+function buildNotificationStringToSign(body) {
+  let stringToSign = '';
+  stringToSign = "Message\n";
+  stringToSign += body.Message + "\n";
+  stringToSign += "MessageId\n";
+  stringToSign += body.MessageId + "\n";
+  if (body.Subject) {
+    stringToSign += "Subject\n";
+    stringToSign += body.Subject + "\n";
+  }
+  stringToSign += "Timestamp\n";
+  stringToSign += body.Timestamp + "\n";
+  stringToSign += "TopicArn\n";
+  stringToSign += body.TopicArn + "\n";
+  stringToSign += "Type\n";
+  stringToSign += body.Type + "\n";
+  return stringToSign;
+}
+
+function buildSubscriptionStringToSign(body) {
+  let stringToSign = '';
+  stringToSign = "Message\n";
+  stringToSign += body.Message + "\n";
+  stringToSign += "MessageId\n";
+  stringToSign += body.MessageId + "\n";
+  stringToSign += "SubscribeURL\n";
+  stringToSign += body.SubscribeURL + "\n";
+  stringToSign += "Timestamp\n";
+  stringToSign += body.Timestamp + "\n";
+  stringToSign += "Token\n";
+  stringToSign += body.Token + "\n";
+  stringToSign += "TopicArn\n";
+  stringToSign += body.TopicArn + "\n";
+  stringToSign += "Type\n";
+  stringToSign += body.Type + "\n";
+  return stringToSign;
+}
+
+// Handle messages
+function handleMessage(body) {
+  switch(body.Type) {
+    case 'SubscriptionConfirmation':
+      confirmSubscription(body.SubscribeURL);
+      break;
+    case 'Notification':
+      handleNotification(body);
+      break;
+    default:
+      return;
+  }
+}
+
+function confirmSubscription(subscriptionUrl) {
+  https.get(subscriptionUrl);
+  console.log('✅ Subscription confirmed');
+}
+
+async function handleNotification(body) {
+  console.log(`📬 Received message from SNS: ${body.Message}`);
+  
+  try {
+    // Parse the notification message
+    const notificationData = JSON.parse(body.Message);
     
-    res.json({
-      success: true,
-      message: 'Test event processed',
-      result: result
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    // Save to Supabase
+    const { data, error } = await supabase
+      .from('streetmanager_notifications')
+      .insert({
+        notification_id: `sm_${notificationData.event_reference}_${Date.now()}`,
+        webhook_event_type: notificationData.event_type,
+        object_type: notificationData.object_type,
+        object_reference: notificationData.object_reference,
+        raw_webhook_data: notificationData,
+        message_attributes: body.MessageAttributes,
+        webhook_received_at: new Date().toISOString(),
+        processing_status: 'pending'
+      });
+    
+    if (error) {
+      console.error('❌ Failed to save notification:', error);
+    } else {
+      console.log('✅ Notification saved to Supabase');
+      
+      // Process the notification
+      await processNotification(notificationData);
+    }
+  } catch (err) {
+    console.error('❌ Error handling notification:', err);
   }
+}
+
+async function processNotification(notificationData) {
+  try {
+    // Extract relevant data based on object type
+    const objectData = notificationData.object_data;
+    
+    if (!objectData) {
+      console.log('⚠️ No object data in notification');
+      return;
+    }
+    
+    // Transform to roadwork alert format
+    const roadwork = {
+      id: `streetmanager_${notificationData.object_reference || notificationData.event_reference}`,
+      title: `${objectData.work_category || 'Roadwork'} - ${objectData.street_name || 'Unknown Location'}`,
+      description: objectData.description || `${notificationData.event_type} for ${notificationData.object_type}`,
+      location: objectData.street_name || objectData.area_name || 'Unknown Location',
+      severity: determineSeverity(objectData),
+      status: determineStatus(objectData),
+      type: 'roadwork',
+      source: 'StreetManager',
+      dataSource: 'StreetManager Webhook',
+      
+      // StreetManager specific fields
+      permitReference: objectData.permit_reference_number,
+      workReference: objectData.work_reference_number,
+      activityReference: objectData.activity_reference_number,
+      section58Reference: objectData.section_58_reference_number,
+      
+      // Dates
+      proposedStartDate: objectData.proposed_start_date,
+      proposedEndDate: objectData.proposed_end_date,
+      actualStartDate: objectData.actual_start_date_time,
+      actualEndDate: objectData.actual_end_date_time,
+      
+      // Location details
+      streetName: objectData.street_name,
+      areaName: objectData.area_name,
+      town: objectData.town,
+      usrn: objectData.usrn,
+      coordinates: parseCoordinates(objectData.works_location_coordinates || objectData.activity_coordinates || objectData.section_58_coordinates),
+      
+      // Work details
+      workCategory: objectData.work_category,
+      workCategoryRef: objectData.work_category_ref,
+      workStatus: objectData.work_status,
+      workStatusRef: objectData.work_status_ref,
+      activityType: objectData.activity_type,
+      trafficManagementType: objectData.traffic_management_type,
+      trafficManagementTypeRef: objectData.traffic_management_type_ref,
+      
+      // Authority details
+      highwayAuthority: objectData.highway_authority,
+      highwayAuthoritySwaCode: objectData.highway_authority_swa_code,
+      promoterOrganisation: objectData.promoter_organisation,
+      promoterSwaCode: objectData.promoter_swa_code,
+      
+      // Additional flags
+      isEmergency: objectData.is_emergency_works === 'Yes',
+      isCovid19Response: objectData.is_covid_19_response === 'Yes',
+      isTtroRequired: objectData.is_ttro_required === 'Yes',
+      isTrafficSensitive: objectData.is_traffic_sensitive === 'Yes',
+      isDeemed: objectData.is_deemed === 'Yes',
+      
+      // Event metadata
+      eventType: notificationData.event_type,
+      eventReference: notificationData.event_reference,
+      eventTime: notificationData.event_time,
+      version: notificationData.version,
+      
+      lastUpdated: new Date().toISOString()
+    };
+    
+    // Save to roadworks collection
+    const { error } = await supabase
+      .from('roadworks')
+      .upsert(roadwork, {
+        onConflict: 'id',
+        ignoreDuplicates: false
+      });
+    
+    if (error) {
+      console.error('❌ Failed to save roadwork:', error);
+    } else {
+      console.log('✅ Roadwork saved/updated:', roadwork.id);
+    }
+    
+    // Update notification as processed
+    await supabase
+      .from('streetmanager_notifications')
+      .update({
+        processing_status: 'processed',
+        processed_at: new Date().toISOString()
+      })
+      .eq('object_reference', notificationData.object_reference)
+      .eq('webhook_event_type', notificationData.event_type);
+      
+  } catch (err) {
+    console.error('❌ Error processing notification:', err);
+  }
+}
+
+function determineSeverity(objectData) {
+  // High severity
+  if (objectData.is_emergency_works === 'Yes' ||
+      objectData.traffic_management_type_ref === 'road_closure' ||
+      objectData.work_category_ref === 'major' ||
+      objectData.work_status_ref === 'in_progress') {
+    return 'High';
+  }
+  
+  // Medium severity
+  if (objectData.traffic_management_type_ref === 'multi_way_signals' ||
+      objectData.work_category_ref === 'standard' ||
+      objectData.is_traffic_sensitive === 'Yes') {
+    return 'Medium';
+  }
+  
+  // Default to Low
+  return 'Low';
+}
+
+function determineStatus(objectData) {
+  const workStatus = objectData.work_status_ref || objectData.activity_status || '';
+  
+  if (workStatus === 'in_progress' || workStatus === 'active') {
+    return 'red';
+  }
+  
+  if (workStatus === 'proposed' || workStatus === 'planned') {
+    return 'amber';
+  }
+  
+  return 'green';
+}
+
+function parseCoordinates(coordString) {
+  if (!coordString) return null;
+  
+  try {
+    // Handle POINT format
+    if (coordString.startsWith('POINT')) {
+      const match = coordString.match(/POINT\(([\d.-]+)\s+([\d.-]+)\)/);
+      if (match) {
+        const lng = parseFloat(match[1]);
+        const lat = parseFloat(match[2]);
+        return [lat, lng];
+      }
+    }
+    
+    // Handle LINESTRING format (take first point)
+    if (coordString.startsWith('LINESTRING')) {
+      const match = coordString.match(/LINESTRING\(([\d.-]+)\s+([\d.-]+)/);
+      if (match) {
+        const lng = parseFloat(match[1]);
+        const lat = parseFloat(match[2]);
+        return [lat, lng];
+      }
+    }
+  } catch (err) {
+    console.error('Failed to parse coordinates:', err);
+  }
+  
+  return null;
+}
+
+// Main webhook endpoint - EXACTLY as per official docs
+router.post('/', async (req, res) => {
+  console.log('📨 StreetManager webhook received');
+  console.log('Headers:', req.headers);
+  
+  try {
+    // Parse the text body as JSON
+    const body = JSON.parse(req.body);
+    console.log('Body type:', body.Type);
+    
+    // Check for SNS message type header
+    if (req.get('x-amz-sns-message-type') == null) {
+      console.log('⚠️ No x-amz-sns-message-type header');
+      return res.status(400).send('Bad Request');
+    }
+    
+    // Validate signature
+    if (await isValidSignature(body)) {
+      console.log('✅ Signature validated');
+      handleMessage(body);
+      res.status(200).send('OK');
+    } else {
+      console.error('❌ Invalid signature');
+      res.status(403).send('Forbidden');
+    }
+  } catch (err) {
+    console.error('❌ Webhook error:', err);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// Test endpoint
+router.get('/test', (req, res) => {
+  res.json({
+    status: 'ready',
+    endpoint: '/api/streetmanager/webhook',
+    expects: 'SNS notifications with x-amz-sns-message-type header',
+    bodyParser: 'text'
+  });
 });
 
 export default router;

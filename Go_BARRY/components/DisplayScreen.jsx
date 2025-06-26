@@ -1,10 +1,10 @@
 // Go_BARRY/components/DisplayScreen.jsx
 // Control Room Display - Optimized for 60 metre viewing distance
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import OptimizedTomTomMap from './OptimizedTomTomMap';
-import { useConvexSync, useSupervisorActions } from '../hooks/useConvexSync';
-import { formatTime24WithSeconds, formatDateWithWeekday, formatTime24 } from '../utils/dateTime';
+import { useConvexSync } from '../hooks/useConvexSync';
+import { formatTime24WithSeconds, formatDateWithWeekday } from '../utils/dateTime';
 import LateRunnersWidget from './LateRunnersWidget';
 
 const DisplayScreen = () => {
@@ -15,8 +15,10 @@ const DisplayScreen = () => {
   const weatherLocations = ['Newcastle', 'Gateshead', 'Sunderland', 'Durham', 'Consett', 'Stanley'];
 
   // Use Convex for real-time sync
-  const { pushedAlerts, activeSupervisors, vixData } = useConvexSync();
-  const supervisorActivity = useSupervisorActions({ limit: 10 });
+  const convexData = useConvexSync();
+  const pushedAlerts = convexData?.pushedAlerts || [];
+  const activeSupervisors = convexData?.activeSupervisors || [];
+  const vixData = convexData?.vixData;
   
   // Extract VIX data from Convex (with safe fallback)
   const lateRunners = vixData?.lateRunners || [];
@@ -82,17 +84,17 @@ const DisplayScreen = () => {
 
   // Auto-rotate alerts every 30 seconds
   useEffect(() => {
-    if (pushedAlerts.length <= 1) return;
+    if (!pushedAlerts || !Array.isArray(pushedAlerts) || pushedAlerts.length <= 1) return;
     
     const interval = setInterval(() => {
       setCurrentAlertIndex((prev) => (prev + 1) % pushedAlerts.length);
     }, 30000);
     
     return () => clearInterval(interval);
-  }, [pushedAlerts.length]);
+  }, [pushedAlerts?.length]);
 
   const getCurrentAlert = () => {
-    if (!pushedAlerts.length || currentAlertIndex >= pushedAlerts.length) return null;
+    if (!pushedAlerts || !Array.isArray(pushedAlerts) || !pushedAlerts.length || currentAlertIndex >= pushedAlerts.length) return null;
     return pushedAlerts[currentAlertIndex];
   };
 
@@ -113,9 +115,9 @@ const DisplayScreen = () => {
     }}>
       {/* Header - Weather & Time */}
       <div style={{
-        height: '80px',
+        height: '90px',
         backgroundColor: '#111111',
-        borderBottom: '2px solid #333333',
+        borderBottom: '3px solid #333333',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -126,11 +128,11 @@ const DisplayScreen = () => {
           display: 'flex',
           alignItems: 'center',
           gap: '20px',
-          fontSize: '28px',
+          fontSize: '32px',
           fontWeight: 'bold'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '36px' }}>{currentWeatherData?.icon || '🌤️'}</span>
+            <span style={{ fontSize: '42px' }}>{currentWeatherData?.icon || '🌤️'}</span>
             <span>{currentWeatherLocation}: {currentWeatherData?.temp || '--'}°C</span>
           </div>
           {weather?.redheughBridge && weather.redheughBridge.windSpeedMph > 30 && (
@@ -139,7 +141,7 @@ const DisplayScreen = () => {
               padding: '10px 20px',
               borderRadius: '8px',
               animation: 'pulse 2s infinite',
-              fontSize: '24px'
+              fontSize: '28px'
             }}>
               ⚠️ HIGH WIND: Redheugh Bridge {weather.redheughBridge.windSpeedMph}mph
             </div>
@@ -175,7 +177,7 @@ const DisplayScreen = () => {
       }}>
         {/* Alert & Map Section */}
         <div style={{
-          flex: 2,
+          flex: 1,
           display: 'flex',
           flexDirection: 'column',
           gap: '15px'
@@ -186,7 +188,7 @@ const DisplayScreen = () => {
               backgroundColor: '#1a1a1a',
               borderRadius: '12px',
               padding: '25px',
-              border: '2px solid #ff0000',
+              border: '3px solid #ff0000',
               boxShadow: '0 0 20px rgba(255, 0, 0, 0.3)'
             }}>
               <h1 style={{
@@ -211,7 +213,7 @@ const DisplayScreen = () => {
                 <span>{currentAlert.location || 'Location not specified'}</span>
               </div>
 
-              {currentAlert.affectsRoutes && currentAlert.affectsRoutes.length > 0 && (
+              {currentAlert.affectsRoutes && Array.isArray(currentAlert.affectsRoutes) && currentAlert.affectsRoutes.length > 0 && (
                 <div style={{
                   fontSize: '30px',
                   marginTop: '20px',
@@ -241,7 +243,7 @@ const DisplayScreen = () => {
               borderRadius: '12px',
               padding: '40px',
               textAlign: 'center',
-              border: '2px solid #10b981',
+              border: '3px solid #10b981',
               boxShadow: '0 0 20px rgba(16, 185, 129, 0.3)'
             }}>
               <div style={{ fontSize: '60px', marginBottom: '20px' }}>✅</div>
@@ -260,7 +262,7 @@ const DisplayScreen = () => {
             backgroundColor: '#1a1a1a',
             borderRadius: '12px',
             overflow: 'hidden',
-            border: '2px solid #333333',
+            border: '3px solid #333333',
             minHeight: '300px'
           }}>
             <OptimizedTomTomMap 
@@ -272,112 +274,69 @@ const DisplayScreen = () => {
           </div>
         </div>
 
-        {/* Right Side Panel */}
-        <div style={{
-          width: '450px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '15px'
-        }}>
-          {/* Late Runners Widget */}
-          {lateRunners && lateRunners.length > 0 && (
+        {/* Right Side Panel - Only show if there are late runners */}
+        {lateRunners && Array.isArray(lateRunners) && lateRunners.length > 0 && (
+          <div style={{
+            width: '450px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '15px'
+          }}>
             <LateRunnersWidget 
               lateRunners={lateRunners}
               limit={5}
             />
-          )}
-          
-          {/* Activity Panel */}
-          <div style={{
-            flex: 1,
-            backgroundColor: '#1a1a1a',
-            borderRadius: '12px',
-            padding: '20px',
-            border: '2px solid #333333',
-            display: 'flex',
-            flexDirection: 'column'
-          }}>
-          <h2 style={{
-            fontSize: '32px',
-            marginBottom: '20px',
-            color: '#ffffff'
-          }}>
-            SUPERVISOR ACTIVITY
-          </h2>
+          </div>
+        )}
+      </div>
 
-          {/* Active Supervisors */}
-          <div style={{
-            marginBottom: '25px',
-            backgroundColor: '#222222',
-            padding: '15px',
-            borderRadius: '10px'
-          }}>
-            <h3 style={{ fontSize: '24px', color: '#10b981', marginBottom: '15px' }}>
-              Active Personnel ({activeSupervisors?.length || 0})
-            </h3>
-            {activeSupervisors && activeSupervisors.length > 0 ? (
-              activeSupervisors.map((supervisor, idx) => (
-                <div key={idx} style={{
-                  fontSize: '20px',
-                  padding: '8px 0',
-                  borderBottom: '1px solid #333333',
-                  display: 'flex',
-                  justifyContent: 'space-between'
-                }}>
-                  <span>{supervisor.name}</span>
-                  <span style={{ color: '#10b981' }}>{supervisor.isAdmin ? 'ADMIN' : 'ACTIVE'}</span>
-                </div>
-              ))
-            ) : (
-              <div style={{ fontSize: '18px', color: '#666666', textAlign: 'center', padding: '15px' }}>
-                No active personnel
-              </div>
-            )}
-          </div>
-
-          {/* Recent Activity */}
-          <div style={{ flex: 1, overflow: 'hidden' }}>
-            <h3 style={{ fontSize: '24px', color: '#ffffff', marginBottom: '15px' }}>
-              Recent Actions
-            </h3>
-            <div style={{ 
-              overflowY: 'auto', 
-              maxHeight: '400px',
-              paddingRight: '5px'
-            }}>
-              {supervisorActivity && supervisorActivity.length > 0 ? (
-                supervisorActivity.slice(0, 10).map((activity, idx) => (
-                  <div key={activity._id} style={{
-                    marginBottom: '12px',
-                    padding: '10px',
-                    backgroundColor: idx === 0 ? '#333333' : '#222222',
-                    borderRadius: '8px',
-                    borderLeft: `4px solid ${
-                      activity.action === 'push_to_display' ? '#3B82F6' :
-                      activity.action === 'dismiss_alert' ? '#F59E0B' :
-                      activity.action === 'login' ? '#10B981' : '#666666'
-                    }`
-                  }}>
-                    <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '3px' }}>
-                      {activity.supervisorName}
-                    </div>
-                    <div style={{ fontSize: '16px', color: '#cccccc' }}>
-                      {formatActivityAction(activity)}
-                    </div>
-                    <div style={{ fontSize: '14px', color: '#999999', marginTop: '3px' }}>
-                      {formatTime24(activity.timestamp)}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div style={{ fontSize: '18px', color: '#666666', textAlign: 'center', padding: '30px' }}>
-                  No recent activity
-                </div>
-              )}
-            </div>
-          </div>
-          </div>
+      {/* Supervisor Status Box - Bottom Right */}
+      <div style={{
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        backgroundColor: '#1a1a1a',
+        border: '2px solid #333333',
+        borderRadius: '8px',
+        padding: '15px 20px',
+        minWidth: '200px',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)'
+      }}>
+        <div style={{
+          fontSize: '18px',
+          color: '#999999',
+          marginBottom: '10px',
+          fontWeight: 'bold'
+        }}>
+          ACTIVE SUPERVISORS
         </div>
+        {activeSupervisors && activeSupervisors.length > 0 ? (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '5px'
+          }}>
+            {activeSupervisors.map((supervisor) => (
+              <div key={supervisor.badge} style={{
+                fontSize: '16px',
+                color: '#10b981',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span style={{ color: '#10b981' }}>●</span>
+                <span>{supervisor.supervisorName} ({supervisor.badge})</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{
+            fontSize: '16px',
+            color: '#666666'
+          }}>
+            No supervisors online
+          </div>
+        )}
       </div>
 
       {/* CSS for animations */}
@@ -390,28 +349,6 @@ const DisplayScreen = () => {
       `}</style>
     </div>
   );
-};
-
-// Helper function to format activity action
-const formatActivityAction = (action) => {
-  switch (action.action) {
-    case 'login':
-      return `logged in as ${action.role || 'Supervisor'}`;
-    case 'logout':
-      return `logged out`;
-    case 'dismiss_alert':
-      return `dismissed alert: ${action.reason || 'No reason provided'}`;
-    case 'push_to_display':
-      return `pushed alert to display`;
-    case 'remove_from_display':
-      return `removed alert from display`;
-    case 'create_roadwork':
-      return `created roadwork at ${action.details?.location || 'unknown location'}`;
-    case 'create_incident':
-      return `created ${action.details?.type || 'incident'}`;
-    default:
-      return action.action.replace(/_/g, ' ');
-  }
 };
 
 export default DisplayScreen;

@@ -70,9 +70,10 @@ import displayAPI from './routes/displayAPI.js';
 import streetManagerWebhooks from './services/streetManagerWebhooksSimple.js';
 console.log('✅ streetManagerWebhooks service imported');
 import streetManagerWebhookRouter from './routes/streetManagerWebhook.js';
-// IMPORTANT: Mount this BEFORE any express.json() middleware so we can capture raw SNS body
-app.use('/api/streetmanager/webhook', streetManagerWebhookRouter);
-console.log('✅ streetManagerWebhookRouter imported');
+import bodyParser from 'body-parser';
+// IMPORTANT: Apply text body parser ONLY to webhook route, as per StreetManager docs
+app.use('/api/streetmanager/webhook', bodyParser.text(), streetManagerWebhookRouter);
+console.log('✅ streetManagerWebhookRouter imported with text body parser');
 import unifiedRoadworksAPI from './routes/unifiedRoadworksAPI.js';
 console.log('✅ unifiedRoadworksAPI imported');
 // REMOVED: import { createServer } from 'http'; - Using server from render-startup.js
