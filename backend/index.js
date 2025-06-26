@@ -70,6 +70,8 @@ import displayAPI from './routes/displayAPI.js';
 import streetManagerWebhooks from './services/streetManagerWebhooksSimple.js';
 console.log('✅ streetManagerWebhooks service imported');
 import streetManagerWebhookRouter from './routes/streetManagerWebhook.js';
+// IMPORTANT: Mount this BEFORE any express.json() middleware so we can capture raw SNS body
+app.use('/api/streetmanager/webhook', streetManagerWebhookRouter);
 console.log('✅ streetManagerWebhookRouter imported');
 import unifiedRoadworksAPI from './routes/unifiedRoadworksAPI.js';
 console.log('✅ unifiedRoadworksAPI imported');
@@ -835,7 +837,7 @@ app.get('/api/config/tomtom-key', (req, res) => {
 app.use('/api/events', eventAPI);
 
 // StreetManager webhook routes (using new manage-roadworks.service.gov.uk integration)
-// NOTE: Routes have been moved inline before the catch-all route to ensure they work
+// NOTE: Route is now mounted EARLY before JSON middleware for raw body access.
 // console.log('📨 Registering Street Manager webhook routes at /api/streetmanager...');
 // app.use('/api/streetmanager', streetManagerWebhookRouter);
 // console.log('✅ Street Manager webhook routes registered successfully');

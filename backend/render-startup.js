@@ -3,8 +3,11 @@
 
 import express from 'express';
 import { createServer } from 'http';
+import bodyParser from 'body-parser';
 
 const app = express();
+app.use('/api/streetmanager/webhook', bodyParser.raw({ type: 'application/json' }));
+
 const PORT = process.env.PORT || 3001;
 const server = createServer(app);
 // Store app and server globally for use in index.js
