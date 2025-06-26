@@ -2,6 +2,7 @@
 // Gracefully handles cases where Convex is not deployed yet
 
 import { useEffect, useCallback, useRef, useState } from 'react';
+import convexDebug from '../utils/convexDebug';
 
 // Safely import AsyncStorage
 let AsyncStorage;
@@ -54,13 +55,11 @@ export function useSupervisorAuth() {
     const loadSessionId = async () => {
       try {
         // Try localStorage first for web
-        if (typeof window !== 'undefined' && window.localStorage) {
-          const storedId = window.localStorage.getItem('convex_session_id');
-          if (storedId) {
-            setSessionId(storedId);
-            console.log('Loaded Convex session from localStorage');
-            return;
-          }
+        const storedId = convexDebug.safeLocalStorage.getItem('convex_session_id');
+        if (storedId) {
+          setSessionId(storedId);
+          console.log('Loaded Convex session from localStorage');
+          return;
         }
         
         // Fall back to AsyncStorage only on native platforms
@@ -89,9 +88,8 @@ export function useSupervisorAuth() {
       const result = await login(credentials);
       if (result.success && result.sessionId) {
         // Store session ID
-        if (typeof window !== 'undefined' && window.localStorage) {
-          window.localStorage.setItem('convex_session_id', result.sessionId);
-        } else {
+        const stored = convexDebug.safeLocalStorage.setItem('convex_session_id', result.sessionId);
+        if (!stored && typeof window === 'undefined') {
           await AsyncStorage.setItem('convex_session_id', result.sessionId);
         }
         setSessionId(result.sessionId);
@@ -107,9 +105,8 @@ export function useSupervisorAuth() {
   const logoutSupervisor = useCallback(async (sessionId) => {
     try {
       await logout({ sessionId });
-      if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.removeItem('convex_session_id');
-      } else {
+      const removed = convexDebug.safeLocalStorage.removeItem('convex_session_id');
+      if (!removed && typeof window === 'undefined') {
         await AsyncStorage.removeItem('convex_session_id');
       }
       setSessionId(null);
@@ -146,8 +143,8 @@ export function useAlerts() {
   const dismissedAlertsRaw = api ? useQuery(api.alerts.getDismissedAlerts) : undefined;
   
   // Ensure we always have arrays, even during loading
-  const activeAlerts = Array.isArray(activeAlertsRaw) ? activeAlertsRaw : [];
-  const dismissedAlerts = Array.isArray(dismissedAlertsRaw) ? dismissedAlertsRaw : [];
+  const activeAlerts = convexDebug.ensureArray(activeAlertsRaw);
+  const dismissedAlerts = convexDebug.ensureArray(dismissedAlertsRaw);
   
   // TEMPORARY FIX: getPushedAlerts causes Convex server error
   // The function exists in alerts.ts but the deployment seems out of sync
@@ -182,7 +179,7 @@ export function useActiveSupervisors() {
   const forceLogout = api ? useMutation(api.supervisors.forceLogout) : noOpMutation;
   
   // Ensure we always have an array
-  const activeSupervisors = Array.isArray(activeSupervisorsRaw) ? activeSupervisorsRaw : [];
+  const activeSupervisors = convexDebug.ensureArray(activeSupervisorsRaw);
 
   return {
     activeSupervisors: activeSupervisors, // Already ensured to be an array above
@@ -254,7 +251,7 @@ export function useEvents() {
   const mostSevereEvent = api ? useQuery(api.sync.getMostSevereEvent) : null;
   
   // Ensure we always have an array
-  const activeEvents = Array.isArray(activeEventsRaw) ? activeEventsRaw : [];
+  const activeEvents = convexDebug.ensureArray(activeEventsRaw);
   
   const upsertEvent = api ? useMutation(api.sync.upsertEvent) : noOpMutation;
   const updateEventStatus = api ? useMutation(api.sync.updateEventStatus) : noOpMutation;
@@ -379,7 +376,13 @@ export function useAlertSync() {
       console.warn('syncAlerts called with invalid alerts:', alerts);
       return { success: false, error: 'Invalid alerts parameter' };
     }
-    if (alerts.length === 0) return { success: true, synced: 0 };
+    // Additional safety check for length property
+    try {
+      if (alerts.length === 0) return { success: true, synced: 0 };
+    } catch (lengthError) {
+      console.error('Error accessing alerts.length:', lengthError);
+      return { success: false, error: 'Invalid alerts array' };
+    }
     if (!api) {
       console.warn('Alert sync skipped - Convex not available');
       return { success: false, error: 'Convex not available' };
@@ -415,6 +418,13 @@ export function useAlertSync() {
 
 // Combined hook for complete Convex integration
 export function useConvexSync() {
+  // Check if Convex API is properly loaded at the start
+  useEffect(() => {
+    if (api && !convexDebug.checkConnection(api)) {
+      console.error('Convex API loaded but some functions are missing. Run: npx convex deploy');
+    }
+  }, []);
+  
   const auth = useSupervisorAuth();
   const sync = useSyncState();
   const alerts = useAlerts();
@@ -435,23 +445,17 @@ export function useConvexSync() {
     const loadSession = async () => {
       try {
         // Try localStorage first for web
-        if (typeof window !== 'undefined' && window.localStorage) {
-          try {
-            const storedId = window.localStorage.getItem('convex_session_id');
-            if (storedId) {
-              console.log('Found stored Convex session in localStorage');
-              return;
-            }
-          } catch (localStorageError) {
-            console.log('localStorage access error:', localStorageError);
-          }
+        const storedId = convexDebug.safeLocalStorage.getItem('convex_session_id');
+        if (storedId) {
+          console.log('Found stored Convex session in localStorage');
+          return;
         }
         
         // Fall back to AsyncStorage only on native
         if (typeof window === 'undefined') {
           try {
             const sessionId = await AsyncStorage.getItem('convex_session_id');
-            if (sessionId) {
+            if (sessionId && sessionId !== 'undefined' && sessionId !== 'null') {
               // Session will be validated by Convex query
               console.log('Found stored Convex session in AsyncStorage');
             }
@@ -482,9 +486,9 @@ export function useConvexSync() {
     removeCustomMessage: sync?.removeCustomMessage || noOpMutation,
     
     // Alerts (with extra safety checks)
-    activeAlerts: Array.isArray(alerts?.activeAlerts) ? alerts.activeAlerts : [],
-    dismissedAlerts: Array.isArray(alerts?.dismissedAlerts) ? alerts.dismissedAlerts : [],
-    pushedAlerts: Array.isArray(alerts?.pushedAlerts) ? alerts.pushedAlerts : [],
+    activeAlerts: convexDebug.ensureArray(alerts?.activeAlerts),
+    dismissedAlerts: convexDebug.ensureArray(alerts?.dismissedAlerts),
+    pushedAlerts: convexDebug.ensureArray(alerts?.pushedAlerts),
     acknowledge: alerts?.acknowledge || noOpMutation,
     dismissFromDisplay: alerts?.dismissFromDisplay || noOpMutation,
     toggleDisplayLock: alerts?.toggleDisplayLock || noOpMutation,
@@ -494,18 +498,18 @@ export function useConvexSync() {
     removeFromDisplay: alerts?.removeFromDisplay || noOpMutation,
     
     // Supervisors (with extra safety checks)
-    activeSupervisors: Array.isArray(supervisors?.activeSupervisors) ? supervisors.activeSupervisors : [],
+    activeSupervisors: convexDebug.ensureArray(supervisors?.activeSupervisors),
     forceLogout: supervisors?.forceLogout || noOpMutation,
     
     // Events (with extra safety checks)
-    activeEvents: Array.isArray(events?.activeEvents) ? events.activeEvents : [],
+    activeEvents: convexDebug.ensureArray(events?.activeEvents),
     mostSevereEvent: events?.mostSevereEvent || null,
     upsertEvent: events?.upsertEvent || noOpMutation,
     updateEventStatus: events?.updateEventStatus || noOpMutation,
     
     // Incidents (with extra safety checks)
-    activeIncidents: Array.isArray(incidents?.activeIncidents) ? incidents.activeIncidents : [],
-    allIncidents: Array.isArray(incidents?.allIncidents) ? incidents.allIncidents : [],
+    activeIncidents: convexDebug.ensureArray(incidents?.activeIncidents),
+    allIncidents: convexDebug.ensureArray(incidents?.allIncidents),
     createIncident: incidents?.createIncident || noOpMutation,
     updateIncident: incidents?.updateIncident || noOpMutation,
     addIncidentNote: incidents?.addIncidentNote || noOpMutation,
@@ -525,8 +529,8 @@ export function useConvexSync() {
     syncAlerts: alertSync?.syncAlerts || (() => {}),
     
     // Login tracking (with extra safety checks)
-    recentLogins: Array.isArray(loginTracking?.recentLogins) ? loginTracking.recentLogins : [],
-    loginHistory: Array.isArray(loginTracking?.loginHistory) ? loginTracking.loginHistory : [],
+    recentLogins: convexDebug.ensureArray(loginTracking?.recentLogins),
+    loginHistory: convexDebug.ensureArray(loginTracking?.loginHistory),
     trackLogin: loginTracking?.trackLogin || noOpMutation,
     
     // VIX data
