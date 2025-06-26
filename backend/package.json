@@ -9,6 +9,7 @@
     "start-production": "node --max-old-space-size=1800 --expose-gc index.js",
     "start-development": "node index.js",
     "dev": "nodemon index.js",
+    "postinstall": "node scripts/install-chrome.js || true",
     "test": "node --test tests/*.test.js",
     "test:watch": "node --test --watch tests/*.test.js",
     "test:coverage": "node --test --experimental-test-coverage tests/*.test.js",

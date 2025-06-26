@@ -3,7 +3,7 @@ services:
     name: barry-backend
     env: node
     buildCommand: npm install
-    startCommand: npm run start-optimized
+    startCommand: npm run start
     envVars:
       - key: NODE_ENV
         value: production
@@ -11,4 +11,8 @@ services:
         value: --max-old-space-size=2048 --optimize-for-size
       - key: PORT
         value: 10000
+      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
+        value: true
+      - key: DURHAM_SCRAPER_ENABLED
+        value: false
     autoDeploy: false

@@ -188,6 +188,12 @@ class UnifiedRoadworksManager {
       };
     } catch (error) {
       console.warn('⚠️ Durham roadworks fetch failed:', error.message);
+      
+      // Specific handling for Chrome not found
+      if (error.message.includes('Could not find Chrome')) {
+        console.log('📵 Durham scraper disabled - Chrome not available on this platform');
+      }
+      
       return {
         success: false,
         data: [],

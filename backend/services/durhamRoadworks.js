@@ -9,6 +9,14 @@ class DurhamRoadworksService {
   }
 
   async fetchRoadworks() {
+    // Check if Durham scraper is explicitly disabled
+    if (process.env.DURHAM_SCRAPER_ENABLED === 'false') {
+      console.log('📵 Durham scraper disabled via environment variable');
+      this.roadworks = [];
+      this.lastFetch = Date.now();
+      return this.roadworks;
+    }
+    
     // Check cache
     if (this.lastFetch && (Date.now() - this.lastFetch) < this.cacheMinutes * 60 * 1000) {
       console.log('✅ Using cached Durham roadworks data');
@@ -19,9 +27,18 @@ class DurhamRoadworksService {
     let browser;
     
     try {
+      // Try to launch Puppeteer
       browser = await puppeteer.launch({
         headless: 'new',
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: [
+          '--no-sandbox', 
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu'
+        ],
+        ...(process.env.NODE_ENV === 'production' && {
+          executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser'
+        })
       });
       
       const page = await browser.newPage();
@@ -89,6 +106,16 @@ class DurhamRoadworksService {
       
     } catch (error) {
       console.error('❌ Durham roadworks fetch error:', error);
+      
+      // If Chrome isn't available (common on cloud platforms), return empty array
+      if (error.message.includes('Could not find Chrome')) {
+        console.warn('⚠️ Chrome not available - Durham scraper disabled on this platform');
+        console.log('💡 To enable: Install Chrome or Chromium on the server');
+        this.roadworks = [];
+        this.lastFetch = Date.now();
+        return this.roadworks;
+      }
+      
       throw error;
     } finally {
       if (browser) await browser.close();
