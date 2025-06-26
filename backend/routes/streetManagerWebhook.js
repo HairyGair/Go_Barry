@@ -16,10 +16,10 @@ const supabase = createClient(
 );
 
 // Signature validation functions - EXACTLY as per official docs
-async function isValidSignature(body) {
-  verifyMessageSignatureVersion(body.SignatureVersion);
-  const certificate = await downloadCertificate(body.SigningCertURL);
-  return validateSignature(body, certificate);
+async function isValidSignature(snsMessage) {
+  verifyMessageSignatureVersion(snsMessage.SignatureVersion);
+  const certificate = await downloadCertificate(snsMessage.SigningCertURL);
+  return validateSignature(snsMessage, certificate);
 }
 
 function verifyMessageSignatureVersion(version) {
@@ -52,63 +52,63 @@ async function validateSignature(message, certificate) {
   return verify.verify(certificate, message.Signature, 'base64');
 }
 
-function getMessageToSign(body) {
-  switch(body.Type) {
+function getMessageToSign(snsMessage) {
+  switch(snsMessage.Type) {
     case 'SubscriptionConfirmation':
-      return buildSubscriptionStringToSign(body);
+      return buildSubscriptionStringToSign(snsMessage);
     case 'Notification':
-      return buildNotificationStringToSign(body);
+      return buildNotificationStringToSign(snsMessage);
     default:
       return;
   }
 }
 
-function buildNotificationStringToSign(body) {
+function buildNotificationStringToSign(snsMessage) {
   let stringToSign = '';
   stringToSign = "Message\n";
-  stringToSign += body.Message + "\n";
+  stringToSign += snsMessage.Message + "\n";
   stringToSign += "MessageId\n";
-  stringToSign += body.MessageId + "\n";
-  if (body.Subject) {
+  stringToSign += snsMessage.MessageId + "\n";
+  if (snsMessage.Subject) {
     stringToSign += "Subject\n";
-    stringToSign += body.Subject + "\n";
+    stringToSign += snsMessage.Subject + "\n";
   }
   stringToSign += "Timestamp\n";
-  stringToSign += body.Timestamp + "\n";
+  stringToSign += snsMessage.Timestamp + "\n";
   stringToSign += "TopicArn\n";
-  stringToSign += body.TopicArn + "\n";
+  stringToSign += snsMessage.TopicArn + "\n";
   stringToSign += "Type\n";
-  stringToSign += body.Type + "\n";
+  stringToSign += snsMessage.Type + "\n";
   return stringToSign;
 }
 
-function buildSubscriptionStringToSign(body) {
+function buildSubscriptionStringToSign(snsMessage) {
   let stringToSign = '';
   stringToSign = "Message\n";
-  stringToSign += body.Message + "\n";
+  stringToSign += snsMessage.Message + "\n";
   stringToSign += "MessageId\n";
-  stringToSign += body.MessageId + "\n";
+  stringToSign += snsMessage.MessageId + "\n";
   stringToSign += "SubscribeURL\n";
-  stringToSign += body.SubscribeURL + "\n";
+  stringToSign += snsMessage.SubscribeURL + "\n";
   stringToSign += "Timestamp\n";
-  stringToSign += body.Timestamp + "\n";
+  stringToSign += snsMessage.Timestamp + "\n";
   stringToSign += "Token\n";
-  stringToSign += body.Token + "\n";
+  stringToSign += snsMessage.Token + "\n";
   stringToSign += "TopicArn\n";
-  stringToSign += body.TopicArn + "\n";
+  stringToSign += snsMessage.TopicArn + "\n";
   stringToSign += "Type\n";
-  stringToSign += body.Type + "\n";
+  stringToSign += snsMessage.Type + "\n";
   return stringToSign;
 }
 
 // Handle messages
-function handleMessage(body) {
-  switch(body.Type) {
+function handleMessage(snsMessage) {
+  switch(snsMessage.Type) {
     case 'SubscriptionConfirmation':
-      confirmSubscription(body.SubscribeURL);
+      confirmSubscription(snsMessage.SubscribeURL);
       break;
     case 'Notification':
-      handleNotification(body);
+      handleNotification(snsMessage);
       break;
     default:
       return;
@@ -120,12 +120,13 @@ function confirmSubscription(subscriptionUrl) {
   console.log('✅ Subscription confirmed');
 }
 
-async function handleNotification(body) {
-  console.log(`📬 Received message from SNS: ${body.Message}`);
+async function handleNotification(snsMessage) {
+  console.log(`📬 Received notification from SNS`);
+  console.log(`Message content: ${snsMessage.Message}`);
   
   try {
     // Parse the notification message
-    const notificationData = JSON.parse(body.Message);
+    const notificationData = JSON.parse(snsMessage.Message);
     
     // Save to Supabase
     const { data, error } = await supabase
@@ -136,7 +137,7 @@ async function handleNotification(body) {
         object_type: notificationData.object_type,
         object_reference: notificationData.object_reference,
         raw_webhook_data: notificationData,
-        message_attributes: body.MessageAttributes,
+        message_attributes: snsMessage.MessageAttributes,
         webhook_received_at: new Date().toISOString(),
         processing_status: 'pending'
       });
@@ -325,9 +326,10 @@ router.post('/', async (req, res) => {
   console.log('Headers:', req.headers);
   
   try {
-    // Parse the text body as JSON
-    const body = JSON.parse(req.body);
-    console.log('Body type:', body.Type);
+    // Parse the text body as JSON to get the SNS message
+    const snsMessage = JSON.parse(req.body);
+    console.log('SNS Message Type:', snsMessage.Type);
+    console.log('SNS Message Fields:', Object.keys(snsMessage));
     
     // Check for SNS message type header
     if (req.get('x-amz-sns-message-type') == null) {
@@ -335,10 +337,15 @@ router.post('/', async (req, res) => {
       return res.status(400).send('Bad Request');
     }
     
+    // Log the SubscribeURL if present (for SubscriptionConfirmation)
+    if (snsMessage.Type === 'SubscriptionConfirmation' && snsMessage.SubscribeURL) {
+      console.log('🔗 SubscribeURL found:', snsMessage.SubscribeURL);
+    }
+    
     // Validate signature
-    if (await isValidSignature(body)) {
+    if (await isValidSignature(snsMessage)) {
       console.log('✅ Signature validated');
-      handleMessage(body);
+      handleMessage(snsMessage);
       res.status(200).send('OK');
     } else {
       console.error('❌ Invalid signature');
