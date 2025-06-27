@@ -2231,9 +2231,131 @@ app.get('/api/streetmanager/webhook/status', (req, res) => {
   });
 });
 
+// Test Supabase table structure
+app.get('/api/streetmanager/test-supabase', async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    
+    // Try to fetch columns info
+    const { data: tableInfo, error: infoError } = await supabase
+      .from('streetmanager_notifications')
+      .select('*')
+      .limit(0);
+    
+    // Try a simple insert with minimal fields
+    const testRecord = {
+      notification_id: `test_${Date.now()}`,
+      title: 'Test notification',
+      webhook_event_type: 'TEST',
+      processing_status: 'test',
+      webhook_received_at: new Date().toISOString()
+    };
+    
+    const { data: insertData, error: insertError } = await supabase
+      .from('streetmanager_notifications')
+      .insert(testRecord)
+      .select()
+      .single();
+    
+    // Clean up test record if insert succeeded
+    if (insertData) {
+      await supabase
+        .from('streetmanager_notifications')
+        .delete()
+        .eq('notification_id', testRecord.notification_id);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Supabase table test',
+      tableExists: !infoError,
+      canInsert: !insertError,
+      errors: {
+        infoError: infoError?.message,
+        insertError: insertError?.message,
+        insertErrorDetails: insertError
+      },
+      testRecord,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Debug endpoint to check Supabase table structure
+app.get('/api/streetmanager/debug-table', async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    
+    // First, try to get the table structure using a query that returns column info
+    const { data: sampleRow, error: sampleError } = await supabase
+      .from('streetmanager_notifications')
+      .select('*')
+      .limit(1)
+      .single();
+    
+    // Get column names from the sample or error
+    let columns = [];
+    if (sampleRow) {
+      columns = Object.keys(sampleRow);
+    }
+    
+    // Test inserting a minimal record
+    const minimalRecord = {
+      notification_id: `debug_test_${Date.now()}`,
+      webhook_received_at: new Date().toISOString()
+    };
+    
+    const { data: minimalInsert, error: minimalError } = await supabase
+      .from('streetmanager_notifications')
+      .insert(minimalRecord)
+      .select();
+    
+    // Clean up if successful
+    if (minimalInsert) {
+      await supabase
+        .from('streetmanager_notifications')
+        .delete()
+        .eq('notification_id', minimalRecord.notification_id);
+    }
+    
+    res.json({
+      success: true,
+      tableInfo: {
+        hasData: !!sampleRow,
+        sampleError: sampleError?.message,
+        columns: columns,
+        columnCount: columns.length,
+        canInsertMinimal: !minimalError,
+        minimalError: minimalError
+      },
+      requiredColumns: [
+        'notification_id',
+        'webhook_received_at',
+        'raw_webhook_data'
+      ],
+      suggestedFix: 'Run the SQL script in /docs/streetmanager_notifications_table.sql to create/update the table',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      suggestion: 'Check Supabase connection and table existence',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Test endpoint
 app.post('/api/streetmanager/webhook/test', (req, res) => {
-  // Create a comprehensive test SNS message that matches real StreetManager format
   const testSNSMessage = {
     Type: 'Notification',
     MessageId: 'test-message-' + Date.now(),
@@ -2437,6 +2559,17 @@ app.post('/api/streetmanager/webhook', async (req, res) => {
         // Create notification ID for deduplication
         const notificationId = `streetmanager_${notificationData.object_type || 'unknown'}_${notificationData.object_reference || Date.now()}`;
         
+        // Parse BNG coordinates if available
+        let parsedCoordinates = null;
+        if (notificationData.object_data?.works_location_coordinates) {
+          console.log('📦 Parsing BNG coordinates:', notificationData.object_data.works_location_coordinates);
+          const { parsePointToBNG } = await import('./utils/bngToLatLng.js');
+          parsedCoordinates = parsePointToBNG(notificationData.object_data.works_location_coordinates);
+          if (parsedCoordinates) {
+            console.log(`✅ Converted BNG to lat/lng: ${parsedCoordinates.lat}, ${parsedCoordinates.lng}`);
+          }
+        }
+        
         // ENHANCED: Preserve ALL notification data
         const webhookRecord = {
           notification_id: notificationId,
@@ -2452,7 +2585,7 @@ app.post('/api/streetmanager/webhook', async (req, res) => {
           // Extract location data if available
           street_name: notificationData.object_data?.street_name || null,
           area_name: notificationData.object_data?.area_name || null,
-          coordinates: notificationData.object_data?.geometry?.coordinates || null,
+          coordinates: parsedCoordinates,  // Use parsed coordinates
           location_description: notificationData.object_data?.location_description || null,
           
           // Extract work details if available
@@ -2464,16 +2597,16 @@ app.post('/api/streetmanager/webhook', async (req, res) => {
           // Extract timing if available
           proposed_start_date: notificationData.object_data?.proposed_start_date || null,
           proposed_end_date: notificationData.object_data?.proposed_end_date || null,
-          actual_start_date: notificationData.object_data?.actual_start_date || null,
-          actual_end_date: notificationData.object_data?.actual_end_date || null,
+          actual_start_date: notificationData.object_data?.actual_start_date || notificationData.object_data?.actual_start_date_time || null,
+          actual_end_date: notificationData.object_data?.actual_end_date || notificationData.object_data?.actual_end_date_time || null,
           
           // Extract permit status if available
           permit_status: notificationData.object_data?.permit_status || null,
-          work_status: notificationData.object_data?.work_status || null,
+          work_status: notificationData.object_data?.work_status || notificationData.object_data?.work_status_ref || null,
           
           activity_status: notificationData.event_type === 'CREATED' ? 'active' : notificationData.event_type,
-          severity: 'Medium',
-          alert_status: 'amber',
+          severity: notificationData.object_data?.work_category === 'Major' ? 'High' : 'Medium',
+          alert_status: notificationData.object_data?.work_status_ref === 'in_progress' ? 'red' : 'amber',
           processing_status: 'pending',
           webhook_received_at: new Date().toISOString(),
           
@@ -2483,23 +2616,71 @@ app.post('/api/streetmanager/webhook', async (req, res) => {
           sns_timestamp: req.headers['x-amz-sns-timestamp'] || null
         };
         
-        // Upsert to Supabase (insert or update if exists)
-        const { data, error } = await supabase
+        // Extract additional fields from the real webhook
+        if (notificationData.object_data) {
+          webhookRecord.work_reference_number = notificationData.object_data.work_reference_number || null;
+          webhookRecord.promoter_swa_code = notificationData.object_data.promoter_swa_code || null;
+          webhookRecord.highway_authority_swa_code = notificationData.object_data.highway_authority_swa_code || null;
+          webhookRecord.usrn = notificationData.object_data.usrn || null;
+          webhookRecord.town = notificationData.object_data.town || null;
+          webhookRecord.activity_type = notificationData.object_data.activity_type || null;
+          webhookRecord.is_traffic_sensitive = notificationData.object_data.is_traffic_sensitive || null;
+          webhookRecord.traffic_management_type = notificationData.object_data.traffic_management_type || null;
+          webhookRecord.permit_conditions = notificationData.object_data.permit_conditions || null;
+        }
+        
+        console.log('💾 Attempting to save webhook record to Supabase...');
+        console.log('🔍 Record fields:', Object.keys(webhookRecord));
+        
+        // Try a minimal insert first to ensure the table works
+        const minimalRecord = {
+          notification_id: webhookRecord.notification_id,
+          webhook_received_at: webhookRecord.webhook_received_at,
+          raw_webhook_data: webhookRecord.raw_webhook_data
+        };
+        
+        // First try minimal insert
+        const { data: minimalData, error: minimalError } = await supabase
           .from('streetmanager_notifications')
-          .upsert(webhookRecord, {
-            onConflict: 'notification_id',
-            ignoreDuplicates: false
-          })
+          .insert(minimalRecord)
           .select()
           .single();
         
-        if (error) {
-          console.error('❌ Failed to save to Supabase:', error);
-          // Still acknowledge the webhook even if save fails
-        } else {
-          console.log(`✅ Saved StreetManager notification to Supabase: ${notificationId}`);
+        if (minimalError) {
+          console.error('❌ Even minimal insert failed:', minimalError);
+          console.error('🔍 Minimal record:', minimalRecord);
           
-          // Process in background (don't wait)
+          // Create table suggestion
+          console.log('💡 Run this SQL in Supabase to fix:');
+          console.log(`
+CREATE TABLE IF NOT EXISTS streetmanager_notifications (
+  notification_id TEXT PRIMARY KEY,
+  webhook_received_at TIMESTAMPTZ NOT NULL,
+  raw_webhook_data JSONB
+);
+`);
+        } else {
+          console.log('✅ Minimal insert successful, now updating with full data...');
+          
+          // Update with full data
+          const { data, error } = await supabase
+            .from('streetmanager_notifications')
+            .update(webhookRecord)
+            .eq('notification_id', webhookRecord.notification_id)
+            .select()
+            .single();
+          
+          if (error) {
+            console.error('❌ Failed to update with full data:', error);
+            console.error('🔥 Full error details:', JSON.stringify(error, null, 2));
+            console.error('📄 Attempted record:', JSON.stringify(webhookRecord, null, 2).substring(0, 1000) + '...');
+          } else {
+            console.log(`✅ Saved StreetManager notification to Supabase: ${notificationId}`);
+          }
+        }
+        
+        // Process in background (don't wait)
+        if (minimalData || (!minimalError && !error)) {
           setTimeout(async () => {
             try {
               // If it's a PERMIT or ACTIVITY reference, fetch full details
@@ -2750,6 +2931,103 @@ app.get('/api/streetmanager/notifications', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message
+    });
+  }
+});
+
+// Diagnostic endpoint to test webhook data processing
+app.post('/api/streetmanager/test-webhook-data', async (req, res) => {
+  try {
+    const { notificationData } = req.body;
+    
+    if (!notificationData) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please provide notificationData in request body'
+      });
+    }
+    
+    // Parse BNG coordinates if available
+    let parsedCoordinates = null;
+    if (notificationData.object_data?.works_location_coordinates) {
+      console.log('📦 Testing BNG coordinate parsing...');
+      const { parsePointToBNG } = await import('./utils/bngToLatLng.js');
+      parsedCoordinates = parsePointToBNG(notificationData.object_data.works_location_coordinates);
+    }
+    
+    // Build the webhook record exactly as the main handler would
+    const notificationId = `streetmanager_${notificationData.object_type || 'unknown'}_${notificationData.object_reference || Date.now()}`;
+    
+    const webhookRecord = {
+      notification_id: notificationId,
+      permit_reference_number: notificationData.object_type === 'PERMIT' ? notificationData.object_reference : null,
+      activity_reference_number: notificationData.object_type === 'ACTIVITY' ? notificationData.object_reference : null,
+      title: `${notificationData.object_type || 'Unknown'} - ${notificationData.event_type || 'Unknown Event'}`,
+      description: `StreetManager ${notificationData.object_type || 'notification'} ${notificationData.event_type || 'event'}`,
+      webhook_event_type: notificationData.event_type,
+      raw_webhook_data: notificationData,
+      street_name: notificationData.object_data?.street_name || null,
+      area_name: notificationData.object_data?.area_name || null,
+      coordinates: parsedCoordinates,
+      location_description: notificationData.object_data?.location_description || null,
+      work_description: notificationData.object_data?.description || null,
+      work_category: notificationData.object_data?.work_category_ref || null,
+      promoter_organisation: notificationData.object_data?.promoter_organisation || null,
+      highway_authority: notificationData.object_data?.highway_authority || null,
+      proposed_start_date: notificationData.object_data?.proposed_start_date || null,
+      proposed_end_date: notificationData.object_data?.proposed_end_date || null,
+      actual_start_date: notificationData.object_data?.actual_start_date || notificationData.object_data?.actual_start_date_time || null,
+      actual_end_date: notificationData.object_data?.actual_end_date || notificationData.object_data?.actual_end_date_time || null,
+      permit_status: notificationData.object_data?.permit_status || null,
+      work_status: notificationData.object_data?.work_status || notificationData.object_data?.work_status_ref || null,
+      activity_status: notificationData.event_type === 'CREATED' ? 'active' : notificationData.event_type,
+      severity: notificationData.object_data?.work_category === 'Major' ? 'High' : 'Medium',
+      alert_status: notificationData.object_data?.work_status_ref === 'in_progress' ? 'red' : 'amber',
+      processing_status: 'test',
+      webhook_received_at: new Date().toISOString()
+    };
+    
+    // Add additional fields
+    if (notificationData.object_data) {
+      webhookRecord.work_reference_number = notificationData.object_data.work_reference_number || null;
+      webhookRecord.promoter_swa_code = notificationData.object_data.promoter_swa_code || null;
+      webhookRecord.highway_authority_swa_code = notificationData.object_data.highway_authority_swa_code || null;
+      webhookRecord.usrn = notificationData.object_data.usrn || null;
+      webhookRecord.town = notificationData.object_data.town || null;
+      webhookRecord.activity_type = notificationData.object_data.activity_type || null;
+      webhookRecord.is_traffic_sensitive = notificationData.object_data.is_traffic_sensitive || null;
+      webhookRecord.traffic_management_type = notificationData.object_data.traffic_management_type || null;
+      webhookRecord.permit_conditions = notificationData.object_data.permit_conditions || null;
+    }
+    
+    res.json({
+      success: true,
+      message: 'Webhook data processing test',
+      results: {
+        notificationId,
+        coordinateParsing: {
+          input: notificationData.object_data?.works_location_coordinates,
+          output: parsedCoordinates,
+          success: !!parsedCoordinates
+        },
+        recordFields: Object.keys(webhookRecord).length,
+        severity: webhookRecord.severity,
+        alertStatus: webhookRecord.alert_status,
+        location: {
+          street: webhookRecord.street_name,
+          area: webhookRecord.area_name,
+          town: webhookRecord.town
+        }
+      },
+      webhookRecord,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
     });
   }
 });
