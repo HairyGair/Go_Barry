@@ -115,6 +115,11 @@ class IntelligenceEngine {
   extractFeatures(alertData) {
     const text = (alertData.title + ' ' + alertData.description + ' ' + alertData.location).toLowerCase();
     
+    // Handle StreetManager-specific features
+    if (alertData.source === 'StreetManager') {
+      return this.extractStreetManagerFeatures(alertData);
+    }
+    
     // Time-based features
     const now = new Date();
     const timeFeatures = {
@@ -182,7 +187,14 @@ class IntelligenceEngine {
     }
 
     const features = this.extractFeatures(alertData);
-    let prediction = this.simpleSeverityModel(features);
+    let prediction;
+    
+    // Use specialized model for StreetManager
+    if (alertData.source === 'StreetManager') {
+      prediction = this.streetManagerSeverityModel(features, alertData);
+    } else {
+      prediction = this.simpleSeverityModel(features);
+    }
 
     // Enhanced prediction with route analysis
     if (alertData.affectsRoutes && alertData.affectsRoutes.length > 0) {
@@ -696,9 +708,149 @@ class IntelligenceEngine {
     };
   }
 
+  // Extract StreetManager-specific features
+  extractStreetManagerFeatures(alertData) {
+    const baseFeatures = this.extractFeatures({
+      ...alertData,
+      source: 'generic' // Get base features
+    });
+    
+    const details = alertData.details || {};
+    
+    return {
+      ...baseFeatures,
+      // Work type features
+      isMajorWork: details.workType === 'Major',
+      isEmergencyWork: details.isEmergency || false,
+      isPlannedWork: details.workType === 'Standard' || details.workType === 'Minor',
+      
+      // Traffic management features
+      hasRoadClosure: details.trafficManagement?.includes('Road closure'),
+      hasLaneClosure: details.trafficManagement?.includes('Lane closure'),
+      hasTrafficLights: details.trafficManagement?.includes('traffic control'),
+      hasContraflow: details.trafficManagement?.includes('Contraflow'),
+      
+      // Impact features
+      affectedRouteCount: details.affectedRoutes?.length || 0,
+      impactScore: details.impactScore || 0,
+      predictedDelay: details.predictedDelay || 0,
+      
+      // Duration features
+      plannedDuration: details.duration || 0,
+      isLongTerm: details.duration > 7,
+      isOvernight: details.hasNightWork || false,
+      
+      // Route features
+      affectsCriticalRoutes: (details.affectedRoutes || []).some(r => 
+        ['21', 'X21', 'Q1', 'Q2', 'Q3', 'X1', '56'].includes(r)
+      ),
+      totalPassengerImpact: details.totalPassengerImpact || 0
+    };
+  }
+  
+  // StreetManager-specific severity model
+  streetManagerSeverityModel(features, alertData) {
+    let score = 2; // Base severity
+    let confidence = 0.7; // Higher base confidence for structured data
+    
+    // Work type impact
+    if (features.isMajorWork) {
+      score += 1.5;
+      confidence += 0.2;
+    }
+    if (features.isEmergencyWork) {
+      score += 2;
+      confidence += 0.3;
+    }
+    
+    // Traffic management impact
+    if (features.hasRoadClosure) {
+      score += 2;
+      confidence += 0.3;
+    } else if (features.hasLaneClosure) {
+      score += 1;
+      confidence += 0.2;
+    }
+    
+    if (features.hasContraflow) {
+      score += 1;
+      confidence += 0.1;
+    }
+    
+    // Route impact
+    if (features.affectedRouteCount > 5) {
+      score += 1.5;
+      confidence += 0.2;
+    } else if (features.affectedRouteCount > 2) {
+      score += 0.5;
+      confidence += 0.1;
+    }
+    
+    if (features.affectsCriticalRoutes) {
+      score += 1;
+      confidence += 0.2;
+    }
+    
+    // Impact score from StreetManager analysis
+    if (features.impactScore > 80) {
+      score += 1.5;
+    } else if (features.impactScore > 50) {
+      score += 0.5;
+    }
+    
+    // Duration impact
+    if (features.isLongTerm) {
+      score += 0.5;
+    }
+    
+    // Time of day adjustments
+    if (features.isRushHour && !features.isOvernight) {
+      score += 1;
+    }
+    
+    // Normalize
+    score = Math.max(1, Math.min(4, Math.round(score * 2) / 2));
+    confidence = Math.max(0.1, Math.min(1.0, confidence));
+    
+    const severityLabels = {
+      1: 'minor',
+      1.5: 'minor-moderate',
+      2: 'moderate',
+      2.5: 'moderate-major',
+      3: 'major',
+      3.5: 'major-critical',
+      4: 'critical'
+    };
+    
+    return {
+      severity: score,
+      severityLabel: severityLabels[score] || 'moderate',
+      confidence: confidence,
+      estimatedDuration: alertData.details?.duration || this.estimateDuration(features, score),
+      modelVersion: '1.1-streetmanager',
+      features: Object.keys(features).filter(key => features[key] === true),
+      recommendation: this.getStreetManagerRecommendation(score, features)
+    };
+  }
+  
+  // Get recommendations for StreetManager alerts
+  getStreetManagerRecommendation(severity, features) {
+    if (severity >= 3.5 || features.hasRoadClosure) {
+      return 'IMMEDIATE_DIVERSION_REQUIRED';
+    }
+    if (severity >= 2.5 || features.affectedRouteCount > 3) {
+      return 'CREATE_DIVERSION_PLAN';
+    }
+    if (features.isLongTerm) {
+      return 'MONITOR_AND_NOTIFY_DRIVERS';
+    }
+    return 'STANDARD_MONITORING';
+  }
+  
   initializeModels() {
-    console.log('🤖 Intelligence Engine initialized with simple ML models');
+    console.log('🤖 Intelligence Engine initialized with ML models');
     console.log('📊 Ready for severity prediction and route impact analysis');
+    console.log('🚧 StreetManager integration active');
   }
 }
 

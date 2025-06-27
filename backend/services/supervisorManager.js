@@ -133,6 +133,316 @@ async function logActivity(action, details, supervisorInfo = null, req = null) {
   }
 }
 
+// ===== STREETMANAGER ROADWORK ACTIONS =====
+
+// Acknowledge a roadwork alert
+export async function acknowledgeRoadwork(roadworkId, supervisorSessionId, acknowledgmentType = 'reviewed', notes = '', req = null) {
+  try {
+    // Validate supervisor session
+    const sessionValidation = await validateSupervisorSession(supervisorSessionId);
+    if (!sessionValidation.success) {
+      return { success: false, error: 'Invalid supervisor session' };
+    }
+    
+    const supervisor = sessionValidation.supervisor;
+    
+    // Create acknowledgment record
+    const acknowledgmentRecord = {
+      id: `ack_${roadworkId}_${Date.now()}`,
+      roadwork_id: roadworkId,
+      supervisor_id: supervisor.id,
+      supervisor_name: supervisor.name,
+      supervisor_badge: supervisor.badge,
+      acknowledgment_type: acknowledgmentType, // 'reviewed', 'monitoring', 'action_taken'
+      notes: notes,
+      timestamp: new Date().toISOString(),
+      session_id: supervisorSessionId
+    };
+    
+    // Save to Supabase
+    const { error } = await supabase
+      .from('roadwork_acknowledgments')
+      .insert(acknowledgmentRecord);
+
+    if (error) {
+      // If table doesn't exist, create it
+      if (error.code === '42P01') {
+        console.log('🔄 Creating roadwork_acknowledgments table...');
+        // Table creation would be handled by Supabase migrations
+      }
+      console.error('❌ Failed to save acknowledgment:', error);
+      return { success: false, error: 'Failed to save acknowledgment' };
+    }
+    
+    console.log(`✅ Roadwork ${roadworkId} acknowledged by ${supervisor.name}: ${acknowledgmentType}`);
+    
+    // Log the activity
+    await logActivity('roadwork_acknowledged', {
+      roadworkId,
+      acknowledgmentType,
+      notes,
+      sessionId: supervisorSessionId
+    }, { id: supervisor.id, name: supervisor.name }, req);
+    
+    return {
+      success: true,
+      acknowledgment: acknowledgmentRecord
+    };
+    
+  } catch (error) {
+    console.error('❌ Failed to acknowledge roadwork:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Create a diversion plan for a roadwork
+export async function createDiversionPlan(roadworkId, supervisorSessionId, diversionData, req = null) {
+  try {
+    // Validate supervisor session
+    const sessionValidation = await validateSupervisorSession(supervisorSessionId);
+    if (!sessionValidation.success) {
+      return { success: false, error: 'Invalid supervisor session' };
+    }
+    
+    const supervisor = sessionValidation.supervisor;
+    
+    // Create diversion plan record
+    const diversionPlan = {
+      id: `diversion_${roadworkId}_${Date.now()}`,
+      roadwork_id: roadworkId,
+      supervisor_id: supervisor.id,
+      supervisor_name: supervisor.name,
+      supervisor_badge: supervisor.badge,
+      affected_routes: diversionData.affectedRoutes || [],
+      diversion_routes: diversionData.diversionRoutes || [],
+      diversion_description: diversionData.description,
+      estimated_delay_reduction: diversionData.estimatedDelayReduction || 0,
+      implementation_status: 'proposed', // 'proposed', 'approved', 'active', 'completed'
+      priority: diversionData.priority || 'medium', // 'low', 'medium', 'high', 'critical'
+      start_time: diversionData.startTime || null,
+      end_time: diversionData.endTime || null,
+      created_at: new Date().toISOString(),
+      session_id: supervisorSessionId,
+      
+      // Additional operational data
+      affected_stops: diversionData.affectedStops || [],
+      temporary_stops: diversionData.temporaryStops || [],
+      lost_mileage: diversionData.lostMileage || 0,
+      gained_mileage: diversionData.gainedMileage || 0,
+      passenger_impact: diversionData.passengerImpact || 'unknown',
+      driver_instructions: diversionData.driverInstructions || '',
+      
+      // Approval workflow
+      requires_approval: diversionData.requiresApproval || false,
+      approved_by: null,
+      approved_at: null
+    };
+    
+    // Save to Supabase
+    const { data, error } = await supabase
+      .from('diversion_plans')
+      .insert(diversionPlan)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Failed to save diversion plan:', error);
+      return { success: false, error: 'Failed to save diversion plan' };
+    }
+    
+    console.log(`🗺️ Diversion plan created for roadwork ${roadworkId} by ${supervisor.name}`);
+    
+    // Log the activity
+    await logActivity('diversion_plan_created', {
+      roadworkId,
+      diversionPlanId: diversionPlan.id,
+      affectedRoutes: diversionPlan.affected_routes.join(', '),
+      priority: diversionPlan.priority,
+      sessionId: supervisorSessionId
+    }, { id: supervisor.id, name: supervisor.name }, req);
+    
+    // If high priority, send notification
+    if (diversionPlan.priority === 'high' || diversionPlan.priority === 'critical') {
+      // Trigger notification system (would integrate with notification service)
+      console.log(`🚨 High priority diversion plan - notifications would be sent`);
+    }
+    
+    return {
+      success: true,
+      diversionPlan: data
+    };
+    
+  } catch (error) {
+    console.error('❌ Failed to create diversion plan:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Notify drivers about a roadwork
+export async function notifyDriversAboutRoadwork(roadworkId, supervisorSessionId, notificationData, req = null) {
+  try {
+    // Validate supervisor session
+    const sessionValidation = await validateSupervisorSession(supervisorSessionId);
+    if (!sessionValidation.success) {
+      return { success: false, error: 'Invalid supervisor session' };
+    }
+    
+    const supervisor = sessionValidation.supervisor;
+    
+    // Create notification record
+    const driverNotification = {
+      id: `notify_${roadworkId}_${Date.now()}`,
+      roadwork_id: roadworkId,
+      supervisor_id: supervisor.id,
+      supervisor_name: supervisor.name,
+      supervisor_badge: supervisor.badge,
+      notification_type: notificationData.type || 'roadwork_alert', // 'roadwork_alert', 'diversion_active', 'delay_warning'
+      priority: notificationData.priority || 'medium',
+      
+      // Message content
+      title: notificationData.title || 'Roadwork Alert',
+      message: notificationData.message,
+      affected_routes: notificationData.affectedRoutes || [],
+      
+      // Delivery details
+      delivery_channels: notificationData.channels || ['in_app'], // 'in_app', 'sms', 'radio', 'email'
+      target_drivers: notificationData.targetDrivers || 'affected_routes', // 'all', 'affected_routes', 'specific_list'
+      specific_drivers: notificationData.specificDrivers || [],
+      
+      // Timing
+      send_immediately: notificationData.sendImmediately !== false,
+      scheduled_time: notificationData.scheduledTime || null,
+      expiry_time: notificationData.expiryTime || null,
+      
+      // Status tracking
+      status: 'pending', // 'pending', 'sent', 'delivered', 'failed'
+      sent_at: null,
+      delivery_stats: {
+        total_recipients: 0,
+        delivered: 0,
+        failed: 0,
+        pending: 0
+      },
+      
+      created_at: new Date().toISOString(),
+      session_id: supervisorSessionId
+    };
+    
+    // Save to Supabase
+    const { data, error } = await supabase
+      .from('driver_notifications')
+      .insert(driverNotification)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Failed to save driver notification:', error);
+      return { success: false, error: 'Failed to save notification' };
+    }
+    
+    // Simulate sending notification (in production, this would integrate with actual notification systems)
+    if (driverNotification.send_immediately) {
+      // Update status to 'sent'
+      await supabase
+        .from('driver_notifications')
+        .update({ 
+          status: 'sent',
+          sent_at: new Date().toISOString(),
+          'delivery_stats.total_recipients': notificationData.affectedRoutes?.length * 10 || 50 // Estimate
+        })
+        .eq('id', driverNotification.id);
+      
+      console.log(`📢 Driver notification sent for roadwork ${roadworkId}`);
+    } else {
+      console.log(`🕑 Driver notification scheduled for roadwork ${roadworkId}`);
+    }
+    
+    // Log the activity
+    await logActivity('drivers_notified', {
+      roadworkId,
+      notificationId: driverNotification.id,
+      notificationType: driverNotification.notification_type,
+      affectedRoutes: driverNotification.affected_routes.join(', '),
+      channels: driverNotification.delivery_channels.join(', '),
+      priority: driverNotification.priority,
+      sessionId: supervisorSessionId
+    }, { id: supervisor.id, name: supervisor.name }, req);
+    
+    return {
+      success: true,
+      notification: data,
+      message: driverNotification.send_immediately ? 
+        `Notification sent to drivers on routes: ${notificationData.affectedRoutes?.join(', ')}` :
+        `Notification scheduled for ${notificationData.scheduledTime}`
+    };
+    
+  } catch (error) {
+    console.error('❌ Failed to notify drivers:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Get roadwork action history
+export async function getRoadworkActionHistory(roadworkId) {
+  try {
+    // Get acknowledgments
+    const { data: acknowledgments, error: ackError } = await supabase
+      .from('roadwork_acknowledgments')
+      .select('*')
+      .eq('roadwork_id', roadworkId)
+      .order('timestamp', { ascending: false });
+    
+    // Get diversion plans
+    const { data: diversionPlans, error: divError } = await supabase
+      .from('diversion_plans')
+      .select('*')
+      .eq('roadwork_id', roadworkId)
+      .order('created_at', { ascending: false });
+    
+    // Get driver notifications
+    const { data: notifications, error: notifError } = await supabase
+      .from('driver_notifications')
+      .select('*')
+      .eq('roadwork_id', roadworkId)
+      .order('created_at', { ascending: false });
+    
+    if (ackError || divError || notifError) {
+      console.error('❌ Error fetching roadwork history:', { ackError, divError, notifError });
+      return { success: false, error: 'Failed to fetch action history' };
+    }
+    
+    return {
+      success: true,
+      history: {
+        acknowledgments: acknowledgments || [],
+        diversionPlans: diversionPlans || [],
+        notifications: notifications || [],
+        summary: {
+          totalAcknowledgments: acknowledgments?.length || 0,
+          totalDiversionPlans: diversionPlans?.length || 0,
+          totalNotifications: notifications?.length || 0,
+          lastAction: getLastAction(acknowledgments, diversionPlans, notifications)
+        }
+      }
+    };
+  } catch (error) {
+    console.error('❌ Failed to get roadwork history:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Helper to get the most recent action
+function getLastAction(acks, divs, notifs) {
+  const allActions = [
+    ...(acks || []).map(a => ({ type: 'acknowledgment', ...a, actionTime: a.timestamp })),
+    ...(divs || []).map(d => ({ type: 'diversion_plan', ...d, actionTime: d.created_at })),
+    ...(notifs || []).map(n => ({ type: 'notification', ...n, actionTime: n.created_at }))
+  ];
+  
+  allActions.sort((a, b) => new Date(b.actionTime) - new Date(a.actionTime));
+  return allActions[0] || null;
+}
+
 // Auto-timeout configuration
 const SESSION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes in milliseconds
 let cleanupInterval;
@@ -1519,6 +1829,11 @@ export default {
   addSupervisor,
   deleteSupervisor,
   resetSupervisorPassword,  // NEW: Password reset
+  // NEW: StreetManager roadwork actions
+  acknowledgeRoadwork,
+  createDiversionPlan,
+  notifyDriversAboutRoadwork,
+  getRoadworkActionHistory,
   // Export sessions for debugging
   supervisorSessions,
   moduleLoadTime

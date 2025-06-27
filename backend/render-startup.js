@@ -3,6 +3,11 @@
 
 import express from 'express';
 import { createServer } from 'http';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 // Raw body parser for webhook will be handled in the route itself
@@ -78,6 +83,10 @@ app.use((req, res, next) => {
 // Apply JSON parsing to all routes
 // StreetManager webhook will override with bodyParser.text() in its route
 app.use(express.json());
+
+// Serve static files from the public directory
+app.use('/public', express.static(join(__dirname, 'public')));
+console.log('📂 Static file serving enabled at /public');
 
 // Basic health endpoint
 app.get('/api/health', (req, res) => {

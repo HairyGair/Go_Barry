@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Platform } from 'react-native';
 
-const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) => {
+const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, showRoadworks = true, showAffectedRoutes = true }) => {
   // Use callback ref to ensure we get the container element
   const [containerElement, setContainerElement] = useState(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -187,6 +187,11 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
           
           // Add alerts as markers
           addAlerts(map, maplibregl);
+          
+          // Add roadworks zones if enabled
+          if (showRoadworks) {
+            addRoadworkZones(map, maplibregl);
+          }
         });
 
         map.on('error', (error) => {
@@ -292,6 +297,223 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0 }) 
         }, 1600);
       }
     });
+  };
+
+  const addRoadworkZones = (map, maplibregl) => {
+    // Filter for StreetManager roadworks with geometry
+    const roadworks = alerts.filter(alert => 
+      alert.source === 'StreetManager' && 
+      alert.metadata?.works_location_coordinates
+    );
+
+    if (roadworks.length === 0) return;
+    console.log(`🚧 Adding ${roadworks.length} roadwork zones to map`);
+
+    // Create GeoJSON feature collection for roadworks
+    const roadworkFeatures = roadworks.map(roadwork => {
+      // Parse LINESTRING coordinates if available
+      const coords = roadwork.metadata?.parsedCoordinates || [];
+      if (coords.length === 0) return null;
+
+      // Convert to GeoJSON LineString format [[lng, lat], ...]
+      const lineCoords = coords.map(coord => [coord.lng, coord.lat]);
+      
+      return {
+        type: 'Feature',
+        properties: {
+          id: roadwork.id,
+          title: roadwork.title,
+          severity: roadwork.severity || roadwork.mlSeverity || 'medium',
+          severityScore: roadwork.metadata?.severityScore || 50,
+          workType: roadwork.metadata?.workType,
+          trafficManagement: roadwork.metadata?.trafficManagement,
+          affectedRoutes: roadwork.metadata?.affectedRouteNames || [],
+          impactScore: roadwork.metadata?.impactScore || 0,
+          description: roadwork.description
+        },
+        geometry: {
+          type: 'LineString',
+          coordinates: lineCoords
+        }
+      };
+    }).filter(f => f !== null);
+
+    if (roadworkFeatures.length === 0) return;
+
+    // Add roadworks source
+    map.addSource('streetmanager-roadworks', {
+      type: 'geojson',
+      data: {
+        type: 'FeatureCollection',
+        features: roadworkFeatures
+      }
+    });
+
+    // Add roadwork line layer with severity-based styling
+    map.addLayer({
+      id: 'roadwork-lines',
+      type: 'line',
+      source: 'streetmanager-roadworks',
+      paint: {
+        'line-width': [
+          'interpolate',
+          ['linear'],
+          ['get', 'severityScore'],
+          0, 4,
+          50, 6,
+          100, 10
+        ],
+        'line-color': [
+          'case',
+          ['==', ['get', 'severity'], 'critical'], '#dc2626',
+          ['==', ['get', 'severity'], 'high'], '#f59e0b',
+          ['==', ['get', 'severity'], 'medium'], '#3b82f6',
+          '#64748b'
+        ],
+        'line-opacity': 0.8,
+        'line-blur': 1
+      }
+    });
+
+    // Add buffer zone around roadworks
+    map.addLayer({
+      id: 'roadwork-buffer',
+      type: 'line',
+      source: 'streetmanager-roadworks',
+      paint: {
+        'line-width': 20,
+        'line-color': [
+          'case',
+          ['==', ['get', 'severity'], 'critical'], '#dc2626',
+          ['==', ['get', 'severity'], 'high'], '#f59e0b',
+          ['==', ['get', 'severity'], 'medium'], '#3b82f6',
+          '#64748b'
+        ],
+        'line-opacity': 0.15,
+        'line-blur': 10
+      }
+    });
+
+    // Add interaction - click on roadwork
+    map.on('click', 'roadwork-lines', (e) => {
+      const props = e.features[0].properties;
+      const coordinates = e.lngLat;
+      
+      const affectedRoutesHtml = props.affectedRoutes && props.affectedRoutes.length > 0
+        ? `<p style="margin: 4px 0; font-size: 11px; color: #ef4444;"><strong>Affects:</strong> Routes ${props.affectedRoutes.join(', ')}</p>`
+        : '';
+      
+      new maplibregl.Popup()
+        .setLngLat(coordinates)
+        .setHTML(`
+          <div style="padding: 10px; font-family: system-ui; max-width: 250px;">
+            <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #1f2937;">🚧 ${props.title}</h3>
+            <p style="margin: 4px 0; font-size: 12px; color: #6b7280;">${props.description}</p>
+            ${affectedRoutesHtml}
+            <div style="margin-top: 8px;">
+              <span style="
+                background-color: ${getSeverityColor(props.severity)};
+                color: white;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 10px;
+                font-weight: bold;
+                margin-right: 4px;
+              ">${props.severity.toUpperCase()}</span>
+              <span style="
+                background-color: #3b82f6;
+                color: white;
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 10px;
+              ">${props.workType || 'Roadwork'}</span>
+            </div>
+            <p style="margin: 4px 0 0 0; font-size: 10px; color: #9ca3af;">
+              Impact Score: ${props.impactScore}/100 | ${props.trafficManagement || 'Traffic management'}
+            </p>
+          </div>
+        `)
+        .addTo(map);
+    });
+
+    // Change cursor on hover
+    map.on('mouseenter', 'roadwork-lines', () => {
+      map.getCanvas().style.cursor = 'pointer';
+    });
+    
+    map.on('mouseleave', 'roadwork-lines', () => {
+      map.getCanvas().style.cursor = '';
+    });
+
+    // Add affected routes overlay if enabled
+    if (showAffectedRoutes) {
+      addAffectedRoutesOverlay(map, maplibregl, roadworks);
+    }
+  };
+
+  const addAffectedRoutesOverlay = async (map, maplibregl, roadworks) => {
+    try {
+      // Get unique affected routes
+      const affectedRoutes = new Set();
+      roadworks.forEach(rw => {
+        const routes = rw.metadata?.affectedRouteNames || rw.affectsRoutes || [];
+        routes.forEach(r => affectedRoutes.add(r));
+      });
+
+      if (affectedRoutes.size === 0) return;
+      console.log(`🚌 Showing ${affectedRoutes.size} affected bus routes`);
+
+      // Fetch route shapes from backend
+      const routeShapes = await fetch(`https://go-barry.onrender.com/api/gtfs/route-shapes?routes=${Array.from(affectedRoutes).join(',')}`)
+        .then(res => res.json())
+        .catch(err => {
+          console.warn('Failed to fetch route shapes:', err);
+          return { shapes: [] };
+        });
+
+      if (!routeShapes.shapes || routeShapes.shapes.length === 0) return;
+
+      // Create GeoJSON for affected routes
+      const routeFeatures = routeShapes.shapes.map(shape => ({
+        type: 'Feature',
+        properties: {
+          routeId: shape.routeId,
+          routeName: shape.routeName,
+          affectedBy: roadworks.filter(rw => 
+            (rw.metadata?.affectedRouteNames || rw.affectsRoutes || []).includes(shape.routeName)
+          ).length
+        },
+        geometry: {
+          type: 'LineString',
+          coordinates: shape.coordinates
+        }
+      }));
+
+      // Add routes source
+      map.addSource('affected-routes', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: routeFeatures
+        }
+      });
+
+      // Add routes layer (under roadworks)
+      map.addLayer({
+        id: 'affected-routes-lines',
+        type: 'line',
+        source: 'affected-routes',
+        paint: {
+          'line-width': 3,
+          'line-color': '#ef4444',
+          'line-opacity': 0.4,
+          'line-dasharray': [2, 2]
+        }
+      }, 'roadwork-buffer'); // Add below roadwork layers
+
+    } catch (error) {
+      console.error('Failed to add affected routes overlay:', error);
+    }
   };
 
   const getSeverityColor = (severity) => {

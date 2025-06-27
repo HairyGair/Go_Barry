@@ -223,9 +223,18 @@ export function useHeartbeat(sessionId, interval = 30000) {
   useEffect(() => {
     if (!sessionId || !api) return;
 
+    // Convert session ID to proper format if needed
+    let convexSessionId = sessionId;
+    if (typeof sessionId === 'string' && sessionId.startsWith('session-')) {
+      // This is a local session ID, we need the Convex session ID from the database
+      // For now, skip heartbeat for non-Convex sessions
+      console.log('Skipping heartbeat for non-Convex session:', sessionId);
+      return;
+    }
+
     const sendHeartbeat = async () => {
       try {
-        await heartbeat({ sessionId });
+        await heartbeat({ sessionId: convexSessionId });
       } catch (error) {
         console.error('Heartbeat error:', error);
       }

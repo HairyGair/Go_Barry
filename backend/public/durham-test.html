@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Durham Roadworks Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .loading {
+            display: none;
+            margin: 20px 0;
+            text-align: center;
+            color: #666;
+        }
+        .results {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .roadwork {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            background: #fafafa;
+        }
+        .roadwork h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .roadwork-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .detail-item {
+            background: white;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #eee;
+        }
+        .detail-label {
+            font-weight: bold;
+            color: #666;
+            font-size: 12px;
+        }
+        .severity-high {
+            border-left: 4px solid #dc3545;
+        }
+        .severity-medium {
+            border-left: 4px solid #ffc107;
+        }
+        .severity-low {
+            border-left: 4px solid #28a745;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .metadata {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        .route-badge {
+            display: inline-block;
+            background: #007bff;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 3px;
+            margin-right: 5px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚧 Durham Roadworks Test Interface</h1>
+    
+    <div class="controls">
+        <h2>Test Controls</h2>
+        <button id="testBtn" onclick="testDurham()">Test Durham Scraper</button>
+        <button id="clearBtn" onclick="clearResults()">Clear Results</button>
+        <button onclick="window.open('https://www.durham.gov.uk/roadworks', '_blank')">
+            Open Durham Website
+        </button>
+        
+        <div class="loading" id="loading">
+            <p>⏳ Fetching Durham roadworks... This may take a few seconds.</p>
+        </div>
+    </div>
+    
+    <div id="results" class="results" style="display: none;">
+        <h2>Results</h2>
+        <div id="resultsContent"></div>
+    </div>
+    
+    <script>
+        // Backend URL - update this based on your environment
+        const API_BASE = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3001' 
+            : 'https://go-barry.onrender.com';
+        
+        async function testDurham() {
+            const btn = document.getElementById('testBtn');
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+            const resultsContent = document.getElementById('resultsContent');
+            
+            btn.disabled = true;
+            loading.style.display = 'block';
+            results.style.display = 'none';
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/roadworks/test/durham`);
+                const data = await response.json();
+                
+                loading.style.display = 'none';
+                results.style.display = 'block';
+                
+                if (data.success) {
+                    let html = `
+                        <div class="success">
+                            ✅ ${data.message} - Found ${data.count} roadworks
+                        </div>
+                    `;
+                    
+                    if (data.metadata) {
+                        html += `
+                            <div class="metadata">
+                                <strong>Metadata:</strong><br>
+                                Source: ${data.metadata.source}<br>
+                                Method: ${data.metadata.method}<br>
+                                URL: <a href="${data.metadata.url}" target="_blank">${data.metadata.url}</a><br>
+                                Time: ${new Date(data.metadata.timestamp).toLocaleString()}
+                            </div>
+                        `;
+                    }
+                    
+                    if (data.roadworks && data.roadworks.length > 0) {
+                        html += '<h3>Roadworks Details:</h3>';
+                        
+                        data.roadworks.forEach((rw, index) => {
+                            const startDate = new Date(rw.startDate).toLocaleDateString();
+                            const endDate = new Date(rw.endDate).toLocaleDateString();
+                            const routes = rw.affectedRoutes?.length > 0 
+                                ? rw.affectedRoutes.map(r => `<span class="route-badge">${r}</span>`).join('') 
+                                : 'None identified';
+                            
+                            html += `
+                                <div class="roadwork severity-${rw.severity}">
+                                    <h3>${index + 1}. ${rw.title}</h3>
+                                    <div class="roadwork-details">
+                                        <div class="detail-item">
+                                            <div class="detail-label">Location</div>
+                                            <div>${rw.location}</div>
+                                        </div>
+                                        <div class="detail-item">
+                                            <div class="detail-label">Severity</div>
+                                            <div>${rw.severity.toUpperCase()}</div>
+                                        </div>
+                                        <div class="detail-item">
+                                            <div class="detail-label">Start Date</div>
+                                            <div>${startDate}</div>
+                                        </div>
+                                        <div class="detail-item">
+                                            <div class="detail-label">End Date</div>
+                                            <div>${endDate}</div>
+                                        </div>
+                                        <div class="detail-item">
+                                            <div class="detail-label">Affected Routes</div>
+                                            <div>${routes}</div>
+                                        </div>
+                                        <div class="detail-item" style="grid-column: 1 / -1;">
+                                            <div class="detail-label">Description</div>
+                                            <div>${rw.description}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        html += '<p>No roadworks found. The Durham website may not have any active roadworks listed.</p>';
+                    }
+                    
+                    resultsContent.innerHTML = html;
+                } else {
+                    resultsContent.innerHTML = `
+                        <div class="error">
+                            ❌ ${data.message}<br><br>
+                            <strong>Error:</strong> ${data.error}<br><br>
+                            <strong>Possible causes:</strong>
+                            <ul>
+                                ${data.possibleCauses?.map(c => `<li>${c}</li>`).join('') || ''}
+                            </ul>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                loading.style.display = 'none';
+                results.style.display = 'block';
+                resultsContent.innerHTML = `
+                    <div class="error">
+                        ❌ Failed to connect to API<br><br>
+                        <strong>Error:</strong> ${error.message}<br><br>
+                        <strong>API URL:</strong> ${API_BASE}/api/roadworks/test/durham<br><br>
+                        Make sure the backend is running and accessible.
+                    </div>
+                `;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('resultsContent').innerHTML = '';
+        }
+        
+        // Display current API endpoint
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Durham test interface loaded');
+            console.log('API endpoint:', `${API_BASE}/api/roadworks/test/durham`);
+        });
+    </script>
+</body>
+</html>

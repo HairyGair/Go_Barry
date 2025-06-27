@@ -19,7 +19,7 @@ import SupervisorLogin from './SupervisorLogin';
 import OptimizedTomTomMap from './OptimizedTomTomMap';
 import TomTomUsageMonitor from './TomTomUsageMonitor';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
-import { useConvexSync } from '../hooks/useConvexSync';
+import { useConvexSync, useHeartbeat } from '../hooks/useConvexSync';
 import typography, { getAlertIcon, getSeverityIcon } from '../theme/typography';
 import ConvexTest from './ConvexTest'; // Temporary test component
 import { formatTime24, formatDateTimeUK } from '../utils/dateTime';
@@ -98,6 +98,17 @@ const EnhancedDashboard = ({
   // Supervisor session management with force update on change
   const [sessionKey, setSessionKey] = useState(0);
   const { supervisorSession: session, logout } = useSupervisorSession();
+  
+  // Send heartbeat to keep session alive when supervisor is logged in
+  // Use the actual Convex session ID that's returned from login
+  const convexSessionId = useMemo(() => {
+    if (session?.convexSessionId) {
+      return session.convexSessionId;
+    }
+    return null;
+  }, [session]);
+  
+  useHeartbeat(convexSessionId, 30000); // Every 30 seconds
   
   // Force re-render when session changes
   useEffect(() => {
@@ -624,6 +635,22 @@ const EnhancedDashboard = ({
             >
               <Ionicons name="bug" size={16} color="#F59E0B" />
               <Text style={[styles.controlButtonText, { color: '#F59E0B' }]}>Debug</Text>
+            </TouchableOpacity>
+            {/* Cleanup button for testing */}
+            <TouchableOpacity
+              onPress={async () => {
+                try {
+                  // We need to create a mutation hook for cleanup
+                  console.log('Manual session cleanup triggered');
+                  alert('Session cleanup needs to be run via:\nnpx convex run supervisors:cleanupExpiredSessions');
+                } catch (error) {
+                  console.error('Cleanup failed:', error);
+                }
+              }}
+              style={[styles.controlButton, { backgroundColor: '#FEE2E2' }]}
+            >
+              <Ionicons name="trash" size={16} color="#DC2626" />
+              <Text style={[styles.controlButtonText, { color: '#DC2626' }]}>Cleanup</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => {

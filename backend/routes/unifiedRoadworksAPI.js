@@ -435,4 +435,54 @@ router.get('/search', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/roadworks/test/durham
+ * Test endpoint specifically for Durham roadworks lightweight scraper
+ */
+router.get('/test/durham', async (req, res) => {
+  try {
+    console.log('🧪 Testing Durham roadworks lightweight scraper...');
+    
+    // Import the lightweight scraper
+    const { default: durhamRoadworksLight } = await import('../services/durhamRoadworksLight.js');
+    
+    // Clear cache to force fresh fetch
+    durhamRoadworksLight.lastFetch = null;
+    
+    // Fetch roadworks
+    const roadworks = await durhamRoadworksLight.fetchRoadworks();
+    
+    res.json({
+      success: true,
+      message: 'Durham roadworks fetched successfully',
+      count: roadworks.length,
+      roadworks: roadworks,
+      metadata: {
+        source: 'Durham County Council Website',
+        method: 'Lightweight scraper (axios + cheerio)',
+        timestamp: new Date().toISOString(),
+        url: 'https://www.durham.gov.uk/roadworks',
+        scraper: 'durhamRoadworksLight.js',
+        note: 'This uses a simple HTTP request with HTML parsing, no browser required'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Durham test endpoint error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      message: 'Failed to fetch Durham roadworks',
+      possibleCauses: [
+        'Website structure may have changed',
+        'Network connectivity issues',
+        'Missing cheerio dependency (npm install cheerio)'
+      ]
+    });
+  }
+});
+
+console.log('✅ Durham roadworks test endpoint registered at /api/roadworks/test/durham');
+
 export default router;

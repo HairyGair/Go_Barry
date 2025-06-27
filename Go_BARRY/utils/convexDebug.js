@@ -127,5 +127,3 @@ export const convexDebug = {
 };
 
 export default convexDebug;
-</content>
-</invoke>

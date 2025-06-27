@@ -30,6 +30,7 @@ const RoadworksManager = ({ baseUrl }) => {
   // State management
   const [roadworks, setRoadworks] = useState([]);
   const [trafficRoadworks, setTrafficRoadworks] = useState([]); // New: automatic roadworks from traffic APIs
+  const [streetManagerRoadworks, setStreetManagerRoadworks] = useState([]); // StreetManager roadworks
   const [allTrafficAlerts, setAllTrafficAlerts] = useState([]); // ALL traffic alerts for triage
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -37,7 +38,7 @@ const RoadworksManager = ({ baseUrl }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('manual'); // Tab options: manual, automatic, durham
+  const [activeTab, setActiveTab] = useState('manual'); // Tab options: manual, automatic, streetmanager, durham
   const [showMap, setShowMap] = useState(false);
   const [mapRoadwork, setMapRoadwork] = useState(null);
   const [showDiversions, setShowDiversions] = useState(false);
@@ -50,6 +51,8 @@ const RoadworksManager = ({ baseUrl }) => {
     activeDiversions: 0,
     pendingTasks: 0,
     automatic: 0, // New: count of automatic roadworks
+    streetManager: 0, // Count of StreetManager roadworks
+    criticalCount: 0, // Critical roadworks
     allAlerts: 0 // Count of all traffic alerts
   });
 
@@ -328,6 +331,24 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
     return text;
   };
 
+  // Handler for creating diversion plan
+  const handleCreateDiversion = async (roadwork) => {
+    Alert.alert(
+      'Create Diversion Plan',
+      `Create a diversion plan for ${roadwork.affectsRoutes?.join(', ') || roadwork.affectedRoutes?.join(', ')}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Create Plan',
+          onPress: () => {
+            // Would open diversion planning modal
+            Alert.alert('Coming Soon', 'Diversion planning interface will be available soon');
+          }
+        }
+      ]
+    );
+  };
+
   // API base URL
   const apiBaseUrl = baseUrl || 'https://go-barry.onrender.com';
 
@@ -384,23 +405,41 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
       if (data.success) {
         // Filter out manual roadworks to get only automatic ones
         const trafficData = (data.roadworks || []).filter(r => r.source !== 'manual');
-        setTrafficRoadworks(trafficData);
-        console.log(`✅ Loaded ${trafficData.length} automatic roadwork alerts`);
-        return trafficData;
+        
+        // Separate StreetManager from other sources
+        const streetManager = trafficData.filter(r => 
+          r.source === 'StreetManager' || r.source === 'street_manager'
+        );
+        const otherTraffic = trafficData.filter(r => 
+          r.source !== 'StreetManager' && r.source !== 'street_manager'
+        );
+        
+        setStreetManagerRoadworks(streetManager);
+        setTrafficRoadworks(otherTraffic);
+        
+        console.log(`✅ Loaded ${streetManager.length} StreetManager + ${otherTraffic.length} other traffic roadworks`);
+        console.log(`   🔴 Critical: ${data.metadata?.criticalCount || 0}, 🚨 High Impact: ${data.metadata?.highImpactCount || 0}`);
+        
+        return { streetManager, otherTraffic };
       } else {
         console.error('❌ Failed to load traffic roadworks:', data.error);
         setTrafficRoadworks([]);
-        return [];
+        setStreetManagerRoadworks([]);
+        return { streetManager: [], otherTraffic: [] };
       }
     } catch (error) {
       console.error('❌ Error loading traffic roadworks:', error);
       setTrafficRoadworks([]);
-      return [];
+      setStreetManagerRoadworks([]);
+      return { streetManager: [], otherTraffic: [] };
     }
   };
 
-  const calculateStats = (manualRoadworks = [], automaticRoadworks = []) => {
-    const allRoadworks = [...manualRoadworks, ...automaticRoadworks];
+  const calculateStats = (manualRoadworks = [], trafficData = {}) => {
+    const { streetManager = [], otherTraffic = [] } = trafficData;
+    const allTraffic = [...streetManager, ...otherTraffic];
+    const allRoadworks = [...manualRoadworks, ...allTraffic];
+    
     const stats = {
       total: allRoadworks.length,
       promotedToDisplay: manualRoadworks.filter(r => r.promotedToDisplay).length,
@@ -408,7 +447,12 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
       pendingTasks: manualRoadworks.reduce((sum, r) => 
         sum + (r.tasks ? r.tasks.filter(t => t.status === 'pending').length : 0), 0
       ),
-      automatic: automaticRoadworks.length
+      automatic: allTraffic.length,
+      streetManager: streetManager.length,
+      criticalCount: allRoadworks.filter(r => 
+        r.severity === 'Critical' || r.severity === 'critical' ||
+        r.mlSeverity === 4 || r.mlSeverity === 3.5
+      ).length
     };
     setStats(stats);
   };
@@ -591,6 +635,10 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
   const renderRoadworkCard = (roadwork, isAutomatic = false) => {
     const status = ROADWORKS_STATUSES[roadwork.status] || ROADWORKS_STATUSES.reported;
     const priority = PRIORITY_LEVELS[roadwork.priority || roadwork.severity?.toLowerCase()] || PRIORITY_LEVELS.medium;
+    
+    // Check for ML predictions
+    const hasMLPrediction = roadwork.mlSeverity || roadwork.mlConfidence;
+    const hasRouteImpact = roadwork.affectsRoutes?.length > 0 || roadwork.affectedRoutes?.length > 0;
 
     return (
       <TouchableOpacity
@@ -624,6 +672,27 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
           <Ionicons name="location" size={14} color="#6B7280" /> {roadwork.location}
         </Text>
         
+        {/* ML Prediction & Impact Score */}
+        {(hasMLPrediction || roadwork.impactScore || roadwork.severityScore) && (
+          <View style={styles.mlPredictionRow}>
+            {hasMLPrediction && (
+              <View style={styles.mlBadge}>
+                <Ionicons name="analytics" size={14} color="#7C3AED" />
+                <Text style={styles.mlBadgeText}>
+                  ML: {roadwork.mlSeverity || roadwork.mlSeverityLabel} ({Math.round((roadwork.mlConfidence || 0) * 100)}%)
+                </Text>
+              </View>
+            )}
+            {(roadwork.impactScore || roadwork.severityScore) && (
+              <View style={styles.impactBadge}>
+                <Text style={styles.impactBadgeText}>
+                  Impact: {roadwork.impactScore || roadwork.severityScore}/100
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+        
         {/* Quick Actions */}
         <View style={styles.quickActions}>
           {roadwork.coordinates && (
@@ -636,7 +705,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
             </TouchableOpacity>
           )}
           
-          {roadwork.affectedRoutes && roadwork.affectedRoutes.length > 0 && (
+          {hasRouteImpact && (
             <TouchableOpacity
               style={styles.diversionButton}
               onPress={() => fetchDiversions(roadwork)}
@@ -645,39 +714,60 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
               <Text style={styles.quickActionText}>AI Diversions</Text>
             </TouchableOpacity>
           )}
+          
+          {/* New StreetManager Actions */}
+          {roadwork.source === 'StreetManager' && roadwork.managementActions?.canCreateDiversion && (
+            <TouchableOpacity
+              style={styles.createDiversionButton}
+              onPress={() => handleCreateDiversion(roadwork)}
+            >
+              <Ionicons name="git-branch" size={14} color="#F59E0B" />
+              <Text style={styles.quickActionText}>Create Diversion</Text>
+            </TouchableOpacity>
+          )}
         </View>
         
         {isAutomatic && roadwork.source && (
           <Text style={styles.cardSource}>
             Source: {roadwork.source === 'tomtom' ? 'TomTom Traffic' : 
                     roadwork.source === 'national_highways' ? 'National Highways' : 
-                    roadwork.source === 'street_manager' ? 'Street Manager' :
+                    roadwork.source === 'StreetManager' ? 'UK StreetManager (Official)' :
+                    roadwork.source === 'street_manager' ? 'UK StreetManager' :
                     roadwork.source === 'durham_council' ? 'Durham County Council' :
                     roadwork.source}
           </Text>
         )}
 
-        {roadwork.affectedRoutes && roadwork.affectedRoutes.length > 0 && (
+        {(roadwork.affectedRoutes || roadwork.affectsRoutes) && (roadwork.affectedRoutes?.length > 0 || roadwork.affectsRoutes?.length > 0) && (
           <View style={styles.affectedRoutes}>
             <Text style={styles.affectedRoutesLabel}>Affected Routes:</Text>
             <View style={styles.routeTags}>
-              {roadwork.affectedRoutes.slice(0, 5).map((route) => (
+              {(roadwork.affectedRoutes || roadwork.affectsRoutes || []).slice(0, 5).map((route) => (
                 <View key={route} style={styles.routeTag}>
                   <Text style={styles.routeTagText}>{route}</Text>
                 </View>
               ))}
-              {roadwork.affectedRoutes.length > 5 && (
+              {((roadwork.affectedRoutes || roadwork.affectsRoutes || []).length > 5) && (
                 <View style={styles.routeTag}>
-                  <Text style={styles.routeTagText}>+{roadwork.affectedRoutes.length - 5}</Text>
+                  <Text style={styles.routeTagText}>+{(roadwork.affectedRoutes || roadwork.affectsRoutes).length - 5}</Text>
                 </View>
               )}
             </View>
           </View>
         )}
+        
+        {/* StreetManager specific details */}
+        {roadwork.source === 'StreetManager' && roadwork.trafficManagement && (
+          <Text style={styles.trafficManagement}>
+            <Ionicons name="alert-circle" size={12} color="#F59E0B" /> {roadwork.trafficManagement}
+          </Text>
+        )}
 
         <View style={styles.cardFooter}>
           <Text style={styles.cardMeta}>
-            Created by {roadwork.createdByName} • {new Date(roadwork.createdAt).toLocaleDateString()}
+            {roadwork.createdByName ? `Created by ${roadwork.createdByName} • ` : ''}
+            {roadwork.promoter && `${roadwork.promoter} • `}
+            {new Date(roadwork.createdAt || roadwork.lastUpdated).toLocaleDateString()}
           </Text>
           {roadwork.tasks && roadwork.tasks.filter(t => t.status === 'pending').length > 0 && (
             <View style={styles.tasksBadge}>
@@ -740,8 +830,12 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
           <Text style={styles.statLabel}>On Display</Text>
         </View>
         <View style={styles.statCard}>
-          <Text style={[styles.statValue, { color: '#F59E0B' }]}>{stats.pendingTasks}</Text>
-          <Text style={styles.statLabel}>Pending Tasks</Text>
+          <Text style={[styles.statValue, { color: '#DC2626' }]}>{stats.criticalCount}</Text>
+          <Text style={styles.statLabel}>Critical</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={[styles.statValue, { color: '#F59E0B' }]}>{stats.streetManager}</Text>
+          <Text style={styles.statLabel}>StreetManager</Text>
         </View>
       </View>
 
@@ -757,12 +851,21 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
+          style={[styles.tab, activeTab === 'streetmanager' && styles.activeTab]}
+          onPress={() => setActiveTab('streetmanager')}
+        >
+          <Ionicons name="business" size={16} color={activeTab === 'streetmanager' ? '#3B82F6' : '#6B7280'} />
+          <Text style={[styles.tabText, activeTab === 'streetmanager' && styles.activeTabText]}>
+            StreetManager ({streetManagerRoadworks.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[styles.tab, activeTab === 'automatic' && styles.activeTab]}
           onPress={() => setActiveTab('automatic')}
         >
           <Ionicons name="radio" size={16} color={activeTab === 'automatic' ? '#3B82F6' : '#6B7280'} />
           <Text style={[styles.tabText, activeTab === 'automatic' && styles.activeTabText]}>
-            All Traffic APIs ({trafficRoadworks.filter(r => r.source !== 'durham_council').length})
+            Other APIs ({trafficRoadworks.filter(r => r.source !== 'durham_council').length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -771,7 +874,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
         >
           <Ionicons name="business" size={16} color={activeTab === 'durham' ? '#3B82F6' : '#6B7280'} />
           <Text style={[styles.tabText, activeTab === 'durham' && styles.activeTabText]}>
-            Durham Council ({trafficRoadworks.filter(r => r.source === 'durham_council').length})
+            Durham ({trafficRoadworks.filter(r => r.source === 'durham_council').length})
           </Text>
         </TouchableOpacity>
       </View>
@@ -797,6 +900,16 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
             </View>
           ) : (
             roadworks.map(roadwork => renderRoadworkCard(roadwork, false))
+          )
+        ) : activeTab === 'streetmanager' ? (
+          streetManagerRoadworks.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="warning" size={48} color="#E5E7EB" />
+              <Text style={styles.emptyTitle}>No StreetManager Roadworks</Text>
+              <Text style={styles.emptyText}>Waiting for official UK roadwork data</Text>
+            </View>
+          ) : (
+            streetManagerRoadworks.map(roadwork => renderRoadworkCard(roadwork, true))
           )
         ) : activeTab === 'automatic' ? (
           trafficRoadworks.filter(r => r.source !== 'durham_council').length === 0 ? (
@@ -2109,6 +2222,53 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     fontStyle: 'italic',
+  },
+  // ML Prediction styles
+  mlPredictionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+    flexWrap: 'wrap',
+  },
+  mlBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F3F0FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  mlBadgeText: {
+    fontSize: 11,
+    color: '#7C3AED',
+    fontWeight: '500',
+  },
+  impactBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  impactBadgeText: {
+    fontSize: 11,
+    color: '#F59E0B',
+    fontWeight: '500',
+  },
+  trafficManagement: {
+    fontSize: 12,
+    color: '#F59E0B',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  createDiversionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFF7ED',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
   },
 });
 

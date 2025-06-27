@@ -1,4 +1,5 @@
 import puppeteer from 'puppeteer';
+import durhamRoadworksLight from './durhamRoadworksLight.js';
 
 class DurhamRoadworksService {
   constructor() {
@@ -21,6 +22,19 @@ class DurhamRoadworksService {
     if (this.lastFetch && (Date.now() - this.lastFetch) < this.cacheMinutes * 60 * 1000) {
       console.log('✅ Using cached Durham roadworks data');
       return this.roadworks;
+    }
+    
+    // Try lightweight scraper first (no Chrome required)
+    try {
+      console.log('🌐 Attempting lightweight Durham scraper...');
+      const lightResult = await durhamRoadworksLight.fetchRoadworks();
+      if (lightResult && lightResult.length > 0) {
+        this.roadworks = lightResult;
+        this.lastFetch = Date.now();
+        return this.roadworks;
+      }
+    } catch (error) {
+      console.log('⚠️ Lightweight scraper failed, falling back to Puppeteer:', error.message);
     }
 
     console.log('🔄 Fetching Durham roadworks...');

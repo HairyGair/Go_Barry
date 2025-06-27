@@ -184,6 +184,133 @@ class ConvexSyncService {
     }
   }
 
+  // Sync StreetManager roadworks to Convex
+  async syncStreetManagerRoadworks(roadworks) {
+    if (!this.isEnabled) {
+      return { success: false, reason: 'Convex not configured' };
+    }
+
+    try {
+      // Filter high-impact roadworks
+      const highImpactWorks = roadworks.filter(work => {
+        const impactScore = work.details?.impactScore || 0;
+        const affectedRoutes = work.affectsRoutes?.length || 0;
+        const severity = work.severity || 'low';
+        
+        return impactScore > 50 || affectedRoutes > 2 || 
+               ['high', 'critical'].includes(severity);
+      });
+
+      if (highImpactWorks.length === 0) {
+        console.log('ℹ️ No high-impact StreetManager roadworks to sync');
+        return { success: true, count: 0 };
+      }
+
+      // Transform to Convex alert format with enhanced details
+      const convexAlerts = highImpactWorks.map(work => ({
+        alertId: work.id || `streetmanager_${work.workReferenceNumber || Date.now()}`,
+        title: work.title || `StreetManager: ${work.location}`,
+        description: work.description || work.details?.description || '',
+        location: work.location,
+        coordinates: work.coordinates,
+        severity: work.severity || 'medium',
+        status: 'active',
+        source: 'StreetManager',
+        timestamp: work.timestamp || Date.now(),
+        affectsRoutes: work.affectsRoutes || [],
+        routeFrequencies: work.routeFrequencies || null,
+        
+        // StreetManager-specific details
+        metadata: {
+          workType: work.details?.workType,
+          trafficManagement: work.details?.trafficManagement,
+          impactScore: work.details?.impactScore,
+          predictedDelay: work.details?.predictedDelay,
+          plannedDuration: work.details?.duration,
+          isEmergency: work.details?.isEmergency,
+          hasNightWork: work.details?.hasNightWork,
+          affectedRouteNames: work.details?.affectedRoutes,
+          totalPassengerImpact: work.details?.totalPassengerImpact,
+          startDate: work.details?.startDate,
+          endDate: work.details?.endDate,
+          promoter: work.details?.promoter,
+          workReferenceNumber: work.workReferenceNumber
+        }
+      }));
+
+      // Sync to Convex
+      const result = await this.callConvexFunction('alerts:batchInsertAlerts', {
+        alerts: convexAlerts
+      });
+
+      console.log(`🚧 Synced ${convexAlerts.length} high-impact StreetManager roadworks to Convex`);
+      
+      // Log critical roadworks for supervisor attention
+      const criticalWorks = convexAlerts.filter(a => a.severity === 'critical');
+      if (criticalWorks.length > 0) {
+        console.log(`⚠️ ${criticalWorks.length} CRITICAL roadworks require immediate attention:`);
+        criticalWorks.forEach(work => {
+          console.log(`  - ${work.location}: ${work.affectsRoutes.join(', ')}`);
+        });
+      }
+
+      return { 
+        success: true, 
+        count: convexAlerts.length,
+        criticalCount: criticalWorks.length,
+        result 
+      };
+    } catch (error) {
+      console.error('❌ StreetManager sync error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Sync a single high-priority StreetManager roadwork immediately
+  async syncUrgentRoadwork(roadwork) {
+    if (!this.isEnabled) {
+      return { success: false, reason: 'Convex not configured' };
+    }
+
+    try {
+      // Create enhanced alert for urgent roadwork
+      const urgentAlert = {
+        alertId: `urgent_${roadwork.workReferenceNumber || Date.now()}`,
+        title: `🚨 URGENT: ${roadwork.title || roadwork.location}`,
+        description: `${roadwork.description}\n\n⚠️ IMMEDIATE ACTION REQUIRED`,
+        location: roadwork.location,
+        coordinates: roadwork.coordinates,
+        severity: 'critical',
+        status: 'active',
+        source: 'StreetManager-Urgent',
+        timestamp: Date.now(),
+        affectsRoutes: roadwork.affectsRoutes || [],
+        routeFrequencies: roadwork.routeFrequencies || null,
+        
+        metadata: {
+          ...roadwork.details,
+          urgentReason: roadwork.urgentReason || 'High impact on multiple critical routes',
+          supervisorAction: 'CREATE_DIVERSION_PLAN',
+          notificationSent: true
+        }
+      };
+
+      // Sync immediately
+      const result = await this.callConvexFunction('alerts:batchInsertAlerts', {
+        alerts: [urgentAlert]
+      });
+
+      console.log(`🚨 URGENT StreetManager roadwork synced: ${roadwork.location}`);
+      console.log(`   Affects routes: ${roadwork.affectsRoutes?.join(', ')}`);
+      console.log(`   Impact score: ${roadwork.details?.impactScore}`);
+
+      return { success: true, alert: urgentAlert, result };
+    } catch (error) {
+      console.error('❌ Urgent roadwork sync error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   // Test connection to Convex
   async testConnection() {
     if (!this.isEnabled) {

@@ -5,6 +5,8 @@ import { createClient } from '@supabase/supabase-js';
 import axios from 'axios';
 import durhamRoadworks from './durhamRoadworks.js';
 import { generateAlertHash } from '../utils/alertDeduplication.js';
+import streetManager from './streetManager.js';
+import { convexSync } from './convexSync.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
@@ -73,7 +75,13 @@ class UnifiedRoadworksManager {
           results.metadata.sources.streetManager = {
             success: true,
             count: results.streetManager.length,
-            lastUpdate: smResult.value.lastUpdate
+            lastUpdate: smResult.value.lastUpdate,
+            features: {
+              webhookIntegration: true,
+              routeMatching: true,
+              mlPrediction: true,
+              realTimeSync: true
+            }
           };
         } else {
           results.metadata.sources.streetManager = {
@@ -125,9 +133,22 @@ class UnifiedRoadworksManager {
       ]);
 
       results.metadata.totalCount = results.combined.length;
+      results.metadata.criticalCount = results.combined.filter(r => 
+        r.severity === 'Critical' || r.severity === 'critical'
+      ).length;
+      results.metadata.highImpactCount = results.combined.filter(r => 
+        r.affectedRoutes?.length > 3 || r.impactScore > 70
+      ).length;
+      
       this.lastUpdate = new Date();
 
       console.log(`✅ Unified roadworks: ${results.combined.length} total from ${Object.keys(results.metadata.sources).length} sources`);
+      console.log(`   🔴 Critical: ${results.metadata.criticalCount}, 🚨 High Impact: ${results.metadata.highImpactCount}`);
+      
+      // Sync high-impact roadworks to systems
+      if (options.syncToSystems !== false) {
+        this.syncHighImpactRoadworks(results.combined);
+      }
       
       return {
         success: true,
@@ -145,24 +166,90 @@ class UnifiedRoadworksManager {
   }
 
   /**
+   * Sync high-impact roadworks to Intelligence Engine and Convex
+   */
+  async syncHighImpactRoadworks(roadworks) {
+    try {
+      const highImpact = roadworks.filter(r => 
+        r.severity === 'Critical' || 
+        r.severity === 'High' ||
+        r.affectedRoutes?.length > 3 ||
+        r.impactScore > 70
+      );
+      
+      if (highImpact.length > 0) {
+        console.log(`🔄 Syncing ${highImpact.length} high-impact roadworks to systems...`);
+        
+        // Use the StreetManager sync function which handles both Intelligence Engine and Convex
+        const result = await streetManager.syncStreetManagerToSystems();
+        
+        if (result.success) {
+          console.log(`✅ Systems sync complete: ${result.convexSynced} to Convex, ${result.enhancedAlerts} with ML predictions`);
+        }
+      }
+    } catch (error) {
+      console.error('⚠️ Failed to sync high-impact roadworks:', error);
+    }
+  }
+
+  /**
    * Get Street Manager roadworks from Supabase
    */
   async getStreetManagerRoadworks() {
     try {
-      const { data, error } = await supabase
+      // First, try to get processed webhook data from Supabase
+      const { data: webhookData, error: webhookError } = await supabase
         .from('streetmanager_notifications')
         .select('*')
         .eq('processing_status', 'processed')
         .order('webhook_received_at', { ascending: false })
         .limit(100);
 
-      if (error) throw error;
+      if (webhookError) {
+        console.warn('⚠️ Failed to fetch webhook data, falling back to API');
+      }
 
-      const roadworks = data.map(item => this.normalizeStreetManagerData(item));
+      // Also fetch directly from StreetManager API
+      const apiData = await streetManager.fetchStreetManagerActivities(true);
+      
+      let combinedRoadworks = [];
+      
+      // Process webhook data if available
+      if (webhookData && webhookData.length > 0) {
+        const webhookRoadworks = await Promise.all(
+          webhookData.map(async (item) => {
+            try {
+              // Process through streetManager service for enhanced analysis
+              const processed = await streetManager.processStreetManagerWebhook({
+                object_data: item.raw_webhook_data?.object_data || {},
+                event_type: item.webhook_event_type,
+                event_time: item.webhook_received_at
+              });
+              return processed;
+            } catch (err) {
+              console.warn('⚠️ Failed to process webhook item:', err.message);
+              return this.normalizeStreetManagerData(item);
+            }
+          })
+        );
+        combinedRoadworks.push(...webhookRoadworks.filter(r => r));
+      }
+      
+      // Add API data if available
+      if (apiData.success && apiData.data) {
+        combinedRoadworks.push(...apiData.data);
+      }
+      
+      // Deduplicate by permit reference
+      const uniqueRoadworks = Array.from(
+        new Map(combinedRoadworks.map(r => [r.permitReference || r.id, r])).values()
+      );
+      
+      console.log(`🚧 StreetManager: ${uniqueRoadworks.length} roadworks (${webhookData?.length || 0} webhook, ${apiData.data?.length || 0} API)`);
       
       return {
         success: true,
-        data: roadworks,
+        data: uniqueRoadworks,
         lastUpdate: new Date().toISOString(),
         source: 'street_manager'
       };
@@ -236,6 +323,23 @@ class UnifiedRoadworksManager {
    * Normalize Street Manager data to unified format
    */
   normalizeStreetManagerData(item) {
+    // If already processed by streetManager service, return as-is
+    if (item.source === 'StreetManager' && item.enhancedAnalysis) {
+      return {
+        ...item,
+        id: item.id || `sm_${item.notification_id}`,
+        managementActions: {
+          canDismiss: true,
+          canAcknowledge: true,
+          canCreateDiversion: item.affectedRoutes?.length > 0,
+          canNotifyDrivers: item.affectedRoutes?.length > 0,
+          canSave: true,
+          canEdit: false
+        }
+      };
+    }
+    
+    // Otherwise normalize raw data
     return {
       id: `sm_${item.notification_id}`,
       title: item.title || `${item.object_type} - ${item.webhook_event_type}`,
@@ -248,15 +352,22 @@ class UnifiedRoadworksManager {
       endDate: item.proposed_end_date || item.actual_end_date,
       status: item.permit_status || item.work_status || item.activity_status,
       severity: item.severity || 'Medium',
-      source: 'street_manager',
+      source: 'StreetManager',
+      dataSource: 'StreetManager',
       sourceId: item.notification_id,
       promoter: item.promoter_organisation,
       authority: item.highway_authority,
       workCategory: item.work_category,
       lastUpdated: item.webhook_received_at,
+      permitReference: item.permit_reference_number,
+      workReference: item.work_reference_number,
+      trafficManagement: item.traffic_management_type,
+      affectedRoutes: [],
       managementActions: {
         canDismiss: true,
         canAcknowledge: true,
+        canCreateDiversion: false,
+        canNotifyDrivers: false,
         canSave: true,
         canEdit: false
       }

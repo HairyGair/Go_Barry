@@ -3,6 +3,18 @@
 
 import dotenv from 'dotenv';
 import { geocodeLocation } from './geocoding.js';
+import enhancedGTFSMatcher, { getDetailedRouteMatches } from './enhancedGTFSMatcher.js';
+import { parseLineStringToBNG, parsePointToBNG } from '../utils/bngToLatLng.js';
+import { analyzeServiceFrequency } from './serviceFrequencyService.js';
+import { convexSync } from './convexSync.js';
+import intelligenceEngine from './intelligenceEngine.js';
+import fs from 'fs/promises';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { parse } from 'csv-parse/sync';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -681,6 +693,686 @@ export function getApiStatus() {
   };
 }
 
+/**
+ * Parse LINESTRING coordinates from StreetManager notification
+ * Format: "LINESTRING(x1 y1,x2 y2,...)"
+ */
+export function parseLineStringCoordinates(lineString) {
+  // Use the proper BNG to lat/lng conversion
+  return parseLineStringToBNG(lineString);
+}
+
+/**
+ * Match roadwork coordinates against bus routes
+ * Returns affected routes with confidence scores
+ */
+export async function findAffectedBusRoutes(coordinates, bufferMeters = 100) {
+  if (!coordinates || coordinates.length === 0) {
+    return { affectedRoutes: [], totalMatches: 0 };
+  }
+  
+  console.log(`🚌 Analyzing ${coordinates.length} roadwork points for bus route impacts...`);
+  
+  const routeMatches = new Map(); // route -> match details
+  const routeSegments = new Map(); // route -> affected segments
+  
+  // Sample coordinates (every 5th point to reduce API calls)
+  const sampleInterval = Math.max(1, Math.floor(coordinates.length / 20));
+  const sampledCoords = coordinates.filter((_, i) => i % sampleInterval === 0);
+  
+  // Check each sampled coordinate
+  for (const coord of sampledCoords) {
+    const matches = await getDetailedRouteMatches(coord.lat, coord.lng, bufferMeters);
+    
+    for (const match of matches) {
+      const routeKey = match.routeId;
+      
+      if (!routeMatches.has(routeKey)) {
+        routeMatches.set(routeKey, {
+          routeId: match.routeId,
+          shortName: match.shortName,
+          matchCount: 0,
+          minDistance: Infinity,
+          maxConfidence: 0,
+          segments: []
+        });
+      }
+      
+      const routeData = routeMatches.get(routeKey);
+      routeData.matchCount++;
+      routeData.minDistance = Math.min(routeData.minDistance, match.distance);
+      routeData.maxConfidence = Math.max(routeData.maxConfidence, match.confidence);
+      routeData.segments.push({
+        lat: coord.lat,
+        lng: coord.lng,
+        distance: match.distance,
+        confidence: match.confidence
+      });
+    }
+  }
+  
+  // Calculate impact scores and sort results
+  const affectedRoutes = Array.from(routeMatches.values())
+    .map(route => ({
+      ...route,
+      impactScore: calculateRouteImpactScore(route, sampledCoords.length),
+      affectedLength: estimateAffectedLength(route.segments)
+    }))
+    .filter(route => route.impactScore > 0.3) // Min threshold
+    .sort((a, b) => b.impactScore - a.impactScore);
+  
+  console.log(`✅ Found ${affectedRoutes.length} affected bus routes from ${routeMatches.size} candidates`);
+  
+  return {
+    affectedRoutes,
+    totalMatches: affectedRoutes.length,
+    sampledPoints: sampledCoords.length,
+    totalPoints: coordinates.length
+  };
+}
+
+/**
+ * Calculate impact score for a route based on matches
+ */
+function calculateRouteImpactScore(routeData, totalSamples) {
+  const matchRatio = routeData.matchCount / totalSamples;
+  const avgConfidence = routeData.segments.reduce((sum, s) => sum + s.confidence, 0) / routeData.segments.length;
+  const distanceFactor = Math.max(0, 1 - (routeData.minDistance / 100));
+  
+  // Weighted score
+  const score = (matchRatio * 0.4) + (avgConfidence * 0.4) + (distanceFactor * 0.2);
+  return Math.round(score * 100) / 100;
+}
+
+/**
+ * Estimate affected route length based on segments
+ */
+function estimateAffectedLength(segments) {
+  if (segments.length < 2) return 0;
+  
+  let totalDistance = 0;
+  for (let i = 1; i < segments.length; i++) {
+    const dist = haversineDistance(
+      segments[i-1].lat, segments[i-1].lng,
+      segments[i].lat, segments[i].lng
+    );
+    totalDistance += dist;
+  }
+  
+  return Math.round(totalDistance);
+}
+
+/**
+ * Haversine distance calculation
+ */
+function haversineDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371000; // Earth's radius in meters
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLng/2) * Math.sin(dLng/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+/**
+ * Calculate intelligent severity score for roadworks
+ * Considers multiple factors with weighted scoring
+ */
+function calculateIntelligentSeverity(object_data, affectedRoutes) {
+  let severityScore = 0;
+  let factors = [];
+  
+  // 1. Traffic Management Type (0-40 points)
+  const trafficType = object_data.traffic_management_type_ref?.toLowerCase() || '';
+  if (trafficType === 'road_closure') {
+    severityScore += 40;
+    factors.push('Full road closure');
+  } else if (trafficType === 'contraflow' || trafficType === 'convoy_working') {
+    severityScore += 30;
+    factors.push('Major traffic restriction');
+  } else if (trafficType === 'lane_closure' || trafficType === 'multi_way_signals') {
+    severityScore += 20;
+    factors.push('Lane restrictions');
+  } else if (trafficType === 'give_and_take' || trafficType === 'priority_working') {
+    severityScore += 15;
+    factors.push('Minor traffic management');
+  } else if (trafficType === 'some_carriageway_incursion') {
+    severityScore += 10;
+    factors.push('Carriageway incursion');
+  }
+  
+  // 2. Work Category (0-20 points)  
+  const workCategory = object_data.work_category_ref?.toLowerCase() || '';
+  if (workCategory === 'immediate_urgent' || workCategory === 'immediate_emergency') {
+    severityScore += 20;
+    factors.push('Emergency works');
+  } else if (workCategory === 'major' || workCategory === 'major_paa') {
+    severityScore += 15;
+    factors.push('Major works');
+  } else if (workCategory === 'standard') {
+    severityScore += 10;
+    factors.push('Standard works');
+  } else if (workCategory === 'minor') {
+    severityScore += 5;
+    factors.push('Minor works');
+  }
+  
+  // 3. Route Importance (0-30 points)
+  // Analyze affected routes for high-frequency services
+  const highFrequencyRoutes = ['1', '2', '21', 'X21', '307', 'Q3', '39', '40', '56', '58'];
+  let highFreqCount = 0;
+  let totalImpactScore = 0;
+  
+  for (const route of affectedRoutes) {
+    if (highFrequencyRoutes.includes(route.shortName)) {
+      highFreqCount++;
+    }
+    totalImpactScore += route.impactScore || 0;
+  }
+  
+  if (highFreqCount >= 3) {
+    severityScore += 30;
+    factors.push(`${highFreqCount} high-frequency routes affected`);
+  } else if (highFreqCount >= 2) {
+    severityScore += 20;
+    factors.push(`${highFreqCount} high-frequency routes affected`);
+  } else if (highFreqCount >= 1) {
+    severityScore += 15;
+    factors.push('High-frequency route affected');
+  } else if (affectedRoutes.length > 5) {
+    severityScore += 25;
+    factors.push(`${affectedRoutes.length} routes affected`);
+  } else if (affectedRoutes.length > 2) {
+    severityScore += 10;
+    factors.push(`${affectedRoutes.length} routes affected`);
+  }
+  
+  // 4. Duration Impact (0-10 points)
+  const startDate = new Date(object_data.actual_start_date_time || object_data.proposed_start_date);
+  const endDate = new Date(object_data.actual_end_date_time || object_data.proposed_end_date);
+  const durationDays = (endDate - startDate) / (1000 * 60 * 60 * 24);
+  
+  if (durationDays > 30) {
+    severityScore += 10;
+    factors.push('Long-term works (>30 days)');
+  } else if (durationDays > 14) {
+    severityScore += 7;
+    factors.push('Extended works (>2 weeks)');
+  } else if (durationDays > 7) {
+    severityScore += 5;
+    factors.push('Week-long works');
+  } else if (durationDays > 3) {
+    severityScore += 3;
+    factors.push(`${Math.round(durationDays)} day works`);
+  }
+  
+  // 5. Additional factors
+  if (object_data.is_traffic_sensitive === 'Yes') {
+    severityScore += 5;
+    factors.push('Traffic sensitive location');
+  }
+  
+  if (object_data.is_ttro_required === 'Yes') {
+    severityScore += 5;
+    factors.push('TTRO required');
+  }
+  
+  // Convert score to severity level
+  let severity, alertStatus;
+  if (severityScore >= 70) {
+    severity = 'Critical';
+    alertStatus = 'red';
+  } else if (severityScore >= 50) {
+    severity = 'High';
+    alertStatus = 'red';
+  } else if (severityScore >= 30) {
+    severity = 'Medium';
+    alertStatus = 'amber';
+  } else {
+    severity = 'Low';
+    alertStatus = 'amber';
+  }
+  
+  return {
+    severity,
+    alertStatus,
+    severityScore,
+    factors,
+    analysis: {
+      trafficManagement: trafficType,
+      workCategory,
+      highFrequencyRoutesAffected: highFreqCount,
+      totalRoutesAffected: affectedRoutes.length,
+      durationDays: Math.round(durationDays),
+      isTrafficSensitive: object_data.is_traffic_sensitive === 'Yes',
+      isTTRORequired: object_data.is_ttro_required === 'Yes'
+    }
+  };
+}
+
+/**
+ * Calculate total daily services affected
+ */
+async function calculateDailyServices(affectedRoutes) {
+  try {
+    // Load trips data
+    const tripsPath = path.join(__dirname, '../data/trips.txt');
+    const tripsContent = await fs.readFile(tripsPath, 'utf8');
+    const tripsData = parse(tripsContent, { columns: true, skip_empty_lines: true });
+    
+    // Count trips per route
+    const routeServiceCount = {};
+    for (const trip of tripsData) {
+      if (trip.route_id) {
+        routeServiceCount[trip.route_id] = (routeServiceCount[trip.route_id] || 0) + 1;
+      }
+    }
+    
+    // Calculate total services
+    let totalServices = 0;
+    for (const route of affectedRoutes) {
+      totalServices += routeServiceCount[route.routeId] || 0;
+    }
+    
+    return totalServices;
+  } catch (error) {
+    console.error('Error calculating daily services:', error);
+    return 0;
+  }
+}
+
+/**
+ * Check if roadwork times overlap with peak hours
+ */
+function checkPeakHourOverlap(startTime, endTime) {
+  const morningPeakStart = 7 * 60; // 7:00 AM in minutes
+  const morningPeakEnd = 9 * 60;   // 9:00 AM
+  const eveningPeakStart = 16 * 60; // 4:00 PM
+  const eveningPeakEnd = 19 * 60;   // 7:00 PM
+  
+  const startDate = new Date(startTime);
+  const endDate = new Date(endTime);
+  
+  // Check each day in the roadwork period
+  const dayMs = 24 * 60 * 60 * 1000;
+  let currentDate = new Date(startDate);
+  
+  while (currentDate <= endDate) {
+    const dayOfWeek = currentDate.getDay();
+    
+    // Skip weekends for peak hour analysis
+    if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+      // Always overlaps with peak if roadwork spans full day
+      if (endDate - startDate > dayMs) {
+        return true;
+      }
+      
+      // Check specific time overlap
+      const startMinutes = startDate.getHours() * 60 + startDate.getMinutes();
+      const endMinutes = endDate.getHours() * 60 + endDate.getMinutes();
+      
+      // Check morning peak overlap
+      if ((startMinutes <= morningPeakEnd && endMinutes >= morningPeakStart) ||
+          (startMinutes <= eveningPeakEnd && endMinutes >= eveningPeakStart)) {
+        return true;
+      }
+    }
+    
+    currentDate = new Date(currentDate.getTime() + dayMs);
+  }
+  
+  return false;
+}
+
+/**
+ * Estimate delays based on traffic management type and severity
+ */
+function estimateDelayMinutes(trafficManagement, severity, peakHour) {
+  let baseDelay = 0;
+  
+  // Base delay by traffic management type
+  const trafficType = trafficManagement?.toLowerCase() || '';
+  if (trafficType.includes('road_closure')) {
+    baseDelay = 15;
+  } else if (trafficType.includes('contraflow') || trafficType.includes('convoy')) {
+    baseDelay = 10;
+  } else if (trafficType.includes('lane_closure') || trafficType.includes('multi_way_signals')) {
+    baseDelay = 7;
+  } else if (trafficType.includes('give_and_take') || trafficType.includes('priority')) {
+    baseDelay = 5;
+  } else {
+    baseDelay = 3;
+  }
+  
+  // Multiply by 1.5x during peak hours
+  if (peakHour) {
+    baseDelay = Math.round(baseDelay * 1.5);
+  }
+  
+  // Adjust by severity
+  if (severity === 'Critical') {
+    baseDelay = Math.round(baseDelay * 1.3);
+  } else if (severity === 'High') {
+    baseDelay = Math.round(baseDelay * 1.1);
+  }
+  
+  return baseDelay;
+}
+
+/**
+ * Calculate passenger impact based on services and delays
+ */
+function calculatePassengerImpact(totalDailyServices, delayMinutes, peakHour) {
+  // Estimate average passengers per service
+  const avgPassengersPerService = peakHour ? 45 : 25;
+  const estimatedDailyPassengers = totalDailyServices * avgPassengersPerService;
+  
+  // Calculate impact score
+  let impactLevel = 'Low';
+  let estimatedAffected = Math.round(estimatedDailyPassengers * 0.7); // 70% affected
+  
+  if (estimatedAffected > 5000 || (delayMinutes > 10 && peakHour)) {
+    impactLevel = 'Critical';
+  } else if (estimatedAffected > 2000 || delayMinutes > 10) {
+    impactLevel = 'High';
+  } else if (estimatedAffected > 500 || delayMinutes > 5) {
+    impactLevel = 'Medium';
+  }
+  
+  return {
+    level: impactLevel,
+    estimatedPassengersAffected: estimatedAffected,
+    delayMinutes: delayMinutes,
+    peakHourImpact: peakHour,
+    description: `${impactLevel} - Est. ${estimatedAffected.toLocaleString()} passengers affected`
+  };
+}
+
+/**
+ * Generate predictive alerts based on start date
+ */
+function generatePredictiveAlert(proposedStartDate, location, affectedRoutes) {
+  const startDate = new Date(proposedStartDate);
+  const now = new Date();
+  const daysUntilStart = Math.ceil((startDate - now) / (1000 * 60 * 60 * 24));
+  
+  let alertText = '';
+  
+  if (daysUntilStart > 0 && daysUntilStart <= 7) {
+    const routeNames = affectedRoutes.slice(0, 3).map(r => r.shortName).join(', ');
+    const dateStr = startDate.toLocaleDateString('en-GB', { 
+      weekday: 'short', 
+      day: 'numeric', 
+      month: 'short' 
+    });
+    
+    if (affectedRoutes.length > 0) {
+      alertText = `⚠️ ADVANCE WARNING: Roadworks will affect ${routeNames}${affectedRoutes.length > 3 ? ' and others' : ''} starting ${dateStr} (${daysUntilStart} days)`;
+    } else {
+      alertText = `⚠️ ADVANCE WARNING: Roadworks at ${location} starting ${dateStr} (${daysUntilStart} days)`;
+    }
+  }
+  
+  return alertText;
+}
+
+/**
+ * Generate suggested action based on severity and impact
+ */
+function generateSuggestedAction(severity, delayMinutes, peakHour) {
+  if (severity === 'Critical' || (delayMinutes > 15 && peakHour)) {
+    return 'Implement immediate diversion plan and notify all drivers';
+  } else if (severity === 'High' || delayMinutes > 10) {
+    return 'Consider diversion routes and issue passenger warnings';
+  } else if (peakHour && delayMinutes > 5) {
+    return 'Monitor closely and prepare contingency plans';
+  } else if (delayMinutes > 5) {
+    return 'Update passenger information systems';
+  } else {
+    return 'Monitor and log for operational records';
+  }
+}
+
+/**
+ * Process StreetManager webhook notification
+ * Convert to BARRY alert with route matching and enhanced analysis
+ */
+export async function processStreetManagerWebhook(notification) {
+  try {
+    console.log('🔄 Processing StreetManager webhook notification...');
+    
+    const { object_data, event_type, event_time } = notification;
+    if (!object_data) {
+      throw new Error('No object_data in notification');
+    }
+    
+    // Parse coordinates if available
+    let coordinates = [];
+    let affectedRoutes = [];
+    
+    if (object_data.works_location_coordinates) {
+      coordinates = parseLineStringCoordinates(object_data.works_location_coordinates);
+      
+      // Find affected bus routes
+      const routeAnalysis = await findAffectedBusRoutes(coordinates, 150);
+      affectedRoutes = routeAnalysis.affectedRoutes;
+    }
+    
+    // Calculate intelligent severity
+    const severityAnalysis = calculateIntelligentSeverity(object_data, affectedRoutes);
+    
+    // Calculate operational impacts
+    const startDate = object_data.actual_start_date_time || object_data.proposed_start_date;
+    const endDate = object_data.actual_end_date_time || object_data.proposed_end_date;
+    const peakHourImpact = checkPeakHourOverlap(startDate, endDate);
+    
+    // Calculate total daily services affected
+    const totalDailyServices = await calculateDailyServices(affectedRoutes);
+    
+    // Estimate delays
+    const estimatedDelayMinutes = estimateDelayMinutes(
+      object_data.traffic_management_type,
+      severityAnalysis.severity,
+      peakHourImpact
+    );
+    
+    // Calculate passenger impact
+    const passengerImpact = calculatePassengerImpact(
+      totalDailyServices,
+      estimatedDelayMinutes,
+      peakHourImpact
+    );
+    
+    // Generate predictive alert if applicable
+    const predictiveAlert = generatePredictiveAlert(
+      object_data.proposed_start_date,
+      object_data.street_name || object_data.area_name,
+      affectedRoutes
+    );
+    
+    // Enhanced description with operational insights
+    let enhancedDescription = `${object_data.activity_type || 'Roadworks'} affecting ${affectedRoutes.length} bus routes`;
+    if (totalDailyServices > 0) {
+      enhancedDescription += ` (${totalDailyServices}+ daily services)`;
+    }
+    if (peakHourImpact) {
+      enhancedDescription += ' during PEAK HOURS';
+    }
+    if (estimatedDelayMinutes > 0) {
+      enhancedDescription += `. Est. delays: ${estimatedDelayMinutes} mins`;
+    }
+    enhancedDescription += `. ${severityAnalysis.factors.join(', ')}`;
+    
+    // Create BARRY alert with enhanced severity and operational data
+    const alert = {
+      id: `streetmanager_webhook_${object_data.permit_reference_number || Date.now()}`,
+      title: `${object_data.work_category || 'Roadwork'} - ${object_data.street_name || 'Unknown Location'}`,
+      description: enhancedDescription,
+      predictiveAlert: predictiveAlert,
+      location: object_data.street_name || object_data.area_name || 'Unknown',
+      coordinates: coordinates.length > 0 ? [coordinates[0].lat, coordinates[0].lng] : null,
+      status: severityAnalysis.alertStatus,
+      severity: severityAnalysis.severity,
+      severityScore: severityAnalysis.severityScore,
+      severityFactors: severityAnalysis.factors,
+      severityAnalysis: severityAnalysis.analysis,
+      type: 'roadwork',
+      source: 'StreetManager',
+      dataSource: 'StreetManager Webhook',
+      
+      // Route impact data
+      affectedRoutes: affectedRoutes.map(r => ({
+        routeId: r.routeId,
+        shortName: r.shortName,
+        impactScore: r.impactScore,
+        affectedLength: r.affectedLength
+      })),
+      routeImpactSummary: `${affectedRoutes.length} routes affected`,
+      
+      // StreetManager specific
+      permitReference: object_data.permit_reference_number,
+      workReference: object_data.work_reference_number,
+      workCategory: object_data.work_category_ref,
+      trafficManagement: object_data.traffic_management_type,
+      workStatus: object_data.work_status,
+      
+      // Timing
+      startDate: object_data.actual_start_date_time || object_data.proposed_start_date,
+      endDate: object_data.actual_end_date_time || object_data.proposed_end_date,
+      eventTime: event_time,
+      lastUpdated: new Date().toISOString(),
+      
+      // Metadata
+      authority: object_data.highway_authority || object_data.promoter_organisation,
+      town: object_data.town,
+      usrn: object_data.usrn,
+      isTrafficSensitive: object_data.is_traffic_sensitive === 'Yes',
+      isTTRORequired: object_data.is_ttro_required === 'Yes',
+      
+      // Operational insights
+      estimatedDelayMinutes: estimatedDelayMinutes,
+      peakHourImpact: peakHourImpact,
+      totalDailyServices: totalDailyServices,
+      passengerImpact: passengerImpact,
+      operationalAnalysis: {
+        servicesPerHour: Math.round(totalDailyServices / 18), // Assuming 18-hour service day
+        peakHourServices: Math.round(totalDailyServices * 0.3), // 30% in peak
+        delayImpactScore: Math.min(100, (estimatedDelayMinutes * affectedRoutes.length * (peakHourImpact ? 2 : 1))),
+        requiresDiversion: estimatedDelayMinutes > 10 || severityAnalysis.severity === 'Critical',
+        suggestedAction: generateSuggestedAction(severityAnalysis.severity, estimatedDelayMinutes, peakHourImpact)
+      },
+      
+      // Enhancement flags
+      locationAccuracy: coordinates.length > 0 ? 'high' : 'low',
+      routeMatchMethod: 'linestring_analysis',
+      officialSource: true,
+      webhookEvent: event_type,
+      enhancedAnalysis: true
+    };
+    
+    console.log(`✅ Processed webhook: ${alert.title} affecting ${affectedRoutes.length} routes`);
+    
+    // Get ML prediction from Intelligence Engine
+    const mlPrediction = intelligenceEngine.predictSeverity(alert);
+    alert.mlPrediction = mlPrediction;
+    alert.mlSeverity = mlPrediction.severity;
+    alert.mlConfidence = mlPrediction.confidence;
+    
+    // Sync high-impact roadworks to Convex for real-time updates
+    if (severityAnalysis.severity === 'Critical' || severityAnalysis.severity === 'High' || affectedRoutes.length > 3) {
+      try {
+        await convexSync.syncUrgentRoadwork({
+          ...alert,
+          urgentReason: `${severityAnalysis.severity} severity: ${affectedRoutes.length} routes affected, ${estimatedDelayMinutes} min delays`,
+          details: {
+            ...severityAnalysis.analysis,
+            ...alert.operationalAnalysis,
+            impactScore: severityAnalysis.severityScore,
+            predictedDelay: estimatedDelayMinutes,
+            duration: Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)),
+            isEmergency: object_data.work_category_ref?.includes('emergency'),
+            hasNightWork: false, // Could be enhanced
+            affectedRoutes: affectedRoutes.map(r => r.shortName),
+            totalPassengerImpact: passengerImpact.estimatedPassengersAffected
+          }
+        });
+        console.log('🚨 High-impact roadwork synced to Convex for real-time updates');
+      } catch (syncError) {
+        console.error('⚠️ Failed to sync to Convex:', syncError.message);
+      }
+    }
+    
+    return alert;
+    
+  } catch (error) {
+    console.error('❌ Error processing StreetManager webhook:', error);
+    throw error;
+  }
+}
+
+/**
+ * Sync all StreetManager alerts to Intelligence Engine and Convex
+ * Called periodically to update ML predictions and real-time sync
+ */
+export async function syncStreetManagerToSystems() {
+  try {
+    console.log('🔄 Syncing StreetManager alerts to Intelligence Engine and Convex...');
+    
+    // Fetch latest activities
+    const activitiesResult = await fetchStreetManagerActivities(true);
+    if (!activitiesResult.success || !activitiesResult.data) {
+      console.error('❌ Failed to fetch StreetManager activities');
+      return { success: false, error: 'Failed to fetch activities' };
+    }
+    
+    const allAlerts = activitiesResult.data;
+    const enhancedAlerts = [];
+    
+    // Process each alert through Intelligence Engine
+    for (const alert of allAlerts) {
+      // Get ML prediction
+      const mlPrediction = intelligenceEngine.predictSeverity(alert);
+      
+      // Enhance alert with ML data
+      const enhancedAlert = {
+        ...alert,
+        mlPrediction,
+        mlSeverity: mlPrediction.severity,
+        mlConfidence: mlPrediction.confidence,
+        mlRecommendation: mlPrediction.recommendation,
+        enhancedAt: new Date().toISOString()
+      };
+      
+      enhancedAlerts.push(enhancedAlert);
+      
+      // Record in Intelligence Engine for learning
+      intelligenceEngine.recordIncident(enhancedAlert);
+    }
+    
+    // Sync high-impact alerts to Convex
+    const convexResult = await convexSync.syncStreetManagerRoadworks(enhancedAlerts);
+    
+    console.log(`✅ StreetManager sync complete:`);
+    console.log(`   - ${allAlerts.length} total roadworks`);
+    console.log(`   - ${convexResult.count || 0} high-impact synced to Convex`);
+    console.log(`   - ${convexResult.criticalCount || 0} critical alerts`);
+    
+    return {
+      success: true,
+      totalAlerts: allAlerts.length,
+      enhancedAlerts: enhancedAlerts.length,
+      convexSynced: convexResult.count || 0,
+      criticalCount: convexResult.criticalCount || 0
+    };
+    
+  } catch (error) {
+    console.error('❌ StreetManager sync error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 export default {
   fetchStreetManagerActivities,
   fetchStreetManagerPermits,
@@ -689,5 +1381,9 @@ export default {
   clearStreetManagerCache,
   getStreetManagerCacheStats,
   pollAndSaveToSupabase,
-  getApiStatus
+  getApiStatus,
+  parseLineStringCoordinates,
+  findAffectedBusRoutes,
+  processStreetManagerWebhook,
+  syncStreetManagerToSystems
 };

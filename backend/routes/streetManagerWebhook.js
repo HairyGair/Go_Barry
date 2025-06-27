@@ -6,6 +6,7 @@ import https from 'https';
 import crypto from 'crypto';
 import fetch from 'node-fetch';
 import { createClient } from '@supabase/supabase-js';
+import { processStreetManagerWebhook } from '../services/streetManager.js';
 
 const router = express.Router();
 
@@ -157,80 +158,25 @@ async function handleNotification(snsMessage) {
 
 async function processNotification(notificationData) {
   try {
-    // Extract relevant data based on object type
-    const objectData = notificationData.object_data;
+    // Use the enhanced processing function that includes route matching
+    const alert = await processStreetManagerWebhook(notificationData);
     
-    if (!objectData) {
-      console.log('⚠️ No object data in notification');
+    if (!alert) {
+      console.log('⚠️ Could not process notification into alert');
       return;
     }
     
-    // Transform to roadwork alert format
-    const roadwork = {
-      id: `streetmanager_${notificationData.object_reference || notificationData.event_reference}`,
-      title: `${objectData.work_category || 'Roadwork'} - ${objectData.street_name || 'Unknown Location'}`,
-      description: objectData.description || `${notificationData.event_type} for ${notificationData.object_type}`,
-      location: objectData.street_name || objectData.area_name || 'Unknown Location',
-      severity: determineSeverity(objectData),
-      status: determineStatus(objectData),
-      type: 'roadwork',
-      source: 'StreetManager',
-      dataSource: 'StreetManager Webhook',
-      
-      // StreetManager specific fields
-      permitReference: objectData.permit_reference_number,
-      workReference: objectData.work_reference_number,
-      activityReference: objectData.activity_reference_number,
-      section58Reference: objectData.section_58_reference_number,
-      
-      // Dates
-      proposedStartDate: objectData.proposed_start_date,
-      proposedEndDate: objectData.proposed_end_date,
-      actualStartDate: objectData.actual_start_date_time,
-      actualEndDate: objectData.actual_end_date_time,
-      
-      // Location details
-      streetName: objectData.street_name,
-      areaName: objectData.area_name,
-      town: objectData.town,
-      usrn: objectData.usrn,
-      coordinates: parseCoordinates(objectData.works_location_coordinates || objectData.activity_coordinates || objectData.section_58_coordinates),
-      
-      // Work details
-      workCategory: objectData.work_category,
-      workCategoryRef: objectData.work_category_ref,
-      workStatus: objectData.work_status,
-      workStatusRef: objectData.work_status_ref,
-      activityType: objectData.activity_type,
-      trafficManagementType: objectData.traffic_management_type,
-      trafficManagementTypeRef: objectData.traffic_management_type_ref,
-      
-      // Authority details
-      highwayAuthority: objectData.highway_authority,
-      highwayAuthoritySwaCode: objectData.highway_authority_swa_code,
-      promoterOrganisation: objectData.promoter_organisation,
-      promoterSwaCode: objectData.promoter_swa_code,
-      
-      // Additional flags
-      isEmergency: objectData.is_emergency_works === 'Yes',
-      isCovid19Response: objectData.is_covid_19_response === 'Yes',
-      isTtroRequired: objectData.is_ttro_required === 'Yes',
-      isTrafficSensitive: objectData.is_traffic_sensitive === 'Yes',
-      isDeemed: objectData.is_deemed === 'Yes',
-      
-      // Event metadata
-      eventType: notificationData.event_type,
-      eventReference: notificationData.event_reference,
-      eventTime: notificationData.event_time,
-      version: notificationData.version,
-      
-      lastUpdated: new Date().toISOString()
-    };
-    
-    // Save to roadworks collection
+    // Save enhanced alert with route impacts
     const { error } = await supabase
       .from('roadworks')
-      .upsert(roadwork, {
+      .upsert({
+        ...alert,
+        // Additional webhook-specific fields
+        notificationId: `sm_${notificationData.event_reference}_${Date.now()}`,
+        routeImpacts: alert.affectedRoutes || [],
+        impactedRouteCount: alert.affectedRoutes?.length || 0,
+        processedAt: new Date().toISOString()
+      }, {
         onConflict: 'id',
         ignoreDuplicates: false
       });
@@ -238,7 +184,24 @@ async function processNotification(notificationData) {
     if (error) {
       console.error('❌ Failed to save roadwork:', error);
     } else {
-      console.log('✅ Roadwork saved/updated:', roadwork.id);
+      console.log(`✅ Roadwork saved: ${alert.title} affecting ${alert.affectedRoutes?.length || 0} routes`);
+      
+      // If high impact, also sync to alerts
+      if (alert.affectedRoutes?.length > 3 || alert.severity === 'High') {
+        const { error: alertError } = await supabase
+          .from('traffic_alerts')
+          .upsert({
+            ...alert,
+            expiresAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString() // 8 hours
+          }, {
+            onConflict: 'id',
+            ignoreDuplicates: false
+          });
+          
+        if (!alertError) {
+          console.log('🚨 High-impact alert created for traffic monitoring');
+        }
+      }
     }
     
     // Update notification as processed
@@ -246,7 +209,9 @@ async function processNotification(notificationData) {
       .from('streetmanager_notifications')
       .update({
         processing_status: 'processed',
-        processed_at: new Date().toISOString()
+        processed_at: new Date().toISOString(),
+        affected_routes: alert.affectedRoutes?.map(r => r.shortName) || [],
+        route_impact_count: alert.affectedRoutes?.length || 0
       })
       .eq('object_reference', notificationData.object_reference)
       .eq('webhook_event_type', notificationData.event_type);
