@@ -197,55 +197,72 @@ class UnifiedRoadworksManager {
    */
   async getStreetManagerRoadworks() {
     try {
-      // First, try to get processed webhook data from Supabase
-      const { data: webhookData, error: webhookError } = await supabase
-        .from('streetmanager_notifications')
+      // Fetch processed roadworks from the roadworks table (saved by webhook)
+      const { data: roadworksData, error: roadworksError } = await supabase
+        .from('roadworks')
         .select('*')
-        .eq('processing_status', 'processed')
-        .order('webhook_received_at', { ascending: false })
-        .limit(100);
+        .or('source.eq.StreetManager,dataSource.eq.StreetManager')
+        .order('lastUpdated', { ascending: false })
+        .limit(200);
 
-      if (webhookError) {
-        console.warn('⚠️ Failed to fetch webhook data, falling back to API');
+      if (roadworksError) {
+        console.warn('⚠️ Failed to fetch roadworks table:', roadworksError);
       }
 
-      // Also fetch directly from StreetManager API
+      // Also fetch from traffic_alerts for high-impact ones
+      const { data: alertsData, error: alertsError } = await supabase
+        .from('traffic_alerts')
+        .select('*')
+        .or('source.eq.StreetManager,dataSource.eq.StreetManager')
+        .gte('expiresAt', new Date().toISOString())
+        .order('severity', { ascending: false })
+        .limit(100);
+
+      if (alertsError) {
+        console.warn('⚠️ Failed to fetch traffic alerts:', alertsError);
+      }
+
+      // Also fetch directly from StreetManager API as fallback
       const apiData = await streetManager.fetchStreetManagerActivities(true);
       
       let combinedRoadworks = [];
       
-      // Process webhook data if available
-      if (webhookData && webhookData.length > 0) {
-        const webhookRoadworks = await Promise.all(
-          webhookData.map(async (item) => {
-            try {
-              // Process through streetManager service for enhanced analysis
-              const processed = await streetManager.processStreetManagerWebhook({
-                object_data: item.raw_webhook_data?.object_data || {},
-                event_type: item.webhook_event_type,
-                event_time: item.webhook_received_at
-              });
-              return processed;
-            } catch (err) {
-              console.warn('⚠️ Failed to process webhook item:', err.message);
-              return this.normalizeStreetManagerData(item);
-            }
-          })
-        );
-        combinedRoadworks.push(...webhookRoadworks.filter(r => r));
+      // Add roadworks from database
+      if (roadworksData && roadworksData.length > 0) {
+        combinedRoadworks.push(...roadworksData);
+        console.log(`   📊 Found ${roadworksData.length} StreetManager roadworks in database`);
+      }
+      
+      // Add high-impact alerts
+      if (alertsData && alertsData.length > 0) {
+        // Convert alerts to roadworks format if needed
+        const alertRoadworks = alertsData.map(alert => ({
+          ...alert,
+          id: alert.id || `alert_${alert.permitReference || Date.now()}`,
+          isHighImpact: true
+        }));
+        combinedRoadworks.push(...alertRoadworks);
+        console.log(`   🚨 Found ${alertsData.length} high-impact StreetManager alerts`);
       }
       
       // Add API data if available
       if (apiData.success && apiData.data) {
         combinedRoadworks.push(...apiData.data);
+        console.log(`   🌐 Found ${apiData.data.length} from StreetManager API`);
       }
       
-      // Deduplicate by permit reference
-      const uniqueRoadworks = Array.from(
-        new Map(combinedRoadworks.map(r => [r.permitReference || r.id, r])).values()
-      );
+      // Deduplicate by permit reference or ID
+      const uniqueMap = new Map();
+      combinedRoadworks.forEach(r => {
+        const key = r.permitReference || r.id;
+        if (!uniqueMap.has(key) || (r.isHighImpact && !uniqueMap.get(key).isHighImpact)) {
+          uniqueMap.set(key, r);
+        }
+      });
       
-      console.log(`🚧 StreetManager: ${uniqueRoadworks.length} roadworks (${webhookData?.length || 0} webhook, ${apiData.data?.length || 0} API)`);
+      const uniqueRoadworks = Array.from(uniqueMap.values());
+      
+      console.log(`🚧 StreetManager: ${uniqueRoadworks.length} total unique roadworks`);
       
       return {
         success: true,

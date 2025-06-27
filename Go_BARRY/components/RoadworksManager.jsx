@@ -185,7 +185,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
               ) : (
                 <>
                   <Ionicons name="checkmark" size={20} color="#FFFFFF" />
-                  <Text style={styles.confirmActionButtonText}>Confirm Action</Text>
+                  <Text style={[styles.confirmActionButtonText, { marginLeft: 8 }]}>Confirm Action</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -653,7 +653,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
           <View style={styles.cardHeaderLeft}>
             <View style={[styles.statusBadge, { backgroundColor: `${status.color}20` }]}>
               <Ionicons name={status.icon} size={16} color={status.color} />
-              <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
+              <Text style={[styles.statusText, { color: status.color, marginLeft: 4 }]}>{status.label}</Text>
             </View>
             <View style={[styles.priorityBadge, { backgroundColor: priority.bgColor }]}>
               <Text style={[styles.priorityText, { color: priority.color }]}>{priority.label}</Text>
@@ -662,7 +662,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
           {roadwork.promotedToDisplay && (
             <View style={styles.displayBadge}>
               <Ionicons name="tv" size={16} color="#10B981" />
-              <Text style={styles.displayBadgeText}>On Display</Text>
+              <Text style={[styles.displayBadgeText, { marginLeft: 4 }]}>On Display</Text>
             </View>
           )}
         </View>
@@ -701,7 +701,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
               onPress={() => openRoadworkMap(roadwork)}
             >
               <Ionicons name="map" size={14} color="#10B981" />
-              <Text style={styles.quickActionText}>Map</Text>
+              <Text style={[styles.quickActionText, { marginLeft: 4 }]}>Map</Text>
             </TouchableOpacity>
           )}
           
@@ -711,7 +711,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
               onPress={() => fetchDiversions(roadwork)}
             >
               <Ionicons name="bulb" size={14} color="#7C3AED" />
-              <Text style={styles.quickActionText}>AI Diversions</Text>
+              <Text style={[styles.quickActionText, { marginLeft: 4 }]}>AI Diversions</Text>
             </TouchableOpacity>
           )}
           
@@ -722,7 +722,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
               onPress={() => handleCreateDiversion(roadwork)}
             >
               <Ionicons name="git-branch" size={14} color="#F59E0B" />
-              <Text style={styles.quickActionText}>Create Diversion</Text>
+              <Text style={[styles.quickActionText, { marginLeft: 4 }]}>Create Diversion</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -772,7 +772,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
           {roadwork.tasks && roadwork.tasks.filter(t => t.status === 'pending').length > 0 && (
             <View style={styles.tasksBadge}>
               <Ionicons name="clipboard" size={14} color="#F59E0B" />
-              <Text style={styles.tasksCount}>
+              <Text style={[styles.tasksCount, { marginLeft: 4 }]}>
                 {roadwork.tasks.filter(t => t.status === 'pending').length} tasks
               </Text>
             </View>
@@ -811,13 +811,13 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
           onPress={() => setShowCreateModal(true)}
         >
           <Ionicons name="add-circle" size={20} color="#FFFFFF" />
-          <Text style={styles.createButtonText}>New Roadwork</Text>
+          <Text style={[styles.createButtonText, { marginLeft: 8 }]}>New Roadwork</Text>
         </TouchableOpacity>
       </View>
 
       {/* Stats Overview */}
       <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
+        <View style={[styles.statCard, { marginLeft: 0 }]}>
           <Text style={styles.statValue}>{stats.total}</Text>
           <Text style={styles.statLabel}>Total Roadworks</Text>
         </View>
@@ -846,34 +846,34 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
           onPress={() => setActiveTab('manual')}
         >
           <Ionicons name="hammer" size={16} color={activeTab === 'manual' ? '#3B82F6' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'manual' && styles.activeTabText]}>
+          <Text style={[styles.tabText, activeTab === 'manual' && styles.activeTabText, { marginLeft: 6 }]}>
             Manual ({roadworks.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'streetmanager' && styles.activeTab]}
+          style={[styles.tab, activeTab === 'streetmanager' && styles.activeTab, { marginLeft: 8 }]}
           onPress={() => setActiveTab('streetmanager')}
         >
           <Ionicons name="business" size={16} color={activeTab === 'streetmanager' ? '#3B82F6' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'streetmanager' && styles.activeTabText]}>
+          <Text style={[styles.tabText, activeTab === 'streetmanager' && styles.activeTabText, { marginLeft: 6 }]}>
             StreetManager ({streetManagerRoadworks.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'automatic' && styles.activeTab]}
+          style={[styles.tab, activeTab === 'automatic' && styles.activeTab, { marginLeft: 8 }]}
           onPress={() => setActiveTab('automatic')}
         >
           <Ionicons name="radio" size={16} color={activeTab === 'automatic' ? '#3B82F6' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'automatic' && styles.activeTabText]}>
+          <Text style={[styles.tabText, activeTab === 'automatic' && styles.activeTabText, { marginLeft: 6 }]}>
             Other APIs ({trafficRoadworks.filter(r => r.source !== 'durham_council').length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'durham' && styles.activeTab]}
+          style={[styles.tab, activeTab === 'durham' && styles.activeTab, { marginLeft: 8 }]}
           onPress={() => setActiveTab('durham')}
         >
           <Ionicons name="business" size={16} color={activeTab === 'durham' ? '#3B82F6' : '#6B7280'} />
-          <Text style={[styles.tabText, activeTab === 'durham' && styles.activeTabText]}>
+          <Text style={[styles.tabText, activeTab === 'durham' && styles.activeTabText, { marginLeft: 6 }]}>
             Durham ({trafficRoadworks.filter(r => r.source === 'durham_council').length})
           </Text>
         </TouchableOpacity>
@@ -1056,7 +1056,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
                   {diversionsRoadwork.location}
                 </Text>
                 <View style={styles.diversionAffectedRoutes}>
-                  <Text style={styles.diversionLabel}>Affected Routes:</Text>
+                  <Text style={[styles.diversionLabel, { marginRight: 8 }]}>Affected Routes:</Text>
                   <View style={styles.routeTags}>
                     {diversionsRoadwork.affectedRoutes?.map((route, idx) => (
                       <View key={idx} style={styles.routeTag}>
@@ -1110,7 +1110,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
                             </Text>
                             <View style={styles.tomtomRouteTime}>
                               <Ionicons name="time" size={14} color="#059669" />
-                              <Text style={styles.tomtomRouteDuration}>{route.duration}</Text>
+                              <Text style={[styles.tomtomRouteDuration, { marginLeft: 4 }]}>{route.duration}</Text>
                             </View>
                           </View>
                           <Text style={styles.tomtomRouteSummary}>{route.summary}</Text>
@@ -1219,7 +1219,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
                     }}
                   >
                     <Ionicons name="copy" size={20} color="#FFFFFF" />
-                    <Text style={styles.copyDiversionText}>Copy Instructions</Text>
+                    <Text style={[styles.copyDiversionText, { marginLeft: 8 }]}>Copy Instructions</Text>
                   </TouchableOpacity>
                 </View>
               ) : (
@@ -1358,7 +1358,7 @@ const RoadworkDetailsModal = ({ visible, roadwork, onClose, onPromoteToDisplay, 
                 onPress={handleDismissPress}
               >
                 <Ionicons name="close-circle" size={20} color="#EF4444" />
-                <Text style={styles.dismissButtonText}>Dismiss</Text>
+                <Text style={[styles.dismissButtonText, { marginLeft: 8 }]}>Dismiss</Text>
               </TouchableOpacity>
             )}
             
@@ -1368,7 +1368,7 @@ const RoadworkDetailsModal = ({ visible, roadwork, onClose, onPromoteToDisplay, 
                 onPress={() => onAcknowledge(roadwork.id)}
               >
                 <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-                <Text style={styles.acknowledgeButtonText}>Take Action</Text>
+                <Text style={[styles.acknowledgeButtonText, { marginLeft: 8 }]}>Take Action</Text>
               </TouchableOpacity>
             )}
             
@@ -1389,7 +1389,8 @@ const RoadworkDetailsModal = ({ visible, roadwork, onClose, onPromoteToDisplay, 
               />
               <Text style={[
                 styles.displayToggleButtonText,
-                roadwork.promotedToDisplay && styles.displayToggleButtonTextActive
+                roadwork.promotedToDisplay && styles.displayToggleButtonTextActive,
+                { marginLeft: 8 }
               ]}>
                 {roadwork.promotedToDisplay ? 'Remove from Display' : 'Promote to Display'}
               </Text>
@@ -1456,7 +1457,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   createButtonText: {
     color: '#FFFFFF',
@@ -1467,7 +1467,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    gap: 12,
   },
   statCard: {
     flex: 1,
@@ -1477,6 +1476,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    marginLeft: 12,
   },
   statValue: {
     fontSize: 24,
@@ -1509,7 +1509,6 @@ const styles = StyleSheet.create({
   },
   cardHeaderLeft: {
     flexDirection: 'row',
-    gap: 8,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -1517,7 +1516,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    gap: 4,
   },
   statusText: {
     fontSize: 12,
@@ -1527,6 +1525,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
+    marginLeft: 8,
   },
   priorityText: {
     fontSize: 12,
@@ -1535,7 +1534,6 @@ const styles = StyleSheet.create({
   displayBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 4,
     backgroundColor: '#F0FDF4',
@@ -1574,13 +1572,14 @@ const styles = StyleSheet.create({
   routeTags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
   },
   routeTag: {
     backgroundColor: '#EBF5FF',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
+    marginRight: 6,
+    marginBottom: 6,
   },
   routeTagText: {
     fontSize: 12,
@@ -1599,7 +1598,6 @@ const styles = StyleSheet.create({
   tasksBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
   },
   tasksCount: {
     fontSize: 12,
@@ -1657,7 +1655,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 16,
     marginBottom: 8,
-    gap: 8,
   },
   tab: {
     flex: 1,
@@ -1668,7 +1665,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     backgroundColor: '#F3F4F6',
-    gap: 6,
   },
   activeTab: {
     backgroundColor: '#EBF5FF',
@@ -1689,7 +1685,6 @@ const styles = StyleSheet.create({
   quickActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
@@ -1698,7 +1693,6 @@ const styles = StyleSheet.create({
   mapButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
     backgroundColor: '#ECFDF5',
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -1707,11 +1701,11 @@ const styles = StyleSheet.create({
   diversionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
     backgroundColor: '#F3F0FF',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
+    marginLeft: 12,
   },
   quickActionText: {
     fontSize: 12,
@@ -1769,7 +1763,6 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    gap: 12,
   },
   cancelButton: {
     paddingHorizontal: 16,
@@ -1777,6 +1770,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    marginRight: 12,
   },
   cancelButtonText: {
     fontSize: 14,
@@ -1787,7 +1781,6 @@ const styles = StyleSheet.create({
   // Details Modal Styles
   detailsHeader: {
     flexDirection: 'row',
-    gap: 8,
     marginBottom: 16,
   },
   detailsTitle: {
@@ -1827,7 +1820,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    gap: 8,
   },
   displayToggleButtonActive: {
     backgroundColor: '#F0FDF4',
@@ -1851,7 +1843,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FCA5A5',
     backgroundColor: '#FEF2F2',
-    gap: 8,
+    marginRight: 12,
   },
   dismissButtonText: {
     fontSize: 14,
@@ -1867,7 +1859,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#A7F3D0',
     backgroundColor: '#F0FDF4',
-    gap: 8,
+    marginRight: 12,
   },
   acknowledgeButtonText: {
     fontSize: 14,
@@ -1924,7 +1916,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   confirmActionButtonText: {
     color: '#FFFFFF',
@@ -1941,7 +1932,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#EBF5FF',
     borderWidth: 1,
     borderColor: '#3B82F6',
-    gap: 8,
   },
   pushToDisplayButtonText: {
     fontSize: 14,
@@ -2002,7 +1992,6 @@ const styles = StyleSheet.create({
   diversionAffectedRoutes: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
   },
   diversionLabel: {
     fontSize: 14,
@@ -2057,7 +2046,6 @@ const styles = StyleSheet.create({
   routeDiversionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     marginBottom: 8,
   },
   routeDiversionRoute: {
@@ -2078,7 +2066,6 @@ const styles = StyleSheet.create({
   adviceCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
     backgroundColor: '#F9FAFB',
     padding: 12,
     borderRadius: 6,
@@ -2125,7 +2112,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
     backgroundColor: '#7C3AED',
     paddingVertical: 14,
     borderRadius: 8,
@@ -2173,7 +2159,6 @@ const styles = StyleSheet.create({
   tomtomRouteTime: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
     backgroundColor: '#ECFDF5',
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -2192,17 +2177,17 @@ const styles = StyleSheet.create({
   },
   tomtomRouteDetails: {
     flexDirection: 'row',
-    gap: 12,
     flexWrap: 'wrap',
   },
   tomtomRouteMetric: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    marginRight: 12,
   },
   tomtomRouteMetricText: {
     fontSize: 12,
     color: '#6B7280',
+    marginLeft: 4,
   },
   trafficDelay: {
     backgroundColor: '#FEF2F2',
@@ -2226,23 +2211,23 @@ const styles = StyleSheet.create({
   // ML Prediction styles
   mlPredictionRow: {
     flexDirection: 'row',
-    gap: 8,
     marginTop: 8,
     flexWrap: 'wrap',
   },
   mlBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
     backgroundColor: '#F3F0FF',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
+    marginRight: 8,
   },
   mlBadgeText: {
     fontSize: 11,
     color: '#7C3AED',
     fontWeight: '500',
+    marginLeft: 4,
   },
   impactBadge: {
     backgroundColor: '#FEF3C7',
@@ -2264,11 +2249,11 @@ const styles = StyleSheet.create({
   createDiversionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
     backgroundColor: '#FFF7ED',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
+    marginLeft: 12,
   },
 });
 

@@ -445,6 +445,113 @@ router.post('/:id/diversion', async (req, res) => {
   }
 });
 
+// PUT /api/roadworks/:id - Update roadwork details (full edit)
+router.put('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      title,
+      description,
+      location,
+      coordinates,
+      authority,
+      contactPerson,
+      contactPhone,
+      contactEmail,
+      plannedStartDate,
+      plannedEndDate,
+      estimatedDuration,
+      roadworkType,
+      trafficManagement,
+      priority,
+      affectedRoutes,
+      sessionId
+    } = req.body;
+
+    // Validate session
+    const sessionValidation = validateSupervisorSession(sessionId);
+    if (!sessionValidation.success) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid supervisor session'
+      });
+    }
+
+    const supervisor = sessionValidation.supervisor;
+
+    // Get existing roadwork
+    const roadwork = await supabaseRoadworksStorage.getRoadworkById(id);
+    if (!roadwork) {
+      return res.status(404).json({
+        success: false,
+        error: 'Roadwork not found'
+      });
+    }
+
+    // Build update object with only provided fields
+    const updates = {
+      lastUpdated: new Date().toISOString(),
+      updatedBy: supervisor.id,
+      updatedByName: supervisor.name
+    };
+
+    // Only update fields that were provided
+    if (title !== undefined) updates.title = title;
+    if (description !== undefined) updates.description = description;
+    if (location !== undefined) updates.location = location;
+    if (coordinates !== undefined) updates.coordinates = coordinates;
+    if (authority !== undefined) updates.authority = authority;
+    if (contactPerson !== undefined) updates.contactPerson = contactPerson;
+    if (contactPhone !== undefined) updates.contactPhone = contactPhone;
+    if (contactEmail !== undefined) updates.contactEmail = contactEmail;
+    if (plannedStartDate !== undefined) updates.plannedStartDate = plannedStartDate;
+    if (plannedEndDate !== undefined) updates.plannedEndDate = plannedEndDate;
+    if (estimatedDuration !== undefined) updates.estimatedDuration = estimatedDuration;
+    if (roadworkType !== undefined) updates.roadworkType = roadworkType;
+    if (trafficManagement !== undefined) updates.trafficManagement = trafficManagement;
+    if (priority !== undefined) updates.priority = priority;
+    if (affectedRoutes !== undefined) updates.affectedRoutes = affectedRoutes;
+
+    // Add to edit history
+    const editHistory = roadwork.editHistory || [];
+    editHistory.push({
+      editedBy: supervisor.id,
+      editedByName: supervisor.name,
+      editedAt: new Date().toISOString(),
+      fieldsChanged: Object.keys(updates).filter(k => !['lastUpdated', 'updatedBy', 'updatedByName'].includes(k))
+    });
+    updates.editHistory = editHistory;
+
+    // Update in storage
+    const updatedRoadwork = await supabaseRoadworksStorage.updateRoadwork(id, updates);
+
+    console.log(`✅ Roadwork ${id} edited by ${supervisor.name}`);
+    console.log(`   Fields updated: ${Object.keys(updates).filter(k => !['lastUpdated', 'updatedBy', 'updatedByName', 'editHistory'].includes(k)).join(', ')}`);
+
+    // Log activity
+    await supervisorActivityLogger.logActivity(
+      supervisor.badge,
+      supervisor.name,
+      'ROADWORK_EDITED',
+      `Edited roadwork: ${updatedRoadwork.title}`,
+      { roadworkId: id, fieldsChanged: Object.keys(updates).length - 4 }
+    );
+
+    res.json({
+      success: true,
+      roadwork: updatedRoadwork,
+      message: 'Roadwork updated successfully'
+    });
+
+  } catch (error) {
+    console.error('Failed to update roadwork:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update roadwork'
+    });
+  }
+});
+
 // POST /api/roadworks/:id/promote-to-display - Promote roadworks to display screen
 router.post('/:id/promote-to-display', async (req, res) => {
   try {
@@ -565,6 +672,73 @@ router.get('/display', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch display roadworks'
+    });
+  }
+});
+
+// DELETE /api/roadworks/:id - Delete roadwork completely
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { sessionId, reason } = req.body;
+
+    // Validate session
+    const sessionValidation = validateSupervisorSession(sessionId);
+    if (!sessionValidation.success) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid supervisor session'
+      });
+    }
+
+    const supervisor = sessionValidation.supervisor;
+
+    // Check if roadwork exists
+    const roadwork = await supabaseRoadworksStorage.getRoadworkById(id);
+    if (!roadwork) {
+      return res.status(404).json({
+        success: false,
+        error: 'Roadwork not found'
+      });
+    }
+
+    // Create deletion record for audit
+    const deletionRecord = {
+      roadworkId: id,
+      title: roadwork.title,
+      location: roadwork.location,
+      deletedBy: supervisor.id,
+      deletedByName: supervisor.name,
+      deletedAt: new Date().toISOString(),
+      reason: reason || 'No reason provided'
+    };
+
+    // Delete from storage
+    await supabaseRoadworksStorage.deleteRoadwork(id);
+
+    console.log(`🗑️ Roadwork ${id} deleted by ${supervisor.name}: ${reason || 'No reason provided'}`);
+    console.log(`   Title: ${roadwork.title}, Location: ${roadwork.location}`);
+
+    // Log activity
+    await supervisorActivityLogger.logActivity(
+      supervisor.badge,
+      supervisor.name,
+      'ROADWORK_DELETED',
+      `Deleted roadwork: ${roadwork.title}`,
+      { roadworkId: id, location: roadwork.location, reason }
+    );
+
+    res.json({
+      success: true,
+      message: 'Roadwork deleted successfully',
+      deletionRecord
+    });
+
+  } catch (error) {
+    console.error('Failed to delete roadwork:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete roadwork'
     });
   }
 });

@@ -156,12 +156,59 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT /api/incidents/:id - Update incident
+// PUT /api/incidents/:id - Update incident with full edit capabilities
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
+    const {
+      type,
+      subtype,
+      location,
+      coordinates,
+      description,
+      severity,
+      affectsRoutes,
+      notes,
+      status,
+      sessionId,
+      supervisorName
+    } = req.body;
 
+    // Get existing incident
+    const existingIncident = await supabaseStorage.getIncidentById(id);
+    if (!existingIncident) {
+      return res.status(404).json({
+        success: false,
+        error: 'Incident not found'
+      });
+    }
+
+    // Build update object with only provided fields
+    const updates = {
+      lastUpdated: new Date().toISOString()
+    };
+
+    // Only update fields that were provided
+    if (type !== undefined) updates.type = type;
+    if (subtype !== undefined) updates.subtype = subtype;
+    if (location !== undefined) updates.location = location;
+    if (coordinates !== undefined) updates.coordinates = coordinates;
+    if (description !== undefined) updates.description = description;
+    if (severity !== undefined) updates.severity = severity;
+    if (affectsRoutes !== undefined) updates.affectsRoutes = affectsRoutes;
+    if (notes !== undefined) updates.notes = notes;
+    if (status !== undefined) updates.status = status;
+
+    // Add edit history
+    const editHistory = existingIncident.editHistory || [];
+    editHistory.push({
+      editedBy: supervisorName || 'Unknown',
+      editedAt: new Date().toISOString(),
+      fieldsChanged: Object.keys(updates).filter(k => k !== 'lastUpdated')
+    });
+    updates.editHistory = editHistory;
+
+    // Update in storage
     const updatedIncident = await supabaseStorage.updateIncident(id, updates);
     
     if (!updatedIncident) {
@@ -171,7 +218,8 @@ router.put('/:id', async (req, res) => {
       });
     }
 
-    console.log(`✅ Updated incident: ${id}`);
+    console.log(`✅ Incident ${id} edited by ${supervisorName || 'Unknown'}`);
+    console.log(`   Fields updated: ${Object.keys(updates).filter(k => !['lastUpdated', 'editHistory'].includes(k)).join(', ')}`);
 
     res.json({
       success: true,

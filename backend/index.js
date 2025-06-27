@@ -280,6 +280,38 @@ async function initializeApplication() {
   }
 }
 
+// Periodic StreetManager polling (every 30 minutes)
+setInterval(async () => {
+  try {
+    console.log('🔄 Running periodic StreetManager poll...');
+    const { pollAndSaveToSupabase } = await import('./services/streetManager.js');
+    const result = await pollAndSaveToSupabase();
+    
+    if (result.success) {
+      console.log(`✅ StreetManager poll complete: ${result.totalSaved} roadworks saved`);
+    } else {
+      console.error('⚠️ StreetManager poll failed:', result.error);
+    }
+  } catch (error) {
+    console.error('❌ StreetManager polling error:', error.message);
+  }
+}, 30 * 60 * 1000); // 30 minutes
+
+// Initial poll after 1 minute (to not block startup)
+setTimeout(async () => {
+  try {
+    console.log('🚀 Running initial StreetManager poll...');
+    const { pollAndSaveToSupabase } = await import('./services/streetManager.js');
+    const result = await pollAndSaveToSupabase();
+    
+    if (result.success) {
+      console.log(`✅ Initial StreetManager poll complete: ${result.totalSaved} roadworks saved`);
+    }
+  } catch (error) {
+    console.error('⚠️ Initial StreetManager poll failed:', error.message);
+  }
+}, 60 * 1000); // 1 minute after startup
+
 // REMOVED: const app = express(); - Now using the app from render-startup.js
 
 // FIXED: Use the server from render-startup.js instead of creating a new one
@@ -2718,6 +2750,38 @@ app.get('/api/streetmanager/notifications', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message
+    });
+  }
+});
+
+// Manual StreetManager polling endpoint
+app.post('/api/streetmanager/poll', async (req, res) => {
+  try {
+    console.log('🔄 Manual StreetManager poll triggered...');
+    const { default: streetManager } = await import('./services/streetManager.js');
+    const result = await streetManager.pollAndSaveToSupabase();
+    
+    if (result.success) {
+      console.log(`✅ Manual poll complete: ${result.totalSaved} roadworks saved`);
+      res.json({
+        success: true,
+        message: 'StreetManager poll completed successfully',
+        result: {
+          totalSaved: result.totalSaved,
+          activities: result.activities,
+          permits: result.permits,
+          timestamp: result.timestamp
+        }
+      });
+    } else {
+      throw new Error(result.error || 'Poll failed');
+    }
+  } catch (error) {
+    console.error('❌ Manual poll error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'StreetManager poll failed'
     });
   }
 });

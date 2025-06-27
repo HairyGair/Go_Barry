@@ -179,6 +179,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="roadworks"
+        options={{
+          title: 'Roadworks',
+          headerTitle: 'StreetManager Data',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons 
+              name={focused ? "construct" : "construct-outline"} 
+              size={size} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="about"
         options={{
           href: null, // Hide this tab from navigation

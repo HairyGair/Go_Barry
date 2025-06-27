@@ -32,6 +32,7 @@ const RoadworksDatabase = ({ baseUrl }) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showActionModal, setShowActionModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [activeTab, setActiveTab] = useState('active');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortField, setSortField] = useState('priority');
@@ -450,6 +451,17 @@ const RoadworksDatabase = ({ baseUrl }) => {
             )}
             
             <TouchableOpacity
+              style={styles.editButton}
+              onPress={(e) => {
+                e.stopPropagation();
+                setSelectedRoadwork(roadwork);
+                setShowEditModal(true);
+              }}
+            >
+              <Ionicons name="pencil" size={12} color="#FFFFFF" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity
               style={styles.emailButton}
               onPress={(e) => {
                 e.stopPropagation();
@@ -664,6 +676,43 @@ const RoadworksDatabase = ({ baseUrl }) => {
         roadwork={selectedRoadwork}
         onClose={() => setShowEmailModal(false)}
         supervisorName={supervisorName}
+      />
+      
+      {/* Edit Modal */}
+      <EditModal
+        visible={showEditModal}
+        roadwork={selectedRoadwork}
+        onClose={() => setShowEditModal(false)}
+        onSave={async (updatedData) => {
+          try {
+            setLoading(true);
+            const response = await fetch(`${apiBaseUrl}/api/roadworks/${selectedRoadwork.id}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                ...updatedData,
+                sessionId: sessionId
+              })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+              Alert.alert('Success', 'Roadwork updated successfully');
+              await loadRoadworks();
+              setShowEditModal(false);
+            } else {
+              Alert.alert('Error', data.error || 'Failed to update roadwork');
+            }
+          } catch (error) {
+            Alert.alert('Error', `Failed to update roadwork: ${error.message}`);
+          } finally {
+            setLoading(false);
+          }
+        }}
+        loading={loading}
       />
     </View>
   );
@@ -995,6 +1044,309 @@ const ActionModal = ({ visible, roadwork, onClose, onTakeAction, loading }) => {
                 <>
                   <Ionicons name="checkmark" size={20} color="#FFFFFF" />
                   <Text style={styles.submitButtonText}>Confirm Action</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// Edit Modal Component
+const EditModal = ({ visible, roadwork, onClose, onSave, loading }) => {
+  const [formData, setFormData] = useState({});
+
+  useEffect(() => {
+    if (roadwork && visible) {
+      setFormData({
+        title: roadwork.title || '',
+        description: roadwork.description || '',
+        location: roadwork.location || '',
+        authority: roadwork.authority || '',
+        contactPerson: roadwork.contactPerson || '',
+        contactPhone: roadwork.contactPhone || '',
+        contactEmail: roadwork.contactEmail || '',
+        plannedStartDate: roadwork.plannedStartDate || '',
+        plannedEndDate: roadwork.plannedEndDate || '',
+        estimatedDuration: roadwork.estimatedDuration || '',
+        roadworkType: roadwork.roadworkType || 'general',
+        trafficManagement: roadwork.trafficManagement || 'traffic_control',
+        priority: roadwork.priority || 'medium',
+        affectedRoutes: roadwork.affectedRoutes || []
+      });
+    }
+  }, [roadwork, visible]);
+
+  const handleSave = () => {
+    if (!formData.title || !formData.location) {
+      Alert.alert('Error', 'Title and location are required');
+      return;
+    }
+    onSave(formData);
+  };
+
+  const handleAddRoute = () => {
+    Alert.prompt(
+      'Add Route',
+      'Enter route number:',
+      (route) => {
+        if (route && route.trim()) {
+          setFormData({
+            ...formData,
+            affectedRoutes: [...formData.affectedRoutes, route.trim()]
+          });
+        }
+      }
+    );
+  };
+
+  const handleRemoveRoute = (route) => {
+    setFormData({
+      ...formData,
+      affectedRoutes: formData.affectedRoutes.filter(r => r !== route)
+    });
+  };
+
+  if (!visible || !roadwork) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent={true}
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalContainer, { maxWidth: 800, maxHeight: '95%' }]}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Edit Roadwork</Text>
+            <TouchableOpacity onPress={onClose} style={styles.modalCloseButton}>
+              <Ionicons name="close" size={24} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {/* Title */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Title *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={formData.title}
+                onChangeText={(text) => setFormData({ ...formData, title: text })}
+                placeholder="E.g., RTC - Gateshead Bridge Emergency Repairs"
+                placeholderTextColor="#9CA3AF"
+              />
+              <Text style={styles.inputHelp}>Give a descriptive title that explains what's happening</Text>
+            </View>
+
+            {/* Description */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Description</Text>
+              <TextInput
+                style={[styles.textInput, styles.textArea]}
+                value={formData.description}
+                onChangeText={(text) => setFormData({ ...formData, description: text })}
+                placeholder="Detailed description of the roadwork..."
+                placeholderTextColor="#9CA3AF"
+                multiline={true}
+                numberOfLines={4}
+              />
+            </View>
+
+            {/* Location */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Location *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={formData.location}
+                onChangeText={(text) => setFormData({ ...formData, location: text })}
+                placeholder="Street name or area"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+
+            {/* Priority */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Priority Level</Text>
+              <View style={styles.priorityButtons}>
+                {['critical', 'high', 'medium', 'low', 'planned'].map((level) => (
+                  <TouchableOpacity
+                    key={level}
+                    style={[
+                      styles.priorityButton,
+                      formData.priority === level && styles.priorityButtonActive
+                    ]}
+                    onPress={() => setFormData({ ...formData, priority: level })}
+                  >
+                    <Text style={[
+                      styles.priorityButtonText,
+                      formData.priority === level && styles.priorityButtonTextActive
+                    ]}>
+                      {level.charAt(0).toUpperCase() + level.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Authority */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Authority/Organisation</Text>
+              <TextInput
+                style={styles.textInput}
+                value={formData.authority}
+                onChangeText={(text) => setFormData({ ...formData, authority: text })}
+                placeholder="E.g., Newcastle City Council"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+
+            {/* Contact Details */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Contact Person</Text>
+              <TextInput
+                style={styles.textInput}
+                value={formData.contactPerson}
+                onChangeText={(text) => setFormData({ ...formData, contactPerson: text })}
+                placeholder="Name of contact"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+
+            <View style={styles.inputRow}>
+              <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                <Text style={styles.inputLabel}>Contact Phone</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={formData.contactPhone}
+                  onChangeText={(text) => setFormData({ ...formData, contactPhone: text })}
+                  placeholder="Phone number"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="phone-pad"
+                />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
+                <Text style={styles.inputLabel}>Contact Email</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={formData.contactEmail}
+                  onChangeText={(text) => setFormData({ ...formData, contactEmail: text })}
+                  placeholder="Email address"
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="email-address"
+                />
+              </View>
+            </View>
+
+            {/* Timing */}
+            <View style={styles.inputRow}>
+              <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                <Text style={styles.inputLabel}>Planned Start Date</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={formData.plannedStartDate ? formatDateTimeUK(formData.plannedStartDate) : ''}
+                  onChangeText={(text) => setFormData({ ...formData, plannedStartDate: text })}
+                  placeholder="DD/MM/YYYY HH:MM"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
+                <Text style={styles.inputLabel}>Planned End Date</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={formData.plannedEndDate ? formatDateTimeUK(formData.plannedEndDate) : ''}
+                  onChangeText={(text) => setFormData({ ...formData, plannedEndDate: text })}
+                  placeholder="DD/MM/YYYY HH:MM"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Estimated Duration</Text>
+              <TextInput
+                style={styles.textInput}
+                value={formData.estimatedDuration}
+                onChangeText={(text) => setFormData({ ...formData, estimatedDuration: text })}
+                placeholder="E.g., 3 days, 2 weeks"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+
+            {/* Affected Routes */}
+            <View style={styles.inputGroup}>
+              <View style={styles.routesHeader}>
+                <Text style={styles.inputLabel}>Affected Routes</Text>
+                <TouchableOpacity
+                  style={styles.addRouteButton}
+                  onPress={handleAddRoute}
+                >
+                  <Ionicons name="add-circle" size={20} color="#3B82F6" />
+                  <Text style={styles.addRouteButtonText}>Add Route</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.routeTags}>
+                {formData.affectedRoutes?.map((route) => (
+                  <TouchableOpacity
+                    key={route}
+                    style={styles.editableRouteTag}
+                    onPress={() => handleRemoveRoute(route)}
+                  >
+                    <Text style={styles.routeTagText}>{route}</Text>
+                    <Ionicons name="close-circle" size={16} color="#DC2626" />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Work Type */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Roadwork Type</Text>
+              <View style={styles.typeButtons}>
+                {[
+                  { value: 'general', label: 'General' },
+                  { value: 'emergency', label: 'Emergency' },
+                  { value: 'major_works', label: 'Major Works' },
+                  { value: 'road_closure', label: 'Road Closure' },
+                  { value: 'utilities', label: 'Utilities' }
+                ].map((type) => (
+                  <TouchableOpacity
+                    key={type.value}
+                    style={[
+                      styles.typeButton,
+                      formData.roadworkType === type.value && styles.typeButtonActive
+                    ]}
+                    onPress={() => setFormData({ ...formData, roadworkType: type.value })}
+                  >
+                    <Text style={[
+                      styles.typeButtonText,
+                      formData.roadworkType === type.value && styles.typeButtonTextActive
+                    ]}>
+                      {type.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </ScrollView>
+
+          <View style={styles.modalActions}>
+            <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.saveButton, loading && styles.buttonDisabled]}
+              onPress={handleSave}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="save" size={20} color="#FFFFFF" />
+                  <Text style={styles.saveButtonText}>Save Changes</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -1423,6 +1775,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
+  editButton: {
+    backgroundColor: '#8B5CF6',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 6,
+    borderRadius: 4,
+    minWidth: 28,
+    justifyContent: 'center',
+  },
   emailButton: {
     backgroundColor: '#3B82F6',
     flexDirection: 'row',
@@ -1781,6 +2143,106 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sendEmailButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Edit Modal Styles
+  inputHelp: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  priorityButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  priorityButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  priorityButtonActive: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  priorityButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  priorityButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  routesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  addRouteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  addRouteButtonText: {
+    fontSize: 14,
+    color: '#3B82F6',
+    fontWeight: '500',
+  },
+  editableRouteTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EBF5FF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+  },
+  typeButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  typeButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  typeButtonActive: {
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
+  },
+  typeButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  typeButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  saveButton: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  saveButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',

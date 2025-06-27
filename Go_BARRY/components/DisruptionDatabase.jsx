@@ -35,10 +35,19 @@ const DisruptionDatabase = ({ baseUrl }) => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showActionModal, setShowActionModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortField, setSortField] = useState('priority');
   const [sortDirection, setSortDirection] = useState('asc');
+  
+  // Bulk selection states
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedItems, setSelectedItems] = useState([]);
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
+  const [showBulkPriorityModal, setShowBulkPriorityModal] = useState(false);
 
   const apiBaseUrl = baseUrl || 'https://go-barry.onrender.com';
 
@@ -104,6 +113,257 @@ const DisruptionDatabase = ({ baseUrl }) => {
     setRefreshing(true);
     await loadRoadworks();
     setRefreshing(false);
+    // Exit selection mode on refresh
+    if (selectionMode) {
+      setSelectionMode(false);
+      setSelectedItems([]);
+    }
+  };
+
+  // Bulk selection handlers
+  const toggleSelectionMode = () => {
+    setSelectionMode(!selectionMode);
+    if (selectionMode) {
+      setSelectedItems([]);
+    }
+  };
+
+  const toggleItemSelection = (itemId, itemType) => {
+    const itemKey = `${itemType}-${itemId}`;
+    setSelectedItems(prev => {
+      if (prev.includes(itemKey)) {
+        return prev.filter(id => id !== itemKey);
+      } else {
+        return [...prev, itemKey];
+      }
+    });
+  };
+
+  const selectAllVisible = () => {
+    const allKeys = getFilteredDisruptions().map(item => `${item.type}-${item.id}`);
+    setSelectedItems(allKeys);
+  };
+
+  const clearSelection = () => {
+    setSelectedItems([]);
+  };
+
+  // Bulk operations
+  const handleBulkStatusUpdate = async (newStatus) => {
+    setLoading(true);
+    try {
+      const promises = selectedItems.map(async (itemKey) => {
+        const [type, id] = itemKey.split('-');
+        const endpoint = type === 'incident' ?
+          `${apiBaseUrl}/api/incidents/${id}` :
+          `${apiBaseUrl}/api/roadworks/${id}/status`;
+        
+        const body = type === 'incident' ?
+          { status: newStatus, sessionId, supervisorName } :
+          { status: newStatus, sessionId, notes: `Bulk status update to ${newStatus}` };
+
+        return fetch(endpoint, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+      });
+
+      await Promise.all(promises);
+      Alert.alert('Success', `Updated ${selectedItems.length} items`);
+      await handleRefresh();
+      setShowBulkStatusModal(false);
+      setSelectedItems([]);
+      setSelectionMode(false);
+    } catch (error) {
+      Alert.alert('Error', 'Some updates failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBulkPriorityUpdate = async (newPriority) => {
+    setLoading(true);
+    try {
+      const promises = selectedItems.map(async (itemKey) => {
+        const [type, id] = itemKey.split('-');
+        const endpoint = type === 'incident' ?
+          `${apiBaseUrl}/api/incidents/${id}` :
+          `${apiBaseUrl}/api/roadworks/${id}`;
+
+        return fetch(endpoint, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            priority: newPriority,
+            sessionId,
+            supervisorName
+          })
+        });
+      });
+
+      await Promise.all(promises);
+      Alert.alert('Success', `Updated priority for ${selectedItems.length} items`);
+      await handleRefresh();
+      setShowBulkPriorityModal(false);
+      setSelectedItems([]);
+      setSelectionMode(false);
+    } catch (error) {
+      Alert.alert('Error', 'Some updates failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBulkArchive = async () => {
+    if (Platform.OS === 'web') {
+      if (!confirm(`Archive ${selectedItems.length} items? This action cannot be undone.`)) {
+        return;
+      }
+    } else {
+      Alert.alert(
+        'Archive Items',
+        `Archive ${selectedItems.length} items? This action cannot be undone.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Archive', style: 'destructive', onPress: performBulkArchive }
+        ]
+      );
+      return;
+    }
+    await performBulkArchive();
+  };
+
+  const performBulkArchive = async () => {
+    setLoading(true);
+    try {
+      const promises = selectedItems.map(async (itemKey) => {
+        const [type, id] = itemKey.split('-');
+        const endpoint = type === 'incident' ?
+          `${apiBaseUrl}/api/incidents/${id}` :
+          `${apiBaseUrl}/api/roadworks/${id}`;
+
+        return fetch(endpoint, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionId,
+            reason: 'Bulk archive operation'
+          })
+        });
+      });
+
+      await Promise.all(promises);
+      Alert.alert('Success', `Archived ${selectedItems.length} items`);
+      await handleRefresh();
+      setSelectedItems([]);
+      setSelectionMode(false);
+    } catch (error) {
+      Alert.alert('Error', 'Some deletions failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Edit handler for both incidents and roadworks
+  const handleEdit = (item) => {
+    setEditingItem(item);
+    setShowEditModal(true);
+  };
+
+  // Save edited disruption
+  const handleSaveEdit = async (itemId, updatedData, type) => {
+    try {
+      setLoading(true);
+      const endpoint = type === 'incident' ? 
+        `${apiBaseUrl}/api/incidents/${itemId}` : 
+        `${apiBaseUrl}/api/roadworks/${itemId}`;
+      
+      const response = await fetch(endpoint, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...updatedData,
+          sessionId: sessionId,
+          supervisorName: supervisorName
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        Alert.alert('Success', 'Updated successfully');
+        await handleRefresh();
+        setShowEditModal(false);
+        setEditingItem(null);
+      } else {
+        Alert.alert('Error', data.error || 'Failed to update');
+      }
+    } catch (error) {
+      Alert.alert('Error', `Failed to update: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete/Archive handler
+  const handleDelete = async (item) => {
+    const confirmMessage = item.type === 'incident' ? 
+      'Archive this incident?' : 
+      'Remove this roadwork?';
+    
+    if (Platform.OS === 'web') {
+      if (!confirm(confirmMessage + ' This action cannot be undone.')) {
+        return;
+      }
+    } else {
+      Alert.alert(
+        item.type === 'incident' ? 'Archive Incident' : 'Remove Roadwork',
+        confirmMessage + ' This action cannot be undone.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Confirm', style: 'destructive', onPress: () => performDelete(item) }
+        ]
+      );
+      return;
+    }
+
+    await performDelete(item);
+  };
+
+  const performDelete = async (item) => {
+    try {
+      setLoading(true);
+      const endpoint = item.type === 'incident' ? 
+        `${apiBaseUrl}/api/incidents/${item.id}` : 
+        `${apiBaseUrl}/api/roadworks/${item.id}`;
+      
+      const response = await fetch(endpoint, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: sessionId,
+          reason: 'Removed via disruption database'
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        Alert.alert('Success', item.type === 'incident' ? 'Incident archived' : 'Roadwork removed');
+        await handleRefresh();
+      } else {
+        Alert.alert('Error', data.error || 'Failed to remove');
+      }
+    } catch (error) {
+      Alert.alert('Error', `Failed to remove: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Convert incidents to unified format
@@ -315,20 +575,53 @@ const DisruptionDatabase = ({ baseUrl }) => {
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={styles.title}>Disruption Database</Text>
-          <Text style={styles.subtitle}>All roadworks and incidents in one place</Text>
+          <Text style={styles.subtitle}>
+            {selectionMode ? `${selectedItems.length} selected` : 'All roadworks and incidents in one place'}
+          </Text>
         </View>
         
-        <TouchableOpacity
-          style={styles.refreshButton}
-          onPress={handleRefresh}
-          disabled={refreshing}
-        >
-          {refreshing ? (
-            <ActivityIndicator size="small" color="#3B82F6" />
-          ) : (
-            <Ionicons name="refresh" size={20} color="#3B82F6" />
+        <View style={styles.headerActions}>
+          {selectionMode && selectedItems.length === getFilteredDisruptions().length && (
+            <TouchableOpacity
+              style={styles.selectAllButton}
+              onPress={clearSelection}
+            >
+              <Text style={styles.selectAllText}>Deselect All</Text>
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
+          {selectionMode && selectedItems.length < getFilteredDisruptions().length && (
+            <TouchableOpacity
+              style={styles.selectAllButton}
+              onPress={selectAllVisible}
+            >
+              <Text style={styles.selectAllText}>Select All</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.selectionModeButton, selectionMode && styles.selectionModeActive]}
+            onPress={toggleSelectionMode}
+          >
+            <Ionicons 
+              name={selectionMode ? "checkmark-done" : "checkbox-outline"} 
+              size={20} 
+              color={selectionMode ? "#FFFFFF" : "#6B7280"} 
+            />
+            <Text style={[styles.selectionModeText, selectionMode && styles.selectionModeTextActive]}>
+              {selectionMode ? 'Cancel' : 'Select'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.refreshButton}
+            onPress={handleRefresh}
+            disabled={refreshing}
+          >
+            {refreshing ? (
+              <ActivityIndicator size="small" color="#3B82F6" />
+            ) : (
+              <Ionicons name="refresh" size={20} color="#3B82F6" />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search */}
@@ -440,21 +733,37 @@ const DisruptionDatabase = ({ baseUrl }) => {
             </Text>
           </View>
         ) : (
-          filteredDisruptions.map((item, index) => (
-            <TouchableOpacity
-              key={`${item.type}-${item.id}`}
-              style={[
-                styles.disruptionCard,
-                item.type === 'incident' && styles.incidentCard,
-                item.type === 'roadwork' && styles.roadworkCard,
-                item.type === 'streetmanager' && styles.streetManagerCard,
-                item.type === 'traffic' && styles.trafficCard
-              ]}
-              onPress={() => {
-                setSelectedItem(item);
-                setShowDetailsModal(true);
-              }}
-            >
+          filteredDisruptions.map((item, index) => {
+            const itemKey = `${item.type}-${item.id}`;
+            const isSelected = selectedItems.includes(itemKey);
+            
+            return (
+              <TouchableOpacity
+                key={itemKey}
+                style={[
+                  styles.disruptionCard,
+                  item.type === 'incident' && styles.incidentCard,
+                  item.type === 'roadwork' && styles.roadworkCard,
+                  item.type === 'streetmanager' && styles.streetManagerCard,
+                  item.type === 'traffic' && styles.trafficCard,
+                  selectionMode && isSelected && styles.selectedCard
+                ]}
+                onPress={() => {
+                  if (selectionMode) {
+                    toggleItemSelection(item.id, item.type);
+                  } else {
+                    setSelectedItem(item);
+                    setShowDetailsModal(true);
+                  }
+                }}
+              >
+                {selectionMode && (
+                  <View style={styles.checkboxContainer}>
+                    <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+                      {isSelected && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+                    </View>
+                  </View>
+                )}
               <View style={styles.cardHeader}>
                 <View style={styles.typeAndPriority}>
                   <View style={[
@@ -599,17 +908,88 @@ const DisruptionDatabase = ({ baseUrl }) => {
               )}
 
               <View style={styles.cardFooter}>
-                <Text style={styles.createdBy}>
-                  Created by {item.createdBy}
-                </Text>
-                <Text style={styles.timeStamp}>
-                  {new Date(item.createdAt).toLocaleDateString()}
-                </Text>
+                <View style={styles.cardFooterLeft}>
+                  <Text style={styles.createdBy}>
+                    Created by {item.createdBy}
+                  </Text>
+                  <Text style={styles.timeStamp}>
+                    {new Date(item.createdAt).toLocaleDateString()}
+                  </Text>
+                </View>
+                
+                {/* Action Buttons */}
+                <View style={styles.actionButtonsContainer}>
+                  {item.status === 'active' && (
+                    <View style={styles.activeBadge}>
+                      <Ionicons name="radio" size={8} color="#10B981" />
+                      <Text style={styles.activeText}>Active</Text>
+                    </View>
+                  )}
+                  
+                  {isLoggedIn && (
+                    <>
+                      <TouchableOpacity
+                        style={styles.cardActionButton}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleEdit(item);
+                        }}
+                      >
+                        <Ionicons name="pencil" size={14} color="#8B5CF6" />
+                      </TouchableOpacity>
+                      
+                      <TouchableOpacity
+                        style={styles.cardActionButton}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleDelete(item);
+                        }}
+                      >
+                        <Ionicons name={item.type === 'incident' ? 'archive' : 'trash'} size={14} color="#EF4444" />
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
               </View>
             </TouchableOpacity>
-          ))
+            );
+          })
         )}
       </ScrollView>
+
+      {/* Floating Action Bar */}
+      {selectionMode && selectedItems.length > 0 && (
+        <View style={styles.floatingActionBar}>
+          <View style={styles.floatingActionContent}>
+            <Text style={styles.floatingActionText}>
+              {selectedItems.length} item{selectedItems.length > 1 ? 's' : ''} selected
+            </Text>
+            <View style={styles.floatingActions}>
+              <TouchableOpacity
+                style={styles.floatingActionButton}
+                onPress={() => setShowBulkStatusModal(true)}
+              >
+                <Ionicons name="sync" size={20} color="#FFFFFF" />
+                <Text style={styles.floatingActionButtonText}>Status</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.floatingActionButton}
+                onPress={() => setShowBulkPriorityModal(true)}
+              >
+                <Ionicons name="flag" size={20} color="#FFFFFF" />
+                <Text style={styles.floatingActionButtonText}>Priority</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.floatingActionButton, styles.archiveButton]}
+                onPress={handleBulkArchive}
+              >
+                <Ionicons name="archive" size={20} color="#FFFFFF" />
+                <Text style={styles.floatingActionButtonText}>Archive</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* Details Modal */}
       {showDetailsModal && selectedItem && (
@@ -760,7 +1140,341 @@ const DisruptionDatabase = ({ baseUrl }) => {
           </View>
         </Modal>
       )}
+
+      {/* Edit Modal */}
+      <EditDisruptionModal
+        visible={showEditModal}
+        item={editingItem}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingItem(null);
+        }}
+        onSave={handleSaveEdit}
+        loading={loading}
+      />
+
+      {/* Bulk Status Modal */}
+      <Modal
+        visible={showBulkStatusModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowBulkStatusModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.bulkActionModal}>
+            <View style={styles.bulkModalHeader}>
+              <Text style={styles.bulkModalTitle}>Update Status</Text>
+              <TouchableOpacity
+                onPress={() => setShowBulkStatusModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.bulkModalSubtitle}>
+              Change status for {selectedItems.length} selected items
+            </Text>
+            <View style={styles.bulkOptions}>
+              {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                <TouchableOpacity
+                  key={key}
+                  style={styles.bulkOptionButton}
+                  onPress={() => handleBulkStatusUpdate(key)}
+                >
+                  <View style={[styles.bulkOptionIcon, { backgroundColor: config.bgColor }]}>
+                    <Ionicons name={config.icon} size={20} color={config.color} />
+                  </View>
+                  <Text style={styles.bulkOptionText}>{config.label}</Text>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Bulk Priority Modal */}
+      <Modal
+        visible={showBulkPriorityModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowBulkPriorityModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.bulkActionModal}>
+            <View style={styles.bulkModalHeader}>
+              <Text style={styles.bulkModalTitle}>Update Priority</Text>
+              <TouchableOpacity
+                onPress={() => setShowBulkPriorityModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.bulkModalSubtitle}>
+              Change priority for {selectedItems.length} selected items
+            </Text>
+            <View style={styles.bulkOptions}>
+              {Object.entries(PRIORITY_LEVELS).map(([key, config]) => (
+                <TouchableOpacity
+                  key={key}
+                  style={styles.bulkOptionButton}
+                  onPress={() => handleBulkPriorityUpdate(key)}
+                >
+                  <View style={[styles.bulkOptionIcon, { backgroundColor: config.bgColor }]}>
+                    <Text style={[styles.bulkOptionIconText, { color: config.color }]}>
+                      {key.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={styles.bulkOptionText}>{config.label}</Text>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
+  );
+};
+
+// Unified Edit Modal Component
+const EditDisruptionModal = ({ visible, item, onClose, onSave, loading }) => {
+  const [formData, setFormData] = useState({});
+
+  useEffect(() => {
+    if (item && visible) {
+      setFormData({
+        title: item.title || '',
+        location: item.location || '',
+        description: item.description || '',
+        priority: item.priority || 'medium',
+        status: item.status || 'active',
+        affectedRoutes: item.affectedRoutes || [],
+        // Incident specific
+        type: item.type === 'incident' ? item.title.split(' - ')[0] : '',
+        subtype: item.subtype || '',
+        severity: item.severity || 'Medium',
+        // Roadwork specific
+        authority: item.authority || '',
+        startDate: item.startDate || '',
+        endDate: item.endDate || ''
+      });
+    }
+  }, [item, visible]);
+
+  const handleSave = () => {
+    if (!formData.title || !formData.location) {
+      Alert.alert('Error', 'Title and location are required');
+      return;
+    }
+    onSave(item.id, formData, item.type);
+  };
+
+  const handleAddRoute = () => {
+    Alert.prompt(
+      'Add Route',
+      'Enter route number:',
+      (route) => {
+        if (route && route.trim()) {
+          setFormData({
+            ...formData,
+            affectedRoutes: [...formData.affectedRoutes, route.trim()]
+          });
+        }
+      }
+    );
+  };
+
+  const handleRemoveRoute = (route) => {
+    setFormData({
+      ...formData,
+      affectedRoutes: formData.affectedRoutes.filter(r => r !== route)
+    });
+  };
+
+  if (!visible || !item) return null;
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalContainer}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>Edit {item.type === 'incident' ? 'Incident' : 'Roadwork'}</Text>
+          <TouchableOpacity
+            style={styles.modalCloseButton}
+            onPress={onClose}
+          >
+            <Ionicons name="close" size={24} color="#6B7280" />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView style={styles.modalContent}>
+          {/* Title */}
+          <View style={styles.formSection}>
+            <Text style={styles.formLabel}>Title *</Text>
+            <TextInput
+              style={styles.textInput}
+              value={formData.title}
+              onChangeText={(text) => setFormData({ ...formData, title: text })}
+              placeholder={item.type === 'incident' ? 
+                "E.g., RTC - Newcastle Bridge Emergency" : 
+                "E.g., Gas Works - City Centre Repairs"}
+              placeholderTextColor="#9CA3AF"
+            />
+            <Text style={styles.inputHelp}>Give a descriptive title that explains what's happening</Text>
+          </View>
+
+          {/* Location */}
+          <View style={styles.formSection}>
+            <Text style={styles.formLabel}>Location *</Text>
+            <TextInput
+              style={styles.textInput}
+              value={formData.location}
+              onChangeText={(text) => setFormData({ ...formData, location: text })}
+              placeholder="Street name or area"
+              placeholderTextColor="#9CA3AF"
+            />
+          </View>
+
+          {/* Priority */}
+          <View style={styles.formSection}>
+            <Text style={styles.formLabel}>Priority Level</Text>
+            <View style={styles.priorityButtons}>
+              {['critical', 'high', 'medium', 'low', 'planned'].map((level) => (
+                <TouchableOpacity
+                  key={level}
+                  style={[
+                    styles.priorityButton,
+                    formData.priority === level && styles.priorityButtonActive
+                  ]}
+                  onPress={() => setFormData({ ...formData, priority: level })}
+                >
+                  <Text style={[
+                    styles.priorityButtonText,
+                    formData.priority === level && styles.priorityButtonTextActive
+                  ]}>
+                    {level.charAt(0).toUpperCase() + level.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Description */}
+          <View style={styles.formSection}>
+            <Text style={styles.formLabel}>Description</Text>
+            <TextInput
+              style={[styles.textInput, styles.textArea]}
+              value={formData.description}
+              onChangeText={(text) => setFormData({ ...formData, description: text })}
+              placeholder="Detailed description..."
+              placeholderTextColor="#9CA3AF"
+              multiline
+              numberOfLines={4}
+            />
+          </View>
+
+          {/* Status */}
+          <View style={styles.formSection}>
+            <Text style={styles.formLabel}>Status</Text>
+            <View style={styles.statusButtons}>
+              {['active', 'monitoring', 'completed', 'closed'].map((status) => (
+                <TouchableOpacity
+                  key={status}
+                  style={[
+                    styles.statusButton,
+                    formData.status === status && styles.statusButtonActive
+                  ]}
+                  onPress={() => setFormData({ ...formData, status })}
+                >
+                  <Text style={[
+                    styles.statusButtonText,
+                    formData.status === status && styles.statusButtonTextActive
+                  ]}>
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Affected Routes */}
+          <View style={styles.formSection}>
+            <View style={styles.routesHeader}>
+              <Text style={styles.formLabel}>Affected Routes</Text>
+              <TouchableOpacity
+                style={styles.addRouteButton}
+                onPress={handleAddRoute}
+              >
+                <Ionicons name="add-circle" size={20} color="#3B82F6" />
+                <Text style={styles.addRouteButtonText}>Add Route</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.routesList}>
+              {formData.affectedRoutes?.map((route) => (
+                <TouchableOpacity
+                  key={route}
+                  style={styles.editableRouteBadge}
+                  onPress={() => handleRemoveRoute(route)}
+                >
+                  <Text style={styles.routeBadgeText}>{route}</Text>
+                  <Ionicons name="close-circle" size={16} color="#DC2626" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Roadwork specific fields */}
+          {item.type === 'roadwork' && (
+            <>
+              <View style={styles.formSection}>
+                <Text style={styles.formLabel}>Authority/Organisation</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={formData.authority}
+                  onChangeText={(text) => setFormData({ ...formData, authority: text })}
+                  placeholder="E.g., Newcastle City Council"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+            </>
+          )}
+
+          {/* Action Buttons */}
+          <View style={styles.modalActions}>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={onClose}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.saveButton,
+                (!formData.title || !formData.location) && styles.submitButtonDisabled
+              ]}
+              onPress={handleSave}
+              disabled={!formData.title || !formData.location || loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="save" size={20} color="#FFFFFF" />
+                  <Text style={styles.saveButtonText}>Save Changes</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </View>
+    </Modal>
   );
 };
 
@@ -1051,6 +1765,35 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
   },
+  cardFooterLeft: {
+    flex: 1,
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  activeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#D1FAE5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  activeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+  cardActionButton: {
+    backgroundColor: '#F3F4F6',
+    padding: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   createdBy: {
     fontSize: 12,
     color: '#6B7280',
@@ -1201,6 +1944,314 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
     color: '#DC2626',
+  },
+  // Edit Modal Styles
+  formSection: {
+    marginBottom: 20,
+  },
+  formLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#1F2937',
+    backgroundColor: '#FFFFFF',
+  },
+  textArea: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  inputHelp: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  priorityButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  priorityButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  priorityButtonActive: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  priorityButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  priorityButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  statusButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  statusButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  statusButtonActive: {
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
+  },
+  statusButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  statusButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  routesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  addRouteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  addRouteButtonText: {
+    fontSize: 14,
+    color: '#3B82F6',
+    fontWeight: '500',
+  },
+  editableRouteBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E0E7FF',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 6,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    gap: 12,
+  },
+  cancelButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  saveButton: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  submitButtonDisabled: {
+    opacity: 0.5,
+  },
+  // Bulk selection styles
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  selectionModeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  selectionModeActive: {
+    backgroundColor: '#3B82F6',
+  },
+  selectionModeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  selectionModeTextActive: {
+    color: '#FFFFFF',
+  },
+  selectAllButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  selectAllText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3B82F6',
+  },
+  selectedCard: {
+    borderColor: '#3B82F6',
+    borderWidth: 2,
+    backgroundColor: '#EFF6FF',
+  },
+  checkboxContainer: {
+    position: 'absolute',
+    left: 16,
+    top: 16,
+    zIndex: 10,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  // Floating action bar
+  floatingActionBar: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
+    backgroundColor: '#1F2937',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  floatingActionContent: {
+    padding: 16,
+  },
+  floatingActionText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  floatingActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  floatingActionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#3B82F6',
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  floatingActionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  archiveButton: {
+    backgroundColor: '#DC2626',
+  },
+  // Bulk action modals
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  bulkActionModal: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 40,
+    maxHeight: '80%',
+  },
+  bulkModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  bulkModalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  bulkModalSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 20,
+  },
+  bulkOptions: {
+    paddingHorizontal: 20,
+  },
+  bulkOptionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  bulkOptionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  bulkOptionIconText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  bulkOptionText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#374151',
   },
 });
 

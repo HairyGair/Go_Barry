@@ -14,8 +14,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { apiRequest } from '../../config/api';
+import ServiceFrequencyDashboard from '../../components/ServiceFrequencyDashboard';
 
 const ServiceInformationDashboard = () => {
+  const [activeTab, setActiveTab] = useState('routes');
   const [loading, setLoading] = useState(true);
   const [routeData, setRouteData] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
@@ -86,21 +88,29 @@ const ServiceInformationDashboard = () => {
     return positions;
   };
   
-  // Fetch frequency data for all routes
+  // Fetch frequency data for all routes using correct backend endpoints
   const fetchRouteData = async () => {
     try {
       setLoading(true);
       
-      // Get list of high-frequency routes first
-      const highFreqResponse = await apiRequest('/api/frequency/high-frequency');
+      // Get service frequency dashboard data using correct backend endpoints
+      const dashboardResponse = await apiRequest('/api/service-frequency/dashboard');
       
-      if (highFreqResponse.success) {
+      if (dashboardResponse.success && dashboardResponse.dashboard) {
         const routeMap = {};
         
-        // Organize by frequency category
-        highFreqResponse.routes.forEach(route => {
-          routeMap[route.routeId] = route;
-        });
+        // Organize routes from dashboard data
+        if (dashboardResponse.dashboard.routes) {
+          dashboardResponse.dashboard.routes.forEach(route => {
+            routeMap[route.routeId] = {
+              routeId: route.routeId,
+              summary: route.routeName || `Route ${route.routeId}`,
+              frequency: route.frequency,
+              status: route.status,
+              category: route.category
+            };
+          });
+        }
         
         setRouteData(routeMap);
       }
@@ -348,6 +358,43 @@ const ServiceInformationDashboard = () => {
         </TouchableOpacity>
       </View>
 
+      {/* Tab Header */}
+      <View style={styles.tabHeader}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'routes' && styles.tabActive]}
+          onPress={() => setActiveTab('routes')}
+        >
+          <Ionicons 
+            name={activeTab === 'routes' ? 'bus' : 'bus-outline'} 
+            size={16} 
+            color={activeTab === 'routes' ? '#FFFFFF' : '#6B7280'} 
+          />
+          <Text style={[styles.tabText, activeTab === 'routes' && styles.tabTextActive]}>
+            Route Info
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'frequency' && styles.tabActive]}
+          onPress={() => setActiveTab('frequency')}
+        >
+          <Ionicons 
+            name={activeTab === 'frequency' ? 'analytics' : 'analytics-outline'} 
+            size={16} 
+            color={activeTab === 'frequency' ? '#FFFFFF' : '#6B7280'} 
+          />
+          <Text style={[styles.tabText, activeTab === 'frequency' && styles.tabTextActive]}>
+            Frequency Monitor
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Content */}
+      {activeTab === 'frequency' ? (
+        <ServiceFrequencyDashboard baseUrl={process.env.EXPO_PUBLIC_API_URL || 'https://go-barry.onrender.com'} />
+      ) : (
+        <View style={styles.routesContent}>
+
       <View style={styles.searchBar}>
         <Ionicons name="search" size={20} color="#6B7280" style={styles.searchIcon} />
         <TextInput
@@ -426,6 +473,8 @@ const ServiceInformationDashboard = () => {
           </Text>
         </View>
       </ScrollView>
+        </View>
+      )}
     </View>
   );
 };
@@ -696,6 +745,39 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  // Tab styles
+  tabHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+    backgroundColor: '#F3F4F6',
+  },
+  tabActive: {
+    backgroundColor: '#3B82F6',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginLeft: 4,
+  },
+  tabTextActive: {
+    color: '#FFFFFF',
+  },
+  routesContent: {
+    flex: 1,
   },
 });
 

@@ -129,14 +129,17 @@ async function handleNotification(snsMessage) {
     // Parse the notification message
     const notificationData = JSON.parse(snsMessage.Message);
     
+    // Create consistent notification ID
+    const notificationId = `sm_${notificationData.event_reference}_${snsMessage.MessageId}`;
+    
     // Save to Supabase
     const { data, error } = await supabase
       .from('streetmanager_notifications')
       .insert({
-        notification_id: `sm_${notificationData.event_reference}_${Date.now()}`,
+        notification_id: notificationId,
         webhook_event_type: notificationData.event_type,
         object_type: notificationData.object_type,
-        object_reference: notificationData.object_reference,
+        // object_reference stored in raw_webhook_data instead
         raw_webhook_data: notificationData,
         message_attributes: snsMessage.MessageAttributes,
         webhook_received_at: new Date().toISOString(),
@@ -149,14 +152,14 @@ async function handleNotification(snsMessage) {
       console.log('✅ Notification saved to Supabase');
       
       // Process the notification
-      await processNotification(notificationData);
+      await processNotification(notificationData, notificationId);
     }
   } catch (err) {
     console.error('❌ Error handling notification:', err);
   }
 }
 
-async function processNotification(notificationData) {
+async function processNotification(notificationData, notificationId) {
   try {
     // Use the enhanced processing function that includes route matching
     const alert = await processStreetManagerWebhook(notificationData);
@@ -213,7 +216,7 @@ async function processNotification(notificationData) {
         affected_routes: alert.affectedRoutes?.map(r => r.shortName) || [],
         route_impact_count: alert.affectedRoutes?.length || 0
       })
-      .eq('object_reference', notificationData.object_reference)
+      .eq('notification_id', notificationId)
       .eq('webhook_event_type', notificationData.event_type);
       
   } catch (err) {
