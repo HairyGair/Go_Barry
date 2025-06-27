@@ -197,80 +197,186 @@ class UnifiedRoadworksManager {
    */
   async getStreetManagerRoadworks() {
     try {
-      // Fetch processed roadworks from the roadworks table (saved by webhook)
-      const { data: roadworksData, error: roadworksError } = await supabase
-        .from('roadworks')
+      // 🔧 FIXED: Read directly from streetmanager_notifications (webhook data)
+      console.log('📊 Fetching Street Manager data from webhook notifications...');
+      
+      const { data: notifications, error: notifError } = await supabase
+        .from('streetmanager_notifications')
         .select('*')
-        .or('source.eq.StreetManager,dataSource.eq.StreetManager')
-        .order('lastUpdated', { ascending: false })
+        .order('webhook_received_at', { ascending: false })
         .limit(200);
 
-      if (roadworksError) {
-        console.warn('⚠️ Failed to fetch roadworks table:', roadworksError);
+      if (notifError) {
+        console.error('❌ Street Manager notifications error:', notifError);
+        console.warn('⚠️ Failed to fetch Street Manager notifications:', notifError);
+        return {
+          success: false,
+          data: [],
+          error: notifError.message,
+          source: 'street_manager'
+        };
       }
 
-      // Also fetch from traffic_alerts for high-impact ones
-      const { data: alertsData, error: alertsError } = await supabase
-        .from('traffic_alerts')
-        .select('*')
-        .or('source.eq.StreetManager,dataSource.eq.StreetManager')
-        .gte('expiresAt', new Date().toISOString())
-        .order('severity', { ascending: false })
-        .limit(100);
-
-      if (alertsError) {
-        console.warn('⚠️ Failed to fetch traffic alerts:', alertsError);
-      }
-
-      // Also fetch directly from StreetManager API as fallback
-      const apiData = await streetManager.fetchStreetManagerActivities(true);
+      console.log(`📨 Found ${notifications?.length || 0} Street Manager webhook notifications`);
       
-      let combinedRoadworks = [];
-      
-      // Add roadworks from database
-      if (roadworksData && roadworksData.length > 0) {
-        combinedRoadworks.push(...roadworksData);
-        console.log(`   📊 Found ${roadworksData.length} StreetManager roadworks in database`);
+      if (!notifications || notifications.length === 0) {
+        console.log('📋 No notifications found, returning empty array');
+        return {
+          success: true,
+          data: [],
+          lastUpdate: new Date().toISOString(),
+          source: 'street_manager',
+          metadata: {
+            webhookNotifications: 0,
+            processedRoadworks: 0,
+            total: 0,
+            directWebhookRead: true
+          }
+        };
       }
       
-      // Add high-impact alerts
-      if (alertsData && alertsData.length > 0) {
-        // Convert alerts to roadworks format if needed
-        const alertRoadworks = alertsData.map(alert => ({
-          ...alert,
-          id: alert.id || `alert_${alert.permitReference || Date.now()}`,
-          isHighImpact: true
-        }));
-        combinedRoadworks.push(...alertRoadworks);
-        console.log(`   🚨 Found ${alertsData.length} high-impact StreetManager alerts`);
-      }
+      console.log('🔄 Converting notifications to roadworks format...');
       
-      // Add API data if available
-      if (apiData.success && apiData.data) {
-        combinedRoadworks.push(...apiData.data);
-        console.log(`   🌐 Found ${apiData.data.length} from StreetManager API`);
-      }
+      // Convert notifications to roadworks format
+      const roadworks = [];
       
-      // Deduplicate by permit reference or ID
-      const uniqueMap = new Map();
-      combinedRoadworks.forEach(r => {
-        const key = r.permitReference || r.id;
-        if (!uniqueMap.has(key) || (r.isHighImpact && !uniqueMap.get(key).isHighImpact)) {
-          uniqueMap.set(key, r);
+      for (let i = 0; i < notifications.length; i++) {
+        try {
+          const notification = notifications[i];
+          const rawData = notification.raw_webhook_data || {};
+          const objectData = rawData.object_data || {};
+          
+          console.log(`🔍 Processing notification ${i+1}/${notifications.length}: ${notification.notification_id}`);
+          
+          // 📍 FIXED: Extract location from raw webhook data
+          const location = objectData.street_name || objectData.area_name || 
+                          notification.street_name || notification.area_name || 
+                          notification.location_description || 'Unknown location';
+          
+          const fullLocation = objectData.town ? 
+            `${location}, ${objectData.town}` : location;
+          
+          const roadwork = {
+            id: notification.notification_id,
+            title: `${objectData.activity_type || rawData.object_type} - ${objectData.street_name || 'Unknown Street'}`,
+            description: `${objectData.work_category || 'Works'}: ${objectData.activity_type || 'Street Manager notification'} (${rawData.event_type})`,
+            location: fullLocation,
+            coordinates: notification.coordinates ? [notification.coordinates.lat, notification.coordinates.lng] : null,
+            
+            // Status and severity
+            status: objectData.work_status_ref === 'completed' ? 'green' : 
+                   objectData.work_status_ref === 'in_progress' ? 'red' : 'amber',
+            severity: objectData.work_category === 'Major' ? 'High' : 
+                     objectData.work_category === 'Standard' ? 'Medium' : 
+                     objectData.is_traffic_sensitive === 'Yes' ? 'Medium' : 'Low',
+            
+            // Source information  
+            source: 'StreetManager',
+            dataSource: 'StreetManager Webhook',
+            sourceId: notification.notification_id,
+            
+            // Timing
+            startDate: objectData.actual_start_date_time || objectData.proposed_start_date,
+            endDate: objectData.actual_end_date_time || objectData.proposed_end_date,
+            lastUpdated: notification.webhook_received_at,
+            
+            // Street Manager specific
+            permitReference: objectData.permit_reference_number,
+            activityReference: objectData.work_reference_number,
+            workCategory: objectData.work_category,
+            authority: objectData.highway_authority || objectData.promoter_organisation,
+            streetName: objectData.street_name,
+            areaName: objectData.area_name,
+            town: objectData.town,
+            eventType: notification.webhook_event_type,
+            
+            // Work details
+            activityType: objectData.activity_type,
+            workStatus: objectData.work_status,
+            permitStatus: objectData.permit_status,
+            trafficManagement: objectData.traffic_management_type,
+            isTrafficSensitive: objectData.is_traffic_sensitive === 'Yes',
+            workLocationCoordinates: objectData.works_location_coordinates,
+            
+            // Processing status
+            processingStatus: notification.processing_status,
+            processedAt: notification.processed_at,
+            
+            // Enhancement flags
+            locationAccuracy: objectData.works_location_coordinates ? 'high' : 
+                            objectData.street_name ? 'medium' : 'low',
+            routeMatchMethod: 'webhook_direct',
+            officialSource: true,
+            realTimeUpdate: true,
+            
+            // Management actions
+            managementActions: {
+              canDismiss: true,
+              canAcknowledge: true,
+              canCreateDiversion: !!objectData.works_location_coordinates,
+              canNotifyDrivers: !!objectData.works_location_coordinates,
+              canSave: true,
+              canEdit: false
+            },
+            
+            // Raw webhook data for debugging
+            webhookData: rawData
+          };
+          
+          roadworks.push(roadwork);
+          console.log(`✅ Successfully converted notification ${i+1}: ${roadwork.title}`);
+          
+        } catch (conversionError) {
+          console.error(`❌ Error converting notification ${i+1}:`, conversionError);
+          console.error('Notification data:', notifications[i]);
         }
-      });
+      }
       
-      const uniqueRoadworks = Array.from(uniqueMap.values());
+      console.log(`🚧 Converted ${roadworks.length}/${notifications.length} notifications to roadworks`);
       
-      console.log(`🚧 StreetManager: ${uniqueRoadworks.length} total unique roadworks`);
+      // Also try to fetch from processed tables (fallback)
+      let additionalRoadworks = [];
+      
+      try {
+        console.log('📊 Fetching processed roadworks as fallback...');
+        const { data: processedRoadworks, error: roadworksError } = await supabase
+          .from('roadworks')
+          .select('*')
+          .eq('source', 'StreetManager')
+          .order('created_at', { ascending: false })
+          .limit(100);
+
+        if (roadworksError) {
+          console.warn('⚠️ Failed to fetch processed roadworks:', roadworksError);
+        } else if (processedRoadworks) {
+          additionalRoadworks = processedRoadworks;
+          console.log(`📊 Found ${processedRoadworks.length} processed Street Manager roadworks`);
+        }
+      } catch (err) {
+        console.warn('⚠️ Failed to fetch processed roadworks:', err.message);
+      }
+      
+      // Combine and deduplicate
+      const allRoadworks = [...roadworks, ...additionalRoadworks];
+      const uniqueRoadworks = this.deduplicateByReference(allRoadworks);
+      
+      console.log(`🚧 Street Manager: ${uniqueRoadworks.length} total roadworks (${roadworks.length} from webhooks, ${additionalRoadworks.length} processed)`);
       
       return {
         success: true,
         data: uniqueRoadworks,
         lastUpdate: new Date().toISOString(),
-        source: 'street_manager'
+        source: 'street_manager',
+        metadata: {
+          webhookNotifications: roadworks.length,
+          processedRoadworks: additionalRoadworks.length,
+          total: uniqueRoadworks.length,
+          directWebhookRead: true
+        }
       };
     } catch (error) {
+      console.error('❌ CRITICAL: Street Manager fetch failed:', error);
+      console.error('Stack trace:', error.stack);
       throw new Error(`Street Manager fetch failed: ${error.message}`);
     }
   }
@@ -422,6 +528,22 @@ class UnifiedRoadworksManager {
         canEdit: true
       }
     };
+  }
+
+  /**
+   * Deduplicate roadworks by permit/activity reference
+   */
+  deduplicateByReference(roadworks) {
+    const uniqueMap = new Map();
+    
+    roadworks.forEach(r => {
+      const key = r.permitReference || r.activityReference || r.sourceId || r.id;
+      if (!uniqueMap.has(key) || (r.processedAt && !uniqueMap.get(key).processedAt)) {
+        uniqueMap.set(key, r);
+      }
+    });
+    
+    return Array.from(uniqueMap.values());
   }
 
   /**

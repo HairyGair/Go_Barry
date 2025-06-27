@@ -280,37 +280,15 @@ async function initializeApplication() {
   }
 }
 
-// Periodic StreetManager polling (every 30 minutes)
-setInterval(async () => {
-  try {
-    console.log('🔄 Running periodic StreetManager poll...');
-    const { pollAndSaveToSupabase } = await import('./services/streetManager.js');
-    const result = await pollAndSaveToSupabase();
-    
-    if (result.success) {
-      console.log(`✅ StreetManager poll complete: ${result.totalSaved} roadworks saved`);
-    } else {
-      console.error('⚠️ StreetManager poll failed:', result.error);
-    }
-  } catch (error) {
-    console.error('❌ StreetManager polling error:', error.message);
-  }
-}, 30 * 60 * 1000); // 30 minutes
+// ✅ FIXED: API polling disabled - using webhooks only
+// Street Manager webhooks are configured and working at /api/streetmanager/webhook
+// Webhook data is saved to streetmanager_notifications table in Supabase
+// No API key needed since webhooks push data to us!
+console.log('📨 StreetManager: Using webhook-only mode (no polling)');
+console.log('🔗 Webhook endpoint: https://go-barry.onrender.com/api/streetmanager/webhook');
+console.log('📊 Webhook data stored in: streetmanager_notifications table');
 
-// Initial poll after 1 minute (to not block startup)
-setTimeout(async () => {
-  try {
-    console.log('🚀 Running initial StreetManager poll...');
-    const { pollAndSaveToSupabase } = await import('./services/streetManager.js');
-    const result = await pollAndSaveToSupabase();
-    
-    if (result.success) {
-      console.log(`✅ Initial StreetManager poll complete: ${result.totalSaved} roadworks saved`);
-    }
-  } catch (error) {
-    console.error('⚠️ Initial StreetManager poll failed:', error.message);
-  }
-}, 60 * 1000); // 1 minute after startup
+// Removed periodic polling - webhooks provide real-time data
 
 // REMOVED: const app = express(); - Now using the app from render-startup.js
 
@@ -2247,7 +2225,7 @@ app.get('/api/streetmanager/test-supabase', async (req, res) => {
       notification_id: `test_${Date.now()}`,
       title: 'Test notification',
       webhook_event_type: 'TEST',
-      processing_status: 'test',
+      processing_status: 'pending',
       webhook_received_at: new Date().toISOString()
     };
     
