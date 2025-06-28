@@ -197,7 +197,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
   );
 };
 
-  const handleDismissRoadwork = async (roadworkId, reason = 'No action required') => {
+  const handleDismissRoadwork = async (roadworkId, reason = 'No action required', roadworkData = null) => {
     if (!isLoggedIn) {
       Alert.alert('Error', 'You must be logged in to dismiss roadworks');
       return;
@@ -206,27 +206,67 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
     try {
       console.log(`🙅 ${roadworkId} - Dismissing roadwork...`);
       
-      const response = await fetch(`${apiBaseUrl}/api/roadworks/${roadworkId}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: 'cancelled',
-          sessionId: sessionId,
-          notes: reason
-        })
-      });
+      // Find the roadwork data to determine source
+      let roadwork = roadworkData;
+      if (!roadwork) {
+        roadwork = [...roadworks, ...trafficRoadworks, ...streetManagerRoadworks]
+          .find(r => r.id === roadworkId || r.notification_id === roadworkId);
+      }
       
-      const data = await response.json();
-      
-      if (data.success) {
-        console.log('✅ Roadwork dismissed successfully');
-        Alert.alert('Success', 'Roadwork dismissed successfully');
-        await loadRoadworks();
+      // Handle different types of roadworks
+      if (roadwork && (roadwork.source === 'StreetManager' || roadwork.source === 'street_manager' || roadwork.source === 'tomtom' || roadwork.source === 'national_highways')) {
+        // For traffic API roadworks, use the supervisor dismiss alert endpoint
+        console.log(`🙅 Dismissing traffic API roadwork via supervisor endpoint...`);
+        
+        const response = await fetch(`${apiBaseUrl}/api/supervisor/dismiss-alert`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            alertId: roadworkId,
+            reason: reason,
+            sessionId: sessionId,
+            alertData: roadwork
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          console.log('✅ Traffic roadwork dismissed successfully');
+          Alert.alert('Success', 'Roadwork dismissed successfully');
+          await loadAllData(); // Reload all data
+        } else {
+          console.error('❌ Failed to dismiss traffic roadwork:', data.error);
+          Alert.alert('Error', data.error || 'Failed to dismiss roadwork');
+        }
       } else {
-        console.error('❌ Failed to dismiss roadwork:', data.error);
-        Alert.alert('Error', data.error || 'Failed to dismiss roadwork');
+        // For manual roadworks, use the roadworks status endpoint
+        console.log(`🙅 Dismissing manual roadwork via status endpoint...`);
+        
+        const response = await fetch(`${apiBaseUrl}/api/roadworks/${roadworkId}/status`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            status: 'cancelled',
+            sessionId: sessionId,
+            notes: reason
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          console.log('✅ Manual roadwork dismissed successfully');
+          Alert.alert('Success', 'Roadwork dismissed successfully');
+          await loadRoadworks(); // Reload manual roadworks
+        } else {
+          console.error('❌ Failed to dismiss manual roadwork:', data.error);
+          Alert.alert('Error', data.error || 'Failed to dismiss roadwork');
+        }
       }
     } catch (error) {
       console.error('❌ Error dismissing roadwork:', error);
@@ -738,7 +778,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
           {/* Dismiss Button */}
           <TouchableOpacity
             style={styles.dismissQuickButton}
-            onPress={() => handleDismissRoadwork(roadwork.id || roadwork.notification_id, 'Quick dismiss')}
+            onPress={() => handleDismissRoadwork(roadwork.id || roadwork.notification_id, 'Quick dismiss', roadwork)}
           >
             <Ionicons name="close-circle" size={14} color="#EF4444" />
             <Text style={[styles.quickActionText, { marginLeft: 4, color: "#EF4444" }]}>Dismiss</Text>

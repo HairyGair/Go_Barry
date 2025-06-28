@@ -665,6 +665,76 @@ export function setupAPIRoutes(app, globalState) {
     }
   });
 
+  // ==============================
+  // ROADWORKS CLEANUP ENDPOINTS
+  // ==============================
+
+  // Get cleanup statistics
+  app.get('/api/roadworks/cleanup-stats', async (req, res) => {
+    try {
+      console.log('📊 Getting roadworks cleanup statistics...');
+      
+      const { default: unifiedRoadworksManager } = await import('../services/unifiedRoadworksManager.js');
+      const result = await unifiedRoadworksManager.getCleanupStats();
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          stats: result.stats,
+          message: `Found ${result.stats.nonNorthEast} non-NE roadworks out of ${result.stats.total} total`,
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: result.error
+        });
+      }
+    } catch (error) {
+      console.error('❌ Cleanup stats error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // Run cleanup (admin only - should add auth check)
+  app.post('/api/roadworks/cleanup-non-ne', async (req, res) => {
+    try {
+      console.log('🧹 Running non-NE roadworks cleanup...');
+      
+      // TODO: Add admin authentication check here
+      
+      const { default: unifiedRoadworksManager } = await import('../services/unifiedRoadworksManager.js');
+      const result = await unifiedRoadworksManager.cleanupNonNorthEastRoadworks();
+      
+      if (result.success) {
+        res.json({
+          success: true,
+          message: `Cleanup complete: ${result.deleted} non-NE roadworks removed`,
+          results: {
+            totalChecked: result.totalChecked,
+            northEastKept: result.northEastKept,
+            deleted: result.deleted
+          },
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: result.error
+        });
+      }
+    } catch (error) {
+      console.error('❌ Cleanup error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // Root endpoint
   app.get('/', (req, res) => {
     res.send('Welcome to BARRY API - Traffic Intelligence Platform');

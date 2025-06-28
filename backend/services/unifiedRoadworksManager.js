@@ -200,11 +200,14 @@ class UnifiedRoadworksManager {
       // 🔧 FIXED: Read directly from streetmanager_notifications (webhook data)
       console.log('📊 Fetching Street Manager data from webhook notifications...');
       
+      // Import location validation
+      const { isNorthEastLocation } = await import('./locationValidation.js');
+      
       const { data: notifications, error: notifError } = await supabase
         .from('streetmanager_notifications')
         .select('*')
         .order('webhook_received_at', { ascending: false })
-        .limit(200);
+        .limit(500); // Increased limit
 
       if (notifError) {
         console.error('❌ Street Manager notifications error:', notifError);
@@ -255,6 +258,20 @@ class UnifiedRoadworksManager {
           
           const fullLocation = objectData.town ? 
             `${location}, ${objectData.town}` : location;
+          
+          // CRITICAL: Filter out non-North East locations
+          const locationData = {
+            location: fullLocation,
+            town: objectData.town,
+            authority: objectData.highway_authority || objectData.promoter_organisation,
+            areaName: objectData.area_name,
+            streetName: objectData.street_name
+          };
+          
+          if (!isNorthEastLocation(locationData)) {
+            console.log(`⏭️ Skipping non-NE roadwork: ${fullLocation}`);
+            continue;
+          }
           
           const roadwork = {
             id: notification.notification_id,
@@ -698,6 +715,163 @@ class UnifiedRoadworksManager {
           acknowledgments: acknowledgments.data?.length || 0,
           saves: saves.data?.length || 0,
           totalActions: (dismissals.data?.length || 0) + (acknowledgments.data?.length || 0) + (saves.data?.length || 0)
+        }
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Clean up non-North East roadworks from Supabase
+   */
+  async cleanupNonNorthEastRoadworks() {
+    try {
+      console.log('🧹 Starting cleanup of non-North East roadworks...');
+      
+      // Import location validation
+      const { isNorthEastLocation } = await import('./locationValidation.js');
+      
+      // Fetch all notifications
+      const { data: notifications, error } = await supabase
+        .from('streetmanager_notifications')
+        .select('*')
+        .order('webhook_received_at', { ascending: false });
+
+      if (error) {
+        console.error('❌ Failed to fetch notifications:', error);
+        return { success: false, error: error.message };
+      }
+
+      console.log(`📊 Found ${notifications.length} total notifications to check`);
+      
+      const toDelete = [];
+      let northEastCount = 0;
+      
+      // Check each notification
+      for (const notification of notifications) {
+        const rawData = notification.raw_webhook_data || {};
+        const objectData = rawData.object_data || {};
+        
+        const locationData = {
+          location: objectData.street_name || objectData.area_name || notification.location_description,
+          town: objectData.town,
+          authority: objectData.highway_authority || objectData.promoter_organisation,
+          areaName: objectData.area_name || notification.area_name,
+          streetName: objectData.street_name || notification.street_name,
+          coordinates: notification.coordinates
+        };
+        
+        if (!isNorthEastLocation(locationData)) {
+          toDelete.push(notification.notification_id);
+          console.log(`🗑️ Marked for deletion: ${locationData.location} (${locationData.authority})`);
+        } else {
+          northEastCount++;
+        }
+      }
+      
+      console.log(`📊 Analysis complete:`);
+      console.log(`   ✅ North East roadworks: ${northEastCount}`);
+      console.log(`   ❌ Non-NE to delete: ${toDelete.length}`);
+      
+      // Delete non-NE roadworks in batches
+      if (toDelete.length > 0) {
+        const batchSize = 100;
+        let deleted = 0;
+        
+        for (let i = 0; i < toDelete.length; i += batchSize) {
+          const batch = toDelete.slice(i, i + batchSize);
+          
+          const { error: deleteError } = await supabase
+            .from('streetmanager_notifications')
+            .delete()
+            .in('notification_id', batch);
+          
+          if (deleteError) {
+            console.error(`❌ Batch deletion error:`, deleteError);
+          } else {
+            deleted += batch.length;
+            console.log(`🗑️ Deleted batch: ${deleted}/${toDelete.length}`);
+          }
+        }
+        
+        console.log(`✅ Cleanup complete: ${deleted} non-NE roadworks removed`);
+        
+        return {
+          success: true,
+          totalChecked: notifications.length,
+          northEastKept: northEastCount,
+          deleted: deleted
+        };
+      } else {
+        console.log('✅ No non-NE roadworks found - database is clean!');
+        return {
+          success: true,
+          totalChecked: notifications.length,
+          northEastKept: northEastCount,
+          deleted: 0
+        };
+      }
+    } catch (error) {
+      console.error('❌ Cleanup error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get cleanup statistics without deleting
+   */
+  async getCleanupStats() {
+    try {
+      const { isNorthEastLocation } = await import('./locationValidation.js');
+      
+      const { data: notifications, error } = await supabase
+        .from('streetmanager_notifications')
+        .select('notification_id, location_description, street_name, area_name, town, raw_webhook_data')
+        .order('webhook_received_at', { ascending: false })
+        .limit(1000);
+
+      if (error) throw error;
+
+      let northEast = 0;
+      let nonNorthEast = 0;
+      const sampleNonNE = [];
+      
+      for (const notification of notifications) {
+        const rawData = notification.raw_webhook_data || {};
+        const objectData = rawData.object_data || {};
+        
+        const locationData = {
+          location: objectData.street_name || objectData.area_name || notification.location_description,
+          town: objectData.town,
+          authority: objectData.highway_authority || objectData.promoter_organisation,
+          areaName: objectData.area_name || notification.area_name,
+          streetName: objectData.street_name || notification.street_name
+        };
+        
+        if (isNorthEastLocation(locationData)) {
+          northEast++;
+        } else {
+          nonNorthEast++;
+          if (sampleNonNE.length < 10) {
+            sampleNonNE.push({
+              id: notification.notification_id,
+              location: locationData.location,
+              authority: locationData.authority,
+              town: locationData.town
+            });
+          }
+        }
+      }
+      
+      return {
+        success: true,
+        stats: {
+          total: notifications.length,
+          northEast,
+          nonNorthEast,
+          percentageNE: Math.round((northEast / notifications.length) * 100),
+          sampleNonNE
         }
       };
     } catch (error) {

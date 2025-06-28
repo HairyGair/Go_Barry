@@ -8,6 +8,7 @@ import { parseLineStringToBNG, parsePointToBNG } from '../utils/bngToLatLng.js';
 import { analyzeServiceFrequency } from './serviceFrequencyService.js';
 import { convexSync } from './convexSync.js';
 import intelligenceEngine from './intelligenceEngine.js';
+import { isNorthEastLocation, isInNorthEastBounds } from './locationValidation.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -154,48 +155,7 @@ async function streetManagerRequest(endpoint, params = {}) {
   }
 }
 
-/**
- * Check if coordinates are within North East England
- */
-function isInNorthEast(lat, lng) {
-  return lat >= NORTH_EAST_BOUNDS.south && 
-         lat <= NORTH_EAST_BOUNDS.north && 
-         lng >= NORTH_EAST_BOUNDS.west && 
-         lng <= NORTH_EAST_BOUNDS.east;
-}
-
-/**
- * Check if location string contains North East place names, postcodes, or authorities
- */
-function isNorthEastLocation(locationString) {
-  if (!locationString) return false;
-  
-  const upperLocation = locationString.toUpperCase();
-  
-  // Check for North East place names
-  if (NORTH_EAST_LOCATIONS.some(place => upperLocation.includes(place))) {
-    return true;
-  }
-  
-  // Check for North East postcodes
-  const postcodeRegex = /\b([A-Z]{1,2}\d{1,2})\s*\d?[A-Z]{0,2}\b/g;
-  const matches = upperLocation.match(postcodeRegex);
-  if (matches) {
-    for (const match of matches) {
-      const prefix = match.match(/^[A-Z]{1,2}\d{1,2}/)?.[0];
-      if (prefix && NORTH_EAST_POSTCODES.some(p => prefix.startsWith(p))) {
-        return true;
-      }
-    }
-  }
-  
-  // Check for North East authorities
-  if (NORTH_EAST_AUTHORITIES.some(auth => upperLocation.includes(auth))) {
-    return true;
-  }
-  
-  return false;
-}
+// Location validation is now handled by locationValidation.js
 
 /**
  * Transform StreetManager activity to BARRY alert format
@@ -212,23 +172,28 @@ async function transformActivityToAlert(activity) {
     let coordinates = null;
     if (activity.geometry && activity.geometry.coordinates) {
       const [lng, lat] = activity.geometry.coordinates;
-      if (isInNorthEast(lat, lng)) {
+      if (isInNorthEastBounds(lat, lng)) {
         coordinates = [lat, lng];
       }
     } else if (location !== 'Location not specified') {
       // Try to geocode the location
       const geocoded = await geocodeLocation(location);
-      if (geocoded && isInNorthEast(geocoded.latitude, geocoded.longitude)) {
+      if (geocoded && isInNorthEastBounds(geocoded.latitude, geocoded.longitude)) {
         coordinates = [geocoded.latitude, geocoded.longitude];
       }
     }
 
-    // Check if location is in North East by string matching
-    const locationIsNorthEast = isNorthEastLocation(location) || 
-                               isNorthEastLocation(activity.town) || 
-                               isNorthEastLocation(activity.area_name) ||
-                               isNorthEastLocation(activity.highway_authority) ||
-                               isNorthEastLocation(activity.promoter_organisation);
+    // Check if location is in North East using comprehensive validation
+    const locationData = {
+      location: location,
+      town: activity.town,
+      authority: activity.highway_authority || activity.promoter_organisation,
+      areaName: activity.area_name,
+      streetName: activity.street_name,
+      coordinates: coordinates
+    };
+    
+    const locationIsNorthEast = isNorthEastLocation(locationData);
     
     // Skip if not in North East England (must have valid NE coordinates OR be a known NE location)
     if (!coordinates && !locationIsNorthEast) {
@@ -333,22 +298,27 @@ async function transformPermitToAlert(permit) {
     let coordinates = null;
     if (permit.geometry && permit.geometry.coordinates) {
       const [lng, lat] = permit.geometry.coordinates;
-      if (isInNorthEast(lat, lng)) {
+      if (isInNorthEastBounds(lat, lng)) {
         coordinates = [lat, lng];
       }
     } else if (location !== 'Permit location') {
       const geocoded = await geocodeLocation(location);
-      if (geocoded && isInNorthEast(geocoded.latitude, geocoded.longitude)) {
+      if (geocoded && isInNorthEastBounds(geocoded.latitude, geocoded.longitude)) {
         coordinates = [geocoded.latitude, geocoded.longitude];
       }
     }
 
-    // Check if location is in North East by string matching
-    const locationIsNorthEast = isNorthEastLocation(location) || 
-                               isNorthEastLocation(permit.town) || 
-                               isNorthEastLocation(permit.area_name) ||
-                               isNorthEastLocation(permit.highway_authority) ||
-                               isNorthEastLocation(permit.promoter_organisation);
+    // Check if location is in North East using comprehensive validation
+    const locationData = {
+      location: location,
+      town: permit.town,
+      authority: permit.highway_authority || permit.promoter_organisation,
+      areaName: permit.area_name,
+      streetName: permit.street_name,
+      coordinates: coordinates
+    };
+    
+    const locationIsNorthEast = isNorthEastLocation(locationData);
     
     // Skip if not in North East England
     if (!coordinates && !locationIsNorthEast) {
@@ -451,18 +421,39 @@ export async function fetchStreetManagerActivities(forceRefresh = false) {
       'start_date': new Date().toISOString().split('T')[0], // Today
       'end_date': new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Next 30 days
       'activity_status': 'in_progress,proposed,planned',
-      'page_size': 500, // Increased to get more results for filtering
+      'page_size': 50, // API maximum per page
       'sort_direction': 'desc'
     };
 
-    const result = await streetManagerRequest('/activities', params);
+    // Fetch multiple pages to get more results
+    let allActivities = [];
+    let page = 1;
+    let hasMore = true;
+    const maxPages = 5; // Limit to prevent excessive API calls
     
-    if (!result.success) {
-      return result;
+    while (hasMore && page <= maxPages) {
+      const pageParams = { ...params, page: page };
+      const result = await streetManagerRequest('/activities', pageParams);
+      
+      if (!result.success) {
+        if (page === 1) return result; // Return error if first page fails
+        break; // Stop pagination on error
+      }
+      
+      const activities = result.data.activities || result.data || [];
+      allActivities = allActivities.concat(activities);
+      
+      // Check if there are more pages
+      hasMore = activities.length === params.page_size;
+      page++;
+      
+      console.log(`📄 Fetched page ${page - 1} with ${activities.length} activities (total: ${allActivities.length})`);
     }
-
+    
+    console.log(`📊 Total activities fetched across ${page - 1} pages: ${allActivities.length}`);
+    
     // Transform activities to BARRY alert format
-    const activities = result.data.activities || result.data || [];
+    const activities = allActivities;
     const transformedAlerts = [];
 
     for (const activity of activities) {
@@ -527,18 +518,39 @@ export async function fetchStreetManagerPermits(forceRefresh = false) {
       'start_date': new Date().toISOString().split('T')[0],
       'end_date': new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Next 60 days
       'permit_status': 'granted,received,under_review',
-      'page_size': 500, // Increased for better filtering
+      'page_size': 50, // API maximum per page
       'sort_direction': 'desc'
     };
 
-    const result = await streetManagerRequest('/permits', params);
+    // Fetch multiple pages to get more results
+    let allPermits = [];
+    let page = 1;
+    let hasMore = true;
+    const maxPages = 5; // Limit to prevent excessive API calls
     
-    if (!result.success) {
-      return result;
+    while (hasMore && page <= maxPages) {
+      const pageParams = { ...params, page: page };
+      const result = await streetManagerRequest('/permits', pageParams);
+      
+      if (!result.success) {
+        if (page === 1) return result; // Return error if first page fails
+        break; // Stop pagination on error
+      }
+      
+      const permits = result.data.permits || result.data || [];
+      allPermits = allPermits.concat(permits);
+      
+      // Check if there are more pages
+      hasMore = permits.length === params.page_size;
+      page++;
+      
+      console.log(`📄 Fetched page ${page - 1} with ${permits.length} permits (total: ${allPermits.length})`);
     }
-
+    
+    console.log(`📊 Total permits fetched across ${page - 1} pages: ${allPermits.length}`);
+    
     // Transform permits to BARRY alert format
-    const permits = result.data.permits || result.data || [];
+    const permits = allPermits;
     const transformedAlerts = [];
 
     for (const permit of permits) {
@@ -1281,12 +1293,16 @@ export async function processStreetManagerWebhook(notification) {
     const location = object_data.street_name || object_data.area_name || object_data.town || 'Unknown';
     const authority = object_data.highway_authority || object_data.promoter_organisation || '';
     
-    const locationIsNorthEast = isNorthEastLocation(location) || 
-                               isNorthEastLocation(object_data.town) || 
-                               isNorthEastLocation(object_data.area_name) ||
-                               isNorthEastLocation(authority);
+    // Use comprehensive location validation
+    const locationData = {
+      location: location,
+      town: object_data.town,
+      authority: authority,
+      areaName: object_data.area_name,
+      streetName: object_data.street_name
+    };
     
-    if (!locationIsNorthEast) {
+    if (!isNorthEastLocation(locationData)) {
       console.log(`⏭️ Skipping non-NE webhook: ${location} (Authority: ${authority})`);
       return null;
     }
