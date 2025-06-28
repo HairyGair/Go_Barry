@@ -41,12 +41,14 @@ const RoadworksManager = ({ baseUrl }) => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [activeTab, setActiveTab] = useState('manual'); // Tab options: manual, automatic, streetmanager, durham
+  const [viewMode, setViewMode] = useState('list'); // View modes: list, map
   const [showMap, setShowMap] = useState(false);
   const [mapRoadwork, setMapRoadwork] = useState(null);
   const [showDiversions, setShowDiversions] = useState(false);
   const [diversionsRoadwork, setDiversionsRoadwork] = useState(null);
   const [diversionsLoading, setDiversionsLoading] = useState(false);
   const [diversionsData, setDiversionsData] = useState(null);
+  const [selectedRoutesForOverlay, setSelectedRoutesForOverlay] = useState([]); // Routes to show on map
   const [stats, setStats] = useState({
     total: 0,
     promotedToDisplay: 0,
@@ -55,8 +57,14 @@ const RoadworksManager = ({ baseUrl }) => {
     automatic: 0, // New: count of automatic roadworks
     streetManager: 0, // Count of StreetManager roadworks
     criticalCount: 0, // Critical roadworks
-    allAlerts: 0 // Count of all traffic alerts
+    allAlerts: 0, // Count of all traffic alerts
+    routeImpactCount: 0, // Count of roadworks affecting bus routes
+    outOfAreaCount: 0 // Count of roadworks outside operational area
   });
+  const [showOutOfArea, setShowOutOfArea] = useState(false); // Toggle for showing out-of-area roadworks
+  const [allRoadworksUnfiltered, setAllRoadworksUnfiltered] = useState([]); // Store all roadworks before filtering
+  const [trafficRoadworksUnfiltered, setTrafficRoadworksUnfiltered] = useState([]);
+  const [streetManagerUnfiltered, setStreetManagerUnfiltered] = useState([]);
 
   // Roadworks statuses with colors
   const ROADWORKS_STATUSES = {
@@ -389,6 +397,54 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
     planned: { label: 'Planned', color: '#7C3AED', bgColor: '#FAF5FF' }
   };
 
+  // Prepare roadworks data for map display
+  const prepareMapData = () => {
+    // Combine all roadworks based on active tab
+    let mapRoadworks = [];
+    
+    if (activeTab === 'manual') {
+      mapRoadworks = roadworks;
+    } else if (activeTab === 'streetmanager') {
+      mapRoadworks = streetManagerRoadworks;
+    } else if (activeTab === 'automatic') {
+      mapRoadworks = trafficRoadworks.filter(r => r.source !== 'durham_council');
+    } else if (activeTab === 'durham') {
+      mapRoadworks = trafficRoadworks.filter(r => r.source === 'durham_council');
+    }
+    
+    // Transform roadworks to map markers with severity-based colors
+    return mapRoadworks
+      .filter(r => r.coordinates) // Only include roadworks with coordinates
+      .map(roadwork => {
+        const severity = roadwork.priority || roadwork.severity?.toLowerCase() || 'medium';
+        let color = '#F59E0B'; // Default orange
+        
+        if (severity === 'critical' || roadwork.mlSeverity >= 3.5) {
+          color = '#DC2626'; // Red
+        } else if (severity === 'high') {
+          color = '#EA580C'; // Dark orange
+        } else if (severity === 'low' || severity === 'planned') {
+          color = '#10B981'; // Green
+        }
+        
+        return {
+          id: roadwork.id || roadwork.notification_id,
+          title: roadwork.title,
+          location: roadwork.location,
+          coordinates: [
+            roadwork.coordinates.latitude || roadwork.coordinates[0],
+            roadwork.coordinates.longitude || roadwork.coordinates[1]
+          ],
+          severity: severity,
+          color: color,
+          affectedRoutes: roadwork.affectedRoutes || roadwork.affectsRoutes || [],
+          description: roadwork.description,
+          source: roadwork.source,
+          isOutOfArea: !isWithinOperationalArea(roadwork.coordinates, roadwork.location)
+        };
+      });
+  };
+
   // Helper function to format diversions for copying
   const formatDiversionsForCopy = (data) => {
     let text = 'AI DIVERSION SUGGESTIONS\n';
@@ -462,10 +518,176 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
   // API base URL
   const apiBaseUrl = baseUrl || 'https://go-barry.onrender.com';
 
+  // Go North East operational area boundaries
+  // Coverage: Newcastle, Gateshead, Sunderland, Durham, North Tyneside, Northumberland
+  const GO_NORTH_EAST_BOUNDS = {
+    // Bounding box for quick filtering
+    north: 55.3,    // Northumberland border
+    south: 54.5,    // Durham southern border
+    east: -1.2,     // Coast
+    west: -2.2,     // Western Northumberland
+    
+    // Major operational centers for distance-based filtering
+    centers: [
+      { name: 'Newcastle', lat: 54.9783, lng: -1.6178, radius: 15000 },
+      { name: 'Gateshead', lat: 54.9527, lng: -1.6035, radius: 12000 },
+      { name: 'Sunderland', lat: 54.9061, lng: -1.3811, radius: 15000 },
+      { name: 'Durham', lat: 54.7753, lng: -1.5849, radius: 20000 },
+      { name: 'North Tyneside', lat: 55.0182, lng: -1.4858, radius: 12000 },
+      { name: 'Northumberland', lat: 55.2082, lng: -1.6913, radius: 30000 }
+    ],
+    
+    // Excluded areas (definitely outside operational zone)
+    excludedAreas: [
+      'Middlesbrough', 'Teesside', 'Hartlepool', 'Darlington', 
+      'Redcar', 'Stockton', 'Carlisle', 'Cumbria'
+    ]
+  };
+
+  // Check if coordinates are within operational area
+  const isWithinOperationalArea = (coordinates, location = '') => {
+    if (!coordinates) return true; // If no coords, include by default
+    
+    const lat = coordinates.latitude || coordinates[0];
+    const lng = coordinates.longitude || coordinates[1];
+    
+    // Quick bounding box check
+    if (lat < GO_NORTH_EAST_BOUNDS.south || lat > GO_NORTH_EAST_BOUNDS.north ||
+        lng < GO_NORTH_EAST_BOUNDS.west || lng > GO_NORTH_EAST_BOUNDS.east) {
+      return false;
+    }
+    
+    // Check if location string contains excluded areas
+    if (location) {
+      const locationLower = location.toLowerCase();
+      for (const excluded of GO_NORTH_EAST_BOUNDS.excludedAreas) {
+        if (locationLower.includes(excluded.toLowerCase())) {
+          return false;
+        }
+      }
+    }
+    
+    // Check if within radius of any operational center
+    for (const center of GO_NORTH_EAST_BOUNDS.centers) {
+      const distance = calculateDistance(lat, lng, center.lat, center.lng);
+      if (distance <= center.radius) {
+        return true;
+      }
+    }
+    
+    // Default to excluding if not near any center
+    return false;
+  };
+
+  // Helper to calculate distance (reuse from GTFS matcher)
+  const calculateDistance = (lat1, lng1, lat2, lng2) => {
+    const R = 6371000; // Earth's radius in meters
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  // Enhanced function to fetch affected routes for a roadwork
+  const fetchAffectedRoutes = async (roadwork) => {
+    if (!roadwork.coordinates) return [];
+    
+    try {
+      const lat = roadwork.coordinates.latitude || roadwork.coordinates[0];
+      const lng = roadwork.coordinates.longitude || roadwork.coordinates[1];
+      
+      // Call the enhanced GTFS matcher API
+      const response = await fetch(`${apiBaseUrl}/api/gtfs/match/enhanced`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lat,
+          lng,
+          radius: 500, // 500m radius for roadworks
+          maxResults: 20,
+          includeStops: true,
+          includeShapes: true
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.matches) {
+          // Filter for high confidence matches and extract route names
+          return data.matches
+            .filter(match => match.confidence > 0.5) // Only high confidence matches
+            .map(match => match.routeName)
+            .filter((route, index, self) => self.indexOf(route) === index); // Remove duplicates
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching affected routes:', error);
+    }
+    
+    return [];
+  };
+
+  // Process roadworks to add route impact data
+  const enrichRoadworksWithRoutes = async (roadworksList) => {
+    console.log('🚌 Enriching roadworks with route impact data...');
+    
+    const enrichedPromises = roadworksList.map(async (roadwork) => {
+      // Skip if already has affected routes
+      if (roadwork.affectedRoutes?.length > 0 || roadwork.affectsRoutes?.length > 0) {
+        return roadwork;
+      }
+      
+      // Fetch affected routes
+      const affectedRoutes = await fetchAffectedRoutes(roadwork);
+      
+      return {
+        ...roadwork,
+        affectedRoutes: affectedRoutes,
+        hasRouteImpact: affectedRoutes.length > 0
+      };
+    });
+    
+    const enriched = await Promise.all(enrichedPromises);
+    console.log(`✅ Enriched ${enriched.filter(r => r.hasRouteImpact).length} roadworks with route impacts`);
+    return enriched;
+  };
+
   // Load roadworks data
   useEffect(() => {
     loadAllData();
   }, [isLoggedIn, sessionId]);
+
+  // Reload data when geographic filter changes
+  useEffect(() => {
+    if (allRoadworksUnfiltered.length > 0 || trafficRoadworksUnfiltered.length > 0 || streetManagerUnfiltered.length > 0) {
+      // Re-apply filtering to existing data
+      const manualFiltered = showOutOfArea ? allRoadworksUnfiltered : allRoadworksUnfiltered.filter(r => 
+        isWithinOperationalArea(r.coordinates, r.location)
+      );
+      const streetManagerFiltered = showOutOfArea ? streetManagerUnfiltered : streetManagerUnfiltered.filter(r => 
+        isWithinOperationalArea(r.coordinates, r.location)
+      );
+      const trafficFiltered = showOutOfArea ? trafficRoadworksUnfiltered : trafficRoadworksUnfiltered.filter(r => 
+        isWithinOperationalArea(r.coordinates, r.location)
+      );
+      
+      setRoadworks(manualFiltered);
+      setStreetManagerRoadworks(streetManagerFiltered);
+      setTrafficRoadworks(trafficFiltered);
+      
+      // Recalculate stats
+      calculateStats(
+        { all: allRoadworksUnfiltered, filtered: manualFiltered },
+        { 
+          streetManager: { all: streetManagerUnfiltered, filtered: streetManagerFiltered },
+          otherTraffic: { all: trafficRoadworksUnfiltered, filtered: trafficFiltered }
+        }
+      );
+    }
+  }, [showOutOfArea]);
 
   const loadAllData = async () => {
     setLoading(true);
@@ -488,21 +710,35 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
       const data = await response.json();
       
       if (data.success) {
-        const roadworksData = data.roadworks || [];
-        setRoadworks(roadworksData);
-        console.log(`✅ Loaded ${roadworksData.length} manual roadworks`);
-        return roadworksData;
+        let roadworksData = data.roadworks || [];
+        
+        // Enrich with route impact data
+        roadworksData = await enrichRoadworksWithRoutes(roadworksData);
+        
+        // Store unfiltered data
+        setAllRoadworksUnfiltered(roadworksData);
+        
+        // Apply geographic filtering
+        const filteredData = showOutOfArea ? roadworksData : roadworksData.filter(r => 
+          isWithinOperationalArea(r.coordinates, r.location)
+        );
+        
+        setRoadworks(filteredData);
+        console.log(`✅ Loaded ${roadworksData.length} manual roadworks (${filteredData.length} in operational area)`);
+        return { all: roadworksData, filtered: filteredData };
       } else {
         console.error('❌ Failed to load roadworks:', data.error);
         Alert.alert('Error', 'Failed to load roadworks data');
         setRoadworks([]);
-        return [];
+        setAllRoadworksUnfiltered([]);
+        return { all: [], filtered: [] };
       }
     } catch (error) {
       console.error('❌ Error loading roadworks:', error);
       Alert.alert('Error', `Failed to connect to server: ${error.message}`);
       setRoadworks([]);
-      return [];
+      setAllRoadworksUnfiltered([]);
+      return { all: [], filtered: [] };
     }
   };
 
@@ -514,55 +750,109 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
       
       if (data.success) {
         // Filter out manual roadworks to get only automatic ones
-        const trafficData = (data.roadworks || []).filter(r => r.source !== 'manual');
+        let trafficData = (data.roadworks || []).filter(r => r.source !== 'manual');
+        
+        // Enrich all traffic data with route impacts
+        trafficData = await enrichRoadworksWithRoutes(trafficData);
         
         // Separate StreetManager from other sources
-        const streetManager = trafficData.filter(r => 
+        const streetManagerAll = trafficData.filter(r => 
           r.source === 'StreetManager' || r.source === 'street_manager'
         );
-        const otherTraffic = trafficData.filter(r => 
+        const otherTrafficAll = trafficData.filter(r => 
           r.source !== 'StreetManager' && r.source !== 'street_manager'
+        );
+        
+        // Store unfiltered data
+        setStreetManagerUnfiltered(streetManagerAll);
+        setTrafficRoadworksUnfiltered(otherTrafficAll);
+        
+        // Apply geographic filtering
+        const streetManager = showOutOfArea ? streetManagerAll : streetManagerAll.filter(r => 
+          isWithinOperationalArea(r.coordinates, r.location)
+        );
+        const otherTraffic = showOutOfArea ? otherTrafficAll : otherTrafficAll.filter(r => 
+          isWithinOperationalArea(r.coordinates, r.location)
         );
         
         setStreetManagerRoadworks(streetManager);
         setTrafficRoadworks(otherTraffic);
         
-        console.log(`✅ Loaded ${streetManager.length} StreetManager + ${otherTraffic.length} other traffic roadworks`);
+        const outOfAreaCount = trafficData.length - streetManager.length - otherTraffic.length;
+        console.log(`✅ Loaded ${streetManagerAll.length} StreetManager + ${otherTrafficAll.length} other traffic roadworks`);
+        console.log(`   🌍 In operational area: ${streetManager.length} StreetManager + ${otherTraffic.length} other`);
+        console.log(`   🚫 Outside area: ${outOfAreaCount} roadworks`);
         console.log(`   🔴 Critical: ${data.metadata?.criticalCount || 0}, 🚨 High Impact: ${data.metadata?.highImpactCount || 0}`);
+        console.log(`   🚌 With route impacts: ${trafficData.filter(r => r.hasRouteImpact).length}`);
         
-        return { streetManager, otherTraffic };
+        return { 
+          streetManager: { all: streetManagerAll, filtered: streetManager }, 
+          otherTraffic: { all: otherTrafficAll, filtered: otherTraffic } 
+        };
       } else {
         console.error('❌ Failed to load traffic roadworks:', data.error);
         setTrafficRoadworks([]);
         setStreetManagerRoadworks([]);
-        return { streetManager: [], otherTraffic: [] };
+        setTrafficRoadworksUnfiltered([]);
+        setStreetManagerUnfiltered([]);
+        return { 
+          streetManager: { all: [], filtered: [] }, 
+          otherTraffic: { all: [], filtered: [] } 
+        };
       }
     } catch (error) {
       console.error('❌ Error loading traffic roadworks:', error);
       setTrafficRoadworks([]);
       setStreetManagerRoadworks([]);
-      return { streetManager: [], otherTraffic: [] };
+      setTrafficRoadworksUnfiltered([]);
+      setStreetManagerUnfiltered([]);
+      return { 
+        streetManager: { all: [], filtered: [] }, 
+        otherTraffic: { all: [], filtered: [] } 
+      };
     }
   };
 
-  const calculateStats = (manualRoadworks = [], trafficData = {}) => {
-    const { streetManager = [], otherTraffic = [] } = trafficData;
-    const allTraffic = [...streetManager, ...otherTraffic];
-    const allRoadworks = [...manualRoadworks, ...allTraffic];
+  const calculateStats = (manualData = {}, trafficData = {}) => {
+    // Handle both old and new data structures
+    const manualAll = manualData.all || manualData;
+    const manualFiltered = manualData.filtered || manualData;
+    
+    const streetManagerAll = trafficData.streetManager?.all || trafficData.streetManager || [];
+    const streetManagerFiltered = trafficData.streetManager?.filtered || trafficData.streetManager || [];
+    const otherTrafficAll = trafficData.otherTraffic?.all || trafficData.otherTraffic || [];
+    const otherTrafficFiltered = trafficData.otherTraffic?.filtered || trafficData.otherTraffic || [];
+    
+    // All data (unfiltered)
+    const allTrafficUnfiltered = [...streetManagerAll, ...otherTrafficAll];
+    const allRoadworksUnfiltered = [...(Array.isArray(manualAll) ? manualAll : []), ...allTrafficUnfiltered];
+    
+    // Filtered data (in operational area)
+    const allTrafficFiltered = [...streetManagerFiltered, ...otherTrafficFiltered];
+    const allRoadworksFiltered = [...(Array.isArray(manualFiltered) ? manualFiltered : []), ...allTrafficFiltered];
+    
+    // Calculate out-of-area count
+    const outOfAreaCount = allRoadworksUnfiltered.filter(r => 
+      !isWithinOperationalArea(r.coordinates, r.location)
+    ).length;
     
     const stats = {
-      total: allRoadworks.length,
-      promotedToDisplay: manualRoadworks.filter(r => r.promotedToDisplay).length,
-      activeDiversions: manualRoadworks.filter(r => r.diversions && r.diversions.length > 0).length,
-      pendingTasks: manualRoadworks.reduce((sum, r) => 
+      total: showOutOfArea ? allRoadworksUnfiltered.length : allRoadworksFiltered.length,
+      promotedToDisplay: (Array.isArray(manualFiltered) ? manualFiltered : []).filter(r => r.promotedToDisplay).length,
+      activeDiversions: (Array.isArray(manualFiltered) ? manualFiltered : []).filter(r => r.diversions && r.diversions.length > 0).length,
+      pendingTasks: (Array.isArray(manualFiltered) ? manualFiltered : []).reduce((sum, r) => 
         sum + (r.tasks ? r.tasks.filter(t => t.status === 'pending').length : 0), 0
       ),
-      automatic: allTraffic.length,
-      streetManager: streetManager.length,
-      criticalCount: allRoadworks.filter(r => 
+      automatic: showOutOfArea ? allTrafficUnfiltered.length : allTrafficFiltered.length,
+      streetManager: showOutOfArea ? streetManagerAll.length : streetManagerFiltered.length,
+      criticalCount: (showOutOfArea ? allRoadworksUnfiltered : allRoadworksFiltered).filter(r => 
         r.severity === 'Critical' || r.severity === 'critical' ||
         r.mlSeverity === 4 || r.mlSeverity === 3.5
-      ).length
+      ).length,
+      routeImpactCount: (showOutOfArea ? allRoadworksUnfiltered : allRoadworksFiltered).filter(r => 
+        r.affectedRoutes?.length > 0 || r.affectsRoutes?.length > 0 || r.hasRouteImpact
+      ).length,
+      outOfAreaCount: outOfAreaCount
     };
     setStats(stats);
   };
@@ -746,9 +1036,11 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
     const status = ROADWORKS_STATUSES[roadwork.status] || ROADWORKS_STATUSES.reported;
     const priority = PRIORITY_LEVELS[roadwork.priority || roadwork.severity?.toLowerCase()] || PRIORITY_LEVELS.medium;
     
-    // Check for ML predictions
+    // Check for ML predictions and route impact
     const hasMLPrediction = roadwork.mlSeverity || roadwork.mlConfidence;
     const hasRouteImpact = roadwork.affectsRoutes?.length > 0 || roadwork.affectedRoutes?.length > 0;
+    const routeCount = (roadwork.affectsRoutes || roadwork.affectedRoutes || []).length;
+    const isOutOfArea = !isWithinOperationalArea(roadwork.coordinates, roadwork.location);
 
     return (
       <TouchableOpacity
@@ -768,6 +1060,12 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
             <View style={[styles.priorityBadge, { backgroundColor: priority.bgColor }]}>
               <Text style={[styles.priorityText, { color: priority.color }]}>{priority.label}</Text>
             </View>
+            {isOutOfArea && (
+              <View style={styles.outOfAreaIndicator}>
+                <Ionicons name="location-outline" size={14} color="#EF4444" />
+                <Text style={styles.outOfAreaText}>Outside Area</Text>
+              </View>
+            )}
           </View>
           {roadwork.promotedToDisplay && (
             <View style={styles.displayBadge}>
@@ -777,7 +1075,15 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
           )}
         </View>
 
-        <Text style={styles.cardTitle}>{roadwork.title}</Text>
+        <View style={styles.cardTitleRow}>
+          <Text style={styles.cardTitle}>{roadwork.title}</Text>
+          {hasRouteImpact && (
+            <View style={styles.routeImpactIndicator}>
+              <Ionicons name="bus" size={14} color="#FFFFFF" />
+              <Text style={styles.routeImpactCount}>{routeCount}</Text>
+            </View>
+          )}
+        </View>
         <Text style={styles.cardLocation}>
           <Ionicons name="location" size={14} color="#6B7280" /> {roadwork.location}
         </Text>
@@ -953,6 +1259,64 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
         </TouchableOpacity>
       </View>
 
+      {/* Geographic Filter Toggle */}
+      <View style={styles.filterContainer}>
+        <View style={styles.filterInfo}>
+          <Ionicons name="globe-outline" size={20} color="#6B7280" />
+          <Text style={styles.filterLabel}>
+            Operational Area: Newcastle, Gateshead, Sunderland, Durham, North Tyneside
+          </Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.filterToggle, showOutOfArea && styles.filterToggleActive]}
+          onPress={() => setShowOutOfArea(!showOutOfArea)}
+        >
+          <Text style={[styles.filterToggleText, showOutOfArea && styles.filterToggleTextActive]}>
+            {showOutOfArea ? 'Showing All' : 'Area Only'}
+          </Text>
+          {stats.outOfAreaCount > 0 && !showOutOfArea && (
+            <View style={styles.outOfAreaBadge}>
+              <Text style={styles.outOfAreaBadgeText}>+{stats.outOfAreaCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* View Mode Toggle */}
+      <View style={styles.viewModeContainer}>
+        <View style={styles.viewModeToggle}>
+          <TouchableOpacity
+            style={[styles.viewModeButton, viewMode === 'list' && styles.viewModeButtonActive]}
+            onPress={() => setViewMode('list')}
+          >
+            <Ionicons name="list" size={18} color={viewMode === 'list' ? '#FFFFFF' : '#6B7280'} />
+            <Text style={[styles.viewModeButtonText, viewMode === 'list' && styles.viewModeButtonTextActive]}>List View</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.viewModeButton, viewMode === 'map' && styles.viewModeButtonActive]}
+            onPress={() => setViewMode('map')}
+          >
+            <Ionicons name="map" size={18} color={viewMode === 'map' ? '#FFFFFF' : '#6B7280'} />
+            <Text style={[styles.viewModeButtonText, viewMode === 'map' && styles.viewModeButtonTextActive]}>Map View</Text>
+          </TouchableOpacity>
+        </View>
+        {viewMode === 'map' && (
+          <TouchableOpacity
+            style={styles.routeOverlayButton}
+            onPress={() => {
+              // Toggle route overlay selector
+              Alert.alert('Route Overlays', 'Select routes to display on map', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Show Major Routes', onPress: () => setSelectedRoutesForOverlay(['21', 'X21', '1', '2', '307', 'Q3']) }
+              ]);
+            }}
+          >
+            <Ionicons name="bus" size={16} color="#7C3AED" />
+            <Text style={styles.routeOverlayButtonText}>Route Overlays</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       {/* Stats Overview */}
       <View style={styles.statsContainer}>
         <View style={[styles.statCard, { marginLeft: 0 }]}>
@@ -974,6 +1338,10 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
         <View style={styles.statCard}>
           <Text style={[styles.statValue, { color: '#F59E0B' }]}>{stats.streetManager}</Text>
           <Text style={styles.statLabel}>StreetManager</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={[styles.statValue, { color: '#6366F1' }]}>{stats.routeImpactCount}</Text>
+          <Text style={styles.statLabel}>Affecting Routes</Text>
         </View>
       </View>
 
@@ -1017,8 +1385,10 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
         </TouchableOpacity>
       </View>
 
-      {/* Roadworks List */}
-      <ScrollView
+      {/* Content Area - List or Map View */}
+      {viewMode === 'list' ? (
+        /* Roadworks List */
+        <ScrollView
         style={styles.roadworksList}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
@@ -1070,7 +1440,64 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
             trafficRoadworks.filter(r => r.source === 'durham_council').map(roadwork => renderRoadworkCard(roadwork, true))
           )
         )}
-      </ScrollView>
+        </ScrollView>
+      ) : (
+        /* Map View */
+        <View style={styles.mapViewContainer}>
+          {Platform.OS === 'web' ? (
+            <TomTomTrafficMap
+              alerts={prepareMapData()}
+              currentAlert={null}
+              alertIndex={0}
+              showClustering={true}
+              showRouteOverlays={selectedRoutesForOverlay.length > 0}
+              overlayRoutes={selectedRoutesForOverlay}
+              onMarkerClick={(roadwork) => {
+                const fullRoadwork = [...roadworks, ...streetManagerRoadworks, ...trafficRoadworks]
+                  .find(r => (r.id || r.notification_id) === roadwork.id);
+                if (fullRoadwork) {
+                  setSelectedRoadwork({ ...fullRoadwork, isAutomatic: fullRoadwork.source !== 'manual' });
+                  setShowDetailsModal(true);
+                }
+              }}
+              style={styles.mapView}
+            />
+          ) : (
+            <View style={styles.mapNotAvailable}>
+              <Ionicons name="map-outline" size={48} color="#9CA3AF" />
+              <Text style={styles.mapNotAvailableText}>Map view is only available on web</Text>
+            </View>
+          )}
+          
+          {/* Map Legend */}
+          <View style={styles.mapLegend}>
+            <Text style={styles.mapLegendTitle}>Severity Levels</Text>
+            <View style={styles.mapLegendItems}>
+              <View style={styles.mapLegendItem}>
+                <View style={[styles.mapLegendColor, { backgroundColor: '#DC2626' }]} />
+                <Text style={styles.mapLegendLabel}>Critical</Text>
+              </View>
+              <View style={styles.mapLegendItem}>
+                <View style={[styles.mapLegendColor, { backgroundColor: '#EA580C' }]} />
+                <Text style={styles.mapLegendLabel}>High</Text>
+              </View>
+              <View style={styles.mapLegendItem}>
+                <View style={[styles.mapLegendColor, { backgroundColor: '#F59E0B' }]} />
+                <Text style={styles.mapLegendLabel}>Medium</Text>
+              </View>
+              <View style={styles.mapLegendItem}>
+                <View style={[styles.mapLegendColor, { backgroundColor: '#10B981' }]} />
+                <Text style={styles.mapLegendLabel}>Low/Planned</Text>
+              </View>
+            </View>
+            {stats.routeImpactCount > 0 && (
+              <Text style={styles.mapLegendInfo}>
+                <Ionicons name="bus" size={12} color="#6B7280" /> {stats.routeImpactCount} roadworks affecting bus routes
+              </Text>
+            )}
+          </View>
+        </View>
+      )}
 
       {/* Create Modal */}
       <CreateRoadworkModal
@@ -1449,13 +1876,186 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  // Geographic Filter Styles
+  filterContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  filterInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  filterLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginLeft: 8,
+  },
+  filterToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  filterToggleActive: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  filterToggleText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  filterToggleTextActive: {
+    color: '#FFFFFF',
+  },
+  outOfAreaBadge: {
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 6,
+  },
+  outOfAreaBadgeText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  // View Mode Styles
+  viewModeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  viewModeToggle: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    padding: 2,
+  },
+  viewModeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  viewModeButtonActive: {
+    backgroundColor: '#3B82F6',
+  },
+  viewModeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginLeft: 6,
+  },
+  viewModeButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  routeOverlayButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F0FF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E9D5FF',
+  },
+  routeOverlayButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#7C3AED',
+    marginLeft: 6,
+  },
+  // Map View Styles
+  mapViewContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  mapView: {
+    flex: 1,
+  },
+  mapNotAvailable: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+  },
+  mapNotAvailableText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  mapLegend: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  mapLegendTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  mapLegendItems: {
+    flexDirection: 'column',
+  },
+  mapLegendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  mapLegendColor: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  mapLegendLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  mapLegendInfo: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
   statsContainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     paddingHorizontal: 16,
     paddingVertical: 16,
   },
   statCard: {
-    flex: 1,
+    width: '30%',
     backgroundColor: '#FFFFFF',
     padding: 16,
     borderRadius: 8,
@@ -1463,6 +2063,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     marginLeft: 12,
+    marginBottom: 12,
   },
   statValue: {
     fontSize: 24,
@@ -1530,11 +2131,47 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#10B981',
   },
+  outOfAreaIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  outOfAreaText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#EF4444',
+    marginLeft: 4,
+  },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
   cardTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
-    marginBottom: 8,
+    flex: 1,
+    marginRight: 8,
+  },
+  routeImpactIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DC2626',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  routeImpactCount: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginLeft: 4,
   },
   cardLocation: {
     fontSize: 14,

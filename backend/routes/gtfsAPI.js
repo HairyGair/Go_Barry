@@ -122,44 +122,39 @@ router.post('/match/location', (req, res) => {
 
 /**
  * POST /api/gtfs/match/enhanced
- * Find routes using enhanced matching (coordinates + location)
+ * Enhanced GTFS route matching with confidence scoring
  */
 router.post('/match/enhanced', async (req, res) => {
   try {
-    const { lat, lng, location, radius = 250 } = req.body;
+    const { lat, lng, radius = 1000, includeStops = true, includeShapes = true, includeDirections = false } = req.body;
     
-    if ((!lat || !lng || isNaN(lat) || isNaN(lng)) && !location) {
+    if (!lat || !lng) {
       return res.status(400).json({
         success: false,
-        error: 'Either coordinates (lat, lng) or location text required'
+        error: 'Latitude and longitude are required'
       });
     }
     
-    if (!isGTFSReady()) {
-      return res.status(503).json({
-        success: false,
-        error: 'GTFS service not ready'
-      });
-    }
+    console.log(`🎯 Enhanced GTFS matching: ${lat}, ${lng} (radius: ${radius}m)`);
     
-    const routes = await findAffectedRoutesEnhanced(lat, lng, location, radius);
-    
-    res.json({
-      success: true,
-      data: {
-        routes: routes,
-        count: routes.length,
-        coordinates: lat && lng ? { lat, lng } : null,
-        location: location || null,
-        radius: radius
-      },
-      method: 'GTFS Enhanced Matching (Coordinates + Location)',
-      timestamp: new Date().toISOString()
+    // Use the enhanced GTFS matcher
+    const enhancedGTFSMatcher = (await import('../services/enhancedGTFSMatcher.js')).default;
+    const result = await enhancedGTFSMatcher.matchRoutesEnhanced(lat, lng, {
+      radius,
+      maxResults: 20,
+      includeStops,
+      includeShapes,
+      includeDirections,
+      confidenceThreshold: 0.1
     });
+    
+    res.json(result);
   } catch (error) {
+    console.error('❌ Enhanced GTFS matching error:', error);
     res.status(500).json({
       success: false,
-      error: error.message
+      error: error.message,
+      matches: []
     });
   }
 });
@@ -328,7 +323,7 @@ router.get('/health', (req, res) => {
 
 /**
  * GET /api/gtfs/match/enhanced
- * Enhanced GTFS route matching with confidence scoring
+ * Enhanced GTFS route matching with confidence scoring (Legacy GET endpoint)
  */
 router.get('/match/enhanced', async (req, res) => {
   try {
@@ -390,6 +385,38 @@ router.get('/route-shapes', async (req, res) => {
     // Use the enhanced GTFS matcher
     const enhancedGTFSMatcher = (await import('../services/enhancedGTFSMatcher.js')).default;
     const result = await enhancedGTFSMatcher.getRouteShapes(routeNames);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Route shapes error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      shapes: []
+    });
+  }
+});
+
+/**
+ * POST /api/gtfs/route-shapes
+ * Get route shapes for visualization (POST version)
+ */
+router.post('/route-shapes', async (req, res) => {
+  try {
+    const { routes } = req.body;
+    
+    if (!routes || !Array.isArray(routes)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Routes array is required'
+      });
+    }
+    
+    console.log(`🗺️ Getting route shapes for: ${routes.join(', ')}`);
+    
+    // Use the enhanced GTFS matcher
+    const enhancedGTFSMatcher = (await import('../services/enhancedGTFSMatcher.js')).default;
+    const result = await enhancedGTFSMatcher.getRouteShapes(routes);
     
     res.json(result);
   } catch (error) {

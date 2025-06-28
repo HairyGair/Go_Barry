@@ -4,7 +4,18 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Platform } from 'react-native';
 
-const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, showRoadworks = true, showAffectedRoutes = true }) => {
+const TomTomTrafficMap = ({ 
+  alerts = [], 
+  currentAlert = null, 
+  alertIndex = 0, 
+  showRoadworks = true, 
+  showAffectedRoutes = true,
+  showClustering = false,
+  showRouteOverlays = false,
+  overlayRoutes = [],
+  onMarkerClick = null,
+  style = {}
+}) => {
   // Use callback ref to ensure we get the container element
   const [containerElement, setContainerElement] = useState(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -192,6 +203,11 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, sh
           if (showRoadworks) {
             addRoadworkZones(map, maplibregl);
           }
+          
+          // Add route overlays if enabled
+          if (showRouteOverlays && overlayRoutes.length > 0) {
+            addRouteOverlays(map, maplibregl);
+          }
         });
 
         map.on('error', (error) => {
@@ -226,24 +242,45 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, sh
 
     console.log(`📍 Adding ${alerts.length} alerts to map`);
     
+    // Add clustering support if enabled
+    if (showClustering && alerts.length > 10) {
+      addClusteredAlerts(map, maplibregl);
+      return;
+    }
+    
+    // Add individual markers (existing behavior)
     alerts.forEach((alert, index) => {
       if (!alert.coordinates || !Array.isArray(alert.coordinates)) return;
 
       const [lat, lng] = alert.coordinates;
-      const isCurrentAlert = index === alertIndex;
+      const isCurrentAlert = currentAlert && alert.id === currentAlert.id;
       
-      // Create marker element
+      // Create marker element with severity-based styling
       const markerElement = document.createElement('div');
+      const severityColor = alert.color || getSeverityColor(alert.severity);
+      const size = isCurrentAlert ? 20 : 16;
+      
       markerElement.style.cssText = `
-        width: ${isCurrentAlert ? 16 : 12}px;
-        height: ${isCurrentAlert ? 16 : 12}px;
-        background-color: ${getSeverityColor(alert.severity)};
+        width: ${size}px;
+        height: ${size}px;
+        background-color: ${severityColor};
         border: 2px solid white;
         border-radius: 50%;
         cursor: pointer;
         box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         ${isCurrentAlert ? 'animation: pulse 2s infinite;' : ''}
+        transition: all 0.2s ease;
       `;
+      
+      // Add hover effect
+      markerElement.onmouseover = () => {
+        markerElement.style.transform = 'scale(1.2)';
+        markerElement.style.zIndex = '1000';
+      };
+      markerElement.onmouseout = () => {
+        markerElement.style.transform = 'scale(1)';
+        markerElement.style.zIndex = 'auto';
+      };
 
       // Add CSS animation for current alert
       if (isCurrentAlert && !document.getElementById('marker-pulse-style')) {
@@ -282,6 +319,13 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, sh
         `);
 
       marker.setPopup(popup);
+      
+      // Add click handler
+      if (onMarkerClick) {
+        markerElement.addEventListener('click', () => {
+          onMarkerClick(alert);
+        });
+      }
 
       // Auto-focus on current alert
       if (isCurrentAlert) {
@@ -296,6 +340,171 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, sh
           popup.addTo(map);
         }, 1600);
       }
+    });
+  };
+
+  const addClusteredAlerts = (map, maplibregl) => {
+    console.log('🌐 Adding clustered alerts to map');
+    
+    // Convert alerts to GeoJSON features
+    const features = alerts
+      .filter(alert => alert.coordinates && Array.isArray(alert.coordinates))
+      .map((alert, index) => ({
+        type: 'Feature',
+        properties: {
+          id: alert.id,
+          title: alert.title,
+          location: alert.location,
+          severity: alert.severity,
+          color: alert.color || getSeverityColor(alert.severity),
+          description: alert.description,
+          affectedRoutes: JSON.stringify(alert.affectedRoutes || [])
+        },
+        geometry: {
+          type: 'Point',
+          coordinates: [alert.coordinates[1], alert.coordinates[0]] // [lng, lat]
+        }
+      }));
+
+    // Add clustered source
+    map.addSource('alerts-clustered', {
+      type: 'geojson',
+      data: {
+        type: 'FeatureCollection',
+        features
+      },
+      cluster: true,
+      clusterMaxZoom: 14,
+      clusterRadius: 50
+    });
+
+    // Add clusters layer
+    map.addLayer({
+      id: 'clusters',
+      type: 'circle',
+      source: 'alerts-clustered',
+      filter: ['has', 'point_count'],
+      paint: {
+        'circle-color': [
+          'step',
+          ['get', 'point_count'],
+          '#51bbd6', // blue for small clusters
+          10, '#f1f075', // yellow for medium
+          30, '#f28cb1' // pink for large
+        ],
+        'circle-radius': [
+          'step',
+          ['get', 'point_count'],
+          20, // 20px for small
+          10, 25, // 25px for medium
+          30, 30 // 30px for large
+        ]
+      }
+    });
+
+    // Add cluster count
+    map.addLayer({
+      id: 'cluster-count',
+      type: 'symbol',
+      source: 'alerts-clustered',
+      filter: ['has', 'point_count'],
+      layout: {
+        'text-field': '{point_count_abbreviated}',
+        'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+        'text-size': 12
+      },
+      paint: {
+        'text-color': '#ffffff'
+      }
+    });
+
+    // Add unclustered points
+    map.addLayer({
+      id: 'unclustered-point',
+      type: 'circle',
+      source: 'alerts-clustered',
+      filter: ['!', ['has', 'point_count']],
+      paint: {
+        'circle-color': ['get', 'color'],
+        'circle-radius': 8,
+        'circle-stroke-width': 2,
+        'circle-stroke-color': '#fff'
+      }
+    });
+
+    // Click on cluster to zoom
+    map.on('click', 'clusters', (e) => {
+      const features = map.queryRenderedFeatures(e.point, {
+        layers: ['clusters']
+      });
+      const clusterId = features[0].properties.cluster_id;
+      map.getSource('alerts-clustered').getClusterExpansionZoom(
+        clusterId,
+        (err, zoom) => {
+          if (err) return;
+          map.easeTo({
+            center: features[0].geometry.coordinates,
+            zoom: zoom
+          });
+        }
+      );
+    });
+
+    // Click on unclustered point
+    map.on('click', 'unclustered-point', (e) => {
+      const props = e.features[0].properties;
+      const coordinates = e.features[0].geometry.coordinates.slice();
+      
+      // Call marker click handler if provided
+      if (onMarkerClick) {
+        const alert = {
+          id: props.id,
+          title: props.title,
+          location: props.location,
+          severity: props.severity,
+          description: props.description,
+          affectedRoutes: JSON.parse(props.affectedRoutes || '[]')
+        };
+        onMarkerClick(alert);
+      }
+      
+      // Show popup
+      const affectedRoutesHtml = props.affectedRoutes && props.affectedRoutes !== '[]'
+        ? `<p style="margin: 4px 0; font-size: 11px; color: #ef4444;"><strong>Affects:</strong> Routes ${JSON.parse(props.affectedRoutes).join(', ')}</p>`
+        : '';
+      
+      new maplibregl.Popup()
+        .setLngLat(coordinates)
+        .setHTML(`
+          <div style="padding: 8px; font-family: system-ui; max-width: 200px;">
+            <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #1f2937;">${props.title}</h3>
+            <p style="margin: 0 0 4px 0; font-size: 12px; color: #6b7280;">${props.location || 'Location not specified'}</p>
+            ${affectedRoutesHtml}
+            <span style="
+              background-color: ${props.color};
+              color: white;
+              padding: 2px 6px;
+              border-radius: 4px;
+              font-size: 10px;
+              font-weight: bold;
+            ">${props.severity || 'UNKNOWN'}</span>
+          </div>
+        `)
+        .addTo(map);
+    });
+
+    // Change cursor on hover
+    map.on('mouseenter', 'clusters', () => {
+      map.getCanvas().style.cursor = 'pointer';
+    });
+    map.on('mouseleave', 'clusters', () => {
+      map.getCanvas().style.cursor = '';
+    });
+    map.on('mouseenter', 'unclustered-point', () => {
+      map.getCanvas().style.cursor = 'pointer';
+    });
+    map.on('mouseleave', 'unclustered-point', () => {
+      map.getCanvas().style.cursor = '';
     });
   };
 
@@ -516,6 +725,99 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, sh
     }
   };
 
+  const addRouteOverlays = async (map, maplibregl) => {
+    if (!overlayRoutes || overlayRoutes.length === 0) return;
+    
+    console.log(`🚌 Adding ${overlayRoutes.length} route overlays to map`);
+    
+    try {
+      // Fetch route shapes from backend
+      const response = await fetch(`https://go-barry.onrender.com/api/gtfs/route-shapes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ routes: overlayRoutes })
+      });
+      
+      if (!response.ok) {
+        console.warn('Failed to fetch route shapes');
+        return;
+      }
+      
+      const data = await response.json();
+      if (!data.success || !data.shapes || data.shapes.length === 0) return;
+      
+      // Create GeoJSON for routes
+      const routeFeatures = data.shapes.map(shape => ({
+        type: 'Feature',
+        properties: {
+          routeId: shape.routeId,
+          routeName: shape.routeName
+        },
+        geometry: {
+          type: 'LineString',
+          coordinates: shape.coordinates
+        }
+      }));
+      
+      // Add routes source
+      map.addSource('overlay-routes', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: routeFeatures
+        }
+      });
+      
+      // Add routes layer with distinct styling
+      map.addLayer({
+        id: 'overlay-routes-outline',
+        type: 'line',
+        source: 'overlay-routes',
+        paint: {
+          'line-width': 6,
+          'line-color': '#FFFFFF',
+          'line-opacity': 0.8
+        }
+      });
+      
+      map.addLayer({
+        id: 'overlay-routes-line',
+        type: 'line',
+        source: 'overlay-routes',
+        paint: {
+          'line-width': 4,
+          'line-color': '#7C3AED',
+          'line-opacity': 0.8
+        }
+      });
+      
+      // Add route labels
+      map.addLayer({
+        id: 'overlay-routes-labels',
+        type: 'symbol',
+        source: 'overlay-routes',
+        layout: {
+          'text-field': ['get', 'routeName'],
+          'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
+          'text-size': 14,
+          'symbol-placement': 'line',
+          'text-rotation-alignment': 'map',
+          'text-pitch-alignment': 'viewport'
+        },
+        paint: {
+          'text-color': '#7C3AED',
+          'text-halo-color': '#FFFFFF',
+          'text-halo-width': 2
+        }
+      });
+      
+      console.log(`✅ Added ${routeFeatures.length} route overlays`);
+      
+    } catch (error) {
+      console.error('Failed to add route overlays:', error);
+    }
+  };
+
   const getSeverityColor = (severity) => {
     switch (severity?.toLowerCase()) {
       case 'critical':
@@ -548,7 +850,7 @@ const TomTomTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, sh
 
   // Web platform - always render container, show overlays as needed
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '400px' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%', minHeight: '400px', ...style }}>
       {/* Map container - always rendered */}
       <div
         ref={mapContainerCallback}
