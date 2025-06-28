@@ -198,40 +198,56 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
 };
 
   const handleDismissRoadwork = async (roadworkId, reason = 'No action required', roadworkData = null) => {
+    console.log('🚨 DISMISS BUTTON CLICKED!', { roadworkId, reason, roadworkData: !!roadworkData });
+    console.log('🔍 Session check:', { isLoggedIn, sessionId });
+    
     if (!isLoggedIn) {
+      console.log('❌ Not logged in!');
       Alert.alert('Error', 'You must be logged in to dismiss roadworks');
       return;
     }
 
     try {
-      console.log(`🙅 ${roadworkId} - Dismissing roadwork...`);
+      console.log(`🙅 ${roadworkId} - Starting dismiss process...`);
+      console.log('🔍 API Base URL:', apiBaseUrl);
       
       // Find the roadwork data to determine source
       let roadwork = roadworkData;
       if (!roadwork) {
+        console.log('🔍 Searching for roadwork in data arrays...');
         roadwork = [...roadworks, ...trafficRoadworks, ...streetManagerRoadworks]
           .find(r => r.id === roadworkId || r.notification_id === roadworkId);
+        console.log('🔍 Found roadwork:', !!roadwork, roadwork?.source);
       }
+      
+      console.log('🔍 Roadwork source:', roadwork?.source);
       
       // Handle different types of roadworks
       if (roadwork && (roadwork.source === 'StreetManager' || roadwork.source === 'street_manager' || roadwork.source === 'tomtom' || roadwork.source === 'national_highways')) {
         // For traffic API roadworks, use the supervisor dismiss alert endpoint
         console.log(`🙅 Dismissing traffic API roadwork via supervisor endpoint...`);
         
-        const response = await fetch(`${apiBaseUrl}/api/supervisor/dismiss-alert`, {
+        const url = `${apiBaseUrl}/api/supervisor/dismiss-alert`;
+        const payload = {
+          alertId: roadworkId,
+          reason: reason,
+          sessionId: sessionId,
+          alertData: roadwork
+        };
+        
+        console.log('📤 Making API call:', { url, payload });
+        
+        const response = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            alertId: roadworkId,
-            reason: reason,
-            sessionId: sessionId,
-            alertData: roadwork
-          })
+          body: JSON.stringify(payload)
         });
         
+        console.log('📥 Response status:', response.status);
         const data = await response.json();
+        console.log('📥 Response data:', data);
         
         if (data.success) {
           console.log('✅ Traffic roadwork dismissed successfully');
@@ -245,19 +261,26 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
         // For manual roadworks, use the roadworks status endpoint
         console.log(`🙅 Dismissing manual roadwork via status endpoint...`);
         
-        const response = await fetch(`${apiBaseUrl}/api/roadworks/${roadworkId}/status`, {
+        const url = `${apiBaseUrl}/api/roadworks/${roadworkId}/status`;
+        const payload = {
+          status: 'cancelled',
+          sessionId: sessionId,
+          notes: reason
+        };
+        
+        console.log('📤 Making API call:', { url, payload });
+        
+        const response = await fetch(url, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            status: 'cancelled',
-            sessionId: sessionId,
-            notes: reason
-          })
+          body: JSON.stringify(payload)
         });
         
+        console.log('📥 Response status:', response.status);
         const data = await response.json();
+        console.log('📥 Response data:', data);
         
         if (data.success) {
           console.log('✅ Manual roadwork dismissed successfully');
