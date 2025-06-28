@@ -165,7 +165,15 @@ async function processNotification(notificationData, notificationId) {
     const alert = await processStreetManagerWebhook(notificationData);
     
     if (!alert) {
-      console.log('⚠️ Could not process notification into alert');
+      console.log('⚠️ Notification filtered out (likely non-North East)');
+      // Update notification as filtered
+      await supabase
+        .from('streetmanager_notifications')
+        .update({
+          processing_status: 'filtered_out',
+          processed_at: new Date().toISOString()
+        })
+        .eq('notification_id', notificationId);
       return;
     }
     

@@ -3,7 +3,7 @@
 
 import dotenv from 'dotenv';
 import { geocodeLocation } from './geocoding.js';
-import enhancedGTFSMatcher, { getDetailedRouteMatches } from './enhancedGTFSMatcher.js';
+import enhancedGTFSMatcher from './enhancedGTFSMatcher.js';
 import { parseLineStringToBNG, parsePointToBNG } from '../utils/bngToLatLng.js';
 import { analyzeServiceFrequency } from './serviceFrequencyService.js';
 import { convexSync } from './convexSync.js';
@@ -30,16 +30,66 @@ const NORTH_EAST_BOUNDS = {
   west: -2.5
 };
 
+// North East postcode prefixes for systematic filtering
+const NORTH_EAST_POSTCODES = ['NE', 'DH', 'SR', 'DL', 'TS', 'TD15'];
+
+// North East highway authorities
+const NORTH_EAST_AUTHORITIES = [
+  'NEWCASTLE', 'GATESHEAD', 'SUNDERLAND', 'NORTH TYNESIDE', 'SOUTH TYNESIDE',
+  'DURHAM', 'NORTHUMBERLAND', 'DARLINGTON', 'HARTLEPOOL', 'MIDDLESBROUGH',
+  'STOCKTON', 'REDCAR'
+];
+
 // Known North East towns/cities for location string filtering
 const NORTH_EAST_LOCATIONS = [
-  // Tyne and Wear
+  // Tyne and Wear - Major
   'NEWCASTLE', 'GATESHEAD', 'SUNDERLAND', 'SOUTH SHIELDS', 'NORTH SHIELDS', 'WALLSEND', 'JARROW', 'WASHINGTON', 'WHITLEY BAY', 'TYNEMOUTH',
-  // County Durham
+  // Tyne and Wear - Additional
+  'HEBBURN', 'FELLING', 'WHICKHAM', 'BLAYDON', 'RYTON', 'ROWLANDS GILL', 'BIRTLEY', 'DUNSTON', 'TEAMS', 'BENSHAM',
+  'WALKER', 'BYKER', 'HEATON', 'JESMOND', 'GOSFORTH', 'LONGBENTON', 'KILLINGWORTH', 'FOREST HALL', 'PALMERSVILLE',
+  'SHIREMOOR', 'CULLERCOATS', 'MONKSEATON', 'WHITBURN', 'CLEADON', 'BOLDON', 'FELLGATE', 'PELAW', 'BILL QUAY',
+  'FELLING', 'DECKHAM', 'SHERIFF HILL', 'SPRINGWELL', 'WREKENTON', 'KIBBLESWORTH', 'OUSTON', 'PELTON',
+  
+  // County Durham - Major
   'DURHAM', 'DARLINGTON', 'HARTLEPOOL', 'STOCKTON', 'MIDDLESBROUGH', 'BISHOP AUCKLAND', 'CHESTER-LE-STREET', 'CONSETT', 'PETERLEE', 'SEAHAM',
-  // Northumberland
+  // County Durham - Additional
+  'SPENNYMOOR', 'NEWTON AYCLIFFE', 'SHILDON', 'BARNARD CASTLE', 'SEDGEFIELD', 'FERRYHILL', 'CROOK', 'WILLINGTON',
+  'STANLEY', 'ANNFIELD PLAIN', 'TANFIELD', 'LEADGATE', 'LANGLEY PARK', 'SACRISTON', 'WITTON GILBERT', 'BEARPARK',
+  'BRANDON', 'MEADOWFIELD', 'BOWBURN', 'COXHOE', 'KELLOE', 'THORNLEY', 'WHEATLEY HILL', 'WINGATE', 'TRIMDON',
+  'FISHBURN', 'CORNFORTH', 'WEST CORNFORTH', 'MURTON', 'EASINGTON', 'HORDEN', 'BLACKHALL', 'HESLEDEN',
+  
+  // Northumberland - Major  
   'MORPETH', 'ASHINGTON', 'BLYTH', 'HEXHAM', 'ALNWICK', 'BERWICK', 'PRUDHOE', 'CRAMLINGTON', 'BEDLINGTON', 'AMBLE',
-  // Key areas/districts
-  'TYNE AND WEAR', 'NORTHUMBERLAND', 'COUNTY DURHAM', 'TYNESIDE', 'WEARSIDE', 'TEESSIDE'
+  // Northumberland - Additional
+  'NEWBIGGIN', 'LYNEMOUTH', 'WIDDRINGTON', 'PEGSWOOD', 'LONGHORSELY', 'PONTELAND', 'DARRAS HALL', 'WYLAM',
+  'OVINGHAM', 'STOCKSFIELD', 'RIDING MILL', 'CORBRIDGE', 'HALTWHISTLE', 'HAYDON BRIDGE', 'BARDON MILL',
+  'ALLENDALE', 'CATTON', 'BELLINGHAM', 'OTTERBURN', 'ROTHBURY', 'THROPTON', 'WOOLER', 'BELFORD', 'SEAHOUSES',
+  'BAMBURGH', 'ALNMOUTH', 'WARKWORTH', 'FELTON', 'LONGHOUGHTON', 'EMBLETON', 'CRASTER', 'HOWICK',
+  
+  // Key areas/districts/roads
+  'TYNE AND WEAR', 'NORTHUMBERLAND', 'COUNTY DURHAM', 'TYNESIDE', 'WEARSIDE', 'TEESSIDE', 'DERWENTSIDE',
+  'WANSBECK', 'CASTLE MORPETH', 'TYNEDALE', 'ALNWICK DISTRICT', 'BERWICK-UPON-TWEED',
+  
+  // Major roads/areas often referenced
+  'A1', 'A19', 'A69', 'A167', 'A1058', 'COAST ROAD', 'GREAT NORTH ROAD', 'DURHAM ROAD', 'SCOTSWOOD ROAD',
+  'TYNE BRIDGE', 'TYNE TUNNEL', 'COBALT', 'QUORUM', 'TEAM VALLEY', 'METRO CENTRE', 'METROCENTRE',
+  'SILVERLINK', 'ROYAL QUAYS', 'NORTH TYNESIDE', 'SOUTH TYNESIDE', 'EAST DURHAM', 'WEST DURHAM',
+  
+  // Common abbreviations/variations
+  'NEWCASTLE UPON TYNE', 'NEWCASTLE-UPON-TYNE', 'SUNDERLAND', 'WALLSEND', 'SOUTH SHIELDS',
+  'BERWICK UPON TWEED', 'BERWICK-UPON-TWEED', 'STOCKTON ON TEES', 'STOCKTON-ON-TEES',
+  
+  // Postcodes prefixes
+  'NE1', 'NE2', 'NE3', 'NE4', 'NE5', 'NE6', 'NE7', 'NE8', 'NE9', 'NE10', 'NE11', 'NE12', 'NE13',
+  'NE15', 'NE16', 'NE17', 'NE18', 'NE19', 'NE20', 'NE21', 'NE22', 'NE23', 'NE24', 'NE25', 'NE26',
+  'NE27', 'NE28', 'NE29', 'NE30', 'NE31', 'NE32', 'NE33', 'NE34', 'NE35', 'NE36', 'NE37', 'NE38',
+  'NE39', 'NE40', 'NE41', 'NE42', 'NE43', 'NE44', 'NE45', 'NE46', 'NE47', 'NE48', 'NE49',
+  'NE61', 'NE62', 'NE63', 'NE64', 'NE65', 'NE66', 'NE67', 'NE68', 'NE69', 'NE70', 'NE71',
+  'DH1', 'DH2', 'DH3', 'DH4', 'DH5', 'DH6', 'DH7', 'DH8', 'DH9',
+  'DL1', 'DL2', 'DL3', 'DL4', 'DL5', 'DL14', 'DL15', 'DL16', 'DL17',
+  'SR1', 'SR2', 'SR3', 'SR4', 'SR5', 'SR6', 'SR7', 'SR8',
+  'TS1', 'TS2', 'TS3', 'TS4', 'TS5', 'TS6', 'TS17', 'TS18', 'TS19', 'TS20', 'TS23',
+  'TD15' // Berwick area
 ];
 
 // Cache for StreetManager data
@@ -115,13 +165,36 @@ function isInNorthEast(lat, lng) {
 }
 
 /**
- * Check if location string contains North East place names
+ * Check if location string contains North East place names, postcodes, or authorities
  */
 function isNorthEastLocation(locationString) {
   if (!locationString) return false;
   
   const upperLocation = locationString.toUpperCase();
-  return NORTH_EAST_LOCATIONS.some(place => upperLocation.includes(place));
+  
+  // Check for North East place names
+  if (NORTH_EAST_LOCATIONS.some(place => upperLocation.includes(place))) {
+    return true;
+  }
+  
+  // Check for North East postcodes
+  const postcodeRegex = /\b([A-Z]{1,2}\d{1,2})\s*\d?[A-Z]{0,2}\b/g;
+  const matches = upperLocation.match(postcodeRegex);
+  if (matches) {
+    for (const match of matches) {
+      const prefix = match.match(/^[A-Z]{1,2}\d{1,2}/)?.[0];
+      if (prefix && NORTH_EAST_POSTCODES.some(p => prefix.startsWith(p))) {
+        return true;
+      }
+    }
+  }
+  
+  // Check for North East authorities
+  if (NORTH_EAST_AUTHORITIES.some(auth => upperLocation.includes(auth))) {
+    return true;
+  }
+  
+  return false;
 }
 
 /**
@@ -153,12 +226,21 @@ async function transformActivityToAlert(activity) {
     // Check if location is in North East by string matching
     const locationIsNorthEast = isNorthEastLocation(location) || 
                                isNorthEastLocation(activity.town) || 
-                               isNorthEastLocation(activity.area_name);
+                               isNorthEastLocation(activity.area_name) ||
+                               isNorthEastLocation(activity.highway_authority) ||
+                               isNorthEastLocation(activity.promoter_organisation);
     
     // Skip if not in North East England (must have valid NE coordinates OR be a known NE location)
     if (!coordinates && !locationIsNorthEast) {
-      console.log(`⏭️ Skipping non-NE activity: ${location}`);
+      console.log(`⏭️ Skipping non-NE activity: ${location} (Authority: ${activity.highway_authority || 'unknown'})`);
       return null;
+    }
+    
+    // Log accepted activities with details
+    if (coordinates) {
+      console.log(`✅ Accepted NE activity (coords): ${location} [${coordinates[0]}, ${coordinates[1]}]`);
+    } else {
+      console.log(`✅ Accepted NE activity (name match): ${location} (Authority: ${activity.highway_authority || 'unknown'})`);
     }
 
     // Determine activity status and severity
@@ -264,12 +346,21 @@ async function transformPermitToAlert(permit) {
     // Check if location is in North East by string matching
     const locationIsNorthEast = isNorthEastLocation(location) || 
                                isNorthEastLocation(permit.town) || 
-                               isNorthEastLocation(permit.area_name);
+                               isNorthEastLocation(permit.area_name) ||
+                               isNorthEastLocation(permit.highway_authority) ||
+                               isNorthEastLocation(permit.promoter_organisation);
     
     // Skip if not in North East England
     if (!coordinates && !locationIsNorthEast) {
-      console.log(`⏭️ Skipping non-NE permit: ${location}`);
+      console.log(`⏭️ Skipping non-NE permit: ${location} (Authority: ${permit.highway_authority || 'unknown'})`);
       return null;
+    }
+    
+    // Log accepted permits with details
+    if (coordinates) {
+      console.log(`✅ Accepted NE permit (coords): ${location} [${coordinates[0]}, ${coordinates[1]}]`);
+    } else {
+      console.log(`✅ Accepted NE permit (name match): ${location} (Authority: ${permit.highway_authority || 'unknown'})`);
     }
 
     const status = permit.permit_status?.toLowerCase() || 'unknown';
@@ -759,7 +850,8 @@ export async function findAffectedBusRoutes(coordinates, bufferMeters = 100) {
   
   // Check each sampled coordinate
   for (const coord of sampledCoords) {
-    const matches = await getDetailedRouteMatches(coord.lat, coord.lng, bufferMeters);
+    const result = await enhancedGTFSMatcher.matchRoutesEnhanced(coord.lat, coord.lng, { radius: bufferMeters });
+    const matches = result.matches || [];
     
     for (const match of matches) {
       const routeKey = match.routeId;
@@ -767,7 +859,7 @@ export async function findAffectedBusRoutes(coordinates, bufferMeters = 100) {
       if (!routeMatches.has(routeKey)) {
         routeMatches.set(routeKey, {
           routeId: match.routeId,
-          shortName: match.shortName,
+          shortName: match.routeName,
           matchCount: 0,
           minDistance: Infinity,
           maxConfidence: 0,
@@ -1184,6 +1276,22 @@ export async function processStreetManagerWebhook(notification) {
     if (!object_data) {
       throw new Error('No object_data in notification');
     }
+    
+    // Check if location is in North East BEFORE processing
+    const location = object_data.street_name || object_data.area_name || object_data.town || 'Unknown';
+    const authority = object_data.highway_authority || object_data.promoter_organisation || '';
+    
+    const locationIsNorthEast = isNorthEastLocation(location) || 
+                               isNorthEastLocation(object_data.town) || 
+                               isNorthEastLocation(object_data.area_name) ||
+                               isNorthEastLocation(authority);
+    
+    if (!locationIsNorthEast) {
+      console.log(`⏭️ Skipping non-NE webhook: ${location} (Authority: ${authority})`);
+      return null;
+    }
+    
+    console.log(`✅ Processing NE webhook: ${location} (Authority: ${authority})`);
     
     // Parse coordinates if available
     let coordinates = [];
