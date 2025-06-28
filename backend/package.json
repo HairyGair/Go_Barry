@@ -1,7 +1,7 @@
 {
   "name": "go-barry-backend",
   "version": "1.0.0",
-  "description": "Go BARRY Traffic Intelligence Backend - Enhanced with disruption logging and North East alerts",
+  "description": "Go BARRY Traffic Intelligence Backend - Real-time traffic monitoring and alert management",
   "type": "module",
   "main": "index.js",
   "scripts": {
@@ -55,8 +55,9 @@
     "go-north-east",
     "transport"
   ],
-  "author": "Go North East",
-  "license": "MIT",
+  "author": "Anthony Gair <anthonygair@icloud.com>",
+  "license": "PROPRIETARY",
+  "copyright": "© 2024-2025 Anthony Gair. All rights reserved.",
   "repository": {
     "type": "git",
     "url": "your-repo-url"

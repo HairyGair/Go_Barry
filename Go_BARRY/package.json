@@ -1,7 +1,7 @@
 {
   "name": "go-barry-app",
   "version": "3.0.0",
-  "description": "BARRY - Traffic Intelligence for Go North East",
+  "description": "BARRY - Traffic Intelligence Platform",
   "main": "node_modules/expo-router/entry",
   "scripts": {
     "start": "expo start --web",
@@ -72,7 +72,8 @@
     "alerts",
     "go-north-east"
   ],
-  "author": "Anthony Gair",
-  "license": "MIT",
+  "author": "Anthony Gair <anthonygair@icloud.com>",
+  "license": "PROPRIETARY",
+  "copyright": "© 2024-2025 Anthony Gair. All rights reserved.",
   "private": true
 }

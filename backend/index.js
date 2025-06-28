@@ -1,3 +1,9 @@
+/*
+ * Go Barry - Traffic Intelligence Platform Backend
+ * © 2024-2025 Anthony Gair. All rights reserved.
+ * anthonygair@icloud.com
+ */
+
 // backend/index.js - Go BARRY Backend
 // Traffic Intelligence with TomTom + National Highways + StreetManager + Manual Incidents
 

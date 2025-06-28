@@ -1,3 +1,9 @@
+/*
+ * Go Barry - Traffic Intelligence Platform
+ * © 2024-2025 Anthony Gair. All rights reserved.
+ * anthonygair@icloud.com
+ */
+
 // Go_BARRY/app/index.jsx
 // Main home page that serves the beautiful HTML via React Native Web
 
@@ -163,6 +169,9 @@ const IndexApp = () => {
                     Powered by <span class="footer-brand">Go Barry</span> | 
                     Traffic Intelligence for <strong>Go North East</strong> | 
                     Real-time monitoring and alert management
+                </p>
+                <p style="margin-top: 12px; font-size: 13px; color: #9ca3af;">
+                    © 2024-2025 Anthony Gair. All rights reserved.
                 </p>
             </div>
         </div>

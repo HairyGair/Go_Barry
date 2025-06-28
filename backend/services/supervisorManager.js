@@ -444,7 +444,7 @@ function getLastAction(acks, divs, notifs) {
 }
 
 // Auto-timeout configuration
-const SESSION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes in milliseconds
+const SESSION_TIMEOUT_MS = 10 * 60 * 60 * 1000; // 10 hours in milliseconds
 let cleanupInterval;
 
 // Initialize supervisor data and start cleanup
@@ -487,7 +487,7 @@ async function cleanupInactiveSessions() {
         console.log(`⏰ Auto-timeout: Session ${sessionId} for ${session.supervisorName} (inactive for ${Math.round(timeSinceActivity / 1000 / 60)}m)`);
         session.active = false;
         session.endTime = new Date().toISOString();
-        session.timeoutReason = 'Auto-timeout after 10 minutes of inactivity';
+        session.timeoutReason = 'Auto-timeout after 10 hours of inactivity';
         cleanedCount++;
         
         // Update Supabase
@@ -506,7 +506,7 @@ async function cleanupInactiveSessions() {
             sessionId,
             supervisorId: session.supervisorId,
             supervisorName: session.supervisorName,
-            timeoutReason: 'Auto-timeout after 10 minutes of inactivity',
+            timeoutReason: 'Auto-timeout after 10 hours of inactivity',
             inactiveMinutes: Math.round(timeSinceActivity / 1000 / 60)
           });
         } catch (error) {
@@ -525,7 +525,7 @@ async function cleanupInactiveSessions() {
 // Start auto-cleanup interval
 function startSessionCleanup() {
   cleanupInterval = setInterval(cleanupInactiveSessions, 60 * 1000);
-  console.log('🕐 Session auto-timeout enabled: 10 minutes inactivity limit, cleanup every 60 seconds');
+  console.log('🕐 Session auto-timeout enabled: 10 hours inactivity limit, cleanup every 60 seconds');
 }
 
 // Stop auto-cleanup interval  

@@ -69,11 +69,11 @@ const passwordStorageService = {
 const sessionStorageService = {
   memoryStorage: new Map(),
   storageKey: 'barry_supervisor_session',
-  defaultTimeout: 10 * 60 * 1000, // 10 minutes default
+  defaultTimeout: 10 * 60 * 60 * 1000, // 10 hours default
   
   saveSession(sessionData, rememberMe = false) {
     try {
-      const timeout = rememberMe ? (60 * 60 * 1000) : this.defaultTimeout; // 1 hour if remember me
+      const timeout = rememberMe ? (10 * 60 * 60 * 1000) : this.defaultTimeout; // 10 hours regardless
       const sessionWithTimestamp = {
         ...sessionData,
         savedAt: Date.now(),

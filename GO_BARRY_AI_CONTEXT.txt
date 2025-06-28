@@ -1,4 +1,5 @@
 # GO BARRY - CRITICAL PROJECT CONTEXT FOR AI ASSISTANTS
+# © 2024-2025 Anthony Gair. All rights reserved.
 # READ THIS FIRST IN EVERY NEW CHAT SESSION
 # Last Updated: June 22, 2025 - FIXED CORS + Events in Convex + Roadwork Alerts Route
 
