@@ -199,11 +199,17 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
 
   const handleDismissRoadwork = async (roadworkId, reason = 'No action required', roadworkData = null) => {
     console.log('🚨 DISMISS BUTTON CLICKED!', { roadworkId, reason, roadworkData: !!roadworkData });
-    console.log('🔍 Session check:', { isLoggedIn, sessionId });
+    console.log('🔍 Session check:', { isLoggedIn, sessionId, supervisorName });
     
     if (!isLoggedIn) {
       console.log('❌ Not logged in!');
       Alert.alert('Error', 'You must be logged in to dismiss roadworks');
+      return;
+    }
+
+    if (!sessionId) {
+      console.log('❌ No session ID!');
+      Alert.alert('Error', 'No valid session found. Please log in again.');
       return;
     }
 
@@ -235,7 +241,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
           alertData: roadwork
         };
         
-        console.log('📤 Making API call:', { url, payload });
+        console.log('📤 Making API call:', { url, payload: { ...payload, alertData: 'truncated' } });
         
         const response = await fetch(url, {
           method: 'POST',
@@ -255,7 +261,11 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
           await loadAllData(); // Reload all data
         } else {
           console.error('❌ Failed to dismiss traffic roadwork:', data.error);
-          Alert.alert('Error', data.error || 'Failed to dismiss roadwork');
+          if (response.status === 401) {
+            Alert.alert('Authentication Error', 'Your session has expired. Please log in again.');
+          } else {
+            Alert.alert('Error', data.error || 'Failed to dismiss roadwork');
+          }
         }
       } else {
         // For manual roadworks, use the roadworks status endpoint
@@ -288,7 +298,11 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
           await loadRoadworks(); // Reload manual roadworks
         } else {
           console.error('❌ Failed to dismiss manual roadwork:', data.error);
-          Alert.alert('Error', data.error || 'Failed to dismiss roadwork');
+          if (response.status === 401) {
+            Alert.alert('Authentication Error', 'Your session has expired. Please log in again.');
+          } else {
+            Alert.alert('Error', data.error || 'Failed to dismiss roadwork');
+          }
         }
       }
     } catch (error) {
