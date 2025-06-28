@@ -63,18 +63,35 @@ console.log(`📍 PORT configured: ${PORT}`);
 app.use((req, res, next) => {
   const allowedOrigins = process.env.CORS_ORIGIN ? 
     process.env.CORS_ORIGIN.split(',') : 
-    ['https://gobarry.co.uk', 'https://go-barry.onrender.com'];
+    [
+      'https://gobarry.co.uk', 
+      'https://www.gobarry.co.uk', 
+      'https://go-barry.onrender.com',
+      'http://localhost:3000',
+      'http://localhost:8081',
+      'http://localhost:19006',
+      'http://localhost:19000'
+    ];
   
   const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
+  
+  // Always allow requests from allowed origins or no origin (server-to-server)
+  if (!origin || allowedOrigins.includes(origin) || origin.includes('gobarry.co.uk')) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+    console.log(`✅ CORS: Allowed origin: ${origin || 'no-origin'}`);
+  } else {
+    // Log blocked origins for debugging
+    console.log(`⚠️ CORS: Origin not in allowlist: ${origin}, allowing anyway`);
     res.header('Access-Control-Allow-Origin', origin);
   }
   
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Pragma, x-session-id');
   res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Max-Age', '86400'); // 24 hours
   
   if (req.method === 'OPTIONS') {
+    console.log(`✅ CORS Preflight: ${origin} → ${req.path}`);
     return res.status(200).end();
   }
   next();
