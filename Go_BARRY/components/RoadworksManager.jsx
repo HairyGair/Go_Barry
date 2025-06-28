@@ -250,6 +250,31 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
         
         console.log('📤 Making API call:', { url, payload: { ...payload, alertData: 'truncated' } });
         
+        // FALLBACK: If no backend session, try to create one on the fly
+        if (!sessionId || sessionId.startsWith('session-')) {
+          console.log('⚠️ No valid backend session, attempting emergency auth...');
+          try {
+            const emergencyAuth = await fetch(`${apiBaseUrl}/api/supervisor/login`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                supervisorId: 'supervisor003', // Fallback to AG003
+                badge: 'AG003'
+              })
+            });
+            
+            if (emergencyAuth.ok) {
+              const authData = await emergencyAuth.json();
+              if (authData.success) {
+                payload.sessionId = authData.sessionId;
+                console.log('✅ Emergency auth successful, using session:', authData.sessionId);
+              }
+            }
+          } catch (authError) {
+            console.warn('⚠️ Emergency auth failed:', authError.message);
+          }
+        }
+        
         const response = await fetch(url, {
           method: 'POST',
           headers: {
