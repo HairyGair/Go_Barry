@@ -30,6 +30,18 @@ const NORTH_EAST_BOUNDS = {
   west: -2.5
 };
 
+// Known North East towns/cities for location string filtering
+const NORTH_EAST_LOCATIONS = [
+  // Tyne and Wear
+  'NEWCASTLE', 'GATESHEAD', 'SUNDERLAND', 'SOUTH SHIELDS', 'NORTH SHIELDS', 'WALLSEND', 'JARROW', 'WASHINGTON', 'WHITLEY BAY', 'TYNEMOUTH',
+  // County Durham
+  'DURHAM', 'DARLINGTON', 'HARTLEPOOL', 'STOCKTON', 'MIDDLESBROUGH', 'BISHOP AUCKLAND', 'CHESTER-LE-STREET', 'CONSETT', 'PETERLEE', 'SEAHAM',
+  // Northumberland
+  'MORPETH', 'ASHINGTON', 'BLYTH', 'HEXHAM', 'ALNWICK', 'BERWICK', 'PRUDHOE', 'CRAMLINGTON', 'BEDLINGTON', 'AMBLE',
+  // Key areas/districts
+  'TYNE AND WEAR', 'NORTHUMBERLAND', 'COUNTY DURHAM', 'TYNESIDE', 'WEARSIDE', 'TEESSIDE'
+];
+
 // Cache for StreetManager data
 let activitiesCache = new Map();
 let permitsCache = new Map();
@@ -103,6 +115,16 @@ function isInNorthEast(lat, lng) {
 }
 
 /**
+ * Check if location string contains North East place names
+ */
+function isNorthEastLocation(locationString) {
+  if (!locationString) return false;
+  
+  const upperLocation = locationString.toUpperCase();
+  return NORTH_EAST_LOCATIONS.some(place => upperLocation.includes(place));
+}
+
+/**
  * Transform StreetManager activity to BARRY alert format
  */
 async function transformActivityToAlert(activity) {
@@ -128,8 +150,14 @@ async function transformActivityToAlert(activity) {
       }
     }
 
-    // Skip if not in North East England
-    if (!coordinates) {
+    // Check if location is in North East by string matching
+    const locationIsNorthEast = isNorthEastLocation(location) || 
+                               isNorthEastLocation(activity.town) || 
+                               isNorthEastLocation(activity.area_name);
+    
+    // Skip if not in North East England (must have valid NE coordinates OR be a known NE location)
+    if (!coordinates && !locationIsNorthEast) {
+      console.log(`⏭️ Skipping non-NE activity: ${location}`);
       return null;
     }
 
@@ -233,7 +261,14 @@ async function transformPermitToAlert(permit) {
       }
     }
 
-    if (!coordinates) {
+    // Check if location is in North East by string matching
+    const locationIsNorthEast = isNorthEastLocation(location) || 
+                               isNorthEastLocation(permit.town) || 
+                               isNorthEastLocation(permit.area_name);
+    
+    // Skip if not in North East England
+    if (!coordinates && !locationIsNorthEast) {
+      console.log(`⏭️ Skipping non-NE permit: ${location}`);
       return null;
     }
 
@@ -319,12 +354,14 @@ export async function fetchStreetManagerActivities(forceRefresh = false) {
     console.log('🚧 Fetching StreetManager activities...');
     
     // API parameters for North East England area
+    // Note: StreetManager API may not support direct geographic filtering
+    // We'll request more results and filter locally
     const params = {
-      'geographical_area_reference': 'north-east-england', // Adjust as needed
       'start_date': new Date().toISOString().split('T')[0], // Today
       'end_date': new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Next 30 days
       'activity_status': 'in_progress,proposed,planned',
-      'page_size': 100
+      'page_size': 500, // Increased to get more results for filtering
+      'sort_direction': 'desc'
     };
 
     const result = await streetManagerRequest('/activities', params);
@@ -394,13 +431,13 @@ export async function fetchStreetManagerPermits(forceRefresh = false) {
   try {
     console.log('📋 Fetching StreetManager permits...');
     
-    // API parameters for permits in North East
+    // API parameters for permits
     const params = {
-      'geographical_area_reference': 'north-east-england',
       'start_date': new Date().toISOString().split('T')[0],
       'end_date': new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Next 60 days
       'permit_status': 'granted,received,under_review',
-      'page_size': 100
+      'page_size': 500, // Increased for better filtering
+      'sort_direction': 'desc'
     };
 
     const result = await streetManagerRequest('/permits', params);
