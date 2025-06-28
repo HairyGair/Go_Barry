@@ -25,7 +25,8 @@ const RoadworksManager = ({ baseUrl }) => {
     supervisorName,
     supervisorRole,
     sessionId,
-    isAdmin
+    isAdmin,
+    supervisorSession
   } = useSupervisorSession();
 
   // State management
@@ -199,7 +200,13 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
 
   const handleDismissRoadwork = async (roadworkId, reason = 'No action required', roadworkData = null) => {
     console.log('🚨 DISMISS BUTTON CLICKED!', { roadworkId, reason, roadworkData: !!roadworkData });
-    console.log('🔍 Session check:', { isLoggedIn, sessionId, supervisorName });
+    console.log('🔍 Session check:', { 
+      isLoggedIn, 
+      localSessionId: supervisorSession?.sessionId,
+      backendSessionId: supervisorSession?.backendSessionId,
+      sessionIdUsed: sessionId,
+      supervisorName 
+    });
     
     if (!isLoggedIn) {
       console.log('❌ Not logged in!');

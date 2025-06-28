@@ -628,7 +628,7 @@ export const useSupervisorSession = () => {
     supervisorRole: supervisorSession?.supervisor?.role,
     supervisorId: supervisorSession?.supervisor?.id,
     supervisorDuty: supervisorSession?.supervisor?.duty?.name,
-    sessionId: supervisorSession?.sessionId,
+    sessionId: supervisorSession?.backendSessionId || supervisorSession?.sessionId,
     isAdmin: supervisorSession?.supervisor?.isAdmin || false,
     hasPermission: (permission) => {
       return supervisorSession?.supervisor?.permissions?.includes(permission) ?? false;
