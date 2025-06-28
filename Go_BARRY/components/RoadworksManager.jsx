@@ -40,7 +40,7 @@ const RoadworksManager = ({ baseUrl }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('manual'); // Tab options: manual, automatic, streetmanager, durham
+  const [activeTab, setActiveTab] = useState('manual'); // Tab options: manual, automatic, streetmanager, durham, timeline
   const [viewMode, setViewMode] = useState('list'); // View modes: list, map
   const [showMap, setShowMap] = useState(false);
   const [mapRoadwork, setMapRoadwork] = useState(null);
@@ -65,6 +65,18 @@ const RoadworksManager = ({ baseUrl }) => {
   const [allRoadworksUnfiltered, setAllRoadworksUnfiltered] = useState([]); // Store all roadworks before filtering
   const [trafficRoadworksUnfiltered, setTrafficRoadworksUnfiltered] = useState([]);
   const [streetManagerUnfiltered, setStreetManagerUnfiltered] = useState([]);
+  
+  // Enhanced Filtering States
+  const [showFilters, setShowFilters] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters] = useState({
+    severity: 'all', // all, critical, high, medium, low
+    dateRange: 'all', // all, today, week, upcoming
+    affectedRoutes: [], // array of route names
+    location: '', // location text filter
+    trafficManagement: 'all', // all, roadClosure, laneRestriction, etc.
+    status: 'all' // all, active, planned, completed
+  });
 
   // Roadworks statuses with colors
   const ROADWORKS_STATUSES = {
@@ -400,6 +412,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
   // Prepare roadworks data for map display
   const prepareMapData = () => {
     // Combine all roadworks based on active tab
+    // Note: These are already filtered by the useEffect hook
     let mapRoadworks = [];
     
     if (activeTab === 'manual') {
@@ -591,6 +604,123 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
     return R * c;
   };
 
+  // Apply all filters to a roadwork
+  const applyFilters = (roadwork) => {
+    // Search query filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = 
+        roadwork.title?.toLowerCase().includes(query) ||
+        roadwork.location?.toLowerCase().includes(query) ||
+        roadwork.description?.toLowerCase().includes(query) ||
+        roadwork.promoter?.toLowerCase().includes(query) ||
+        (roadwork.affectedRoutes || roadwork.affectsRoutes || []).some(r => 
+          r.toLowerCase().includes(query)
+        );
+      if (!matchesSearch) return false;
+    }
+    
+    // Severity filter
+    if (filters.severity !== 'all') {
+      const roadworkSeverity = (roadwork.priority || roadwork.severity || 'medium').toLowerCase();
+      if (roadworkSeverity !== filters.severity) return false;
+    }
+    
+    // Date range filter
+    if (filters.dateRange !== 'all') {
+      const now = new Date();
+      const startDate = roadwork.startDate ? new Date(roadwork.startDate) : null;
+      const endDate = roadwork.endDate ? new Date(roadwork.endDate) : null;
+      const createdDate = new Date(roadwork.createdAt || roadwork.lastUpdated);
+      
+      switch (filters.dateRange) {
+        case 'today':
+          // Active today or created today
+          const todayStart = new Date(now);
+          todayStart.setHours(0, 0, 0, 0);
+          const todayEnd = new Date(now);
+          todayEnd.setHours(23, 59, 59, 999);
+          
+          const isActiveToday = startDate && endDate && 
+            startDate <= todayEnd && endDate >= todayStart;
+          const isCreatedToday = createdDate >= todayStart && createdDate <= todayEnd;
+          
+          if (!isActiveToday && !isCreatedToday) return false;
+          break;
+          
+        case 'week':
+          // Active this week
+          const weekStart = new Date(now);
+          weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+          weekStart.setHours(0, 0, 0, 0);
+          const weekEnd = new Date(weekStart);
+          weekEnd.setDate(weekEnd.getDate() + 7);
+          
+          const isActiveThisWeek = startDate && endDate && 
+            startDate <= weekEnd && endDate >= weekStart;
+          if (!isActiveThisWeek) return false;
+          break;
+          
+        case 'upcoming':
+          // Starts in the future
+          if (!startDate || startDate <= now) return false;
+          break;
+      }
+    }
+    
+    // Affected routes filter
+    if (filters.affectedRoutes.length > 0) {
+      const roadworkRoutes = roadwork.affectedRoutes || roadwork.affectsRoutes || [];
+      const hasMatchingRoute = filters.affectedRoutes.some(filterRoute => 
+        roadworkRoutes.includes(filterRoute)
+      );
+      if (!hasMatchingRoute) return false;
+    }
+    
+    // Location filter
+    if (filters.location) {
+      const locationMatch = roadwork.location?.toLowerCase().includes(filters.location.toLowerCase());
+      if (!locationMatch) return false;
+    }
+    
+    // Traffic management filter
+    if (filters.trafficManagement !== 'all') {
+      const management = roadwork.trafficManagement?.toLowerCase() || '';
+      switch (filters.trafficManagement) {
+        case 'roadClosure':
+          if (!management.includes('closure') && !management.includes('closed')) return false;
+          break;
+        case 'laneRestriction':
+          if (!management.includes('lane') && !management.includes('restriction')) return false;
+          break;
+        case 'trafficControl':
+          if (!management.includes('control') && !management.includes('lights')) return false;
+          break;
+        case 'other':
+          if (management.includes('closure') || management.includes('lane') || management.includes('control')) return false;
+          break;
+      }
+    }
+    
+    // Status filter
+    if (filters.status !== 'all') {
+      const roadworkStatus = roadwork.status || 'active';
+      switch (filters.status) {
+        case 'active':
+          if (!['active', 'monitoring', 'assessing'].includes(roadworkStatus)) return false;
+          break;
+        case 'planned':
+          if (!['planned', 'approved', 'planning', 'reported'].includes(roadworkStatus)) return false;
+          break;
+        case 'completed':
+          if (!['completed', 'cancelled'].includes(roadworkStatus)) return false;
+          break;
+      }
+    }
+    
+    return true;
+  };
+
   // Enhanced function to fetch affected routes for a roadwork
   const fetchAffectedRoutes = async (roadwork) => {
     if (!roadwork.coordinates) return [];
@@ -660,19 +790,22 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
     loadAllData();
   }, [isLoggedIn, sessionId]);
 
-  // Reload data when geographic filter changes
+  // Reload data when filters change
   useEffect(() => {
     if (allRoadworksUnfiltered.length > 0 || trafficRoadworksUnfiltered.length > 0 || streetManagerUnfiltered.length > 0) {
-      // Re-apply filtering to existing data
-      const manualFiltered = showOutOfArea ? allRoadworksUnfiltered : allRoadworksUnfiltered.filter(r => 
-        isWithinOperationalArea(r.coordinates, r.location)
-      );
-      const streetManagerFiltered = showOutOfArea ? streetManagerUnfiltered : streetManagerUnfiltered.filter(r => 
-        isWithinOperationalArea(r.coordinates, r.location)
-      );
-      const trafficFiltered = showOutOfArea ? trafficRoadworksUnfiltered : trafficRoadworksUnfiltered.filter(r => 
-        isWithinOperationalArea(r.coordinates, r.location)
-      );
+      // Apply both geographic and enhanced filters
+      const applyAllFilters = (roadwork) => {
+        // First apply geographic filter
+        if (!showOutOfArea && !isWithinOperationalArea(roadwork.coordinates, roadwork.location)) {
+          return false;
+        }
+        // Then apply enhanced filters
+        return applyFilters(roadwork);
+      };
+      
+      const manualFiltered = allRoadworksUnfiltered.filter(applyAllFilters);
+      const streetManagerFiltered = streetManagerUnfiltered.filter(applyAllFilters);
+      const trafficFiltered = trafficRoadworksUnfiltered.filter(applyAllFilters);
       
       setRoadworks(manualFiltered);
       setStreetManagerRoadworks(streetManagerFiltered);
@@ -687,7 +820,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
         }
       );
     }
-  }, [showOutOfArea]);
+  }, [showOutOfArea, searchQuery, filters]);
 
   const loadAllData = async () => {
     setLoading(true);
@@ -718,10 +851,15 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
         // Store unfiltered data
         setAllRoadworksUnfiltered(roadworksData);
         
-        // Apply geographic filtering
-        const filteredData = showOutOfArea ? roadworksData : roadworksData.filter(r => 
-          isWithinOperationalArea(r.coordinates, r.location)
-        );
+        // Apply both geographic and enhanced filters
+        const filteredData = roadworksData.filter(r => {
+          // First apply geographic filter
+          if (!showOutOfArea && !isWithinOperationalArea(r.coordinates, r.location)) {
+            return false;
+          }
+          // Then apply enhanced filters
+          return applyFilters(r);
+        });
         
         setRoadworks(filteredData);
         console.log(`✅ Loaded ${roadworksData.length} manual roadworks (${filteredData.length} in operational area)`);
@@ -767,13 +905,18 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
         setStreetManagerUnfiltered(streetManagerAll);
         setTrafficRoadworksUnfiltered(otherTrafficAll);
         
-        // Apply geographic filtering
-        const streetManager = showOutOfArea ? streetManagerAll : streetManagerAll.filter(r => 
-          isWithinOperationalArea(r.coordinates, r.location)
-        );
-        const otherTraffic = showOutOfArea ? otherTrafficAll : otherTrafficAll.filter(r => 
-          isWithinOperationalArea(r.coordinates, r.location)
-        );
+        // Apply both geographic and enhanced filters
+        const applyAllFilters = (r) => {
+          // First apply geographic filter
+          if (!showOutOfArea && !isWithinOperationalArea(r.coordinates, r.location)) {
+            return false;
+          }
+          // Then apply enhanced filters
+          return applyFilters(r);
+        };
+        
+        const streetManager = streetManagerAll.filter(applyAllFilters);
+        const otherTraffic = otherTrafficAll.filter(applyAllFilters);
         
         setStreetManagerRoadworks(streetManager);
         setTrafficRoadworks(otherTraffic);
@@ -1282,6 +1425,174 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
         </TouchableOpacity>
       </View>
 
+      {/* Enhanced Filters Bar */}
+      <View style={styles.filtersBar}>
+        <View style={styles.searchBarContainer}>
+          <Ionicons name="search" size={20} color="#6B7280" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search roadworks..."
+            placeholderTextColor="#9CA3AF"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery !== '' && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={20} color="#6B7280" />
+            </TouchableOpacity>
+          )}
+        </View>
+        <TouchableOpacity
+          style={[styles.filterToggleButton, showFilters && styles.filterToggleButtonActive]}
+          onPress={() => setShowFilters(!showFilters)}
+        >
+          <Ionicons name="filter" size={18} color={showFilters ? '#FFFFFF' : '#6B7280'} />
+          <Text style={[styles.filterToggleButtonText, showFilters && styles.filterToggleButtonTextActive]}>Filters</Text>
+          {Object.keys(filters).some(key => filters[key] !== 'all' && filters[key].length > 0) && (
+            <View style={styles.activeFilterBadge}>
+              <Text style={styles.activeFilterBadgeText}>
+                {Object.keys(filters).filter(key => filters[key] !== 'all' && filters[key].length > 0).length}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* Filter Panel */}
+      {showFilters && (
+        <View style={styles.filterPanel}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScrollView}>
+            {/* Severity Filter */}
+            <View style={styles.filterGroup}>
+              <Text style={styles.filterLabel}>Severity</Text>
+              <TouchableOpacity
+                style={[styles.filterSelect, filters.severity !== 'all' && styles.filterSelectActive]}
+                onPress={() => {
+                  Alert.alert('Select Severity', '', [
+                    { text: 'All', onPress: () => setFilters({...filters, severity: 'all'}) },
+                    { text: 'Critical', onPress: () => setFilters({...filters, severity: 'critical'}) },
+                    { text: 'High', onPress: () => setFilters({...filters, severity: 'high'}) },
+                    { text: 'Medium', onPress: () => setFilters({...filters, severity: 'medium'}) },
+                    { text: 'Low', onPress: () => setFilters({...filters, severity: 'low'}) },
+                  ]);
+                }}
+              >
+                <Text style={[styles.filterSelectText, filters.severity !== 'all' && styles.filterSelectTextActive]}>
+                  {filters.severity === 'all' ? 'All' : filters.severity.charAt(0).toUpperCase() + filters.severity.slice(1)}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color={filters.severity !== 'all' ? '#3B82F6' : '#6B7280'} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Date Range Filter */}
+            <View style={styles.filterGroup}>
+              <Text style={styles.filterLabel}>Date Range</Text>
+              <TouchableOpacity
+                style={[styles.filterSelect, filters.dateRange !== 'all' && styles.filterSelectActive]}
+                onPress={() => {
+                  Alert.alert('Select Date Range', '', [
+                    { text: 'All', onPress: () => setFilters({...filters, dateRange: 'all'}) },
+                    { text: 'Today', onPress: () => setFilters({...filters, dateRange: 'today'}) },
+                    { text: 'This Week', onPress: () => setFilters({...filters, dateRange: 'week'}) },
+                    { text: 'Upcoming', onPress: () => setFilters({...filters, dateRange: 'upcoming'}) },
+                  ]);
+                }}
+              >
+                <Text style={[styles.filterSelectText, filters.dateRange !== 'all' && styles.filterSelectTextActive]}>
+                  {filters.dateRange === 'all' ? 'All Time' : 
+                   filters.dateRange === 'week' ? 'This Week' :
+                   filters.dateRange.charAt(0).toUpperCase() + filters.dateRange.slice(1)}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color={filters.dateRange !== 'all' ? '#3B82F6' : '#6B7280'} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Status Filter */}
+            <View style={styles.filterGroup}>
+              <Text style={styles.filterLabel}>Status</Text>
+              <TouchableOpacity
+                style={[styles.filterSelect, filters.status !== 'all' && styles.filterSelectActive]}
+                onPress={() => {
+                  Alert.alert('Select Status', '', [
+                    { text: 'All', onPress: () => setFilters({...filters, status: 'all'}) },
+                    { text: 'Active', onPress: () => setFilters({...filters, status: 'active'}) },
+                    { text: 'Planned', onPress: () => setFilters({...filters, status: 'planned'}) },
+                    { text: 'Completed', onPress: () => setFilters({...filters, status: 'completed'}) },
+                  ]);
+                }}
+              >
+                <Text style={[styles.filterSelectText, filters.status !== 'all' && styles.filterSelectTextActive]}>
+                  {filters.status === 'all' ? 'All Status' : filters.status.charAt(0).toUpperCase() + filters.status.slice(1)}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color={filters.status !== 'all' ? '#3B82F6' : '#6B7280'} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Affected Routes Filter */}
+            <View style={styles.filterGroup}>
+              <Text style={styles.filterLabel}>Routes</Text>
+              <TouchableOpacity
+                style={[styles.filterSelect, filters.affectedRoutes.length > 0 && styles.filterSelectActive]}
+                onPress={() => {
+                  // Get unique routes from all roadworks
+                  const allRoutes = new Set();
+                  [...allRoadworksUnfiltered, ...streetManagerUnfiltered, ...trafficRoadworksUnfiltered].forEach(r => {
+                    (r.affectedRoutes || r.affectsRoutes || []).forEach(route => allRoutes.add(route));
+                  });
+                  const sortedRoutes = Array.from(allRoutes).sort();
+                  
+                  Alert.alert(
+                    'Select Routes',
+                    'Select routes to filter by',
+                    [
+                      { text: 'Clear All', onPress: () => setFilters({...filters, affectedRoutes: []}) },
+                      { text: 'Major Routes', onPress: () => setFilters({...filters, affectedRoutes: ['21', 'X21', '1', '2', '307', 'Q3']}) },
+                      { text: 'Cancel', style: 'cancel' }
+                    ]
+                  );
+                }}
+              >
+                <Text style={[styles.filterSelectText, filters.affectedRoutes.length > 0 && styles.filterSelectTextActive]}>
+                  {filters.affectedRoutes.length === 0 ? 'All Routes' : `${filters.affectedRoutes.length} Selected`}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color={filters.affectedRoutes.length > 0 ? '#3B82F6' : '#6B7280'} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Location Filter */}
+            <View style={styles.filterGroup}>
+              <Text style={styles.filterLabel}>Location</Text>
+              <TextInput
+                style={[styles.filterTextInput, filters.location && styles.filterTextInputActive]}
+                placeholder="Enter location..."
+                placeholderTextColor="#9CA3AF"
+                value={filters.location}
+                onChangeText={(text) => setFilters({...filters, location: text})}
+              />
+            </View>
+
+            {/* Clear Filters Button */}
+            <TouchableOpacity
+              style={styles.clearFiltersButton}
+              onPress={() => {
+                setFilters({
+                  severity: 'all',
+                  dateRange: 'all',
+                  affectedRoutes: [],
+                  location: '',
+                  trafficManagement: 'all',
+                  status: 'all'
+                });
+                setSearchQuery('');
+              }}
+            >
+              <Ionicons name="close-circle" size={16} color="#EF4444" />
+              <Text style={styles.clearFiltersText}>Clear</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      )}
+
       {/* View Mode Toggle */}
       <View style={styles.viewModeContainer}>
         <View style={styles.viewModeToggle}>
@@ -1316,6 +1627,35 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Active Filters Summary */}
+      {(searchQuery || Object.keys(filters).some(key => filters[key] !== 'all' && filters[key].length > 0)) && (
+        <View style={styles.activeFiltersBar}>
+          <Text style={styles.activeFiltersText}>
+            Showing {stats.total} of {allRoadworksUnfiltered.length + streetManagerUnfiltered.length + trafficRoadworksUnfiltered.length} roadworks
+          </Text>
+          {searchQuery && (
+            <View style={styles.activeFilterChip}>
+              <Text style={styles.activeFilterChipText}>Search: "{searchQuery}"</Text>
+            </View>
+          )}
+          {filters.severity !== 'all' && (
+            <View style={styles.activeFilterChip}>
+              <Text style={styles.activeFilterChipText}>Severity: {filters.severity}</Text>
+            </View>
+          )}
+          {filters.dateRange !== 'all' && (
+            <View style={styles.activeFilterChip}>
+              <Text style={styles.activeFilterChipText}>Date: {filters.dateRange}</Text>
+            </View>
+          )}
+          {filters.status !== 'all' && (
+            <View style={styles.activeFilterChip}>
+              <Text style={styles.activeFilterChipText}>Status: {filters.status}</Text>
+            </View>
+          )}
+        </View>
+      )}
 
       {/* Stats Overview */}
       <View style={styles.statsContainer}>
@@ -1383,6 +1723,15 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
             Durham ({trafficRoadworks.filter(r => r.source === 'durham_council').length})
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'timeline' && styles.activeTab, { marginLeft: 8 }]}
+          onPress={() => setActiveTab('timeline')}
+        >
+          <Ionicons name="calendar" size={16} color={activeTab === 'timeline' ? '#3B82F6' : '#6B7280'} />
+          <Text style={[styles.tabText, activeTab === 'timeline' && styles.activeTabText, { marginLeft: 6 }]}>
+            Timeline
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Content Area - List or Map View */}
@@ -1404,7 +1753,11 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
             <View style={styles.emptyContainer}>
               <Ionicons name="construct" size={48} color="#E5E7EB" />
               <Text style={styles.emptyTitle}>No Manual Roadworks</Text>
-              <Text style={styles.emptyText}>Create your first roadwork to get started</Text>
+              <Text style={styles.emptyText}>
+                {(searchQuery || Object.keys(filters).some(key => filters[key] !== 'all' && filters[key].length > 0)) 
+                  ? 'No roadworks match your filters' 
+                  : 'Create your first roadwork to get started'}
+              </Text>
             </View>
           ) : (
             roadworks.map(roadwork => renderRoadworkCard(roadwork, false))
@@ -2047,6 +2400,165 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
+  },
+  // Enhanced Filters Styles
+  filtersBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  searchBarContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#1F2937',
+    marginLeft: 8,
+    paddingVertical: 0,
+  },
+  filterToggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  filterToggleButtonActive: {
+    backgroundColor: '#3B82F6',
+  },
+  filterToggleButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginLeft: 6,
+  },
+  filterToggleButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  activeFilterBadge: {
+    backgroundColor: '#EF4444',
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 6,
+  },
+  activeFilterBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  filterPanel: {
+    backgroundColor: '#F9FAFB',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    paddingVertical: 12,
+  },
+  filterScrollView: {
+    paddingHorizontal: 16,
+  },
+  filterGroup: {
+    marginRight: 16,
+  },
+  filterLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 6,
+  },
+  filterSelect: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  filterSelectActive: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EBF5FF',
+  },
+  filterSelectText: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginRight: 4,
+  },
+  filterSelectTextActive: {
+    color: '#3B82F6',
+    fontWeight: '600',
+  },
+  filterTextInput: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    fontSize: 14,
+    color: '#1F2937',
+    minWidth: 150,
+  },
+  filterTextInputActive: {
+    borderColor: '#3B82F6',
+  },
+  clearFiltersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  clearFiltersText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#EF4444',
+    marginLeft: 4,
+  },
+  activeFiltersBar: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#EBF5FF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#BFDBFE',
+  },
+  activeFiltersText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1E40AF',
+    marginRight: 12,
+  },
+  activeFilterChip: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginRight: 8,
+    marginVertical: 2,
+  },
+  activeFilterChipText: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '500',
   },
   statsContainer: {
     flexDirection: 'row',
