@@ -27,6 +27,7 @@ import { SkeletonAlert } from './ui/SkeletonLoader';
 import { SystemHealthMonitor } from './ui/TrustSignals';
 import { useAnalytics } from '../services/analytics';
 import LocationCorrectionModal from './LocationCorrectionModal';
+import AlertDetailModal from './AlertDetailModal';
 import VixUploadButton from './VixUploadButton';
 import useVixData from './hooks/useVixData';
 
@@ -256,6 +257,7 @@ const EnhancedDashboard = ({
 
   // State for alert details modal
   const [selectedAlertDetails, setSelectedAlertDetails] = useState(null);
+  const [showAlertDetailModal, setShowAlertDetailModal] = useState(false);
   
   // State for location correction modal
   const [correctionModalAlert, setCorrectionModalAlert] = useState(null);
@@ -296,8 +298,9 @@ const EnhancedDashboard = ({
     if (onAlertPress) {
       onAlertPress(alert);
     } else {
-      // Show alert details in modal instead of browser alert
+      // Show enhanced alert details modal
       setSelectedAlertDetails(alert);
+      setShowAlertDetailModal(true);
     }
   }, [onAlertPress, track]);
   
@@ -873,104 +876,31 @@ const EnhancedDashboard = ({
         }}
       />
       
-      {/* Alert Details Modal */}
-      {selectedAlertDetails && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.alertModal}>
-            <View style={styles.alertModalHeader}>
-              <Text style={styles.alertModalTitle}>
-                {selectedAlertDetails.title || 'Traffic Alert'}
-              </Text>
-              <TouchableOpacity
-                onPress={() => setSelectedAlertDetails(null)}
-                style={styles.closeModalButton}
-              >
-                <Ionicons name="close" size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView style={styles.alertModalContent}>
-              <View style={styles.alertModalSection}>
-                <Text style={styles.alertModalLabel}>Location:</Text>
-                <Text style={styles.alertModalValue}>
-                  {selectedAlertDetails.location || 'Unknown'}
-                </Text>
-              </View>
-              
-              {selectedAlertDetails.description && (
-                <View style={styles.alertModalSection}>
-                  <Text style={styles.alertModalLabel}>Description:</Text>
-                  <Text style={styles.alertModalValue}>
-                    {selectedAlertDetails.description}
-                  </Text>
-                </View>
-              )}
-              
-              <View style={styles.alertModalSection}>
-                <Text style={styles.alertModalLabel}>Severity:</Text>
-                <Text style={[styles.alertModalValue, {
-                  color: selectedAlertDetails.severity?.toLowerCase() === 'high' ? '#DC2626' :
-                         selectedAlertDetails.severity?.toLowerCase() === 'medium' ? '#F59E0B' : '#3B82F6'
-                }]}>
-                  {selectedAlertDetails.severity?.toUpperCase() || 'UNKNOWN'}
-                </Text>
-              </View>
-              
-              {selectedAlertDetails.affectsRoutes && selectedAlertDetails.affectsRoutes.length > 0 && (
-                <View style={styles.alertModalSection}>
-                  <Text style={styles.alertModalLabel}>Affected Routes:</Text>
-                  <Text style={styles.alertModalValue}>
-                    {selectedAlertDetails.affectsRoutes.join(', ')}
-                  </Text>
-                </View>
-              )}
-              
-              <View style={styles.alertModalSection}>
-                <Text style={styles.alertModalLabel}>Source:</Text>
-                <Text style={styles.alertModalValue}>
-                  {selectedAlertDetails.source === 'manual_incident' ? 'Manual Incident' : 
-                   selectedAlertDetails.source || 'Unknown'}
-                </Text>
-              </View>
-              
-              {selectedAlertDetails.createdBy && (
-                <View style={styles.alertModalSection}>
-                  <Text style={styles.alertModalLabel}>Created By:</Text>
-                  <Text style={styles.alertModalValue}>
-                    {selectedAlertDetails.createdBy} ({selectedAlertDetails.createdByRole || 'Unknown Role'})
-                  </Text>
-                </View>
-              )}
-              
-              <View style={styles.alertModalSection}>
-                <Text style={styles.alertModalLabel}>Time:</Text>
-                <Text style={styles.alertModalValue}>
-                  {selectedAlertDetails.timestamp ? 
-                    formatDateTimeUK(selectedAlertDetails.timestamp) : 'Unknown'}
-                </Text>
-              </View>
-              
-              {selectedAlertDetails.notes && (
-                <View style={styles.alertModalSection}>
-                  <Text style={styles.alertModalLabel}>Notes:</Text>
-                  <Text style={styles.alertModalValue}>
-                    {selectedAlertDetails.notes}
-                  </Text>
-                </View>
-              )}
-            </ScrollView>
-            
-            <View style={styles.alertModalActions}>
-              <TouchableOpacity
-                style={styles.closeAlertButton}
-                onPress={() => setSelectedAlertDetails(null)}
-              >
-                <Text style={styles.closeAlertButtonText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      )}
+      {/* Enhanced Alert Details Modal */}
+      <AlertDetailModal
+        visible={showAlertDetailModal}
+        onClose={() => {
+          setShowAlertDetailModal(false);
+          setSelectedAlertDetails(null);
+        }}
+        alert={selectedAlertDetails}
+        onUpdateAlert={(updatedAlert) => {
+          // Handle alert update - could trigger refresh
+          console.log('Alert updated:', updatedAlert);
+          // You could trigger a data refresh here if needed
+        }}
+        onDismissAlert={(alert) => {
+          // Handle alert dismissal
+          console.log('Alert dismissed:', alert.id);
+          setShowAlertDetailModal(false);
+          setSelectedAlertDetails(null);
+          // Trigger refresh to remove dismissed alert
+        }}
+        onPushToDisplay={(alert) => {
+          // Handle push to display
+          console.log('Alert pushed to display:', alert.id);
+        }}
+      />
     </View>
   );
 };
@@ -1440,79 +1370,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,
   },
-  // Alert Details Modal Styles
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  alertModal: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    width: '90%',
-    maxWidth: 500,
-    maxHeight: '80%',
-    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.25)',
-  },
-  alertModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  alertModalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-    flex: 1,
-    marginRight: 16,
-  },
-  closeModalButton: {
-    padding: 4,
-  },
-  alertModalContent: {
-    flex: 1,
-    padding: 20,
-  },
-  alertModalSection: {
-    marginBottom: 16,
-  },
-  alertModalLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 4,
-  },
-  alertModalValue: {
-    fontSize: 14,
-    color: '#1F2937',
-    lineHeight: 20,
-  },
-  alertModalActions: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  closeAlertButton: {
-    backgroundColor: '#3B82F6',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  closeAlertButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  // Removed old alert modal styles - now using AlertDetailModal component
   locationEditButton: {
     flexDirection: 'row',
     alignItems: 'center',

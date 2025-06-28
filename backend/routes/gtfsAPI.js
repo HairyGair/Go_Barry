@@ -326,4 +326,80 @@ router.get('/health', (req, res) => {
   });
 });
 
+/**
+ * GET /api/gtfs/match/enhanced
+ * Enhanced GTFS route matching with confidence scoring
+ */
+router.get('/match/enhanced', async (req, res) => {
+  try {
+    const { lat, lng, radius = 1000, includeDirections = false } = req.query;
+    
+    if (!lat || !lng) {
+      return res.status(400).json({
+        success: false,
+        error: 'Latitude and longitude are required'
+      });
+    }
+    
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+    const searchRadius = parseInt(radius);
+    
+    console.log(`🎯 Enhanced GTFS matching: ${latitude}, ${longitude} (radius: ${searchRadius}m)`);
+    
+    // Use the enhanced GTFS matcher
+    const enhancedGTFSMatcher = (await import('../services/enhancedGTFSMatcher.js')).default;
+    const result = await enhancedGTFSMatcher.matchRoutesEnhanced(latitude, longitude, {
+      radius: searchRadius,
+      maxResults: 20,
+      includeStops: true,
+      includeShapes: true,
+      includeDirections: includeDirections === 'true',
+      confidenceThreshold: 0.1
+    });
+    
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Enhanced GTFS matching error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      matches: []
+    });
+  }
+});
+
+/**
+ * GET /api/gtfs/route-shapes
+ * Get route shapes for visualization
+ */
+router.get('/route-shapes', async (req, res) => {
+  try {
+    const { routes } = req.query;
+    
+    if (!routes) {
+      return res.status(400).json({
+        success: false,
+        error: 'Routes parameter is required'
+      });
+    }
+    
+    const routeNames = routes.split(',').map(r => r.trim());
+    console.log(`🗺️ Getting route shapes for: ${routeNames.join(', ')}`);
+    
+    // Use the enhanced GTFS matcher
+    const enhancedGTFSMatcher = (await import('../services/enhancedGTFSMatcher.js')).default;
+    const result = await enhancedGTFSMatcher.getRouteShapes(routeNames);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Route shapes error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      shapes: []
+    });
+  }
+});
+
 export default router;

@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
 import CreateRoadworkModal from './CreateRoadworkModal';
 import TomTomTrafficMap from './TomTomTrafficMap';
+import UnifiedDetailModal from './UnifiedDetailModal';
 
 const RoadworksManager = ({ baseUrl }) => {
   // Get the supervisor session from the existing auth system
@@ -715,6 +716,34 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
             </TouchableOpacity>
           )}
           
+          {/* Display Toggle Button for manual roadworks or critical automatic ones */}
+          {(!isAutomatic || (roadwork.severity === 'Critical' || roadwork.severity === 'High')) && (
+            <TouchableOpacity
+              style={[styles.displayToggleButton, roadwork.promotedToDisplay && styles.displayToggleButtonActive]}
+              onPress={() => {
+                if (isAutomatic) {
+                  handlePushToDisplay(roadwork);
+                } else {
+                  handlePromoteToDisplay(roadwork.id);
+                }
+              }}
+            >
+              <Ionicons name={roadwork.promotedToDisplay ? "tv" : "tv-outline"} size={14} color={roadwork.promotedToDisplay ? "#10B981" : "#3B82F6"} />
+              <Text style={[styles.quickActionText, { marginLeft: 4, color: roadwork.promotedToDisplay ? "#10B981" : "#3B82F6" }]}>
+                {roadwork.promotedToDisplay ? "On Display" : "Display"}
+              </Text>
+            </TouchableOpacity>
+          )}
+          
+          {/* Dismiss Button */}
+          <TouchableOpacity
+            style={styles.dismissQuickButton}
+            onPress={() => handleDismissRoadwork(roadwork.id || roadwork.notification_id, 'Quick dismiss')}
+          >
+            <Ionicons name="close-circle" size={14} color="#EF4444" />
+            <Text style={[styles.quickActionText, { marginLeft: 4, color: "#EF4444" }]}>Dismiss</Text>
+          </TouchableOpacity>
+          
           {/* New StreetManager Actions */}
           {roadwork.source === 'StreetManager' && roadwork.managementActions?.canCreateDiversion && (
             <TouchableOpacity
@@ -946,18 +975,28 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
       />
 
       {/* Details Modal */}
-      <RoadworkDetailsModal
+      <UnifiedDetailModal
         visible={showDetailsModal}
-        roadwork={selectedRoadwork}
+        data={selectedRoadwork}
         onClose={() => setShowDetailsModal(false)}
-        onPromoteToDisplay={handlePromoteToDisplay}
-        onPushToDisplay={handlePushToDisplay}
-        onDismiss={handleDismissRoadwork}
-        onAcknowledge={(roadworkId) => {
-          setShowDetailsModal(false);
-          setShowStatusModal(true);
+        onUpdate={(updatedData) => {
+          console.log('Roadwork updated:', updatedData);
+          loadRoadworks();
         }}
-        isAdmin={isAdmin}
+        onDismiss={(data) => {
+          // Use the roadwork-specific dismiss handler
+          handleDismissRoadwork(data.id || data.notification_id, 'Dismissed via detail modal');
+        }}
+        onPushToDisplay={(data) => {
+          // Use the roadwork-specific display handler
+          if (data.promotedToDisplay) {
+            // Already on display, remove it
+            handlePromoteToDisplay(data.id || data.notification_id);
+          } else {
+            // Not on display, push it
+            handlePushToDisplay(data);
+          }
+        }}
       />
 
       {/* Status Change Modal */}
@@ -1238,169 +1277,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
 
 
 
-// Roadwork Details Modal Component
-const RoadworkDetailsModal = ({ visible, roadwork, onClose, onPromoteToDisplay, onPushToDisplay, onDismiss, onAcknowledge, isAdmin }) => {
-  if (!visible || !roadwork) return null;
 
-  const status = ROADWORKS_STATUSES[roadwork.status] || ROADWORKS_STATUSES.reported;
-  const priority = PRIORITY_LEVELS[roadwork.priority] || PRIORITY_LEVELS.medium;
-
-  const canDismiss = roadwork.status === 'reported' || roadwork.status === 'assessing';
-  const canAcknowledge = roadwork.status !== 'cancelled' && roadwork.status !== 'completed';
-
-  const handleDismissPress = () => {
-    Alert.alert(
-      'Dismiss Roadwork',
-      'Are you sure you want to dismiss this roadwork? This indicates no action is required.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Dismiss',
-          style: 'destructive',
-          onPress: () => {
-            onDismiss(roadwork.id, 'No action required - dismissed by supervisor');
-            onClose();
-          }
-        }
-      ]
-    );
-  };
-
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>
-              {roadwork.isAutomatic ? 'Automatic Roadwork Alert' : 'Roadwork Details'}
-            </Text>
-            <TouchableOpacity onPress={onClose} style={styles.modalCloseButton}>
-              <Ionicons name="close" size={24} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.modalContent}>
-            {/* Status and Priority */}
-            <View style={styles.detailsHeader}>
-              <View style={[styles.statusBadge, { backgroundColor: `${status.color}20` }]}>
-                <Ionicons name={status.icon} size={16} color={status.color} />
-                <Text style={[styles.statusText, { color: status.color }]}>{status.label}</Text>
-              </View>
-              <View style={[styles.priorityBadge, { backgroundColor: priority.bgColor }]}>
-                <Text style={[styles.priorityText, { color: priority.color }]}>{priority.label}</Text>
-              </View>
-            </View>
-
-            {/* Title and Description */}
-            <Text style={styles.detailsTitle}>{roadwork.title}</Text>
-            <Text style={styles.detailsDescription}>{roadwork.description}</Text>
-
-            {/* Location */}
-            <View style={styles.detailsSection}>
-              <Text style={styles.detailsSectionTitle}>Location</Text>
-              <Text style={styles.detailsText}>
-                <Ionicons name="location" size={16} color="#6B7280" /> {roadwork.location}
-              </Text>
-            </View>
-
-            {/* Authority and Contact */}
-            <View style={styles.detailsSection}>
-              <Text style={styles.detailsSectionTitle}>Authority & Contact</Text>
-              <Text style={styles.detailsText}>Authority: {roadwork.authority || 'N/A'}</Text>
-              <Text style={styles.detailsText}>Contact: {roadwork.contactPerson || 'N/A'}</Text>
-              {roadwork.contactPhone && (
-                <Text style={styles.detailsText}>Phone: {roadwork.contactPhone}</Text>
-              )}
-              {roadwork.contactEmail && (
-                <Text style={styles.detailsText}>Email: {roadwork.contactEmail}</Text>
-              )}
-            </View>
-
-            {/* Affected Routes */}
-            {roadwork.affectedRoutes && roadwork.affectedRoutes.length > 0 && (
-              <View style={styles.detailsSection}>
-                <Text style={styles.detailsSectionTitle}>Affected Routes</Text>
-                <View style={styles.routeTags}>
-                  {roadwork.affectedRoutes.map((route) => (
-                    <View key={route} style={styles.routeTag}>
-                      <Text style={styles.routeTagText}>{route}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* Metadata */}
-            <View style={styles.detailsSection}>
-              <Text style={styles.detailsSectionTitle}>Information</Text>
-              <Text style={styles.detailsText}>
-                Created by: {roadwork.createdByName}
-              </Text>
-              <Text style={styles.detailsText}>
-                Created: {new Date(roadwork.createdAt).toLocaleString()}
-              </Text>
-              <Text style={styles.detailsText}>
-                Last Updated: {new Date(roadwork.lastUpdated).toLocaleString()}
-              </Text>
-            </View>
-          </ScrollView>
-
-          {/* Actions */}
-          <View style={styles.modalActions}>
-            {canDismiss && (
-              <TouchableOpacity
-                style={styles.dismissButton}
-                onPress={handleDismissPress}
-              >
-                <Ionicons name="close-circle" size={20} color="#EF4444" />
-                <Text style={[styles.dismissButtonText, { marginLeft: 8 }]}>Dismiss</Text>
-              </TouchableOpacity>
-            )}
-            
-            {canAcknowledge && (
-              <TouchableOpacity
-                style={styles.acknowledgeButton}
-                onPress={() => onAcknowledge(roadwork.id)}
-              >
-                <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-                <Text style={[styles.acknowledgeButtonText, { marginLeft: 8 }]}>Take Action</Text>
-              </TouchableOpacity>
-            )}
-            
-            <TouchableOpacity
-              style={[
-                styles.displayToggleButton,
-                roadwork.promotedToDisplay && styles.displayToggleButtonActive
-              ]}
-              onPress={() => {
-                onPromoteToDisplay(roadwork.id);
-                onClose();
-              }}
-            >
-              <Ionicons 
-                name={roadwork.promotedToDisplay ? "tv" : "tv-outline"} 
-                size={20} 
-                color={roadwork.promotedToDisplay ? "#10B981" : "#6B7280"} 
-              />
-              <Text style={[
-                styles.displayToggleButtonText,
-                roadwork.promotedToDisplay && styles.displayToggleButtonTextActive,
-                { marginLeft: 8 }
-              ]}>
-                {roadwork.promotedToDisplay ? 'Remove from Display' : 'Promote to Display'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
-};
 
 // Define ROADWORKS_STATUSES and PRIORITY_LEVELS for the modal components
 const ROADWORKS_STATUSES = {
@@ -1712,6 +1589,27 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontWeight: '500',
   },
+  displayToggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EBF5FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginLeft: 12,
+  },
+  displayToggleButtonActive: {
+    backgroundColor: '#ECFDF5',
+  },
+  dismissQuickButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginLeft: 12,
+  },
   // Modal Styles
   modalOverlay: {
     flex: 1,
@@ -1778,94 +1676,7 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
 
-  // Details Modal Styles
-  detailsHeader: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  detailsTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 8,
-  },
-  detailsDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-    marginBottom: 16,
-  },
-  detailsSection: {
-    marginBottom: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
-  },
-  detailsSectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  detailsText: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  displayToggleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  displayToggleButtonActive: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#10B981',
-  },
-  displayToggleButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  displayToggleButtonTextActive: {
-    color: '#10B981',
-  },
-  // Dismiss and Acknowledge Button Styles
-  dismissButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-    backgroundColor: '#FEF2F2',
-    marginRight: 12,
-  },
-  dismissButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#EF4444',
-  },
-  acknowledgeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    backgroundColor: '#F0FDF4',
-    marginRight: 12,
-  },
-  acknowledgeButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#10B981',
-  },
+
   // Status Change Modal Styles
   statusModalTitle: {
     fontSize: 18,

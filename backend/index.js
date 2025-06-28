@@ -590,6 +590,12 @@ console.log('📍 Registering location correction routes at /api/location...');
 app.use('/api/location', locationCorrectionAPI);
 console.log('✅ Location correction routes registered successfully');
 
+// Diversions API routes
+console.log('🚏 Registering diversions routes at /api/diversions...');
+import diversionsAPI from './routes/diversionsAPI.js';
+app.use('/api/diversions', diversionsAPI);
+console.log('✅ Diversions routes registered successfully');
+
 // Weather API routes
 console.log('🌤️ Registering weather routes at /api/weather...');
 import weatherAPI from './routes/weatherAPI.js';

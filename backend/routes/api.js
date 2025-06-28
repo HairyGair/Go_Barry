@@ -177,39 +177,69 @@ export function setupAPIRoutes(app, globalState) {
         };
       }
       
-      // 6. Get StreetManager webhook data
-      console.log('🚧 Fetching StreetManager webhook data...');
+      // 6. Get StreetManager roadworks via UnifiedRoadworksManager
+      console.log('🚧 Fetching StreetManager roadworks via unified manager...');
       try {
-        const streetManagerActivities = getWebhookActivities();
-        const streetManagerPermits = getWebhookPermits();
-        const streetManagerData = [...streetManagerActivities.data, ...streetManagerPermits.data];
+        // Import unified roadworks manager
+        const { default: unifiedRoadworksManager } = await import('../services/unifiedRoadworksManager.js');
         
-        if (streetManagerData.length > 0) {
-          allAlerts.push(...streetManagerData);
+        // Get Street Manager roadworks specifically
+        const streetManagerResult = await unifiedRoadworksManager.getStreetManagerRoadworks();
+        
+        if (streetManagerResult.success && streetManagerResult.data.length > 0) {
+          // Convert roadworks to alert format
+          const streetManagerAlerts = streetManagerResult.data.map(roadwork => {
+            return {
+              id: roadwork.id,
+              title: roadwork.title,
+              description: roadwork.description,
+              location: roadwork.location,
+              streetName: roadwork.streetName,
+              coordinates: roadwork.coordinates,
+              severity: roadwork.severity || 'Medium',
+              status: roadwork.status === 'green' ? 'green' : 
+                     roadwork.status === 'red' ? 'red' : 'amber',
+              source: 'StreetManager',
+              type: 'roadwork',
+              lastUpdated: roadwork.lastUpdated,
+              startDate: roadwork.startDate,
+              endDate: roadwork.endDate,
+              affectsRoutes: roadwork.affectedRoutes || [],
+              permitReference: roadwork.permitReference,
+              authority: roadwork.authority,
+              workCategory: roadwork.workCategory,
+              official: true,
+              locationAccuracy: roadwork.locationAccuracy || 'medium'
+            };
+          });
+          
+          allAlerts.push(...streetManagerAlerts);
           sources.streetmanager = {
             success: true,
-            count: streetManagerData.length,
-            method: 'Official UK Roadworks Data (Live Only)',
+            count: streetManagerAlerts.length,
+            method: 'Unified Roadworks Manager (Enhanced Processing)',
             official: true,
-            mode: 'live'
+            mode: 'live',
+            metadata: streetManagerResult.metadata
           };
-          console.log(`✅ StreetManager: ${streetManagerData.length} alerts fetched`);
+          console.log(`✅ StreetManager: ${streetManagerAlerts.length} roadwork alerts integrated`);
         } else {
           sources.streetmanager = {
-            success: true,
+            success: streetManagerResult.success,
             count: 0,
-            method: 'Official UK Roadworks Data (Live Only)',
-            note: 'No current roadworks data',
+            method: 'Unified Roadworks Manager',
+            error: streetManagerResult.error || 'No roadworks data available',
             mode: 'live'
           };
-          console.log('ℹ️ StreetManager: No current roadworks');
+          console.log('ℹ️ StreetManager: No roadworks available via unified manager');
         }
       } catch (streetManagerError) {
-        console.error('❌ StreetManager webhook failed:', streetManagerError.message);
+        console.error('❌ StreetManager unified manager failed:', streetManagerError.message);
         sources.streetmanager = {
           success: false,
           count: 0,
           error: streetManagerError.message,
+          method: 'Unified Roadworks Manager',
           mode: 'live'
         };
       }
