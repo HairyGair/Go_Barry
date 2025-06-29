@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Supervisor API</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .result { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffcccc; }
+        .success { background: #ccffcc; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        pre { white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>Go BARRY Supervisor API Test</h1>
+    
+    <div>
+        <button onclick="testHealth()">Test /api/health (Basic)</button>
+        <button onclick="testList()">Test /api/supervisor/list</button>
+        <button onclick="testSupervisors()">Test /api/supervisor/supervisors</button>
+        <button onclick="testActive()">Test /api/supervisor/active</button>
+        <button onclick="testWithAuth()">Test with Session</button>
+        <button onclick="testAlerts()">Test /api/alerts-enhanced</button>
+        <button onclick="testAdminSupervisors()">Test /api/admin/supervisors</button>
+    </div>
+    
+    <div id="results"></div>
+    
+    <script>
+        const API_BASE = 'https://go-barry.onrender.com';
+        
+        function tryParseJSON(text) {
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                return 'Not valid JSON - see rawResponse';
+            }
+        }
+        
+        function addResult(title, data, isError = false) {
+            const resultsDiv = document.getElementById('results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${isError ? 'error' : 'success'}`;
+            resultDiv.innerHTML = `
+                <h3>${title}</h3>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+                <p>Time: ${new Date().toLocaleTimeString()}</p>
+            `;
+            resultsDiv.insertBefore(resultDiv, resultsDiv.firstChild);
+        }
+        
+        async function testList() {
+            try {
+                const response = await fetch(`${API_BASE}/api/supervisor/list`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const text = await response.text();
+                addResult(`GET /api/supervisor/list - Status: ${response.status}`, {
+                    headers: [...response.headers.entries()],
+                    contentType: response.headers.get('content-type'),
+                    rawResponse: text.substring(0, 500) + (text.length > 500 ? '...' : ''),
+                    isJSON: text.trim().startsWith('{') || text.trim().startsWith('['),
+                    data: tryParseJSON(text)
+                }, !response.ok);
+            } catch (error) {
+                addResult('GET /api/supervisor/list - Error', {
+                    error: error.message,
+                    stack: error.stack
+                }, true);
+            }
+        }
+        
+        async function testSupervisors() {
+            try {
+                const response = await fetch(`${API_BASE}/api/supervisor/supervisors`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const text = await response.text();
+                addResult(`GET /api/supervisor/supervisors - Status: ${response.status}`, {
+                    headers: [...response.headers.entries()],
+                    contentType: response.headers.get('content-type'),
+                    rawResponse: text.substring(0, 500) + (text.length > 500 ? '...' : ''),
+                    isJSON: text.trim().startsWith('{') || text.trim().startsWith('['),
+                    data: tryParseJSON(text)
+                }, !response.ok);
+            } catch (error) {
+                addResult('GET /api/supervisor/supervisors - Error', {
+                    error: error.message,
+                    stack: error.stack
+                }, true);
+            }
+        }
+        
+        async function testActive() {
+            try {
+                const response = await fetch(`${API_BASE}/api/supervisor/active`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                addResult(`GET /api/supervisor/active - Status: ${response.status}`, {
+                    headers: [...response.headers.entries()],
+                    data: data
+                }, !response.ok);
+            } catch (error) {
+                addResult('GET /api/supervisor/active - Error', {
+                    error: error.message,
+                    stack: error.stack
+                }, true);
+            }
+        }
+        
+        async function testWithAuth() {
+            try {
+                // First login as AG003 (admin)
+                const loginResponse = await fetch(`${API_BASE}/api/supervisor/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        supervisorId: 'supervisor003',
+                        badge: 'AG003'
+                    })
+                });
+                
+                const loginData = await loginResponse.json();
+                
+                if (loginData.success && loginData.sessionId) {
+                    addResult('Login successful', loginData);
+                    
+                    // Now test supervisors with session
+                    const supervisorsResponse = await fetch(`${API_BASE}/api/supervisor/supervisors?sessionId=${loginData.sessionId}`, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const supervisorsData = await supervisorsResponse.json();
+                    addResult('GET /api/supervisor/supervisors (with auth)', supervisorsData);
+                } else {
+                    addResult('Login failed', loginData, true);
+                }
+            } catch (error) {
+                addResult('Auth test error', {
+                    error: error.message,
+                    stack: error.stack
+                }, true);
+            }
+        }
+        
+        async function testHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/api/health`, {
+                    method: 'GET'
+                });
+                
+                const text = await response.text();
+                addResult(`GET /api/health - Status: ${response.status}`, {
+                    headers: [...response.headers.entries()],
+                    contentType: response.headers.get('content-type'),
+                    rawResponse: text,
+                    isJSON: text.trim().startsWith('{') || text.trim().startsWith('['),
+                    data: tryParseJSON(text)
+                }, !response.ok);
+            } catch (error) {
+                addResult('GET /api/health - Network Error', {
+                    error: error.message,
+                    stack: error.stack,
+                    note: 'This suggests the backend is not reachable at all'
+                }, true);
+            }
+        }
+        
+        async function testAlerts() {
+            try {
+                const response = await fetch(`${API_BASE}/api/alerts-enhanced`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const text = await response.text();
+                const data = tryParseJSON(text);
+                addResult(`GET /api/alerts-enhanced - Status: ${response.status}`, {
+                    contentType: response.headers.get('content-type'),
+                    isJSON: text.trim().startsWith('{') || text.trim().startsWith('['),
+                    dataReceived: !!data,
+                    alertCount: data?.alerts?.length || 0,
+                    success: data?.success || false
+                }, !response.ok);
+            } catch (error) {
+                addResult('GET /api/alerts-enhanced - Error', {
+                    error: error.message
+                }, true);
+            }
+        }
+        
+        async function testAdminSupervisors() {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/supervisors`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const text = await response.text();
+                addResult(`GET /api/admin/supervisors - Status: ${response.status}`, {
+                    headers: [...response.headers.entries()],
+                    contentType: response.headers.get('content-type'),
+                    rawResponse: text.substring(0, 500) + (text.length > 500 ? '...' : ''),
+                    isJSON: text.trim().startsWith('{') || text.trim().startsWith('['),
+                    data: tryParseJSON(text)
+                }, !response.ok);
+            } catch (error) {
+                addResult('GET /api/admin/supervisors - Error', {
+                    error: error.message
+                }, true);
+            }
+        }
+        
+        // Auto-test on load
+        setTimeout(() => {
+            console.log('Running initial tests...');
+            testHealth();
+        }, 1000);
+    </script>
+</body>
+</html>
