@@ -63,56 +63,46 @@ const SupervisorManagement = ({
   // Load all supervisors - try backend first, fallback to defaults
   const loadSupervisors = async () => {
     setLoading(true);
-    
-    // Skip backend call for now since routes are not working
-    // TODO: Fix backend routes deployment
-    console.log('📋 Using default supervisor data (backend routes need fixing)');
-    setSupervisors(DEFAULT_SUPERVISORS);
-    setLoading(false);
-    
-    /* Commented out until backend routes are fixed
     try {
-      // Try multiple endpoints
-      const endpoints = [
-        '/api/supervisor/supervisors',
-        '/api/supervisor/list',
-        '/api/admin/supervisors'
-      ];
-      
-      for (const endpoint of endpoints) {
-        try {
-          console.log(`🔍 Trying endpoint: ${endpoint}`);
-          const response = await fetch(`${API_BASE}${endpoint}`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && Array.isArray(data.supervisors)) {
-              console.log(`✅ Got ${data.supervisors.length} supervisors from ${endpoint}`);
-              setSupervisors(data.supervisors.filter(s => s != null));
-              return;
-            }
-          }
-        } catch (err) {
-          console.log(`⚠️ ${endpoint} failed:`, err.message);
+      // Use the correct endpoint that exists in the backend
+      const response = await fetch(`${API_BASE}/api/supervisor/supervisors`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
         }
+      });
+      
+      console.log(`📡 Response status: ${response.status}`);
+      console.log(`📡 Response headers:`, [...response.headers.entries()]);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📦 Response data:', data);
+        
+        if (data.success && Array.isArray(data.supervisors)) {
+          // Use backend data if available
+          console.log(`✅ Got ${data.supervisors.length} supervisors from backend`);
+          setSupervisors(data.supervisors.filter(s => s != null));
+        } else {
+          // Use default data
+          console.log('📋 Backend returned no supervisors, using defaults');
+          console.log('📋 Response:', data);
+          setSupervisors(DEFAULT_SUPERVISORS);
+        }
+      } else {
+        // Log the error response
+        const errorText = await response.text();
+        console.log(`❌ Backend error ${response.status}: ${errorText}`);
+        console.log('📋 Using default supervisor data due to backend error');
+        setSupervisors(DEFAULT_SUPERVISORS);
       }
-      
-      // All endpoints failed, use defaults
-      console.log('📋 All endpoints failed, using default supervisor data');
-      setSupervisors(DEFAULT_SUPERVISORS);
-      
     } catch (error) {
       console.error('❌ Error loading supervisors, using defaults:', error);
+      // Use default data on error
       setSupervisors(DEFAULT_SUPERVISORS);
     } finally {
       setLoading(false);
     }
-    */
   };
   
   // Add new supervisor

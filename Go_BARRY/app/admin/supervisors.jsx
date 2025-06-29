@@ -52,7 +52,7 @@ export default function SupervisorManagement() {
   const loadSupervisors = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE}/api/supervisors`);
+      const response = await fetch(`${API_BASE}/api/supervisor/list`);
       
       // Check if the response is ok
       if (!response.ok) {
