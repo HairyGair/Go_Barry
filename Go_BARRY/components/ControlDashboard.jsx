@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { useConvexSync } from '../hooks/useConvexSync';
-import { useBarryAPI } from '../hooks/useBARRYapi';
+import { useBarryAPI } from './hooks/useBARRYapi';
 
 const ControlDashboard = () => {
   const [selectedView, setSelectedView] = useState('overview');

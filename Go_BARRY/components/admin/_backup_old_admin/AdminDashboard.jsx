@@ -1,4 +1,7 @@
-// Go_BARRY/components/admin/AdminDashboard.jsx
+  tabContent: {
+    flex: 1,
+    padding: 20,
+  },// Go_BARRY/components/admin/AdminDashboard.jsx
 // Comprehensive admin dashboard for system management and accountability
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -18,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorSession } from '../hooks/useSupervisorSession';
 import { useConvexSync } from '../../hooks/useConvexSync';
 import MonitoringDashboard from '../MonitoringDashboard';
+import SystemOverview from './SystemOverview';
 import { API_CONFIG } from '../../config/api';
 
 const isWeb = Platform.OS === 'web';
@@ -226,73 +230,7 @@ const AdminDashboard = ({ onClose }) => {
 
   // Tab components
   const renderOverviewTab = () => (
-    <ScrollView style={styles.tabContent}>
-      <Text style={styles.sectionTitle}>System Overview</Text>
-      
-      <View style={styles.statsGrid}>
-        <View style={[styles.statCard, { backgroundColor: '#EFF6FF' }]}>
-          <Ionicons name="alert-circle" size={24} color="#3B82F6" />
-          <Text style={styles.statValue}>{systemStats.totalAlerts}</Text>
-          <Text style={styles.statLabel}>Active Alerts</Text>
-        </View>
-        
-        <View style={[styles.statCard, { backgroundColor: '#F0FDF4' }]}>
-          <Ionicons name="people" size={24} color="#10B981" />
-          <Text style={styles.statValue}>{systemStats.activeSuppervisors}</Text>
-          <Text style={styles.statLabel}>Active Supervisors</Text>
-        </View>
-        
-        <View style={[styles.statCard, { backgroundColor: '#FEF3C7' }]}>
-          <Ionicons name="pulse" size={24} color="#F59E0B" />
-          <Text style={styles.statValue}>{systemStats.todayActivity}</Text>
-          <Text style={styles.statLabel}>Actions Today</Text>
-        </View>
-        
-        <View style={[styles.statCard, { backgroundColor: '#F3E8FF' }]}>
-          <Ionicons name="time" size={24} color="#8B5CF6" />
-          <Text style={styles.statValue}>{systemStats.systemUptime}</Text>
-          <Text style={styles.statLabel}>System Uptime</Text>
-        </View>
-      </View>
-
-      <Text style={styles.sectionTitle}>Alert Distribution</Text>
-      <View style={styles.chartContainer}>
-        {Object.entries(alertStats.bySeverity || {}).map(([severity, count]) => (
-          <View key={severity} style={styles.chartBar}>
-            <Text style={styles.chartLabel}>{severity}</Text>
-            <View style={styles.progressBar}>
-              <View 
-                style={[
-                  styles.progressFill,
-                  { 
-                    width: `${(count / alertStats.total) * 100}%`,
-                    backgroundColor: severity === 'High' ? '#EF4444' : 
-                                   severity === 'Medium' ? '#F59E0B' : '#10B981'
-                  }
-                ]}
-              />
-            </View>
-            <Text style={styles.chartValue}>{count}</Text>
-          </View>
-        ))}
-      </View>
-
-      <Text style={styles.sectionTitle}>API Usage</Text>
-      <View style={styles.apiUsageCard}>
-        <View style={styles.apiUsageRow}>
-          <Text style={styles.apiUsageLabel}>TomTom API Calls Today:</Text>
-          <Text style={styles.apiUsageValue}>{apiUsage.requestsToday || 0}</Text>
-        </View>
-        <View style={styles.apiUsageRow}>
-          <Text style={styles.apiUsageLabel}>Cache Hit Rate:</Text>
-          <Text style={styles.apiUsageValue}>{apiUsage.cacheHitRate || '0%'}</Text>
-        </View>
-        <View style={styles.apiUsageRow}>
-          <Text style={styles.apiUsageLabel}>Average Response Time:</Text>
-          <Text style={styles.apiUsageValue}>{apiUsage.avgResponseTime || '0ms'}</Text>
-        </View>
-      </View>
-    </ScrollView>
+    <SystemOverview />
   );
 
   const renderActivityTab = () => (
@@ -514,9 +452,9 @@ const AdminDashboard = ({ onClose }) => {
           style={[styles.tab, activeTab === 'overview' && styles.tabActive]}
           onPress={() => setActiveTab('overview')}
         >
-          <Ionicons name="analytics" size={20} color={activeTab === 'overview' ? '#3B82F6' : '#6B7280'} />
+          <Ionicons name="speedometer" size={20} color={activeTab === 'overview' ? '#3B82F6' : '#6B7280'} />
           <Text style={[styles.tabText, activeTab === 'overview' && styles.tabTextActive]}>
-            Overview
+            System Overview
           </Text>
         </TouchableOpacity>
         
@@ -643,98 +581,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-  tabContent: {
-    flex: 1,
-    padding: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 16,
-    marginTop: 8,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-    marginBottom: 24,
-  },
-  statCard: {
-    flex: 1,
-    minWidth: 150,
-    padding: 20,
-    borderRadius: 12,
-    alignItems: 'center',
-    gap: 8,
-  },
-  statValue: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1F2937',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  chartContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
-  },
-  chartBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  chartLabel: {
-    width: 80,
-    fontSize: 14,
-    color: '#374151',
-    fontWeight: '500',
-  },
-  progressBar: {
-    flex: 1,
-    height: 20,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 10,
-    marginHorizontal: 12,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 10,
-  },
-  chartValue: {
-    width: 40,
-    fontSize: 14,
-    color: '#374151',
-    fontWeight: '600',
-    textAlign: 'right',
-  },
-  apiUsageCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-  },
-  apiUsageRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  apiUsageLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  apiUsageValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
   },
   filterBar: {
     flexDirection: 'row',

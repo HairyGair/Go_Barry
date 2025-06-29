@@ -15,7 +15,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 // Import all our v3.0 components
-import SupervisorLogin from '../components/SupervisorLogin';
 import SupervisorControl from '../components/SupervisorControl';
 import EnhancedDashboard from '../components/EnhancedDashboard';
 import IncidentManager from '../components/IncidentManager';
@@ -26,7 +25,7 @@ import SystemHealthMonitor from '../components/SystemHealthMonitor';
 import TrainingHelpSystem from '../components/TrainingHelpSystem';
 import RoadworksManager from '../components/RoadworksManager';
 import DisruptionDatabase from '../components/DisruptionDatabase';
-import AdminPanel from '../components/admin/AdminPanel';
+// AdminPanel removed - using new route-based admin
 import DutyBoards from '../components/DutyBoards';
 import { useSupervisor } from '../components/hooks/useSupervisorSession';
 import { useBarryAPI } from '../components/hooks/useBARRYapi';
@@ -39,10 +38,12 @@ const BROWSER_NAVIGATION = {
   admin: {
     title: 'Admin Panel',
     icon: 'shield-checkmark',
-    component: AdminPanel,
+    component: null, // Now uses route navigation
     description: '⭐ System administration & accountability center',
     color: '#F59E0B',
-    adminOnly: true
+    adminOnly: true,
+    isRoute: true,
+    route: '/admin'
   },
   supervisor: {
     title: 'Supervisor Control',
@@ -141,34 +142,15 @@ const BrowserMainApp = () => {
   const { alerts } = useBarryAPI({ autoRefresh: true, refreshInterval: 15000 });
 
   const [activeScreen, setActiveScreen] = useState('supervisor');
-  const [showSupervisorLogin, setShowSupervisorLogin] = useState(false);
-  const [loginJustCompleted, setLoginJustCompleted] = useState(false);
-  const [sessionInitialized, setSessionInitialized] = useState(false);
+  // Login is now handled on the home page
   
-  // Temporary debug logging to verify context fix
+  // Check if user is logged in
   useEffect(() => {
-    console.log('[browser-main] Session state update:', { 
-      isLoggedIn, 
-      supervisorName: supervisorName || 'Not logged in',
-      sessionInitialized,
-      loginJustCompleted,
-      showSupervisorLogin,
-      timestamp: new Date().toLocaleTimeString() 
-    });
-  }, [isLoggedIn, supervisorName, sessionInitialized, loginJustCompleted, showSupervisorLogin]);
-  
-  // Mark session as initialized after a short delay
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSessionInitialized(true);
-    }, 200); // Give time for session to load from storage
-    return () => clearTimeout(timer);
-  }, []);
-  
-  // Debug state changes
-  useEffect(() => {
-    console.log('showSupervisorLogin state changed to:', showSupervisorLogin);
-  }, [showSupervisorLogin]);
+    if (!isLoggedIn) {
+      // Redirect to home page if not logged in
+      window.location.href = '/';
+    }
+  }, [isLoggedIn]);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -248,41 +230,11 @@ const BrowserMainApp = () => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Enhanced logout function that ensures modal opens
   const handleLogout = async () => {
-    console.log('Logout clicked - clearing session...');
     await logout();
-    // Force login modal to open after logout
-    setTimeout(() => {
-      setShowSupervisorLogin(true);
-      console.log('Login modal should now be open');
-    }, 100);
+    // Redirect to home page after logout
+    window.location.href = '/';
   };
-
-  // Force login modal to open for non-logged-in users on first load
-  useEffect(() => {
-    if (!isLoggedIn && !showSupervisorLogin && !loginJustCompleted && sessionInitialized) {
-      console.log('User not logged in, opening login modal automatically');
-      // Small delay to ensure component is fully mounted and prevent race conditions
-      const timer = setTimeout(() => {
-        // Double-check user is still not logged in before opening modal
-        if (!isLoggedIn && !loginJustCompleted && sessionInitialized) {
-          setShowSupervisorLogin(true);
-        }
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [isLoggedIn, showSupervisorLogin, loginJustCompleted, sessionInitialized]);
-  
-  // Clear login completed flag after a delay
-  useEffect(() => {
-    if (loginJustCompleted) {
-      const timer = setTimeout(() => {
-        setLoginJustCompleted(false);
-      }, 3000); // 3 second cooldown
-      return () => clearTimeout(timer);
-    }
-  }, [loginJustCompleted]);
 
   const renderActiveScreen = () => {
     const screenConfig = BROWSER_NAVIGATION[activeScreen];
@@ -333,26 +285,13 @@ const BrowserMainApp = () => {
                 hour12: false 
               })}
             </Text>
-            {isLoggedIn ? (
-              <TouchableOpacity
-                style={styles.profileButton}
-                onPress={() => setShowSupervisorLogin(true)}
-              >
-                <Ionicons name="person-circle" size={24} color="#6B7280" />
-                <Text style={styles.profileText}>{supervisorName}</Text>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={[styles.profileButton, { backgroundColor: '#3B82F6' }]}
-                onPress={() => {
-                  console.log('Header login button clicked');
-                  setShowSupervisorLogin(true);
-                }}
-              >
-                <Ionicons name="log-in" size={20} color="#FFFFFF" />
-                <Text style={[styles.profileText, { color: '#FFFFFF' }]}>Login</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={styles.profileButton}
+              onPress={() => {}}
+            >
+              <Ionicons name="person-circle" size={24} color="#6B7280" />
+              <Text style={styles.profileText}>{supervisorName}</Text>
+            </TouchableOpacity>
           </View>
         </View>
         
@@ -365,11 +304,9 @@ const BrowserMainApp = () => {
               supervisorSession={supervisorSession} // Pass full session
               alerts={alerts}
             />
-          ) : activeScreen === 'admin' ? (
-            <AdminPanel onClose={() => setActiveScreen('supervisor')} />
           ) : (
             <ScreenComponent baseUrl={API_CONFIG.baseURL} />
-          )}
+          )}        
         </View>
       </View>
     );
@@ -377,43 +314,7 @@ const BrowserMainApp = () => {
 
   return (
     <View style={styles.container}>
-      {/* Show login prompt if not logged in and modal isn't showing */}
-      {!isLoggedIn && !showSupervisorLogin && !loginJustCompleted && sessionInitialized && (
-        <TouchableOpacity 
-          style={styles.loginPromptOverlay} 
-          data-testid="login-prompt-overlay"
-          activeOpacity={1}
-          onPress={() => {
-            // Clicking overlay also opens login
-            setShowSupervisorLogin(true);
-          }}
-        >
-          <TouchableOpacity 
-            style={styles.loginPromptCard}
-            activeOpacity={1}
-            onPress={(e) => e.stopPropagation()}
-          >
-            <Ionicons name="shield-checkmark" size={48} color="#3B82F6" />
-            <Text style={styles.loginPromptTitle}>Supervisor Access Required</Text>
-            <Text style={styles.loginPromptText}>
-              Please log in with your supervisor credentials to access Go Barry
-            </Text>
-            <TouchableOpacity
-              style={styles.loginPromptButton}
-              onPress={() => {
-                console.log('Manual login button clicked, current state:', { showSupervisorLogin, isLoggedIn });
-                setShowSupervisorLogin(true);
-              }}
-            >
-              <Ionicons name="log-in" size={20} color="#FFFFFF" />
-              <Text style={styles.loginPromptButtonText}>Log In</Text>
-            </TouchableOpacity>
-            <Text style={styles.loginPromptHelp}>
-              If you're having trouble, try refreshing the page or contact IT support
-            </Text>
-          </TouchableOpacity>
-        </TouchableOpacity>
-      )}
+
 
       {/* Sidebar Navigation */}
       <View style={[styles.sidebar, sidebarCollapsed && styles.sidebarCollapsed]}>
@@ -497,7 +398,14 @@ const BrowserMainApp = () => {
                 activeScreen === screenId && styles.navItemActive,
                 sidebarCollapsed && styles.navItemCollapsed
               ]}
-              onPress={() => setActiveScreen(screenId)}
+              onPress={() => {
+                if (screen.isRoute) {
+                  // Navigate to route instead of changing component
+                  window.location.href = screen.route;
+                } else {
+                  setActiveScreen(screenId);
+                }
+              }}
             >
               <View style={styles.navItemContent}>
                 <Ionicons 
@@ -529,30 +437,15 @@ const BrowserMainApp = () => {
 
         {/* Footer Actions */}
         <View style={styles.sidebarFooter}>
-          {!isLoggedIn ? (
-            <TouchableOpacity
-              style={styles.footerButton}
-              onPress={() => {
-                console.log('Login button clicked');
-                setShowSupervisorLogin(true);
-              }}
-            >
-              <Ionicons name="log-in" size={20} color="#3B82F6" />
-              {!sidebarCollapsed && (
-                <Text style={styles.footerButtonText}>Login</Text>
-              )}
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.footerButton}
-              onPress={handleLogout}
-            >
-              <Ionicons name="log-out" size={20} color="#EF4444" />
-              {!sidebarCollapsed && (
-                <Text style={[styles.footerButtonText, { color: '#EF4444' }]}>Logout</Text>
-              )}
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={styles.footerButton}
+            onPress={handleLogout}
+          >
+            <Ionicons name="log-out" size={20} color="#EF4444" />
+            {!sidebarCollapsed && (
+              <Text style={[styles.footerButtonText, { color: '#EF4444' }]}>Logout</Text>
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -561,40 +454,7 @@ const BrowserMainApp = () => {
         {renderActiveScreen()}
       </View>
 
-      {/* Supervisor Login Modal - Always rendered to ensure it's available */}
-      {Platform.OS === 'web' ? (
-        // Web-specific render to avoid modal issues
-        showSupervisorLogin && (
-          <View style={styles.webModalWrapper}>
-            <SupervisorLogin
-              visible={true}  // Always visible when rendered on web
-              onClose={() => {
-                console.log('Closing login modal');
-                setShowSupervisorLogin(false);
-              }}
-              onLoginSuccess={() => {
-                console.log('Login success in BrowserMainApp');
-                setShowSupervisorLogin(false);  // Explicitly close modal
-                setLoginJustCompleted(true);    // Prevent immediate re-open
-              }}
-            />
-          </View>
-        )
-      ) : (
-        // Native modal for mobile
-        <SupervisorLogin
-          visible={showSupervisorLogin || false}  // Ensure boolean value
-          onClose={() => {
-            console.log('Closing login modal');
-            setShowSupervisorLogin(false);
-          }}
-          onLoginSuccess={() => {
-            console.log('Login success in BrowserMainApp');
-            setShowSupervisorLogin(false);  // Explicitly close modal
-            setLoginJustCompleted(true);    // Prevent immediate re-open
-          }}
-        />
-      )}
+
     </View>
   );
 };

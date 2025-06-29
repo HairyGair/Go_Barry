@@ -1,5 +1,6 @@
 // Analytics Service for Go BARRY
-import { Platform } from 'react-native';
+import React from 'react';
+import { Platform, Dimensions } from 'react-native';
 
 class AnalyticsService {
   constructor() {
@@ -235,7 +236,7 @@ class AnalyticsService {
     if (Platform.OS === 'web') {
       return `${window.screen.width}x${window.screen.height}`;
     }
-    const { width, height } = require('react-native').Dimensions.get('window');
+    const { width, height } = Dimensions.get('window');
     return `${width}x${height}`;
   }
 

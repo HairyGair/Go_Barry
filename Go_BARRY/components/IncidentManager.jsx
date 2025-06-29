@@ -166,7 +166,7 @@ function formatDiversionsForCopy(data) {
   let text = 'AI DIVERSION SUGGESTIONS\n';
   text += '======================\n\n';
   
-  text += `Priority: ${data.suggestions.severity.toUpperCase()}\n`;
+  text += `Priority: ${data.suggestions?.severity?.toUpperCase() || 'UNKNOWN'}\n`;
   text += `Location: ${data.incident.location}\n`;
   text += `Affected Routes: ${data.incident.affectedRoutes?.join(', ') || 'None'}\n\n`;
   
@@ -186,7 +186,7 @@ function formatDiversionsForCopy(data) {
     });
   }
   
-  if (data.formatted.diversions.length > 0) {
+  if (data.formatted.diversions?.length > 0) {
     text += 'ROUTE DIVERSIONS:\n';
     data.formatted.diversions.forEach(div => {
       text += `• Route ${div.route} → ${div.primaryAlternative}\n`;
@@ -764,7 +764,13 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
         error: error.message,
         formatted: {
           summary: 'Unable to generate diversions',
-          keyAdvice: ['Please check route information manually']
+          keyAdvice: ['Please check route information manually'],
+          diversions: [],
+          tomtomRoutes: [],
+          interchanges: []
+        },
+        suggestions: {
+          severity: 'unknown'
         }
       });
     } finally {
@@ -1896,18 +1902,18 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
                 <View>
                   {/* Summary */}
                   <View style={styles.diversionSection}>
-                    <Text style={styles.diversionSummary}>{diversionsData.formatted.summary}</Text>
+                    <Text style={styles.diversionSummary}>{diversionsData.formatted?.summary || 'No summary available'}</Text>
                     <View style={[styles.severityIndicator, { backgroundColor: 
-                      diversionsData.suggestions.severity === 'critical' ? '#FEE2E2' :
-                      diversionsData.suggestions.severity === 'high' ? '#FEF3C7' :
-                      diversionsData.suggestions.severity === 'medium' ? '#DBEAFE' : '#D1FAE5'
+                      diversionsData.suggestions?.severity === 'critical' ? '#FEE2E2' :
+                      diversionsData.suggestions?.severity === 'high' ? '#FEF3C7' :
+                      diversionsData.suggestions?.severity === 'medium' ? '#DBEAFE' : '#D1FAE5'
                     }]}>
                       <Text style={[styles.severityText, { color:
-                        diversionsData.suggestions.severity === 'critical' ? '#DC2626' :
-                        diversionsData.suggestions.severity === 'high' ? '#F59E0B' :
-                        diversionsData.suggestions.severity === 'medium' ? '#3B82F6' : '#10B981'
+                        diversionsData.suggestions?.severity === 'critical' ? '#DC2626' :
+                        diversionsData.suggestions?.severity === 'high' ? '#F59E0B' :
+                        diversionsData.suggestions?.severity === 'medium' ? '#3B82F6' : '#10B981'
                       }]}>
-                        {diversionsData.suggestions.severity.toUpperCase()} PRIORITY
+                        {diversionsData.suggestions?.severity?.toUpperCase() || 'UNKNOWN'} PRIORITY
                       </Text>
                     </View>
                   </View>
@@ -1966,7 +1972,7 @@ const IncidentManager = ({ baseUrl, sector = 4 }) => {
                   )}
                   
                   {/* Route-Specific Diversions */}
-                  {diversionsData.formatted.diversions.length > 0 && (
+                  {diversionsData.formatted.diversions?.length > 0 && (
                     <View style={styles.diversionSection}>
                       <Text style={styles.diversionSectionTitle}>
                         <Ionicons name="swap-horizontal" size={16} color="#374151" /> Route Diversions

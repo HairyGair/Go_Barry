@@ -37,6 +37,7 @@ import { parse } from 'csv-parse/sync';
 
 // Import ALL working services
 import { fetchTomTomTrafficWithStreetNames } from './services/tomtom-enhanced.js';
+import adminAPI from './routes/adminAPI.js';
 
 
 import { fetchNationalHighways } from './services/nationalHighways.js';
@@ -420,6 +421,9 @@ console.log(`🎯 index.js: Same app check: ${app === global.goBarryApp}`);
 app.use('/api/health', healthRoutes);
 app.use('/api/health-extended', healthExtendedRouter);
 
+// Admin API routes
+app.use('/api/admin', adminAPI);
+
 // Supervisor management routes
 app.use('/api/supervisor', supervisorAPI);
 
@@ -613,6 +617,12 @@ console.log('🚌 Registering VIX routes at /api/vix...');
 import vixAPI from './routes/vixAPI.js';
 app.use('/api/vix', vixAPI);
 console.log('✅ VIX routes registered successfully');
+
+// Template system routes
+console.log('📝 Registering template routes at /api/templates...');
+import templateAPI from './routes/templateAPI.js';
+app.use('/api/templates', templateAPI);
+console.log('✅ Template routes registered successfully');
 
 import { enhanceAlertWithCategory } from './services/alertCategorizer.js';
 

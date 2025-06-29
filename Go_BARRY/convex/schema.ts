@@ -264,4 +264,178 @@ export default defineSchema({
     timestamp: v.number()
   })
     .index("by_timestamp", ["timestamp"]),
+
+  // Display messages for intelligent forwarding (Phase 2)
+  displayMessages: defineTable({
+    messageId: v.string(),
+    content: v.string(),
+    priority: v.number(), // 0=P0, 1=P1, 2=P2, 3=P3
+    messageType: v.string(),
+    supervisorId: v.string(),
+    supervisorName: v.string(),
+    templateId: v.optional(v.string()),
+    templateVariables: v.optional(v.any()),
+    displayDuration: v.number(),
+    rotationInterval: v.number(),
+    autoTriggered: v.boolean(),
+    source: v.string(), // 'supervisor', 'event', 'roadwork', 'system'
+    displayed: v.boolean(),
+    displayedAt: v.optional(v.number()),
+    displayCount: v.number(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index("by_priority", ["priority", "createdAt"])
+    .index("active", ["displayed", "expiresAt"])
+    .index("by_supervisor", ["supervisorId"])
+    .index("by_expiry", ["expiresAt"]),
+
+  // Multi-supervisor coordination messages (Phase 4.1)
+  coordinationMessages: defineTable({
+    messageId: v.string(),
+    content: v.string(),
+    messageType: v.string(), // 'broadcast', 'depot', 'direct', 'alert_coordination'
+    priority: v.string(), // 'low', 'medium', 'high', 'urgent'
+    
+    // Sender information
+    fromSupervisorId: v.string(),
+    fromSupervisorName: v.string(),
+    fromSupervisorBadge: v.string(),
+    
+    // Target information
+    targetType: v.string(), // 'all', 'depot', 'direct', 'role'
+    targetDepots: v.array(v.string()), // Empty array for all/direct messages
+    targetSupervisors: v.array(v.string()), // Specific supervisor IDs for direct messages
+    targetRoles: v.array(v.string()), // admin, supervisor, etc
+    
+    // Message metadata
+    subject: v.optional(v.string()),
+    relatedAlertId: v.optional(v.string()),
+    relatedIncidentId: v.optional(v.string()),
+    requiresResponse: v.boolean(),
+    autoExpire: v.boolean(),
+    
+    // Read receipts and responses
+    readBy: v.array(v.object({
+      supervisorId: v.string(),
+      supervisorName: v.string(),
+      readAt: v.number(),
+    })),
+    
+    responses: v.array(v.object({
+      responseId: v.string(),
+      supervisorId: v.string(),
+      supervisorName: v.string(),
+      response: v.string(),
+      respondedAt: v.number(),
+    })),
+    
+    // Timestamps
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    isActive: v.boolean(),
+  })
+    .index("by_target_type", ["targetType"])
+    .index("by_priority", ["priority", "createdAt"])
+    .index("by_sender", ["fromSupervisorId"])
+    .index("by_active", ["isActive", "createdAt"])
+    .index("by_expiry", ["expiresAt"]),
+
+  // Depot channels for organized communication (Phase 4.1)
+  depotChannels: defineTable({
+    channelId: v.string(),
+    name: v.string(),
+    description: v.string(),
+    depotCode: v.string(), // 'BLY', 'CHE', 'CON', 'HEX', 'PMT', 'RIV', 'STN', 'WAS', 'WBY'
+    
+    // Channel settings
+    isActive: v.boolean(),
+    autoArchive: v.boolean(),
+    archiveAfterHours: v.number(),
+    allowedRoles: v.array(v.string()),
+    
+    // Moderation
+    moderators: v.array(v.string()), // Supervisor IDs
+    
+    // Metadata
+    messageCount: v.number(),
+    lastMessageAt: v.optional(v.number()),
+    createdBy: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_depot", ["depotCode"])
+    .index("by_active", ["isActive"])
+    .index("by_last_message", ["lastMessageAt"]),
+
+  // Handover notes for shift transitions (Phase 3)
+  handoverNotes: defineTable({
+    handoverId: v.string(),
+    
+    // Shift information
+    fromSupervisor: v.string(),
+    fromSupervisorName: v.string(),
+    fromShift: v.string(),
+    toSupervisor: v.optional(v.string()),
+    toSupervisorName: v.optional(v.string()),
+    toShift: v.string(),
+    
+    // Handover data
+    shiftDate: v.string(),
+    shiftSummary: v.string(),
+    activeIncidents: v.array(v.object({
+      incidentId: v.string(),
+      type: v.string(),
+      location: v.string(),
+      severity: v.string(),
+      routesAffected: v.array(v.string()),
+      notes: v.string(),
+    })),
+    
+    unresolvedAlerts: v.array(v.object({
+      alertId: v.string(),
+      title: v.string(),
+      location: v.string(),
+      severity: v.string(),
+      timestamp: v.number(),
+      notes: v.string(),
+    })),
+    
+    keyDecisions: v.array(v.object({
+      decision: v.string(),
+      reasoning: v.string(),
+      timestamp: v.number(),
+      impact: v.string(),
+    })),
+    
+    recommendations: v.array(v.object({
+      priority: v.string(),
+      recommendation: v.string(),
+      reasoning: v.string(),
+    })),
+    
+    // Statistics
+    shiftStats: v.object({
+      alertsHandled: v.number(),
+      incidentsCreated: v.number(),
+      roadworksCreated: v.number(),
+      messagesWillSent: v.number(),
+      averageResponseTime: v.number(),
+    }),
+    
+    supervisorNotes: v.string(),
+    
+    // Acknowledgment
+    acknowledged: v.boolean(),
+    acknowledgedBy: v.optional(v.string()),
+    acknowledgedAt: v.optional(v.number()),
+    
+    // Timestamps
+    createdAt: v.number(),
+    expiresAt: v.number(), // Auto-expire after 48 hours
+  })
+    .index("by_shift_date", ["shiftDate"])
+    .index("by_from_supervisor", ["fromSupervisor"])
+    .index("by_to_supervisor", ["toSupervisor"])
+    .index("by_acknowledged", ["acknowledged"])
+    .index("by_expiry", ["expiresAt"]),
 });

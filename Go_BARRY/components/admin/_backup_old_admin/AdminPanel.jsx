@@ -25,6 +25,7 @@ import ApiUsageStats from './ApiUsageStats';
 import SystemConfiguration from './SystemConfiguration';
 import IntelligenceDashboard from './IntelligenceDashboard';
 import UnifiedRoadworksManager from './UnifiedRoadworksManager';
+import SystemOverview from './SystemOverview';
 
 const API_BASE = 'https://go-barry.onrender.com';
 
@@ -34,6 +35,8 @@ const AdminPanel = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [systemHealth, setSystemHealth] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  console.log('🔴 AdminPanel: activeTab =', activeTab);
   const [stats, setStats] = useState({
     totalAlerts: 0,
     activeAlerts: 0,
@@ -124,127 +127,15 @@ const AdminPanel = ({ onClose }) => {
     { id: 'config', label: 'Configuration', icon: 'settings' }
   ];
 
-  // System Overview Component
-  const SystemOverview = () => (
-    <View style={styles.tabContent}>
-      <Text style={styles.sectionTitle}>System Health Status</Text>
-      
-      {/* Debug Info for Admin Access */}
-      {Platform.OS === 'web' && (
-        <View style={[styles.healthCard, { borderLeftColor: '#8B5CF6', marginBottom: 16 }]}>
-          <Ionicons name="bug" size={24} color="#8B5CF6" />
-          <Text style={styles.healthCardTitle}>Session Debug Info</Text>
-          <Text style={styles.debugText}>
-            Name: {supervisorSession?.supervisor?.name || 'Unknown'}\n
-            Badge: {supervisorSession?.supervisor?.badge || 'None'}\n
-            Is Admin: {isAdmin ? 'Yes ✅' : 'No ❌'}\n
-            Role: {supervisorSession?.supervisor?.role || 'Unknown'}
-          </Text>
-        </View>
-      )}
-      
-      <View style={styles.healthGrid}>
-        <View style={[styles.healthCard, { borderLeftColor: systemHealth?.status === 'healthy' ? '#10B981' : '#EF4444' }]}>
-          <Ionicons 
-            name={systemHealth?.status === 'healthy' ? 'checkmark-circle' : 'warning'} 
-            size={24} 
-            color={systemHealth?.status === 'healthy' ? '#10B981' : '#EF4444'} 
-          />
-          <Text style={styles.healthCardTitle}>Backend Status</Text>
-          <Text style={styles.healthCardValue}>{systemHealth?.status?.toUpperCase() || 'UNKNOWN'}</Text>
-        </View>
 
-        <View style={[styles.healthCard, { borderLeftColor: '#3B82F6' }]}>
-          <Ionicons name="time" size={24} color="#3B82F6" />
-          <Text style={styles.healthCardTitle}>System Uptime</Text>
-          <Text style={styles.healthCardValue}>{stats.systemUptime}</Text>
-        </View>
-
-        <View style={[styles.healthCard, { borderLeftColor: '#8B5CF6' }]}>
-          <Ionicons name="server" size={24} color="#8B5CF6" />
-          <Text style={styles.healthCardTitle}>Memory Usage</Text>
-          <Text style={styles.healthCardValue}>{systemHealth?.memory?.percentage || '0'}%</Text>
-        </View>
-
-        <View style={[styles.healthCard, { borderLeftColor: '#F59E0B' }]}>
-          <Ionicons name="git-network" size={24} color="#F59E0B" />
-          <Text style={styles.healthCardTitle}>API Calls (24h)</Text>
-          <Text style={styles.healthCardValue}>{stats.apiCalls24h.toLocaleString()}</Text>
-        </View>
-      </View>
-
-      <Text style={styles.sectionTitle}>Quick Stats</Text>
-      
-      <View style={styles.statsGrid}>
-        <View style={styles.statCard}>
-          <Text style={styles.statNumber}>{stats.totalAlerts}</Text>
-          <Text style={styles.statLabel}>Total Alerts</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={[styles.statNumber, { color: '#EF4444' }]}>{stats.activeAlerts}</Text>
-          <Text style={styles.statLabel}>Active Alerts</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={[styles.statNumber, { color: '#10B981' }]}>{stats.dismissedAlerts}</Text>
-          <Text style={styles.statLabel}>Dismissed</Text>
-        </View>
-        <View style={styles.statCard}>
-          <Text style={[styles.statNumber, { color: '#3B82F6' }]}>{stats.supervisorsOnline}</Text>
-          <Text style={styles.statLabel}>Supervisors Online</Text>
-        </View>
-      </View>
-
-      <Text style={styles.sectionTitle}>API Services Status</Text>
-      
-      <View style={styles.servicesGrid}>
-        {systemHealth?.services && Object.entries(systemHealth.services).map(([service, status]) => (
-          <View key={service} style={styles.serviceItem}>
-            <Ionicons 
-              name={status.healthy ? 'checkmark-circle' : 'close-circle'} 
-              size={16} 
-              color={status.healthy ? '#10B981' : '#EF4444'} 
-            />
-            <Text style={styles.serviceName}>{service}</Text>
-            <Text style={[styles.serviceStatus, { color: status.healthy ? '#10B981' : '#EF4444' }]}>
-              {status.healthy ? 'Online' : 'Offline'}
-            </Text>
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.adminActions}>
-        <TouchableOpacity style={styles.actionButton} onPress={() => Alert.alert('Backup', 'Starting system backup...')}>
-          <Ionicons name="save" size={20} color="#FFFFFF" />
-          <Text style={styles.actionButtonText}>Backup System</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.actionButton, { backgroundColor: '#EF4444' }]} 
-          onPress={() => Alert.alert('Clear Cache', 'Are you sure you want to clear all caches?', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Clear', style: 'destructive', onPress: () => console.log('Clearing cache...') }
-          ])}
-        >
-          <Ionicons name="trash" size={20} color="#FFFFFF" />
-          <Text style={styles.actionButtonText}>Clear Cache</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
 
   // Render active tab content
   const renderTabContent = () => {
-    if (loading && activeTab === 'overview') {
-      return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>Loading admin data...</Text>
-        </View>
-      );
-    }
-
+    console.log('🟢 AdminPanel: renderTabContent called, activeTab =', activeTab);
+    
     switch (activeTab) {
       case 'overview':
+        console.log('🟡 AdminPanel: Rendering SystemOverview component');
         return <SystemOverview />;
       case 'intelligence':
         return <IntelligenceDashboard supervisorToken={supervisorSession?.token} />;
@@ -318,9 +209,9 @@ const AdminPanel = ({ onClose }) => {
       </ScrollView>
 
       {/* Content Area */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.content}>
         {renderTabContent()}
-      </ScrollView>
+      </View>
     </View>
   );
 };
@@ -400,7 +291,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tabContent: {
-    padding: 20,
+    flex: 1,
   },
   loadingContainer: {
     flex: 1,

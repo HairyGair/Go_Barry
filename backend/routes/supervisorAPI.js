@@ -1573,6 +1573,254 @@ router.post('/clear-state', async (req, res) => {
   }
 });
 
+// ===== SUPERVISOR COORDINATION ENDPOINTS =====
+
+// Coordinate with other supervisors
+router.post('/coordinate', async (req, res) => {
+  try {
+    const { sessionId, message, targetSupervisor, priority = 'medium' } = req.body;
+    
+    if (!sessionId || !message) {
+      return res.status(400).json({
+        success: false,
+        error: 'Session ID and message are required'
+      });
+    }
+    
+    // Validate supervisor session
+    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
+    if (!sessionResult.success) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid session'
+      });
+    }
+    
+    const coordination = {
+      id: `coord_${Date.now()}`,
+      fromSupervisor: sessionResult.supervisor.name,
+      fromBadge: sessionResult.supervisor.badge,
+      targetSupervisor: targetSupervisor || 'all',
+      message,
+      priority,
+      timestamp: new Date().toISOString(),
+      read: false
+    };
+    
+    // Store coordination message (in production, use Convex)
+    if (!global.coordinationMessages) {
+      global.coordinationMessages = [];
+    }
+    global.coordinationMessages.push(coordination);
+    
+    // Log system action
+    await supervisorActivityLogger.logSystemAction(
+      sessionResult.supervisor.badge,
+      sessionResult.supervisor.name,
+      'supervisor-coordination',
+      {
+        target: targetSupervisor,
+        message,
+        priority
+      }
+    );
+    
+    console.log(`🤝 Coordination message from ${sessionResult.supervisor.name} to ${targetSupervisor}: ${message}`);
+    
+    res.json({
+      success: true,
+      message: 'Coordination message sent',
+      coordination
+    });
+  } catch (error) {
+    console.error('❌ Supervisor coordination error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to send coordination message'
+    });
+  }
+});
+
+// Get active sessions for coordination
+router.get('/active-sessions', async (req, res) => {
+  try {
+    const activeSupervisors = await supervisorManager.getActiveSupervisors();
+    
+    const sessions = activeSupervisors.map(supervisor => ({
+      supervisorId: supervisor.id,
+      supervisorName: supervisor.name,
+      badge: supervisor.badge,
+      role: supervisor.role,
+      sessionStart: supervisor.sessionStart,
+      lastActivity: supervisor.lastActivity,
+      isOnline: true
+    }));
+    
+    res.json({
+      success: true,
+      activeSessions: sessions,
+      count: sessions.length,
+      lastUpdated: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Active sessions error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get active sessions'
+    });
+  }
+});
+
+// Create handover notes
+router.post('/handover', async (req, res) => {
+  try {
+    const { sessionId, shiftSummary, incidents, unresolved, notes, nextSupervisor } = req.body;
+    
+    if (!sessionId || !shiftSummary) {
+      return res.status(400).json({
+        success: false,
+        error: 'Session ID and shift summary are required'
+      });
+    }
+    
+    // Validate supervisor session
+    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
+    if (!sessionResult.success) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid session'
+      });
+    }
+    
+    const handover = {
+      id: `handover_${Date.now()}`,
+      fromSupervisor: sessionResult.supervisor.name,
+      fromBadge: sessionResult.supervisor.badge,
+      nextSupervisor: nextSupervisor || null,
+      shiftDate: new Date().toISOString().split('T')[0],
+      shiftSummary,
+      incidents: incidents || [],
+      unresolved: unresolved || [],
+      notes: notes || '',
+      createdAt: new Date().toISOString(),
+      acknowledged: false
+    };
+    
+    // Store handover (in production, use Convex)
+    if (!global.handoverNotes) {
+      global.handoverNotes = [];
+    }
+    global.handoverNotes.push(handover);
+    
+    // Log system action
+    await supervisorActivityLogger.logSystemAction(
+      sessionResult.supervisor.badge,
+      sessionResult.supervisor.name,
+      'shift-handover',
+      {
+        nextSupervisor,
+        incidentCount: incidents?.length || 0,
+        unresolvedCount: unresolved?.length || 0
+      }
+    );
+    
+    console.log(`📋 Handover created by ${sessionResult.supervisor.name} for ${nextSupervisor || 'next shift'}`);
+    
+    res.json({
+      success: true,
+      message: 'Handover created successfully',
+      handover
+    });
+  } catch (error) {
+    console.error('❌ Handover creation error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create handover'
+    });
+  }
+});
+
+// Get recent handovers
+router.get('/handovers', async (req, res) => {
+  try {
+    const { limit = 10 } = req.query;
+    
+    const handovers = (global.handoverNotes || [])
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, parseInt(limit));
+    
+    res.json({
+      success: true,
+      handovers,
+      count: handovers.length
+    });
+  } catch (error) {
+    console.error('❌ Get handovers error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get handovers'
+    });
+  }
+});
+
+// Acknowledge handover
+router.post('/handover/:handoverId/acknowledge', async (req, res) => {
+  try {
+    const { handoverId } = req.params;
+    const { sessionId } = req.body;
+    
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Session ID is required'
+      });
+    }
+    
+    // Validate supervisor session
+    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
+    if (!sessionResult.success) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid session'
+      });
+    }
+    
+    // Find and acknowledge handover
+    if (global.handoverNotes) {
+      const handover = global.handoverNotes.find(h => h.id === handoverId);
+      if (handover) {
+        handover.acknowledged = true;
+        handover.acknowledgedBy = sessionResult.supervisor.name;
+        handover.acknowledgedAt = new Date().toISOString();
+        
+        console.log(`✅ Handover ${handoverId} acknowledged by ${sessionResult.supervisor.name}`);
+        
+        res.json({
+          success: true,
+          message: 'Handover acknowledged',
+          handover
+        });
+      } else {
+        res.status(404).json({
+          success: false,
+          error: 'Handover not found'
+        });
+      }
+    } else {
+      res.status(404).json({
+        success: false,
+        error: 'No handovers found'
+      });
+    }
+  } catch (error) {
+    console.error('❌ Acknowledge handover error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to acknowledge handover'
+    });
+  }
+});
+
 // Validate supervisor by ID (for roadwork creation)
 router.post('/validate', async (req, res) => {
   try {
@@ -1648,6 +1896,50 @@ router.post('/log-duty', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to log duty'
+    });
+  }
+});
+
+// Get coordination messages for supervisor
+router.get('/coordination/messages', async (req, res) => {
+  try {
+    const { sessionId, limit = 50 } = req.query;
+    
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Session ID is required'
+      });
+    }
+    
+    // Validate supervisor session
+    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
+    if (!sessionResult.success) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid session'
+      });
+    }
+    
+    const messages = (global.coordinationMessages || [])
+      .filter(msg => 
+        msg.targetSupervisor === 'all' || 
+        msg.targetSupervisor === sessionResult.supervisor.name
+      )
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+      .slice(0, parseInt(limit));
+    
+    res.json({
+      success: true,
+      messages,
+      count: messages.length,
+      unreadCount: messages.filter(m => !m.read).length
+    });
+  } catch (error) {
+    console.error('❌ Get coordination messages error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get coordination messages'
     });
   }
 });

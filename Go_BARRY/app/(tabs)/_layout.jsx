@@ -137,6 +137,20 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
+        name="supervisor"
+        options={{
+          title: 'Supervisor',
+          headerTitle: 'Supervisor Hub',
+          tabBarIcon: ({ color, size, focused }) => (
+            <Ionicons 
+              name={focused ? "person-circle" : "person-circle-outline"} 
+              size={size} 
+              color={color} 
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="control"
         options={{
           title: 'Control',
