@@ -24,9 +24,44 @@
 
 ## Phase 1: Foundation Setup
 
-### Step 1.1: Create Feature Branch & Backup
+### Step 1.1: Create Feature Branch & Backup ✅
 - Created backups directory
 - Migration log created: MIGRATION_LOG.md
-- Ready for git commands...
-✅ Backup created at: backups/go-barry-pre-operations-20250630-153010.tar.gz
-✅ Backup created at: backups/go-barry-pre-operations-20250630-153021.tar.gz
+- Feature branch created: feature/operations-centre-admin-style
+- Backup completed
+
+### Step 1.2: Create New Directory Structure ✅
+- Created /app/operations-centre/
+  - components/
+  - styles/
+  - __tests__/
+- Created /components/operations/
+  - cards/
+  - modals/
+  - shared/
+- Structure verified and ready
+
+### Step 1.3: Dependency Mapping ✅
+Documenting current component usage...
+
+#### Current Component Locations:
+- DutyBoards.jsx - /components/
+- IncidentManager.jsx - /components/
+- RoadworksManager.jsx - /components/
+- AIDisruptionManager.jsx - /components/
+
+#### Files importing these components:
+1. **operations.jsx** (main operations file)
+   - import DutyBoards from '../components/DutyBoards';
+   - import IncidentManager from '../components/IncidentManager';
+   - import RoadworksManager from '../components/RoadworksManager';
+   - import AIDisruptionManager from '../components/AIDisruptionManager';
+
+2. **browser-main.jsx** (already cleaned up)
+   - Components removed in previous migration
+   - Routes to /operations instead
+
+#### Required Updates After Move:
+- operations.jsx imports need updating to new paths
+- Component names: AIDisruptionManager → DisruptionDatabase
+- US spelling to UK spelling (Center → Centre)
