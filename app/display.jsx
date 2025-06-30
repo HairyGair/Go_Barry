@@ -5,6 +5,7 @@ import React from 'react';
 import DisplayScreen from '../components/DisplayScreen';
 
 export default function Display() {
+  // Control Room Display doesn't require login
   return (
     <div style={{
       minHeight: '100vh',

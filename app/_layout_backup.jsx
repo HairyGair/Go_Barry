@@ -1,7 +1,7 @@
-// Go_BARRY/app/_layout.jsx - RESTORED with FIXED imports
+// Go_BARRY/app/_layout.jsx - FIXED Convex Client Initialization
 import { Stack } from 'expo-router';
 import { ThemeProvider } from '../components/theme/ThemeContext.jsx';
-import { SupervisorProvider } from '../components/hooks/useSupervisorSession.js';
+import { SupervisorProvider } from '../components/hooks/useSupervisorSession';
 import { ConvexProvider, ConvexReactClient } from 'convex/react';
 import analytics from '../services/analytics';
 import { useEffect } from 'react';

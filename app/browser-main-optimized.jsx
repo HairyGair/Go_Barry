@@ -20,7 +20,7 @@ const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
 
 // Lazy load heavy components
-const AdminPanel = lazy(() => import('../components/admin/AdminPanel'));
+const AdminPanel = lazy(() => import('../app/admin/index'));
 const SupervisorControl = lazy(() => import('../components/SupervisorControl'));
 const EnhancedDashboard = lazy(() => import('../components/EnhancedDashboard'));
 const IncidentManager = lazy(() => import('../components/IncidentManager'));
