@@ -1,0 +1,120 @@
+/*
+ * Go Barry - Traffic Intelligence Platform
+ * Operations Centre Quick Actions Component
+ * © 2024-2025 Anthony Gair. All rights reserved.
+ */
+
+import React from 'react';
+import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { operationsTheme } from '../styles/theme';
+
+export default function QuickActions() {
+  const actions = [
+    { 
+      icon: 'alert-octagon', 
+      label: 'Emergency Alert', 
+      color: '#f44336',
+      action: () => Alert.alert('Emergency Alert', 'Send emergency broadcast to all supervisors?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Send', onPress: () => console.log('Emergency alert sent'), style: 'destructive' }
+      ])
+    },
+    { 
+      icon: 'bullhorn', 
+      label: 'Broadcast', 
+      color: '#FF9800',
+      action: () => Alert.alert('Broadcast', 'Send message to control room displays?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Send', onPress: () => console.log('Broadcast sent') }
+      ])
+    },
+    { 
+      icon: 'file-document', 
+      label: 'Daily Report', 
+      color: '#2196F3',
+      action: () => Alert.alert('Daily Report', 'Generate report for today?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Generate', onPress: () => console.log('Report generated') }
+      ])
+    },
+    { 
+      icon: 'refresh', 
+      label: 'Refresh Data', 
+      color: '#4CAF50',
+      action: () => {
+        if (typeof window !== 'undefined') {
+          window.location.reload();
+        }
+      }
+    },
+  ];
+  
+  return (
+    <View style={styles.container}>
+      <Text style={styles.sectionTitle}>Quick Actions</Text>
+      <View style={styles.actionsGrid}>
+        {actions.map((action, index) => (
+          <Pressable
+            key={index}
+            style={({ pressed }) => [
+              styles.actionButton,
+              pressed && styles.actionPressed
+            ]}
+            onPress={action.action}
+          >
+            <View style={[styles.actionIcon, { backgroundColor: action.color + '20' }]}>
+              <MaterialCommunityIcons 
+                name={action.icon} 
+                size={24} 
+                color={action.color} 
+              />
+            </View>
+            <Text style={styles.actionLabel}>{action.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    marginHorizontal: 20,
+    marginTop: 32,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: operationsTheme.colors.textPrimary,
+    marginBottom: 16,
+  },
+  actionsGrid: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: operationsTheme.borderRadius.md,
+    padding: 16,
+    alignItems: 'center',
+    ...operationsTheme.shadows.sm,
+  },
+  actionPressed: {
+    transform: [{ scale: 0.95 }],
+  },
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  actionLabel: {
+    fontSize: 12,
+    color: operationsTheme.colors.textSecondary,
+    textAlign: 'center',
+  },
+});

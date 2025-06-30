@@ -125,6 +125,8 @@ const HomePageWithLogin = () => {
       router.push('/browser-main');
     } else if (path === '/display') {
       router.push('/display');
+    } else if (path === '/operations') {
+      router.push('/operations-centre');
     }
   };
 
@@ -338,6 +340,41 @@ const HomePageWithLogin = () => {
             <Icon name={isLoggedIn ? "sign-in-alt" : "lock"} size={16} color="#fff" />
             <Text style={styles.appButtonText}>
               {isLoggedIn ? 'Access Supervisor Tools' : 'Login Required'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.appCard}
+          onPress={() => {
+            if (!isLoggedIn) {
+              setShowLogin(true);
+            } else {
+              navigateToApp('/operations');
+            }
+          }}
+        >
+          <View style={[styles.appIcon, styles.operationsIcon]}>
+            <Icon name="tools" size={36} color="#fff" />
+          </View>
+          <Text style={styles.appTitle}>Operations</Text>
+          <Text style={styles.appDescription}>
+            Daily operational tools including duty boards, incident management, roadworks, and disruption tracking.
+          </Text>
+          <View style={styles.appFeatures}>
+            <View style={styles.featureItem}>
+              <Icon name="clipboard-list" size={14} color="#06B6D4" />
+              <Text style={styles.featureText}>Duty boards</Text>
+            </View>
+            <View style={styles.featureItem}>
+              <Icon name="exclamation-triangle" size={14} color="#06B6D4" />
+              <Text style={styles.featureText}>Incident & roadworks</Text>
+            </View>
+          </View>
+          <View style={styles.appButton}>
+            <Icon name={isLoggedIn ? "toolbox" : "lock"} size={16} color="#fff" />
+            <Text style={styles.appButtonText}>
+              {isLoggedIn ? 'Access Operations' : 'Login Required'}
             </Text>
           </View>
         </TouchableOpacity>
@@ -731,6 +768,9 @@ const styles = StyleSheet.create({
   },
   supervisorIcon: {
     backgroundColor: '#3b82f6',
+  },
+  operationsIcon: {
+    backgroundColor: '#059669',
   },
   adminIcon: {
     backgroundColor: '#8b5cf6',

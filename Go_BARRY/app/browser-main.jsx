@@ -17,16 +17,12 @@ import { Ionicons } from '@expo/vector-icons';
 // Import all our v3.0 components
 import SupervisorControl from '../components/SupervisorControl';
 import EnhancedDashboard from '../components/EnhancedDashboard';
-import IncidentManager from '../components/IncidentManager';
 import AIDisruptionManager from '../components/AIDisruptionManager';
 import MessageDistributionCenter from '../components/MessageDistributionCenter';
 import AutomatedReportingSystem from '../components/AutomatedReportingSystem';
 import SystemHealthMonitor from '../components/SystemHealthMonitor';
 import TrainingHelpSystem from '../components/TrainingHelpSystem';
-import RoadworksManager from '../components/RoadworksManager';
-import DisruptionDatabase from '../components/DisruptionDatabase';
 // AdminPanel removed - using new route-based admin
-import DutyBoards from '../components/DutyBoards';
 import { useSupervisor } from '../components/hooks/useSupervisorSession';
 import { useBarryAPI } from '../components/hooks/useBARRYapi';
 import { API_CONFIG } from '../config/api';
@@ -60,33 +56,14 @@ const BROWSER_NAVIGATION = {
     description: 'Real-time traffic intelligence overview',
     color: '#3B82F6'
   },
-  incidents: {
-    title: 'Incident Manager',
-    icon: 'alert-circle',
-    component: IncidentManager,
-    description: 'Create & track incidents with GTFS route detection',
-    color: '#EF4444'
-  },
-  roadworks: {
-    title: 'Roadworks Manager',
+  operations: {
+    title: 'Operations Center',
     icon: 'construct',
-    component: RoadworksManager,
-    description: 'Manage roadworks & create Blink diversions',
-    color: '#F59E0B'
-  },
-  disruptions: {
-    title: 'Disruption Database',
-    icon: 'folder-open',
-    component: DisruptionDatabase,
-    description: 'Unified view of all roadworks and incidents',
-    color: '#8B5CF6'
-  },
-  dutyboards: {
-    title: 'Duty Boards',
-    icon: 'document-attach',
-    component: DutyBoards,
-    description: 'View and manage driver duty board PDFs',
-    color: '#06B6D4'
+    component: null,
+    description: 'Daily operational tools - Incidents, Roadworks & Disruptions',
+    color: '#059669',
+    isRoute: true,
+    route: '/operations'
   },
   ai: {
     title: 'AI Disruption Manager',
