@@ -1,28 +1,21 @@
-// Redirect to the new Operations Centre
+// Redirect to the Operations Centre
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 
 export default function Operations() {
   const router = useRouter();
   
   useEffect(() => {
-    // Small delay to ensure router is ready
-    const timer = setTimeout(() => {
-      try {
-        router.push('/operations-centre');
-      } catch (error) {
-        console.error('Failed to navigate to operations-centre:', error);
-        // Fallback: show error message
-      }
-    }, 100);
-    
-    return () => clearTimeout(timer);
+    console.log('[Operations] Redirect component mounted');
+    // Immediate redirect to operations-centre
+    router.replace('/operations-centre');
   }, [router]);
   
   // Show loading state while redirecting
   return (
     <View style={styles.container}>
+      <ActivityIndicator size="large" color="#3b82f6" />
       <Text style={styles.text}>Loading Operations Centre...</Text>
     </View>
   );
@@ -38,5 +31,6 @@ const styles = StyleSheet.create({
   text: {
     color: '#fff',
     fontSize: 18,
+    marginTop: 20,
   },
 });

@@ -27,7 +27,6 @@ async function checkRouteStructure() {
   
   const requiredFiles = [
     'app/operations.jsx',
-    'app/operations-centre.jsx',
     'app/operations-centre/index.jsx',
     'app/operations-centre/_layout.jsx',
   ];

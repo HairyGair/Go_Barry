@@ -8,6 +8,8 @@
     "dev": "expo start --web --dev-client",
     "web": "expo start --web",
     "mobile": "expo start",
+    "clean": "rm -rf .expo/web/cache/* dist/* $TMPDIR/metro-* $TMPDIR/haste-map-* && watchman watch-del-all || true",
+    "clean:start": "npm run clean && expo start --web --clear",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "build": "npm run build:web",

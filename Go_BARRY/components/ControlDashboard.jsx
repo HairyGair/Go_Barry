@@ -295,14 +295,18 @@ const styles = StyleSheet.create({
     margin: 16,
     borderRadius: 12,
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    ...(Platform.OS === 'web' ? {
+      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+    } : {
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.1,
+      shadowRadius: 3.84,
+      elevation: 5,
+    }),
   },
   sectionTitle: {
     fontSize: 20,
@@ -316,7 +320,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   statCard: {
-    flex: Platform.OS === 'web' ? '1 1 45%' : 1,
+    flex: 1,
     minWidth: Platform.OS === 'web' ? 200 : '45%',
     backgroundColor: '#f8fafc',
     padding: 16,
@@ -435,7 +439,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   actionButton: {
-    flex: Platform.OS === 'web' ? '1 1 30%' : 1,
+    flex: 1,
     minWidth: Platform.OS === 'web' ? 150 : '45%',
     backgroundColor: '#f8fafc',
     padding: 20,

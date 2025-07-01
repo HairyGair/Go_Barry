@@ -119,29 +119,8 @@ const HomePageWithLogin = () => {
   };
 
   const navigateToApp = (path) => {
-    if (path === '/admin') {
-      router.push('/admin');
-    } else if (path === '/browser-main') {
-      router.push('/browser-main');
-    } else if (path === '/display') {
-      router.push('/display');
-    } else if (path === '/operations') {
-      // Try multiple navigation methods for better compatibility
-      try {
-        router.push('/operations-centre');
-      } catch (error) {
-        console.error('Router navigation failed:', error);
-        // Fallback to operations redirect page
-        try {
-          router.push('/operations-redirect');
-        } catch (error2) {
-          // Last resort: direct window navigation for web
-          if (Platform.OS === 'web' && typeof window !== 'undefined') {
-            window.location.href = '/operations-centre';
-          }
-        }
-      }
-    }
+    console.log(`[Navigation] Navigating to: ${path}`);
+    router.push(path);
   };
 
   const renderLoginForm = () => {

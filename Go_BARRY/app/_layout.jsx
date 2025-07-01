@@ -31,6 +31,9 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="browser-main" options={{ headerShown: false }} />
             <Stack.Screen name="display" options={{ headerShown: false }} />
+            <Stack.Screen name="operations" options={{ headerShown: false }} />
+            <Stack.Screen name="operations-centre" options={{ headerShown: false }} />
+            <Stack.Screen name="admin" options={{ headerShown: false }} />
           </Stack>
         </SupervisorProvider>
       </ThemeProvider>

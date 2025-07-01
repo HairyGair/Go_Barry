@@ -8,8 +8,8 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { operationsTheme } from '../styles/theme';
-import { UK_LOCALE } from '../constants/locale';
+import { operationsTheme } from '../styles/theme.exports.js';
+import { UK_LOCALE } from '../constants/locale.exports.js';
 
 export default function OperationsHeader({ supervisorName, onLogout }) {
   const router = useRouter();
@@ -60,12 +60,12 @@ const styles = StyleSheet.create({
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
     marginBottom: 8,
   },
   backText: {
     color: operationsTheme.colors.textLight,
     fontSize: 14,
+    marginLeft: 6,
   },
   headerTitle: {
     fontSize: 28,
@@ -80,22 +80,21 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 20,
   },
   userInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    marginRight: 20,
   },
   userName: {
     color: 'white',
     fontSize: 16,
     fontWeight: '500',
+    marginLeft: 8,
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
     paddingHorizontal: 16,
     paddingVertical: 8,
     backgroundColor: 'rgba(255, 107, 107, 0.1)',
@@ -107,5 +106,6 @@ const styles = StyleSheet.create({
     color: '#ff6b6b',
     fontSize: 14,
     fontWeight: '500',
+    marginLeft: 6,
   },
 });

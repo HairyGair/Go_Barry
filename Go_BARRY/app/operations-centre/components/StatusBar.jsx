@@ -7,8 +7,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { operationsTheme } from '../styles/theme';
-import { UK_LOCALE } from '../constants/locale';
+import { operationsTheme } from '../styles/theme.exports.js';
+import { UK_LOCALE } from '../constants/locale.exports.js';
 
 export default function StatusBar() {
   const [statuses, setStatuses] = useState([
@@ -88,15 +88,15 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginTop: 20,
     ...operationsTheme.shadows.sm,
-    gap: 24,
   },
   statusItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    marginRight: 24,
   },
   statusText: {
     fontSize: 12,
     color: operationsTheme.colors.textSecondary,
+    marginLeft: 6,
   },
 });

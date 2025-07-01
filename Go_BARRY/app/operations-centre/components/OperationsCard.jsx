@@ -7,7 +7,7 @@
 import React from 'react';
 import { Pressable, View, Text, StyleSheet, Platform, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { operationsTheme } from '../styles/theme';
+import { operationsTheme } from '../styles/theme.exports.js';
 
 export default function OperationsCard({ 
   id,
@@ -85,7 +85,7 @@ export default function OperationsCard({
 
 const styles = StyleSheet.create({
   cardContainer: {
-    width: Platform.OS === 'web' ? 'calc(33.333% - 11px)' : '48%',
+    width: Platform.OS === 'web' ? '31%' : '48%',
     height: 180,
     marginBottom: 16,
   },
