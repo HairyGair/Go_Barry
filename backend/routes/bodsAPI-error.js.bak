@@ -239,14 +239,14 @@ router.get('/health', async (req, res) => {
 });
 
 /**
- * GET /api/bods/compare
- * Compare scheduled vs actual times
+ * GET /api/bods/compare-scheduled-actual  
+ * Compare scheduled vs actual times for enhanced route analysis
  */
-router.get('/compare', async (req, res) => {
+router.get('/compare-scheduled-actual', async (req, res) => {
   try {
-    console.log('[BODS API] Schedule comparison requested');
+    console.log('[BODS API] Scheduled vs actual comparison requested');
     
-    const { route_id } = req.query;
+    const { route_id, stop_id } = req.query;
     
     if (!route_id) {
       return res.status(400).json({
@@ -255,13 +255,57 @@ router.get('/compare', async (req, res) => {
       });
     }
     
+    // Get timetable data for the route
+    const timetableResult = await bodsService.getTimetables({ 
+      routeFilter: route_id 
+    });
+    
+    // Get current vehicle positions for the route
+    const vehicleResult = await bodsService.getVehicleLocations();
+    
+    if (!timetableResult.success || !vehicleResult.success) {
+      return res.status(503).json({
+        success: false,
+        error: 'Failed to fetch comparison data',
+        details: {
+          timetableError: timetableResult.error,
+          vehicleError: vehicleResult.error
+        }
+      });
+    }
+    
+    // Filter vehicles for this route
+    const routeVehicles = vehicleResult.data.filter(v => 
+      v.routeId === route_id || v.routeName === route_id
+    );
+    
+    // TODO: Implement actual vs scheduled comparison logic
+    // This would match vehicle positions with scheduled stops and times
+    
+    const comparison = {
+      routeId: route_id,
+      vehicles: routeVehicles.map(vehicle => ({
+        vehicleId: vehicle.id,
+        currentPosition: vehicle.coordinates,
+        estimatedDelay: vehicle.delay || 0,
+        status: vehicle.status || 'unknown',
+        lastUpdate: vehicle.timestamp
+      })),
+      scheduledStops: timetableResult.data.length > 0 
+        ? timetableResult.data[0].stops || []
+        : [],
+      comparison: 'implementation-pending'
+    };
+    
     res.json({
       success: true,
-      data: {
+      data: comparison,
+      metadata: {
         routeId: route_id,
-        message: 'Comparison feature coming soon'
-      },
-      timestamp: new Date().toISOString()
+        vehicleCount: routeVehicles.length,
+        timestamp: Date.now(),
+        note: 'Full scheduled vs actual implementation pending'
+      }
     });
   } catch (error) {
     console.error('[BODS API] Comparison error:', error);

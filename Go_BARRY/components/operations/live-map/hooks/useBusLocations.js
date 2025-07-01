@@ -51,10 +51,52 @@ try {
   api = null;
 }
 
-const BACKEND_URL = 'https://go-barry.onrender.com';
+// Use local backend in development, production backend otherwise
+const BACKEND_URL = process.env.NODE_ENV === 'development' 
+  ? 'http://localhost:3001' 
+  : 'https://go-barry.onrender.com';
+
 const CACHE_TIMEOUT = 30000; // 30 seconds
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 5000; // 5 seconds
+
+// Generate mock bus data for development
+const generateMockBusData = () => {
+  const routes = ['21', 'X21', '1', '56', '57', '58', 'Q3', '307'];
+  const mockBuses = [];
+  
+  // Newcastle/Gateshead area bounds
+  const bounds = {
+    north: 55.0184,
+    south: 54.9045,
+    east: -1.4876,
+    west: -1.7297
+  };
+  
+  for (let i = 0; i < 15; i++) {
+    const route = routes[Math.floor(Math.random() * routes.length)];
+    const lat = bounds.south + Math.random() * (bounds.north - bounds.south);
+    const lng = bounds.west + Math.random() * (bounds.east - bounds.west);
+    const delay = Math.random() < 0.7 ? Math.floor(Math.random() * 300) : 0; // 70% have some delay
+    
+    mockBuses.push({
+      id: `mock-bus-${i}`,
+      vehicleRef: `GNE-${1000 + i}`,
+      routeName: route,
+      lineRef: route,
+      coordinates: [lat, lng],
+      heading: Math.floor(Math.random() * 360),
+      delay: delay,
+      status: delay > 180 ? 'delayed' : delay > 60 ? 'minor-delay' : 'on-time',
+      lastUpdate: Date.now() - Math.floor(Math.random() * 60000), // Within last minute
+      operatorRef: 'GONE',
+      destination: `${route} Destination`,
+      occupancy: Math.random() < 0.5 ? 'seatsAvailable' : 'standingAvailable'
+    });
+  }
+  
+  return mockBuses;
+};
 
 export const useBusLocations = () => {
   const [busLocations, setBusLocations] = useState([]);
@@ -158,6 +200,14 @@ export const useBusLocations = () => {
         console.warn('🚌 Using stale cached bus data due to fetch error');
         setBusLocations(cacheRef.current.data.buses || []);
         return cacheRef.current.data;
+      }
+      
+      // Fallback to mock data for development
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('🚌 Using mock bus data for development');
+        const mockBuses = generateMockBusData();
+        setBusLocations(mockBuses);
+        return { success: true, buses: mockBuses, cached: false, timestamp: Date.now() };
       }
       
       return { success: false, error: fetchError.message, buses: [] };

@@ -4,6 +4,8 @@
  * Phase 1: Core theme with alert states and UI colors
  */
 
+import { Platform } from 'react-native';
+
 export const liveMapTheme = {
   // Alert State Colors
   alertStates: {
@@ -148,7 +150,7 @@ export const createMarkerStyle = (state, isSelected = false) => {
     boxShadow: `0 2px 8px ${liveMapTheme.map.markerShadow}`,
     transition: `all ${liveMapTheme.animations.normal}ms ease`,
     position: 'relative',
-    ...(isSelected && {
+    ...(isSelected && Platform.OS === 'web' && {
       animation: 'pulse 2s infinite',
     }),
   };

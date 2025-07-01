@@ -98,7 +98,12 @@ export default function OperationsCentre() {
     perfMonitor.startMeasure('fetch-stats');
     
     try {
-      const response = await fetch('https://go-barry.onrender.com/api/operations/stats');
+      // Use local backend in development, production backend otherwise
+      const API_BASE = Platform.OS === 'web' 
+        ? (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://go-barry.onrender.com')
+        : 'https://go-barry.onrender.com';
+      
+      const response = await fetch(`${API_BASE}/api/operations/stats`);
       if (response.ok) {
         const data = await response.json();
         // Update card stats based on API response

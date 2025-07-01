@@ -335,13 +335,16 @@ class ConvexSyncService {
         lastUpdated: bus.lastUpdated || Date.now()
       }));
 
-      // Call the Convex mutation for bus locations
-      const result = await this.callConvexFunction('sync:syncBusLocations', {
-        buses: convexBuses
-      });
-
-      console.log(`✅ Synced ${convexBuses.length} bus locations to Convex`);
-      return { success: true, count: convexBuses.length, result };
+      // TODO: Call the Convex mutation for bus locations (disabled until function is implemented)
+      console.warn('⚠️ Bus locations Convex sync temporarily disabled - syncBusLocations function not implemented');
+      return { success: false, reason: 'syncBusLocations function not implemented in Convex schema' };
+      
+      // Uncomment once syncBusLocations is implemented in convex/sync.ts:
+      // const result = await this.callConvexFunction('sync:syncBusLocations', {
+      //   buses: convexBuses
+      // });
+      // console.log(`✅ Synced ${convexBuses.length} bus locations to Convex`);
+      // return { success: true, count: convexBuses.length, result };
     } catch (error) {
       console.error('❌ Bus locations Convex sync error:', error);
       return { success: false, error: error.message };

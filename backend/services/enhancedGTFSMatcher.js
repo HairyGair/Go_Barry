@@ -409,7 +409,6 @@ class EnhancedGTFSMatcher {
       initialized: this.initialized
     };
   }
-}
 
   // NEW: Compare GTFS scheduled vs actual times using BODS data
   async compareScheduledVsActual(routeId, stopId, currentTime) {

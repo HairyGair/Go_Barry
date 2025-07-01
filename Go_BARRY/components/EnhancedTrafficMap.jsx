@@ -279,7 +279,7 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
               cursor: pointer;
               transition: all 0.3s ease;
               position: relative;
-              ${isCurrent ? 'animation: pulse 2s infinite;' : ''}
+              ${isCurrent && Platform.OS === 'web' ? 'animation: pulse 2s infinite;' : ''}
             ">
               ${isCurrent ? '🚨' : '⚠️'}
             </div>
@@ -305,8 +305,8 @@ const EnhancedTrafficMap = ({ alerts = [], currentAlert = null, alertIndex = 0, 
             ` : ''}
           `;
 
-          // Add pulsing animation styles if not already added
-          if (!document.getElementById('tomtom-marker-styles')) {
+          // Add pulsing animation styles if not already added (web only)
+          if (Platform.OS === 'web' && !document.getElementById('tomtom-marker-styles')) {
             const styles = document.createElement('style');
             styles.id = 'tomtom-marker-styles';
             styles.textContent = `

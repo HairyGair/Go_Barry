@@ -116,6 +116,28 @@ const TomTomMapView = forwardRef(({
           });
         }
 
+        // Also load TomTom SDK for bus markers (required by BusLocationLayer)
+        if (!window.tt) {
+          setDebugInfo('Loading TomTom SDK for bus markers...');
+          
+          // Load TomTom CSS
+          const ttCssLink = document.createElement('link');
+          ttCssLink.rel = 'stylesheet';
+          ttCssLink.href = 'https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps.css';
+          document.head.appendChild(ttCssLink);
+          
+          // Load TomTom JS
+          await new Promise((resolve, reject) => {
+            const ttScript = document.createElement('script');
+            ttScript.src = 'https://api.tomtom.com/maps-sdk-for-web/cdn/6.x/6.25.0/maps/maps-web.min.js';
+            ttScript.onload = resolve;
+            ttScript.onerror = reject;
+            document.body.appendChild(ttScript);
+          });
+          
+          setDebugInfo('TomTom SDK loaded successfully');
+        }
+
         const maplibregl = window.maplibregl;
         setDebugInfo('Creating map instance...');
 

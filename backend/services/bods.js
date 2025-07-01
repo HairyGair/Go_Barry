@@ -777,7 +777,8 @@ export class BODSService {
 // Create singleton instance
 export const bodsService = new BODSService();
 
+console.log('🚌 BODS Service ready: Timetables, Vehicle Locations, Fares');
+
 // Export for use in other modules
 export default bodsService;
 
-console.log('🚌 BODS Service ready: Timetables, Vehicle Locations, Fares');

@@ -4,6 +4,7 @@
  */
 
 import express from 'express';
+import fetch from 'node-fetch';
 import { busLocationService } from '../services/busLocationService.js';
 import { convexSync } from '../services/convexSync.js';
 
@@ -28,11 +29,12 @@ router.get('/', async (req, res) => {
     });
     
     // Sync to Convex for real-time updates (non-blocking)
-    if (result.data && result.data.length > 0) {
-      convexSync.syncBusLocations(result.data).catch(err => {
-        console.warn('⚠️ Failed to sync bus locations to Convex:', err.message);
-      });
-    }
+    // NOTE: Disabled until syncBusLocations function is implemented in Convex
+    // if (result.data && result.data.length > 0) {
+    //   convexSync.syncBusLocations(result.data).catch(err => {
+    //     console.warn('⚠️ Failed to sync bus locations to Convex:', err.message);
+    //   });
+    // }
     
   } catch (error) {
     console.error('❌ Error fetching bus locations:', error);
@@ -229,6 +231,74 @@ router.post('/refresh', async (req, res) => {
       success: false,
       error: error.message,
       buses: []
+    });
+  }
+});
+
+// Debug endpoint to test direct API access
+router.get('/debug-api', async (req, res) => {
+  try {
+    console.log('🔍 Testing direct UK Bus Data API access...');
+    
+    const apiKey = process.env.UK_BUS_DATA_API_KEY || '1b7862548843de84e3ee3602c9b9b2488b736fd3';
+    const apiUrl = `https://data.bus-data.dft.gov.uk/api/v1/datafeed/9264/?api_key=${apiKey}`;
+    
+    console.log('📍 API URL:', apiUrl.replace(apiKey, '***' + apiKey.slice(-4)));
+    
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/xml,application/json',
+        'User-Agent': 'Go-BARRY-Traffic-Intelligence/1.0'
+      }
+    });
+    
+    console.log('📡 Response status:', response.status);
+    console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+    
+    const contentType = response.headers.get('content-type');
+    let responseData;
+    let dataFormat = 'unknown';
+    
+    if (contentType?.includes('json')) {
+      responseData = await response.json();
+      dataFormat = 'json';
+    } else if (contentType?.includes('xml')) {
+      responseData = await response.text();
+      dataFormat = 'xml';
+    } else {
+      responseData = await response.text();
+      dataFormat = 'text';
+    }
+    
+    res.json({
+      success: response.ok,
+      debug: {
+        apiUrl: apiUrl.replace(apiKey, '***' + apiKey.slice(-4)),
+        status: response.status,
+        statusText: response.statusText,
+        contentType,
+        dataFormat,
+        dataPreview: typeof responseData === 'string' ? 
+          responseData.substring(0, 500) + '...' : 
+          JSON.stringify(responseData).substring(0, 500) + '...',
+        dataLength: typeof responseData === 'string' ? responseData.length : JSON.stringify(responseData).length,
+        hasApiKey: !!apiKey,
+        apiKeyLast4: apiKey ? '***' + apiKey.slice(-4) : 'not-set'
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Debug API error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      errorType: error.constructor.name,
+      debug: {
+        hasApiKey: !!process.env.UK_BUS_DATA_API_KEY,
+        apiKeyConfigured: process.env.UK_BUS_DATA_API_KEY ? 'yes' : 'no'
+      }
     });
   }
 });

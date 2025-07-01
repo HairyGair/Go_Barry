@@ -306,7 +306,7 @@ const OptimizedTomTomMap = ({
         border-radius: 50%;
         cursor: pointer;
         box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        ${isCurrentAlert ? 'animation: pulse 2s infinite;' : ''}
+        ${isCurrentAlert && Platform.OS === 'web' ? 'animation: pulse 2s infinite;' : ''}
       `;
 
       const marker = new window.maplibregl.Marker({ element: markerElement })
@@ -460,14 +460,16 @@ const OptimizedTomTomMap = ({
         </div>
       )}
       
-      {/* Add CSS for pulse animation */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes pulse {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.2); }
-          100% { transform: scale(1); }
-        }
-      `}} />
+      {/* Add CSS for pulse animation (web only) */}
+      {Platform.OS === 'web' && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+          }
+        `}} />
+      )}
     </div>
   );
 };

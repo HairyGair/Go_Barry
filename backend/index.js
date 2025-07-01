@@ -566,6 +566,11 @@ app.use('/api/display', displayAPI);
 // TomTom Enhancement API routes
 app.use('/api/enhancement', enhancementAPI);
 
+// Event management routes
+console.log('🎫 Registering event routes at /api/events...');
+app.use('/api/events', eventAPI);
+console.log('✅ Event routes registered successfully');
+
 // Service Frequency API routes
 app.use('/api/frequency', frequencyAPI);
 
@@ -672,7 +677,94 @@ gtfsRouteShapesService.initialize().then(result => {
   console.warn('⚠️ GTFS route shapes service initialization error:', err.message);
 });
 
-// Log operations stats endpoint
+// Operations stats endpoint
+app.get('/api/operations/stats', async (req, res) => {
+  try {
+    const stats = {
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      
+      // Alert statistics
+      alerts: {
+        total: 0,
+        bySource: {},
+        bySeverity: {},
+        dismissed: global.dismissedIncidents ? global.dismissedIncidents.size : 0
+      },
+      
+      // Supervisor statistics
+      supervisors: {
+        active: supervisorManager.getActiveSessions ? supervisorManager.getActiveSessions().length : 0,
+        totalSessions: supervisorManager.getSessionCount ? supervisorManager.getSessionCount() : 0,
+        recentActivity: supervisorManager.getRecentActivity ? supervisorManager.getRecentActivity() : []
+      },
+      
+      // Bus location statistics
+      buses: busLocationService.getStatistics ? busLocationService.getStatistics() : {
+        totalVehicles: 0,
+        activeVehicles: 0,
+        delayedVehicles: 0,
+        uniqueRoutes: 0,
+        lastUpdate: null
+      },
+      
+      // System health
+      system: {
+        activeRequests,
+        maxRequests: MAX_CONCURRENT_REQUESTS,
+        memoryUsagePercent: (process.memoryUsage().heapUsed / process.memoryUsage().heapTotal * 100).toFixed(2),
+        cpuUsage: process.cpuUsage(),
+        nodeVersion: process.version
+      },
+      
+      // Data source status
+      dataSources: {
+        tomtom: { status: 'active', lastUpdate: new Date().toISOString() },
+        nationalHighways: { status: 'active', lastUpdate: new Date().toISOString() },
+        streetManager: { status: 'webhook-only', webhookEndpoint: '/api/streetmanager/webhook' },
+        convex: { 
+          status: (convexSync && convexSync.isConnected) ? 'connected' : 'disconnected', 
+          lastSync: (convexSync && convexSync.lastSyncTime) ? convexSync.lastSyncTime : null 
+        }
+      },
+      
+      // GTFS service status
+      gtfs: {
+        routesLoaded: GTFS_ROUTES.size,
+        shapesLoaded: gtfsRouteShapesService.isInitialized ? (gtfsRouteShapesService.getRouteCount ? gtfsRouteShapesService.getRouteCount() : 0) : 0,
+        serviceAnalyzer: serviceFrequencyAnalyzer.isInitialized ? 'active' : 'initializing'
+      }
+    };
+    
+    // Try to get enhanced alert data if available
+    try {
+      if (enhancedDataSourceManager && enhancedDataSourceManager.getAlertStatistics) {
+        const alertData = await enhancedDataSourceManager.getAlertStatistics();
+        if (alertData) {
+          stats.alerts = { ...stats.alerts, ...alertData };
+        }
+      }
+    } catch (err) {
+      console.warn('⚠️ Could not fetch enhanced alert statistics:', err.message);
+    }
+    
+    res.json({
+      success: true,
+      stats,
+      message: 'Operational statistics retrieved successfully'
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching operations stats:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stats: null
+    });
+  }
+});
+
 console.log('✅ Operations stats endpoint registered at /api/operations/stats');
 
 // GTFS Route Shapes API endpoints (Phase 3)

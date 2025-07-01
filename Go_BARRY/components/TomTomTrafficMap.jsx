@@ -268,7 +268,7 @@ const TomTomTrafficMap = ({
         border-radius: 50%;
         cursor: pointer;
         box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        ${isCurrentAlert ? 'animation: pulse 2s infinite;' : ''}
+        ${isCurrentAlert && Platform.OS === 'web' ? 'animation: pulse 2s infinite;' : ''}
         transition: all 0.2s ease;
       `;
       
@@ -282,8 +282,8 @@ const TomTomTrafficMap = ({
         markerElement.style.zIndex = 'auto';
       };
 
-      // Add CSS animation for current alert
-      if (isCurrentAlert && !document.getElementById('marker-pulse-style')) {
+      // Add CSS animation for current alert (web only)
+      if (isCurrentAlert && Platform.OS === 'web' && !document.getElementById('marker-pulse-style')) {
         const style = document.createElement('style');
         style.id = 'marker-pulse-style';
         style.textContent = `
@@ -673,7 +673,10 @@ const TomTomTrafficMap = ({
       console.log(`🚌 Showing ${affectedRoutes.size} affected bus routes`);
 
       // Fetch route shapes from backend
-      const routeShapes = await fetch(`https://go-barry.onrender.com/api/gtfs/route-shapes?routes=${Array.from(affectedRoutes).join(',')}`)
+      const API_BASE = process.env.NODE_ENV === 'development' 
+        ? 'http://localhost:3001' 
+        : 'https://go-barry.onrender.com';
+      const routeShapes = await fetch(`${API_BASE}/api/gtfs/route-shapes?routes=${Array.from(affectedRoutes).join(',')}`)
         .then(res => res.json())
         .catch(err => {
           console.warn('Failed to fetch route shapes:', err);
@@ -732,7 +735,10 @@ const TomTomTrafficMap = ({
     
     try {
       // Fetch route shapes from backend
-      const response = await fetch(`https://go-barry.onrender.com/api/gtfs/route-shapes`, {
+      const API_BASE = process.env.NODE_ENV === 'development' 
+        ? 'http://localhost:3001' 
+        : 'https://go-barry.onrender.com';
+      const response = await fetch(`${API_BASE}/api/gtfs/route-shapes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ routes: overlayRoutes })

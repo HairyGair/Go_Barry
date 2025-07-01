@@ -13,9 +13,10 @@ import { parseStringPromise } from 'xml2js';
  */
 export class BusLocationService {
   constructor() {
-    // UPDATED: Use specific Go North East dataset (9264) for better data quality
-    this.baseUrl = 'https://data.bus-data.dft.gov.uk/avl';
+    // UPDATED: Use specific Go North East dataset (9264) with API key
+    this.baseUrl = 'https://data.bus-data.dft.gov.uk/api/v1';
     this.datasetId = '9264'; // Specific Go North East dataset
+    this.apiKey = process.env.UK_BUS_DATA_API_KEY || '1b7862548843de84e3ee3602c9b9b2488b736fd3'; // Go North East API key
     this.fallbackUrl = 'https://data.bus-data.dft.gov.uk/api/v1';
     this.fallbackDatasetId = 'multiplestops.xml';
     this.operatorCode = 'GONE'; // Go North East operator code
@@ -60,8 +61,16 @@ export class BusLocationService {
     let xmlData = null;
     let dataSource = null;
     
-    // UPDATED: Try current UK Bus Data API endpoints
+    // UPDATED: Try current UK Bus Data API endpoints with API key
     const endpoints = [
+      {
+        url: `https://data.bus-data.dft.gov.uk/api/v1/datafeed/${this.datasetId}/?api_key=${this.apiKey}`,
+        source: 'specific-dataset-9264',
+        headers: {
+          'Accept': 'application/xml,application/json',
+          'User-Agent': 'Go-BARRY-Traffic-Intelligence/1.0'
+        }
+      },
       {
         url: 'https://data.bus-data.dft.gov.uk/api/v1/datafeed',
         source: 'current-api-datafeed'
@@ -83,7 +92,7 @@ export class BusLocationService {
         
         const response = await fetch(endpoint.url, {
           method: 'GET',
-          headers: {
+          headers: endpoint.headers || {
             'Accept': 'application/xml,application/json',
             'User-Agent': 'Go-BARRY-Traffic-Intelligence/1.0'
           },
@@ -614,8 +623,9 @@ export class BusLocationService {
   getConfiguration() {
     return {
       primaryDataset: {
-        url: `${this.baseUrl}/dataset/${this.datasetId}/`,
+        url: `${this.baseUrl}/datafeed/${this.datasetId}/?api_key=${this.apiKey}`,
         id: this.datasetId,
+        apiKey: this.apiKey ? '***' + this.apiKey.slice(-4) : 'not-configured',
         description: 'Go North East specific dataset'
       },
       fallbackDataset: {

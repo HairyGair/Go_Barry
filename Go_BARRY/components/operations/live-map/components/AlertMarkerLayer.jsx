@@ -53,7 +53,7 @@ const AlertMarkerLayer = ({
           align-items: center;
           justify-content: center;
           z-index: ${isSelected ? liveMapTheme.zIndex.selectedMarker : liveMapTheme.zIndex.markers};
-          ${isSelected ? 'animation: alertPulse 2s infinite;' : ''}
+          ${isSelected && Platform.OS === 'web' ? 'animation: alertPulse 2s infinite;' : ''}
         `;
         
         // Clear previous content
@@ -205,11 +205,11 @@ const AlertMarkerLayer = ({
       align-items: center;
       justify-content: center;
       z-index: ${isSelected ? liveMapTheme.zIndex.selectedMarker : liveMapTheme.zIndex.markers};
-      ${isSelected ? 'animation: alertPulse 2s infinite;' : ''}
+      ${isSelected && Platform.OS === 'web' ? 'animation: alertPulse 2s infinite;' : ''}
     `;
 
-    // Add pulse animation CSS if not already added
-    if (isSelected && !document.getElementById('alert-pulse-animation')) {
+    // Add pulse animation CSS if not already added (web only)
+    if (isSelected && Platform.OS === 'web' && !document.getElementById('alert-pulse-animation')) {
       const style = document.createElement('style');
       style.id = 'alert-pulse-animation';
       style.textContent = `
