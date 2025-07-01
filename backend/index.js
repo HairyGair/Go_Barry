@@ -88,6 +88,8 @@ import { convexSync } from './services/convexSync.js';
 import startupService from './services/startupService.js';
 import { createClient } from '@supabase/supabase-js';
 import realTimeDisruptionScoring from './services/realTimeDisruptionScoring.js';
+import { busLocationService } from './services/busLocationService.js';
+import { gtfsRouteShapesService } from './services/gtfsRouteShapesService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -621,8 +623,499 @@ console.log('✅ VIX routes registered successfully');
 // Template system routes
 console.log('📝 Registering template routes at /api/templates...');
 import templateAPI from './routes/templateAPI.js';
+import bodsAPI from './routes/bodsAPI.js';
+import { bodsService } from './services/bods.js';
 app.use('/api/templates', templateAPI);
 console.log('✅ Template routes registered successfully');
+
+// BODS (Bus Open Data Service) API routes
+console.log('🚌 Registering BODS routes at /api/bods...');
+app.use('/api/bods', bodsAPI);
+console.log('✅ BODS routes registered successfully');
+
+// Initialize BODS service
+bodsService.initialize().then(result => {
+  if (result.success) {
+    console.log('✅ BODS service initialized successfully');
+  } else {
+    console.warn('⚠️ BODS service initialization failed:', result.error);
+  }
+}).catch(err => {
+  console.warn('⚠️ BODS service initialization error:', err.message);
+});
+
+// Bus location API endpoints
+console.log('🚌 Registering bus location routes at /api/bus-locations...');
+
+// Initialize bus location service
+busLocationService.initialize().then(result => {
+  if (result.success) {
+    console.log('✅ Bus location service initialized successfully');
+  } else {
+    console.warn('⚠️ Bus location service initialization failed:', result.error);
+  }
+}).catch(err => {
+  console.warn('⚠️ Bus location service initialization error:', err.message);
+});
+
+// Initialize GTFS route shapes service (Phase 3)
+gtfsRouteShapesService.initialize().then(result => {
+  if (result.success) {
+    console.log(`✅ GTFS route shapes service initialized: ${result.routeCount} routes loaded`);
+  } else {
+    console.warn('⚠️ GTFS route shapes service initialization failed:', result.error);
+  }
+}).catch(err => {
+  console.warn('⚠️ GTFS route shapes service initialization error:', err.message);
+});
+
+// Get current bus locations
+app.get('/api/bus-locations', async (req, res) => {
+  try {
+    const { forceRefresh } = req.query;
+    const result = await busLocationService.getBusLocations(forceRefresh === 'true');
+    
+    res.json({
+      success: true,
+      buses: result.data || [],
+      metadata: {
+        count: result.data?.length || 0,
+        cached: result.cached || false,
+        timestamp: result.timestamp,
+        lastUpdated: new Date(result.timestamp).toISOString(),
+        error: result.error
+      }
+    });
+    
+    // Sync to Convex for real-time updates (non-blocking)
+    if (result.data && result.data.length > 0) {
+      convexSync.syncBusLocations(result.data).catch(err => {
+        console.warn('⚠️ Failed to sync bus locations to Convex:', err.message);
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ Error fetching bus locations:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      buses: []
+    });
+  }
+});
+
+// Get bus location statistics
+app.get('/api/bus-locations/stats', async (req, res) => {
+  try {
+    const stats = busLocationService.getStatistics();
+    
+    res.json({
+      success: true,
+      statistics: stats,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Error getting bus location stats:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      statistics: {
+        totalVehicles: 0,
+        activeVehicles: 0,
+        delayedVehicles: 0,
+        uniqueRoutes: 0,
+        lastUpdate: null,
+        dataSource: 'error',
+        dataQuality: 'unavailable'
+      }
+    });
+  }
+});
+
+// Get bus location service configuration (UPDATED for dataset 9264)
+app.get('/api/bus-locations/config', async (req, res) => {
+  try {
+    const config = busLocationService.getConfiguration();
+    
+    res.json({
+      success: true,
+      configuration: config,
+      timestamp: new Date().toISOString(),
+      message: 'Updated to use Go North East specific dataset 9264'
+    });
+    
+  } catch (error) {
+    console.error('❌ Error getting bus location config:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Set data source preference
+app.post('/api/bus-locations/set-datasource', async (req, res) => {
+  try {
+    const { useSpecificDataset = true } = req.body;
+    
+    busLocationService.setDataSourcePreference(useSpecificDataset);
+    
+    res.json({
+      success: true,
+      message: `Data source preference updated to: ${useSpecificDataset ? 'specific dataset 9264' : 'generic multiplestops.xml'}`,
+      newConfiguration: busLocationService.getConfiguration(),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Error setting data source preference:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Test both data sources
+app.get('/api/bus-locations/test-sources', async (req, res) => {
+  try {
+    console.log('🧪 Testing both bus data sources...');
+    
+    const results = {
+      specific: { tested: false },
+      generic: { tested: false }
+    };
+    
+    // Test specific dataset 9264
+    try {
+      const originalPreference = busLocationService.useSpecificDataset;
+      busLocationService.useSpecificDataset = true;
+      
+      const specificResult = await busLocationService.getBusLocations(true);
+      results.specific = {
+        tested: true,
+        success: specificResult.success,
+        count: specificResult.count || 0,
+        dataSource: specificResult.dataSource,
+        dataQuality: specificResult.dataQuality,
+        error: specificResult.error
+      };
+      
+      // Restore original preference
+      busLocationService.useSpecificDataset = originalPreference;
+    } catch (specificError) {
+      results.specific = {
+        tested: true,
+        success: false,
+        error: specificError.message
+      };
+    }
+    
+    // Test generic endpoint
+    try {
+      const originalPreference = busLocationService.useSpecificDataset;
+      busLocationService.useSpecificDataset = false;
+      
+      const genericResult = await busLocationService.getBusLocations(true);
+      results.generic = {
+        tested: true,
+        success: genericResult.success,
+        count: genericResult.count || 0,
+        dataSource: genericResult.dataSource,
+        dataQuality: genericResult.dataQuality,
+        error: genericResult.error
+      };
+      
+      // Restore original preference
+      busLocationService.useSpecificDataset = originalPreference;
+    } catch (genericError) {
+      results.generic = {
+        tested: true,
+        success: false,
+        error: genericError.message
+      };
+    }
+    
+    const recommendation = results.specific.success ? 
+      'Use specific dataset 9264 for better data quality' :
+      results.generic.success ? 
+        'Use generic multiplestops.xml as fallback' :
+        'Both data sources failed - check network connectivity';
+    
+    res.json({
+      success: true,
+      testResults: results,
+      recommendation,
+      summary: {
+        specificWorking: results.specific.success,
+        genericWorking: results.generic.success,
+        specificVehicles: results.specific.count || 0,
+        genericVehicles: results.generic.count || 0,
+        qualityImprovement: results.specific.success && results.generic.success ? 
+          `${((results.specific.count || 0) / (results.generic.count || 1) * 100).toFixed(1)}% of generic data` : 'unknown'
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Error testing data sources:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Clear bus location cache
+app.post('/api/bus-locations/refresh', async (req, res) => {
+  try {
+    busLocationService.clearCache();
+    const result = await busLocationService.getBusLocations(true);
+    
+    res.json({
+      success: true,
+      message: 'Bus locations refreshed',
+      buses: result.data || [],
+      metadata: {
+        count: result.data?.length || 0,
+        timestamp: result.timestamp
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error refreshing bus locations:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      buses: []
+    });
+  }
+});
+
+console.log('✅ Bus location routes registered successfully (Updated for dataset 9264)');
+console.log('🆕 New endpoints:');
+console.log('  - GET /api/bus-locations/config (service configuration)');
+console.log('  - POST /api/bus-locations/set-datasource (change data source)');
+console.log('  - GET /api/bus-locations/test-sources (test both datasets)');
+
+// Log operations stats endpoint
+console.log('✅ Operations stats endpoint registered at /api/operations/stats');
+
+// GTFS Route Shapes API endpoints (Phase 3)
+console.log('🗺️ Registering GTFS route shapes routes at /api/route-shapes...');
+
+// Get all route shapes
+app.get('/api/route-shapes', async (req, res) => {
+  try {
+    if (!gtfsRouteShapesService.isInitialized) {
+      const initResult = await gtfsRouteShapesService.initialize();
+      if (!initResult.success) {
+        throw new Error(initResult.error);
+      }
+    }
+
+    const allShapes = gtfsRouteShapesService.getAllRouteShapes();
+    
+    res.json({
+      success: true,
+      routes: allShapes,
+      metadata: {
+        count: allShapes.length,
+        lastLoaded: gtfsRouteShapesService.lastLoaded,
+        timestamp: new Date().toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching route shapes:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      routes: []
+    });
+  }
+});
+
+// Get specific route shapes
+app.post('/api/route-shapes/by-routes', async (req, res) => {
+  try {
+    const { routes } = req.body;
+    
+    if (!Array.isArray(routes)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Routes parameter must be an array'
+      });
+    }
+
+    if (!gtfsRouteShapesService.isInitialized) {
+      const initResult = await gtfsRouteShapesService.initialize();
+      if (!initResult.success) {
+        throw new Error(initResult.error);
+      }
+    }
+
+    const routeShapes = gtfsRouteShapesService.getRouteShapes(routes);
+    
+    res.json({
+      success: true,
+      routes: routeShapes,
+      metadata: {
+        requested: routes.length,
+        found: routeShapes.length,
+        timestamp: new Date().toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching specific route shapes:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      routes: []
+    });
+  }
+});
+
+// Get routes within viewport bounds
+app.post('/api/route-shapes/in-bounds', async (req, res) => {
+  try {
+    const { bounds } = req.body;
+    
+    if (!bounds || !bounds.north || !bounds.south || !bounds.east || !bounds.west) {
+      return res.status(400).json({
+        success: false,
+        error: 'Valid bounds required: {north, south, east, west}'
+      });
+    }
+
+    if (!gtfsRouteShapesService.isInitialized) {
+      const initResult = await gtfsRouteShapesService.initialize();
+      if (!initResult.success) {
+        throw new Error(initResult.error);
+      }
+    }
+
+    const routesInBounds = gtfsRouteShapesService.getRoutesInBounds(bounds);
+    
+    res.json({
+      success: true,
+      routes: routesInBounds,
+      metadata: {
+        bounds,
+        count: routesInBounds.length,
+        timestamp: new Date().toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching routes in bounds:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      routes: []
+    });
+  }
+});
+
+// Find routes near coordinates
+app.get('/api/route-shapes/near/:lat/:lng', async (req, res) => {
+  try {
+    const { lat, lng } = req.params;
+    const { radius = 250 } = req.query;
+    
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+    const radiusMeters = parseInt(radius);
+    
+    if (isNaN(latitude) || isNaN(longitude) || isNaN(radiusMeters)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Valid latitude, longitude, and radius required'
+      });
+    }
+
+    if (!gtfsRouteShapesService.isInitialized) {
+      const initResult = await gtfsRouteShapesService.initialize();
+      if (!initResult.success) {
+        throw new Error(initResult.error);
+      }
+    }
+
+    const nearbyRoutes = gtfsRouteShapesService.findRoutesNearCoordinates(
+      latitude, longitude, radiusMeters
+    );
+    
+    res.json({
+      success: true,
+      routes: nearbyRoutes,
+      metadata: {
+        location: { latitude, longitude },
+        radius: radiusMeters,
+        count: nearbyRoutes.length,
+        timestamp: new Date().toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error finding routes near coordinates:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      routes: []
+    });
+  }
+});
+
+// Get route shapes statistics
+app.get('/api/route-shapes/stats', async (req, res) => {
+  try {
+    const stats = gtfsRouteShapesService.getStatistics();
+    
+    res.json({
+      success: true,
+      statistics: stats,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Error getting route shapes stats:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      statistics: {
+        isInitialized: false,
+        routeCount: 0,
+        shapeCount: 0
+      }
+    });
+  }
+});
+
+// Clear route shapes cache
+app.post('/api/route-shapes/refresh', async (req, res) => {
+  try {
+    gtfsRouteShapesService.clearCache();
+    const result = await gtfsRouteShapesService.initialize();
+    
+    res.json({
+      success: true,
+      message: 'Route shapes refreshed',
+      result,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Error refreshing route shapes:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+console.log('✅ GTFS route shapes routes registered successfully');
 
 import { enhanceAlertWithCategory } from './services/alertCategorizer.js';
 
@@ -1715,6 +2208,98 @@ app.post('/api/cache/clear-enhanced', (req, res) => {
   enhancedRequestInProgress = false;
   console.log('🧹 Enhanced alerts cache cleared manually');
   res.json({ success: true, message: 'Enhanced cache cleared' });
+});
+
+// Operations Centre statistics endpoint
+app.get('/api/operations/stats', async (req, res) => {
+  try {
+    // Get current incidents count
+    const manualIncidents = getManualIncidents();
+    const activeIncidents = manualIncidents.filter(inc => inc.status === 'active').length;
+    
+    // Get roadworks count from Supabase
+    let plannedRoadworks = 0;
+    let activeRoadworks = 0;
+    try {
+      const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+      
+      // Count planned roadworks
+      const { data: planned, error: plannedError } = await supabase
+        .from('roadworks')
+        .select('id')
+        .in('status', ['planned', 'pending']);
+      
+      if (!plannedError && planned) {
+        plannedRoadworks = planned.length;
+      }
+      
+      // Count active roadworks
+      const { data: active, error: activeError } = await supabase
+        .from('roadworks')
+        .select('id')
+        .eq('status', 'active');
+      
+      if (!activeError && active) {
+        activeRoadworks = active.length;
+      }
+      
+      // Also check streetmanager notifications for active roadworks
+      const { data: streetManagerActive, error: smError } = await supabase
+        .from('active_streetmanager_roadworks')
+        .select('notification_id');
+      
+      if (!smError && streetManagerActive) {
+        activeRoadworks += streetManagerActive.length;
+      }
+    } catch (dbError) {
+      console.warn('⚠️ Failed to get roadworks count:', dbError.message);
+    }
+    
+    // Get disruption count
+    let disruptionCount = 0;
+    try {
+      // Count all current traffic alerts
+      if (enhancedAlertsCache && enhancedAlertsCache.alerts) {
+        disruptionCount = enhancedAlertsCache.alerts.length;
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to get disruption count:', error.message);
+    }
+    
+    console.log(`📊 Operations stats: ${activeIncidents} incidents, ${plannedRoadworks} planned roadworks, ${activeRoadworks} active roadworks`);
+    
+    res.json({
+      success: true,
+      incidents: {
+        active: activeIncidents,
+        total: manualIncidents.length
+      },
+      roadworks: {
+        planned: plannedRoadworks,
+        active: activeRoadworks,
+        total: plannedRoadworks + activeRoadworks
+      },
+      disruptions: {
+        active: disruptionCount,
+        total: disruptionCount
+      },
+      statistics: {
+        total: activeIncidents + plannedRoadworks + activeRoadworks + disruptionCount
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Error getting operations stats:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      incidents: { active: 0, total: 0 },
+      roadworks: { planned: 0, active: 0, total: 0 },
+      disruptions: { active: 0, total: 0 },
+      statistics: { total: 0 }
+    });
+  }
 });
 
 // System health with retention information

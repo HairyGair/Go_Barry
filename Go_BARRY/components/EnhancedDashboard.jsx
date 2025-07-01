@@ -30,6 +30,7 @@ import LocationCorrectionModal from './LocationCorrectionModal';
 import AlertDetailModal from './AlertDetailModal';
 import VixUploadButton from './VixUploadButton';
 import useVixData from './hooks/useVixData';
+import BODSIntegration from './BODSIntegration';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -785,6 +786,12 @@ const EnhancedDashboard = ({
 
         {/* System Status */}
         <SystemStatus />
+
+        {/* BODS Integration */}
+        <BODSIntegration 
+          supervisorSession={session}
+          compact={false}
+        />
 
         {/* Interactive TomTom Map */}
         <View style={styles.section}>

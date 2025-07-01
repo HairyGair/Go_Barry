@@ -1301,6 +1301,121 @@ export const promoteMessagePriority = mutation({
   },
 });
 
+// LIVE MAP BUS LOCATION FUNCTIONS
+
+// Sync bus locations to Convex
+export const syncBusLocations = mutation({
+  args: {
+    buses: v.array(v.object({
+      busId: v.string(),
+      vehicleRef: v.string(),
+      lineRef: v.optional(v.string()),
+      routeName: v.optional(v.string()),
+      directionRef: v.optional(v.string()),
+      coordinates: v.array(v.number()),
+      bearing: v.optional(v.number()),
+      status: v.string(),
+      delay: v.number(),
+      timestamp: v.number(),
+      operator: v.string(),
+      operatorCode: v.string(),
+      lastUpdated: v.number(),
+    })),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    
+    // Clear all existing bus locations (replace with fresh data)
+    const existingBuses = await ctx.db.query("busLocations").collect();
+    for (const bus of existingBuses) {
+      await ctx.db.delete(bus._id);
+    }
+    
+    // Insert new bus locations
+    const insertPromises = args.buses.map(bus => 
+      ctx.db.insert("busLocations", {
+        busId: bus.busId,
+        vehicleRef: bus.vehicleRef,
+        lineRef: bus.lineRef,
+        routeName: bus.routeName,
+        directionRef: bus.directionRef,
+        coordinates: bus.coordinates,
+        bearing: bus.bearing,
+        status: bus.status,
+        delay: bus.delay,
+        timestamp: bus.timestamp,
+        operator: bus.operator,
+        operatorCode: bus.operatorCode,
+        lastUpdated: bus.lastUpdated,
+      })
+    );
+    
+    await Promise.all(insertPromises);
+    
+    console.log(`✅ Synced ${args.buses.length} bus locations to Convex`);
+    
+    return { success: true, count: args.buses.length, timestamp: now };
+  },
+});
+
+// Get all current bus locations
+export const getBusLocations = query({
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("busLocations")
+      .withIndex("by_timestamp")
+      .order("desc")
+      .collect();
+  },
+});
+
+// Get bus locations for specific routes
+export const getBusLocationsByRoute = query({
+  args: {
+    routes: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const allBuses = await ctx.db.query("busLocations").collect();
+    
+    return allBuses.filter(bus => 
+      args.routes.some(route => 
+        bus.routeName === route || 
+        bus.lineRef === route
+      )
+    );
+  },
+});
+
+// Get bus location statistics
+export const getBusLocationStats = query({
+  handler: async (ctx) => {
+    const buses = await ctx.db.query("busLocations").collect();
+    
+    const totalBuses = buses.length;
+    const activeBuses = buses.filter(b => b.status === 'active').length;
+    const delayedBuses = buses.filter(b => b.status === 'delayed').length;
+    const uniqueRoutes = new Set(buses.map(b => b.routeName || b.lineRef)).size;
+    
+    const avgDelay = buses.length > 0 
+      ? buses.reduce((sum, b) => sum + b.delay, 0) / buses.length
+      : 0;
+    
+    const lastUpdate = buses.length > 0 
+      ? Math.max(...buses.map(b => b.lastUpdated))
+      : null;
+    
+    return {
+      totalBuses,
+      activeBuses,
+      delayedBuses,
+      uniqueRoutes,
+      avgDelay: Math.round(avgDelay),
+      lastUpdate,
+      lastUpdateFormatted: lastUpdate ? new Date(lastUpdate).toISOString() : null,
+    };
+  },
+});
+
 // Get display message analytics
 export const getDisplayMessageAnalytics = query({
   args: {

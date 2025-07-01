@@ -25,10 +25,11 @@ import QuickActions from './components/QuickActions.jsx';
 import ActivityFeed from './components/ActivityFeed.jsx';
 
 // Import operational components
-import DutyBoardsCard from '../../components/operations/cards/DutyBoardsCard';
-import IncidentsCard from '../../components/operations/cards/IncidentsCard';
-import RoadworksCard from '../../components/operations/cards/RoadworksCard';
-import DisruptionDatabaseCard from '../../components/operations/cards/DisruptionDatabaseCard';
+import DutyBoardsCard from '../../components/operations/cards/DutyBoardsCard.jsx';
+import IncidentsCard from '../../components/operations/cards/IncidentsCard.jsx';
+import RoadworksCard from '../../components/operations/cards/RoadworksCard.jsx';
+import DisruptionDatabaseCard from '../../components/operations/cards/DisruptionDatabaseCard.jsx';
+import StatisticsCard from '../../components/operations/cards/StatisticsCard.jsx';
 
 // Import theme
 import { operationsTheme } from './styles/theme.exports.js';
@@ -202,15 +203,14 @@ export default function OperationsCentre() {
         Component = DisruptionDatabaseCard;
         break;
       case 'statistics':
-        // TODO: Create statistics component
-        Alert.alert(UK_LOCALE.STATISTICS || 'Statistics', 'Statistics view coming soon!');
-        setSelectedCard(null);
-        return null;
+        Component = StatisticsCard;
+        break;
       case 'live-map':
-        // TODO: Create live map component
-        Alert.alert(UK_LOCALE.LIVE_MAP || 'Live Map', 'Live map view coming soon!');
-        setSelectedCard(null);
-        return null;
+        Component = () => {
+          const LiveMapContainer = require('../../components/operations/live-map/LiveMapContainer.jsx').default;
+          return <LiveMapContainer onClose={() => setSelectedCard(null)} />;
+        };
+        break;
       default:
         return null;
     }

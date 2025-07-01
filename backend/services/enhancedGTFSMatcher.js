@@ -411,6 +411,248 @@ class EnhancedGTFSMatcher {
   }
 }
 
+  // NEW: Compare GTFS scheduled vs actual times using BODS data
+  async compareScheduledVsActual(routeId, stopId, currentTime) {
+    await this.initialize();
+    
+    try {
+      // Get GTFS scheduled data for the route and stop
+      const route = this.routes.find(r => 
+        r.route_id === routeId || r.route_short_name === routeId
+      );
+      
+      if (!route) {
+        return {
+          success: false,
+          error: `Route ${routeId} not found in GTFS data`
+        };
+      }
+      
+      // Get stops for this route
+      const routeStops = this.stopsByRoute.get(route.route_id) || [];
+      const targetStop = routeStops.find(stop => 
+        stop.stop_id === stopId || stop.stop_name?.includes(stopId)
+      );
+      
+      if (!targetStop) {
+        return {
+          success: false,
+          error: `Stop ${stopId} not found for route ${routeId}`
+        };
+      }
+      
+      // For now, return structure that can be enhanced with real-time data
+      return {
+        success: true,
+        routeId: route.route_id,
+        routeName: route.route_short_name,
+        stopId: targetStop.stop_id,
+        stopName: targetStop.stop_name,
+        scheduledData: {
+          // This would normally come from GTFS stop_times.txt
+          note: 'Scheduled times would be loaded from GTFS stop_times.txt'
+        },
+        actualData: {
+          // This would come from BODS live data
+          note: 'Actual times would come from BODS/SIRI-VM data'
+        },
+        comparison: {
+          delayMinutes: null,
+          status: 'unknown',
+          note: 'Full implementation requires GTFS stop_times.txt and live BODS data'
+        }
+      };
+      
+    } catch (error) {
+      console.error('❌ Scheduled vs actual comparison error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+  
+  // NEW: Enhanced route matching that supports both GTFS and TransXChange formats
+  async matchRoutesWithTransXChange(lat, lng, transXChangeData = null, options = {}) {
+    await this.initialize();
+    
+    // Get GTFS matches first
+    const gtfsResult = await this.matchRoutesEnhanced(lat, lng, options);
+    
+    if (!transXChangeData) {
+      // Return GTFS-only results if no TransXChange data provided
+      return {
+        ...gtfsResult,
+        dataSource: 'GTFS-only',
+        transXChangeMatches: 0
+      };
+    }
+    
+    try {
+      // Enhance GTFS matches with TransXChange data
+      const enhancedMatches = gtfsResult.matches.map(match => {
+        // Look for corresponding TransXChange data
+        const txcMatch = this.findTransXChangeMatch(match, transXChangeData);
+        
+        if (txcMatch) {
+          return {
+            ...match,
+            transXChange: {
+              serviceRef: txcMatch.serviceRef,
+              operatorRef: txcMatch.operatorRef,
+              lineName: txcMatch.lineName,
+              direction: txcMatch.direction,
+              scheduledStops: txcMatch.stops?.length || 0,
+              lastModified: txcMatch.lastModified
+            },
+            confidence: Math.min(1.0, match.confidence + 0.1), // Boost confidence
+            dataSource: 'GTFS+TransXChange'
+          };
+        }
+        
+        return {
+          ...match,
+          dataSource: 'GTFS-only'
+        };
+      });
+      
+      // Add any TransXChange-only matches
+      const txcOnlyMatches = this.findTransXChangeOnlyMatches(
+        lat, lng, transXChangeData, gtfsResult.matches, options
+      );
+      
+      const allMatches = [...enhancedMatches, ...txcOnlyMatches]
+        .sort((a, b) => b.confidence - a.confidence)
+        .slice(0, options.maxResults || 20);
+      
+      return {
+        success: true,
+        matches: allMatches,
+        query: { lat, lng, radius: options.radius || 1000 },
+        matchedRoutes: allMatches.length,
+        gtfsMatches: enhancedMatches.length,
+        transXChangeMatches: txcOnlyMatches.length,
+        dataSource: 'GTFS+TransXChange'
+      };
+      
+    } catch (error) {
+      console.error('❌ TransXChange enhanced matching error:', error);
+      
+      // Fallback to GTFS-only on error
+      return {
+        ...gtfsResult,
+        dataSource: 'GTFS-fallback',
+        transXChangeError: error.message
+      };
+    }
+  }
+  
+  // Helper: Find matching TransXChange data for a GTFS route
+  findTransXChangeMatch(gtfsMatch, transXChangeData) {
+    if (!transXChangeData || !Array.isArray(transXChangeData)) {
+      return null;
+    }
+    
+    // Try to match by route name/number
+    const routeName = gtfsMatch.routeName;
+    
+    return transXChangeData.find(txc => {
+      // Various matching strategies
+      return (
+        txc.lineName === routeName ||
+        txc.lineRef === routeName ||
+        txc.serviceRef?.includes(routeName) ||
+        txc.serviceName?.includes(routeName)
+      );
+    });
+  }
+  
+  // Helper: Find TransXChange routes that don't have GTFS matches
+  findTransXChangeOnlyMatches(lat, lng, transXChangeData, existingMatches, options) {
+    if (!transXChangeData || !Array.isArray(transXChangeData)) {
+      return [];
+    }
+    
+    const existingRouteNames = new Set(
+      existingMatches.map(m => m.routeName)
+    );
+    
+    const txcOnlyMatches = [];
+    const radius = options.radius || 1000;
+    
+    transXChangeData.forEach(txc => {
+      const routeName = txc.lineName || txc.lineRef;
+      
+      // Skip if already matched by GTFS
+      if (!routeName || existingRouteNames.has(routeName)) {
+        return;
+      }
+      
+      // Check if TransXChange data has stops near the query point
+      const nearbyStops = this.findNearbyTransXChangeStops(lat, lng, txc, radius);
+      
+      if (nearbyStops.length > 0) {
+        const closestStop = nearbyStops[0];
+        const confidence = Math.max(0, 1 - (closestStop.distance / radius)) * 0.7; // Lower confidence for TXC-only
+        
+        txcOnlyMatches.push({
+          routeId: txc.serviceRef || routeName,
+          routeName: routeName,
+          routeLongName: txc.serviceName || txc.description,
+          confidence: confidence,
+          distance: closestStop.distance,
+          matchType: 'transxchange-only',
+          dataSource: 'TransXChange-only',
+          transXChange: {
+            serviceRef: txc.serviceRef,
+            operatorRef: txc.operatorRef,
+            lineName: txc.lineName,
+            direction: txc.direction,
+            scheduledStops: txc.stops?.length || 0,
+            lastModified: txc.lastModified
+          },
+          nearestStop: closestStop.stopName
+        });
+      }
+    });
+    
+    return txcOnlyMatches;
+  }
+  
+  // Helper: Find nearby stops in TransXChange data
+  findNearbyTransXChangeStops(lat, lng, transXChangeService, radius) {
+    if (!transXChangeService.stops || !Array.isArray(transXChangeService.stops)) {
+      return [];
+    }
+    
+    const nearbyStops = [];
+    
+    transXChangeService.stops.forEach(stop => {
+      if (stop.latitude && stop.longitude) {
+        const distance = this.calculateDistance(
+          lat, lng,
+          parseFloat(stop.latitude),
+          parseFloat(stop.longitude)
+        );
+        
+        if (distance <= radius) {
+          nearbyStops.push({
+            stopId: stop.stopId || stop.atcoCode,
+            stopName: stop.stopName || stop.commonName,
+            distance: distance,
+            coordinates: {
+              lat: parseFloat(stop.latitude),
+              lng: parseFloat(stop.longitude)
+            }
+          });
+        }
+      }
+    });
+    
+    return nearbyStops.sort((a, b) => a.distance - b.distance);
+  }
+}
+
 // Create singleton instance
 const enhancedGTFSMatcher = new EnhancedGTFSMatcher();
 

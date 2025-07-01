@@ -25,18 +25,47 @@ const noOpMutation = () => Promise.resolve({ success: false, error: 'Convex not 
 
 try {
   const convexReact = require('convex/react');
-  const apiModule = require('../convex/_generated/api');
   
-  if (convexReact && apiModule.api) {
+  if (convexReact) {
     useQuery = convexReact.useQuery;
     useMutation = convexReact.useMutation;
-    api = apiModule.api;
-    console.log('Convex imported successfully');
+    
+    // Try multiple import paths for the API
+    try {
+      // First try the relative path
+      const apiModule = require('../convex/_generated/api');
+      api = apiModule.api;
+    } catch (apiError1) {
+      try {
+        // Try alternative path with .js extension
+        const apiModule = require('../convex/_generated/api.js');
+        api = apiModule.api;
+      } catch (apiError2) {
+        try {
+          // Try absolute path from project root
+          const apiModule = require('../../convex/_generated/api');
+          api = apiModule.api;
+        } catch (apiError3) {
+          console.warn('Convex API import failed with all paths:', {
+            error1: apiError1.message,
+            error2: apiError2.message, 
+            error3: apiError3.message
+          });
+          api = null;
+        }
+      }
+    }
+    
+    if (api) {
+      console.log('✅ Convex imported successfully');
+    } else {
+      console.warn('⚠️ Convex React available but API not found');
+    }
   } else {
-    throw new Error('Convex API not fully available');
+    throw new Error('Convex React not available');
   }
 } catch (error) {
-  console.warn('Convex not available - using fallback mode:', error.message);
+  console.warn('⚠️ Convex not available - using fallback mode:', error.message);
   // Provide fallback functions that return appropriate default values
   useQuery = () => undefined; // Match Convex behavior when loading
   useMutation = () => noOpMutation;

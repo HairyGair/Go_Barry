@@ -215,6 +215,27 @@ export default defineSchema({
     .index("by_created", ["createdAt"])
     .index("by_supervisor", ["createdBy"]),
 
+  // Bus locations - real-time bus positions from UK Bus Data API
+  busLocations: defineTable({
+    busId: v.string(),
+    vehicleRef: v.string(),
+    lineRef: v.optional(v.string()),
+    routeName: v.optional(v.string()),
+    directionRef: v.optional(v.string()),
+    coordinates: v.array(v.number()), // [latitude, longitude]
+    bearing: v.optional(v.number()),
+    status: v.string(), // 'active', 'delayed', 'out_of_service'
+    delay: v.number(), // delay in seconds
+    timestamp: v.number(),
+    operator: v.string(),
+    operatorCode: v.string(),
+    lastUpdated: v.number(),
+  })
+    .index("by_route", ["routeName"])
+    .index("by_status", ["status"])
+    .index("by_timestamp", ["timestamp"])
+    .index("by_vehicle", ["vehicleRef"]),
+
   // System configuration
   systemConfig: defineTable({
     key: v.string(),

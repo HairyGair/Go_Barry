@@ -1,0 +1,343 @@
+/*
+ * Go BARRY - BODS API Routes
+ * Exposes Bus Open Data Service endpoints for frontend integration
+ * 
+ * Routes:
+ * - GET /api/bods/vehicle-locations
+ * - GET /api/bods/timetables  
+ * - GET /api/bods/fares
+ * - GET /api/bods/health
+ */
+
+import express from 'express';
+import { bodsService } from '../services/bods.js';
+
+const router = express.Router();
+
+/**
+ * GET /api/bods/vehicle-locations
+ * Real-time vehicle positions from SIRI-VM feed
+ */
+router.get('/vehicle-locations', async (req, res) => {
+  try {
+    console.log('[BODS API] Vehicle locations requested');
+    
+    const {
+      force_refresh = false,
+      operator_filter = true,
+      format = 'json'
+    } = req.query;
+    
+    const options = {
+      forceRefresh: force_refresh === 'true',
+      operatorFilter: operator_filter === 'true'
+    };
+    
+    const result = await bodsService.getVehicleLocations(options);
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        data: result.data,
+        metadata: {
+          count: result.count || result.data.length,
+          timestamp: result.timestamp,
+          cached: result.cached,
+          source: result.source || 'SIRI-VM',
+          format: format
+        }
+      });
+    } else {
+      res.status(503).json({
+        success: false,
+        error: result.error,
+        data: result.data || [],
+        metadata: {
+          count: 0,
+          cached: result.cached || false,
+          source: 'error-fallback'
+        }
+      });
+    }
+  } catch (error) {
+    console.error('[BODS API] Vehicle locations error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: []
+    });
+  }
+});
+
+/**
+ * GET /api/bods/timetables
+ * Scheduled service data from TransXChange feed
+ */
+router.get('/timetables', async (req, res) => {
+  try {
+    console.log('[BODS API] Timetables requested');
+    
+    const {
+      route_filter = null,
+      operator_filter = true,
+      force_refresh = false,
+      format = 'json'
+    } = req.query;
+    
+    const options = {
+      routeFilter: route_filter,
+      operatorFilter: operator_filter === 'true',
+      forceRefresh: force_refresh === 'true'
+    };
+    
+    const result = await bodsService.getTimetables(options);
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        data: result.data,
+        metadata: {
+          count: result.count || result.data.length,
+          timestamp: result.timestamp,
+          cached: result.cached,
+          source: result.source || 'TransXChange',
+          format: format,
+          routeFilter: route_filter
+        }
+      });
+    } else {
+      res.status(503).json({
+        success: false,
+        error: result.error,
+        data: result.data || [],
+        metadata: {
+          count: 0,
+          cached: result.cached || false,
+          source: 'error-fallback'
+        }
+      });
+    }
+  } catch (error) {
+    console.error('[BODS API] Timetables error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: []
+    });
+  }
+});
+
+/**
+ * GET /api/bods/fares
+ * Fare information from NeTEx feed
+ */
+router.get('/fares', async (req, res) => {
+  try {
+    console.log('[BODS API] Fares requested');
+    
+    const {
+      route_filter = null,
+      operator_filter = true,
+      force_refresh = false,
+      format = 'json'
+    } = req.query;
+    
+    const options = {
+      routeFilter: route_filter,
+      operatorFilter: operator_filter === 'true',
+      forceRefresh: force_refresh === 'true'
+    };
+    
+    const result = await bodsService.getFares(options);
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        data: result.data,
+        metadata: {
+          count: result.count || result.data.length,
+          timestamp: result.timestamp,
+          cached: result.cached,
+          source: result.source || 'NeTEx',
+          format: format,
+          routeFilter: route_filter
+        }
+      });
+    } else {
+      res.status(503).json({
+        success: false,
+        error: result.error,
+        data: result.data || [],
+        metadata: {
+          count: 0,
+          cached: result.cached || false,
+          source: 'error-fallback'
+        }
+      });
+    }
+  } catch (error) {
+    console.error('[BODS API] Fares error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      data: []
+    });
+  }
+});
+
+/**
+ * GET /api/bods/health
+ * Service health and metrics
+ */
+router.get('/health', async (req, res) => {
+  try {
+    const metrics = bodsService.getMetrics();
+    
+    res.json({
+      success: true,
+      service: 'BODS Integration',
+      status: metrics.health,
+      metrics: {
+        requests: {
+          total: metrics.totalRequests,
+          successful: metrics.successfulRequests,
+          failed: metrics.failedRequests,
+          successRate: metrics.totalRequests > 0 
+            ? (metrics.successfulRequests / metrics.totalRequests * 100).toFixed(2) + '%'
+            : '0%'
+        },
+        performance: {
+          avgResponseTime: Math.round(metrics.avgResponseTime) + 'ms',
+          lastRequestTime: metrics.lastRequestTime 
+            ? new Date(metrics.lastRequestTime).toISOString()
+            : null
+        },
+        rateLimit: {
+          remaining: metrics.rateLimitRemaining,
+          resetTime: metrics.rateLimitReset
+        },
+        caches: metrics.cacheStatus,
+        feeds: {
+          vehicleLocations: 'SIRI-VM',
+          timetables: 'TransXChange',
+          fares: 'NeTEx'
+        }
+      },
+      recentErrors: metrics.recentErrors.slice(0, 5),
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[BODS API] Health check error:', error);
+    res.status(500).json({
+      success: false,
+      service: 'BODS Integration',
+      status: 'error',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+/**
+ * GET /api/bods/compare-scheduled-actual
+ * Compare scheduled vs actual times for enhanced route analysis
+ */
+router.get('/compare-scheduled-actual', async (req, res) => {
+  try {
+    console.log('[BODS API] Scheduled vs actual comparison requested');
+    
+    const { route_id, stop_id } = req.query;
+    
+    if (!route_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'route_id parameter required'
+      });
+    }
+    
+    // Get timetable data for the route
+    const timetableResult = await bodsService.getTimetables({ 
+      routeFilter: route_id 
+    });
+    
+    // Get current vehicle positions for the route
+    const vehicleResult = await bodsService.getVehicleLocations();
+    
+    if (!timetableResult.success || !vehicleResult.success) {
+      return res.status(503).json({
+        success: false,
+        error: 'Failed to fetch comparison data',
+        details: {
+          timetableError: timetableResult.error,
+          vehicleError: vehicleResult.error
+        }
+      });
+    }
+    
+    // Filter vehicles for this route
+    const routeVehicles = vehicleResult.data.filter(v => 
+      v.routeId === route_id || v.routeName === route_id
+    );
+    
+    // TODO: Implement actual vs scheduled comparison logic
+    // This would match vehicle positions with scheduled stops and times
+    
+    const comparison = {
+      routeId: route_id,
+      vehicles: routeVehicles.map(vehicle => ({
+        vehicleId: vehicle.id,
+        currentPosition: vehicle.coordinates,
+        estimatedDelay: vehicle.delay || 0,
+        status: vehicle.status || 'unknown',
+        lastUpdate: vehicle.timestamp
+      })),
+      scheduledStops: timetableResult.data.length > 0 
+        ? timetableResult.data[0].stops || []
+        : [],
+      comparison: 'implementation-pending'
+    };
+    
+    res.json({
+      success: true,
+      data: comparison,
+      metadata: {
+        routeId: route_id,
+        vehicleCount: routeVehicles.length,
+        timestamp: Date.now(),
+        note: 'Full scheduled vs actual implementation pending'
+      }
+    });
+  } catch (error) {
+    console.error('[BODS API] Comparison error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/bods/clear-cache
+ * Clear all BODS caches
+ */
+router.post('/clear-cache', async (req, res) => {
+  try {
+    console.log('[BODS API] Cache clear requested');
+    
+    bodsService.clearCaches();
+    
+    res.json({
+      success: true,
+      message: 'All BODS caches cleared',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[BODS API] Cache clear error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+export default router;

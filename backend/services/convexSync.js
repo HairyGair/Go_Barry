@@ -311,6 +311,43 @@ class ConvexSyncService {
     }
   }
 
+  // Sync bus locations to Convex
+  async syncBusLocations(busLocations) {
+    if (!this.isEnabled) {
+      return { success: false, reason: 'Convex not configured' };
+    }
+
+    try {
+      // Transform bus locations to match Convex schema
+      const convexBuses = busLocations.map(bus => ({
+        busId: bus.id || bus.vehicleRef || `bus_${Date.now()}_${Math.random()}`,
+        vehicleRef: bus.vehicleRef,
+        lineRef: bus.lineRef || bus.routeName,
+        routeName: bus.routeName || bus.lineRef,
+        directionRef: bus.directionRef,
+        coordinates: bus.coordinates,
+        bearing: bus.bearing,
+        status: bus.status || 'active',
+        delay: bus.delay || 0,
+        timestamp: bus.timestamp || Date.now(),
+        operator: bus.operator || 'Go North East',
+        operatorCode: bus.operatorCode || 'GONE',
+        lastUpdated: bus.lastUpdated || Date.now()
+      }));
+
+      // Call the Convex mutation for bus locations
+      const result = await this.callConvexFunction('sync:syncBusLocations', {
+        buses: convexBuses
+      });
+
+      console.log(`✅ Synced ${convexBuses.length} bus locations to Convex`);
+      return { success: true, count: convexBuses.length, result };
+    } catch (error) {
+      console.error('❌ Bus locations Convex sync error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   // Test connection to Convex
   async testConnection() {
     if (!this.isEnabled) {

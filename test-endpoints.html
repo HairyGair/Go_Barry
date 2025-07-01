@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go BARRY - Test Missing Endpoints</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1a73e8;
+            margin-bottom: 10px;
+        }
+        .description {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .endpoint {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
+        }
+        .endpoint h2 {
+            margin-top: 0;
+            color: #333;
+            font-size: 18px;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #1557b0;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .response {
+            margin-top: 15px;
+            padding: 15px;
+            background: #263238;
+            color: #aed581;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .error-msg {
+            color: #ff5252;
+        }
+        .info {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .info h3 {
+            margin-top: 0;
+            color: #1565c0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Go BARRY - Endpoint Test Tool</h1>
+        <p class="description">Testing the missing API endpoints that were causing 404 errors</p>
+        
+        <div class="info">
+            <h3>📍 Issue Fixed:</h3>
+            <ul>
+                <li><code>/api/operations/stats</code> - Was missing, now added ✅</li>
+                <li><code>/api/bus-locations/stats</code> - Already existed ✅</li>
+            </ul>
+        </div>
+
+        <div class="endpoint">
+            <h2>1. Operations Stats Endpoint 
+                <span id="ops-status" class="status pending">Not tested</span>
+            </h2>
+            <p><strong>URL:</strong> <code id="ops-url"></code></p>
+            <p><strong>Used by:</strong> Operations Centre Dashboard</p>
+            <button onclick="testOperationsStats()" id="ops-btn">Test Endpoint</button>
+            <div id="ops-response" class="response" style="display: none;"></div>
+        </div>
+
+        <div class="endpoint">
+            <h2>2. Bus Locations Stats Endpoint 
+                <span id="bus-status" class="status pending">Not tested</span>
+            </h2>
+            <p><strong>URL:</strong> <code id="bus-url"></code></p>
+            <p><strong>Used by:</strong> Live Map Bus Location Layer</p>
+            <button onclick="testBusStats()" id="bus-btn">Test Endpoint</button>
+            <div id="bus-response" class="response" style="display: none;"></div>
+        </div>
+
+        <div class="endpoint">
+            <h2>3. Test Both Endpoints Together 
+                <span id="both-status" class="status pending">Not tested</span>
+            </h2>
+            <p>Simulate the actual application behavior by calling both endpoints</p>
+            <button onclick="testBoth()" id="both-btn">Test Both</button>
+            <div id="both-response" class="response" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Determine the API base URL
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const API_BASE = isLocal ? 'http://localhost:3001' : 'https://go-barry.onrender.com';
+        
+        // Update URLs in the UI
+        document.getElementById('ops-url').textContent = `${API_BASE}/api/operations/stats`;
+        document.getElementById('bus-url').textContent = `${API_BASE}/api/bus-locations/stats`;
+
+        async function testOperationsStats() {
+            const statusEl = document.getElementById('ops-status');
+            const responseEl = document.getElementById('ops-response');
+            const btnEl = document.getElementById('ops-btn');
+            
+            statusEl.textContent = 'Testing...';
+            statusEl.className = 'status pending';
+            responseEl.style.display = 'none';
+            btnEl.disabled = true;
+            
+            try {
+                const startTime = Date.now();
+                const response = await fetch(`${API_BASE}/api/operations/stats`);
+                const duration = Date.now() - startTime;
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    statusEl.textContent = `Success (${duration}ms)`;
+                    statusEl.className = 'status success';
+                    responseEl.textContent = JSON.stringify(data, null, 2);
+                    responseEl.className = 'response';
+                } else {
+                    statusEl.textContent = `Error ${response.status}`;
+                    statusEl.className = 'status error';
+                    responseEl.textContent = JSON.stringify(data, null, 2);
+                    responseEl.className = 'response error-msg';
+                }
+                responseEl.style.display = 'block';
+            } catch (error) {
+                statusEl.textContent = 'Network Error';
+                statusEl.className = 'status error';
+                responseEl.textContent = `Error: ${error.message}\n\nThis usually means:\n- Backend is not running (npm start in backend folder)\n- CORS issue (check backend logs)\n- Wrong URL (${API_BASE})`;
+                responseEl.className = 'response error-msg';
+                responseEl.style.display = 'block';
+            } finally {
+                btnEl.disabled = false;
+            }
+        }
+
+        async function testBusStats() {
+            const statusEl = document.getElementById('bus-status');
+            const responseEl = document.getElementById('bus-response');
+            const btnEl = document.getElementById('bus-btn');
+            
+            statusEl.textContent = 'Testing...';
+            statusEl.className = 'status pending';
+            responseEl.style.display = 'none';
+            btnEl.disabled = true;
+            
+            try {
+                const startTime = Date.now();
+                const response = await fetch(`${API_BASE}/api/bus-locations/stats`);
+                const duration = Date.now() - startTime;
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    statusEl.textContent = `Success (${duration}ms)`;
+                    statusEl.className = 'status success';
+                    responseEl.textContent = JSON.stringify(data, null, 2);
+                    responseEl.className = 'response';
+                } else {
+                    statusEl.textContent = `Error ${response.status}`;
+                    statusEl.className = 'status error';
+                    responseEl.textContent = JSON.stringify(data, null, 2);
+                    responseEl.className = 'response error-msg';
+                }
+                responseEl.style.display = 'block';
+            } catch (error) {
+                statusEl.textContent = 'Network Error';
+                statusEl.className = 'status error';
+                responseEl.textContent = `Error: ${error.message}\n\nThis usually means:\n- Backend is not running (npm start in backend folder)\n- CORS issue (check backend logs)\n- Wrong URL (${API_BASE})`;
+                responseEl.className = 'response error-msg';
+                responseEl.style.display = 'block';
+            } finally {
+                btnEl.disabled = false;
+            }
+        }
+
+        async function testBoth() {
+            const statusEl = document.getElementById('both-status');
+            const responseEl = document.getElementById('both-response');
+            const btnEl = document.getElementById('both-btn');
+            
+            statusEl.textContent = 'Testing...';
+            statusEl.className = 'status pending';
+            responseEl.style.display = 'none';
+            btnEl.disabled = true;
+            
+            try {
+                const results = await Promise.allSettled([
+                    fetch(`${API_BASE}/api/operations/stats`).then(r => r.json()),
+                    fetch(`${API_BASE}/api/bus-locations/stats`).then(r => r.json())
+                ]);
+                
+                const summary = {
+                    timestamp: new Date().toISOString(),
+                    apiBase: API_BASE,
+                    results: {
+                        operationsStats: results[0].status === 'fulfilled' ? {
+                            success: results[0].value.success,
+                            incidents: results[0].value.incidents,
+                            roadworks: results[0].value.roadworks
+                        } : { error: results[0].reason?.message || 'Failed' },
+                        busLocationStats: results[1].status === 'fulfilled' ? {
+                            success: results[1].value.success,
+                            statistics: results[1].value.statistics
+                        } : { error: results[1].reason?.message || 'Failed' }
+                    },
+                    allSuccessful: results.every(r => r.status === 'fulfilled' && r.value?.success)
+                };
+                
+                if (summary.allSuccessful) {
+                    statusEl.textContent = 'Both endpoints working!';
+                    statusEl.className = 'status success';
+                } else {
+                    statusEl.textContent = 'Some endpoints failed';
+                    statusEl.className = 'status error';
+                }
+                
+                responseEl.textContent = JSON.stringify(summary, null, 2);
+                responseEl.className = 'response';
+                responseEl.style.display = 'block';
+            } catch (error) {
+                statusEl.textContent = 'Test Failed';
+                statusEl.className = 'status error';
+                responseEl.textContent = `Error: ${error.message}`;
+                responseEl.className = 'response error-msg';
+                responseEl.style.display = 'block';
+            } finally {
+                btnEl.disabled = false;
+            }
+        }
+
+        // Auto-detect if running locally and show a tip
+        if (isLocal) {
+            console.log('🏠 Running locally - using http://localhost:3001');
+        } else {
+            console.log('🌐 Running in production - using https://go-barry.onrender.com');
+        }
+    </script>
+</body>
+</html>

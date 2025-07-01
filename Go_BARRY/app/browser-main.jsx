@@ -22,6 +22,7 @@ import MessageDistributionCenter from '../components/MessageDistributionCenter';
 import AutomatedReportingSystem from '../components/AutomatedReportingSystem';
 import SystemHealthMonitor from '../components/SystemHealthMonitor';
 import TrainingHelpSystem from '../components/TrainingHelpSystem';
+import StatisticsComponent from '../components/operations/StatisticsComponent/StatisticsComponent';
 // AdminPanel removed - using new route-based admin
 import { useSupervisor } from '../components/hooks/useSupervisorSession';
 import { useBarryAPI } from '../components/hooks/useBARRYapi';
@@ -55,6 +56,13 @@ const BROWSER_NAVIGATION = {
     component: EnhancedDashboard,
     description: 'Real-time traffic intelligence overview',
     color: '#3B82F6'
+  },
+  statistics: {
+    title: 'Statistics Dashboard',
+    icon: 'analytics',
+    component: StatisticsComponent,
+    description: '📊 Advanced analytics & performance metrics',
+    color: '#8B5CF6'
   },
   operations: {
     title: 'Operations Centre',  // UK spelling
