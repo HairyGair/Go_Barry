@@ -16,7 +16,7 @@ import {
   Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSupervisorSession } from './hooks/useSupervisorSession';
+import { useSupervisorSession } from '../hooks/useSupervisorSession';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';

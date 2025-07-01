@@ -8,6 +8,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { operationsTheme } from '../styles/theme';
+import { UK_LOCALE } from '../constants/locale';
 
 export default function ActivityFeed() {
   const [activities, setActivities] = useState([]);
@@ -23,32 +24,32 @@ export default function ActivityFeed() {
     const mockActivities = [
       { 
         id: 1,
-        time: '2 min ago', 
-        action: 'New incident reported: A1 Northbound at junction 65',
+        time: UK_LOCALE.MINUTES_AGO(2), 
+        action: `${UK_LOCALE.NEW_INCIDENT_REPORTED}: A1 Northbound at junction 65`,
         type: 'incident',
         icon: 'alert-circle',
         color: operationsTheme.colors.error
       },
       { 
         id: 2,
-        time: '15 min ago', 
-        action: 'Roadwork completed: Queen Street resurfacing',
+        time: UK_LOCALE.MINUTES_AGO(15), 
+        action: `${UK_LOCALE.ROADWORK_COMPLETED}: Queen Street resurfacing`,
         type: 'roadwork',
         icon: 'check-circle',
         color: operationsTheme.colors.success
       },
       { 
         id: 3,
-        time: '1 hour ago', 
-        action: 'Duty board updated for route 21',
+        time: UK_LOCALE.HOURS_AGO(1), 
+        action: `${UK_LOCALE.DUTY_BOARD_UPDATED} for route 21`,
         type: 'duty',
         icon: 'clipboard-check',
         color: operationsTheme.colors.info
       },
       { 
         id: 4,
-        time: '2 hours ago', 
-        action: 'Weather alert: Heavy rain expected 14:00-18:00',
+        time: UK_LOCALE.HOURS_AGO(2), 
+        action: `${UK_LOCALE.WEATHER_ALERT}: Heavy rain expected 14:00-18:00`,
         type: 'weather',
         icon: 'weather-rainy',
         color: operationsTheme.colors.warning
@@ -60,7 +61,7 @@ export default function ActivityFeed() {
   
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Recent Activity</Text>
+      <Text style={styles.sectionTitle}>{UK_LOCALE.RECENT_ACTIVITY}</Text>
       <View style={styles.feedContainer}>
         <ScrollView showsVerticalScrollIndicator={false}>
           {activities.map((item) => (

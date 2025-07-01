@@ -8,39 +8,40 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { operationsTheme } from '../styles/theme';
+import { UK_LOCALE } from '../constants/locale';
 
 export default function QuickActions() {
   const actions = [
     { 
       icon: 'alert-octagon', 
-      label: 'Emergency Alert', 
+      label: UK_LOCALE.EMERGENCY_ALERT, 
       color: '#f44336',
-      action: () => Alert.alert('Emergency Alert', 'Send emergency broadcast to all supervisors?', [
-        { text: 'Cancel', style: 'cancel' },
+      action: () => Alert.alert(UK_LOCALE.EMERGENCY_ALERT, 'Send emergency broadcast to all supervisors?', [
+        { text: UK_LOCALE.CANCEL, style: 'cancel' },
         { text: 'Send', onPress: () => console.log('Emergency alert sent'), style: 'destructive' }
       ])
     },
     { 
       icon: 'bullhorn', 
-      label: 'Broadcast', 
+      label: UK_LOCALE.BROADCAST, 
       color: '#FF9800',
-      action: () => Alert.alert('Broadcast', 'Send message to control room displays?', [
-        { text: 'Cancel', style: 'cancel' },
+      action: () => Alert.alert(UK_LOCALE.BROADCAST, 'Send message to control room displays?', [
+        { text: UK_LOCALE.CANCEL, style: 'cancel' },
         { text: 'Send', onPress: () => console.log('Broadcast sent') }
       ])
     },
     { 
       icon: 'file-document', 
-      label: 'Daily Report', 
+      label: UK_LOCALE.DAILY_REPORT, 
       color: '#2196F3',
-      action: () => Alert.alert('Daily Report', 'Generate report for today?', [
-        { text: 'Cancel', style: 'cancel' },
+      action: () => Alert.alert(UK_LOCALE.DAILY_REPORT, 'Generate report for today?', [
+        { text: UK_LOCALE.CANCEL, style: 'cancel' },
         { text: 'Generate', onPress: () => console.log('Report generated') }
       ])
     },
     { 
       icon: 'refresh', 
-      label: 'Refresh Data', 
+      label: UK_LOCALE.REFRESH_DATA, 
       color: '#4CAF50',
       action: () => {
         if (typeof window !== 'undefined') {

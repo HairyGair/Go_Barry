@@ -29,6 +29,11 @@
     "update": "eas update",
     "test": "jest --config ./test-config/jest.config.js",
     "test:admin": "jest --config ./test-config/jest.config.js app/admin/__tests__",
+    "test:operations": "jest --config ./test-config/jest.config.js components/operations/__tests__",
+    "test:integration": "node ../scripts/integration-test.js",
+    "test:performance": "node ../scripts/performance-test.js",
+    "test:accessibility": "node ../scripts/accessibility-test.js",
+    "test:all": "node ../scripts/run-all-tests.js",
     "test:watch": "jest --config ./test-config/jest.config.js --watch",
     "reset": "expo start --clear"
   },

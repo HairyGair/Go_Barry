@@ -13,10 +13,10 @@ import {
   RefreshControl
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSupervisorSession } from './hooks/useSupervisorSession';
-import CreateRoadworkModal from './CreateRoadworkModal';
-import TomTomTrafficMap from './TomTomTrafficMap';
-import UnifiedDetailModal from './UnifiedDetailModal';
+import { useSupervisorSession } from '../hooks/useSupervisorSession';
+import CreateRoadworkModal from '../CreateRoadworkModal';
+import TomTomTrafficMap from '../TomTomTrafficMap';
+import UnifiedDetailModal from '../UnifiedDetailModal';
 
 const RoadworksManager = ({ baseUrl }) => {
   // Get the supervisor session from the existing auth system

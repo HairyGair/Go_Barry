@@ -9,6 +9,7 @@ import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { operationsTheme } from '../styles/theme';
+import { UK_LOCALE } from '../constants/locale';
 
 export default function OperationsHeader({ supervisorName, onLogout }) {
   const router = useRouter();
@@ -19,10 +20,10 @@ export default function OperationsHeader({ supervisorName, onLogout }) {
         <View style={styles.titleSection}>
           <Pressable onPress={() => router.replace('/')} style={styles.backButton}>
             <MaterialCommunityIcons name="arrow-left" size={20} color="#fff" />
-            <Text style={styles.backText}>Home</Text>
+            <Text style={styles.backText}>{UK_LOCALE.HOME}</Text>
           </Pressable>
-          <Text style={styles.headerTitle}>Operations Centre</Text>
-          <Text style={styles.headerSubtitle}>Daily Operational Tools</Text>
+          <Text style={styles.headerTitle}>{UK_LOCALE.OPERATIONS_CENTRE}</Text>
+          <Text style={styles.headerSubtitle}>{UK_LOCALE.DAILY_OPERATIONAL_TOOLS}</Text>
         </View>
         
         <View style={styles.headerActions}>
@@ -33,7 +34,7 @@ export default function OperationsHeader({ supervisorName, onLogout }) {
           
           <Pressable onPress={onLogout} style={styles.logoutButton}>
             <MaterialCommunityIcons name="logout" size={20} color="#ff6b6b" />
-            <Text style={styles.logoutText}>Logout</Text>
+            <Text style={styles.logoutText}>{UK_LOCALE.LOGOUT}</Text>
           </Pressable>
         </View>
       </View>

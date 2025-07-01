@@ -17,10 +17,10 @@ import {
   Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSupervisorSession } from './hooks/useSupervisorSession';
-import { useSupervisorSync } from './hooks/useSupervisorSync';
-import { useConvexSync } from '../hooks/useConvexSync';
-import TomTomTrafficMap from './TomTomTrafficMap';
+import { useSupervisorSession } from '../hooks/useSupervisorSession';
+import { useSupervisorSync } from '../hooks/useSupervisorSync';
+import { useConvexSync } from '../../hooks/useConvexSync';
+import TomTomTrafficMap from '../TomTomTrafficMap';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';

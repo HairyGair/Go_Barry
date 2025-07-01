@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 // Import all our v3.0 components
 import SupervisorControl from '../components/SupervisorControl';
 import EnhancedDashboard from '../components/EnhancedDashboard';
-import AIDisruptionManager from '../components/AIDisruptionManager';
+import AIDisruptionManager from '../components/operations/DisruptionDatabase';
 import MessageDistributionCenter from '../components/MessageDistributionCenter';
 import AutomatedReportingSystem from '../components/AutomatedReportingSystem';
 import SystemHealthMonitor from '../components/SystemHealthMonitor';
@@ -57,13 +57,13 @@ const BROWSER_NAVIGATION = {
     color: '#3B82F6'
   },
   operations: {
-    title: 'Operations Center',
+    title: 'Operations Centre',  // UK spelling
     icon: 'construct',
     component: null,
     description: 'Daily operational tools - Incidents, Roadworks & Disruptions',
     color: '#059669',
     isRoute: true,
-    route: '/operations'
+    route: '/operations-centre'
   },
   ai: {
     title: 'AI Disruption Manager',

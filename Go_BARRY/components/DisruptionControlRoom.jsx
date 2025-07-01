@@ -10,8 +10,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import ServiceFrequencyDashboard from './ServiceFrequencyDashboard';
-import AIDisruptionManager from './AIDisruptionManager';
-import IncidentManager from './IncidentManager';
+import AIDisruptionManager from './operations/DisruptionDatabase';
+import IncidentManager from './operations/IncidentManager';
 import MessageDistributionCenter from './MessageDistributionCenter';
 import AutomatedReportingSystem from './AutomatedReportingSystem';
 import SystemHealthMonitor from './SystemHealthMonitor';

@@ -8,13 +8,14 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { operationsTheme } from '../styles/theme';
+import { UK_LOCALE } from '../constants/locale';
 
 export default function StatusBar() {
   const [statuses, setStatuses] = useState([
-    { service: 'Backend API', status: 'checking', icon: 'help-circle' },
-    { service: 'Convex Sync', status: 'checking', icon: 'help-circle' },
-    { service: 'GTFS Data', status: 'checking', icon: 'help-circle' },
-    { service: 'Weather API', status: 'checking', icon: 'help-circle' },
+    { service: UK_LOCALE.BACKEND_API, status: UK_LOCALE.CHECKING, icon: 'help-circle' },
+    { service: UK_LOCALE.CONVEX_SYNC, status: UK_LOCALE.CHECKING, icon: 'help-circle' },
+    { service: UK_LOCALE.GTFS_DATA, status: UK_LOCALE.CHECKING, icon: 'help-circle' },
+    { service: UK_LOCALE.WEATHER_API, status: UK_LOCALE.CHECKING, icon: 'help-circle' },
   ]);
   
   useEffect(() => {
@@ -30,22 +31,22 @@ export default function StatusBar() {
       
       setStatuses([
         { 
-          service: 'Backend API', 
+          service: UK_LOCALE.BACKEND_API, 
           status: data.healthy ? 'operational' : 'error',
           icon: data.healthy ? 'check-circle' : 'alert-circle'
         },
         { 
-          service: 'Convex Sync', 
+          service: UK_LOCALE.CONVEX_SYNC, 
           status: data.services?.convex?.status === 'connected' ? 'operational' : 'degraded',
           icon: data.services?.convex?.status === 'connected' ? 'check-circle' : 'alert-circle'
         },
         { 
-          service: 'GTFS Data', 
+          service: UK_LOCALE.GTFS_DATA, 
           status: data.gtfs?.routesLoaded > 0 ? 'operational' : 'error',
           icon: data.gtfs?.routesLoaded > 0 ? 'check-circle' : 'alert-circle'
         },
         { 
-          service: 'Weather API', 
+          service: UK_LOCALE.WEATHER_API, 
           status: data.services?.weather?.healthy ? 'operational' : 'degraded',
           icon: data.services?.weather?.healthy ? 'check-circle' : 'alert-circle'
         },

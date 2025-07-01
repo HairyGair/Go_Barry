@@ -8,9 +8,9 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { useSupervisorSession } from './hooks/useSupervisorSession';
+import { useSupervisorSession } from '../hooks/useSupervisorSession';
 import { useQuery, useMutation } from 'convex/react';
-import { api } from '../convex/_generated/api';
+import { api } from '../../convex/_generated/api';
 
 // Note: You'll need to install react-pdf
 // Run: npm install react-pdf@latest
