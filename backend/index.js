@@ -666,6 +666,22 @@ busLocationService.initialize().then(result => {
   console.warn('⚠️ Bus location service initialization error:', err.message);
 });
 
+// Bus location API endpoints
+console.log('🚌 Registering bus location routes at /api/bus-locations...');
+app.use('/api/bus-locations', busLocationsAPI);
+console.log('✅ Bus location routes registered successfully');
+
+// Initialize bus location service
+busLocationService.initialize().then(result => {
+  if (result.success) {
+    console.log('✅ Bus location service initialized successfully');
+  } else {
+    console.warn('⚠️ Bus location service initialization failed:', result.error);
+  }
+}).catch(err => {
+  console.warn('⚠️ Bus location service initialization error:', err.message);
+});
+
 // Initialize GTFS route shapes service (Phase 3)
 gtfsRouteShapesService.initialize().then(result => {
   if (result.success) {

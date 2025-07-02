@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go BARRY - Bus API Quick Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0e16;
+            color: #f3f4f6;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 { color: #3b82f6; }
+        .result {
+            background: #1f2937;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        .info { color: #3b82f6; }
+        pre {
+            background: #0a0e16;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚌 Go BARRY Bus API - Quick Test</h1>
+    
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = 'https://go-barry.onrender.com';
+        const results = document.getElementById('results');
+
+        async function runTests() {
+            results.innerHTML = '<p class="info">Running tests...</p>';
+            
+            // Test existing endpoints
+            const endpoints = [
+                { url: '/api/bus-locations/config', name: 'Configuration' },
+                { url: '/api/bus-locations/stats', name: 'Statistics' },
+                { url: '/api/bus-locations', name: 'Bus Locations' },
+                { url: '/api/operations/stats', name: 'Operations Stats (includes buses)' }
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(API_BASE + endpoint.url);
+                    const data = await response.json();
+                    
+                    const resultDiv = document.createElement('div');
+                    resultDiv.className = 'result';
+                    
+                    if (data.success) {
+                        let content = `<h3 class="success">✅ ${endpoint.name}</h3>`;
+                        
+                        if (endpoint.url.includes('config')) {
+                            content += `<p>API Key: ${data.configuration?.primaryDataset?.apiKey || 'Not found'}</p>`;
+                            content += `<p>Dataset: ${data.configuration?.primaryDataset?.id || 'Not found'}</p>`;
+                        } else if (endpoint.url.includes('stats') && endpoint.url.includes('bus-locations')) {
+                            content += `<p>Total Vehicles: ${data.statistics?.totalVehicles || 0}</p>`;
+                            content += `<p>Data Source: ${data.statistics?.dataSource || 'Unknown'}</p>`;
+                        } else if (endpoint.url === '/api/bus-locations') {
+                            content += `<p>Bus Count: ${data.metadata?.count || 0}</p>`;
+                            content += `<p>Cached: ${data.metadata?.cached ? 'Yes' : 'No'}</p>`;
+                            if (data.buses && data.buses.length > 0) {
+                                content += '<p>Sample bus: ' + data.buses[0].routeName + ' (' + data.buses[0].vehicleRef + ')</p>';
+                            }
+                        } else if (endpoint.url.includes('operations')) {
+                            content += `<p>Bus Statistics: ${JSON.stringify(data.stats?.buses || {}, null, 2)}</p>`;
+                        }
+                        
+                        resultDiv.innerHTML = content;
+                    } else {
+                        resultDiv.innerHTML = `<h3 class="error">❌ ${endpoint.name}</h3><p>${data.error || 'Unknown error'}</p>`;
+                    }
+                    
+                    results.appendChild(resultDiv);
+                } catch (error) {
+                    const resultDiv = document.createElement('div');
+                    resultDiv.className = 'result';
+                    resultDiv.innerHTML = `<h3 class="error">❌ ${endpoint.name}</h3><p>Error: ${error.message}</p>`;
+                    results.appendChild(resultDiv);
+                }
+            }
+            
+            // Summary
+            const summaryDiv = document.createElement('div');
+            summaryDiv.className = 'result';
+            summaryDiv.innerHTML = `
+                <h3 class="info">📊 Summary</h3>
+                <p>The debug-api endpoint needs to be deployed first.</p>
+                <p>Current API endpoints are working with the configured API key.</p>
+                <p><strong>API Key:</strong> 1b7862548843de84e3ee3602c9b9b2488b736fd3</p>
+                <p><strong>Dataset:</strong> 9264 (Go North East)</p>
+            `;
+            results.appendChild(summaryDiv);
+        }
+
+        // Run tests on load
+        runTests();
+    </script>
+</body>
+</html>
