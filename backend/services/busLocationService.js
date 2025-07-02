@@ -61,46 +61,41 @@ export class BusLocationService {
     let xmlData = null;
     let dataSource = null;
     
-    // UPDATED: Try current UK Bus Data API endpoints with proper headers
+    // UPDATED: BODS API expects API key as URL parameter
     const endpoints = [
       {
-        // The webhook subscription shows we're using datafeed/9264
-        url: `https://data.bus-data.dft.gov.uk/api/v1/datafeed/${this.datasetId}`,
-        source: 'datafeed-9264',
+        // Main bus location endpoint with API key as parameter
+        url: `https://data.bus-data.dft.gov.uk/api/v1/datafeed/?api_key=${this.apiKey}`,
+        source: 'bods-all-feeds',
         headers: {
-          'x-api-key': this.apiKey,  // lowercase header
-          'Accept': 'application/xml, text/xml, application/json',
-          'User-Agent': 'Go-BARRY/1.0',
-          'Content-Type': 'application/json'
-        }
-      },
-      {
-        // Try with query parameter instead
-        url: `https://data.bus-data.dft.gov.uk/api/v1/datafeed?datasetId=${this.datasetId}`,
-        source: 'datafeed-with-dataset-param',
-        headers: {
-          'x-api-key': this.apiKey,
-          'Accept': '*/*',
+          'Accept': 'application/xml, text/xml, application/json, */*',
           'User-Agent': 'Go-BARRY/1.0'
         }
       },
       {
-        // Direct SIRI-VM endpoint if available
-        url: `https://data.bus-data.dft.gov.uk/api/v1/datafeed/${this.datasetId}/siri-vm`,
-        source: 'siri-vm-direct',
+        // Filter by operator (Go North East)
+        url: `https://data.bus-data.dft.gov.uk/api/v1/datafeed/?api_key=${this.apiKey}&operatorRef=${this.operatorCode}`,
+        source: 'bods-operator-filtered',
         headers: {
-          'x-api-key': this.apiKey,
-          'Accept': 'application/xml',
+          'Accept': 'application/xml, text/xml, application/json, */*',
           'User-Agent': 'Go-BARRY/1.0'
         }
       },
       {
-        // Try without dataset ID to see what's available
-        url: 'https://data.bus-data.dft.gov.uk/api/v1/datafeed',
-        source: 'datafeed-list',
+        // Filter by bounding box (North East England)
+        url: `https://data.bus-data.dft.gov.uk/api/v1/datafeed/?api_key=${this.apiKey}&boundingBox=-2.2,54.7,-1.3,55.2`,
+        source: 'bods-bbox-filtered',
         headers: {
-          'x-api-key': this.apiKey,
-          'Accept': 'application/json',
+          'Accept': 'application/xml, text/xml, application/json, */*',
+          'User-Agent': 'Go-BARRY/1.0'
+        }
+      },
+      {
+        // Try specific datafeed if we have an ID
+        url: `https://data.bus-data.dft.gov.uk/api/v1/datafeed/${this.datasetId}/?api_key=${this.apiKey}`,
+        source: 'bods-specific-feed',
+        headers: {
+          'Accept': 'application/xml, text/xml, application/json, */*',
           'User-Agent': 'Go-BARRY/1.0'
         }
       }

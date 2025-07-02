@@ -322,49 +322,45 @@ router.get('/debug-api', async (req, res) => {
     
     const apiKey = process.env.UK_BUS_DATA_API_KEY || '1b7862548843de84e3ee3602c9b9b2488b736fd3';
     
-    // Test different authentication methods
+    // Test BODS API endpoints according to official documentation
     const tests = [
       {
-        name: 'API Key in Header (X-API-Key)',
-        url: 'https://data.bus-data.dft.gov.uk/api/v1/datafeed/9264/',
+        name: 'All Bus Location Feeds',
+        url: `https://data.bus-data.dft.gov.uk/api/v1/datafeed/?api_key=${apiKey}`,
         headers: {
-          'X-API-Key': apiKey,
-          'Accept': 'application/xml',
+          'Accept': 'application/xml, text/xml, application/json, */*',
           'User-Agent': 'Go-BARRY/1.0'
         }
       },
       {
-        name: 'API Key in URL Parameter',
+        name: 'Filtered by Operator (GONE)',
+        url: `https://data.bus-data.dft.gov.uk/api/v1/datafeed/?api_key=${apiKey}&operatorRef=GONE`,
+        headers: {
+          'Accept': 'application/xml, text/xml, application/json, */*',
+          'User-Agent': 'Go-BARRY/1.0'
+        }
+      },
+      {
+        name: 'Filtered by Bounding Box (North East)',
+        url: `https://data.bus-data.dft.gov.uk/api/v1/datafeed/?api_key=${apiKey}&boundingBox=-2.2,54.7,-1.3,55.2`,
+        headers: {
+          'Accept': 'application/xml, text/xml, application/json, */*',
+          'User-Agent': 'Go-BARRY/1.0'
+        }
+      },
+      {
+        name: 'Specific Feed ID 9264',
         url: `https://data.bus-data.dft.gov.uk/api/v1/datafeed/9264/?api_key=${apiKey}`,
         headers: {
-          'Accept': 'application/xml',
+          'Accept': 'application/xml, text/xml, application/json, */*',
           'User-Agent': 'Go-BARRY/1.0'
         }
       },
       {
-        name: 'Bearer Token Auth',
-        url: 'https://data.bus-data.dft.gov.uk/api/v1/datafeed/9264',
+        name: 'Check Available Feeds (JSON)',
+        url: `https://data.bus-data.dft.gov.uk/api/v1/datafeed/?api_key=${apiKey}&format=json`,
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Accept': 'application/xml',
-          'User-Agent': 'Go-BARRY/1.0'
-        }
-      },
-      {
-        name: 'GTFS-RT Format with API Key',
-        url: 'https://data.bus-data.dft.gov.uk/api/v1/gtfsrt/datafeed/9264',
-        headers: {
-          'X-API-Key': apiKey,
-          'Accept': 'application/x-protobuf,application/octet-stream,*/*',
-          'User-Agent': 'Go-BARRY/1.0'
-        }
-      },
-      {
-        name: 'Basic Auth Header',
-        url: 'https://data.bus-data.dft.gov.uk/api/v1/datafeed/9264',
-        headers: {
-          'Authorization': `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
-          'Accept': 'application/xml',
+          'Accept': 'application/json',
           'User-Agent': 'Go-BARRY/1.0'
         }
       }
