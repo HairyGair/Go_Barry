@@ -9,13 +9,40 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 // Native JavaScript implementations to replace lodash
 const throttle = (func, limit) => {
   let inThrottle;
-  return function(...args) {
+  let timeoutId;
+  let lastArgs;
+  
+  const throttled = function(...args) {
+    lastArgs = args;
     if (!inThrottle) {
       func.apply(this, args);
       inThrottle = true;
-      setTimeout(() => inThrottle = false, limit);
+      timeoutId = setTimeout(() => {
+        inThrottle = false;
+        if (lastArgs) {
+          throttled.apply(this, lastArgs);
+          lastArgs = null;
+        }
+      }, limit);
     }
   };
+  
+  throttled.cancel = () => {
+    clearTimeout(timeoutId);
+    inThrottle = false;
+    lastArgs = null;
+  };
+  
+  throttled.flush = () => {
+    clearTimeout(timeoutId);
+    if (lastArgs) {
+      func.apply(this, lastArgs);
+    }
+    inThrottle = false;
+    lastArgs = null;
+  };
+  
+  return throttled;
 };
 
 const debounce = (func, delay) => {

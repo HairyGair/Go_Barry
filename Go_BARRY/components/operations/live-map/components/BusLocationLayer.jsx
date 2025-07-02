@@ -18,6 +18,17 @@ const BusLocationLayer = ({
 }) => {
   const [busMarkers, setBusMarkers] = useState(new Map());
   const layerRef = useRef(null);
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('[BusLocationLayer] Component mounted/updated:', {
+      mapAvailable: !!map,
+      busCount: busLocations.length,
+      visible: visible,
+      firstBus: busLocations[0],
+      Platform: Platform.OS
+    });
+  }, [map, busLocations, visible]);
 
   // Clean up markers on unmount
   useEffect(() => {
@@ -120,13 +131,29 @@ const BusLocationLayer = ({
     const markerElement = createBusMarkerElement(bus);
     
     try {
-      // Use TomTom SDK to create marker
-      const marker = new window.tt.Marker({ 
-        element: markerElement,
-        anchor: 'center'
-      })
-        .setLngLat([coordinates[1], coordinates[0]])
-        .addTo(tomtomMap);
+      // Use TomTom SDK to create marker if available, otherwise use MapLibre
+      let marker;
+      
+      if (window.tt && window.tt.Marker) {
+        // TomTom SDK is available
+        marker = new window.tt.Marker({ 
+          element: markerElement,
+          anchor: 'center'
+        })
+          .setLngLat([coordinates[1], coordinates[0]])
+          .addTo(tomtomMap);
+      } else if (window.maplibregl) {
+        // Fallback to MapLibre GL
+        marker = new window.maplibregl.Marker({ 
+          element: markerElement,
+          anchor: 'center'
+        })
+          .setLngLat([coordinates[1], coordinates[0]])
+          .addTo(tomtomMap);
+      } else {
+        console.error('No mapping SDK available for bus markers');
+        return null;
+      }
 
       // Add click handler
       markerElement.addEventListener('click', () => {
@@ -184,7 +211,62 @@ const BusLocationLayer = ({
       position: relative;
       cursor: pointer;
       z-index: ${isSelected ? '1000' : '100'};
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     `;
+    
+    // Add CSS for bus icon and label
+    const style = document.createElement('style');
+    if (!document.getElementById('bus-marker-styles')) {
+      style.id = 'bus-marker-styles';
+      style.textContent = `
+        .bus-marker {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          transition: all 0.2s ease;
+        }
+        
+        .bus-marker.selected {
+          transform: scale(1.2);
+        }
+        
+        .bus-icon {
+          background: white;
+          border-radius: 4px;
+          padding: 2px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          transition: all 0.2s ease;
+        }
+        
+        .bus-marker.selected .bus-icon {
+          box-shadow: 0 4px 8px rgba(59, 130, 246, 0.5);
+        }
+        
+        .bus-label {
+          background: rgba(31, 41, 55, 0.9);
+          color: white;
+          padding: 2px 6px;
+          border-radius: 3px;
+          font-size: 11px;
+          font-weight: 600;
+          margin-top: 2px;
+          white-space: nowrap;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        
+        .bus-marker.delayed .bus-label {
+          background: rgba(245, 158, 11, 0.9);
+        }
+        
+        .bus-marker.active .bus-label {
+          background: rgba(16, 185, 129, 0.9);
+        }
+      `;
+      document.head.appendChild(style);
+    }
 
     return markerDiv;
   };

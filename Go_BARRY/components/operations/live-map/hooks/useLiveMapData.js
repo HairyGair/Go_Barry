@@ -369,6 +369,7 @@ export const useLiveMapData = (mapViewport = null) => {
         visible: visibleBuses.length,
         selected: selectedBusId,
         realTime: busDataIsRealTime,
+        rawBusData: rawBusLocations?.slice(0, 2), // Log first 2 buses for debugging
       },
       routes: {
         total: allRoutes.length,

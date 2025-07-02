@@ -217,24 +217,66 @@ export default defineSchema({
 
   // Bus locations - real-time bus positions from UK Bus Data API
   busLocations: defineTable({
-    busId: v.string(),
+    // Vehicle identification
+    vehicleId: v.string(),
     vehicleRef: v.string(),
-    lineRef: v.optional(v.string()),
-    routeName: v.optional(v.string()),
-    directionRef: v.optional(v.string()),
-    coordinates: v.array(v.number()), // [latitude, longitude]
-    bearing: v.optional(v.number()),
-    status: v.string(), // 'active', 'delayed', 'out_of_service'
-    delay: v.number(), // delay in seconds
-    timestamp: v.number(),
-    operator: v.string(),
-    operatorCode: v.string(),
-    lastUpdated: v.number(),
+    operatorRef: v.string(),
+    
+    // Service information
+    lineRef: v.string(),
+    lineName: v.string(),
+    directionRef: v.string(),
+    directionName: v.optional(v.string()),
+    
+    // Destination
+    destinationRef: v.optional(v.string()),
+    destinationName: v.string(),
+    
+    // Position
+    latitude: v.number(),
+    longitude: v.number(),
+    bearing: v.number(),
+    
+    // Journey matching
+    blockRef: v.optional(v.string()),
+    vehicleJourneyRef: v.optional(v.string()),
+    
+    // Origin info
+    originRef: v.optional(v.string()),
+    originName: v.optional(v.string()),
+    originAimedDeparture: v.optional(v.string()),
+    
+    // Status
+    delay: v.number(), // minutes
+    status: v.union(
+      v.literal('on-time'),
+      v.literal('delayed'),
+      v.literal('severely-delayed'),
+      v.literal('early')
+    ),
+    
+    // Timestamps
+    recordedAt: v.string(),
+    validUntil: v.optional(v.string()),
+    lastUpdated: v.string(),
+    
+    // Optional
+    occupancy: v.optional(v.string()),
   })
-    .index("by_route", ["routeName"])
+    .index("by_vehicle", ["vehicleId"])
+    .index("by_line", ["lineRef"])
     .index("by_status", ["status"])
-    .index("by_timestamp", ["timestamp"])
-    .index("by_vehicle", ["vehicleRef"]),
+    .index("by_location", ["latitude", "longitude"])
+    .index("by_operator", ["operatorRef"]),
+
+  // Bus update logs for tracking sync history
+  busUpdateLog: defineTable({
+    timestamp: v.string(),
+    busCount: v.number(),
+    updateDuration: v.number(), // milliseconds
+    errors: v.optional(v.string()),
+  })
+    .index("by_timestamp", ["timestamp"]),
 
   // System configuration
   systemConfig: defineTable({

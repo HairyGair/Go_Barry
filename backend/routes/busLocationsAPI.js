@@ -5,7 +5,7 @@
 
 import express from 'express';
 import fetch from 'node-fetch';
-import { busLocationService } from '../services/busLocationService.js';
+import busLocationService from '../services/busLocationService.js';
 import { convexSync } from '../services/convexSync.js';
 
 const router = express.Router();

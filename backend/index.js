@@ -88,7 +88,8 @@ import { convexSync } from './services/convexSync.js';
 import startupService from './services/startupService.js';
 import { createClient } from '@supabase/supabase-js';
 import realTimeDisruptionScoring from './services/realTimeDisruptionScoring.js';
-import { busLocationService } from './services/busLocationService.js';
+import busLocationService from './services/busLocationService.js';
+import busUpdateLoop from './services/busUpdateLoop.js';
 import { gtfsRouteShapesService } from './services/gtfsRouteShapesService.js';
 import busLocationsAPI from './routes/busLocationsAPI.js';
 
@@ -424,6 +425,15 @@ console.log(`🎯 index.js: Same app check: ${app === global.goBarryApp}`);
 app.use('/api/health', healthRoutes);
 app.use('/api/health-extended', healthExtendedRouter);
 
+// Bus health endpoint
+app.get('/api/buses/health', (req, res) => {
+  res.json({
+    success: true,
+    busService: busLocationService.getHealth(),
+    updateLoop: busUpdateLoop.getStatus()
+  });
+});
+
 // Admin API routes
 app.use('/api/admin', adminAPI);
 
@@ -659,6 +669,11 @@ console.log('✅ Bus location routes registered successfully');
 busLocationService.initialize().then(result => {
   if (result.success) {
     console.log('✅ Bus location service initialized successfully');
+    
+    // Start the bus update loop for Convex sync
+    console.log('🚌 Starting bus update loop for real-time sync...');
+    busUpdateLoop.start();
+    console.log('✅ Bus update loop started - syncing to Convex every 10 seconds');
   } else {
     console.warn('⚠️ Bus location service initialization failed:', result.error);
   }
@@ -4202,6 +4217,14 @@ initializeApplication().then(async () => {
   } catch (error) {
     console.warn('⚠️ Disruption scoring failed to start:', error.message);
   }
+  
+  // Start bus location update loop
+  try {
+    busUpdateLoop.start();
+    console.log('✅ Bus location update loop started');
+  } catch (error) {
+    console.warn('⚠️ Bus update loop failed to start:', error.message);
+  }
 }).catch(error => {
   console.error('⚠️ Initialization error:', error.message);
   console.log('⚠️ Continuing with limited functionality...');
@@ -4242,6 +4265,14 @@ process.on('SIGTERM', () => {
     console.log('✅ Session cleanup stopped');
   } catch (error) {
     console.warn('⚠️ Error stopping session cleanup:', error.message);
+  }
+  
+  // Stop bus update loop
+  try {
+    busUpdateLoop.stop();
+    console.log('✅ Bus update loop stopped');
+  } catch (error) {
+    console.warn('⚠️ Error stopping bus update loop:', error.message);
   }
   
   // Force garbage collection if available

@@ -78,6 +78,7 @@ const generateMockBusData = () => {
     const lat = bounds.south + Math.random() * (bounds.north - bounds.south);
     const lng = bounds.west + Math.random() * (bounds.east - bounds.west);
     const delay = Math.random() < 0.7 ? Math.floor(Math.random() * 300) : 0; // 70% have some delay
+    const bearing = Math.floor(Math.random() * 360);
     
     mockBuses.push({
       id: `mock-bus-${i}`,
@@ -85,7 +86,8 @@ const generateMockBusData = () => {
       routeName: route,
       lineRef: route,
       coordinates: [lat, lng],
-      heading: Math.floor(Math.random() * 360),
+      heading: bearing,
+      bearing: bearing, // Add bearing for rotation
       delay: delay,
       status: delay > 180 ? 'delayed' : delay > 60 ? 'minor-delay' : 'on-time',
       lastUpdate: Date.now() - Math.floor(Math.random() * 60000), // Within last minute
@@ -139,6 +141,9 @@ export const useBusLocations = () => {
   // Fetch bus locations from backend API
   const fetchBusLocations = useCallback(async (forceRefresh = false) => {
     if (Platform.OS !== 'web') return { success: false, error: 'Not supported on mobile' };
+    
+    // TEMPORARY: Use mock data if backend fails
+    const USE_MOCK_DATA = false;
 
     // Check cache
     const now = Date.now();
@@ -172,12 +177,33 @@ export const useBusLocations = () => {
       const result = await response.json();
       
       if (result.success) {
-        const buses = result.buses || [];
-        console.log(`✅ Fetched ${buses.length} bus locations from backend`);
+        const rawBuses = result.buses || [];
+        console.log(`✅ Fetched ${rawBuses.length} bus locations from backend`);
+        
+        // Transform backend format to frontend format
+        const buses = rawBuses.map(bus => ({
+          id: bus.id,
+          busId: bus.id,
+          vehicleRef: bus.id,
+          operatorRef: bus.operatorRef,
+          routeName: bus.lineName || bus.lineRef,
+          lineRef: bus.lineRef,
+          coordinates: bus.location ? [bus.location.lat, bus.location.lon] : [0, 0],
+          bearing: bus.bearing || 0,
+          heading: bus.bearing || 0,
+          delay: bus.delay || 0,
+          status: bus.status || 'unknown',
+          lastUpdate: Date.now(),
+          destination: bus.destinationName || 'Unknown',
+          directionName: bus.directionRef,
+          occupancy: bus.occupancy
+        }));
+        
+        console.log(`🔄 Transformed ${buses.length} buses for map display`);
         
         // Update cache
         cacheRef.current = {
-          data: result,
+          data: { ...result, buses },
           timestamp: now
         };
         
@@ -187,7 +213,7 @@ export const useBusLocations = () => {
         setBusLocations(buses);
         setLastUpdated(result.metadata?.timestamp || now);
         
-        return result;
+        return { ...result, buses };
       } else {
         throw new Error(result.error || 'Failed to fetch bus locations');
       }
@@ -202,11 +228,23 @@ export const useBusLocations = () => {
         return cacheRef.current.data;
       }
       
-      // Fallback to mock data for development
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('🚌 Using mock bus data for development');
+      // Fallback to mock data if enabled or in development
+      if (USE_MOCK_DATA || process.env.NODE_ENV === 'development') {
+        console.warn('🚌 Using mock bus data (backend failed)');
         const mockBuses = generateMockBusData();
         setBusLocations(mockBuses);
+        setLastUpdated(Date.now());
+        
+        // Update statistics for mock data
+        const mockStats = {
+          totalBuses: mockBuses.length,
+          activeBuses: mockBuses.length,
+          delayedBuses: mockBuses.filter(b => b.status === 'delayed').length,
+          uniqueRoutes: new Set(mockBuses.map(b => b.routeName)).size,
+          lastUpdate: Date.now()
+        };
+        setStatistics(mockStats);
+        
         return { success: true, buses: mockBuses, cached: false, timestamp: Date.now() };
       }
       
@@ -282,10 +320,16 @@ export const useBusLocations = () => {
   useEffect(() => {
     if (Platform.OS !== 'web') return;
 
+    console.log('[useBusLocations] Initializing bus location updates...');
+    console.log('[useBusLocations] Convex available:', !!convexBusLocations);
+
     // Initial load (only if no Convex data)
     if (!convexBusLocations) {
+      console.log('[useBusLocations] No Convex data, fetching from backend/mock...');
       fetchBusLocations(false);
       fetchBusStatistics();
+    } else {
+      console.log('[useBusLocations] Using Convex bus data');
     }
 
     // Set up periodic updates (backup to Convex)

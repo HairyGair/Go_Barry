@@ -2,6 +2,7 @@
 // Sync alerts from backend to Convex for real-time updates
 
 import fetch from 'node-fetch';
+import busLocationService from './busLocationService.js';
 
 class ConvexSyncService {
   constructor() {
@@ -312,43 +313,98 @@ class ConvexSyncService {
   }
 
   // Sync bus locations to Convex
-  async syncBusLocations(busLocations) {
+  async syncBusLocations() {
     if (!this.isEnabled) {
       return { success: false, reason: 'Convex not configured' };
     }
 
     try {
-      // Transform bus locations to match Convex schema
-      const convexBuses = busLocations.map(bus => ({
-        busId: bus.id || bus.vehicleRef || `bus_${Date.now()}_${Math.random()}`,
-        vehicleRef: bus.vehicleRef,
-        lineRef: bus.lineRef || bus.routeName,
-        routeName: bus.routeName || bus.lineRef,
-        directionRef: bus.directionRef,
-        coordinates: bus.coordinates,
-        bearing: bus.bearing,
-        status: bus.status || 'active',
-        delay: bus.delay || 0,
-        timestamp: bus.timestamp || Date.now(),
-        operator: bus.operator || 'Go North East',
-        operatorCode: bus.operatorCode || 'GONE',
-        lastUpdated: bus.lastUpdated || Date.now()
-      }));
-
-      // TODO: Call the Convex mutation for bus locations (disabled until function is implemented)
-      console.warn('⚠️ Bus locations Convex sync temporarily disabled - syncBusLocations function not implemented');
-      return { success: false, reason: 'syncBusLocations function not implemented in Convex schema' };
+      // Fetch latest bus data from BODS
+      console.log('🚌 Fetching bus locations for Convex sync...');
+      const buses = await busLocationService.fetchBusLocations();
       
-      // Uncomment once syncBusLocations is implemented in convex/sync.ts:
-      // const result = await this.callConvexFunction('sync:syncBusLocations', {
-      //   buses: convexBuses
-      // });
-      // console.log(`✅ Synced ${convexBuses.length} bus locations to Convex`);
-      // return { success: true, count: convexBuses.length, result };
+      if (buses.length === 0) {
+        console.warn('⚠️ No buses to sync');
+        return { success: true, count: 0 };
+      }
+      
+      // Filter and prepare data for Convex (only GNE buses)
+      const busesToSync = buses
+        .filter(bus => {
+          // Match Go North East operator code
+          const ref = bus.operatorRef || '';
+          return ref === 'GNEL';
+        })
+        .slice(0, 350) // Limit to 350 for performance
+        .map(bus => {
+          // Transform to match Convex schema exactly
+          return {
+            id: bus.id,
+            operatorRef: bus.operatorRef || 'GNEL',
+            lineRef: bus.lineRef || '',
+            lineName: bus.lineName || bus.lineRef || '',
+            directionRef: bus.directionRef || '0',
+            directionName: bus.directionName,
+            destinationRef: bus.destinationRef,
+            destinationName: bus.destinationName || 'Unknown',
+            location: {
+              lat: bus.location?.lat || 0,
+              lon: bus.location?.lon || 0
+            },
+            bearing: bus.bearing || 0,
+            blockRef: bus.blockRef,
+            vehicleJourneyRef: bus.vehicleJourneyRef,
+            originRef: bus.originRef,
+            originName: bus.originName,
+            originAimedDeparture: bus.originAimedDeparture,
+            delay: bus.delay || 0,
+            status: bus.status || 'on-time',
+            recordedAt: bus.recordedAt || new Date().toISOString(),
+            validUntil: bus.validUntil,
+            occupancy: bus.occupancy
+          };
+        });
+      
+      // Call the Convex mutation
+      const result = await this.callConvexFunction('buses:updateBusLocations', {
+        buses: busesToSync,
+        timestamp: new Date().toISOString()
+      });
+      
+      console.log(`✅ Synced ${busesToSync.length} bus locations to Convex`);
+      return { success: true, count: busesToSync.length, result };
+      
     } catch (error) {
-      console.error('❌ Bus locations Convex sync error:', error);
+      console.error('❌ Bus sync error:', error.message);
       return { success: false, error: error.message };
     }
+  }
+
+  // Main sync method that calls all sync operations
+  async sync() {
+    console.log('🔄 Starting Convex sync...');
+    
+    try {
+      // Sync bus locations
+      await this.syncBusLocations();
+      
+      console.log('✅ Convex sync complete');
+    } catch (error) {
+      console.error('❌ Sync error:', error);
+    }
+  }
+
+  // Start periodic sync
+  startPeriodicSync(interval = 30000) {
+    console.log(`🔄 Starting periodic Convex sync every ${interval}ms`);
+    
+    // Initial sync
+    this.sync();
+    
+    // Schedule periodic syncs
+    setInterval(() => {
+      this.sync();
+    }, interval);
   }
 
   // Test connection to Convex
@@ -387,6 +443,7 @@ class ConvexSyncService {
 
 // Export singleton instance
 export const convexSync = new ConvexSyncService();
+export default convexSync;
 
 // Test connection on startup
 if (convexSync.isEnabled) {

@@ -17,6 +17,73 @@ try {
   };
 }
 
+// Function to generate mock bus data for testing
+function generateMockBusData() {
+  const routes = ['21', 'X21', '1', '56', '57', '58', 'Q3', '307', '27', 'X10'];
+  const buses = [];
+  
+  // Newcastle/Gateshead area bounds
+  const bounds = {
+    north: 55.0184,
+    south: 54.9045,
+    east: -1.4876,
+    west: -1.7297
+  };
+  
+  const busCount = 15 + Math.floor(Math.random() * 10); // 15-25 buses
+  
+  for (let i = 0; i < busCount; i++) {
+    const route = routes[Math.floor(Math.random() * routes.length)];
+    const lat = bounds.south + Math.random() * (bounds.north - bounds.south);
+    const lng = bounds.west + Math.random() * (bounds.east - bounds.west);
+    const delayMinutes = Math.random() < 0.7 ? Math.floor(Math.random() * 10) : 0;
+    const bearing = Math.floor(Math.random() * 360);
+    
+    buses.push({
+      id: `mock-bus-${1000 + i}`,
+      vehicleRef: `GNE-${1000 + i}`,
+      operatorRef: 'GNEL',
+      routeName: route,
+      lineRef: route,
+      coordinates: [lat, lng],
+      bearing: bearing,
+      delay: delayMinutes,
+      status: delayMinutes > 5 ? 'delayed' : 'on-time',
+      destination: `${route} ${Math.random() > 0.5 ? 'Newcastle' : 'Gateshead'}`,
+      occupancy: Math.random() < 0.5 ? 'seatsAvailable' : 'standingAvailable',
+      lastUpdate: Date.now()
+    });
+  }
+  
+  return buses;
+}
+
+// Export a function to manually sync mock bus data
+export const syncMockBusData = async () => {
+  if (!useMutation || !api?.sync?.updateSimpleBusLocations) {
+    console.warn('⚠️ Convex not available for mock bus sync');
+    return { success: false, error: 'Convex not available' };
+  }
+  
+  try {
+    const mockBuses = generateMockBusData();
+    console.log(`🚌 Syncing ${mockBuses.length} mock buses to Convex...`);
+    
+    // Note: This needs to be called from within a React component
+    // that has access to Convex context
+    const result = {
+      buses: mockBuses,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('✅ Mock bus data prepared for sync');
+    return { success: true, data: result };
+  } catch (error) {
+    console.error('❌ Failed to prepare mock bus data:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // Safely import Convex with fallbacks
 let useQuery, useMutation, api;
 
