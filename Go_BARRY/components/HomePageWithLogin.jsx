@@ -9,6 +9,7 @@ import { View, Text, TouchableOpacity, TextInput, StyleSheet, Platform, ScrollVi
 import { useRouter } from 'expo-router';
 import { useSupervisor, DUTY_OPTIONS } from './hooks/useSupervisorSession';
 import Icon from 'react-native-vector-icons/FontAwesome5';
+import AppCard from './AppCard';
 
 // Supervisor database - matching the one in useSupervisorSession
 const SUPERVISOR_OPTIONS = [
@@ -272,142 +273,121 @@ const HomePageWithLogin = () => {
     );
   };
 
+  // Application cards configuration
+  const appCards = [
+    {
+      id: 'control-room',
+      icon: <Icon name="tv" size={36} color="#fff" />,
+      title: 'Control Room Display',
+      description: '24/7 traffic monitoring display designed for control room environments and large screens.',
+      features: [
+        { icon: 'eye', text: 'Real-time traffic alerts' },
+        { icon: 'map', text: 'Live traffic map' }
+      ],
+      buttonText: 'Open Control Room',
+      onPress: () => navigateToApp('/display'),
+      accessibilityLabel: 'Control Room Display - 24/7 traffic monitoring for control room environments',
+      iconBackgroundColor: '#E31E24',
+      testID: 'control-room-card'
+    },
+    {
+      id: 'supervisor',
+      icon: <Icon name="user-tie" size={36} color="#fff" />,
+      title: 'Supervisor Screen',
+      description: 'Interactive platform for supervisors to manage alerts, coordinate responses, and monitor operations.',
+      features: [
+        { icon: 'tasks', text: 'Alert management' },
+        { icon: 'users', text: 'Team coordination' }
+      ],
+      buttonText: isLoggedIn ? 'Access Supervisor Tools' : 'Login Required',
+      onPress: () => {
+        if (!isLoggedIn) {
+          setShowLogin(true);
+        } else {
+          navigateToApp('/browser-main');
+        }
+      },
+      accessibilityLabel: 'Supervisor Screen - Interactive platform for managing alerts and coordinating responses',
+      iconBackgroundColor: '#3b82f6',
+      testID: 'supervisor-card'
+    },
+    {
+      id: 'operations',
+      icon: <Icon name="tools" size={36} color="#fff" />,
+      title: 'Operations',
+      description: 'Daily operational tools including duty boards, performance monitoring, and live traffic overview.',
+      features: [
+        { icon: 'clipboard-list', text: 'Duty boards' },
+        { icon: 'chart-line', text: 'Performance statistics' },
+        { icon: 'map', text: 'Live traffic map' },
+        { icon: 'database', text: 'Disruption database' }
+      ],
+      buttonText: isLoggedIn ? 'Access Operations' : 'Login Required',
+      onPress: () => {
+        if (!isLoggedIn) {
+          setShowLogin(true);
+        } else {
+          navigateToApp('/operations');
+        }
+      },
+      accessibilityLabel: 'Operations - Daily operational tools including duty boards and incident management',
+      iconBackgroundColor: '#059669',
+      testID: 'operations-card'
+    },
+    {
+      id: 'disruptions',
+      icon: <Icon name="traffic-cone" size={36} color="#fff" />,
+      title: 'Disruptions',
+      description: 'Manage network disruptions, incidents, and roadworks in real-time with intelligent route matching.',
+      features: [
+        { icon: 'exclamation-triangle', text: 'Create and track incidents' },
+        { icon: 'road', text: 'Manage roadworks and diversions' },
+        { icon: 'route', text: 'Real-time GTFS route matching' },
+        { icon: 'bell', text: 'Automated supervisor notifications' }
+      ],
+      buttonText: 'Manage Disruptions',
+      onPress: () => {
+        if (!isLoggedIn) {
+          setShowLogin(true);
+        } else {
+          navigateToApp('/disruptions');
+        }
+      },
+      accessibilityLabel: 'Open Disruptions Management - Create and manage network incidents and roadworks',
+      iconBackgroundColor: '#FF9800',
+      testID: 'disruptions-card'
+    },
+    {
+      id: 'admin',
+      icon: <Icon name="cog" size={36} color="#fff" />,
+      title: 'Admin Dashboard',
+      description: 'System administration tools for managing supervisors, monitoring health, and configuring settings.',
+      features: [
+        { icon: 'users-cog', text: 'Supervisor management' },
+        { icon: 'chart-line', text: 'System monitoring' }
+      ],
+      buttonText: !isLoggedIn ? 'Admin Login Required' : 
+                 isAdmin ? 'Open Admin Dashboard' : 'Admin Access Only',
+      onPress: () => {
+        if (!isLoggedIn) {
+          setShowLogin(true);
+        } else if (isAdmin) {
+          navigateToApp('/admin');
+        }
+      },
+      accessibilityLabel: 'Admin Dashboard - System administration tools for managing supervisors and monitoring',
+      iconBackgroundColor: '#8b5cf6',
+      disabled: !isAdmin,
+      testID: 'admin-card'
+    }
+  ];
+
   const renderApps = () => {
     return (
       <View style={styles.appsGrid}>
-        <TouchableOpacity
-          style={styles.appCard}
-          onPress={() => navigateToApp('/display')}
-        >
-          <View style={[styles.appIcon, styles.controlRoomIcon]}>
-            <Icon name="tv" size={36} color="#fff" />
-          </View>
-          <Text style={styles.appTitle}>Control Room Display</Text>
-          <Text style={styles.appDescription}>
-            24/7 traffic monitoring display designed for control room environments and large screens.
-          </Text>
-          <View style={styles.appFeatures}>
-            <View style={styles.featureItem}>
-              <Icon name="eye" size={14} color="#06B6D4" />
-              <Text style={styles.featureText}>Real-time traffic alerts</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Icon name="map" size={14} color="#06B6D4" />
-              <Text style={styles.featureText}>Live traffic map</Text>
-            </View>
-          </View>
-          <View style={styles.appButton}>
-            <Icon name="external-link-alt" size={16} color="#fff" />
-            <Text style={styles.appButtonText}>Open Control Room</Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.appCard}
-          onPress={() => {
-            if (!isLoggedIn) {
-              setShowLogin(true);
-            } else {
-              navigateToApp('/browser-main');
-            }
-          }}
-        >
-          <View style={[styles.appIcon, styles.supervisorIcon]}>
-            <Icon name="user-tie" size={36} color="#fff" />
-          </View>
-          <Text style={styles.appTitle}>Supervisor Screen</Text>
-          <Text style={styles.appDescription}>
-            Interactive platform for supervisors to manage alerts, coordinate responses, and monitor operations.
-          </Text>
-          <View style={styles.appFeatures}>
-            <View style={styles.featureItem}>
-              <Icon name="tasks" size={14} color="#06B6D4" />
-              <Text style={styles.featureText}>Alert management</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Icon name="users" size={14} color="#06B6D4" />
-              <Text style={styles.featureText}>Team coordination</Text>
-            </View>
-          </View>
-          <View style={styles.appButton}>
-            <Icon name={isLoggedIn ? "sign-in-alt" : "lock"} size={16} color="#fff" />
-            <Text style={styles.appButtonText}>
-              {isLoggedIn ? 'Access Supervisor Tools' : 'Login Required'}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.appCard}
-          onPress={() => {
-            if (!isLoggedIn) {
-              setShowLogin(true);
-            } else {
-              navigateToApp('/operations');
-            }
-          }}
-        >
-          <View style={[styles.appIcon, styles.operationsIcon]}>
-            <Icon name="tools" size={36} color="#fff" />
-          </View>
-          <Text style={styles.appTitle}>Operations</Text>
-          <Text style={styles.appDescription}>
-            Daily operational tools including duty boards, incident management, roadworks, and disruption tracking.
-          </Text>
-          <View style={styles.appFeatures}>
-            <View style={styles.featureItem}>
-              <Icon name="clipboard-list" size={14} color="#06B6D4" />
-              <Text style={styles.featureText}>Duty boards</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Icon name="exclamation-triangle" size={14} color="#06B6D4" />
-              <Text style={styles.featureText}>Incident & roadworks</Text>
-            </View>
-          </View>
-          <View style={styles.appButton}>
-            <Icon name={isLoggedIn ? "toolbox" : "lock"} size={16} color="#fff" />
-            <Text style={styles.appButtonText}>
-              {isLoggedIn ? 'Access Operations' : 'Login Required'}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Always show admin card but indicate login required */}
-        <TouchableOpacity
-          style={[styles.appCard, !isAdmin && styles.disabledCard]}
-          onPress={() => {
-            if (!isLoggedIn) {
-              setShowLogin(true);
-            } else if (isAdmin) {
-              navigateToApp('/admin');
-            }
-          }}
-        >
-          <View style={[styles.appIcon, styles.adminIcon]}>
-            <Icon name="cog" size={36} color="#fff" />
-          </View>
-            <Text style={styles.appTitle}>Admin Dashboard</Text>
-            <Text style={styles.appDescription}>
-              System administration tools for managing supervisors, monitoring health, and configuring settings.
-            </Text>
-            <View style={styles.appFeatures}>
-              <View style={styles.featureItem}>
-                <Icon name="users-cog" size={14} color="#06B6D4" />
-                <Text style={styles.featureText}>Supervisor management</Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Icon name="chart-line" size={14} color="#06B6D4" />
-                <Text style={styles.featureText}>System monitoring</Text>
-              </View>
-            </View>
-            <View style={[styles.appButton, styles.adminButton]}>
-              <Icon name={isAdmin ? "cogs" : "lock"} size={16} color="#fff" />
-              <Text style={styles.appButtonText}>
-                {!isLoggedIn ? 'Admin Login Required' : 
-                 isAdmin ? 'Open Admin Dashboard' : 'Admin Access Only'}
-              </Text>
-            </View>
-          </TouchableOpacity>
+        {appCards.map((card) => (
+          <AppCard key={card.id} {...card} />
+        ))}
       </View>
     );
   };

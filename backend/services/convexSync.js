@@ -365,9 +365,22 @@ class ConvexSyncService {
           };
         });
       
-      // Call the Convex mutation
-      const result = await this.callConvexFunction('buses:updateBusLocations', {
-        buses: busesToSync,
+      // Call the Convex mutation - use sync function instead of buses function
+      const result = await this.callConvexFunction('sync:updateSimpleBusLocations', {
+        buses: busesToSync.map(bus => ({
+          id: bus.id,
+          vehicleRef: bus.id,
+          operatorRef: bus.operatorRef,
+          routeName: bus.lineName,
+          lineRef: bus.lineRef,
+          coordinates: [bus.location.lat, bus.location.lon],
+          bearing: bus.bearing,
+          delay: bus.delay,
+          status: bus.status,
+          destination: bus.destinationName,
+          occupancy: bus.occupancy,
+          lastUpdate: Date.now()
+        })),
         timestamp: new Date().toISOString()
       });
       

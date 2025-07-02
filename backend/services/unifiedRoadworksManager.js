@@ -3,7 +3,6 @@
 
 import { createClient } from '@supabase/supabase-js';
 import axios from 'axios';
-import durhamRoadworks from './durhamRoadworks.js';
 import { generateAlertHash } from '../utils/alertDeduplication.js';
 import streetManager from './streetManager.js';
 import { convexSync } from './convexSync.js';
@@ -13,17 +12,14 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANO
 /**
  * Unified Roadworks Manager
  * Aggregates data from:
- * 1. Street Manager (national UK system)
- * 2. Durham County Council
- * 3. Other local council sources
- * 4. Manual incidents
+ * 1. Street Manager (national UK system - comprehensive coverage)
+ * 2. Manual incidents
  */
 class UnifiedRoadworksManager {
   constructor() {
     this.sources = {
       streetManager: { enabled: true, priority: 1 },
-      durham: { enabled: true, priority: 2 },
-      manual: { enabled: true, priority: 3 }
+      manual: { enabled: true, priority: 2 }
     };
     this.lastUpdate = null;
     this.cache = new Map();
@@ -39,7 +35,6 @@ class UnifiedRoadworksManager {
       
       const results = {
         streetManager: [],
-        durham: [],
         manual: [],
         combined: [],
         metadata: {
@@ -54,10 +49,6 @@ class UnifiedRoadworksManager {
 
       if (this.sources.streetManager.enabled) {
         promises.push(this.getStreetManagerRoadworks());
-      }
-
-      if (this.sources.durham.enabled) {
-        promises.push(this.getDurhamRoadworks());
       }
 
       if (this.sources.manual.enabled) {
@@ -91,23 +82,6 @@ class UnifiedRoadworksManager {
         }
       }
 
-      if (this.sources.durham.enabled) {
-        const durhamResult = sourceResults[sourceIndex++];
-        if (durhamResult.status === 'fulfilled') {
-          results.durham = durhamResult.value.data || [];
-          results.metadata.sources.durham = {
-            success: true,
-            count: results.durham.length,
-            lastUpdate: durhamResult.value.lastUpdate
-          };
-        } else {
-          results.metadata.sources.durham = {
-            success: false,
-            error: durhamResult.reason?.message
-          };
-        }
-      }
-
       if (this.sources.manual.enabled) {
         const manualResult = sourceResults[sourceIndex++];
         if (manualResult.status === 'fulfilled') {
@@ -128,7 +102,6 @@ class UnifiedRoadworksManager {
       // Combine and deduplicate
       results.combined = this.combineAndDeduplicateRoadworks([
         ...results.streetManager,
-        ...results.durham,
         ...results.manual
       ]);
 
@@ -399,38 +372,6 @@ class UnifiedRoadworksManager {
   }
 
   /**
-   * Get Durham County Council roadworks via web scraping
-   */
-  async getDurhamRoadworks() {
-    try {
-      // Use the Durham scraper service with Puppeteer
-      const durhamData = await durhamRoadworks.fetchRoadworks();
-      
-      // Data is already normalized by the Durham service
-      return {
-        success: true,
-        data: durhamData,
-        lastUpdate: new Date().toISOString(),
-        source: 'durham_council'
-      };
-    } catch (error) {
-      console.warn('⚠️ Durham roadworks fetch failed:', error.message);
-      
-      // Specific handling for Chrome not found
-      if (error.message.includes('Could not find Chrome')) {
-        console.log('📵 Durham scraper disabled - Chrome not available on this platform');
-      }
-      
-      return {
-        success: false,
-        data: [],
-        error: error.message,
-        source: 'durham_council'
-      };
-    }
-  }
-
-  /**
    * Get manual roadworks/incidents
    */
   async getManualRoadworks() {
@@ -589,7 +530,7 @@ class UnifiedRoadworksManager {
 
     // Sort by priority (Street Manager first, then others)
     return deduped.sort((a, b) => {
-      const priorityOrder = { street_manager: 1, durham_council: 2, manual: 3 };
+      const priorityOrder = { street_manager: 1, manual: 2 };
       return priorityOrder[a.source] - priorityOrder[b.source];
     });
   }

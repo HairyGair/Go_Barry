@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, Platform, Alert, Pressable, ActivityIndicator, Text } from 'react-native';
+import { View, ScrollView, StyleSheet, Platform, Pressable, ActivityIndicator, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSupervisor } from '../../components/hooks/useSupervisorSession';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -26,8 +26,6 @@ import ActivityFeed from './components/ActivityFeed.jsx';
 
 // Import operational components
 import DutyBoardsCard from '../../components/operations/cards/DutyBoardsCard.jsx';
-import IncidentsCard from '../../components/operations/cards/IncidentsCard.jsx';
-import RoadworksCard from '../../components/operations/cards/RoadworksCard.jsx';
 import DisruptionDatabaseCard from '../../components/operations/cards/DisruptionDatabaseCard.jsx';
 import StatisticsCard from '../../components/operations/cards/StatisticsCard.jsx';
 
@@ -44,8 +42,6 @@ export default function OperationsCentre() {
   const [selectedCard, setSelectedCard] = useState(null);
   const [cardStats, setCardStats] = useState({
     dutyBoards: { value: '12', label: UK_LOCALE.ACTIVE },
-    incidents: { value: '5', label: UK_LOCALE.ACTIVE },
-    roadworks: { value: '24', label: UK_LOCALE.PLANNED },
     disruptions: { value: '156', label: UK_LOCALE.TOTAL },
     statistics: { value: '142', label: UK_LOCALE.TODAY },
     liveMap: { value: '37', label: UK_LOCALE.ALERTS },
@@ -109,8 +105,7 @@ export default function OperationsCentre() {
         // Update card stats based on API response
         setCardStats(prev => ({
           ...prev,
-          incidents: { value: data.incidents?.active || '0', label: UK_LOCALE.ACTIVE },
-          roadworks: { value: data.roadworks?.planned || '0', label: UK_LOCALE.PLANNED },
+          // Stats can be updated here as needed for remaining cards
         }));
       }
     } catch (error) {
@@ -148,22 +143,6 @@ export default function OperationsCentre() {
       stats: cardStats.dutyBoards,
     },
     {
-      id: 'incidents',
-      title: UK_LOCALE.INCIDENTS,
-      subtitle: UK_LOCALE.TRACK_AND_MANAGE,
-      icon: 'alert-circle',
-      color: operationsTheme.colors.gradients.incidents,
-      stats: cardStats.incidents,
-    },
-    {
-      id: 'roadworks',
-      title: UK_LOCALE.ROADWORKS,
-      subtitle: UK_LOCALE.PLANNED_DIVERSIONS,
-      icon: 'road-variant',
-      color: operationsTheme.colors.gradients.roadworks,
-      stats: cardStats.roadworks,
-    },
-    {
       id: 'disruptions',
       title: UK_LOCALE.DISRUPTIONS,
       subtitle: UK_LOCALE.DATABASE_VIEW,
@@ -198,12 +177,7 @@ export default function OperationsCentre() {
       case 'duty-boards':
         Component = DutyBoardsCard;
         break;
-      case 'incidents':
-        Component = IncidentsCard;
-        break;
-      case 'roadworks':
-        Component = RoadworksCard;
-        break;
+
       case 'disruptions':
         Component = DisruptionDatabaseCard;
         break;
