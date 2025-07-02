@@ -61,27 +61,48 @@ export class BusLocationService {
     let xmlData = null;
     let dataSource = null;
     
-    // UPDATED: Try current UK Bus Data API endpoints with API key
+    // UPDATED: Try current UK Bus Data API endpoints with proper headers
     const endpoints = [
       {
-        url: `https://data.bus-data.dft.gov.uk/api/v1/datafeed/${this.datasetId}/?api_key=${this.apiKey}`,
-        source: 'specific-dataset-9264',
+        // The webhook subscription shows we're using datafeed/9264
+        url: `https://data.bus-data.dft.gov.uk/api/v1/datafeed/${this.datasetId}`,
+        source: 'datafeed-9264',
         headers: {
-          'Accept': 'application/xml,application/json',
-          'User-Agent': 'Go-BARRY-Traffic-Intelligence/1.0'
+          'x-api-key': this.apiKey,  // lowercase header
+          'Accept': 'application/xml, text/xml, application/json',
+          'User-Agent': 'Go-BARRY/1.0',
+          'Content-Type': 'application/json'
         }
       },
       {
+        // Try with query parameter instead
+        url: `https://data.bus-data.dft.gov.uk/api/v1/datafeed?datasetId=${this.datasetId}`,
+        source: 'datafeed-with-dataset-param',
+        headers: {
+          'x-api-key': this.apiKey,
+          'Accept': '*/*',
+          'User-Agent': 'Go-BARRY/1.0'
+        }
+      },
+      {
+        // Direct SIRI-VM endpoint if available
+        url: `https://data.bus-data.dft.gov.uk/api/v1/datafeed/${this.datasetId}/siri-vm`,
+        source: 'siri-vm-direct',
+        headers: {
+          'x-api-key': this.apiKey,
+          'Accept': 'application/xml',
+          'User-Agent': 'Go-BARRY/1.0'
+        }
+      },
+      {
+        // Try without dataset ID to see what's available
         url: 'https://data.bus-data.dft.gov.uk/api/v1/datafeed',
-        source: 'current-api-datafeed'
-      },
-      {
-        url: 'https://data.bus-data.dft.gov.uk/api/v1/gtfs-rt/vehiclepositions',
-        source: 'gtfs-rt-vehicles'
-      },
-      {
-        url: 'https://data.bus-data.dft.gov.uk/avl',
-        source: 'avl-generic'
+        source: 'datafeed-list',
+        headers: {
+          'x-api-key': this.apiKey,
+          'Accept': 'application/json',
+          'User-Agent': 'Go-BARRY/1.0'
+        }
       }
     ];
     
@@ -98,6 +119,9 @@ export class BusLocationService {
           },
           timeout: 15000
         });
+        
+        console.log(`[BusLocationService] Response status: ${response.status}`);
+        console.log(`[BusLocationService] Response headers:`, response.headers.raw());
 
         if (response.ok) {
           const contentType = response.headers.get('content-type');

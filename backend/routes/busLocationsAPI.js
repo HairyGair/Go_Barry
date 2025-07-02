@@ -321,51 +321,143 @@ router.get('/debug-api', async (req, res) => {
     console.log('🔍 Testing direct UK Bus Data API access...');
     
     const apiKey = process.env.UK_BUS_DATA_API_KEY || '1b7862548843de84e3ee3602c9b9b2488b736fd3';
-    const apiUrl = `https://data.bus-data.dft.gov.uk/api/v1/datafeed/9264/?api_key=${apiKey}`;
     
-    console.log('📍 API URL:', apiUrl.replace(apiKey, '***' + apiKey.slice(-4)));
-    
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/xml,application/json',
-        'User-Agent': 'Go-BARRY-Traffic-Intelligence/1.0'
+    // Test different authentication methods
+    const tests = [
+      {
+        name: 'API Key in Header (X-API-Key)',
+        url: 'https://data.bus-data.dft.gov.uk/api/v1/datafeed/9264/',
+        headers: {
+          'X-API-Key': apiKey,
+          'Accept': 'application/xml',
+          'User-Agent': 'Go-BARRY/1.0'
+        }
+      },
+      {
+        name: 'API Key in URL Parameter',
+        url: `https://data.bus-data.dft.gov.uk/api/v1/datafeed/9264/?api_key=${apiKey}`,
+        headers: {
+          'Accept': 'application/xml',
+          'User-Agent': 'Go-BARRY/1.0'
+        }
+      },
+      {
+        name: 'Bearer Token Auth',
+        url: 'https://data.bus-data.dft.gov.uk/api/v1/datafeed/9264',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Accept': 'application/xml',
+          'User-Agent': 'Go-BARRY/1.0'
+        }
+      },
+      {
+        name: 'GTFS-RT Format with API Key',
+        url: 'https://data.bus-data.dft.gov.uk/api/v1/gtfsrt/datafeed/9264',
+        headers: {
+          'X-API-Key': apiKey,
+          'Accept': 'application/x-protobuf,application/octet-stream,*/*',
+          'User-Agent': 'Go-BARRY/1.0'
+        }
+      },
+      {
+        name: 'Basic Auth Header',
+        url: 'https://data.bus-data.dft.gov.uk/api/v1/datafeed/9264',
+        headers: {
+          'Authorization': `Basic ${Buffer.from(apiKey + ':').toString('base64')}`,
+          'Accept': 'application/xml',
+          'User-Agent': 'Go-BARRY/1.0'
+        }
       }
-    });
+    ];
     
-    console.log('📡 Response status:', response.status);
-    console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+    const results = [];
     
-    const contentType = response.headers.get('content-type');
-    let responseData;
-    let dataFormat = 'unknown';
-    
-    if (contentType?.includes('json')) {
-      responseData = await response.json();
-      dataFormat = 'json';
-    } else if (contentType?.includes('xml')) {
-      responseData = await response.text();
-      dataFormat = 'xml';
-    } else {
-      responseData = await response.text();
-      dataFormat = 'text';
+    for (const test of tests) {
+      console.log(`\n🧪 Testing: ${test.name}`);
+      console.log('📍 URL:', test.url.replace(apiKey, '***'));
+      
+      try {
+        const response = await fetch(test.url, {
+          method: 'GET',
+          headers: test.headers
+        });
+        
+        const contentType = response.headers.get('content-type');
+        let responseData = '';
+        let dataFormat = 'unknown';
+        let dataPreview = '';
+        
+        if (response.ok) {
+          if (contentType?.includes('json')) {
+            const json = await response.json();
+            responseData = JSON.stringify(json);
+            dataFormat = 'json';
+            dataPreview = JSON.stringify(json, null, 2).substring(0, 500) + '...';
+          } else if (contentType?.includes('xml')) {
+            responseData = await response.text();
+            dataFormat = 'xml';
+            dataPreview = responseData.substring(0, 500) + '...';
+          } else if (contentType?.includes('protobuf') || contentType?.includes('octet-stream')) {
+            const buffer = await response.arrayBuffer();
+            dataFormat = 'protobuf';
+            dataPreview = `Binary data (${buffer.byteLength} bytes)`;
+          } else {
+            responseData = await response.text();
+            dataFormat = 'text';
+            dataPreview = responseData.substring(0, 500) + '...';
+          }
+        } else {
+          // Try to get error message
+          try {
+            responseData = await response.text();
+            dataPreview = responseData.substring(0, 500);
+          } catch (e) {
+            dataPreview = 'Could not read error response';
+          }
+        }
+        
+        results.push({
+          test: test.name,
+          success: response.ok,
+          status: response.status,
+          statusText: response.statusText,
+          contentType,
+          dataFormat,
+          dataPreview,
+          headers: Object.fromEntries(response.headers.entries())
+        });
+        
+        console.log(`📡 Result: ${response.status} ${response.statusText}`);
+        
+      } catch (error) {
+        results.push({
+          test: test.name,
+          success: false,
+          error: error.message
+        });
+        console.error(`❌ Error: ${error.message}`);
+      }
     }
     
+    // Find successful tests
+    const successfulTests = results.filter(r => r.success);
+    const recommendation = successfulTests.length > 0 ?
+      `Use ${successfulTests[0].test} method` :
+      'All authentication methods failed - check API key or subscription status';
+    
     res.json({
-      success: response.ok,
-      debug: {
-        apiUrl: apiUrl.replace(apiKey, '***' + apiKey.slice(-4)),
-        status: response.status,
-        statusText: response.statusText,
-        contentType,
-        dataFormat,
-        dataPreview: typeof responseData === 'string' ? 
-          responseData.substring(0, 500) + '...' : 
-          JSON.stringify(responseData).substring(0, 500) + '...',
-        dataLength: typeof responseData === 'string' ? responseData.length : JSON.stringify(responseData).length,
-        hasApiKey: !!apiKey,
-        apiKeyLast4: apiKey ? '***' + apiKey.slice(-4) : 'not-set'
+      success: true,
+      apiKey: {
+        configured: !!apiKey,
+        last4: apiKey ? '***' + apiKey.slice(-4) : 'not-set'
       },
+      results,
+      summary: {
+        tested: results.length,
+        successful: successfulTests.length,
+        failed: results.filter(r => !r.success).length
+      },
+      recommendation,
       timestamp: new Date().toISOString()
     });
     
@@ -374,11 +466,48 @@ router.get('/debug-api', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message,
-      errorType: error.constructor.name,
-      debug: {
-        hasApiKey: !!process.env.UK_BUS_DATA_API_KEY,
-        apiKeyConfigured: process.env.UK_BUS_DATA_API_KEY ? 'yes' : 'no'
-      }
+      errorType: error.constructor.name
+    });
+  }
+});
+
+// Test webhook configuration status
+router.get('/webhook/test-config', async (req, res) => {
+  try {
+    const apiKey = process.env.UK_BUS_DATA_API_KEY || '1b7862548843de84e3ee3602c9b9b2488b736fd3';
+    
+    res.json({
+      success: true,
+      webhookConfiguration: {
+        endpoint: 'https://go-barry.onrender.com/api/bus-locations/webhook',
+        subscriptionId: '5faf8676-0523-4b50-9ace-7c244f084418',
+        datasetId: '9264',
+        operator: 'Go North East',
+        updateInterval: '10 seconds',
+        apiKeyConfigured: !!apiKey,
+        apiKeyLast4: apiKey ? '***' + apiKey.slice(-4) : 'not-set',
+        status: 'waiting_for_data'
+      },
+      instructions: [
+        '1. The webhook is configured to receive data every 10 seconds',
+        '2. UK Bus Data API will POST data to our webhook endpoint',
+        '3. Check backend logs for incoming webhook data',
+        '4. Data format will likely be SIRI-VM XML or JSON',
+        '5. Once data arrives, it will be cached and available at /api/bus-locations'
+      ],
+      troubleshooting: [
+        'If no data arrives, check subscription status on UK Bus Data portal',
+        'Ensure the webhook URL is accessible from the internet',
+        'Check if subscription needs to be activated/confirmed',
+        'Monitor backend logs for any webhook activity'
+      ],
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
