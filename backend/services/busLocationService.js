@@ -639,6 +639,107 @@ export class BusLocationService {
       operatorCode: this.operatorCode
     };
   }
+
+  /**
+   * Process webhook data from UK Bus Data API
+   * Handles both JSON and XML formats
+   */
+  async processBusDataWebhook(data) {
+    try {
+      console.log('[BusLocationService] Processing webhook data...');
+      
+      // Store last webhook data for health checks
+      this.lastWebhookData = {
+        receivedAt: new Date().toISOString(),
+        dataType: typeof data,
+        dataLength: typeof data === 'string' ? data.length : JSON.stringify(data).length
+      };
+      
+      let busData = [];
+      
+      // Handle different data formats
+      if (typeof data === 'string') {
+        // Assume XML format
+        console.log('[BusLocationService] Processing XML webhook data');
+        const parsed = await parseStringPromise(data, {
+          explicitArray: false,
+          ignoreAttrs: false,
+          mergeAttrs: true
+        });
+        
+        // Extract bus locations from parsed XML structure
+        // The exact structure depends on the UK Bus Data API format
+        if (parsed.Siri?.ServiceDelivery?.VehicleMonitoringDelivery?.VehicleActivity) {
+          const activities = Array.isArray(parsed.Siri.ServiceDelivery.VehicleMonitoringDelivery.VehicleActivity) ?
+            parsed.Siri.ServiceDelivery.VehicleMonitoringDelivery.VehicleActivity :
+            [parsed.Siri.ServiceDelivery.VehicleMonitoringDelivery.VehicleActivity];
+          
+          busData = await this.parseSiriVehicleActivities(activities);
+        }
+      } else if (typeof data === 'object') {
+        // Handle JSON format
+        console.log('[BusLocationService] Processing JSON webhook data');
+        
+        // Check for different possible JSON structures
+        if (data.vehicles) {
+          busData = await this.parseJsonVehicles(data.vehicles);
+        } else if (data.Siri?.ServiceDelivery?.VehicleMonitoringDelivery?.VehicleActivity) {
+          const activities = data.Siri.ServiceDelivery.VehicleMonitoringDelivery.VehicleActivity;
+          busData = await this.parseSiriVehicleActivities(activities);
+        } else if (Array.isArray(data)) {
+          // Direct array of vehicles
+          busData = await this.parseJsonVehicles(data);
+        }
+      }
+      
+      // Filter for Go North East vehicles only
+      const goNorthEastBuses = busData.filter(bus => 
+        bus.operatorRef === this.operatorCode ||
+        bus.operatorName?.toLowerCase().includes('go north east') ||
+        bus.operatorName?.toLowerCase().includes('gne')
+      );
+      
+      console.log(`[BusLocationService] Processed ${goNorthEastBuses.length} Go North East buses from webhook`);
+      
+      // Update cache with webhook data
+      this.cachedData = goNorthEastBuses;
+      this.lastFetch = Date.now();
+      this.lastDataSource = 'webhook';
+      
+      // Update webhook stats
+      this.lastWebhookData.processedCount = goNorthEastBuses.length;
+      this.lastWebhookData.totalCount = busData.length;
+      
+      return {
+        success: true,
+        buses: goNorthEastBuses,
+        count: goNorthEastBuses.length,
+        totalReceived: busData.length,
+        dataSource: 'webhook',
+        timestamp: new Date().toISOString()
+      };
+      
+    } catch (error) {
+      console.error('[BusLocationService] Error processing webhook data:', error);
+      
+      // Update webhook error stats
+      this.lastWebhookData.error = error.message;
+      
+      return {
+        success: false,
+        error: error.message,
+        buses: [],
+        count: 0
+      };
+    }
+  }
+
+  /**
+   * Get last webhook data for health checks
+   */
+  getLastWebhookData() {
+    return this.lastWebhookData || null;
+  }
 }
 
 // Create singleton instance

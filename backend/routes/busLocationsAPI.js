@@ -235,6 +235,86 @@ router.post('/refresh', async (req, res) => {
   }
 });
 
+// Webhook endpoint for UK Bus Data API - receives real-time bus location updates
+router.post('/webhook', async (req, res) => {
+  try {
+    console.log('🚌 Bus location webhook received');
+    console.log('📦 Content-Type:', req.headers['content-type']);
+    console.log('📏 Content-Length:', req.headers['content-length']);
+    
+    // Get the raw body based on content type
+    let busData;
+    if (req.headers['content-type']?.includes('json')) {
+      busData = req.body;
+    } else if (req.headers['content-type']?.includes('xml')) {
+      // For XML data, req.body should be text if express.text() middleware is used
+      busData = req.body;
+    } else {
+      // Default to treating as JSON
+      busData = req.body;
+    }
+    
+    // Log the data type for debugging
+    console.log('📊 Data type:', typeof busData);
+    console.log('📊 Data preview:', typeof busData === 'string' ? 
+      busData.substring(0, 200) + '...' : 
+      JSON.stringify(busData).substring(0, 200) + '...'
+    );
+    
+    // Process the webhook data
+    const result = await busLocationService.processBusDataWebhook(busData);
+    
+    // Sync to Convex for real-time updates if we have processed data
+    if (result.success && result.buses?.length > 0) {
+      // TODO: Enable when syncBusLocations is implemented in Convex
+      // await convexSync.syncBusLocations(result.buses).catch(err => {
+      //   console.warn('⚠️ Failed to sync bus locations to Convex:', err.message);
+      // });
+      console.log(`✅ Processed ${result.buses.length} bus locations from webhook`);
+    }
+    
+    // Return success response to acknowledge receipt
+    res.status(200).json({ 
+      success: true,
+      message: 'Webhook data received successfully',
+      processed: result.buses?.length || 0,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Bus webhook error:', error);
+    console.error('Stack trace:', error.stack);
+    
+    // Still return 200 to acknowledge receipt, but indicate error
+    res.status(200).json({ 
+      success: false, 
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Webhook health check endpoint
+router.get('/webhook/health', async (req, res) => {
+  try {
+    const lastWebhookData = busLocationService.getLastWebhookData();
+    
+    res.json({
+      success: true,
+      status: 'ready',
+      lastWebhook: lastWebhookData || null,
+      endpoint: 'https://go-barry.onrender.com/api/bus-locations/webhook',
+      acceptedFormats: ['application/json', 'application/xml', 'text/xml'],
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Debug endpoint to test direct API access
 router.get('/debug-api', async (req, res) => {
   try {
