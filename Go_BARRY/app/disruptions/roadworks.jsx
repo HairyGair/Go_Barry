@@ -9,7 +9,7 @@ import { View, Text, StyleSheet, Platform, Pressable, ActivityIndicator, SafeAre
 import { router } from 'expo-router';
 import { useSupervisor } from '../../components/hooks/useSupervisorSession';
 import Icon from 'react-native-vector-icons/FontAwesome5';
-import RoadworksManager from '../../components/operations/RoadworksManager';
+import RoadworksManagerV2 from '../../components/operations/roadworks-v2/RoadworksManagerV2';
 
 // Error Boundary Component
 class RoadworksErrorBoundary extends React.Component {
@@ -115,9 +115,9 @@ export default function RoadworksPage() {
           <Text style={[styles.breadcrumbText, styles.breadcrumbActive]}>Roadworks</Text>
         </View>
 
-        {/* Main Content - RoadworksManager */}
+        {/* Main Content - RoadworksManager V2 */}
         <View style={styles.contentContainer}>
-          <RoadworksManager baseUrl={baseUrl} />
+          <RoadworksManagerV2 baseUrl={baseUrl} />
         </View>
       </SafeAreaView>
     </RoadworksErrorBoundary>

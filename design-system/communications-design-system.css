@@ -1,0 +1,340 @@
+/* Communications Platform Design System
+ * Based on Go BARRY Admin Dashboard & Operations Screen patterns
+ * Version: 1.0
+ * Date: July 2, 2025
+ */
+
+:root {
+  /* === PRIMARY COLORS (from existing screens) === */
+  --comm-bg-primary: #ffffff;        /* Main background - white */
+  --comm-bg-secondary: #f8fafc;      /* Section backgrounds - light gray */
+  --comm-bg-tertiary: #f9fafb;       /* Card backgrounds - very light gray */
+  
+  /* === ACCENT COLORS (matching admin/ops) === */
+  --comm-primary: #3B82F6;           /* Primary blue - buttons, links */
+  --comm-success: #10B981;           /* Green - success states */
+  --comm-warning: #F59E0B;           /* Orange - warnings */
+  --comm-error: #EF4444;             /* Red - errors, urgent */
+  --comm-info: #6B7280;              /* Gray - info text */
+  
+  /* === TEXT COLORS === */
+  --comm-text-primary: #1F2937;      /* Main text - dark gray */
+  --comm-text-secondary: #374151;    /* Secondary text */
+  --comm-text-muted: #6B7280;        /* Muted/subtitle text */
+  --comm-text-light: #9CA3AF;        /* Light text */
+  
+  /* === COMPONENT-SPECIFIC COLORS === */
+  --comm-ticketer: #3B82F6;          /* Blue - Ticketer */
+  --comm-email: #10B981;             /* Green - Email */
+  --comm-voip: #7C3AED;              /* Purple - VoIP */
+  --comm-sharepoint: #059669;        /* Teal - SharePoint */
+  --comm-reports: #F59E0B;           /* Orange - Reports */
+  --comm-messages: #8B5CF6;          /* Purple - Messages */
+  
+  /* === BORDERS & SHADOWS === */
+  --comm-border-light: #E5E7EB;      /* Light border */
+  --comm-border-medium: #D1D5DB;     /* Medium border */
+  --comm-shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --comm-shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+  --comm-shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+  
+  /* === TYPOGRAPHY === */
+  --comm-font-primary: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --comm-font-mono: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  
+  /* Font Sizes (matching admin) */
+  --comm-fs-xs: 12px;
+  --comm-fs-sm: 14px;
+  --comm-fs-base: 16px;
+  --comm-fs-lg: 18px;
+  --comm-fs-xl: 20px;
+  --comm-fs-2xl: 24px;
+  --comm-fs-3xl: 28px;
+  
+  /* Font Weights */
+  --comm-fw-normal: 400;
+  --comm-fw-medium: 500;
+  --comm-fw-semibold: 600;
+  --comm-fw-bold: 700;
+  
+  /* === SPACING (consistent with admin) === */
+  --comm-spacing-xs: 4px;
+  --comm-spacing-sm: 8px;
+  --comm-spacing-md: 12px;
+  --comm-spacing-lg: 16px;
+  --comm-spacing-xl: 20px;
+  --comm-spacing-2xl: 24px;
+  --comm-spacing-3xl: 32px;
+  
+  /* === LAYOUT === */
+  --comm-container-max: 1440px;
+  --comm-sidebar-width: 320px;
+  --comm-header-height: 80px;
+  
+  /* === BORDER RADIUS === */
+  --comm-radius-sm: 6px;
+  --comm-radius-md: 8px;
+  --comm-radius-lg: 10px;
+  --comm-radius-xl: 12px;
+  
+  /* === TRANSITIONS === */
+  --comm-transition-fast: 150ms ease-in-out;
+  --comm-transition-base: 200ms ease-in-out;
+  --comm-transition-slow: 300ms ease-in-out;
+  
+  /* === Z-INDEX SCALE === */
+  --comm-z-base: 0;
+  --comm-z-dropdown: 1000;
+  --comm-z-sticky: 1020;
+  --comm-z-fixed: 1030;
+  --comm-z-modal-backdrop: 1040;
+  --comm-z-modal: 1050;
+  --comm-z-popover: 1060;
+  --comm-z-tooltip: 1070;
+}
+
+/* === COMPONENT PATTERNS === */
+
+/* Header Pattern (like Admin Dashboard) */
+.comm-header {
+  background: var(--comm-bg-primary);
+  padding: var(--comm-spacing-xl);
+  border-bottom: 1px solid var(--comm-border-light);
+}
+
+.comm-header-title {
+  font-size: var(--comm-fs-2xl);
+  font-weight: var(--comm-fw-bold);
+  color: var(--comm-text-primary);
+  margin-bottom: 4px;
+}
+
+.comm-header-subtitle {
+  font-size: var(--comm-fs-sm);
+  color: var(--comm-text-muted);
+}
+
+/* Section Pattern */
+.comm-section {
+  background: var(--comm-bg-primary);
+  padding: var(--comm-spacing-lg) var(--comm-spacing-xl);
+  margin-top: 1px;
+}
+
+.comm-section-title {
+  font-size: var(--comm-fs-lg);
+  font-weight: var(--comm-fw-semibold);
+  color: var(--comm-text-primary);
+  margin-bottom: var(--comm-spacing-lg);
+}
+
+/* Card Pattern */
+.comm-card {
+  background: var(--comm-bg-tertiary);
+  border: 1px solid var(--comm-border-light);
+  border-radius: var(--comm-radius-lg);
+  padding: var(--comm-spacing-lg);
+  box-shadow: var(--comm-shadow-sm);
+  transition: box-shadow var(--comm-transition-base);
+}
+
+.comm-card:hover {
+  box-shadow: var(--comm-shadow-md);
+}
+
+/* Status Indicators */
+.comm-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--comm-spacing-sm);
+  font-size: var(--comm-fs-sm);
+  font-weight: var(--comm-fw-medium);
+}
+
+.comm-status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.comm-status-dot.healthy { background: var(--comm-success); }
+.comm-status-dot.warning { background: var(--comm-warning); }
+.comm-status-dot.error { background: var(--comm-error); }
+
+/* Button Patterns */
+.comm-button {
+  padding: var(--comm-spacing-sm) var(--comm-spacing-lg);
+  border-radius: var(--comm-radius-md);
+  font-size: var(--comm-fs-sm);
+  font-weight: var(--comm-fw-semibold);
+  border: none;
+  cursor: pointer;
+  transition: all var(--comm-transition-base);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--comm-spacing-sm);
+}
+
+.comm-button-primary {
+  background: var(--comm-primary);
+  color: white;
+}
+
+.comm-button-primary:hover {
+  background: #2563EB;
+}
+
+.comm-button-secondary {
+  background: var(--comm-bg-tertiary);
+  color: var(--comm-text-primary);
+  border: 1px solid var(--comm-border-medium);
+}
+
+.comm-button-danger {
+  background: var(--comm-error);
+  color: white;
+}
+
+/* Grid Layouts */
+.comm-grid {
+  display: grid;
+  gap: var(--comm-spacing-md);
+}
+
+.comm-grid-2 { grid-template-columns: repeat(2, 1fr); }
+.comm-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.comm-grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+/* Responsive Breakpoints */
+@media (max-width: 1024px) {
+  .comm-grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .comm-grid-3 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 768px) {
+  .comm-grid-4,
+  .comm-grid-3,
+  .comm-grid-2 { grid-template-columns: 1fr; }
+  
+  .comm-header { padding: var(--comm-spacing-lg); }
+  .comm-section { padding: var(--comm-spacing-md) var(--comm-spacing-lg); }
+}
+
+/* Loading States */
+.comm-skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: loading 1.5s infinite;
+  border-radius: var(--comm-radius-sm);
+}
+
+@keyframes loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Form Elements */
+.comm-input {
+  width: 100%;
+  padding: var(--comm-spacing-sm) var(--comm-spacing-md);
+  border: 1px solid var(--comm-border-medium);
+  border-radius: var(--comm-radius-md);
+  font-size: var(--comm-fs-sm);
+  background: var(--comm-bg-primary);
+  transition: border-color var(--comm-transition-base);
+}
+
+.comm-input:focus {
+  outline: none;
+  border-color: var(--comm-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Metric Cards (like Admin Dashboard) */
+.comm-metric-card {
+  background: var(--comm-bg-tertiary);
+  padding: var(--comm-spacing-xl);
+  border-radius: var(--comm-radius-lg);
+  text-align: center;
+  border: 1px solid var(--comm-border-light);
+}
+
+.comm-metric-value {
+  font-size: var(--comm-fs-3xl);
+  font-weight: var(--comm-fw-bold);
+  color: var(--comm-primary);
+  margin-bottom: var(--comm-spacing-xs);
+}
+
+.comm-metric-label {
+  font-size: var(--comm-fs-sm);
+  color: var(--comm-text-muted);
+}
+
+/* Alert Styles */
+.comm-alert {
+  padding: var(--comm-spacing-md) var(--comm-spacing-lg);
+  border-radius: var(--comm-radius-md);
+  border-left: 4px solid;
+  margin-bottom: var(--comm-spacing-md);
+}
+
+.comm-alert-success {
+  background: #f0fdf4;
+  border-color: var(--comm-success);
+  color: #065f46;
+}
+
+.comm-alert-warning {
+  background: #fffbeb;
+  border-color: var(--comm-warning);
+  color: #92400e;
+}
+
+.comm-alert-error {
+  background: #fef2f2;
+  border-color: var(--comm-error);
+  color: #991b1b;
+}
+
+/* Modal Pattern */
+.comm-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: var(--comm-z-modal-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.comm-modal {
+  background: var(--comm-bg-primary);
+  border-radius: var(--comm-radius-xl);
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow: auto;
+  box-shadow: var(--comm-shadow-lg);
+  z-index: var(--comm-z-modal);
+}
+
+.comm-modal-header {
+  padding: var(--comm-spacing-xl);
+  border-bottom: 1px solid var(--comm-border-light);
+}
+
+.comm-modal-body {
+  padding: var(--comm-spacing-xl);
+}
+
+.comm-modal-footer {
+  padding: var(--comm-spacing-lg) var(--comm-spacing-xl);
+  border-top: 1px solid var(--comm-border-light);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--comm-spacing-md);
+}

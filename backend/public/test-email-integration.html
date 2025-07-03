@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Integration Test - Go BARRY</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1F2937;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #6B7280;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #F9FAFB;
+            border-radius: 8px;
+            border: 1px solid #E5E7EB;
+        }
+        .test-section h2 {
+            color: #374151;
+            margin-top: 0;
+            font-size: 18px;
+        }
+        button {
+            background: #10B981;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #059669;
+        }
+        button:disabled {
+            background: #9CA3AF;
+            cursor: not-allowed;
+        }
+        .secondary {
+            background: #3B82F6;
+        }
+        .secondary:hover {
+            background: #2563EB;
+        }
+        .response {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #E5E7EB;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .error {
+            background: #FEE2E2;
+            border-color: #F87171;
+            color: #B91C1C;
+        }
+        .success {
+            background: #D1FAE5;
+            border-color: #34D399;
+            color: #065F46;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #E5E7EB;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 5px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-online {
+            background: #10B981;
+        }
+        .status-offline {
+            background: #EF4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📧 Email Integration Test</h1>
+        <p class="subtitle">Test the Go BARRY Communications API</p>
+
+        <div class="test-section">
+            <h2>🔌 API Connection Status</h2>
+            <p><span class="status-indicator status-offline" id="statusDot"></span><span id="statusText">Not connected</span></p>
+            <button onclick="testHealth()">Test Connection</button>
+            <button onclick="setApiUrl()" class="secondary">Change API URL</button>
+            <div id="healthResponse" class="response" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📋 Email Templates</h2>
+            <button onclick="fetchTemplates()">Fetch Templates</button>
+            <div id="templatesResponse" class="response" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>👥 Distribution Lists</h2>
+            <button onclick="fetchDistributionLists()">Fetch Distribution Lists</button>
+            <div id="listsResponse" class="response" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>✉️ Send Test Email</h2>
+            <label for="emailTo">To:</label>
+            <input type="email" id="emailTo" placeholder="recipient@example.com" value="traffic.control@gonortheast.com">
+            
+            <label for="emailSubject">Subject:</label>
+            <input type="text" id="emailSubject" placeholder="Email subject" value="Test from Go BARRY">
+            
+            <label for="emailBody">Message:</label>
+            <textarea id="emailBody" placeholder="Email body">This is a test email from the Go BARRY Communications Platform.
+
+Sent at: [TIME]
+Sent by: Test Supervisor</textarea>
+            
+            <button onclick="sendEmail()">Send Email</button>
+            <div id="emailResponse" class="response" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔍 Validate Email Addresses</h2>
+            <label for="emailsToValidate">Email Addresses (one per line):</label>
+            <textarea id="emailsToValidate" placeholder="email1@example.com&#10;email2@example.com">valid@example.com
+invalid-email
+test@gonortheast.com
+missing@domain
+spaces in@email.com</textarea>
+            <button onclick="validateEmails()">Validate</button>
+            <div id="validateResponse" class="response" style="display:none;"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>📞 VoIP Information</h2>
+            <button onclick="fetchQuickDial()">Get Quick Dial Numbers</button>
+            <button onclick="fetchEmergencyNumbers()">Get Emergency Numbers</button>
+            <div id="voipResponse" class="response" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        let API_BASE = localStorage.getItem('goBarryApiUrl') || 'https://go-barry.onrender.com';
+        const TEST_SUPERVISOR = {
+            id: 'supervisor003',
+            name: 'Anthony Gair',
+            badge: 'AG003'
+        };
+
+        // Update displayed API URL
+        function updateApiDisplay() {
+            document.getElementById('statusText').textContent = `API: ${API_BASE}`;
+        }
+        updateApiDisplay();
+
+        // Helper function for API calls
+        async function apiCall(method, path, body = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'supervisor-id': TEST_SUPERVISOR.id,
+                    'supervisor-name': TEST_SUPERVISOR.name
+                }
+            };
+            
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+            
+            const response = await fetch(`${API_BASE}${path}`, options);
+            const data = await response.json();
+            
+            return { ok: response.ok, status: response.status, data };
+        }
+
+        // Update status indicator
+        function updateStatus(online) {
+            const dot = document.getElementById('statusDot');
+            if (online) {
+                dot.classList.remove('status-offline');
+                dot.classList.add('status-online');
+            } else {
+                dot.classList.remove('status-online');
+                dot.classList.add('status-offline');
+            }
+        }
+
+        // Show response in UI
+        function showResponse(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.textContent = JSON.stringify(data, null, 2);
+            element.className = 'response ' + (isError ? 'error' : 'success');
+        }
+
+        // Change API URL
+        function setApiUrl() {
+            const newUrl = prompt('Enter API URL:', API_BASE);
+            if (newUrl) {
+                API_BASE = newUrl;
+                localStorage.setItem('goBarryApiUrl', newUrl);
+                updateApiDisplay();
+                updateStatus(false);
+            }
+        }
+
+        // Test functions
+        async function testHealth() {
+            try {
+                const result = await apiCall('GET', '/api/communications/health');
+                updateStatus(result.ok);
+                showResponse('healthResponse', result.data, !result.ok);
+            } catch (error) {
+                updateStatus(false);
+                showResponse('healthResponse', { error: error.message }, true);
+            }
+        }
+
+        async function fetchTemplates() {
+            try {
+                const result = await apiCall('GET', '/api/communications/email/templates');
+                showResponse('templatesResponse', result.data, !result.ok);
+            } catch (error) {
+                showResponse('templatesResponse', { error: error.message }, true);
+            }
+        }
+
+        async function fetchDistributionLists() {
+            try {
+                const result = await apiCall('GET', '/api/communications/email/distribution-lists');
+                showResponse('listsResponse', result.data, !result.ok);
+            } catch (error) {
+                showResponse('listsResponse', { error: error.message }, true);
+            }
+        }
+
+        async function sendEmail() {
+            const to = document.getElementById('emailTo').value.split(',').map(e => e.trim());
+            const subject = document.getElementById('emailSubject').value;
+            const body = document.getElementById('emailBody').value.replace('[TIME]', new Date().toLocaleString());
+            
+            if (!to[0] || !subject || !body) {
+                showResponse('emailResponse', { error: 'Please fill in all fields' }, true);
+                return;
+            }
+            
+            try {
+                const result = await apiCall('POST', '/api/communications/email/send', {
+                    to,
+                    cc: [],
+                    bcc: [],
+                    subject,
+                    body,
+                    priority: 'normal'
+                });
+                showResponse('emailResponse', result.data, !result.ok);
+            } catch (error) {
+                showResponse('emailResponse', { error: error.message }, true);
+            }
+        }
+
+        async function validateEmails() {
+            const emails = document.getElementById('emailsToValidate').value
+                .split('\n')
+                .map(e => e.trim())
+                .filter(e => e);
+            
+            try {
+                const result = await apiCall('POST', '/api/communications/email/validate', { emails });
+                showResponse('validateResponse', result.data, !result.ok);
+            } catch (error) {
+                showResponse('validateResponse', { error: error.message }, true);
+            }
+        }
+
+        async function fetchQuickDial() {
+            try {
+                const result = await apiCall('GET', '/api/communications/voip/quick-dial');
+                showResponse('voipResponse', result.data, !result.ok);
+            } catch (error) {
+                showResponse('voipResponse', { error: error.message }, true);
+            }
+        }
+
+        async function fetchEmergencyNumbers() {
+            try {
+                const result = await apiCall('GET', '/api/communications/voip/emergency');
+                showResponse('voipResponse', result.data, !result.ok);
+            } catch (error) {
+                showResponse('voipResponse', { error: error.message }, true);
+            }
+        }
+
+        // Test connection on load
+        window.addEventListener('load', () => {
+            testHealth();
+        });
+    </script>
+</body>
+</html>

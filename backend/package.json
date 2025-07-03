@@ -13,6 +13,9 @@
     "test": "node --test tests/*.test.js",
     "test:watch": "node --test --watch tests/*.test.js",
     "test:coverage": "node --test --experimental-test-coverage tests/*.test.js",
+    "test:communications": "node backend/tests/communications/run-tests.js",
+    "test:communications:unit": "npx mocha backend/tests/communications/unit.test.js",
+    "test:communications:integration": "npx mocha backend/tests/communications/integration.test.js --timeout 60000",
     "health": "curl http://localhost:3001/api/health || echo 'Server not running'",
     "alerts": "curl http://localhost:3001/api/alerts | jq '.alerts | length' || echo 'No alerts or jq not installed'",
     "memory-check": "node -e \"console.log('Node.js Memory Limits:'); console.log('Max Old Space:', v8.getHeapStatistics().heap_size_limit / 1024 / 1024, 'MB'); console.log('Available Memory:', process.memoryUsage());\"",
@@ -42,7 +45,12 @@
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.1",
+    "mocha": "^10.2.0",
+    "chai": "^4.3.7",
+    "sinon": "^15.2.0",
+    "supertest": "^6.3.3",
+    "nyc": "^15.1.0"
   },
   "engines": {
     "node": ">=16.0.0"

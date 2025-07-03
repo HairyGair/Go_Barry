@@ -19,6 +19,7 @@ import SupervisorControl from '../components/SupervisorControl';
 import EnhancedDashboard from '../components/EnhancedDashboard';
 import AIDisruptionManager from '../components/operations/DisruptionDatabase';
 import MessageDistributionCenter from '../components/MessageDistributionCenter';
+import EmailIntegrationEnhanced from '../components/communications/EmailIntegrationEnhanced';
 import AutomatedReportingSystem from '../components/AutomatedReportingSystem';
 import SystemHealthMonitor from '../components/SystemHealthMonitor';
 import TrainingHelpSystem from '../components/TrainingHelpSystem';
@@ -78,6 +79,13 @@ const BROWSER_NAVIGATION = {
     icon: 'bulb',
     component: AIDisruptionManager,
     description: 'Smart diversions & automated messaging',
+    color: '#10B981'
+  },
+  email: {
+    title: 'Email Integration',
+    icon: 'mail',
+    component: EmailIntegrationEnhanced,
+    description: 'Outlook Web Access & Quick Compose',
     color: '#10B981'
   },
   messaging: {
@@ -289,6 +297,8 @@ const BrowserMainApp = () => {
               supervisorSession={supervisorSession} // Pass full session
               alerts={alerts}
             />
+          ) : activeScreen === 'email' ? (
+            <EmailIntegrationEnhanced onClose={() => setActiveScreen('dashboard')} />
           ) : (
             <ScreenComponent baseUrl={API_CONFIG.baseURL} />
           )}        

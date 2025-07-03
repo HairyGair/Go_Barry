@@ -5,11 +5,12 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, StyleSheet, Platform, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet, Platform, ScrollView, ActivityIndicator, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSupervisor, DUTY_OPTIONS } from './hooks/useSupervisorSession';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import AppCard from './AppCard';
+import { Picker } from '@react-native-picker/picker';
 
 // Supervisor database - matching the one in useSupervisorSession
 const SUPERVISOR_OPTIONS = [
@@ -419,16 +420,127 @@ const HomePageWithLogin = () => {
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={styles.statusIndicator}>
-              <View style={[
-                styles.statusDot,
-                { backgroundColor: systemStatus === 'operational' ? '#10b981' : 
-                  systemStatus === 'issues' ? '#ef4444' : '#f59e0b' }
-              ]} />
-              <Text style={styles.statusText}>
-                {systemStatus === 'operational' ? 'System Operational' :
-                 systemStatus === 'issues' ? 'System Issues' : 'Checking Status...'}
-              </Text>
+            <View style={styles.headerLoginContainer}>
+              {/* Quick Login Form in Header */}
+              <View style={styles.headerLoginForm}>
+                <View style={styles.headerInputGroup}>
+                  <Text style={styles.headerInputLabel}>Supervisor</Text>
+                  {Platform.OS === 'web' ? (
+                    <View style={styles.headerSelectWrapper}>
+                      <select
+                        style={styles.headerSelect}
+                        value={selectedSupervisor}
+                        onChange={(e) => setSelectedSupervisor(e.target.value)}
+                      >
+                        <option value="">Select...</option>
+                        {SUPERVISOR_OPTIONS.map(sup => (
+                          <option key={sup.id} value={sup.id}>
+                            {sup.name} ({sup.badge})
+                          </option>
+                        ))}
+                      </select>
+                    </View>
+                  ) : (
+                    <View style={styles.headerSelectWrapper}>
+                      <Picker
+                        selectedValue={selectedSupervisor}
+                        onValueChange={setSelectedSupervisor}
+                        style={styles.headerSelect}
+                      >
+                        <Picker.Item label="Select..." value="" />
+                        {SUPERVISOR_OPTIONS.map(sup => (
+                          <Picker.Item
+                            key={sup.id}
+                            label={`${sup.name} (${sup.badge})`}
+                            value={sup.id}
+                          />
+                        ))}
+                      </Picker>
+                    </View>
+                  )}
+                </View>
+                
+                <View style={styles.headerInputGroup}>
+                  <Text style={styles.headerInputLabel}>Duty</Text>
+                  {Platform.OS === 'web' ? (
+                    <View style={styles.headerSelectWrapper}>
+                      <select
+                        style={styles.headerSelect}
+                        value={selectedDuty}
+                        onChange={(e) => setSelectedDuty(e.target.value)}
+                      >
+                        <option value="">Select...</option>
+                        {DUTY_OPTIONS.map(duty => (
+                          <option key={duty.id} value={duty.id}>{duty.name}</option>
+                        ))}
+                      </select>
+                    </View>
+                  ) : (
+                    <View style={styles.headerSelectWrapper}>
+                      <Picker
+                        selectedValue={selectedDuty}
+                        onValueChange={setSelectedDuty}
+                        style={styles.headerSelect}
+                      >
+                        <Picker.Item label="Select..." value="" />
+                        {DUTY_OPTIONS.map(duty => (
+                          <Picker.Item key={duty.id} label={duty.name} value={duty.id} />
+                        ))}
+                      </Picker>
+                    </View>
+                  )}
+                </View>
+                
+                <View style={styles.headerInputGroup}>
+                  <Text style={styles.headerInputLabel}>Password</Text>
+                  <TextInput
+                    style={styles.headerPasswordInput}
+                    value={password}
+                    onChangeText={setPasswordInput}
+                    placeholder="••••••"
+                    placeholderTextColor="#ffcccc"
+                    secureTextEntry
+                    onKeyPress={(e) => {
+                      if (e.nativeEvent.key === 'Enter') {
+                        handleLogin();
+                      }
+                    }}
+                  />
+                </View>
+                
+                <TouchableOpacity 
+                  style={[styles.headerLoginBtn, isLoading && styles.headerLoginBtnDisabled]} 
+                  onPress={handleLogin}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator size="small" color="#E31E24" />
+                  ) : (
+                    <>
+                      <Icon name="sign-in-alt" size={14} color="#E31E24" />
+                      <Text style={styles.headerLoginBtnText}>Login</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+              
+              {/* Login Error */}
+              {loginError && (
+                <Text style={styles.headerLoginError}>{loginError}</Text>
+              )}
+              
+              {/* System Status */}
+              <View style={styles.statusIndicator}>
+                <View style={[
+                  styles.statusDot,
+                  { backgroundColor: systemStatus === 'operational' ? '#10b981' : 
+                    systemStatus === 'issues' ? '#ef4444' : '#f59e0b' }
+                ]} />
+                <Text style={styles.statusText}>
+                  {systemStatus === 'operational' ? 'System OK' :
+                   systemStatus === 'issues' ? 'Issues' : 'Checking...'}
+                </Text>
+              </View>
             </View>
           )}
         </View>
@@ -560,6 +672,88 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  headerLoginContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 20,
+  },
+  headerLoginForm: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    padding: 12,
+    borderRadius: 12,
+  },
+  headerInputGroup: {
+    flexDirection: 'column',
+    gap: 4,
+  },
+  headerInputLabel: {
+    fontSize: 11,
+    color: '#ffcccc',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  headerSelectWrapper: {
+    position: 'relative',
+  },
+  headerSelect: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    color: '#fff',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    fontSize: 14,
+    fontWeight: '500',
+    minWidth: 140,
+    cursor: 'pointer',
+    outline: 'none',
+  },
+  headerPasswordInput: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    color: '#fff',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    fontSize: 14,
+    fontWeight: '500',
+    minWidth: 120,
+    outline: 'none',
+  },
+  headerLoginBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  headerLoginBtnDisabled: {
+    opacity: 0.6,
+  },
+  headerLoginBtnText: {
+    color: '#E31E24',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  headerLoginError: {
+    color: '#ffe0e0',
+    fontSize: 12,
+    fontWeight: '500',
+    backgroundColor: 'rgba(255,0,0,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginLeft: 8,
   },
   mainContent: {
     padding: 32,

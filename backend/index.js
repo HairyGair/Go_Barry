@@ -68,6 +68,8 @@ import activityLogsAPI from './routes/activityLogs.js';
 import dutyAPI from './routes/dutyAPI.js';
 import messagingAPI from './routes/messagingAPI.js';
 import analyticsAPI from './routes/analyticsAPI.js';
+import communicationsAPI from './routes/communications/communicationsAPI.js';
+console.log('✅ communicationsAPI imported successfully');
 import locationCorrectionAPI from './routes/locationCorrectionAPI.js';
 import supervisorManager from './services/supervisorManager.js';
 import serviceFrequencyAnalyzer from './services/serviceFrequencyAnalyzer.js';
@@ -81,6 +83,10 @@ import streetManagerWebhookRouter from './routes/streetManagerWebhook.js';
 app.use('/api/streetmanager/webhook', express.text(), streetManagerWebhookRouter);
 console.log('✅ streetManagerWebhookRouter imported with text body parser');
 import unifiedRoadworksAPI from './routes/unifiedRoadworksAPI.js';
+
+// Communications API Route
+app.use('/api/communications', communicationsAPI);
+console.log('✅ Communications API registered at /api/communications');
 console.log('✅ unifiedRoadworksAPI imported');
 // REMOVED: import { createServer } from 'http'; - Using server from render-startup.js
 import { deduplicateAlerts, cleanupExpiredDismissals, generateAlertHash } from './utils/alertDeduplication.js';
@@ -4191,9 +4197,23 @@ console.log('📍 AI Diversion System: GTFS local intelligence + TomTom live tra
 console.log(`🎆 index.js: Route registration complete!`);
 console.log(`🎆 index.js: Total routes registered:`, global.goBarryRouteCount || 'tracking not available');
 
+// Initialize communication services
+import { communicationService } from './services/communications/communicationService.js';
+import { emailService } from './services/communications/emailService.js';
+
 // Initialize the application when this module is imported
 initializeApplication().then(async () => {
   console.log('✅ Basic initialization complete');
+  
+  // Initialize communication services
+  try {
+    await communicationService.initialize();
+    await emailService.initialize();
+    console.log('✅ Communication services initialized');
+  } catch (error) {
+    console.error('⚠️ Communication services initialization error:', error.message);
+    console.log('⚠️ Continuing without full communication features...');
+  }
   
   // Initialize Go BARRY system with 3-month data retention
   try {

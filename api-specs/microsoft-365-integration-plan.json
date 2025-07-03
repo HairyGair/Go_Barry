@@ -1,0 +1,259 @@
+{
+  "planId": "MS365-INT-2025-001",
+  "title": "Enhanced Microsoft 365 Integration Plan",
+  "date": "2025-07-02",
+  "version": "1.0",
+  "scope": "Outlook + SharePoint + Teams (future)",
+  
+  "currentCapabilities": {
+    "email": {
+      "service": "Outlook Web Access",
+      "currentUsage": "Manual web access",
+      "integration": "None"
+    },
+    "documents": {
+      "service": "SharePoint",
+      "currentUsage": "Manual web access",
+      "integration": "None"
+    },
+    "authentication": {
+      "method": "Azure AD",
+      "sso": "Available but not integrated"
+    }
+  },
+
+  "proposedEnhancements": {
+    "unifiedAuthentication": {
+      "description": "Single sign-on across all Microsoft services",
+      "implementation": {
+        "method": "MSAL.js (Microsoft Authentication Library)",
+        "flow": "Implicit Grant or Authorization Code + PKCE",
+        "tokenManagement": "Automatic refresh",
+        "fallback": "Redirect to Microsoft login"
+      },
+      "benefits": [
+        "One login for all services",
+        "Automatic token refresh",
+        "Secure token storage",
+        "Cross-service permissions"
+      ]
+    },
+
+    "integratedFeatures": {
+      "emailWithDocuments": {
+        "description": "Attach SharePoint documents directly in emails",
+        "workflow": [
+          "Browse SharePoint from email compose",
+          "Attach as link (not file)",
+          "Automatic permissions check",
+          "Version control maintained"
+        ]
+      },
+      
+      "reportArchiving": {
+        "description": "Auto-archive sent reports to SharePoint",
+        "workflow": [
+          "Generate report",
+          "Send via email",
+          "Auto-save to SharePoint",
+          "Tag with metadata"
+        ]
+      },
+
+      "templateSharing": {
+        "description": "Centralized templates in SharePoint",
+        "workflow": [
+          "Store all templates in SharePoint",
+          "Access from email interface",
+          "Version control",
+          "Permission-based access"
+        ]
+      },
+
+      "unifiedSearch": {
+        "description": "Search across email and documents",
+        "features": [
+          "Microsoft Graph Search API",
+          "Unified results",
+          "Relevance ranking",
+          "Security trimmed"
+        ]
+      }
+    },
+
+    "technicalArchitecture": {
+      "authentication": {
+        "library": "@azure/msal-browser",
+        "config": {
+          "clientId": "{app-registration-id}",
+          "authority": "https://login.microsoftonline.com/{tenant-id}",
+          "redirectUri": "https://gobarry.co.uk/auth",
+          "scopes": [
+            "User.Read",
+            "Mail.ReadWrite",
+            "Mail.Send",
+            "Files.ReadWrite.All",
+            "Sites.ReadWrite.All"
+          ]
+        }
+      },
+
+      "apiIntegration": {
+        "graphApi": {
+          "endpoint": "https://graph.microsoft.com/v1.0",
+          "services": ["mail", "drive", "sites", "users"],
+          "sdks": "@microsoft/microsoft-graph-client"
+        },
+        "sharePointRest": {
+          "endpoint": "{site}/_api",
+          "usage": "Complex SharePoint operations"
+        }
+      },
+
+      "componentStructure": {
+        "core": "MicrosoftIntegrationProvider",
+        "services": [
+          "OutlookService",
+          "SharePointService",
+          "GraphSearchService"
+        ],
+        "ui": [
+          "UnifiedComposer",
+          "DocumentBrowser",
+          "TemplateManager"
+        ]
+      }
+    }
+  },
+
+  "implementationPhases": {
+    "phase1": {
+      "name": "Basic Integration",
+      "duration": "1 week",
+      "deliverables": [
+        "Outlook Web Access embed",
+        "SharePoint document browser",
+        "Basic authentication"
+      ]
+    },
+    "phase2": {
+      "name": "Enhanced Features",
+      "duration": "1 week",
+      "deliverables": [
+        "Unified authentication",
+        "Cross-service features",
+        "Template management"
+      ]
+    },
+    "phase3": {
+      "name": "Advanced Integration",
+      "duration": "2 weeks",
+      "deliverables": [
+        "Workflow automation",
+        "Unified search",
+        "Analytics dashboard"
+      ]
+    }
+  },
+
+  "securityConsiderations": {
+    "authentication": {
+      "mfa": "Enforced via Azure AD",
+      "conditionalAccess": "IP and device policies",
+      "sessionManagement": "8-hour validity"
+    },
+    "dataProtection": {
+      "encryption": "TLS 1.2+ for transit",
+      "storage": "No sensitive data stored locally",
+      "tokens": "Encrypted in session storage"
+    },
+    "compliance": {
+      "gdpr": "Compliant via Microsoft",
+      "audit": "Full audit trail in Azure AD",
+      "dataResidency": "UK datacenters"
+    }
+  },
+
+  "performanceOptimization": {
+    "caching": {
+      "strategy": "Intelligent caching with Graph Delta API",
+      "invalidation": "Event-based",
+      "storage": "IndexedDB for offline"
+    },
+    "lazyLoading": {
+      "emails": "Load on scroll",
+      "documents": "Thumbnail first",
+      "metadata": "On-demand"
+    },
+    "bundleSize": {
+      "msaljs": "~100KB",
+      "graphClient": "~50KB",
+      "total": "~150KB additional"
+    }
+  },
+
+  "userExperienceBenefits": {
+    "reduced": {
+      "logins": "From multiple to one",
+      "tabSwitching": "Everything in Go BARRY",
+      "trainingTime": "Familiar interfaces"
+    },
+    "improved": {
+      "workflow": "Seamless document attachment",
+      "search": "Find anything quickly",
+      "collaboration": "Real-time updates"
+    }
+  },
+
+  "costBenefit": {
+    "costs": {
+      "development": "4 weeks total",
+      "licensing": "$0 (using existing)",
+      "maintenance": "Minimal"
+    },
+    "benefits": {
+      "timeSaving": "30min/day per supervisor",
+      "errorReduction": "50% fewer attachment errors",
+      "adoption": "Higher due to familiarity"
+    },
+    "roi": {
+      "breakeven": "2 months",
+      "yearOneSavings": "1,500 hours"
+    }
+  },
+
+  "risks": {
+    "technical": [
+      {
+        "risk": "Microsoft API changes",
+        "likelihood": "Low",
+        "mitigation": "Use stable v1.0 endpoints"
+      },
+      {
+        "risk": "Authentication complexity",
+        "likelihood": "Medium",
+        "mitigation": "Fallback to web login"
+      }
+    ],
+    "operational": [
+      {
+        "risk": "User resistance",
+        "likelihood": "Low",
+        "mitigation": "Familiar interfaces"
+      }
+    ]
+  },
+
+  "successCriteria": {
+    "technical": [
+      "Single sign-on working",
+      "All features accessible",
+      "Performance targets met"
+    ],
+    "business": [
+      "80% supervisor adoption",
+      "30min daily time saving",
+      "Zero data loss"
+    ]
+  }
+}

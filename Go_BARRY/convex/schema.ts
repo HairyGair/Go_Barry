@@ -430,6 +430,153 @@ export default defineSchema({
     .index("by_active", ["isActive"])
     .index("by_last_message", ["lastMessageAt"]),
 
+  // === COMMUNICATIONS PLATFORM TABLES ===
+  
+  // Email templates for Communications Platform
+  emailTemplates: defineTable({
+    templateId: v.string(),
+    name: v.string(),
+    subject: v.string(),
+    body: v.string(),
+    variables: v.array(v.object({
+      name: v.string(),
+      type: v.string(), // 'text', 'number', 'date', 'route', 'supervisor'
+      required: v.boolean(),
+      defaultValue: v.optional(v.string()),
+      description: v.string(),
+    })),
+    category: v.string(), // 'alert', 'report', 'notification', 'custom'
+    isActive: v.boolean(),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    lastModified: v.number(),
+    usage: v.number(), // Track how often used
+  })
+    .index("by_category", ["category"])
+    .index("by_active", ["isActive"])
+    .index("by_usage", ["usage"]),
+
+  // Communication logs for audit trail
+  communicationLogs: defineTable({
+    logId: v.string(),
+    type: v.string(), // 'email', 'voip', 'ticketer', 'sms'
+    action: v.string(), // 'sent', 'received', 'failed', 'scheduled'
+    
+    // Communication details
+    from: v.string(),
+    to: v.array(v.string()),
+    subject: v.optional(v.string()),
+    content: v.optional(v.string()),
+    templateUsed: v.optional(v.string()),
+    
+    // Metadata
+    supervisorId: v.string(),
+    supervisorName: v.string(),
+    success: v.boolean(),
+    errorMessage: v.optional(v.string()),
+    
+    // Timestamps
+    timestamp: v.number(),
+    deliveredAt: v.optional(v.number()),
+    readAt: v.optional(v.number()),
+  })
+    .index("by_type", ["type"])
+    .index("by_supervisor", ["supervisorId"])
+    .index("by_timestamp", ["timestamp"])
+    .index("by_success", ["success"]),
+
+  // Distribution lists for email/messaging
+  distributionLists: defineTable({
+    listId: v.string(),
+    name: v.string(),
+    description: v.string(),
+    members: v.array(v.object({
+      email: v.string(),
+      name: v.string(),
+      role: v.string(),
+      department: v.string(),
+      isActive: v.boolean(),
+      addedAt: v.number(),
+    })),
+    type: v.string(), // 'static', 'dynamic'
+    criteria: v.optional(v.any()), // For dynamic lists
+    isActive: v.boolean(),
+    createdBy: v.string(),
+    lastSyncAt: v.number(),
+    memberCount: v.number(),
+  })
+    .index("by_name", ["name"])
+    .index("by_active", ["isActive"])
+    .index("by_type", ["type"]),
+
+  // VoIP call sessions
+  voipSessions: defineTable({
+    sessionId: v.string(),
+    callId: v.optional(v.string()), // 8x8 call ID
+    
+    // Call details
+    from: v.string(),
+    to: v.string(),
+    type: v.string(), // 'outbound', 'inbound', 'conference'
+    status: v.string(), // 'ringing', 'connected', 'ended', 'failed'
+    duration: v.number(), // seconds
+    
+    // Quality metrics
+    audioQuality: v.optional(v.number()), // 1-5 rating
+    latency: v.optional(v.number()), // milliseconds
+    
+    // Supervisor info
+    supervisorId: v.string(),
+    supervisorName: v.string(),
+    
+    // Timestamps
+    startedAt: v.number(),
+    connectedAt: v.optional(v.number()),
+    endedAt: v.optional(v.number()),
+    
+    // Emergency flag
+    isEmergency: v.boolean(),
+    emergencyType: v.optional(v.string()),
+  })
+    .index("by_supervisor", ["supervisorId"])
+    .index("by_status", ["status"])
+    .index("by_emergency", ["isEmergency"])
+    .index("by_start_time", ["startedAt"]),
+
+  // Message queue for unified messaging
+  messageQueues: defineTable({
+    queueId: v.string(),
+    messageId: v.string(),
+    
+    // Message details
+    type: v.string(), // 'email', 'sms', 'ticketer', 'teams'
+    priority: v.string(), // 'low', 'medium', 'high', 'urgent'
+    status: v.string(), // 'pending', 'processing', 'sent', 'failed', 'cancelled'
+    
+    // Content
+    to: v.array(v.string()),
+    subject: v.optional(v.string()),
+    content: v.string(),
+    templateId: v.optional(v.string()),
+    
+    // Scheduling
+    scheduledFor: v.optional(v.number()),
+    retryCount: v.number(),
+    maxRetries: v.number(),
+    
+    // Tracking
+    supervisorId: v.string(),
+    createdAt: v.number(),
+    processedAt: v.optional(v.number()),
+    sentAt: v.optional(v.number()),
+    failedAt: v.optional(v.number()),
+    errorMessage: v.optional(v.string()),
+  })
+    .index("by_status", ["status"])
+    .index("by_priority", ["priority", "createdAt"])
+    .index("by_scheduled", ["scheduledFor"])
+    .index("by_supervisor", ["supervisorId"]),
+
   // Handover notes for shift transitions (Phase 3)
   handoverNotes: defineTable({
     handoverId: v.string(),

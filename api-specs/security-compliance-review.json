@@ -1,0 +1,298 @@
+{
+  "documentId": "SEC-COMP-2025-001",
+  "title": "Security & Compliance Review - Communications Platform",
+  "date": "2025-07-02",
+  "version": "1.0",
+  "classification": "Internal",
+  
+  "executiveSummary": {
+    "scope": "Security review of web-based integrations for Outlook, 8x8, and SharePoint",
+    "riskLevel": "Low to Medium",
+    "complianceStatus": "Will maintain compliance through Microsoft/8x8 infrastructure",
+    "recommendation": "Proceed with enhanced security measures"
+  },
+
+  "securityRequirements": {
+    "authentication": {
+      "supervisorAuth": {
+        "current": "Badge-based login via Convex",
+        "enhancement": "Add MFA for communications access",
+        "sessionTimeout": "10 minutes idle",
+        "implementation": "Existing session + service-specific tokens"
+      },
+      "serviceAuth": {
+        "microsoft": {
+          "method": "Azure AD SSO",
+          "mfa": "Enforced by organization policy",
+          "tokens": "OAuth 2.0 with refresh"
+        },
+        "eightByEight": {
+          "method": "Existing corporate login",
+          "mfa": "Optional",
+          "session": "Browser cookie based"
+        }
+      }
+    },
+
+    "dataProtection": {
+      "inTransit": {
+        "requirement": "TLS 1.2 minimum",
+        "implementation": {
+          "microsoft": "TLS 1.3 enforced",
+          "eightByEight": "TLS 1.2+",
+          "goBarry": "HTTPS only"
+        }
+      },
+      "atRest": {
+        "emails": "Stored in Exchange (encrypted)",
+        "documents": "SharePoint encryption",
+        "localData": {
+          "policy": "No sensitive data stored locally",
+          "exceptions": "Templates, preferences only",
+          "implementation": "Session storage for tokens"
+        }
+      },
+      "dataClassification": {
+        "public": ["Templates", "General announcements"],
+        "internal": ["Shift reports", "Incident details"],
+        "confidential": ["Personnel information", "Security incidents"],
+        "restricted": ["None in scope"]
+      }
+    },
+
+    "accessControl": {
+      "rbac": {
+        "roles": [
+          {
+            "name": "Supervisor",
+            "permissions": ["send-messages", "view-documents", "make-calls"],
+            "restrictions": ["no-admin", "no-delete-shared"]
+          },
+          {
+            "name": "Admin",
+            "permissions": ["all-supervisor", "manage-templates", "view-audit"],
+            "users": ["AG003", "BP009"]
+          }
+        ]
+      },
+      "principleOfLeastPrivilege": {
+        "implementation": "Request minimal scopes from each service",
+        "review": "Quarterly permission audit"
+      }
+    }
+  },
+
+  "complianceRequirements": {
+    "gdpr": {
+      "applicability": "Yes - EU/UK operations",
+      "dataSubjects": "Supervisors, drivers, staff",
+      "requirements": {
+        "consent": "Covered by employment agreement",
+        "rightToAccess": "Via IT request process",
+        "rightToErasure": "Limited by operational needs",
+        "dataPortability": "Export via Microsoft tools",
+        "privacyByDesign": "No unnecessary data collection"
+      },
+      "implementation": {
+        "dataMinimization": "Only operational data",
+        "purposeLimitation": "Communications only",
+        "storageLocation": "UK datacenters",
+        "retention": "Per company policy"
+      }
+    },
+
+    "industrySpecific": {
+      "transport": {
+        "requirement": "Maintain audit trail",
+        "implementation": "All communications logged",
+        "retention": "7 years"
+      },
+      "dvla": {
+        "requirement": "Driver privacy",
+        "implementation": "No driver personal data in system"
+      }
+    },
+
+    "internal": {
+      "policies": [
+        "Information Security Policy",
+        "Acceptable Use Policy", 
+        "Data Retention Policy"
+      ],
+      "training": "Annual security awareness",
+      "audit": "Annual compliance review"
+    }
+  },
+
+  "threatAssessment": {
+    "threats": [
+      {
+        "threat": "Unauthorized access to communications",
+        "likelihood": "Medium",
+        "impact": "High",
+        "mitigation": [
+          "MFA enforcement",
+          "Session timeouts",
+          "Audit logging"
+        ]
+      },
+      {
+        "threat": "Data leakage via email",
+        "likelihood": "Medium",
+        "impact": "Medium",
+        "mitigation": [
+          "DLP policies in Exchange",
+          "Template enforcement",
+          "Training"
+        ]
+      },
+      {
+        "threat": "Phishing attacks",
+        "likelihood": "High",
+        "impact": "Medium",
+        "mitigation": [
+          "Email filtering",
+          "Security awareness",
+          "Incident response plan"
+        ]
+      },
+      {
+        "threat": "Service disruption",
+        "likelihood": "Low",
+        "impact": "High",
+        "mitigation": [
+          "Redundant services",
+          "Fallback procedures",
+          "Local contact lists"
+        ]
+      }
+    ]
+  },
+
+  "technicalSecurityMeasures": {
+    "webEmbedding": {
+      "iframeSecurity": {
+        "sandbox": "Restrictive permissions",
+        "csp": "Strict Content Security Policy",
+        "referrer": "no-referrer-when-downgrade",
+        "features": "Minimal permissions"
+      },
+      "crossOrigin": {
+        "cors": "Not applicable (iframe)",
+        "postMessage": "Validated origins only",
+        "cookies": "SameSite=Strict"
+      }
+    },
+
+    "apiSecurity": {
+      "authentication": "Bearer tokens only",
+      "authorization": "Role-based checks",
+      "rateLimiting": "Per-user limits",
+      "encryption": "All API calls over HTTPS"
+    },
+
+    "auditLogging": {
+      "events": [
+        "Login/logout",
+        "Message sent",
+        "Document accessed",
+        "Call made",
+        "Template used",
+        "Error occurred"
+      ],
+      "storage": "Append-only log",
+      "retention": "7 years",
+      "monitoring": "Daily review of anomalies"
+    }
+  },
+
+  "privacyConsiderations": {
+    "personalData": {
+      "collected": [
+        "Name (for audit)",
+        "Badge ID",
+        "Email recipients",
+        "Call history metadata"
+      ],
+      "notCollected": [
+        "Email content (stays in Exchange)",
+        "Call recordings",
+        "Personal phone numbers",
+        "Location data"
+      ]
+    },
+    "thirdPartySharing": {
+      "microsoft": "Data processor agreement in place",
+      "eightByEight": "Data processor agreement in place",
+      "others": "None"
+    }
+  },
+
+  "incidentResponse": {
+    "plan": {
+      "detection": "Automated alerts + user reports",
+      "response": "IT Security team",
+      "containment": "Disable affected accounts",
+      "recovery": "Restore from backups",
+      "lessons": "Post-incident review"
+    },
+    "contacts": {
+      "internal": "IT Security: itsecurity@gonortheast.co.uk",
+      "external": "Microsoft: Premier Support",
+      "legal": "Legal team: legal@gonortheast.co.uk"
+    }
+  },
+
+  "recommendations": {
+    "immediate": [
+      "Implement CSP headers for iframe security",
+      "Enable audit logging from day one",
+      "Create security runbook"
+    ],
+    "shortTerm": [
+      "MFA for all supervisor accounts",
+      "DLP policy configuration",
+      "Security awareness training"
+    ],
+    "longTerm": [
+      "Regular penetration testing",
+      "ISO 27001 alignment",
+      "Zero-trust architecture"
+    ]
+  },
+
+  "complianceChecklist": {
+    "preImplementation": [
+      "Privacy impact assessment",
+      "Update privacy notices",
+      "Security architecture review",
+      "Vendor security assessments"
+    ],
+    "implementation": [
+      "Security controls testing",
+      "Audit logging verification",
+      "Access control validation",
+      "Encryption verification"
+    ],
+    "postImplementation": [
+      "Security acceptance testing",
+      "Compliance audit",
+      "User access review",
+      "Documentation update"
+    ]
+  },
+
+  "signOff": {
+    "reviewedBy": "AI Assistant",
+    "approvalRequired": [
+      "IT Security Manager",
+      "Data Protection Officer",
+      "Operations Director"
+    ],
+    "conditions": [
+      "All high-risk items addressed",
+      "Audit logging operational",
+      "Training completed"
+    ]
+  }
+}

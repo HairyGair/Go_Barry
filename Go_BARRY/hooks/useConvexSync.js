@@ -521,6 +521,60 @@ export function useAlertSync() {
   return { syncAlerts };
 }
 
+// Hook for email communications
+export function useEmailCommunications() {
+  let emailTemplates, distributionLists, communicationLogs;
+  let saveEmailTemplate, deleteEmailTemplate, saveDistributionList, deleteDistributionList;
+  let logCommunication;
+  
+  if (!api || !api.communications) {
+    console.warn('Email communications via Convex not available - API not deployed');
+    // Return empty arrays and no-op functions if Convex isn't available
+    emailTemplates = [];
+    distributionLists = [];
+    communicationLogs = [];
+    saveEmailTemplate = noOpMutation;
+    deleteEmailTemplate = noOpMutation;
+    saveDistributionList = noOpMutation;
+    deleteDistributionList = noOpMutation;
+    logCommunication = noOpMutation;
+  } else {
+    try {
+      emailTemplates = useQuery(api.communications.getEmailTemplates);
+      distributionLists = useQuery(api.communications.getDistributionLists);
+      communicationLogs = useQuery(api.communications.getRecentCommunications);
+      saveEmailTemplate = useMutation(api.communications.saveEmailTemplate);
+      deleteEmailTemplate = useMutation(api.communications.deleteEmailTemplate);
+      saveDistributionList = useMutation(api.communications.saveDistributionList);
+      deleteDistributionList = useMutation(api.communications.deleteDistributionList);
+      logCommunication = useMutation(api.communications.logCommunication);
+    } catch (error) {
+      console.warn('Email communications via Convex not available:', error.message);
+      // Return empty arrays and no-op functions if Convex isn't available
+      emailTemplates = [];
+      distributionLists = [];
+      communicationLogs = [];
+      saveEmailTemplate = noOpMutation;
+      deleteEmailTemplate = noOpMutation;
+      saveDistributionList = noOpMutation;
+      deleteDistributionList = noOpMutation;
+      logCommunication = noOpMutation;
+    }
+  }
+
+  return {
+    emailTemplates: emailTemplates || [],
+    distributionLists: distributionLists || [],
+    communicationLogs: communicationLogs || [],
+    saveEmailTemplate,
+    deleteEmailTemplate,
+    saveDistributionList,
+    deleteDistributionList,
+    logCommunication,
+    loading: emailTemplates === undefined || distributionLists === undefined,
+  };
+}
+
 // Combined hook for complete Convex integration
 export function useConvexSync() {
   // Check if Convex API is properly loaded at the start
@@ -539,6 +593,7 @@ export function useConvexSync() {
   const alertSync = useAlertSync();
   const loginTracking = useLoginTracking();
   const vixDataHook = useVixData();
+  const emailComms = useEmailCommunications();
   
   // Add defensive checks to ensure hooks are properly initialized
   if (!auth || !sync || !alerts || !supervisors || !events || !incidents || !alertSync || !loginTracking || !vixDataHook) {
@@ -642,5 +697,15 @@ export function useConvexSync() {
     vixData: vixDataHook?.vixData || null,
     updateVixData: vixDataHook?.updateVixData || noOpMutation,
     clearVixData: vixDataHook?.clearVixData || noOpMutation,
+    
+    // Email communications
+    emailTemplates: convexDebug.ensureArray(emailComms?.emailTemplates),
+    distributionLists: convexDebug.ensureArray(emailComms?.distributionLists),
+    communicationLogs: convexDebug.ensureArray(emailComms?.communicationLogs),
+    saveEmailTemplate: emailComms?.saveEmailTemplate || noOpMutation,
+    deleteEmailTemplate: emailComms?.deleteEmailTemplate || noOpMutation,
+    saveDistributionList: emailComms?.saveDistributionList || noOpMutation,
+    deleteDistributionList: emailComms?.deleteDistributionList || noOpMutation,
+    logCommunication: emailComms?.logCommunication || noOpMutation,
   };
 }
