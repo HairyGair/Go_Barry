@@ -865,7 +865,10 @@ const styles = StyleSheet.create({
   loadingIcon: {
     ...Platform.select({
       web: {
-        animation: 'spin 1s linear infinite',
+        animationKeyframes: 'spin',
+        animationDuration: '1s',
+        animationTimingFunction: 'linear',
+        animationIterationCount: 'infinite',
       },
     }),
   },

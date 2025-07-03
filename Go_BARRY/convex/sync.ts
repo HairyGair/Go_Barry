@@ -1387,43 +1387,6 @@ export const updateSimpleBusLocations = mutation({
     }
   },
 });
-  handler: async (ctx) => {
-    return await ctx.db
-      .query("busLocations")
-      .collect();
-  },
-});
-
-// Get bus location statistics
-export const getBusLocationStats = query({
-  handler: async (ctx) => {
-    const buses = await ctx.db.query("busLocations").collect();
-    
-    const stats = {
-      totalBuses: buses.length,
-      onTime: buses.filter(b => b.status === 'on-time').length,
-      delayed: buses.filter(b => b.status === 'delayed' || b.status === 'severely-delayed').length,
-      severelyDelayed: buses.filter(b => b.status === 'severely-delayed').length,
-      early: buses.filter(b => b.status === 'early').length,
-      uniqueRoutes: new Set(buses.map(b => b.lineRef)).size,
-      lastUpdate: buses[0]?.lastUpdated || null,
-      
-      // Route breakdown
-      routeBreakdown: buses.reduce((acc, bus) => {
-        const route = bus.lineName || bus.lineRef;
-        acc[route] = (acc[route] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>),
-      
-      // Average delay in minutes
-      avgDelay: buses.length > 0 
-        ? buses.reduce((sum, b) => sum + b.delay, 0) / buses.length
-        : 0,
-    };
-    
-    return stats;
-  },
-});
 
 // Get buses within viewport bounds
 export const getBusesInViewport = query({
@@ -1535,73 +1498,6 @@ export const getDisplayMessageAnalytics = query({
   },
 });
 
-// Simple bus update for frontend mock data
-export const updateSimpleBusLocations = mutation({
-  args: {
-    buses: v.array(v.object({
-      id: v.string(),
-      vehicleRef: v.optional(v.string()),
-      operatorRef: v.string(),
-      routeName: v.string(),
-      lineRef: v.string(),
-      coordinates: v.array(v.number()), // [lat, lng]
-      bearing: v.number(),
-      delay: v.number(),
-      status: v.string(),
-      destination: v.string(),
-      occupancy: v.optional(v.string()),
-      lastUpdate: v.number()
-    })),
-    timestamp: v.string()
-  },
-  handler: async (ctx, args) => {
-    const startTime = Date.now();
-    
-    try {
-      // Clear old buses
-      const existing = await ctx.db.query("busLocations").collect();
-      await Promise.all(existing.map(bus => ctx.db.delete(bus._id)));
-      
-      // Insert new buses in simplified format
-      const insertPromises = args.buses.map(bus => 
-        ctx.db.insert("busLocations", {
-          vehicleId: bus.id,
-          vehicleRef: bus.vehicleRef || bus.id,
-          operatorRef: bus.operatorRef,
-          lineRef: bus.lineRef,
-          lineName: bus.routeName,
-          directionRef: "1",
-          directionName: "Inbound",
-          destinationRef: `dest-${bus.lineRef}`,
-          destinationName: bus.destination,
-          latitude: bus.coordinates[0],
-          longitude: bus.coordinates[1],
-          bearing: bus.bearing,
-          blockRef: null,
-          vehicleJourneyRef: null,
-          originRef: null,
-          originName: null,
-          originAimedDeparture: null,
-          delay: bus.delay,
-          status: bus.status as any,
-          recordedAt: new Date(bus.lastUpdate).toISOString(),
-          validUntil: new Date(bus.lastUpdate + 300000).toISOString(),
-          lastUpdated: args.timestamp,
-          occupancy: bus.occupancy
-        })
-      );
-      
-      await Promise.all(insertPromises);
-      
-      console.log(`✅ Updated ${args.buses.length} buses (simplified) in ${Date.now() - startTime}ms`);
-      return { success: true, count: args.buses.length };
-      
-    } catch (error: any) {
-      throw new Error(`Bus update failed: ${error.message}`);
-    }
-  },
-});
-
 // Get all bus locations
 export const getBusLocations = query({
   handler: async (ctx) => {
@@ -1625,20 +1521,5 @@ export const getBusLocations = query({
       directionName: bus.directionName,
       occupancy: bus.occupancy,
     }));
-  },
-});
-
-// Get bus location statistics
-export const getBusLocationStats = query({
-  handler: async (ctx) => {
-    const buses = await ctx.db.query("busLocations").collect();
-    const stats = {
-      totalBuses: buses.length,
-      onTime: buses.filter(b => b.status === 'on-time').length,
-      delayed: buses.filter(b => b.status === 'delayed' || b.status === 'severely-delayed').length,
-      uniqueRoutes: new Set(buses.map(b => b.lineRef)).size,
-      lastUpdate: buses[0]?.lastUpdated || null
-    };
-    return stats;
   },
 });

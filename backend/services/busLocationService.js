@@ -292,8 +292,8 @@ class BusLocationService {
       bus.location.lon &&
       !isNaN(bus.location.lat) &&
       !isNaN(bus.location.lon) &&
-      bus.location.lat >= 54.5 && bus.location.lat <= 55.2 &&  // Roughly North East England
-      bus.location.lon >= -2.0 && bus.location.lon <= -1.2
+      bus.location.lat >= 54.5 && bus.location.lat <= 55.5 &&  // Roughly North East England
+      bus.location.lon >= -2.5 && bus.location.lon <= -1.2    // Extended westward for rural routes
     );
   }
 

@@ -11,9 +11,9 @@ import { ViewportLoader, alertCache, busCache, memoryMonitor } from '../utils/pe
 // FIXED: Safe import of useConvexSync with fallback
 let useConvexSync;
 try {
-  const convexSyncModule = require('../../../../hooks/useConvexSync');
+  const convexSyncModule = require('../../../../hooks/useConvexSyncFixed');
   useConvexSync = convexSyncModule.useConvexSync;
-  console.log('✅ useConvexSync imported successfully in useLiveMapData');
+  console.log('✅ useConvexSync (fixed) imported successfully in useLiveMapData');
 } catch (convexError) {
   console.warn('⚠️ useConvexSync not available - using fallback data');
   useConvexSync = () => ({

@@ -1,295 +1,364 @@
-// backend/services/communications/voipService.js
-// 8x8 VoIP Service for web-based calling integration
-// Handles call logging, emergency numbers, and quick dial
+/*
+ * Go Barry - VoIP Service
+ * Handles 8x8 VoIP integration and call management
+ */
+
+import { createClient } from '@supabase/supabase-js';
+import { circuitBreaker } from '../middleware/errorHandler.js';
+
+// Mock data for development - replace with real 8x8 API integration
+const mockCallHistory = [
+  {
+    id: '1',
+    direction: 'outbound',
+    number: '+441912775555',
+    timestamp: new Date(Date.now() - 3600000).toISOString(),
+    duration: 180,
+    status: 'completed'
+  },
+  {
+    id: '2',
+    direction: 'inbound',
+    number: '+441234567890',
+    timestamp: new Date(Date.now() - 7200000).toISOString(),
+    duration: 240,
+    status: 'completed'
+  },
+  {
+    id: '3',
+    direction: 'outbound',
+    number: '101',
+    timestamp: new Date(Date.now() - 10800000).toISOString(),
+    duration: 90,
+    status: 'completed'
+  }
+];
+
+const mockContacts = [
+  {
+    id: '1',
+    name: 'Control Room',
+    number: '+441912775555',
+    department: 'Operations',
+    email: 'control@gonortheast.com'
+  },
+  {
+    id: '2',
+    name: 'John Smith',
+    number: '+441234567890',
+    department: 'Transport',
+    email: 'j.smith@gonortheast.com'
+  },
+  {
+    id: '3',
+    name: 'Emergency Depot',
+    number: '+441912775556',
+    department: 'Maintenance',
+    email: 'depot@gonortheast.com'
+  },
+  {
+    id: '4',
+    name: 'Sarah Jones',
+    number: '+447700900123',
+    department: 'HR',
+    email: 's.jones@gonortheast.com'
+  },
+  {
+    id: '5',
+    name: 'IT Helpdesk',
+    number: '+441912775558',
+    department: 'IT',
+    email: 'it@gonortheast.com'
+  }
+];
 
 class VoIPService {
   constructor() {
-    this.webURL = process.env.EIGHTBYEIGHT_WEB_URL || 'https://apps.8x8.com/';
-    this.activeCalls = new Map(); // sessionId -> call data
-    this.callHistory = [];
-    this.emergencyNumbers = [
-      { name: 'Emergency Services', number: '999', type: 'emergency' },
-      { name: 'Police', number: '101', type: 'emergency' },
-      { name: 'NHS Direct', number: '111', type: 'emergency' },
-      { name: 'Go North East Control', number: '0191 420 3000', type: 'internal' },
-      { name: 'Nexus Travel Hotline', number: '0191 20 50 060', type: 'transport' }
-    ];
-    this.quickDialNumbers = [
-      { name: 'Depot - Blyth', number: '01670 540 123', depot: 'BLY' },
-      { name: 'Depot - Chester-le-Street', number: '0191 388 7272', depot: 'CHE' },
-      { name: 'Depot - Consett', number: '01207 503 204', depot: 'CON' },
-      { name: 'Depot - Hexham', number: '01434 600 599', depot: 'HEX' },
-      { name: 'Depot - Peterlee', number: '0191 586 2992', depot: 'PMT' },
-      { name: 'Depot - Riverside', number: '0191 420 3000', depot: 'RIV' },
-      { name: 'Depot - Stanley', number: '01207 232 179', depot: 'STN' },
-      { name: 'Depot - Washington', number: '0191 416 8262', depot: 'WAS' },
-      { name: 'Depot - Winlaton', number: '0191 414 2318', depot: 'WBY' }
-    ];
+    this.name = 'VoIP Service';
+    this.baseURL = process.env.EIGHTBYEIGHT_API_URL || 'https://api.8x8.com/v1';
+    this.apiKey = process.env.EIGHTBYEIGHT_API_KEY;
+    this.activeCallSessions = new Map();
     
-    console.log('📞 VoIP Service initialized with web URL:', this.webURL);
-  }
-
-  /**
-   * Initialize VoIP service
-   */
-  async initialize() {
-    try {
-      console.log('📞 VoIP Service using web login approach');
-      return true;
-    } catch (error) {
-      console.error('❌ Failed to initialize VoIP Service:', error);
-      return false;
+    // Initialize Supabase if available
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+      this.supabase = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY
+      );
     }
   }
 
-  /**
-   * Log call session (for tracking purposes)
-   */
-  async logCallSession({ supervisorId, supervisorName, to, from, type = 'outbound' }) {
-    const sessionId = this.generateSessionId();
-    const callData = {
-      sessionId,
-      supervisorId,
-      supervisorName,
-      to,
-      from,
-      type,
-      status: 'initiated',
-      startedAt: Date.now(),
-      isEmergency: this.isEmergencyNumber(to)
-    };
+  // Wrapped service methods with circuit breaker
+  getCallHistory = circuitBreaker(
+    async (supervisorId) => {
+      console.log('📞 Fetching call history for supervisor:', supervisorId);
+      
+      // In production, this would fetch from 8x8 API
+      // For now, return mock data
+      return {
+        success: true,
+        history: mockCallHistory,
+        totalCalls: mockCallHistory.length,
+        supervisorId
+      };
+    },
+    { serviceName: 'voip-history' }
+  );
 
-    this.activeCalls.set(sessionId, callData);
-    
-    console.log(`📞 Call session logged: ${sessionId} (${supervisorName} -> ${to})`);
-    
-    // If emergency call, log with high priority
-    if (callData.isEmergency) {
-      console.log(`🚨 EMERGENCY CALL INITIATED: ${sessionId}`);
-      this.handleEmergencyCall(callData);
-    }
+  getContacts = circuitBreaker(
+    async (supervisorId) => {
+      console.log('📇 Fetching contacts for supervisor:', supervisorId);
+      
+      // In production, this would fetch from 8x8 API or corporate directory
+      // For now, return mock data
+      return {
+        success: true,
+        contacts: mockContacts,
+        totalContacts: mockContacts.length,
+        supervisorId
+      };
+    },
+    { serviceName: 'voip-contacts' }
+  );
 
-    return sessionId;
-  }
-
-  /**
-   * Update call status
-   */
-  async updateCallStatus(sessionId, status, additionalData = {}) {
-    const call = this.activeCalls.get(sessionId);
-    if (!call) {
-      console.warn(`⚠️ Call session not found: ${sessionId}`);
-      return false;
-    }
-
-    call.status = status;
-    call.lastUpdated = Date.now();
-    
-    // Update timing based on status
-    switch (status) {
-      case 'connected':
-        call.connectedAt = Date.now();
-        break;
-      case 'ended':
-        call.endedAt = Date.now();
-        call.duration = call.connectedAt ? 
-          Math.round((call.endedAt - call.connectedAt) / 1000) : 0;
-        
-        // Move to history and remove from active
-        this.callHistory.unshift(call);
-        this.activeCalls.delete(sessionId);
-        
-        // Keep only last 100 calls in memory
-        if (this.callHistory.length > 100) {
-          this.callHistory = this.callHistory.slice(0, 100);
+  makeCall = circuitBreaker(
+    async (callData) => {
+      const { from, to, supervisorId } = callData;
+      
+      console.log('☎️ Initiating call:', { from, to, supervisorId });
+      
+      // Generate a unique call session ID
+      const callSessionId = `call_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Store call session
+      this.activeCallSessions.set(callSessionId, {
+        id: callSessionId,
+        from,
+        to,
+        supervisorId,
+        startTime: new Date().toISOString(),
+        status: 'initiating',
+        direction: 'outbound'
+      });
+      
+      // Log to Supabase if available
+      if (this.supabase) {
+        try {
+          await this.supabase.from('voip_sessions').insert({
+            session_id: callSessionId,
+            supervisor_id: supervisorId,
+            phone_number: to,
+            direction: 'outbound',
+            status: 'initiating',
+            started_at: new Date().toISOString()
+          });
+        } catch (error) {
+          console.error('Error logging to Supabase:', error);
         }
-        break;
-      case 'failed':
-        call.endedAt = Date.now();
-        call.duration = 0;
-        call.failureReason = additionalData.reason || 'Unknown';
-        
-        // Move to history
-        this.callHistory.unshift(call);
-        this.activeCalls.delete(sessionId);
-        break;
-    }
+      }
+      
+      // In production, this would initiate call via 8x8 API
+      // For now, simulate success
+      return {
+        success: true,
+        callSessionId,
+        message: 'Call initiated successfully',
+        webUrl: `https://8x8.com/webphone?dial=${encodeURIComponent(to)}`
+      };
+    },
+    { serviceName: 'voip-make-call' }
+  );
 
-    // Add any additional data
-    Object.assign(call, additionalData);
+  endCall = circuitBreaker(
+    async (callSessionId) => {
+      console.log('📴 Ending call:', callSessionId);
+      
+      const session = this.activeCallSessions.get(callSessionId);
+      if (!session) {
+        throw new Error('Call session not found');
+      }
+      
+      // Calculate call duration
+      const duration = Math.floor((Date.now() - new Date(session.startTime).getTime()) / 1000);
+      
+      // Update session
+      session.status = 'ended';
+      session.endTime = new Date().toISOString();
+      session.duration = duration;
+      
+      // Update in Supabase if available
+      if (this.supabase) {
+        try {
+          await this.supabase
+            .from('voip_sessions')
+            .update({
+              status: 'ended',
+              ended_at: new Date().toISOString(),
+              duration_seconds: duration
+            })
+            .eq('session_id', callSessionId);
+        } catch (error) {
+          console.error('Error updating Supabase:', error);
+        }
+      }
+      
+      // Remove from active sessions
+      this.activeCallSessions.delete(callSessionId);
+      
+      return {
+        success: true,
+        callSessionId,
+        duration,
+        message: 'Call ended successfully'
+      };
+    },
+    { serviceName: 'voip-end-call' }
+  );
 
-    console.log(`📞 Call ${sessionId} status updated: ${status}`);
-    return true;
-  }
+  getActiveCall = circuitBreaker(
+    async (supervisorId) => {
+      console.log('📱 Getting active call for supervisor:', supervisorId);
+      
+      // Find active call for supervisor
+      for (const [sessionId, session] of this.activeCallSessions.entries()) {
+        if (session.supervisorId === supervisorId && session.status !== 'ended') {
+          return {
+            success: true,
+            activeCall: session
+          };
+        }
+      }
+      
+      return {
+        success: true,
+        activeCall: null
+      };
+    },
+    { serviceName: 'voip-active-call' }
+  );
 
-  /**
-   * Handle emergency call logging
-   */
-  handleEmergencyCall(callData) {
-    // Log emergency call with timestamp and supervisor details
-    const emergencyLog = {
-      timestamp: new Date().toISOString(),
-      sessionId: callData.sessionId,
-      supervisorId: callData.supervisorId,
-      supervisorName: callData.supervisorName,
-      number: callData.to,
-      emergencyType: this.getEmergencyType(callData.to)
-    };
+  updateCallStatus = circuitBreaker(
+    async (callSessionId, status) => {
+      console.log('🔄 Updating call status:', { callSessionId, status });
+      
+      const session = this.activeCallSessions.get(callSessionId);
+      if (!session) {
+        throw new Error('Call session not found');
+      }
+      
+      session.status = status;
+      session.lastUpdated = new Date().toISOString();
+      
+      // Update in Supabase if available
+      if (this.supabase) {
+        try {
+          await this.supabase
+            .from('voip_sessions')
+            .update({
+              status,
+              last_updated: new Date().toISOString()
+            })
+            .eq('session_id', callSessionId);
+        } catch (error) {
+          console.error('Error updating Supabase:', error);
+        }
+      }
+      
+      return {
+        success: true,
+        callSessionId,
+        status,
+        message: 'Call status updated successfully'
+      };
+    },
+    { serviceName: 'voip-update-status' }
+  );
 
-    // This would typically be logged to a secure emergency call database
-    console.log('🚨 EMERGENCY CALL LOG:', emergencyLog);
-  }
+  searchContacts = circuitBreaker(
+    async (query) => {
+      console.log('🔍 Searching contacts:', query);
+      
+      const searchTerm = query.toLowerCase();
+      const results = mockContacts.filter(contact =>
+        contact.name.toLowerCase().includes(searchTerm) ||
+        contact.number.includes(searchTerm) ||
+        contact.department.toLowerCase().includes(searchTerm)
+      );
+      
+      return {
+        success: true,
+        contacts: results,
+        query,
+        totalResults: results.length
+      };
+    },
+    { serviceName: 'voip-search-contacts' }
+  );
 
-  /**
-   * Get emergency numbers list
-   */
-  getEmergencyNumbers() {
-    return this.emergencyNumbers;
-  }
+  addContact = circuitBreaker(
+    async (contactData) => {
+      console.log('➕ Adding new contact:', contactData);
+      
+      const newContact = {
+        id: Date.now().toString(),
+        ...contactData,
+        createdAt: new Date().toISOString()
+      };
+      
+      // In production, this would save to 8x8 API or corporate directory
+      mockContacts.push(newContact);
+      
+      return {
+        success: true,
+        contact: newContact,
+        message: 'Contact added successfully'
+      };
+    },
+    { serviceName: 'voip-add-contact' }
+  );
 
-  /**
-   * Get quick dial numbers
-   */
-  getQuickDialNumbers() {
-    return this.quickDialNumbers;
-  }
+  getCallStatistics = circuitBreaker(
+    async (supervisorId, dateRange) => {
+      console.log('📊 Getting call statistics:', { supervisorId, dateRange });
+      
+      // Calculate mock statistics
+      const stats = {
+        totalCalls: mockCallHistory.length,
+        outboundCalls: mockCallHistory.filter(c => c.direction === 'outbound').length,
+        inboundCalls: mockCallHistory.filter(c => c.direction === 'inbound').length,
+        totalDuration: mockCallHistory.reduce((sum, call) => sum + call.duration, 0),
+        averageDuration: Math.round(mockCallHistory.reduce((sum, call) => sum + call.duration, 0) / mockCallHistory.length),
+        dateRange
+      };
+      
+      return {
+        success: true,
+        statistics: stats,
+        supervisorId
+      };
+    },
+    { serviceName: 'voip-statistics' }
+  );
 
-  /**
-   * Get quick dial numbers by depot
-   */
-  getQuickDialByDepot(depot) {
-    return this.quickDialNumbers.filter(entry => entry.depot === depot);
-  }
-
-  /**
-   * Add custom quick dial number
-   */
-  addQuickDialNumber(name, number, category = 'custom') {
-    const entry = {
-      name,
-      number,
-      category,
-      addedAt: Date.now()
-    };
-    
-    this.quickDialNumbers.push(entry);
-    console.log(`📞 Quick dial number added: ${name} (${number})`);
-    return entry;
-  }
-
-  /**
-   * Get active calls
-   */
-  getActiveCalls() {
-    return Array.from(this.activeCalls.values());
-  }
-
-  /**
-   * Get call history
-   */
-  getCallHistory(limit = 50) {
-    return this.callHistory.slice(0, limit);
-  }
-
-  /**
-   * Get call statistics
-   */
-  getCallStats() {
-    const now = Date.now();
-    const today = new Date().setHours(0, 0, 0, 0);
-    
-    const todaysCalls = this.callHistory.filter(call => call.startedAt >= today);
-    const emergencyCalls = this.callHistory.filter(call => call.isEmergency);
-    
-    const totalDuration = this.callHistory.reduce((sum, call) => sum + (call.duration || 0), 0);
-    const avgDuration = this.callHistory.length > 0 ? totalDuration / this.callHistory.length : 0;
-
-    return {
-      totalCalls: this.callHistory.length,
-      activeCalls: this.activeCalls.size,
-      todaysCalls: todaysCalls.length,
-      emergencyCalls: emergencyCalls.length,
-      totalDuration: totalDuration,
-      averageDuration: Math.round(avgDuration),
-      lastCall: this.callHistory[0]?.startedAt || null
-    };
-  }
-
-  /**
-   * Check if number is emergency number
-   */
-  isEmergencyNumber(number) {
-    const cleanNumber = number.replace(/\D/g, '');
-    return ['999', '101', '111'].includes(cleanNumber) ||
-           this.emergencyNumbers.some(em => em.number.replace(/\D/g, '') === cleanNumber);
-  }
-
-  /**
-   * Get emergency type from number
-   */
-  getEmergencyType(number) {
-    const emergency = this.emergencyNumbers.find(em => 
-      em.number.replace(/\D/g, '') === number.replace(/\D/g, '')
-    );
-    return emergency?.type || 'emergency';
-  }
-
-  /**
-   * Generate unique session ID
-   */
-  generateSessionId() {
-    return `voip_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
-
-  /**
-   * Get web URL for 8x8 login
-   */
-  getWebURL() {
-    return this.webURL;
-  }
-
-  /**
-   * Get service status
-   */
-  getStatus() {
-    return {
+  // Health check for service status
+  healthCheck = async () => {
+    const health = {
       service: 'VoIP Service',
-      status: 'Ready',
-      provider: '8x8 (Web Login)',
-      webURL: this.webURL,
-      activeCalls: this.activeCalls.size,
-      totalNumbers: this.quickDialNumbers.length + this.emergencyNumbers.length,
-      lastActivity: new Date().toISOString()
+      status: 'operational',
+      timestamp: new Date().toISOString(),
+      features: {
+        callHistory: true,
+        contacts: true,
+        makeCall: true,
+        webIntegration: true
+      },
+      activeCallSessions: this.activeCallSessions.size,
+      apiConnection: !!this.apiKey ? 'configured' : 'mock-mode'
     };
-  }
-
-  /**
-   * Search contacts/numbers
-   */
-  searchNumbers(query) {
-    const searchTerm = query.toLowerCase();
-    const results = [];
-
-    // Search emergency numbers
-    this.emergencyNumbers.forEach(entry => {
-      if (entry.name.toLowerCase().includes(searchTerm) || 
-          entry.number.includes(query)) {
-        results.push({ ...entry, category: 'emergency' });
-      }
-    });
-
-    // Search quick dial numbers
-    this.quickDialNumbers.forEach(entry => {
-      if (entry.name.toLowerCase().includes(searchTerm) || 
-          entry.number.includes(query)) {
-        results.push({ ...entry, category: entry.depot ? 'depot' : 'quick_dial' });
-      }
-    });
-
-    return results;
-  }
+    
+    return health;
+  };
 }
 
 // Export singleton instance
 export const voipService = new VoIPService();
-export default voipService;

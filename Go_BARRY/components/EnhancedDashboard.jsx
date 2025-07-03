@@ -19,7 +19,7 @@ import SupervisorLogin from './SupervisorLogin';
 import OptimizedTomTomMap from './OptimizedTomTomMap';
 import TomTomUsageMonitor from './TomTomUsageMonitor';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
-import { useConvexSync, useHeartbeat } from '../hooks/useConvexSync';
+import { useConvexSync, useHeartbeat } from '../hooks/useConvexSyncFixed';
 import typography, { getAlertIcon, getSeverityIcon } from '../theme/typography';
 import ConvexTest from './ConvexTest'; // Temporary test component
 import { formatTime24, formatDateTimeUK } from '../utils/dateTime';

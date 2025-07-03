@@ -18,8 +18,10 @@ import { Ionicons } from '@expo/vector-icons';
 import SupervisorControl from '../components/SupervisorControl';
 import EnhancedDashboard from '../components/EnhancedDashboard';
 import AIDisruptionManager from '../components/operations/DisruptionDatabase';
-import MessageDistributionCenter from '../components/MessageDistributionCenter';
+import MessageDistributionEnhanced from '../components/communications/MessageDistributionEnhanced';
 import EmailIntegrationEnhanced from '../components/communications/EmailIntegrationEnhanced';
+import VoIPIntegrationEnhanced from '../components/communications/voip/VoIPIntegrationEnhanced';
+import SharePointIntegration from '../components/communications/sharepoint/SharePointIntegration';
 import AutomatedReportingSystem from '../components/AutomatedReportingSystem';
 import SystemHealthMonitor from '../components/SystemHealthMonitor';
 import TrainingHelpSystem from '../components/TrainingHelpSystem';
@@ -88,12 +90,26 @@ const BROWSER_NAVIGATION = {
     description: 'Outlook Web Access & Quick Compose',
     color: '#10B981'
   },
+  voip: {
+    title: '8x8 VoIP',
+    icon: 'call',
+    component: VoIPIntegrationEnhanced,
+    description: 'Phone system with quick dial & emergency numbers',
+    color: '#7C3AED'
+  },
   messaging: {
     title: 'Message Distribution',
     icon: 'chatbubbles',
-    component: MessageDistributionCenter,
-    description: 'Multi-channel communication system',
+    component: MessageDistributionEnhanced,
+    description: 'Unified Ticketer & Email messaging with templates',
     color: '#8B5CF6'
+  },
+  sharepoint: {
+    title: 'SharePoint',
+    icon: 'folder-open',
+    component: SharePointIntegration,
+    description: 'Team documents, reports & file storage',
+    color: '#059669'
   },
   reports: {
     title: 'Automated Reports',
@@ -299,6 +315,10 @@ const BrowserMainApp = () => {
             />
           ) : activeScreen === 'email' ? (
             <EmailIntegrationEnhanced onClose={() => setActiveScreen('dashboard')} />
+          ) : activeScreen === 'voip' ? (
+            <VoIPIntegrationEnhanced onClose={() => setActiveScreen('dashboard')} />
+          ) : activeScreen === 'messaging' ? (
+            <MessageDistributionEnhanced baseUrl={API_CONFIG.baseURL} onClose={() => setActiveScreen('dashboard')} />
           ) : (
             <ScreenComponent baseUrl={API_CONFIG.baseURL} />
           )}        

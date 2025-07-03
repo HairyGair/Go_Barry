@@ -2,20 +2,80 @@
 // Gracefully handles cases where Convex is not deployed yet
 
 import { useEffect, useCallback, useRef, useState } from 'react';
-import convexDebug from '../utils/convexDebug';
+// Fallback convexDebug implementation
+const fallbackConvexDebug = {
+  safeLocalStorage: {
+    getItem: (key) => {
+      try {
+        return typeof window !== 'undefined' && window.localStorage ? window.localStorage.getItem(key) : null;
+      } catch { return null; }
+    },
+    setItem: (key, value) => {
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem(key, value);
+          return true;
+        }
+        return false;
+      } catch { return false; }
+    },
+    removeItem: (key) => {
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.removeItem(key);
+          return true;
+        }
+        return false;
+      } catch { return false; }
+    }
+  },
+  ensureArray: (value, defaultValue = []) => {
+    try {
+      if (value === null || value === undefined) return defaultValue;
+      if (Array.isArray(value)) return value;
+      return defaultValue;
+    } catch (e) {
+      console.warn('ensureArray error:', e);
+      return defaultValue;
+    }
+  }
+};
+
+// Initialize convexDebug with fallback - always keep a valid object
+let convexDebug = fallbackConvexDebug;
+
+// Try to load convexDebug dynamically
+(async () => {
+  try {
+    const convexDebugModule = await import('../utils/convexDebug');
+    const loadedDebug = convexDebugModule.convexDebug || convexDebugModule.default;
+    // Only reassign if we got a valid object
+    if (loadedDebug && typeof loadedDebug === 'object' && loadedDebug.ensureArray) {
+      convexDebug = loadedDebug;
+    }
+  } catch (error) {
+    console.warn('Failed to import convexDebug, using fallback:', error);
+    // Keep using fallbackConvexDebug
+  }
+})();
 
 // Safely import AsyncStorage
-let AsyncStorage;
-try {
-  AsyncStorage = require('@react-native-async-storage/async-storage').default;
-} catch (error) {
-  // AsyncStorage not available on web
-  AsyncStorage = {
-    getItem: async () => null,
-    setItem: async () => {},
-    removeItem: async () => {},
-  };
-}
+let AsyncStorage = {
+  getItem: async () => null,
+  setItem: async () => {},
+  removeItem: async () => {},
+};
+
+// Try to load AsyncStorage dynamically
+(async () => {
+  try {
+    const asyncStorageModule = await import('@react-native-async-storage/async-storage');
+    AsyncStorage = asyncStorageModule.default || AsyncStorage;
+  } catch (error) {
+    // AsyncStorage not available on web - use fallback
+    console.log('AsyncStorage not available, using fallback');
+  }
+})();
 
 // Function to generate mock bus data for testing
 function generateMockBusData() {
@@ -84,60 +144,62 @@ export const syncMockBusData = async () => {
   }
 };
 
-// Safely import Convex with fallbacks
-let useQuery, useMutation, api;
-
 // No-op mutation function for when Convex is not available
 const noOpMutation = () => Promise.resolve({ success: false, error: 'Convex not available' });
 
-try {
-  const convexReact = require('convex/react');
-  
-  if (convexReact) {
-    useQuery = convexReact.useQuery;
-    useMutation = convexReact.useMutation;
+// Initialize Convex with fallbacks
+let useQuery = () => undefined; // Match Convex behavior when loading
+let useMutation = () => noOpMutation;
+let api = null;
+
+// Try to load Convex dynamically
+(async () => {
+  try {
+    const convexReact = await import('convex/react');
     
-    // Try multiple import paths for the API
-    try {
-      // First try the relative path
-      const apiModule = require('../convex/_generated/api');
-      api = apiModule.api;
-    } catch (apiError1) {
+    if (convexReact) {
+      useQuery = convexReact.useQuery;
+      useMutation = convexReact.useMutation;
+      
+      // Try multiple import paths for the API
       try {
-        // Try alternative path with .js extension
-        const apiModule = require('../convex/_generated/api.js');
+        // First try the relative path
+        const apiModule = await import('../convex/_generated/api');
         api = apiModule.api;
-      } catch (apiError2) {
+      } catch (apiError1) {
         try {
-          // Try absolute path from project root
-          const apiModule = require('../../convex/_generated/api');
+          // Try alternative path with .js extension
+          const apiModule = await import('../convex/_generated/api.js');
           api = apiModule.api;
-        } catch (apiError3) {
-          console.warn('Convex API import failed with all paths:', {
-            error1: apiError1.message,
-            error2: apiError2.message, 
-            error3: apiError3.message
-          });
-          api = null;
+        } catch (apiError2) {
+          try {
+            // Try absolute path from project root
+            const apiModule = await import('../../convex/_generated/api');
+            api = apiModule.api;
+          } catch (apiError3) {
+            console.warn('Convex API import failed with all paths:', {
+              error1: apiError1.message,
+              error2: apiError2.message, 
+              error3: apiError3.message
+            });
+            api = null;
+          }
         }
       }
-    }
-    
-    if (api) {
-      console.log('✅ Convex imported successfully');
+      
+      if (api) {
+        console.log('✅ Convex imported successfully');
+      } else {
+        console.warn('⚠️ Convex React available but API not found');
+      }
     } else {
-      console.warn('⚠️ Convex React available but API not found');
+      throw new Error('Convex React not available');
     }
-  } else {
-    throw new Error('Convex React not available');
+  } catch (error) {
+    console.warn('⚠️ Convex not available - using fallback mode:', error.message);
+    // Fallback functions are already set above
   }
-} catch (error) {
-  console.warn('⚠️ Convex not available - using fallback mode:', error.message);
-  // Provide fallback functions that return appropriate default values
-  useQuery = () => undefined; // Match Convex behavior when loading
-  useMutation = () => noOpMutation;
-  api = null;
-}
+})();
 
 // Hook for supervisor authentication
 export function useSupervisorAuth() {
@@ -239,8 +301,10 @@ export function useAlerts() {
   const dismissedAlertsRaw = api ? useQuery(api.alerts.getDismissedAlerts) : undefined;
   
   // Ensure we always have arrays, even during loading
-  const activeAlerts = convexDebug.ensureArray(activeAlertsRaw);
-  const dismissedAlerts = convexDebug.ensureArray(dismissedAlertsRaw);
+  // Use fallback if convexDebug isn't ready yet
+  const debugObj = convexDebug || fallbackConvexDebug;
+  const activeAlerts = debugObj.ensureArray(activeAlertsRaw);
+  const dismissedAlerts = debugObj.ensureArray(dismissedAlertsRaw);
   
   // TEMPORARY FIX: getPushedAlerts causes Convex server error
   // The function exists in alerts.ts but the deployment seems out of sync
@@ -275,7 +339,9 @@ export function useActiveSupervisors() {
   const forceLogout = api ? useMutation(api.supervisors.forceLogout) : noOpMutation;
   
   // Ensure we always have an array
-  const activeSupervisors = convexDebug.ensureArray(activeSupervisorsRaw);
+  // Use fallback if convexDebug isn't ready yet
+  const debugObj = convexDebug || fallbackConvexDebug;
+  const activeSupervisors = debugObj.ensureArray(activeSupervisorsRaw);
 
   return {
     activeSupervisors: activeSupervisors, // Already ensured to be an array above
@@ -356,7 +422,9 @@ export function useEvents() {
   const mostSevereEvent = api ? useQuery(api.sync.getMostSevereEvent) : null;
   
   // Ensure we always have an array
-  const activeEvents = convexDebug.ensureArray(activeEventsRaw);
+  // Use fallback if convexDebug isn't ready yet
+  const debugObj = convexDebug || fallbackConvexDebug;
+  const activeEvents = debugObj.ensureArray(activeEventsRaw);
   
   const upsertEvent = api ? useMutation(api.sync.upsertEvent) : noOpMutation;
   const updateEventStatus = api ? useMutation(api.sync.updateEventStatus) : noOpMutation;
@@ -575,12 +643,75 @@ export function useEmailCommunications() {
   };
 }
 
+// Create a minimal fallback object
+const createFallbackConvexSync = () => ({
+  login: noOpMutation,
+  logout: noOpMutation,
+  session: null,
+  syncState: null,
+  activeAlerts: [],
+  dismissedAlerts: [],
+  pushedAlerts: [],
+  activeSupervisors: [],
+  activeEvents: [],
+  mostSevereEvent: null,
+  activeIncidents: [],
+  allIncidents: [],
+  recentLogins: [],
+  loginHistory: [],
+  emailTemplates: [],
+  distributionLists: [],
+  communicationLogs: [],
+  acknowledge: noOpMutation,
+  dismissFromDisplay: noOpMutation,
+  toggleDisplayLock: noOpMutation,
+  overridePriority: noOpMutation,
+  addNote: noOpMutation,
+  pushToDisplay: noOpMutation,
+  removeFromDisplay: noOpMutation,
+  forceLogout: noOpMutation,
+  upsertEvent: noOpMutation,
+  updateEventStatus: noOpMutation,
+  createIncident: noOpMutation,
+  updateIncident: noOpMutation,
+  addIncidentNote: noOpMutation,
+  sendTicketerMessage: noOpMutation,
+  pushIncidentToDisplay: noOpMutation,
+  trackLogin: noOpMutation,
+  saveEmailTemplate: noOpMutation,
+  deleteEmailTemplate: noOpMutation,
+  saveDistributionList: noOpMutation,
+  deleteDistributionList: noOpMutation,
+  logCommunication: noOpMutation,
+  syncAlerts: () => Promise.resolve({ success: false, error: 'Convex not available' }),
+  setDisplayMode: noOpMutation,
+  addCustomMessage: noOpMutation,
+  removeCustomMessage: noOpMutation,
+  incidentsLoading: false,
+  convertAlertToIncident: noOpMutation,
+  addIncidentAction: noOpMutation,
+  archiveIncident: noOpMutation,
+  getIncidentWithActions: undefined,
+  getIncidentsByStatus: undefined,
+  searchArchivedIncidents: undefined,
+  getIncidentStats: undefined,
+  vixData: null,
+  updateVixData: noOpMutation,
+  clearVixData: noOpMutation,
+});
+
 // Combined hook for complete Convex integration
 export function useConvexSync() {
   // Check if Convex API is properly loaded at the start
   useEffect(() => {
-    if (api && !convexDebug.checkConnection(api)) {
-      console.error('Convex API loaded but some functions are missing. Run: npx convex deploy');
+    try {
+      if (api && convexDebug && typeof convexDebug.checkConnection === 'function') {
+        if (!convexDebug.checkConnection(api)) {
+          console.error('Convex API loaded but some functions are missing. Run: npx convex deploy');
+        }
+      }
+    } catch (checkError) {
+      console.warn('Error checking Convex connection:', checkError);
     }
   }, []);
   
@@ -595,24 +726,42 @@ export function useConvexSync() {
   const vixDataHook = useVixData();
   const emailComms = useEmailCommunications();
   
-  // Add defensive checks to ensure hooks are properly initialized
-  if (!auth || !sync || !alerts || !supervisors || !events || !incidents || !alertSync || !loginTracking || !vixDataHook) {
-    console.warn('Some Convex hooks are not yet initialized');
+  // Early return with complete fallback if hooks are not ready
+  if (!auth || !sync || !alerts || !supervisors || !events || !incidents || !alertSync || !loginTracking || !vixDataHook || !emailComms) {
+    console.warn('Some Convex hooks are not yet initialized, returning fallback');
+    return createFallbackConvexSync();
   }
+
+  // Safety check for arrays in hooks before accessing
+  const safeAlerts = alerts || {};
+  const safeSupervisors = supervisors || {};
+  const safeEvents = events || {};
+  const safeIncidents = incidents || {};
+  const safeLoginTracking = loginTracking || {};
+  const safeEmailComms = emailComms || {};
 
   // Get stored session ID on mount
   useEffect(() => {
     const loadSession = async () => {
       try {
+        // Use fallback if convexDebug isn't ready
+        const debugObj = convexDebug || fallbackConvexDebug;
+        
+        // Extra safety check
+        if (!debugObj || !debugObj.safeLocalStorage) {
+          console.log('Waiting for convexDebug to initialize...');
+          return;
+        }
+        
         // Try localStorage first for web
-        const storedId = convexDebug.safeLocalStorage.getItem('convex_session_id');
+        const storedId = debugObj.safeLocalStorage.getItem('convex_session_id');
         if (storedId) {
           console.log('Found stored Convex session in localStorage');
           return;
         }
         
         // Fall back to AsyncStorage only on native
-        if (typeof window === 'undefined') {
+        if (typeof window === 'undefined' && AsyncStorage) {
           try {
             const sessionId = await AsyncStorage.getItem('convex_session_id');
             if (sessionId && sessionId !== 'undefined' && sessionId !== 'null') {
@@ -629,15 +778,18 @@ export function useConvexSync() {
       }
     };
     
-    // Call the async function
-    loadSession();
+    // Add a small delay to ensure convexDebug is loaded
+    const timeoutId = setTimeout(loadSession, 100);
+    
+    return () => clearTimeout(timeoutId);
   }, []); // Empty dependency array - only run on mount
 
-  return {
-    // Auth
-    login: auth?.login || noOpMutation,
-    logout: auth?.logout || noOpMutation,
-    session: auth?.session || null,
+  try {
+    return {
+      // Auth
+      login: auth?.login || noOpMutation,
+      logout: auth?.logout || noOpMutation,
+      session: auth?.session || null,
     
     // Sync state
     syncState: sync?.syncState || null,
@@ -646,9 +798,9 @@ export function useConvexSync() {
     removeCustomMessage: sync?.removeCustomMessage || noOpMutation,
     
     // Alerts (with extra safety checks)
-    activeAlerts: convexDebug.ensureArray(alerts?.activeAlerts),
-    dismissedAlerts: convexDebug.ensureArray(alerts?.dismissedAlerts),
-    pushedAlerts: convexDebug.ensureArray(alerts?.pushedAlerts),
+    activeAlerts: (convexDebug || fallbackConvexDebug).ensureArray(alerts?.activeAlerts),
+    dismissedAlerts: (convexDebug || fallbackConvexDebug).ensureArray(alerts?.dismissedAlerts),
+    pushedAlerts: (convexDebug || fallbackConvexDebug).ensureArray(alerts?.pushedAlerts),
     acknowledge: alerts?.acknowledge || noOpMutation,
     dismissFromDisplay: alerts?.dismissFromDisplay || noOpMutation,
     toggleDisplayLock: alerts?.toggleDisplayLock || noOpMutation,
@@ -658,18 +810,18 @@ export function useConvexSync() {
     removeFromDisplay: alerts?.removeFromDisplay || noOpMutation,
     
     // Supervisors (with extra safety checks)
-    activeSupervisors: convexDebug.ensureArray(supervisors?.activeSupervisors),
+    activeSupervisors: (convexDebug || fallbackConvexDebug).ensureArray(supervisors?.activeSupervisors),
     forceLogout: supervisors?.forceLogout || noOpMutation,
     
     // Events (with extra safety checks)
-    activeEvents: convexDebug.ensureArray(events?.activeEvents),
+    activeEvents: (convexDebug || fallbackConvexDebug).ensureArray(events?.activeEvents),
     mostSevereEvent: events?.mostSevereEvent || null,
     upsertEvent: events?.upsertEvent || noOpMutation,
     updateEventStatus: events?.updateEventStatus || noOpMutation,
     
     // Incidents (with extra safety checks)
-    activeIncidents: convexDebug.ensureArray(incidents?.activeIncidents),
-    allIncidents: convexDebug.ensureArray(incidents?.allIncidents),
+    activeIncidents: (convexDebug || fallbackConvexDebug).ensureArray(incidents?.activeIncidents),
+    allIncidents: (convexDebug || fallbackConvexDebug).ensureArray(incidents?.allIncidents),
     createIncident: incidents?.createIncident || noOpMutation,
     updateIncident: incidents?.updateIncident || noOpMutation,
     addIncidentNote: incidents?.addIncidentNote || noOpMutation,
@@ -689,8 +841,8 @@ export function useConvexSync() {
     syncAlerts: alertSync?.syncAlerts || (() => {}),
     
     // Login tracking (with extra safety checks)
-    recentLogins: convexDebug.ensureArray(loginTracking?.recentLogins),
-    loginHistory: convexDebug.ensureArray(loginTracking?.loginHistory),
+    recentLogins: (convexDebug || fallbackConvexDebug).ensureArray(loginTracking?.recentLogins),
+    loginHistory: (convexDebug || fallbackConvexDebug).ensureArray(loginTracking?.loginHistory),
     trackLogin: loginTracking?.trackLogin || noOpMutation,
     
     // VIX data
@@ -699,13 +851,18 @@ export function useConvexSync() {
     clearVixData: vixDataHook?.clearVixData || noOpMutation,
     
     // Email communications
-    emailTemplates: convexDebug.ensureArray(emailComms?.emailTemplates),
-    distributionLists: convexDebug.ensureArray(emailComms?.distributionLists),
-    communicationLogs: convexDebug.ensureArray(emailComms?.communicationLogs),
+    emailTemplates: (convexDebug || fallbackConvexDebug).ensureArray(emailComms?.emailTemplates),
+    distributionLists: (convexDebug || fallbackConvexDebug).ensureArray(emailComms?.distributionLists),
+    communicationLogs: (convexDebug || fallbackConvexDebug).ensureArray(emailComms?.communicationLogs),
     saveEmailTemplate: emailComms?.saveEmailTemplate || noOpMutation,
     deleteEmailTemplate: emailComms?.deleteEmailTemplate || noOpMutation,
     saveDistributionList: emailComms?.saveDistributionList || noOpMutation,
     deleteDistributionList: emailComms?.deleteDistributionList || noOpMutation,
     logCommunication: emailComms?.logCommunication || noOpMutation,
-  };
+    };
+  } catch (error) {
+    console.error('Error in useConvexSync return statement:', error);
+    // Return a complete fallback object
+    return createFallbackConvexSync();
+  }
 }

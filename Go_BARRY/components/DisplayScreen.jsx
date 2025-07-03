@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import OptimizedTomTomMap from './OptimizedTomTomMap';
-import { useConvexSync } from '../hooks/useConvexSync';
+import { useConvexSync } from '../hooks/useConvexSyncFixed';
 import { formatTime24WithSeconds, formatDateWithWeekday } from '../utils/dateTime';
 import LateRunnersWidget from './LateRunnersWidget';
 

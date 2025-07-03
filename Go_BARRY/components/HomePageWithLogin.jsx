@@ -292,25 +292,27 @@ const HomePageWithLogin = () => {
       testID: 'control-room-card'
     },
     {
-      id: 'supervisor',
-      icon: <Icon name="user-tie" size={36} color="#fff" />,
-      title: 'Supervisor Screen',
-      description: 'Interactive platform for supervisors to manage alerts, coordinate responses, and monitor operations.',
+      id: 'communications',
+      icon: <Icon name="comments" size={36} color="#fff" />,
+      title: 'Communications Hub',
+      description: 'Unified messaging center for email, phone, and ticketing systems with automated reports.',
       features: [
-        { icon: 'tasks', text: 'Alert management' },
-        { icon: 'users', text: 'Team coordination' }
+        { icon: 'envelope', text: 'Email & messaging' },
+        { icon: 'phone', text: '8x8 VoIP integration' },
+        { icon: 'file-alt', text: 'Automated reports' },
+        { icon: 'folder-open', text: 'SharePoint access' }
       ],
-      buttonText: isLoggedIn ? 'Access Supervisor Tools' : 'Login Required',
+      buttonText: isLoggedIn ? 'Access Communications' : 'Login Required',
       onPress: () => {
         if (!isLoggedIn) {
           setShowLogin(true);
         } else {
-          navigateToApp('/browser-main');
+          navigateToApp('/communications-hub');
         }
       },
-      accessibilityLabel: 'Supervisor Screen - Interactive platform for managing alerts and coordinating responses',
-      iconBackgroundColor: '#3b82f6',
-      testID: 'supervisor-card'
+      accessibilityLabel: 'Communications Hub - Unified messaging center for all communication channels',
+      iconBackgroundColor: '#8B5CF6',
+      testID: 'communications-card'
     },
     {
       id: 'operations',
@@ -712,7 +714,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     minWidth: 140,
     cursor: 'pointer',
-    outline: 'none',
+    ...Platform.select({
+      web: {
+        outlineWidth: 0,
+        outlineStyle: 'none',
+      },
+    }),
   },
   headerPasswordInput: {
     backgroundColor: 'rgba(255,255,255,0.1)',
@@ -725,7 +732,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     minWidth: 120,
-    outline: 'none',
+    ...Platform.select({
+      web: {
+        outlineWidth: 0,
+        outlineStyle: 'none',
+      },
+    }),
   },
   headerLoginBtn: {
     flexDirection: 'row',

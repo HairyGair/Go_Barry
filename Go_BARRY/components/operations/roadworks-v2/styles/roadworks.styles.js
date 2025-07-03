@@ -176,8 +176,14 @@ export const roadworksStyles = StyleSheet.create({
   },
   
   headerGradient: {
-    background: Platform.OS === 'web' ? 
-      'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' : colors.primary,
+    ...Platform.select({
+      web: {
+        backgroundImage: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+      },
+      default: {
+        backgroundColor: colors.primary,
+      },
+    }),
   },
   
   headerTitle: {

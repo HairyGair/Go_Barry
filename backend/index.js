@@ -68,7 +68,7 @@ import activityLogsAPI from './routes/activityLogs.js';
 import dutyAPI from './routes/dutyAPI.js';
 import messagingAPI from './routes/messagingAPI.js';
 import analyticsAPI from './routes/analyticsAPI.js';
-import communicationsAPI from './routes/communications/communicationsAPI.js';
+import communicationsAPI from './routes/communications/index.js';
 console.log('✅ communicationsAPI imported successfully');
 import locationCorrectionAPI from './routes/locationCorrectionAPI.js';
 import supervisorManager from './services/supervisorManager.js';

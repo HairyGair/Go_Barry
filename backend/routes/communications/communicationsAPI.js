@@ -303,113 +303,158 @@ router.post('/email/template/process', async (req, res) => {
 // =======================
 
 /**
- * GET /api/communications/voip/quick-dial
- * Get quick dial numbers
+ * GET /api/communications/voip/history
+ * Get call history for supervisor
  */
-router.get('/voip/quick-dial', async (req, res) => {
+router.get('/voip/history', async (req, res) => {
   try {
-    const { depot } = req.query;
-    
-    let numbers;
-    if (depot) {
-      numbers = voipService.getQuickDialByDepot(depot);
-    } else {
-      numbers = voipService.getQuickDialNumbers();
-    }
-    
-    res.json({
-      success: true,
-      data: {
-        numbers,
-        count: numbers.length
-      }
-    });
+    const result = await voipService.getCallHistory(req.supervisor.id);
+    res.json(result);
   } catch (error) {
-    console.error('❌ Error fetching quick dial numbers:', error);
+    console.error('❌ Error fetching call history:', error);
     res.status(500).json({
       success: false,
       error: error.message,
-      code: 'QUICK_DIAL_ERROR'
+      code: 'CALL_HISTORY_ERROR'
     });
   }
 });
 
 /**
- * GET /api/communications/voip/emergency
- * Get emergency numbers
+ * GET /api/communications/voip/contacts
+ * Get contacts for supervisor
  */
-router.get('/voip/emergency', async (req, res) => {
+router.get('/voip/contacts', async (req, res) => {
   try {
-    const numbers = voipService.getEmergencyNumbers();
-    
-    res.json({
-      success: true,
-      data: {
-        numbers,
-        count: numbers.length
-      }
-    });
+    const result = await voipService.getContacts(req.supervisor.id);
+    res.json(result);
   } catch (error) {
-    console.error('❌ Error fetching emergency numbers:', error);
+    console.error('❌ Error fetching contacts:', error);
     res.status(500).json({
       success: false,
       error: error.message,
-      code: 'EMERGENCY_NUMBERS_ERROR'
+      code: 'CONTACTS_ERROR'
+    });
+  }
+});
+
+/**
+ * GET /api/communications/voip/contacts/search
+ * Search contacts
+ */
+router.get('/voip/contacts/search', async (req, res) => {
+  try {
+    const { query } = req.query;
+    if (!query || query.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        error: 'Search query must be at least 2 characters',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+    
+    const result = await voipService.searchContacts(query);
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Error searching contacts:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'CONTACT_SEARCH_ERROR'
+    });
+  }
+});
+
+/**
+ * POST /api/communications/voip/contacts
+ * Add new contact
+ */
+router.post('/voip/contacts', async (req, res) => {
+  try {
+    const { name, number, department, email } = req.body;
+    
+    if (!name || !number) {
+      return res.status(400).json({
+        success: false,
+        error: 'Name and number are required',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+    
+    const result = await voipService.addContact(req.body);
+    res.status(201).json(result);
+  } catch (error) {
+    console.error('❌ Error adding contact:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'ADD_CONTACT_ERROR'
     });
   }
 });
 
 /**
  * POST /api/communications/voip/call
- * Log a call session
+ * Make a call
  */
 router.post('/voip/call', async (req, res) => {
   try {
-    const { to, from, type = 'outbound' } = req.body;
+    const { to, from } = req.body;
     
-    if (!to || !from) {
+    if (!to) {
       return res.status(400).json({
         success: false,
-        error: 'To and from fields are required',
+        error: 'To field is required',
         code: 'VALIDATION_ERROR'
       });
     }
 
-    const sessionId = await voipService.logCallSession({
-      supervisorId: req.supervisor.id,
-      supervisorName: req.supervisor.name,
+    const callData = {
       to,
-      from,
-      type
-    });
-
-    res.json({
-      success: true,
-      data: {
-        sessionId,
-        status: 'initiated',
-        startedAt: new Date().toISOString()
-      }
-    });
+      from: from || req.supervisor.phoneNumber || '+441912775000',
+      supervisorId: req.supervisor.id
+    };
+    
+    const result = await voipService.makeCall(callData);
+    res.json(result);
 
   } catch (error) {
-    console.error('❌ Error logging call session:', error);
+    console.error('❌ Error making call:', error);
     res.status(500).json({
       success: false,
       error: error.message,
-      code: 'CALL_LOG_ERROR'
+      code: 'MAKE_CALL_ERROR'
     });
   }
 });
 
 /**
- * PUT /api/communications/voip/call/:sessionId
- * Update call session status
+ * POST /api/communications/voip/call/:sessionId/end
+ * End a call
  */
-router.put('/voip/call/:sessionId', async (req, res) => {
+router.post('/voip/call/:sessionId/end', async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { status, duration, audioQuality, latency } = req.body;
+    const result = await voipService.endCall(sessionId);
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Error ending call:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'END_CALL_ERROR'
+    });
+  }
+});
+
+/**
+ * PUT /api/communications/voip/call/:sessionId/status
+ * Update call status
+ */
+router.put('/voip/call/:sessionId/status', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { status } = req.body;
     
     if (!status) {
       return res.status(400).json({
@@ -419,94 +464,88 @@ router.put('/voip/call/:sessionId', async (req, res) => {
       });
     }
 
-    const success = await voipService.updateCallStatus(sessionId, status, {
-      duration,
-      audioQuality,
-      latency
-    });
-
-    if (!success) {
-      return res.status(404).json({
-        success: false,
-        error: 'Call session not found',
-        code: 'SESSION_NOT_FOUND'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: {
-        sessionId,
-        status,
-        updatedAt: new Date().toISOString()
-      }
-    });
-
-  } catch (error) {
-    console.error('❌ Error updating call session:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message,
-      code: 'CALL_UPDATE_ERROR'
-    });
-  }
-});
-
-/**
- * GET /api/communications/voip/search
- * Search numbers
- */
-router.get('/voip/search', async (req, res) => {
-  try {
-    const { query } = req.query;
-    
-    if (!query) {
+    const validStatuses = ['initiating', 'ringing', 'connected', 'on-hold', 'ended'];
+    if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        error: 'Query parameter is required',
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
         code: 'VALIDATION_ERROR'
       });
     }
 
-    const results = voipService.searchNumbers(query);
-    
-    res.json({
-      success: true,
-      data: {
-        results,
-        count: results.length,
-        query
-      }
-    });
+    const result = await voipService.updateCallStatus(sessionId, status);
+    res.json(result);
 
   } catch (error) {
-    console.error('❌ Error searching numbers:', error);
+    console.error('❌ Error updating call status:', error);
     res.status(500).json({
       success: false,
       error: error.message,
-      code: 'NUMBER_SEARCH_ERROR'
+      code: 'UPDATE_STATUS_ERROR'
     });
   }
 });
 
 /**
- * GET /api/communications/voip/stats
- * Get VoIP statistics
+ * GET /api/communications/voip/call/active
+ * Get active call for supervisor
  */
-router.get('/voip/stats', async (req, res) => {
+router.get('/voip/call/active', async (req, res) => {
   try {
-    const stats = voipService.getCallStats();
-    
-    res.json({
-      success: true,
-      data: stats
-    });
+    const result = await voipService.getActiveCall(req.supervisor.id);
+    res.json(result);
   } catch (error) {
-    console.error('❌ Error fetching VoIP stats:', error);
+    console.error('❌ Error fetching active call:', error);
     res.status(500).json({
       success: false,
       error: error.message,
-      code: 'VOIP_STATS_ERROR'
+      code: 'ACTIVE_CALL_ERROR'
+    });
+  }
+});
+
+/**
+ * GET /api/communications/voip/statistics
+ * Get call statistics
+ */
+router.get('/voip/statistics', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    const dateRange = {
+      start: startDate || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+      end: endDate || new Date().toISOString()
+    };
+    
+    const result = await voipService.getCallStatistics(req.supervisor.id, dateRange);
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Error fetching call statistics:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'CALL_STATS_ERROR'
+    });
+  }
+});
+
+/**
+ * GET /api/communications/voip/health
+ * Health check for VoIP service
+ */
+router.get('/voip/health', async (req, res) => {
+  try {
+    const health = await voipService.healthCheck();
+    res.json({
+      success: true,
+      ...health
+    });
+  } catch (error) {
+    console.error('❌ Error in VoIP health check:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'VOIP_HEALTH_ERROR'
     });
   }
 });
@@ -568,6 +607,155 @@ router.get('/history', async (req, res) => {
 });
 
 // =======================
+// MESSAGE DISTRIBUTION ENDPOINTS
+// =======================
+
+/**
+ * GET /api/communications/templates
+ * Get message templates
+ */
+router.get('/templates', async (req, res) => {
+  try {
+    const { category } = req.query;
+    const result = await messageDistributionService.getTemplates(category);
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('❌ Error fetching templates:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'TEMPLATES_ERROR'
+    });
+  }
+});
+
+/**
+ * POST /api/communications/ticketer/send
+ * Send Ticketer message
+ */
+router.post('/ticketer/send', async (req, res) => {
+  try {
+    const messageData = {
+      ...req.body,
+      supervisorId: req.supervisor.id,
+      supervisorName: req.supervisor.name
+    };
+    
+    const result = await messageDistributionService.sendTicketerMessage(messageData);
+    
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('❌ Error sending Ticketer message:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'TICKETER_SEND_ERROR'
+    });
+  }
+});
+
+/**
+ * POST /api/communications/multi/send
+ * Send multi-channel message
+ */
+router.post('/multi/send', async (req, res) => {
+  try {
+    const messageData = {
+      ...req.body,
+      supervisorId: req.supervisor.id,
+      supervisorName: req.supervisor.name
+    };
+    
+    // Validate at least one channel is targeted
+    const hasTicketerTargets = (messageData.routes && messageData.routes.length > 0) || 
+                              (messageData.depots && messageData.depots.length > 0) ||
+                              (!messageData.to || messageData.to.length === 0);
+    const hasEmailTargets = messageData.to && messageData.to.length > 0;
+    
+    if (!hasTicketerTargets && !hasEmailTargets) {
+      return res.status(400).json({
+        success: false,
+        error: 'No recipients specified. Please specify routes, depots, or email addresses.',
+        code: 'NO_RECIPIENTS'
+      });
+    }
+    
+    const result = await messageDistributionService.sendMultiChannelMessage(messageData);
+    
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('❌ Error sending multi-channel message:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'MULTI_SEND_ERROR'
+    });
+  }
+});
+
+/**
+ * GET /api/communications/messages/recent
+ * Get recent messages
+ */
+router.get('/messages/recent', async (req, res) => {
+  try {
+    const { limit = 20, supervisorOnly = false } = req.query;
+    const supervisorId = supervisorOnly === 'true' ? req.supervisor.id : null;
+    
+    const result = await messageDistributionService.getRecentMessages(
+      supervisorId,
+      parseInt(limit)
+    );
+    
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('❌ Error fetching recent messages:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'RECENT_MESSAGES_ERROR'
+    });
+  }
+});
+
+/**
+ * GET /api/communications/messages/stats
+ * Get message statistics
+ */
+router.get('/messages/stats', async (req, res) => {
+  try {
+    const { supervisorOnly = false } = req.query;
+    const supervisorId = supervisorOnly === 'true' ? req.supervisor.id : null;
+    
+    const result = await messageDistributionService.getMessageStats(supervisorId);
+    
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    console.error('❌ Error fetching message stats:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'MESSAGE_STATS_ERROR'
+    });
+  }
+});
+
+// =======================
 // HEALTH CHECK ENDPOINT
 // =======================
 
@@ -580,6 +768,7 @@ router.get('/health', async (req, res) => {
     const emailStatus = emailService.getStatus();
     const voipStatus = voipService.getStatus();
     const queueStatus = communicationService.getQueueStatus();
+    const messageDistStatus = await messageDistributionService.healthCheck();
     
     res.json({
       success: true,
@@ -587,7 +776,8 @@ router.get('/health', async (req, res) => {
         services: {
           email: emailStatus,
           voip: voipStatus,
-          queue: queueStatus
+          queue: queueStatus,
+          messageDistribution: messageDistStatus
         },
         timestamp: new Date().toISOString(),
         supervisor: req.supervisor.id

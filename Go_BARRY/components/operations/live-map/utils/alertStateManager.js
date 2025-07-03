@@ -5,6 +5,7 @@
  */
 
 import { useSupervisor } from '../../../../components/hooks/useSupervisorSession';
+import { useConvexSync } from '../../../../hooks/useConvexSyncFixed';
 
 /**
  * Alert state management utility
@@ -209,19 +210,8 @@ export class AlertStateManager {
 export const useAlertStateManager = () => {
   const { supervisor } = useSupervisor();
   
-  // Safely get Convex sync - handle if not available
-  let convexSync;
-  try {
-    const convexSyncModule = require('../../../../hooks/useConvexSync');
-    convexSync = convexSyncModule.useConvexSync();
-  } catch (convexError) {
-    console.warn('⚠️ Convex sync not available in alertStateManager:', convexError.message);
-    convexSync = {
-      acknowledge: () => Promise.resolve({ success: false, error: 'Convex not available' }),
-      dismissFromDisplay: () => Promise.resolve({ success: false, error: 'Convex not available' }),
-      addNote: () => Promise.resolve({ success: false, error: 'Convex not available' })
-    };
-  }
+  // Get Convex sync from hook - always called
+  const convexSync = useConvexSync();
   
   // Create state manager instance
   const stateManager = new AlertStateManager(convexSync);
