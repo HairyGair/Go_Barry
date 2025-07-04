@@ -22,6 +22,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSupervisor } from '../hooks/useSupervisorSession';
 import { useConvexSync } from '../../hooks/useConvexSync';
+import { useMessageTemplates } from '../hooks/useMessageTemplates';
+import TemplateManager from '../messaging/TemplateManager';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -30,15 +32,21 @@ const isTablet = screenWidth >= 768;
 const MessageDistributionEnhanced = ({ baseUrl, onClose, visible = true }) => {
   const { supervisorName, supervisorId, isLoggedIn } = useSupervisor();
   const { logCommunication } = useConvexSync();
+  const { 
+    templates: convexTemplates, 
+    useTemplate,
+    initializeDefaultTemplates 
+  } = useMessageTemplates();
   
   // State management
   const [activeTab, setActiveTab] = useState('driver'); // driver, customer, email
   const [loading, setLoading] = useState(false);
-  const [templates, setTemplates] = useState([]);
+  // REMOVED: const [templates, setTemplates] = useState([]);
   const [recentMessages, setRecentMessages] = useState([]);
   const [messageStats, setMessageStats] = useState(null);
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [copiedMessage, setCopiedMessage] = useState(null);
+  const [showTemplateManager, setShowTemplateManager] = useState(false);
   
   // Message composition state
   const [messageForm, setMessageForm] = useState({
@@ -129,36 +137,16 @@ const MessageDistributionEnhanced = ({ baseUrl, onClose, visible = true }) => {
   // Load data on mount
   useEffect(() => {
     if (isLoggedIn) {
-      fetchTemplates();
+      // Initialize default templates (High Level Bridge)
+      initializeDefaultTemplates(supervisorId, supervisorName);
+      // Convex templates are now used directly from the hook
       fetchRecentMessages();
       fetchMessageStats();
     }
   }, [isLoggedIn]);
 
-  // Fetch templates
-  const fetchTemplates = async () => {
-    try {
-      // Mock templates for now
-      setTemplates([
-        {
-          id: 'high_level_bridge',
-          name: 'High Level Bridge Closure',
-          content: 'URGENT MESSAGE REGARDING CLOSURE OF HIGH LEVEL BRIDGE IN NEWCASTLE\n\nDue to emergency repairs, the High Level Bridge is closed to all traffic.\n\nAffected routes: {routes}\n\nPlease follow signed diversions.\n\nWe apologise for any inconvenience.',
-          category: 'disruption',
-          priority: 'urgent'
-        },
-        {
-          id: 'roadwork_diversion',
-          name: 'Roadwork Diversion',
-          content: 'Service {routes} diverted due to roadworks at {location}.\n\nExpected duration: {duration}\n\nPlease allow extra time for your journey.',
-          category: 'roadworks',
-          priority: 'high'
-        }
-      ]);
-    } catch (error) {
-      console.error('Error fetching templates:', error);
-    }
-  };
+  // Fetch templates (removed - now using Convex)
+  // const fetchTemplates = async () => { ... }
 
   // Fetch recent messages
   const fetchRecentMessages = async () => {
@@ -205,15 +193,18 @@ const MessageDistributionEnhanced = ({ baseUrl, onClose, visible = true }) => {
   };
 
   // Handle template selection
-  const handleTemplateSelect = (template) => {
+  const handleTemplateSelect = async (template) => {
     setMessageForm(prev => ({
       ...prev,
       message: template.content,
-      subject: template.name,
+      subject: template.subject || template.name,
       category: template.category || 'general',
-      priority: template.priority || 'normal',
-      template: template.id
+      priority: template.isUrgent ? 'urgent' : (template.priority || 'normal'),
+      template: template.templateId
     }));
+    
+    // Track template usage
+    await useTemplate(template.templateId);
   };
 
   // Handle quick action
@@ -361,19 +352,33 @@ const MessageDistributionEnhanced = ({ baseUrl, onClose, visible = true }) => {
       
       {/* Template selector */}
       <View style={styles.templateSelector}>
-        <Text style={styles.fieldLabel}>Template</Text>
+        <View style={styles.templateSelectorHeader}>
+          <Text style={styles.fieldLabel}>Template</Text>
+          <Pressable
+            style={styles.manageTemplatesButton}
+            onPress={() => setShowTemplateManager(true)}
+          >
+            <Ionicons name="settings-outline" size={16} color="#2563EB" />
+            <Text style={styles.manageTemplatesText}>Manage Templates</Text>
+          </Pressable>
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.templateList}>
-            {templates.map((template) => (
+            {convexTemplates.map((template) => (
               <Pressable
-                key={template.id}
+                key={template.templateId}
                 style={[
                   styles.templateCard,
-                  messageForm.template === template.id && styles.templateCardActive
+                  messageForm.template === template.templateId && styles.templateCardActive
                 ]}
                 onPress={() => handleTemplateSelect(template)}
               >
                 <Text style={styles.templateName}>{template.name}</Text>
+                {template.isUrgent && (
+                  <View style={styles.urgentIndicator}>
+                    <Ionicons name="warning" size={12} color="#EF4444" />
+                  </View>
+                )}
               </Pressable>
             ))}
           </View>
@@ -693,6 +698,29 @@ const MessageDistributionEnhanced = ({ baseUrl, onClose, visible = true }) => {
         </View>
         
         {renderCopyModal()}
+        
+        {/* Template Manager Modal */}
+        {showTemplateManager && (
+          <Modal
+            visible={showTemplateManager}
+            animationType="slide"
+            transparent={false}
+            onRequestClose={() => setShowTemplateManager(false)}
+          >
+            <View style={styles.templateManagerContainer}>
+              <View style={styles.templateManagerHeader}>
+                <Text style={styles.templateManagerTitle}>Message Templates</Text>
+                <Pressable
+                  style={styles.templateManagerClose}
+                  onPress={() => setShowTemplateManager(false)}
+                >
+                  <Ionicons name="close" size={24} color="#64748B" />
+                </Pressable>
+              </View>
+              <TemplateManager />
+            </View>
+          </Modal>
+        )}
       </View>
     </Modal>
   );
@@ -877,6 +905,26 @@ const styles = StyleSheet.create({
   templateSelector: {
     marginBottom: 20
   },
+  templateSelectorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  manageTemplatesButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#EFF6FF'
+  },
+  manageTemplatesText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#2563EB'
+  },
   templateList: {
     flexDirection: 'row',
     gap: 12,
@@ -888,7 +936,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0'
+    borderColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
   },
   templateCardActive: {
     backgroundColor: '#DBEAFE',
@@ -898,6 +949,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#334155'
+  },
+  urgentIndicator: {
+    backgroundColor: '#FEE2E2',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   fieldGroup: {
     marginBottom: 20
@@ -1306,6 +1365,36 @@ const styles = StyleSheet.create({
   instructionBold: {
     fontWeight: '700',
     color: '#334155'
+  },
+  
+  // Template Manager Modal
+  templateManagerContainer: {
+    flex: 1,
+    backgroundColor: '#F8FAFC'
+  },
+  templateManagerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 24,
+    paddingTop: isWeb ? 24 : 48,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 3
+  },
+  templateManagerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#0F172A'
+  },
+  templateManagerClose: {
+    padding: 8
   }
 });
 

@@ -90,18 +90,38 @@ const TemplateManager = () => {
   const handleUpdate = async () => {
     if (!selectedTemplate) return;
 
+    if (!formData.name || !formData.subject || !formData.content) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return;
+    }
+
+    console.log('🔧 Updating template:', selectedTemplate.templateId);
+    console.log('📝 Form data:', formData);
+
     try {
-      await updateTemplate(selectedTemplate.templateId, {
-        ...formData,
+      // Only pass the fields that can be updated
+      const updates = {
+        name: formData.name,
+        category: formData.category,
+        subject: formData.subject,
+        content: formData.content,
         routes: formData.routes ? formData.routes.split(',').map(r => r.trim()) : [],
+        isUrgent: formData.isUrgent,
         supervisorBadge: supervisor.badge,
-      });
+        supervisorName: supervisor.name,
+      };
+      
+      console.log('📤 Sending updates:', updates);
+      
+      const result = await updateTemplate(selectedTemplate.templateId, updates);
+      console.log('✅ Update result:', result);
       
       setShowEditModal(false);
       resetForm();
       Alert.alert('Success', 'Template updated successfully');
     } catch (err) {
-      Alert.alert('Error', 'Failed to update template');
+      console.error('❌ Update error:', err);
+      Alert.alert('Error', `Failed to update template: ${err.message || 'Unknown error'}`);
     }
   };
 
@@ -438,9 +458,11 @@ const TemplateManager = () => {
                 <Text style={styles.previewValue}>{selectedTemplate.subject}</Text>
               </View>
               
-              <View style={styles.previewSection}>
+              <View style={[styles.previewSection, { flex: 1 }]}>
                 <Text style={styles.previewLabel}>Content:</Text>
-                <Text style={styles.previewContent}>{selectedTemplate.content}</Text>
+                <ScrollView style={{ maxHeight: 300 }}>
+                  <Text style={styles.previewContentText}>{selectedTemplate.content}</Text>
+                </ScrollView>
               </View>
               
               {selectedTemplate.routes && selectedTemplate.routes.length > 0 && (
@@ -495,8 +517,20 @@ const TemplateManager = () => {
     </Modal>
   );
 
+  // Check if we're using local storage (Convex not available)
+  const isUsingLocalStorage = !templates.some(t => !t.templateId.includes('LOCAL'));
+
   return (
     <View style={styles.container}>
+      {isUsingLocalStorage && (
+        <View style={styles.warningBanner}>
+          <Ionicons name="information-circle" size={20} color="#F59E0B" />
+          <Text style={styles.warningText}>
+            Templates are being stored locally. To enable cloud sync, ensure Convex is running.
+          </Text>
+        </View>
+      )}
+      
       <View style={styles.header}>
         <Text style={styles.title}>Template Manager</Text>
         <TouchableOpacity
@@ -549,6 +583,21 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  warningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#FDE68A',
+  },
+  warningText: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#92400E',
   },
   header: {
     flexDirection: 'row',
@@ -733,13 +782,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
   },
   modalContent: {
     backgroundColor: '#fff',
     borderRadius: 12,
     width: '90%',
-    maxWidth: 600,
-    maxHeight: '90%',
+    maxWidth: 700,
+    maxHeight: '85%',
+    marginVertical: 40,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -818,6 +869,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
+    backgroundColor: '#fff',
   },
   modalButton: {
     paddingHorizontal: 20,
@@ -843,24 +895,27 @@ const styles = StyleSheet.create({
   // Preview styles
   previewContent: {
     padding: 20,
+    flex: 1,
   },
   previewSection: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   previewLabel: {
     fontSize: 12,
     fontWeight: '600',
     color: '#6b7280',
     marginBottom: 4,
+    textTransform: 'uppercase',
   },
   previewValue: {
     fontSize: 16,
     color: '#1f2937',
   },
-  previewContent: {
-    fontSize: 14,
+  previewContentText: {
+    fontSize: 15,
     color: '#374151',
-    lineHeight: 20,
+    lineHeight: 24,
+    whiteSpace: 'pre-wrap',
   },
 });
 

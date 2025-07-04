@@ -679,6 +679,74 @@ export function getStreetManagerCacheStats() {
 }
 
 /**
+ * Check if notification should be saved to Supabase
+ * Filters out low-impact, irrelevant, or completed notifications
+ */
+async function shouldSaveNotification(notification, coordinates) {
+  try {
+    // 1. Status filtering - Skip completed/cancelled
+    const skipStatuses = ['completed', 'cancelled', 'rejected', 'revoked', 'closed'];
+    const status = notification.activity_status?.toLowerCase() || notification.permit_status?.toLowerCase();
+    if (skipStatuses.includes(status)) {
+      console.log(`⏭️ Skipping ${status} notification: ${notification.notification_id}`);
+      return false;
+    }
+    
+    // 2. Work category filtering - Skip minor maintenance/inspections
+    const skipCategories = ['minor', 'inspection', 'survey', 'maintenance', 'street_lighting', 'traffic_signals'];
+    const workCategory = notification.work_category_ref?.toLowerCase();
+    if (skipCategories.includes(workCategory)) {
+      console.log(`⏭️ Skipping ${workCategory} work: ${notification.notification_id}`);
+      return false;
+    }
+    
+    // 3. Duration filtering - Skip very short works (under 4 hours)
+    if (notification.proposed_start_date && notification.proposed_end_date) {
+      const startDate = new Date(notification.proposed_start_date);
+      const endDate = new Date(notification.proposed_end_date);
+      const durationHours = (endDate - startDate) / (1000 * 60 * 60);
+      
+      if (durationHours < 4 && durationHours > 0) {
+        console.log(`⏭️ Skipping short work (${Math.round(durationHours)}h): ${notification.notification_id}`);
+        return false;
+      }
+    }
+    
+    // 4. Route impact filtering - Check if affects bus routes
+    if (coordinates && coordinates.length > 0) {
+      const routeAnalysis = await findAffectedBusRoutes(coordinates, 150);
+      const affectedRoutes = routeAnalysis.affectedRoutes || [];
+      
+      // Allow high-severity items even without route impact
+      const isHighSeverity = ['High', 'Critical'].includes(notification.severity);
+      const isEmergency = notification.is_emergency_works === true;
+      
+      if (affectedRoutes.length === 0 && !isHighSeverity && !isEmergency) {
+        console.log(`⏭️ Skipping notification with no bus route impact: ${notification.notification_id}`);
+        return false;
+      }
+      
+      // Store route impact data for future reference
+      notification.affected_routes_count = affectedRoutes.length;
+      notification.affected_routes = affectedRoutes.slice(0, 5).map(r => r.shortName);
+    }
+    
+    // 5. Severity filtering - Skip low severity items with no route impact
+    if (notification.severity === 'Low' && !notification.affected_routes_count) {
+      console.log(`⏭️ Skipping low severity with no routes: ${notification.notification_id}`);
+      return false;
+    }
+    
+    console.log(`✅ Saving notification: ${notification.notification_id} (${notification.severity}, ${notification.affected_routes_count || 0} routes)`);
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Error in filtering logic:', error);
+    return true; // Default to saving if filter fails
+  }
+}
+
+/**
  * Poll StreetManager API and save to Supabase
  * This is an alternative to webhooks - run periodically
  */
@@ -690,6 +758,7 @@ export async function pollAndSaveToSupabase() {
     const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
     
     let totalSaved = 0;
+    let totalFiltered = 0;
     
     // 1. Fetch activities
     const activitiesResult = await fetchStreetManagerActivities(true);
@@ -727,6 +796,13 @@ export async function pollAndSaveToSupabase() {
           processed_at: new Date().toISOString(),
           webhook_received_at: new Date().toISOString()
         };
+        
+        // Apply filtering logic
+        const shouldSave = await shouldSaveNotification(notification, activity.coordinates);
+        if (!shouldSave) {
+          totalFiltered++;
+          continue;
+        }
         
         // Upsert to Supabase
         const { error } = await supabase
@@ -776,6 +852,13 @@ export async function pollAndSaveToSupabase() {
           webhook_received_at: new Date().toISOString()
         };
         
+        // Apply filtering logic
+        const shouldSave = await shouldSaveNotification(notification, permit.coordinates);
+        if (!shouldSave) {
+          totalFiltered++;
+          continue;
+        }
+        
         // Upsert to Supabase
         const { error } = await supabase
           .from('streetmanager_notifications')
@@ -792,11 +875,12 @@ export async function pollAndSaveToSupabase() {
       }
     }
     
-    console.log(`✅ StreetManager poll complete: ${totalSaved} records saved to Supabase`);
+    console.log(`✅ StreetManager poll complete: ${totalSaved} records saved, ${totalFiltered} filtered out`);
     
     return {
       success: true,
       totalSaved,
+      totalFiltered,
       activities: activitiesResult.data?.length || 0,
       permits: permitsResult.data?.length || 0,
       timestamp: new Date().toISOString()
@@ -1277,10 +1361,10 @@ function generateSuggestedAction(severity, delayMinutes, peakHour) {
 }
 
 /**
- * Process StreetManager webhook notification
+ * Process StreetManager webhook notification and save to Supabase if relevant
  * Convert to BARRY alert with route matching and enhanced analysis
  */
-export async function processStreetManagerWebhook(notification) {
+export async function processStreetManagerWebhook(notification, saveToSupabase = true) {
   try {
     console.log('🔄 Processing StreetManager webhook notification...');
     
@@ -1440,6 +1524,64 @@ export async function processStreetManagerWebhook(notification) {
     alert.mlPrediction = mlPrediction;
     alert.mlSeverity = mlPrediction.severity;
     alert.mlConfidence = mlPrediction.confidence;
+    
+    // Save to Supabase if requested and passes filtering
+    if (saveToSupabase) {
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+        
+        // Convert to notification format
+        const webhookNotification = {
+          notification_id: alert.id,
+          activity_reference_number: alert.activityReference,
+          permit_reference_number: alert.permitReference,
+          title: alert.title,
+          description: alert.description,
+          location_description: alert.location,
+          street_name: alert.streetName,
+          area_name: alert.areaName,
+          usrn: alert.usrn,
+          coordinates: alert.coordinates ? 
+            { lat: alert.coordinates[0], lng: alert.coordinates[1] } : null,
+          work_category_ref: alert.workCategory,
+          activity_type: alert.workType,
+          is_emergency_works: alert.isEmergency,
+          activity_status: alert.workStatus || 'active',
+          severity: alert.severity,
+          alert_status: alert.status,
+          proposed_start_date: alert.startDate,
+          proposed_end_date: alert.endDate,
+          highway_authority: alert.authority,
+          webhook_event_type: event_type,
+          raw_webhook_data: { source: 'webhook', object_data, event_type },
+          processing_status: 'processed',
+          processed_at: new Date().toISOString(),
+          webhook_received_at: event_time || new Date().toISOString()
+        };
+        
+        // Apply filtering logic
+        const shouldSave = await shouldSaveNotification(webhookNotification, coordinates);
+        if (shouldSave) {
+          const { error } = await supabase
+            .from('streetmanager_notifications')
+            .upsert(webhookNotification, {
+              onConflict: 'notification_id',
+              ignoreDuplicates: false
+            });
+            
+          if (error) {
+            console.error(`⚠️ Failed to save webhook to Supabase:`, error.message);
+          } else {
+            console.log(`✅ Webhook notification saved to Supabase: ${alert.id}`);
+          }
+        } else {
+          console.log(`⏭️ Webhook notification filtered out: ${alert.id}`);
+        }
+      } catch (supabaseError) {
+        console.error('⚠️ Supabase save error:', supabaseError.message);
+      }
+    }
     
     // Sync high-impact roadworks to Convex for real-time updates
     if (severityAnalysis.severity === 'Critical' || severityAnalysis.severity === 'High' || affectedRoutes.length > 3) {

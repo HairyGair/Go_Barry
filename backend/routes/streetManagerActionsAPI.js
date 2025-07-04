@@ -145,6 +145,38 @@ router.get('/:id/history', async (req, res) => {
 });
 
 /**
+ * GET /api/streetmanager/actions/poll
+ * Poll StreetManager API and save filtered notifications to Supabase
+ */
+router.get('/poll', async (req, res) => {
+  try {
+    console.log('🔄 API: Manual polling StreetManager...');
+    
+    // Import streetManager service
+    const { default: streetManager } = await import('../services/streetManager.js');
+    
+    const result = await streetManager.pollAndSaveToSupabase();
+    
+    const message = result.success ? 
+      `Poll complete: ${result.totalSaved} saved, ${result.totalFiltered} filtered out` :
+      'Failed to poll StreetManager';
+    
+    res.json({
+      success: result.success,
+      message,
+      ...result
+    });
+
+  } catch (error) {
+    console.error('❌ API Error polling StreetManager:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * POST /api/streetmanager/actions/sync
  * Force sync StreetManager data to Intelligence Engine and Convex
  */

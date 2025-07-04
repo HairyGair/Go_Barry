@@ -82,6 +82,8 @@ import streetManagerWebhookRouter from './routes/streetManagerWebhook.js';
 // IMPORTANT: Apply text body parser ONLY to webhook route, as per StreetManager docs
 app.use('/api/streetmanager/webhook', express.text(), streetManagerWebhookRouter);
 console.log('✅ streetManagerWebhookRouter imported with text body parser');
+import streetManagerActionsAPI from './routes/streetManagerActionsAPI.js';
+console.log('✅ streetManagerActionsAPI imported');
 import unifiedRoadworksAPI from './routes/unifiedRoadworksAPI.js';
 
 // Communications API Route
@@ -462,6 +464,11 @@ console.log('✅ GTFS routes registered successfully');
 console.log('📦 Registering roadwork alerts routes at /api/roadwork-alerts...');
 app.use('/api/roadwork-alerts', roadworkAlertsAPI);
 console.log('✅ Roadwork alerts routes registered successfully');
+
+// StreetManager actions API routes
+console.log('🙧 Registering StreetManager actions routes at /api/streetmanager/actions...');
+app.use('/api/streetmanager/actions', streetManagerActionsAPI);
+console.log('✅ StreetManager actions routes registered successfully');
 
 // Test endpoint for roadwork alerts debugging (after main router)
 app.get('/api/roadwork-alerts-test', (req, res) => {

@@ -1,37 +1,68 @@
 // convex/templates.ts
-// Message template management for Go BARRY Message Distribution Centre
+// Message Template CRUD operations for Go BARRY Message Distribution Centre
 
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 
-// Get all active templates
+// Get all message templates
 export const getTemplates = query({
+  args: {},
   handler: async (ctx) => {
+    const templates = await ctx.db
+      .query("messageTemplates")
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .order("desc")
+      .collect();
+    
+    return templates;
+  },
+});
+
+// Get templates by category
+export const getTemplatesByCategory = query({
+  args: { category: v.string() },
+  handler: async (ctx, args) => {
+    if (args.category === "all") {
+      return await ctx.db
+        .query("messageTemplates")
+        .filter((q) => q.eq(q.field("isActive"), true))
+        .order("desc")
+        .collect();
+    }
+    
     return await ctx.db
       .query("messageTemplates")
-      .withIndex("by_active")
+      .withIndex("by_category", (q) => q.eq("category", args.category))
       .filter((q) => q.eq(q.field("isActive"), true))
       .order("desc")
       .collect();
   },
 });
 
-// Get templates by category
-export const getTemplatesByCategory = query({
-  args: {
-    category: v.string(),
-  },
+// Get most used templates
+export const getMostUsedTemplates = query({
+  args: { limit: v.number() },
   handler: async (ctx, args) => {
+    const templates = await ctx.db
+      .query("messageTemplates")
+      .withIndex("by_usage", (q) => q.gte("useCount", 0))
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .order("desc")
+      .take(args.limit);
+    
+    return templates;
+  },
+});
+
+// Get urgent templates
+export const getUrgentTemplates = query({
+  args: {},
+  handler: async (ctx) => {
     return await ctx.db
       .query("messageTemplates")
-      .withIndex("by_category")
-      .filter((q) => 
-        q.and(
-          q.eq(q.field("category"), args.category),
-          q.eq(q.field("isActive"), true)
-        )
-      )
-      .order("desc")
+      .withIndex("by_urgent", (q) => q.eq("isUrgent", true))
+      .filter((q) => q.eq(q.field("isActive"), true))
       .collect();
   },
 });
@@ -49,27 +80,24 @@ export const createTemplate = mutation({
     supervisorName: v.string(),
   },
   handler: async (ctx, args) => {
-    const templateId = `TPL${Date.now()}`;
+    const templateId = `TPL_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
-    await ctx.db.insert("messageTemplates", {
+    const result = await ctx.db.insert("messageTemplates", {
       templateId,
       name: args.name,
       category: args.category,
       subject: args.subject,
       content: args.content,
-      routes: args.routes,
+      routes: args.routes || [],
       isUrgent: args.isUrgent,
       createdBy: args.supervisorBadge,
       createdByName: args.supervisorName,
       createdAt: Date.now(),
-      lastUsed: undefined,
       useCount: 0,
       isActive: true,
-      lastModifiedBy: undefined,
-      lastModifiedAt: undefined,
     });
-
-    return { success: true, templateId };
+    
+    return { success: true, templateId, id: result };
   },
 });
 
@@ -84,36 +112,40 @@ export const updateTemplate = mutation({
     routes: v.optional(v.array(v.string())),
     isUrgent: v.optional(v.boolean()),
     supervisorBadge: v.string(),
+    supervisorName: v.string(),
   },
   handler: async (ctx, args) => {
+    // Find the template
     const template = await ctx.db
       .query("messageTemplates")
       .filter((q) => q.eq(q.field("templateId"), args.templateId))
       .first();
-
+    
     if (!template) {
       throw new Error("Template not found");
     }
-
-    const updates: any = {
+    
+    // Prepare update data
+    const updateData: any = {
       lastModifiedBy: args.supervisorBadge,
       lastModifiedAt: Date.now(),
     };
-
-    if (args.name !== undefined) updates.name = args.name;
-    if (args.category !== undefined) updates.category = args.category;
-    if (args.subject !== undefined) updates.subject = args.subject;
-    if (args.content !== undefined) updates.content = args.content;
-    if (args.routes !== undefined) updates.routes = args.routes;
-    if (args.isUrgent !== undefined) updates.isUrgent = args.isUrgent;
-
-    await ctx.db.patch(template._id, updates);
-
-    return { success: true };
+    
+    // Only update provided fields
+    if (args.name !== undefined) updateData.name = args.name;
+    if (args.category !== undefined) updateData.category = args.category;
+    if (args.subject !== undefined) updateData.subject = args.subject;
+    if (args.content !== undefined) updateData.content = args.content;
+    if (args.routes !== undefined) updateData.routes = args.routes;
+    if (args.isUrgent !== undefined) updateData.isUrgent = args.isUrgent;
+    
+    await ctx.db.patch(template._id, updateData);
+    
+    return { success: true, templateId: args.templateId };
   },
 });
 
-// Delete a template (soft delete by marking inactive)
+// Delete (deactivate) a template
 export const deleteTemplate = mutation({
   args: {
     templateId: v.string(),
@@ -124,72 +156,52 @@ export const deleteTemplate = mutation({
       .query("messageTemplates")
       .filter((q) => q.eq(q.field("templateId"), args.templateId))
       .first();
-
+    
     if (!template) {
       throw new Error("Template not found");
     }
-
+    
+    // Soft delete by setting isActive to false
     await ctx.db.patch(template._id, {
       isActive: false,
       lastModifiedBy: args.supervisorBadge,
       lastModifiedAt: Date.now(),
     });
-
+    
     return { success: true };
   },
 });
 
 // Record template usage
 export const recordTemplateUsage = mutation({
-  args: {
-    templateId: v.string(),
-  },
+  args: { templateId: v.string() },
   handler: async (ctx, args) => {
     const template = await ctx.db
       .query("messageTemplates")
       .filter((q) => q.eq(q.field("templateId"), args.templateId))
       .first();
-
+    
     if (!template) {
-      throw new Error("Template not found");
+      return { success: false, error: "Template not found" };
     }
-
+    
     await ctx.db.patch(template._id, {
-      lastUsed: Date.now(),
       useCount: (template.useCount || 0) + 1,
+      lastUsed: Date.now(),
     });
-
+    
     return { success: true };
   },
 });
 
-// Get most used templates
-export const getMostUsedTemplates = query({
-  args: {
-    limit: v.optional(v.number()),
-  },
-  handler: async (ctx, args) => {
-    const limit = args.limit || 10;
-    
-    const templates = await ctx.db
-      .query("messageTemplates")
-      .withIndex("by_usage")
-      .filter((q) => q.eq(q.field("isActive"), true))
-      .order("desc")
-      .take(limit);
-
-    return templates;
-  },
-});
-
-// Seed the High Level Bridge template
+// Seed the High Level Bridge template (called on first load)
 export const seedHighLevelBridgeTemplate = mutation({
   args: {
     supervisorBadge: v.string(),
     supervisorName: v.string(),
   },
   handler: async (ctx, args) => {
-    // Check if template already exists
+    // Check if High Level Bridge template already exists
     const existing = await ctx.db
       .query("messageTemplates")
       .filter((q) => 
@@ -199,12 +211,13 @@ export const seedHighLevelBridgeTemplate = mutation({
         )
       )
       .first();
-
+    
     if (existing) {
       return { success: true, message: "Template already exists" };
     }
-
-    const templateId = `TPL_HIGH_LEVEL_${Date.now()}`;
+    
+    // Create the High Level Bridge template
+    const templateId = `TPL_HIGH_LEVEL_BRIDGE_${Date.now()}`;
     
     await ctx.db.insert("messageTemplates", {
       templateId,
@@ -228,18 +241,15 @@ Please discourage any customers from walking over the bridge during the closure.
 We'll update as soon as we have further information.
 
 Thank you.`,
-      routes: ["1", "10", "10A", "10B", "11", "11X", "12", "12A", "Q3", "21", "28B", "29", "56", "57", "58", "84", "85", "93", "94"],
+      routes: ['1', '10', '10A', '10B', '11', '11X', '12', '12A', 'Q3', '21', '28B', '29', '56', '57', '58', '84', '85', '93', '94'],
       isUrgent: true,
       createdBy: args.supervisorBadge,
       createdByName: args.supervisorName,
       createdAt: Date.now(),
-      lastUsed: undefined,
       useCount: 0,
       isActive: true,
-      lastModifiedBy: undefined,
-      lastModifiedAt: undefined,
     });
-
+    
     return { success: true, templateId };
   },
 });
