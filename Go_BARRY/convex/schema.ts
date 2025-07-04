@@ -577,6 +577,29 @@ export default defineSchema({
     .index("by_scheduled", ["scheduledFor"])
     .index("by_supervisor", ["supervisorId"]),
 
+  // Message templates for the Message Distribution Centre
+  messageTemplates: defineTable({
+    templateId: v.string(),
+    name: v.string(),
+    category: v.string(), // "diversion", "closure", "incident", "custom"
+    subject: v.string(),
+    content: v.string(),
+    routes: v.optional(v.array(v.string())), // Affected routes
+    isUrgent: v.boolean(),
+    createdBy: v.string(), // Supervisor badge
+    createdByName: v.string(),
+    createdAt: v.number(),
+    lastUsed: v.optional(v.number()),
+    useCount: v.number(),
+    isActive: v.boolean(),
+    lastModifiedBy: v.optional(v.string()),
+    lastModifiedAt: v.optional(v.number()),
+  })
+    .index("by_category", ["category"])
+    .index("by_active", ["isActive"])
+    .index("by_usage", ["useCount"])
+    .index("by_urgent", ["isUrgent"]),
+
   // Handover notes for shift transitions (Phase 3)
   handoverNotes: defineTable({
     handoverId: v.string(),

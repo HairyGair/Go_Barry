@@ -26,7 +26,7 @@ const EnhancedDashboard = lazy(() => import('../components/EnhancedDashboard'));
 const IncidentManager = lazy(() => import('../components/operations/IncidentManager'));
 const RoadworksManager = lazy(() => import('../components/operations/RoadworksManager'));
 const AIDisruptionManager = lazy(() => import('../components/operations/DisruptionDatabase'));
-const MessageDistributionCenter = lazy(() => import('../components/MessageDistributionCenter'));
+const MessageDistributionCenter = lazy(() => import('../components/MessageDistributionCentre'));
 const AutomatedReportingSystem = lazy(() => import('../components/AutomatedReportingSystem'));
 const SystemHealthMonitor = lazy(() => import('../components/SystemHealthMonitor'));
 const TrainingHelpSystem = lazy(() => import('../components/TrainingHelpSystem'));

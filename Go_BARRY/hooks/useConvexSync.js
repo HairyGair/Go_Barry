@@ -2,6 +2,7 @@
 // Gracefully handles cases where Convex is not deployed yet
 
 import { useEffect, useCallback, useRef, useState } from 'react';
+
 // Fallback convexDebug implementation
 const fallbackConvexDebug = {
   safeLocalStorage: {
@@ -201,449 +202,7 @@ let api = null;
   }
 })();
 
-// Hook for supervisor authentication
-export function useSupervisorAuth() {
-  const [sessionId, setSessionId] = useState(null);
-  const login = api ? useMutation(api.supervisors.login) : noOpMutation;
-  const logout = api ? useMutation(api.supervisors.logout) : noOpMutation;
-  const session = sessionId && api ? useQuery(api.supervisors.getSession, { sessionId }) : null;
-
-  // Load session ID on mount
-  useEffect(() => {
-    const loadSessionId = async () => {
-      try {
-        // Try localStorage first for web
-        const storedId = convexDebug.safeLocalStorage.getItem('convex_session_id');
-        if (storedId) {
-          setSessionId(storedId);
-          console.log('Loaded Convex session from localStorage');
-          return;
-        }
-        
-        // Fall back to AsyncStorage only on native platforms
-        if (typeof window === 'undefined') {
-          try {
-            const id = await AsyncStorage.getItem('convex_session_id');
-            if (id) {
-              setSessionId(id);
-            }
-          } catch (error) {
-            // AsyncStorage not available on web
-            console.log('AsyncStorage not available');
-          }
-        }
-      } catch (error) {
-        // Silently handle errors
-        console.log('Session loading error:', error);
-      }
-    };
-    
-    loadSessionId();
-  }, []);
-
-  const authenticateSupervisor = useCallback(async (credentials) => {
-    try {
-      const result = await login(credentials);
-      if (result.success && result.sessionId) {
-        // Store session ID
-        const stored = convexDebug.safeLocalStorage.setItem('convex_session_id', result.sessionId);
-        if (!stored && typeof window === 'undefined') {
-          await AsyncStorage.setItem('convex_session_id', result.sessionId);
-        }
-        setSessionId(result.sessionId);
-        return result;
-      }
-      return result;
-    } catch (error) {
-      console.error('Convex auth error:', error);
-      throw error;
-    }
-  }, [login]);
-
-  const logoutSupervisor = useCallback(async (sessionId) => {
-    try {
-      await logout({ sessionId });
-      const removed = convexDebug.safeLocalStorage.removeItem('convex_session_id');
-      if (!removed && typeof window === 'undefined') {
-        await AsyncStorage.removeItem('convex_session_id');
-      }
-      setSessionId(null);
-    } catch (error) {
-      console.error('Convex logout error:', error);
-    }
-  }, [logout]);
-
-  return {
-    login: authenticateSupervisor,
-    logout: logoutSupervisor,
-    session,
-  };
-}
-
-// Hook for real-time sync state
-export function useSyncState() {
-  const syncState = api ? useQuery(api.sync.getSyncState) : undefined;
-  const setDisplayMode = api ? useMutation(api.sync.setDisplayMode) : noOpMutation;
-  const addCustomMessage = api ? useMutation(api.sync.addCustomMessage) : noOpMutation;
-  const removeCustomMessage = api ? useMutation(api.sync.removeCustomMessage) : noOpMutation;
-
-  return {
-    syncState,
-    setDisplayMode,
-    addCustomMessage,
-    removeCustomMessage,
-  };
-}
-
-// Hook for alert management
-export function useAlerts() {
-  const activeAlertsRaw = api ? useQuery(api.alerts.getActiveAlerts) : undefined;
-  const dismissedAlertsRaw = api ? useQuery(api.alerts.getDismissedAlerts) : undefined;
-  
-  // Ensure we always have arrays, even during loading
-  // Use fallback if convexDebug isn't ready yet
-  const debugObj = convexDebug || fallbackConvexDebug;
-  const activeAlerts = debugObj.ensureArray(activeAlertsRaw);
-  const dismissedAlerts = debugObj.ensureArray(dismissedAlertsRaw);
-  
-  // TEMPORARY FIX: getPushedAlerts causes Convex server error
-  // The function exists in alerts.ts but the deployment seems out of sync
-  // TODO: Fix by running `npx convex deploy` to update the Convex deployment
-  const pushedAlerts = []; // api ? useQuery(api.alerts.getPushedAlerts) : [];
-  
-  const acknowledge = api ? useMutation(api.alerts.acknowledge) : noOpMutation;
-  const dismissFromDisplay = api ? useMutation(api.alerts.dismissFromDisplay) : noOpMutation;
-  const toggleDisplayLock = api ? useMutation(api.alerts.toggleDisplayLock) : noOpMutation;
-  const overridePriority = api ? useMutation(api.alerts.overridePriority) : noOpMutation;
-  const addNote = api ? useMutation(api.alerts.addNote) : noOpMutation;
-  const pushToDisplay = api ? useMutation(api.alerts.pushToDisplay) : noOpMutation;
-  const removeFromDisplay = api ? useMutation(api.alerts.removeFromDisplay) : noOpMutation;
-
-  return {
-    activeAlerts: activeAlerts, // Already ensured to be an array above
-    dismissedAlerts: dismissedAlerts, // Already ensured to be an array above
-    pushedAlerts: pushedAlerts, // Already hardcoded as empty array
-    acknowledge,
-    dismissFromDisplay,
-    toggleDisplayLock,
-    overridePriority,
-    addNote,
-    pushToDisplay,
-    removeFromDisplay,
-  };
-}
-
-// Hook for active supervisors
-export function useActiveSupervisors() {
-  const activeSupervisorsRaw = api ? useQuery(api.supervisors.getActiveSupervisors) : undefined;
-  const forceLogout = api ? useMutation(api.supervisors.forceLogout) : noOpMutation;
-  
-  // Ensure we always have an array
-  // Use fallback if convexDebug isn't ready yet
-  const debugObj = convexDebug || fallbackConvexDebug;
-  const activeSupervisors = debugObj.ensureArray(activeSupervisorsRaw);
-
-  return {
-    activeSupervisors: activeSupervisors, // Already ensured to be an array above
-    forceLogout,
-  };
-}
-
-// Hook for supervisor actions (audit trail)
-export function useSupervisorActions(options = {}) {
-  const { supervisorId, alertId, limit = 50 } = options;
-
-  let actions;
-  if (!api) {
-    actions = [];
-  } else if (supervisorId) {
-    actions = useQuery(api.sync.getSupervisorActions, { supervisorId, limit });
-  } else if (alertId) {
-    actions = useQuery(api.sync.getAlertActions, { alertId });
-  } else {
-    actions = useQuery(api.sync.getRecentActions, { limit });
-  }
-
-  return actions || [];
-}
-
-// Hook for login tracking and analytics
-export function useLoginTracking() {
-  // TEMPORARILY DISABLED for testing - Convex functions not deployed yet
-  return {
-    recentLogins: [],
-    loginHistory: [],
-    trackLogin: noOpMutation,
-  };
-}
-
-// Hook for session heartbeat
-export function useHeartbeat(sessionId, interval = 30000) {
-  const heartbeat = api ? useMutation(api.sync.heartbeat) : noOpMutation;
-  const intervalRef = useRef();
-
-  useEffect(() => {
-    if (!sessionId || !api) return;
-
-    // Convert session ID to proper format if needed
-    let convexSessionId = sessionId;
-    if (typeof sessionId === 'string' && sessionId.startsWith('session-')) {
-      // This is a local session ID, we need the Convex session ID from the database
-      // For now, skip heartbeat for non-Convex sessions
-      console.log('Skipping heartbeat for non-Convex session:', sessionId);
-      return;
-    }
-
-    const sendHeartbeat = async () => {
-      try {
-        await heartbeat({ sessionId: convexSessionId });
-      } catch (error) {
-        console.error('Heartbeat error:', error);
-      }
-    };
-
-    // Send initial heartbeat
-    sendHeartbeat();
-
-    // Set up interval
-    intervalRef.current = setInterval(sendHeartbeat, interval);
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [sessionId, heartbeat, interval, api]);
-}
-
-// Hook for events management
-export function useEvents() {
-  const activeEventsRaw = api ? useQuery(api.sync.getActiveEvents) : undefined;
-  const mostSevereEvent = api ? useQuery(api.sync.getMostSevereEvent) : null;
-  
-  // Ensure we always have an array
-  // Use fallback if convexDebug isn't ready yet
-  const debugObj = convexDebug || fallbackConvexDebug;
-  const activeEvents = debugObj.ensureArray(activeEventsRaw);
-  
-  const upsertEvent = api ? useMutation(api.sync.upsertEvent) : noOpMutation;
-  const updateEventStatus = api ? useMutation(api.sync.updateEventStatus) : noOpMutation;
-
-  return {
-    activeEvents: activeEvents, // Already ensured to be an array above
-    mostSevereEvent,
-    upsertEvent,
-    updateEventStatus,
-  };
-}
-
-// Hook for VIX late runners data
-export function useVixData() {
-  let vixData, updateVixData, clearVixData;
-  
-  try {
-    vixData = api && api.vixData ? useQuery(api.vixData.getVixData) : null;
-    updateVixData = api && api.vixData ? useMutation(api.vixData.updateVixData) : noOpMutation;
-    clearVixData = api && api.vixData ? useMutation(api.vixData.clearVixData) : noOpMutation;
-  } catch (error) {
-    console.warn('VIX data functions not available yet - Convex deployment needed');
-    vixData = null;
-    updateVixData = noOpMutation;
-    clearVixData = noOpMutation;
-  }
-
-  return {
-    vixData: vixData || null,
-    updateVixData,
-    clearVixData,
-  };
-}
-
-// Hook for incident management
-export function useIncidents() {
-  let activeIncidents, allIncidents, createIncident, updateIncident, addIncidentNote, sendTicketerMessage, pushIncidentToDisplay;
-  // Enhanced incident functions
-  let convertAlertToIncident, addIncidentAction, archiveIncident, getIncidentWithActions, getIncidentsByStatus, searchArchivedIncidents, getIncidentStats;
-  
-  if (!api || !api.sync) {
-    console.warn('Incident management via Convex not available - API not deployed');
-    // Return empty arrays and no-op functions if Convex isn't available
-    activeIncidents = [];
-    allIncidents = [];
-    createIncident = noOpMutation;
-    updateIncident = noOpMutation;
-    addIncidentNote = noOpMutation;
-    sendTicketerMessage = noOpMutation;
-    pushIncidentToDisplay = noOpMutation;
-    // Enhanced functions
-    convertAlertToIncident = noOpMutation;
-    addIncidentAction = noOpMutation;
-    archiveIncident = noOpMutation;
-    getIncidentWithActions = undefined;
-    getIncidentsByStatus = undefined;
-    searchArchivedIncidents = undefined;
-    getIncidentStats = undefined;
-  } else {
-    try {
-      activeIncidents = useQuery(api.sync.getActiveIncidents);
-      allIncidents = useQuery(api.sync.getAllIncidents);
-      createIncident = useMutation(api.sync.createIncident);
-      updateIncident = useMutation(api.sync.updateIncident);
-      addIncidentNote = useMutation(api.sync.addIncidentNote);
-      sendTicketerMessage = useMutation(api.sync.sendTicketerMessage);
-      pushIncidentToDisplay = useMutation(api.sync.pushIncidentToDisplay);
-      
-      // Try to use enhanced functions if available
-      if (api.incidentsEnhanced) {
-        convertAlertToIncident = useMutation(api.incidentsEnhanced.convertAlertToIncident);
-        addIncidentAction = useMutation(api.incidentsEnhanced.addIncidentAction);
-        archiveIncident = useMutation(api.incidentsEnhanced.archiveIncident);
-      } else {
-        convertAlertToIncident = noOpMutation;
-        addIncidentAction = noOpMutation;
-        archiveIncident = noOpMutation;
-      }
-    } catch (error) {
-      console.warn('Incident management via Convex not available:', error.message);
-      // Return empty arrays and no-op functions if Convex isn't available
-      activeIncidents = [];
-      allIncidents = [];
-      createIncident = noOpMutation;
-      updateIncident = noOpMutation;
-      addIncidentNote = noOpMutation;
-      sendTicketerMessage = noOpMutation;
-      pushIncidentToDisplay = noOpMutation;
-      convertAlertToIncident = noOpMutation;
-      addIncidentAction = noOpMutation;
-      archiveIncident = noOpMutation;
-    }
-  }
-
-  return {
-    activeIncidents: activeIncidents || [],
-    allIncidents: allIncidents || [],
-    createIncident,
-    updateIncident,
-    addIncidentNote,
-    sendTicketerMessage,
-    pushIncidentToDisplay,
-    // Enhanced functions
-    convertAlertToIncident,
-    addIncidentAction,
-    archiveIncident,
-    getIncidentWithActions,
-    getIncidentsByStatus,
-    searchArchivedIncidents,
-    getIncidentStats,
-    loading: activeIncidents === undefined,
-  };
-}
-
-// Hook for alert sync from backend
-export function useAlertSync() {
-  const batchInsertAlerts = api ? useMutation(api.alerts.batchInsertAlerts) : noOpMutation;
-  
-  const syncAlerts = useCallback(async (alerts) => {
-    // Add defensive check for alerts parameter
-    if (!alerts || !Array.isArray(alerts)) {
-      console.warn('syncAlerts called with invalid alerts:', alerts);
-      return { success: false, error: 'Invalid alerts parameter' };
-    }
-    // Additional safety check for length property
-    try {
-      if (alerts.length === 0) return { success: true, synced: 0 };
-    } catch (lengthError) {
-      console.error('Error accessing alerts.length:', lengthError);
-      return { success: false, error: 'Invalid alerts array' };
-    }
-    if (!api) {
-      console.warn('Alert sync skipped - Convex not available');
-      return { success: false, error: 'Convex not available' };
-    }
-
-    try {
-      // Transform alerts to match Convex schema
-      const convexAlerts = alerts.map(alert => ({
-        alertId: alert.id || alert.alertId,
-        title: alert.title,
-        description: alert.description,
-        location: alert.location,
-        coordinates: alert.coordinates,
-        severity: alert.severity || 'medium',
-        status: alert.status || 'active',
-        source: alert.source,
-        timestamp: alert.timestamp || Date.now(),
-        affectsRoutes: alert.affectsRoutes || [],
-        routeFrequencies: alert.routeFrequencies,
-      }));
-
-      const result = await batchInsertAlerts({ alerts: convexAlerts });
-      console.log('Synced alerts to Convex:', result);
-      return result;
-    } catch (error) {
-      console.error('Alert sync error:', error);
-      throw error;
-    }
-  }, [batchInsertAlerts]);
-
-  return { syncAlerts };
-}
-
-// Hook for email communications
-export function useEmailCommunications() {
-  let emailTemplates, distributionLists, communicationLogs;
-  let saveEmailTemplate, deleteEmailTemplate, saveDistributionList, deleteDistributionList;
-  let logCommunication;
-  
-  if (!api || !api.communications) {
-    console.warn('Email communications via Convex not available - API not deployed');
-    // Return empty arrays and no-op functions if Convex isn't available
-    emailTemplates = [];
-    distributionLists = [];
-    communicationLogs = [];
-    saveEmailTemplate = noOpMutation;
-    deleteEmailTemplate = noOpMutation;
-    saveDistributionList = noOpMutation;
-    deleteDistributionList = noOpMutation;
-    logCommunication = noOpMutation;
-  } else {
-    try {
-      emailTemplates = useQuery(api.communications.getEmailTemplates);
-      distributionLists = useQuery(api.communications.getDistributionLists);
-      communicationLogs = useQuery(api.communications.getRecentCommunications);
-      saveEmailTemplate = useMutation(api.communications.saveEmailTemplate);
-      deleteEmailTemplate = useMutation(api.communications.deleteEmailTemplate);
-      saveDistributionList = useMutation(api.communications.saveDistributionList);
-      deleteDistributionList = useMutation(api.communications.deleteDistributionList);
-      logCommunication = useMutation(api.communications.logCommunication);
-    } catch (error) {
-      console.warn('Email communications via Convex not available:', error.message);
-      // Return empty arrays and no-op functions if Convex isn't available
-      emailTemplates = [];
-      distributionLists = [];
-      communicationLogs = [];
-      saveEmailTemplate = noOpMutation;
-      deleteEmailTemplate = noOpMutation;
-      saveDistributionList = noOpMutation;
-      deleteDistributionList = noOpMutation;
-      logCommunication = noOpMutation;
-    }
-  }
-
-  return {
-    emailTemplates: emailTemplates || [],
-    distributionLists: distributionLists || [],
-    communicationLogs: communicationLogs || [],
-    saveEmailTemplate,
-    deleteEmailTemplate,
-    saveDistributionList,
-    deleteDistributionList,
-    logCommunication,
-    loading: emailTemplates === undefined || distributionLists === undefined,
-  };
-}
-
-// Create a minimal fallback object
+// Create a complete fallback object
 const createFallbackConvexSync = () => ({
   login: noOpMutation,
   logout: noOpMutation,
@@ -700,169 +259,327 @@ const createFallbackConvexSync = () => ({
   clearVixData: noOpMutation,
 });
 
-// Combined hook for complete Convex integration
+// Safe wrapper for useQuery
+function useSafeQuery(queryFn, args) {
+  try {
+    if (!api || !queryFn) return undefined;
+    return useQuery(queryFn, args);
+  } catch (error) {
+    console.warn('Query error:', error);
+    return undefined;
+  }
+}
+
+// Safe wrapper for useMutation
+function useSafeMutation(mutationFn) {
+  try {
+    if (!api || !mutationFn) return noOpMutation;
+    return useMutation(mutationFn);
+  } catch (error) {
+    console.warn('Mutation error:', error);
+    return noOpMutation;
+  }
+}
+
+// Main export - simplified to always work
 export function useConvexSync() {
-  // Check if Convex API is properly loaded at the start
-  useEffect(() => {
-    try {
-      if (api && convexDebug && typeof convexDebug.checkConnection === 'function') {
-        if (!convexDebug.checkConnection(api)) {
-          console.error('Convex API loaded but some functions are missing. Run: npx convex deploy');
-        }
-      }
-    } catch (checkError) {
-      console.warn('Error checking Convex connection:', checkError);
-    }
-  }, []);
-  
-  const auth = useSupervisorAuth();
-  const sync = useSyncState();
-  const alerts = useAlerts();
-  const supervisors = useActiveSupervisors();
-  const events = useEvents();
-  const incidents = useIncidents();
-  const alertSync = useAlertSync();
-  const loginTracking = useLoginTracking();
-  const vixDataHook = useVixData();
-  const emailComms = useEmailCommunications();
-  
-  // Early return with complete fallback if hooks are not ready
-  if (!auth || !sync || !alerts || !supervisors || !events || !incidents || !alertSync || !loginTracking || !vixDataHook || !emailComms) {
-    console.warn('Some Convex hooks are not yet initialized, returning fallback');
+  // If API is not available, return fallback immediately
+  if (!api) {
     return createFallbackConvexSync();
   }
-
-  // Safety check for arrays in hooks before accessing
-  const safeAlerts = alerts || {};
-  const safeSupervisors = supervisors || {};
-  const safeEvents = events || {};
-  const safeIncidents = incidents || {};
-  const safeLoginTracking = loginTracking || {};
-  const safeEmailComms = emailComms || {};
-
-  // Get stored session ID on mount
+  
+  // Use all hooks unconditionally (Rules of Hooks)
+  // Supervisor auth
+  const [sessionId, setSessionId] = useState(null);
+  const login = useSafeMutation(api.supervisors?.login);
+  const logout = useSafeMutation(api.supervisors?.logout);
+  const session = sessionId ? useSafeQuery(api.supervisors?.getSession, { sessionId }) : null;
+  
+  // Sync state
+  const syncState = useSafeQuery(api.sync?.getSyncState);
+  const setDisplayMode = useSafeMutation(api.sync?.setDisplayMode);
+  const addCustomMessage = useSafeMutation(api.sync?.addCustomMessage);
+  const removeCustomMessage = useSafeMutation(api.sync?.removeCustomMessage);
+  
+  // Alerts
+  const activeAlertsRaw = useSafeQuery(api.alerts?.getActiveAlerts);
+  const dismissedAlertsRaw = useSafeQuery(api.alerts?.getDismissedAlerts);
+  const acknowledge = useSafeMutation(api.alerts?.acknowledge);
+  const dismissFromDisplay = useSafeMutation(api.alerts?.dismissFromDisplay);
+  const toggleDisplayLock = useSafeMutation(api.alerts?.toggleDisplayLock);
+  const overridePriority = useSafeMutation(api.alerts?.overridePriority);
+  const addNote = useSafeMutation(api.alerts?.addNote);
+  const pushToDisplay = useSafeMutation(api.alerts?.pushToDisplay);
+  const removeFromDisplay = useSafeMutation(api.alerts?.removeFromDisplay);
+  
+  // Supervisors
+  const activeSupervisorsRaw = useSafeQuery(api.supervisors?.getActiveSupervisors);
+  const forceLogout = useSafeMutation(api.supervisors?.forceLogout);
+  
+  // Events
+  const activeEventsRaw = useSafeQuery(api.sync?.getActiveEvents);
+  const mostSevereEvent = useSafeQuery(api.sync?.getMostSevereEvent);
+  const upsertEvent = useSafeMutation(api.sync?.upsertEvent);
+  const updateEventStatus = useSafeMutation(api.sync?.updateEventStatus);
+  
+  // Incidents
+  const activeIncidents = useSafeQuery(api.sync?.getActiveIncidents);
+  const allIncidents = useSafeQuery(api.sync?.getAllIncidents);
+  const createIncident = useSafeMutation(api.sync?.createIncident);
+  const updateIncident = useSafeMutation(api.sync?.updateIncident);
+  const addIncidentNote = useSafeMutation(api.sync?.addIncidentNote);
+  const sendTicketerMessage = useSafeMutation(api.sync?.sendTicketerMessage);
+  const pushIncidentToDisplay = useSafeMutation(api.sync?.pushIncidentToDisplay);
+  
+  // VIX data
+  const vixData = useSafeQuery(api.vixData?.getVixData);
+  const updateVixData = useSafeMutation(api.vixData?.updateVixData);
+  const clearVixData = useSafeMutation(api.vixData?.clearVixData);
+  
+  // Email communications
+  const emailTemplates = useSafeQuery(api.communications?.getEmailTemplates);
+  const distributionLists = useSafeQuery(api.communications?.getDistributionLists);
+  const communicationLogs = useSafeQuery(api.communications?.getRecentCommunications);
+  const saveEmailTemplate = useSafeMutation(api.communications?.saveEmailTemplate);
+  const deleteEmailTemplate = useSafeMutation(api.communications?.deleteEmailTemplate);
+  const saveDistributionList = useSafeMutation(api.communications?.saveDistributionList);
+  const deleteDistributionList = useSafeMutation(api.communications?.deleteDistributionList);
+  const logCommunication = useSafeMutation(api.communications?.logCommunication);
+  
+  // Alert sync
+  const batchInsertAlerts = useSafeMutation(api.alerts?.batchInsertAlerts);
+  const syncAlerts = useCallback(async (alerts) => {
+    if (!alerts || !Array.isArray(alerts)) {
+      console.warn('syncAlerts called with invalid alerts:', alerts);
+      return { success: false, error: 'Invalid alerts parameter' };
+    }
+    if (!api) {
+      console.warn('Alert sync skipped - Convex not available');
+      return { success: false, error: 'Convex not available' };
+    }
+    try {
+      const convexAlerts = alerts.map(alert => ({
+        alertId: alert.id || alert.alertId,
+        title: alert.title,
+        description: alert.description,
+        location: alert.location,
+        coordinates: alert.coordinates,
+        severity: alert.severity || 'medium',
+        status: alert.status || 'active',
+        source: alert.source,
+        timestamp: alert.timestamp || Date.now(),
+        affectsRoutes: alert.affectsRoutes || [],
+        routeFrequencies: alert.routeFrequencies,
+      }));
+      const result = await batchInsertAlerts({ alerts: convexAlerts });
+      console.log('Synced alerts to Convex:', result);
+      return result;
+    } catch (error) {
+      console.error('Alert sync error:', error);
+      throw error;
+    }
+  }, [batchInsertAlerts]);
+  
+  // Auth functions
+  const authenticateSupervisor = useCallback(async (credentials) => {
+    try {
+      const result = await login(credentials);
+      if (result.success && result.sessionId) {
+        const stored = convexDebug.safeLocalStorage.setItem('convex_session_id', result.sessionId);
+        if (!stored && typeof window === 'undefined') {
+          await AsyncStorage.setItem('convex_session_id', result.sessionId);
+        }
+        setSessionId(result.sessionId);
+        return result;
+      }
+      return result;
+    } catch (error) {
+      console.error('Convex auth error:', error);
+      throw error;
+    }
+  }, [login]);
+  
+  const logoutSupervisor = useCallback(async (sessionId) => {
+    try {
+      await logout({ sessionId });
+      const removed = convexDebug.safeLocalStorage.removeItem('convex_session_id');
+      if (!removed && typeof window === 'undefined') {
+        await AsyncStorage.removeItem('convex_session_id');
+      }
+      setSessionId(null);
+    } catch (error) {
+      console.error('Convex logout error:', error);
+    }
+  }, [logout]);
+  
+  // Load session on mount
   useEffect(() => {
-    const loadSession = async () => {
+    const loadSessionId = async () => {
       try {
-        // Use fallback if convexDebug isn't ready
-        const debugObj = convexDebug || fallbackConvexDebug;
-        
-        // Extra safety check
-        if (!debugObj || !debugObj.safeLocalStorage) {
-          console.log('Waiting for convexDebug to initialize...');
-          return;
-        }
-        
-        // Try localStorage first for web
-        const storedId = debugObj.safeLocalStorage.getItem('convex_session_id');
+        const storedId = convexDebug.safeLocalStorage.getItem('convex_session_id');
         if (storedId) {
-          console.log('Found stored Convex session in localStorage');
+          setSessionId(storedId);
+          console.log('Loaded Convex session from localStorage');
           return;
         }
-        
-        // Fall back to AsyncStorage only on native
-        if (typeof window === 'undefined' && AsyncStorage) {
+        if (typeof window === 'undefined') {
           try {
-            const sessionId = await AsyncStorage.getItem('convex_session_id');
-            if (sessionId && sessionId !== 'undefined' && sessionId !== 'null') {
-              // Session will be validated by Convex query
-              console.log('Found stored Convex session in AsyncStorage');
+            const id = await AsyncStorage.getItem('convex_session_id');
+            if (id) {
+              setSessionId(id);
             }
-          } catch (asyncStorageError) {
-            // AsyncStorage might not be available on web
-            console.log('AsyncStorage not available, likely running on web');
+          } catch (error) {
+            console.log('AsyncStorage not available');
           }
         }
       } catch (error) {
-        console.error('Error loading session:', error);
+        console.log('Session loading error:', error);
       }
     };
-    
-    // Add a small delay to ensure convexDebug is loaded
-    const timeoutId = setTimeout(loadSession, 100);
-    
-    return () => clearTimeout(timeoutId);
-  }, []); // Empty dependency array - only run on mount
-
-  try {
-    return {
-      // Auth
-      login: auth?.login || noOpMutation,
-      logout: auth?.logout || noOpMutation,
-      session: auth?.session || null,
+    loadSessionId();
+  }, []);
+  
+  // Helper to ensure arrays
+  const ensureArray = (value) => {
+    const debugObj = convexDebug || fallbackConvexDebug;
+    return debugObj.ensureArray(value);
+  };
+  
+  // Return the complete object
+  return {
+    // Auth
+    login: authenticateSupervisor,
+    logout: logoutSupervisor,
+    session,
     
     // Sync state
-    syncState: sync?.syncState || null,
-    setDisplayMode: sync?.setDisplayMode || noOpMutation,
-    addCustomMessage: sync?.addCustomMessage || noOpMutation,
-    removeCustomMessage: sync?.removeCustomMessage || noOpMutation,
+    syncState,
+    setDisplayMode,
+    addCustomMessage,
+    removeCustomMessage,
     
-    // Alerts (with extra safety checks)
-    activeAlerts: (convexDebug || fallbackConvexDebug).ensureArray(alerts?.activeAlerts),
-    dismissedAlerts: (convexDebug || fallbackConvexDebug).ensureArray(alerts?.dismissedAlerts),
-    pushedAlerts: (convexDebug || fallbackConvexDebug).ensureArray(alerts?.pushedAlerts),
-    acknowledge: alerts?.acknowledge || noOpMutation,
-    dismissFromDisplay: alerts?.dismissFromDisplay || noOpMutation,
-    toggleDisplayLock: alerts?.toggleDisplayLock || noOpMutation,
-    overridePriority: alerts?.overridePriority || noOpMutation,
-    addNote: alerts?.addNote || noOpMutation,
-    pushToDisplay: alerts?.pushToDisplay || noOpMutation,
-    removeFromDisplay: alerts?.removeFromDisplay || noOpMutation,
+    // Alerts
+    activeAlerts: ensureArray(activeAlertsRaw),
+    dismissedAlerts: ensureArray(dismissedAlertsRaw),
+    pushedAlerts: [], // Temporary fix
+    acknowledge,
+    dismissFromDisplay,
+    toggleDisplayLock,
+    overridePriority,
+    addNote,
+    pushToDisplay,
+    removeFromDisplay,
     
-    // Supervisors (with extra safety checks)
-    activeSupervisors: (convexDebug || fallbackConvexDebug).ensureArray(supervisors?.activeSupervisors),
-    forceLogout: supervisors?.forceLogout || noOpMutation,
+    // Supervisors
+    activeSupervisors: ensureArray(activeSupervisorsRaw),
+    forceLogout,
     
-    // Events (with extra safety checks)
-    activeEvents: (convexDebug || fallbackConvexDebug).ensureArray(events?.activeEvents),
-    mostSevereEvent: events?.mostSevereEvent || null,
-    upsertEvent: events?.upsertEvent || noOpMutation,
-    updateEventStatus: events?.updateEventStatus || noOpMutation,
+    // Events
+    activeEvents: ensureArray(activeEventsRaw),
+    mostSevereEvent,
+    upsertEvent,
+    updateEventStatus,
     
-    // Incidents (with extra safety checks)
-    activeIncidents: (convexDebug || fallbackConvexDebug).ensureArray(incidents?.activeIncidents),
-    allIncidents: (convexDebug || fallbackConvexDebug).ensureArray(incidents?.allIncidents),
-    createIncident: incidents?.createIncident || noOpMutation,
-    updateIncident: incidents?.updateIncident || noOpMutation,
-    addIncidentNote: incidents?.addIncidentNote || noOpMutation,
-    sendTicketerMessage: incidents?.sendTicketerMessage || noOpMutation,
-    pushIncidentToDisplay: incidents?.pushIncidentToDisplay || noOpMutation,
-    incidentsLoading: incidents?.loading || false,
-    // Enhanced incident functions
-    convertAlertToIncident: incidents?.convertAlertToIncident || noOpMutation,
-    addIncidentAction: incidents?.addIncidentAction || noOpMutation,
-    archiveIncident: incidents?.archiveIncident || noOpMutation,
-    getIncidentWithActions: incidents?.getIncidentWithActions,
-    getIncidentsByStatus: incidents?.getIncidentsByStatus,
-    searchArchivedIncidents: incidents?.searchArchivedIncidents,
-    getIncidentStats: incidents?.getIncidentStats,
+    // Incidents
+    activeIncidents: ensureArray(activeIncidents),
+    allIncidents: ensureArray(allIncidents),
+    createIncident,
+    updateIncident,
+    addIncidentNote,
+    sendTicketerMessage,
+    pushIncidentToDisplay,
+    incidentsLoading: activeIncidents === undefined,
+    convertAlertToIncident: noOpMutation,
+    addIncidentAction: noOpMutation,
+    archiveIncident: noOpMutation,
+    getIncidentWithActions: undefined,
+    getIncidentsByStatus: undefined,
+    searchArchivedIncidents: undefined,
+    getIncidentStats: undefined,
     
     // Alert sync
-    syncAlerts: alertSync?.syncAlerts || (() => {}),
+    syncAlerts,
     
-    // Login tracking (with extra safety checks)
-    recentLogins: (convexDebug || fallbackConvexDebug).ensureArray(loginTracking?.recentLogins),
-    loginHistory: (convexDebug || fallbackConvexDebug).ensureArray(loginTracking?.loginHistory),
-    trackLogin: loginTracking?.trackLogin || noOpMutation,
+    // Login tracking
+    recentLogins: [],
+    loginHistory: [],
+    trackLogin: noOpMutation,
     
     // VIX data
-    vixData: vixDataHook?.vixData || null,
-    updateVixData: vixDataHook?.updateVixData || noOpMutation,
-    clearVixData: vixDataHook?.clearVixData || noOpMutation,
+    vixData: vixData || null,
+    updateVixData,
+    clearVixData,
     
     // Email communications
-    emailTemplates: (convexDebug || fallbackConvexDebug).ensureArray(emailComms?.emailTemplates),
-    distributionLists: (convexDebug || fallbackConvexDebug).ensureArray(emailComms?.distributionLists),
-    communicationLogs: (convexDebug || fallbackConvexDebug).ensureArray(emailComms?.communicationLogs),
-    saveEmailTemplate: emailComms?.saveEmailTemplate || noOpMutation,
-    deleteEmailTemplate: emailComms?.deleteEmailTemplate || noOpMutation,
-    saveDistributionList: emailComms?.saveDistributionList || noOpMutation,
-    deleteDistributionList: emailComms?.deleteDistributionList || noOpMutation,
-    logCommunication: emailComms?.logCommunication || noOpMutation,
-    };
-  } catch (error) {
-    console.error('Error in useConvexSync return statement:', error);
-    // Return a complete fallback object
-    return createFallbackConvexSync();
+    emailTemplates: ensureArray(emailTemplates),
+    distributionLists: ensureArray(distributionLists),
+    communicationLogs: ensureArray(communicationLogs),
+    saveEmailTemplate,
+    deleteEmailTemplate,
+    saveDistributionList,
+    deleteDistributionList,
+    logCommunication,
+  };
+}
+
+// Main export is the useConvexSync hook above
+// Individual hooks can be extracted from the main hook if needed
+
+
+// Additional utility hooks
+export function useSupervisorActions(options = {}) {
+  const { supervisorId, alertId, limit = 50 } = options;
+
+  let actions;
+  if (!api) {
+    actions = [];
+  } else if (supervisorId) {
+    actions = useSafeQuery(api.sync?.getSupervisorActions, { supervisorId, limit });
+  } else if (alertId) {
+    actions = useSafeQuery(api.sync?.getAlertActions, { alertId });
+  } else {
+    actions = useSafeQuery(api.sync?.getRecentActions, { limit });
   }
+
+  return actions || [];
+}
+
+export function useLoginTracking() {
+  return {
+    recentLogins: [],
+    loginHistory: [],
+    trackLogin: noOpMutation,
+  };
+}
+
+export function useHeartbeat(sessionId, interval = 30000) {
+  const heartbeat = useSafeMutation(api?.sync?.heartbeat);
+  const intervalRef = useRef();
+
+  useEffect(() => {
+    if (!sessionId || !api) return;
+
+    let convexSessionId = sessionId;
+    if (typeof sessionId === 'string' && sessionId.startsWith('session-')) {
+      console.log('Skipping heartbeat for non-Convex session:', sessionId);
+      return;
+    }
+
+    const sendHeartbeat = async () => {
+      try {
+        await heartbeat({ sessionId: convexSessionId });
+      } catch (error) {
+        console.error('Heartbeat error:', error);
+      }
+    };
+
+    sendHeartbeat();
+    intervalRef.current = setInterval(sendHeartbeat, interval);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [sessionId, heartbeat, interval]);
 }
