@@ -1,7 +1,7 @@
 // Go_BARRY/components/messaging/QuickActions.jsx
-// Quick action buttons for message creation
+// Quick action buttons for message creation with alert integration
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,12 @@ import {
   Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AlertMessageGenerator from './AlertMessageGenerator';
 
-const QuickActions = ({ onActionSelect }) => {
+const QuickActions = ({ onActionSelect, onMessageGenerated }) => {
+  const [showAlertGenerator, setShowAlertGenerator] = useState(false);
+  const [alertType, setAlertType] = useState('roadwork');
+
   const actions = [
     {
       id: 'roadwork',
@@ -37,20 +41,27 @@ const QuickActions = ({ onActionSelect }) => {
   ];
 
   const handleAction = (actionId) => {
-    if (onActionSelect) {
+    if (actionId === 'roadwork') {
+      setAlertType('roadwork');
+      setShowAlertGenerator(true);
+    } else if (actionId === 'incident') {
+      setAlertType('incident');
+      setShowAlertGenerator(true);
+    } else if (onActionSelect) {
       onActionSelect(actionId);
     } else {
       switch (actionId) {
-        case 'roadwork':
-          Alert.alert('Roadwork Alert', 'Select an active roadwork from the system to create an alert.');
-          break;
-        case 'incident':
-          Alert.alert('Incident Alert', 'Select an active incident from the system to create an alert.');
-          break;
         case 'custom':
           Alert.alert('Custom Message', 'Starting with a blank message template.');
           break;
       }
+    }
+  };
+
+  const handleAlertMessageGenerated = (messageData) => {
+    setShowAlertGenerator(false);
+    if (onMessageGenerated) {
+      onMessageGenerated(messageData);
     }
   };
 
@@ -69,9 +80,21 @@ const QuickActions = ({ onActionSelect }) => {
             </View>
             <Text style={styles.label}>{action.label}</Text>
             <Text style={styles.description}>{action.description}</Text>
+            {(action.id === 'roadwork' || action.id === 'incident') && (
+              <View style={styles.smartBadge}>
+                <Text style={styles.smartBadgeText}>AI</Text>
+              </View>
+            )}
           </Pressable>
         ))}
       </View>
+
+      <AlertMessageGenerator
+        visible={showAlertGenerator}
+        onClose={() => setShowAlertGenerator(false)}
+        onMessageGenerated={handleAlertMessageGenerated}
+        alertType={alertType}
+      />
     </View>
   );
 };
@@ -99,7 +122,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E2E8F0'
+    borderColor: '#E2E8F0',
+    position: 'relative'
   },
   iconContainer: {
     width: 48,
@@ -120,6 +144,21 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#64748B',
     textAlign: 'center'
+  },
+  smartBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4
+  },
+  smartBadgeText: {
+    fontSize: 8,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.5
   }
 });
 

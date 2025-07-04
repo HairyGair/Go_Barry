@@ -67,7 +67,9 @@ import tomtomUsageAPI from './routes/tomtomUsageAPI.js';
 import activityLogsAPI from './routes/activityLogs.js';
 import dutyAPI from './routes/dutyAPI.js';
 import messagingAPI from './routes/messagingAPI.js';
+import messageHistoryRoutes from './routes/messageHistoryRoutes.js';
 import analyticsAPI from './routes/analyticsAPI.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
 import communicationsAPI from './routes/communications/index.js';
 console.log('✅ communicationsAPI imported successfully');
 import locationCorrectionAPI from './routes/locationCorrectionAPI.js';
@@ -85,6 +87,8 @@ console.log('✅ streetManagerWebhookRouter imported with text body parser');
 import streetManagerActionsAPI from './routes/streetManagerActionsAPI.js';
 console.log('✅ streetManagerActionsAPI imported');
 import unifiedRoadworksAPI from './routes/unifiedRoadworksAPI.js';
+import messageAPI from './routes/messageAPI.js';
+console.log('✅ messageAPI imported');
 
 // Communications API Route
 app.use('/api/communications', communicationsAPI);
@@ -470,6 +474,11 @@ console.log('🙧 Registering StreetManager actions routes at /api/streetmanager
 app.use('/api/streetmanager/actions', streetManagerActionsAPI);
 console.log('✅ StreetManager actions routes registered successfully');
 
+// Message API routes for Message Distribution Centre
+console.log('💬 Registering message API routes at /api/messages...');
+app.use('/api/messages', messageAPI);
+console.log('✅ Message API routes registered successfully');
+
 // Test endpoint for roadwork alerts debugging (after main router)
 app.get('/api/roadwork-alerts-test', (req, res) => {
   res.json({
@@ -619,12 +628,21 @@ console.log('✅ Duty management routes registered');
 // Messaging routes
 console.log('📦 Registering messaging routes at /api/messaging...');
 app.use('/api/messaging', messagingAPI);
+app.use('/api/messages', messageHistoryRoutes);
 console.log('✅ Messaging routes registered successfully');
+console.log('✅ Message history routes registered at /api/messages');
 
 // Analytics routes
 console.log('📊 Registering analytics routes at /api/analytics...');
 app.use('/api/analytics', analyticsAPI);
 console.log('✅ Analytics routes registered successfully');
+
+// Phase 7 Analytics routes (Message Distribution Centre)
+console.log('📊 Registering Phase 7 analytics routes...');
+app.use('/api/messages', analyticsRoutes);
+app.use('/api/integrations', analyticsRoutes);
+app.use('/api/search', analyticsRoutes);
+console.log('✅ Phase 7 analytics routes registered successfully');
 
 // Location correction routes
 console.log('📍 Registering location correction routes at /api/location...');

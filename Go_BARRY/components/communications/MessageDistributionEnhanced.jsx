@@ -24,6 +24,15 @@ import { useSupervisor } from '../hooks/useSupervisorSession';
 import { useConvexSync } from '../../hooks/useConvexSync';
 import { useMessageTemplates } from '../hooks/useMessageTemplates';
 import TemplateManager from '../messaging/TemplateManager';
+import QuickActions from '../messaging/QuickActions';
+import MessageHistory from '../messaging/MessageHistory';
+import MessageAuditLog from '../messaging/MessageAuditLog';
+// Phase 7 Components
+import MessageAnalytics from '../messaging/MessageAnalytics';
+import BulkMessageManager from '../messaging/BulkMessageManager';
+import MessageScheduler from '../messaging/MessageScheduler';
+import IntegrationStatus from '../messaging/IntegrationStatus';
+import AdvancedSearch from '../messaging/AdvancedSearch';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -47,6 +56,15 @@ const MessageDistributionEnhanced = ({ baseUrl, onClose, visible = true }) => {
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [copiedMessage, setCopiedMessage] = useState(null);
   const [showTemplateManager, setShowTemplateManager] = useState(false);
+  const [showMessageHistory, setShowMessageHistory] = useState(false);
+  const [showAuditLog, setShowAuditLog] = useState(false);
+  
+  // Phase 7 Modal states
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showBulkManager, setShowBulkManager] = useState(false);
+  const [showScheduler, setShowScheduler] = useState(false);
+  const [showIntegrationStatus, setShowIntegrationStatus] = useState(false);
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
   
   // Message composition state
   const [messageForm, setMessageForm] = useState({
@@ -91,6 +109,70 @@ const MessageDistributionEnhanced = ({ baseUrl, onClose, visible = true }) => {
       description: 'Send emails to directors and management',
       authRequired: true,
       authMessage: 'Outlook requires Microsoft 365 login. Use "Open in New Window" to access the portal directly.'
+    },
+    {
+      id: 'history',
+      name: 'Message History',
+      icon: 'time',
+      color: '#F59E0B',
+      description: 'View sent messages, drafts, and scheduled messages',
+      authRequired: false,
+      isModal: true
+    },
+    {
+      id: 'audit',
+      name: 'Audit Log',
+      icon: 'shield-checkmark',
+      color: '#DC2626',
+      description: 'Track all message activities and changes',
+      authRequired: false,
+      isModal: true
+    },
+    // Phase 7 Advanced Features
+    {
+      id: 'analytics',
+      name: 'Analytics',
+      icon: 'stats-chart',
+      color: '#3B82F6',
+      description: 'View delivery metrics and performance insights',
+      authRequired: false,
+      isModal: true
+    },
+    {
+      id: 'bulk',
+      name: 'Bulk Manager',
+      icon: 'checkbox',
+      color: '#10B981',
+      description: 'Select and manage multiple messages at once',
+      authRequired: false,
+      isModal: true
+    },
+    {
+      id: 'scheduler',
+      name: 'Scheduler',
+      icon: 'calendar',
+      color: '#8B5CF6',
+      description: 'Advanced scheduling and recurring messages',
+      authRequired: false,
+      isModal: true
+    },
+    {
+      id: 'integration',
+      name: 'Integration Status',
+      icon: 'pulse',
+      color: '#EF4444',
+      description: 'Monitor external service health and API status',
+      authRequired: false,
+      isModal: true
+    },
+    {
+      id: 'search',
+      name: 'Advanced Search',
+      icon: 'search',
+      color: '#06B6D4',
+      description: 'Search across messages, templates, and audit logs',
+      authRequired: false,
+      isModal: true
     }
   ];
 
@@ -192,6 +274,40 @@ const MessageDistributionEnhanced = ({ baseUrl, onClose, visible = true }) => {
     }
   };
 
+  // Handle tab press (including modal tabs)
+  const handleTabPress = (tab) => {
+    if (tab.isModal) {
+      switch (tab.id) {
+        case 'history':
+          setShowMessageHistory(true);
+          break;
+        case 'audit':
+          setShowAuditLog(true);
+          break;
+        // Phase 7 Advanced Features
+        case 'analytics':
+          setShowAnalytics(true);
+          break;
+        case 'bulk':
+          setShowBulkManager(true);
+          break;
+        case 'scheduler':
+          setShowScheduler(true);
+          break;
+        case 'integration':
+          setShowIntegrationStatus(true);
+          break;
+        case 'search':
+          setShowAdvancedSearch(true);
+          break;
+        default:
+          setActiveTab(tab.id);
+      }
+    } else {
+      setActiveTab(tab.id);
+    }
+  };
+
   // Handle template selection
   const handleTemplateSelect = async (template) => {
     setMessageForm(prev => ({
@@ -210,12 +326,6 @@ const MessageDistributionEnhanced = ({ baseUrl, onClose, visible = true }) => {
   // Handle quick action
   const handleQuickAction = (actionId) => {
     switch (actionId) {
-      case 'roadwork':
-        Alert.alert('Roadwork Alert', 'Select an active roadwork from the system to create an alert.');
-        break;
-      case 'incident':
-        Alert.alert('Incident Alert', 'Select an active incident from the system to create an alert.');
-        break;
       case 'custom':
         setMessageForm({
           to: [],
@@ -229,6 +339,37 @@ const MessageDistributionEnhanced = ({ baseUrl, onClose, visible = true }) => {
         });
         break;
     }
+  };
+
+  // Handle message generated from alerts
+  const handleMessageGenerated = (messageData) => {
+    setMessageForm(prev => ({
+      ...prev,
+      subject: messageData.subject,
+      message: messageData.content,
+      routes: messageData.routes || [],
+      priority: messageData.priority || 'normal',
+      category: messageData.category || 'general',
+      template: null
+    }));
+    
+    // Log the communication in Convex
+    if (logCommunication) {
+      logCommunication({
+        type: 'message_generated',
+        source: messageData.alertType,
+        alertId: messageData.alertId,
+        routes: messageData.routes,
+        supervisorBadge: supervisorId,
+        timestamp: Date.now()
+      });
+    }
+    
+    Alert.alert(
+      'Message Generated', 
+      'A message has been generated from the alert and populated in the form. You can now copy it to the appropriate channel.',
+      [{ text: 'OK', style: 'default' }]
+    );
   };
 
   // Copy message to clipboard and show modal
@@ -307,7 +448,7 @@ const MessageDistributionEnhanced = ({ baseUrl, onClose, visible = true }) => {
           <Pressable
             key={tab.id}
             style={[styles.tab, isActive && styles.activeTab]}
-            onPress={() => setActiveTab(tab.id)}
+            onPress={() => handleTabPress(tab)}
           >
             <Ionicons
               name={tab.icon}
@@ -324,25 +465,12 @@ const MessageDistributionEnhanced = ({ baseUrl, onClose, visible = true }) => {
     </View>
   );
 
-  // Render quick actions
+  // Render quick actions using the enhanced QuickActions component
   const renderQuickActions = () => (
-    <View style={styles.quickActionsSection}>
-      <Text style={styles.sectionTitle}>Quick Actions</Text>
-      <View style={styles.quickActionsGrid}>
-        {quickActions.map((action) => (
-          <Pressable
-            key={action.id}
-            style={styles.quickActionCard}
-            onPress={() => handleQuickAction(action.id)}
-          >
-            <View style={[styles.quickActionIcon, { backgroundColor: action.color + '20' }]}>
-              <Ionicons name={action.icon} size={24} color={action.color} />
-            </View>
-            <Text style={styles.quickActionLabel}>{action.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
+    <QuickActions 
+      onActionSelect={handleQuickAction}
+      onMessageGenerated={handleMessageGenerated}
+    />
   );
 
   // Render message composition
@@ -721,6 +849,44 @@ const MessageDistributionEnhanced = ({ baseUrl, onClose, visible = true }) => {
             </View>
           </Modal>
         )}
+
+        {/* Phase 6: Message History Modal */}
+        <MessageHistory
+          visible={showMessageHistory}
+          onClose={() => setShowMessageHistory(false)}
+        />
+
+        {/* Phase 6: Audit Log Modal */}
+        <MessageAuditLog
+          visible={showAuditLog}
+          onClose={() => setShowAuditLog(false)}
+        />
+
+        {/* Phase 7: Advanced Features Modals */}
+        <MessageAnalytics
+          visible={showAnalytics}
+          onClose={() => setShowAnalytics(false)}
+        />
+
+        <BulkMessageManager
+          visible={showBulkManager}
+          onClose={() => setShowBulkManager(false)}
+        />
+
+        <MessageScheduler
+          visible={showScheduler}
+          onClose={() => setShowScheduler(false)}
+        />
+
+        <IntegrationStatus
+          visible={showIntegrationStatus}
+          onClose={() => setShowIntegrationStatus(false)}
+        />
+
+        <AdvancedSearch
+          visible={showAdvancedSearch}
+          onClose={() => setShowAdvancedSearch(false)}
+        />
       </View>
     </Modal>
   );

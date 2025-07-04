@@ -650,6 +650,293 @@ class EnhancedGTFSMatcher {
     
     return nearbyStops.sort((a, b) => a.distance - b.distance);
   }
+
+  // NEW: Enhanced function for Message Distribution Centre - Phase 5
+  async getAffectedRoutes(location, radius = 500, options = {}) {
+    await this.initialize();
+    
+    try {
+      let matches = [];
+      
+      // Handle different input types
+      if (typeof location === 'string') {
+        // Text-based location matching
+        matches = await this.matchLocationToRoutes(location, options);
+      } else if (location.lat && location.lng) {
+        // Coordinate-based matching
+        const result = await this.matchRoutesEnhanced(location.lat, location.lng, {
+          radius,
+          maxResults: 50,
+          includeStops: true,
+          includeShapes: true,
+          confidenceThreshold: 0.1,
+          ...options
+        });
+        matches = result.matches || [];
+      } else {
+        throw new Error('Invalid location input - must be coordinates {lat, lng} or location string');
+      }
+
+      // Enhance matches with route impact analysis
+      const enhancedMatches = matches.map(match => {
+        const impactLevel = this.calculateRouteImpactLevel(match);
+        const diversionSuggestions = this.generateDiversionSuggestions(match);
+        
+        return {
+          routeId: match.routeId || match.routeName,
+          routeName: match.routeName || match.routeId,
+          routeLongName: match.routeLongName || '',
+          confidence: match.confidence || 0,
+          distance: match.distance || null,
+          impactLevel, // 'high', 'medium', 'low'
+          diversionSuggestions,
+          stops: this.getRouteStopsInArea(match.routeId, location, radius * 2),
+          estimatedPassengers: this.estimatePassengerImpact(match.routeId),
+          operationalPriority: this.calculateOperationalPriority(match.routeId),
+          matchType: match.matchType || 'standard'
+        };
+      });
+
+      // Sort by operational impact (high impact routes first)
+      const sortedMatches = enhancedMatches.sort((a, b) => {
+        // Primary: Impact level (high > medium > low)
+        const impactOrder = { high: 3, medium: 2, low: 1 };
+        if (impactOrder[a.impactLevel] !== impactOrder[b.impactLevel]) {
+          return impactOrder[b.impactLevel] - impactOrder[a.impactLevel];
+        }
+        
+        // Secondary: Confidence
+        if (Math.abs(a.confidence - b.confidence) > 0.1) {
+          return b.confidence - a.confidence;
+        }
+        
+        // Tertiary: Distance
+        return (a.distance || Infinity) - (b.distance || Infinity);
+      });
+
+      return {
+        success: true,
+        location: typeof location === 'string' ? location : `${location.lat}, ${location.lng}`,
+        totalRoutes: sortedMatches.length,
+        highImpactRoutes: sortedMatches.filter(r => r.impactLevel === 'high').length,
+        mediumImpactRoutes: sortedMatches.filter(r => r.impactLevel === 'medium').length,
+        lowImpactRoutes: sortedMatches.filter(r => r.impactLevel === 'low').length,
+        routes: sortedMatches,
+        searchRadius: radius,
+        generatedAt: new Date().toISOString()
+      };
+
+    } catch (error) {
+      console.error('❌ getAffectedRoutes error:', error);
+      return {
+        success: false,
+        error: error.message,
+        location: typeof location === 'string' ? location : `${location.lat}, ${location.lng}`,
+        routes: []
+      };
+    }
+  }
+
+  // Helper: Match location text to routes
+  async matchLocationToRoutes(locationText, options = {}) {
+    const location = locationText.toLowerCase();
+    const matches = [];
+
+    // Enhanced location-to-route mapping for Go North East
+    const locationMappings = {
+      'high level bridge': {
+        routes: ['1', '10', '10A', '10B', '11', '11X', '12', '12A', 'Q3', '21', '28B', '29', '56', '57', '58', '84', '85', '93', '94'],
+        confidence: 0.95,
+        description: 'Major Tyne crossing - affects most Newcastle-Gateshead services'
+      },
+      'a1': {
+        routes: ['21', 'X21', '309', '310', '311', '685'],
+        confidence: 0.90,
+        description: 'Main north-south corridor'
+      },
+      'team valley': {
+        routes: ['21', 'X21', '685'],
+        confidence: 0.85,
+        description: 'Major retail and business area'
+      },
+      'central station': {
+        routes: ['10', '11', '12', '21', '56', '57', '58'],
+        confidence: 0.90,
+        description: 'Main transport interchange'
+      },
+      'a19': {
+        routes: ['1', '309', '310', '311', '19'],
+        confidence: 0.85,
+        description: 'Coast road and tunnel approach'
+      },
+      'grey street': {
+        routes: ['1', '12', '21', 'Q3', '56', '57'],
+        confidence: 0.80,
+        description: 'Newcastle city centre'
+      },
+      'a167': {
+        routes: ['21', 'X21', '25', '28', '28A'],
+        confidence: 0.85,
+        description: 'Durham Road corridor'
+      },
+      'a184': {
+        routes: ['27', '28', '28A'],
+        confidence: 0.80,
+        description: 'Felling and Washington corridor'
+      },
+      'durham': {
+        routes: ['21', 'X21', '6', '50'],
+        confidence: 0.85,
+        description: 'Durham city services'
+      },
+      'sunderland': {
+        routes: ['16', '20', '35', '36', '61', '62'],
+        confidence: 0.85,
+        description: 'Sunderland city services'
+      }
+    };
+
+    // Check for direct matches
+    for (const [key, mapping] of Object.entries(locationMappings)) {
+      if (location.includes(key)) {
+        mapping.routes.forEach(routeId => {
+          matches.push({
+            routeId,
+            routeName: routeId,
+            confidence: mapping.confidence,
+            matchType: 'location_mapping',
+            description: mapping.description
+          });
+        });
+        break; // Use first match to avoid duplicates
+      }
+    }
+
+    // If no direct match, try fuzzy matching
+    if (matches.length === 0) {
+      // Extract potential route numbers from location text
+      const routePattern = /\b(Q\d+|X\d+|\d+[A-Z]*)\b/gi;
+      const foundRoutes = locationText.match(routePattern);
+      
+      if (foundRoutes) {
+        foundRoutes.forEach(routeId => {
+          matches.push({
+            routeId,
+            routeName: routeId,
+            confidence: 0.7,
+            matchType: 'text_extraction',
+            description: 'Route extracted from location text'
+          });
+        });
+      }
+    }
+
+    return matches;
+  }
+
+  // Helper: Calculate route impact level
+  calculateRouteImpactLevel(match) {
+    const routeId = match.routeId || match.routeName;
+    
+    // High-frequency/high-importance routes
+    const highImpactRoutes = ['21', 'X21', '1', '10', '11', '12', 'Q3'];
+    const mediumImpactRoutes = ['56', '57', '58', '309', '310', '311', '25', '28'];
+    
+    if (highImpactRoutes.includes(routeId)) {
+      return 'high';
+    } else if (mediumImpactRoutes.includes(routeId)) {
+      return 'medium';
+    } else {
+      return 'low';
+    }
+  }
+
+  // Helper: Generate diversion suggestions
+  generateDiversionSuggestions(match) {
+    const routeId = match.routeId || match.routeName;
+    
+    // Common diversion patterns for Go North East
+    const diversionMap = {
+      '21': ['Use X21 for express service', 'Via A167 if A1 affected'],
+      'X21': ['Use service 21 for local stops', 'Via Durham if direct route blocked'],
+      '1': ['Use Metro for Tyne crossing', 'Services 12/Q3 for city centre'],
+      '10': ['Use services 11/12 for similar route', 'Metro for river crossing'],
+      '11': ['Use services 10/12 for alternative', 'Central Station for connections'],
+      '12': ['Use services 10/11 for similar areas', 'Q3 for city centre'],
+      'Q3': ['Use services 12/21 for city centre', 'Metro for Quayside area']
+    };
+
+    return diversionMap[routeId] || ['Monitor for alternative routes', 'Check live departures'];
+  }
+
+  // Helper: Get route stops in area
+  getRouteStopsInArea(routeId, location, radius) {
+    const routeStops = this.stopsByRoute.get(routeId) || [];
+    
+    if (typeof location === 'string') {
+      // For text locations, return sample stops
+      return routeStops.slice(0, 5).map(stop => ({
+        stopId: stop.stop_id,
+        stopName: stop.stop_name,
+        inArea: true
+      }));
+    }
+    
+    // For coordinates, find stops within radius
+    return routeStops
+      .filter(stop => {
+        if (!stop.lat || !stop.lng) return false;
+        const distance = this.calculateDistance(
+          location.lat, location.lng,
+          stop.lat, stop.lng
+        );
+        return distance <= radius;
+      })
+      .map(stop => ({
+        stopId: stop.stop_id,
+        stopName: stop.stop_name,
+        distance: this.calculateDistance(
+          location.lat, location.lng,
+          stop.lat, stop.lng
+        ),
+        inArea: true
+      }))
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 10); // Limit to 10 closest stops
+  }
+
+  // Helper: Estimate passenger impact
+  estimatePassengerImpact(routeId) {
+    // Based on typical Go North East route frequencies and importance
+    const passengerEstimates = {
+      '21': 'Very High (800+ daily passengers)',
+      'X21': 'High (500+ daily passengers)', 
+      '1': 'High (600+ daily passengers)',
+      '10': 'Medium (300+ daily passengers)',
+      '11': 'Medium (300+ daily passengers)',
+      '12': 'Medium (400+ daily passengers)',
+      'Q3': 'Medium (350+ daily passengers)',
+      '56': 'Medium (250+ daily passengers)',
+      '57': 'Medium (250+ daily passengers)',
+      '58': 'Medium (200+ daily passengers)'
+    };
+
+    return passengerEstimates[routeId] || 'Low-Medium (50-200 daily passengers)';
+  }
+
+  // Helper: Calculate operational priority
+  calculateOperationalPriority(routeId) {
+    const highPriorityRoutes = ['21', 'X21', '1', 'Q3'];
+    const mediumPriorityRoutes = ['10', '11', '12', '56', '57', '58'];
+    
+    if (highPriorityRoutes.includes(routeId)) {
+      return 'Critical - Immediate attention required';
+    } else if (mediumPriorityRoutes.includes(routeId)) {
+      return 'High - Monitor closely';
+    } else {
+      return 'Standard - Monitor as needed';
+    }
+  }
 }
 
 // Create singleton instance
