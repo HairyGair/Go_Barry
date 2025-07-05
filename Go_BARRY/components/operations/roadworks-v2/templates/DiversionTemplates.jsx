@@ -39,7 +39,7 @@ const DiversionTemplates = ({ baseUrl, sessionId, supervisorName }) => {
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${baseUrl}/api/diversion-templates`, {
+      const response = await fetch(`${baseUrl}/api/roadworks-v2/diversion-templates`, {
         headers: {
           'x-session-id': sessionId,
           'x-supervisor': supervisorName
@@ -64,7 +64,15 @@ const DiversionTemplates = ({ baseUrl, sessionId, supervisorName }) => {
       }
     } catch (error) {
       console.error('Failed to fetch templates:', error);
-      Alert.alert('Error', 'Failed to load diversion templates');
+      
+      // Handle different types of errors gracefully
+      if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+        // Network error - backend might not be available
+        console.warn('Backend not available for diversion templates, using fallback data');
+        setTemplates([]); // Empty array as fallback
+      } else {
+        Alert.alert('Error', 'Failed to load diversion templates. Please try again later.');
+      }
     } finally {
       setLoading(false);
     }

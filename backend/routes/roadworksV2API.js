@@ -126,6 +126,28 @@ router.post('/search', async (req, res) => {
   }
 });
 
+// Get all diversion templates
+router.get('/diversion-templates', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('diversion_templates')
+      .select('*')
+      .eq('active', true)
+      .order('usage_count', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      templates: data || [],
+      count: data?.length || 0
+    });
+  } catch (error) {
+    console.error('❌ Error fetching all diversion templates:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Get diversion templates for a route
 router.get('/diversion-templates/:routeId', async (req, res) => {
   try {
