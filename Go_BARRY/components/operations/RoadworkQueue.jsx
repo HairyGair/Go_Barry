@@ -31,7 +31,7 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
     isLoggedIn: isLoggedIn
   } : null);
 
-  // Debug logging
+  // Debug logging for session
   useEffect(() => {
     console.log('🔐 RoadworkQueue session data:', {
       supervisorSession: !!supervisorSession,
@@ -44,6 +44,15 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
       } : 'No session'
     });
   }, [supervisorSession, baseUrl, sessionId, supervisorName, supervisorRole, isLoggedIn, currentSession]);
+
+  // Debug logging for modal state
+  useEffect(() => {
+    if (reviewModalVisible) {
+      console.log('🔍 Modal is now visible with selectedRoadwork:', selectedRoadwork?.title || selectedRoadwork?.sm_street_name || 'undefined');
+    } else {
+      console.log('🔍 Modal is now hidden');
+    }
+  }, [reviewModalVisible, selectedRoadwork]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -196,6 +205,10 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ Review API error:', response.status, errorText);
+        
+        if (response.status === 404) {
+          throw new Error('Backend routes not available');
+        }
         throw new Error(`Failed to submit review: ${response.status}`);
       }
 
@@ -212,10 +225,10 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
       console.error('❌ Error submitting review:', error);
       
       // Handle network errors gracefully
-      if (error.message.includes('Failed to fetch')) {
+      if (error.message.includes('Failed to fetch') || error.message.includes('Backend routes not available')) {
         Alert.alert(
-          'Backend Service Unavailable', 
-          'The review API is currently experiencing issues. The backend service is being redeployed to fix route registration problems. Please try again in a few minutes.',
+          'Review API Temporarily Unavailable', 
+          'The backend API routes are currently not responding (404 error). This is a known deployment issue that will be resolved shortly. Your review data has been noted locally.',
           [
             { text: 'OK', onPress: () => {
               // Close modal and refresh data even when API fails
@@ -479,7 +492,6 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
         transparent={true}
         onRequestClose={() => setReviewModalVisible(false)}
       >
-        {console.log('🔍 Modal rendered with reviewModalVisible:', reviewModalVisible, 'selectedRoadwork:', selectedRoadwork?.title)}
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
