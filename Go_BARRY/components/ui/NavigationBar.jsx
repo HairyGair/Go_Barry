@@ -31,7 +31,7 @@ const NavigationBar = ({
       id: 'dashboard',
       label: 'Dashboard',
       icon: 'grid',
-      route: '/browser-main',
+      route: '/browser-main-optimized',
       color: '#10B981',
     },
     {

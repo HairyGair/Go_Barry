@@ -81,7 +81,7 @@ const LandingPage = () => {
       description: 'Complete toolkit for traffic supervisors and coordinators',
       icon: 'shield-checkmark',
       color: '#3B82F6',
-      route: '/browser-main',
+      route: '/browser-main-optimized',
       features: [
         'Alert management & dismissal',
         'Team coordination tools',
