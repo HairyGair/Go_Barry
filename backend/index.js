@@ -1259,11 +1259,11 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
       const town = rawData.town || '';
       const areaName = rawData.area_name || '';
       
-      // Immediately exclude Birmingham and other non-North East areas
+      // Immediately exclude Birmingham and other non-North East areas (TEMPORARILY REDUCED)
       const excludePatterns = [
         'BIRMINGHAM', 'STRETTON', 'WALSALL', 'WOLVERHAMPTON', 'COVENTRY', 
-        'LONDON', 'MANCHESTER', 'LIVERPOOL', 'SHEFFIELD', 'LEEDS', 'BRISTOL',
-        'NOTTINGHAM', 'LEICESTER', 'DERBY', 'STOKE', 'PRESTON', 'BLACKBURN'
+        'LONDON', 'MANCHESTER', 'LIVERPOOL', 'BRISTOL'
+        // Temporarily removed: SHEFFIELD, LEEDS, NOTTINGHAM, etc. to see more data
       ];
       const locationString = `${streetName} ${town} ${areaName}`.toUpperCase();
       
@@ -1272,6 +1272,9 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
         console.log(`🚫 Excluding non-North East roadwork: ${locationString}`);
         return false;
       }
+      
+      // DEBUG: Log all locations that pass pre-filtering
+      console.log(`📍 LOCATION PASSED PRE-FILTER: "${locationString}"`);
       
       return true;
     });
@@ -1341,50 +1344,69 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
       };
     });
     
-    // Filter to North East England only
-    const isInNorthEastRegion = (lat, lng) => {
-      if (!lat || !lng) return false;
-      const northEastBounds = {
-        north: 55.8,  // Scottish border
-        south: 54.2,  // Yorkshire border
-        east: -0.5,   // North Sea coast
-        west: -3.0    // Cumbrian border
-      };
-      return lat >= northEastBounds.south && 
-             lat <= northEastBounds.north && 
-             lng >= northEastBounds.west && 
-             lng <= northEastBounds.east;
-    };
-    
-    // Filter roadworks to North East region only
-    const northEastRoadworks = transformedRoadworks.filter((roadwork, index) => {
-      if (roadwork.coordinates && roadwork.coordinates.lat && roadwork.coordinates.lng) {
-        const inRegion = isInNorthEastRegion(roadwork.coordinates.lat, roadwork.coordinates.lng);
-        if (index < 3) { // Debug first few
-          console.log(`🗺️ Coordinate check ${index}: ${roadwork.location} (${roadwork.coordinates.lat}, ${roadwork.coordinates.lng}) -> ${inRegion}`);
-        }
-        return inRegion;
+    // Route-based filtering: Check if roadwork affects Go North East routes
+    const affectsGNERoutes = async (roadwork) => {
+      // 1. Check if already has route assignments
+      if (roadwork.affectsRoutes && Array.isArray(roadwork.affectsRoutes) && roadwork.affectsRoutes.length > 0) {
+        return roadwork.affectsRoutes.some(route => {
+          const routeStr = String(route).toUpperCase();
+          return routeStr.includes('GNE') || /^[1-9][0-9]{0,2}[A-Z]?$/.test(routeStr);
+        });
       }
       
-      // If no coordinates, check location string for North East indicators
+      // 2. Use coordinate-based route matching if coordinates available
+      if (roadwork.coordinates && roadwork.coordinates.lat && roadwork.coordinates.lng) {
+        try {
+          const routes = findRoutesNearCoordinatesFixed(
+            roadwork.coordinates.lat, 
+            roadwork.coordinates.lng, 
+            500 // 500m radius
+          );
+          
+          if (routes.length > 0) {
+            console.log(`🚌 Route match for "${roadwork.location}": ${routes.join(', ')}`);
+            // Update roadwork with found routes
+            roadwork.affectsRoutes = routes;
+            return true;
+          }
+        } catch (error) {
+          console.warn(`⚠️ Route matching failed for ${roadwork.location}:`, error.message);
+        }
+      }
+      
+      // 3. Fallback to location-based matching for key areas
       const location = roadwork.location.toUpperCase();
-      const northEastIndicators = [
+      const keyAreas = [
         'NEWCASTLE', 'GATESHEAD', 'SUNDERLAND', 'DURHAM', 'NORTH TYNESIDE', 'SOUTH TYNESIDE',
-        'NORTHUMBERLAND', 'CRAMLINGTON', 'HEXHAM', 'BLYTH', 'WASHINGTON', 'JARROW',
-        'WALLSEND', 'GOSFORTH', 'JESMOND', 'HEATON', 'WALKER', 'BYKER', 'FELLING'
+        'NORTHUMBERLAND', 'STANLEY', 'WASHINGTON', 'CONSETT', 'CHESTER LE STREET'
       ];
       
-      const hasIndicator = northEastIndicators.some(indicator => location.includes(indicator));
-      if (index < 3) { // Debug first few
-        console.log(`🗺️ Location check ${index}: "${roadwork.location}" -> ${hasIndicator}`);
+      const inKeyArea = keyAreas.some(area => location.includes(area));
+      if (inKeyArea) {
+        console.log(`📍 Key area match for "${roadwork.location}" - assuming affects routes`);
+        return true;
       }
       
-      return hasIndicator;
-    });
+      return false;
+    };
     
-    console.log(`✅ Found ${transformedRoadworks.length} total Street Manager roadworks, ${northEastRoadworks.length} in North East region`);
+    // Filter roadworks to those affecting Go North East routes
+    const gneRoadworks = [];
+    for (const roadwork of transformedRoadworks) {
+      const affects = await affectsGNERoutes(roadwork);
+      if (affects) {
+        gneRoadworks.push(roadwork);
+        console.log(`✅ KEEPING: "${roadwork.location}" - affects GNE routes`);
+      } else {
+        console.log(`❌ FILTERING: "${roadwork.location}" - no GNE route impact`);
+      }
+    }
+    
+    const northEastRoadworks = gneRoadworks;
+    
+    console.log(`✅ Found ${transformedRoadworks.length} total Street Manager roadworks, ${northEastRoadworks.length} affecting GNE routes`);
     if (transformedRoadworks.length > northEastRoadworks.length) {
-      console.log(`🗺️ Filtered out ${transformedRoadworks.length - northEastRoadworks.length} roadworks outside North East region`);
+      console.log(`🚌 Filtered out ${transformedRoadworks.length - northEastRoadworks.length} roadworks with no GNE route impact`);
     }
     
     res.json({
@@ -1395,7 +1417,8 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
         totalUnfiltered: transformedRoadworks.length,
         source: 'streetworks_table',
         lastUpdated: new Date().toISOString(),
-        filtering: 'North East England only'
+        filtering: 'Go North East routes only',
+        method: 'route-based with coordinate matching'
       }
     });
   } catch (error) {
