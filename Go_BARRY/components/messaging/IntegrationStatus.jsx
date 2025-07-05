@@ -56,18 +56,16 @@ const IntegrationStatus = ({ visible, onClose }) => {
         setOverallStatus(data.overallStatus || 'unknown');
         setLastUpdate(new Date());
       } else {
-        // Fallback to mock data
-        const mockData = generateMockServiceData();
-        setServices(mockData.services);
-        setOverallStatus(mockData.overallStatus);
+        // No data available
+        setServices([]);
+        setOverallStatus('unknown');
         setLastUpdate(new Date());
       }
     } catch (error) {
       console.error('Failed to load service status:', error);
-      // Fallback to mock data
-      const mockData = generateMockServiceData();
-      setServices(mockData.services);
-      setOverallStatus(mockData.overallStatus);
+      // No data available
+      setServices([]);
+      setOverallStatus('unknown');
       setLastUpdate(new Date());
     } finally {
       setLoading(false);
@@ -98,132 +96,6 @@ const IntegrationStatus = ({ visible, onClose }) => {
     }
   };
 
-  // Generate mock service data for demonstration
-  const generateMockServiceData = () => {
-    const services = [
-      {
-        id: 'ticketer',
-        name: 'Ticketer Portal',
-        description: 'Driver messaging and fleet management',
-        url: 'https://portal.ticketer.org.uk',
-        status: Math.random() > 0.1 ? 'operational' : 'degraded',
-        responseTime: Math.floor(Math.random() * 500) + 200,
-        uptime: 99.2 + Math.random() * 0.7,
-        lastCheck: new Date(),
-        incidents: Math.floor(Math.random() * 3),
-        type: 'external',
-        critical: true,
-        healthChecks: [
-          { name: 'API Endpoint', status: 'healthy', responseTime: 245 },
-          { name: 'Authentication', status: 'healthy', responseTime: 180 },
-          { name: 'Message Queue', status: 'healthy', responseTime: 95 }
-        ]
-      },
-      {
-        id: 'passenger_cloud',
-        name: 'Passenger Cloud',
-        description: 'Customer messaging and app notifications',
-        url: 'https://gonortheast.passenger-app.com',
-        status: Math.random() > 0.05 ? 'operational' : 'outage',
-        responseTime: Math.floor(Math.random() * 800) + 300,
-        uptime: 98.8 + Math.random() * 1.1,
-        lastCheck: new Date(),
-        incidents: Math.floor(Math.random() * 2),
-        type: 'external',
-        critical: true,
-        healthChecks: [
-          { name: 'Web Portal', status: 'healthy', responseTime: 456 },
-          { name: 'API Gateway', status: 'healthy', responseTime: 320 },
-          { name: 'Push Notifications', status: 'warning', responseTime: 1200 }
-        ]
-      },
-      {
-        id: 'outlook',
-        name: 'Microsoft Outlook',
-        description: 'Email communication system',
-        url: 'https://outlook.office365.com',
-        status: 'operational',
-        responseTime: Math.floor(Math.random() * 400) + 150,
-        uptime: 99.9,
-        lastCheck: new Date(),
-        incidents: 0,
-        type: 'external',
-        critical: false,
-        healthChecks: [
-          { name: 'Exchange Online', status: 'healthy', responseTime: 234 },
-          { name: 'SMTP Gateway', status: 'healthy', responseTime: 156 },
-          { name: 'Calendar Service', status: 'healthy', responseTime: 189 }
-        ]
-      },
-      {
-        id: 'convex',
-        name: 'Convex Sync',
-        description: 'Real-time data synchronization',
-        url: 'https://api.convex.dev',
-        status: Math.random() > 0.02 ? 'operational' : 'degraded',
-        responseTime: Math.floor(Math.random() * 200) + 50,
-        uptime: 99.95,
-        lastCheck: new Date(),
-        incidents: 0,
-        type: 'internal',
-        critical: true,
-        healthChecks: [
-          { name: 'WebSocket Connection', status: 'healthy', responseTime: 85 },
-          { name: 'Database Sync', status: 'healthy', responseTime: 125 },
-          { name: 'Authentication', status: 'healthy', responseTime: 67 }
-        ]
-      },
-      {
-        id: 'supabase',
-        name: 'Supabase Database',
-        description: 'Primary data storage and authentication',
-        url: 'https://supabase.com',
-        status: 'operational',
-        responseTime: Math.floor(Math.random() * 300) + 100,
-        uptime: 99.7,
-        lastCheck: new Date(),
-        incidents: 0,
-        type: 'internal',
-        critical: true,
-        healthChecks: [
-          { name: 'PostgreSQL', status: 'healthy', responseTime: 123 },
-          { name: 'Auth Service', status: 'healthy', responseTime: 187 },
-          { name: 'Storage API', status: 'healthy', responseTime: 156 }
-        ]
-      },
-      {
-        id: 'gtfs',
-        name: 'GTFS Route Matcher',
-        description: 'Route analysis and matching service',
-        url: 'internal://gtfs-matcher',
-        status: Math.random() > 0.1 ? 'operational' : 'warning',
-        responseTime: Math.floor(Math.random() * 1000) + 200,
-        uptime: 98.5,
-        lastCheck: new Date(),
-        incidents: Math.floor(Math.random() * 5),
-        type: 'internal',
-        critical: false,
-        healthChecks: [
-          { name: 'Route Data Cache', status: 'healthy', responseTime: 45 },
-          { name: 'Geocoding Service', status: 'warning', responseTime: 890 },
-          { name: 'Shape Analysis', status: 'healthy', responseTime: 234 }
-        ]
-      }
-    ];
-
-    // Calculate overall status
-    const criticalDown = services.filter(s => s.critical && (s.status === 'outage' || s.status === 'major_outage')).length;
-    const anyDegraded = services.some(s => s.status === 'degraded' || s.status === 'warning');
-    
-    let overallStatus = 'operational';
-    if (criticalDown > 0) {
-      overallStatus = 'outage';
-    } else if (anyDegraded) {
-      overallStatus = 'degraded';
-    }
-
-    return { services, overallStatus };
-  };
 
   // Get status color and icon
   const getStatusInfo = (status) => {

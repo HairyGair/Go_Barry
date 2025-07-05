@@ -98,7 +98,7 @@ const AppCard = ({
       <View style={styles.appFeatures}>
         {features.map((feature, index) => (
           <View key={index} style={styles.featureItem}>
-            <Icon name={feature.icon} size={14} color="#06B6D4" />
+            <Icon name={feature.icon} size={14} color="#3b82f6" />
             <Text style={styles.featureText}>{feature.text}</Text>
           </View>
         ))}
@@ -135,15 +135,18 @@ const AppCard = ({
  * - Text Hierarchy: #fff (primary), #d1d5db (secondary), #9ca3af (tertiary)
  */
 const styles = StyleSheet.create({
-  // Main card container with glass-morphism effect
+  // Main card container with modern design
   appCard: {
-    backgroundColor: 'rgba(0,0,0,0.6)', // Semi-transparent background
-    borderRadius: 24,                   // Large rounded corners for modern look
-    padding: 40,                        // Generous internal padding
-    width: Platform.OS === 'web' ? 400 : '100%', // Responsive width
-    maxWidth: 400,                      // Maximum width constraint
-    borderWidth: 1,                     // Subtle border
-    borderColor: 'rgba(255,255,255,0.2)', // Translucent border for depth
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 24,
+    width: Platform.OS === 'web' ? 'calc(50% - 8px)' : '100%',
+    minWidth: 320,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   // Disabled state with reduced opacity
   disabledCard: {
@@ -151,62 +154,64 @@ const styles = StyleSheet.create({
   },
   // App icon container with rounded corners
   appIcon: {
-    width: 80,                          // Fixed icon container size
-    height: 80,
-    borderRadius: 20,                   // Rounded rectangle shape
-    alignItems: 'center',               // Center icon horizontally
-    justifyContent: 'center',           // Center icon vertically
-    marginBottom: 24,                   // Space below icon
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
   },
   // App title with bold typography
   appTitle: {
-    fontSize: 24,                       // Large, prominent title size
-    fontWeight: '700',                  // Bold weight for hierarchy
-    color: '#fff',                      // High contrast white text
-    marginBottom: 16,                   // Space below title
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1e293b',
+    marginBottom: 12,
   },
   // App description with comfortable reading
   appDescription: {
-    fontSize: 16,                       // Readable body text size
-    color: '#d1d5db',                   // Dimmed white for hierarchy
-    lineHeight: 24,                     // Generous line height for readability
-    marginBottom: 32,                   // Space below description
+    fontSize: 14,
+    color: '#64748b',
+    lineHeight: 20,
+    marginBottom: 20,
   },
   // Features list container
   appFeatures: {
-    marginBottom: 32,                   // Space below features list
+    marginBottom: 20,
   },
   // Individual feature item layout
   featureItem: {
-    flexDirection: 'row',               // Horizontal layout (icon + text)
-    alignItems: 'center',               // Vertically center icon and text
-    gap: 12,                            // Space between icon and text
-    marginBottom: 8,                    // Space between feature items
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
   },
   // Feature description text
   featureText: {
-    fontSize: 14,                       // Smaller text for features
-    color: '#9ca3af',                   // Muted color for supporting info
+    fontSize: 13,
+    color: '#6b7280',
+    flex: 1,
   },
   // Action button with icon and text
   appButton: {
-    flexDirection: 'row',               // Horizontal layout (icon + text)
-    alignItems: 'center',               // Vertically center content
-    justifyContent: 'center',           // Horizontally center content
-    gap: 8,                             // Space between icon and text
-    backgroundColor: '#3b82f6',         // Go BARRY primary blue
-    padding: 16,                        // Comfortable button padding
-    borderRadius: 12,                   // Rounded button corners
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#3b82f6',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
   },
   // Disabled button state
   disabledButton: {
-    backgroundColor: '#6b7280',         // Grayed out background for disabled
+    backgroundColor: '#9ca3af',
   },
   // Button text styling
   appButtonText: {
-    color: '#fff',                      // High contrast white text
-    fontSize: 16,                       // Clear, readable button text
-    fontWeight: '600',                  // Semi-bold for emphasis
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
 

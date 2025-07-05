@@ -101,6 +101,15 @@ const BrowserMain = () => {
     },
     { 
       id: 'disruptions', 
+      title: 'Disruption Manager', 
+      description: 'Unified disruption management with real-time tracking',
+      icon: 'alert-circle', 
+      color: '#DC2626',
+      component: lazy(() => import('../components/disruptions/DisruptionManager')),
+      requiresAuth: true
+    },
+    { 
+      id: 'ai-disruptions', 
       title: 'AI Disruption Manager', 
       description: 'Smart diversions & automated messaging',
       icon: 'flash', 

@@ -75,49 +75,14 @@ const AdvancedSearch = ({ visible, onClose }) => {
       if (data.success) {
         setSavedSearches(data.savedSearches || []);
       } else {
-        setSavedSearches(generateMockSavedSearches());
+        setSavedSearches([]);
       }
     } catch (error) {
       console.error('Failed to load saved searches:', error);
-      setSavedSearches(generateMockSavedSearches());
+      setSavedSearches([]);
     }
   };
 
-  // Generate mock saved searches
-  const generateMockSavedSearches = () => {
-    return [
-      {
-        id: 'search_001',
-        name: 'High Priority Alerts',
-        query: 'URGENT OR priority:urgent',
-        filters: { priority: 'urgent', includeMessages: true, includeAuditLogs: false },
-        createdBy: supervisor?.badgeNumber || 'AG003',
-        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-        lastUsed: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-        useCount: 12
-      },
-      {
-        id: 'search_002',
-        name: 'Route 21 Communications',
-        query: 'route:21 OR "route 21"',
-        filters: { includeMessages: true, includeTemplates: true },
-        createdBy: supervisor?.badgeNumber || 'AG003',
-        createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-        lastUsed: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-        useCount: 8
-      },
-      {
-        id: 'search_003',
-        name: 'Recent Roadwork Messages',
-        query: 'category:roadworks',
-        filters: { category: 'roadworks', dateRange: '7d' },
-        createdBy: 'BP009',
-        createdAt: new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString(),
-        lastUsed: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        useCount: 15
-      }
-    ];
-  };
 
   // Perform search
   const performSearch = async () => {
@@ -145,98 +110,17 @@ const AdvancedSearch = ({ visible, onClose }) => {
       if (data.success) {
         setSearchResults(data.results || []);
       } else {
-        // Fallback to mock search results
-        setSearchResults(generateMockSearchResults());
+        // No search results
+        setSearchResults([]);
       }
     } catch (error) {
       console.error('Search failed:', error);
-      setSearchResults(generateMockSearchResults());
+      setSearchResults([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Generate mock search results
-  const generateMockSearchResults = () => {
-    const query = searchQuery.toLowerCase();
-    const results = [];
-
-    // Mock messages
-    if (searchFilters.includeMessages) {
-      if (query.includes('bridge') || query.includes('urgent')) {
-        results.push({
-          id: 'msg_001',
-          type: 'message',
-          title: 'URGENT: High Level Bridge - Police incident causing full closure',
-          content: 'URGENT ROADWORK NOTIFICATION\n\nLocation: High Level Bridge, Newcastle...',
-          relevance: 0.95,
-          status: 'sent',
-          priority: 'urgent',
-          category: 'incident',
-          createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          createdBy: 'AG003',
-          routes: ['1', '10', '11', '12', '21'],
-          highlights: ['High Level Bridge', 'URGENT', 'police incident']
-        });
-      }
-
-      if (query.includes('21') || query.includes('route')) {
-        results.push({
-          id: 'msg_002',
-          type: 'message',
-          title: 'Service Update: Route 21 Running Late',
-          content: 'Route 21 services are experiencing delays due to traffic congestion...',
-          relevance: 0.88,
-          status: 'sent',
-          priority: 'normal',
-          category: 'service',
-          createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-          createdBy: 'BP009',
-          routes: ['21'],
-          highlights: ['Route 21', 'delays', 'traffic']
-        });
-      }
-    }
-
-    // Mock templates
-    if (searchFilters.includeTemplates) {
-      if (query.includes('roadwork') || query.includes('closure')) {
-        results.push({
-          id: 'tpl_001',
-          type: 'template',
-          title: 'Emergency Road Closure Template',
-          content: 'URGENT ROAD CLOSURE\n\nLocation: [LOCATION]\nDuration: [DURATION]...',
-          relevance: 0.82,
-          category: 'roadworks',
-          createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-          createdBy: 'AG003',
-          useCount: 15,
-          highlights: ['road closure', 'emergency', 'duration']
-        });
-      }
-    }
-
-    // Mock audit logs
-    if (searchFilters.includeAuditLogs) {
-      if (query.includes('sent') || query.includes('message')) {
-        results.push({
-          id: 'audit_001',
-          type: 'audit_log',
-          title: 'Message sent to all recipients',
-          content: 'Action: message_sent, User: AG003, Recipients: 25',
-          relevance: 0.75,
-          action: 'message_sent',
-          createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-          createdBy: 'AG003',
-          messageId: 'msg_001',
-          highlights: ['message sent', 'recipients', '25']
-        });
-      }
-    }
-
-    // Sort by relevance
-    return results.sort((a, b) => b.relevance - a.relevance);
-  };
 
   // Save current search
   const saveCurrentSearch = async () => {

@@ -233,44 +233,68 @@ const MessageDistributionEnhanced = ({ baseUrl, onClose, visible = true }) => {
   // Fetch recent messages
   const fetchRecentMessages = async () => {
     try {
-      // Mock data
-      setRecentMessages([
-        {
-          id: '1',
-          channel: 'driver',
-          subject: 'A1 Closure - All Services',
-          message: 'A1 northbound closed at Team Valley. Use A19 diversion.',
-          timestamp: new Date(Date.now() - 30 * 60 * 1000),
-          priority: 'urgent',
-          sender: supervisorName,
-          recipientCount: 45
-        },
-        {
-          id: '2',
-          channel: 'customer',
-          subject: 'Service 21 Delays',
-          message: 'Minor delays on Service 21 due to congestion in Newcastle city centre.',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-          priority: 'normal',
-          sender: supervisorName,
-          recipientCount: 0
+      const response = await fetch('/api/messages/recent', {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Supervisor-ID': supervisorId || 'unknown'
         }
-      ]);
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setRecentMessages(data.messages || []);
+        } else {
+          setRecentMessages([]);
+        }
+      } else {
+        setRecentMessages([]);
+      }
     } catch (error) {
       console.error('Error fetching recent messages:', error);
+      setRecentMessages([]);
     }
   };
 
   // Fetch message stats
   const fetchMessageStats = async () => {
     try {
-      setMessageStats({
-        todayCount: 12,
-        weekCount: 89,
-        monthCount: 342
+      const response = await fetch('/api/messages/stats', {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Supervisor-ID': supervisorId || 'unknown'
+        }
       });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setMessageStats(data.stats || {
+            todayCount: 0,
+            weekCount: 0,
+            monthCount: 0
+          });
+        } else {
+          setMessageStats({
+            todayCount: 0,
+            weekCount: 0,
+            monthCount: 0
+          });
+        }
+      } else {
+        setMessageStats({
+          todayCount: 0,
+          weekCount: 0,
+          monthCount: 0
+        });
+      }
     } catch (error) {
       console.error('Error fetching stats:', error);
+      setMessageStats({
+        todayCount: 0,
+        weekCount: 0,
+        monthCount: 0
+      });
     }
   };
 
@@ -373,23 +397,97 @@ const MessageDistributionEnhanced = ({ baseUrl, onClose, visible = true }) => {
   };
 
   // Copy message to clipboard and show modal
-  const handleCopyMessage = () => {
+  const handleCopyMessage = async () => {
     if (!messageForm.message.trim()) {
       Alert.alert('Error', 'Please compose a message first');
       return;
     }
 
     const formattedMessage = formatMessageForChannel(activeTab);
+    const currentTab = tabs.find(t => t.id === activeTab);
     
-    if (Platform.OS === 'web') {
-      navigator.clipboard.writeText(formattedMessage).then(() => {
+    // Create message record for history and audit
+    const messageRecord = {
+      id: `copy_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      subject: messageForm.subject || `${currentTab?.name} Message`,
+      content: formattedMessage,
+      channel: activeTab,
+      status: 'copied',
+      priority: messageForm.priority,
+      category: messageForm.category,
+      routes: messageForm.routes,
+      depots: messageForm.depots,
+      createdAt: new Date().toISOString(),
+      createdBy: supervisorId || supervisorName || 'Unknown',
+      action: 'message_copied',
+      details: `Message copied to clipboard for ${currentTab?.name}`
+    };
+
+    try {
+      // Save to message history
+      await fetch('/api/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Supervisor-ID': supervisorId || 'unknown'
+        },
+        body: JSON.stringify({
+          action: 'create',
+          message: messageRecord
+        })
+      });
+
+      // Save to audit log
+      await fetch('/api/messages/audit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Supervisor-ID': supervisorId || 'unknown'
+        },
+        body: JSON.stringify({
+          action: 'message_copied',
+          messageId: messageRecord.id,
+          details: messageRecord.details,
+          userId: supervisorId || supervisorName || 'Unknown',
+          timestamp: new Date().toISOString(),
+          metadata: {
+            channel: activeTab,
+            subject: messageRecord.subject,
+            priority: messageForm.priority,
+            category: messageForm.category,
+            routes: messageForm.routes,
+            messageLength: formattedMessage.length
+          }
+        })
+      });
+
+      // Copy to clipboard
+      if (Platform.OS === 'web') {
+        navigator.clipboard.writeText(formattedMessage).then(() => {
+          setCopiedMessage(formattedMessage);
+          setShowCopyModal(true);
+        });
+      } else {
+        Clipboard.setString(formattedMessage);
         setCopiedMessage(formattedMessage);
         setShowCopyModal(true);
-      });
-    } else {
-      Clipboard.setString(formattedMessage);
-      setCopiedMessage(formattedMessage);
-      setShowCopyModal(true);
+      }
+
+      console.log(`[Copy Message] Logged to history and audit: ${messageRecord.id}`);
+      
+    } catch (error) {
+      console.error('Error logging copy action:', error);
+      // Still copy to clipboard even if logging fails
+      if (Platform.OS === 'web') {
+        navigator.clipboard.writeText(formattedMessage).then(() => {
+          setCopiedMessage(formattedMessage);
+          setShowCopyModal(true);
+        });
+      } else {
+        Clipboard.setString(formattedMessage);
+        setCopiedMessage(formattedMessage);
+        setShowCopyModal(true);
+      }
     }
   };
 

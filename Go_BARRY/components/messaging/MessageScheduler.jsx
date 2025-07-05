@@ -78,11 +78,11 @@ const MessageScheduler = ({ visible, onClose }) => {
       if (data.success) {
         setScheduledMessages(data.scheduledMessages || []);
       } else {
-        setScheduledMessages(generateMockScheduledMessages());
+        setScheduledMessages([]);
       }
     } catch (error) {
       console.error('Failed to load scheduled messages:', error);
-      setScheduledMessages(generateMockScheduledMessages());
+      setScheduledMessages([]);
     } finally {
       setLoading(false);
     }
@@ -103,113 +103,14 @@ const MessageScheduler = ({ visible, onClose }) => {
       if (data.success) {
         setRecurringRules(data.recurringRules || []);
       } else {
-        setRecurringRules(generateMockRecurringRules());
+        setRecurringRules([]);
       }
     } catch (error) {
       console.error('Failed to load recurring rules:', error);
-      setRecurringRules(generateMockRecurringRules());
+      setRecurringRules([]);
     }
   };
 
-  // Generate mock scheduled messages
-  const generateMockScheduledMessages = () => {
-    const now = new Date();
-    return [
-      {
-        id: 'sched_001',
-        title: 'Morning Service Update - Route 21',
-        content: 'Daily morning service status update for Route 21 operations...',
-        routes: ['21'],
-        scheduledFor: new Date(now.getTime() + 60 * 60 * 1000).toISOString(), // 1 hour
-        priority: 'normal',
-        category: 'service',
-        status: 'pending',
-        createdBy: supervisor?.badgeNumber || 'AG003',
-        conditions: [
-          { type: 'weather', operator: 'not_equals', value: 'severe' },
-          { type: 'time', operator: 'between', value: '07:00-09:00' }
-        ]
-      },
-      {
-        id: 'sched_002',
-        title: 'Evening Rush Hour Alert',
-        content: 'Prepare for evening rush hour disruptions...',
-        routes: ['1', '21', '56'],
-        scheduledFor: new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString(), // 8 hours
-        priority: 'urgent',
-        category: 'general',
-        status: 'pending',
-        createdBy: supervisor?.badgeNumber || 'AG003',
-        conditions: [
-          { type: 'day_of_week', operator: 'in', value: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] }
-        ]
-      },
-      {
-        id: 'sched_003',
-        title: 'Weekend Service Reminder',
-        content: 'Weekend service adjustments reminder...',
-        routes: ['56', '57'],
-        scheduledFor: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days
-        priority: 'normal',
-        category: 'service',
-        status: 'pending',
-        createdBy: supervisor?.badgeNumber || 'BP009',
-        conditions: [
-          { type: 'day_of_week', operator: 'in', value: ['saturday', 'sunday'] }
-        ]
-      }
-    ];
-  };
-
-  // Generate mock recurring rules
-  const generateMockRecurringRules = () => {
-    return [
-      {
-        id: 'rec_001',
-        name: 'Daily Morning Briefing',
-        template: 'morning_briefing',
-        frequency: 'daily',
-        time: '08:00',
-        days: [],
-        conditions: [
-          { type: 'day_of_week', operator: 'not_in', value: ['saturday', 'sunday'] }
-        ],
-        active: true,
-        routes: ['21', 'X21', '1'],
-        createdBy: supervisor?.badgeNumber || 'AG003',
-        nextExecution: new Date(Date.now() + 14 * 60 * 60 * 1000).toISOString(),
-        lastExecution: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString()
-      },
-      {
-        id: 'rec_002',
-        name: 'Weekly Route Performance',
-        template: 'performance_summary',
-        frequency: 'weekly',
-        time: '17:00',
-        days: ['friday'],
-        conditions: [],
-        active: true,
-        routes: ['all'],
-        createdBy: supervisor?.badgeNumber || 'BP009',
-        nextExecution: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-        lastExecution: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString()
-      },
-      {
-        id: 'rec_003',
-        name: 'Monthly Safety Reminder',
-        template: 'safety_reminder',
-        frequency: 'monthly',
-        time: '09:00',
-        date: 1,
-        conditions: [],
-        active: false,
-        routes: ['all'],
-        createdBy: supervisor?.badgeNumber || 'AG003',
-        nextExecution: null,
-        lastExecution: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString()
-      }
-    ];
-  };
 
   // Cancel scheduled message
   const cancelScheduledMessage = async (messageId) => {

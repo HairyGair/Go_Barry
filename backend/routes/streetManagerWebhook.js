@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import fetch from 'node-fetch';
 import { createClient } from '@supabase/supabase-js';
 import { processStreetManagerWebhook } from '../services/streetManager.js';
+import { processWebhookToStreetworks } from '../services/streetManagerProcessor.js';
 
 const router = express.Router();
 
@@ -161,7 +162,13 @@ async function handleNotification(snsMessage) {
 
 async function processNotification(notificationData, notificationId) {
   try {
-    // Use the enhanced processing function that includes route matching
+    // Process to new streetworks table for V2 system
+    const v2Result = await processWebhookToStreetworks(notificationData);
+    if (v2Result.success) {
+      console.log(`✅ V2: Streetwork saved for review (${v2Result.autoMatchedRoutes} routes matched)`);
+    }
+    
+    // Also use the enhanced processing function for existing system
     const alert = await processStreetManagerWebhook(notificationData);
     
     if (!alert) {

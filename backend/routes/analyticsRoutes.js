@@ -533,4 +533,98 @@ router.post('/save', (req, res) => {
   }
 });
 
+// GET /api/messages/recent - Get recent messages for main component
+router.get('/recent', (req, res) => {
+  try {
+    const supervisorId = req.headers['x-supervisor-id'];
+    console.log(`[Messages] Getting recent messages for ${supervisorId}`);
+    
+    // Load messages from JSON file
+    const messages = loadJSONFile('messages.json');
+    
+    // Filter and sort recent messages (last 24 hours, max 10)
+    const recentMessages = messages
+      .filter(msg => {
+        const messageTime = new Date(msg.createdAt);
+        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        return messageTime > yesterday;
+      })
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 10)
+      .map(msg => ({
+        id: msg.id,
+        channel: msg.channel,
+        subject: msg.subject,
+        message: msg.content,
+        timestamp: msg.createdAt,
+        priority: msg.priority,
+        sender: msg.createdBy,
+        recipientCount: msg.recipientCount || 0
+      }));
+    
+    res.json({
+      success: true,
+      messages: recentMessages
+    });
+  } catch (error) {
+    console.error('Error getting recent messages:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to load recent messages',
+      messages: []
+    });
+  }
+});
+
+// GET /api/messages/stats - Get message statistics for main component
+router.get('/stats', (req, res) => {
+  try {
+    const supervisorId = req.headers['x-supervisor-id'];
+    console.log(`[Messages] Getting stats for ${supervisorId}`);
+    
+    // Load messages from JSON file
+    const messages = loadJSONFile('messages.json');
+    
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    
+    const todayCount = messages.filter(msg => {
+      const msgDate = new Date(msg.createdAt);
+      return msgDate >= todayStart;
+    }).length;
+    
+    const weekCount = messages.filter(msg => {
+      const msgDate = new Date(msg.createdAt);
+      return msgDate >= weekStart;
+    }).length;
+    
+    const monthCount = messages.filter(msg => {
+      const msgDate = new Date(msg.createdAt);
+      return msgDate >= monthStart;
+    }).length;
+    
+    res.json({
+      success: true,
+      stats: {
+        todayCount,
+        weekCount,
+        monthCount
+      }
+    });
+  } catch (error) {
+    console.error('Error getting message stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to load message stats',
+      stats: {
+        todayCount: 0,
+        weekCount: 0,
+        monthCount: 0
+      }
+    });
+  }
+});
+
 export default router;

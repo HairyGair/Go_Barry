@@ -19,6 +19,7 @@ import type * as buses from "../buses.js";
 import type * as communications from "../communications.js";
 import type * as coordination from "../coordination.js";
 import type * as crons from "../crons.js";
+import type * as disruptions from "../disruptions.js";
 import type * as dutyBoards from "../dutyBoards.js";
 import type * as incidentsEnhanced from "../incidentsEnhanced.js";
 import type * as storage from "../storage.js";
@@ -42,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   communications: typeof communications;
   coordination: typeof coordination;
   crons: typeof crons;
+  disruptions: typeof disruptions;
   dutyBoards: typeof dutyBoards;
   incidentsEnhanced: typeof incidentsEnhanced;
   storage: typeof storage;

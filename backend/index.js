@@ -89,6 +89,8 @@ console.log('✅ streetManagerActionsAPI imported');
 import unifiedRoadworksAPI from './routes/unifiedRoadworksAPI.js';
 import messageAPI from './routes/messageAPI.js';
 console.log('✅ messageAPI imported');
+import roadworksV2API from './routes/roadworksV2API.js';
+console.log('✅ roadworksV2API imported');
 
 // Communications API Route
 app.use('/api/communications', communicationsAPI);
@@ -458,6 +460,11 @@ app.use('/api/roadworks', roadworksAPI);
 // Unified roadworks management API (additional routes under /api/roadworks)
 app.use('/api/roadworks', unifiedRoadworksAPI);
 console.log('✅ unified roadworks API routes registered under /api/roadworks');
+
+// Roadworks V2 API routes
+console.log('🔄 Registering roadworks V2 routes at /api/roadworks-v2...');
+app.use('/api/roadworks-v2', roadworksV2API);
+console.log('✅ Roadworks V2 routes registered successfully');
 
 // GTFS routes for route matching and testing
 console.log('🚌 Registering GTFS routes at /api/gtfs...');
@@ -1214,6 +1221,279 @@ app.get('/api/roadworks-alerts', async (req, res) => {
     });
   }
 });
+
+// Street Manager roadworks endpoint for RoadworksManagerV2
+app.get('/api/street-manager-roadworks', async (req, res) => {
+  try {
+    console.log('🚧 Fetching Street Manager roadworks...');
+    
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    
+    // Get active roadworks from the streetworks table
+    const { data: roadworks, error } = await supabase
+      .from('streetworks')
+      .select('*')
+      .in('review_status', ['pending', 'approved', 'monitoring'])
+      .order('created_at', { ascending: false })
+      .limit(100);
+    
+    if (error) {
+      console.error('❌ Error fetching streetworks:', error);
+      return res.status(500).json({ 
+        success: false, 
+        error: error.message,
+        roadworks: [] 
+      });
+    }
+    
+    // Transform to match frontend expectations
+    const transformedRoadworks = (roadworks || []).map(rw => ({
+      id: rw.id,
+      title: rw.title || rw.description || 'Street Manager Roadwork',
+      location: rw.street_name || rw.location_description || 'Location TBC',
+      description: rw.description || '',
+      status: rw.review_status === 'approved' ? 'active' : rw.review_status === 'pending' ? 'planned' : 'active',
+      severity: rw.severity || 'medium',
+      startDate: rw.actual_start_date || rw.proposed_start_date,
+      endDate: rw.actual_end_date || rw.proposed_end_date,
+      affectsRoutes: rw.affected_routes || [],
+      coordinates: rw.coordinates ? {
+        lat: rw.coordinates.lat || rw.coordinates.latitude,
+        lng: rw.coordinates.lng || rw.coordinates.longitude
+      } : null,
+      source: 'StreetManager',
+      permitReference: rw.permit_reference_number,
+      workReference: rw.works_reference_number,
+      authority: rw.highway_authority,
+      promoter: rw.promoter_organisation,
+      hasDiversion: rw.diversion_required || false,
+      createdAt: rw.created_at,
+      updatedAt: rw.updated_at
+    }));
+    
+    console.log(`✅ Found ${transformedRoadworks.length} Street Manager roadworks`);
+    
+    res.json({
+      success: true,
+      roadworks: transformedRoadworks,
+      metadata: {
+        total: transformedRoadworks.length,
+        source: 'streetworks_table',
+        lastUpdated: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error in street-manager-roadworks endpoint:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      roadworks: [] 
+    });
+  }
+});
+
+console.log('✅ Street Manager roadworks endpoint registered at /api/street-manager-roadworks');
+
+// Diagnostic endpoint to check Supabase data
+app.get('/api/debug/roadworks-data', async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    
+    // Check streetworks table
+    const { data: streetworks, error: streetworksError, count: streetworksCount } = await supabase
+      .from('streetworks')
+      .select('*', { count: 'exact' })
+      .limit(5);
+    
+    // Check roadworks table (legacy)
+    const { data: roadworks, error: roadworksError, count: roadworksCount } = await supabase
+      .from('roadworks')
+      .select('*', { count: 'exact' })
+      .limit(5);
+    
+    // Check active_streetmanager_roadworks view
+    const { data: activeView, error: viewError } = await supabase
+      .from('active_streetmanager_roadworks')
+      .select('*')
+      .limit(5);
+    
+    // Check streetmanager_notifications table
+    const { data: notifications, error: notifError, count: notifCount } = await supabase
+      .from('streetmanager_notifications')
+      .select('*', { count: 'exact' })
+      .limit(5);
+    
+    res.json({
+      success: true,
+      tables: {
+        streetworks: {
+          totalCount: streetworksCount || 0,
+          error: streetworksError?.message,
+          sampleData: streetworks || [],
+          hasData: (streetworks?.length || 0) > 0
+        },
+        roadworks: {
+          totalCount: roadworksCount || 0,
+          error: roadworksError?.message,
+          sampleData: roadworks || [],
+          hasData: (roadworks?.length || 0) > 0
+        },
+        active_streetmanager_roadworks: {
+          error: viewError?.message,
+          sampleData: activeView || [],
+          hasData: (activeView?.length || 0) > 0,
+          note: 'This is a view, not a table'
+        },
+        streetmanager_notifications: {
+          totalCount: notifCount || 0,
+          error: notifError?.message,
+          sampleData: notifications || [],
+          hasData: (notifications?.length || 0) > 0
+        }
+      },
+      summary: {
+        hasAnyData: (streetworks?.length || 0) > 0 || (roadworks?.length || 0) > 0,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('❌ Debug endpoint error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+console.log('✅ Debug roadworks data endpoint registered at /api/debug/roadworks-data');
+
+// Test data creation endpoint
+app.post('/api/debug/create-test-roadworks', async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    
+    // Create test data for streetworks table
+    const testStreetworks = [
+      {
+        works_reference_number: `TEST-${Date.now()}-1`,
+        permit_reference_number: 'TEST-PERMIT-001',
+        title: 'Test Roadworks - A1 Junction 65',
+        description: 'Emergency repairs following water main burst',
+        street_name: 'A1 Northbound',
+        location_description: 'Junction 65 to Junction 66',
+        coordinates: { lat: 54.9783, lng: -1.6178 },
+        highway_authority: 'Newcastle City Council',
+        promoter_organisation: 'Northumbrian Water',
+        severity: 'high',
+        review_status: 'pending',
+        affected_routes: ['21', 'X21', '22'],
+        proposed_start_date: new Date().toISOString(),
+        proposed_end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        work_category: 'immediate_urgent',
+        activity_type: 'remedial_works',
+        traffic_management_type: 'road_closure',
+        created_at: new Date().toISOString()
+      },
+      {
+        works_reference_number: `TEST-${Date.now()}-2`,
+        permit_reference_number: 'TEST-PERMIT-002',
+        title: 'Test Roadworks - Central Station',
+        description: 'Planned maintenance of traffic signals',
+        street_name: 'Neville Street',
+        location_description: 'Central Station approach',
+        coordinates: { lat: 54.9683, lng: -1.6178 },
+        highway_authority: 'Newcastle City Council',
+        promoter_organisation: 'Newcastle City Council',
+        severity: 'medium',
+        review_status: 'approved',
+        affected_routes: ['Q3', '10', '10A', '10B'],
+        proposed_start_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+        proposed_end_date: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(),
+        work_category: 'standard',
+        activity_type: 'utility_repair',
+        traffic_management_type: 'lane_closure',
+        created_at: new Date().toISOString()
+      },
+      {
+        works_reference_number: `TEST-${Date.now()}-3`,
+        permit_reference_number: 'TEST-PERMIT-003',
+        title: 'Test Roadworks - Gateshead Interchange',
+        description: 'Resurfacing works',
+        street_name: 'A167',
+        location_description: 'Gateshead Interchange approach',
+        coordinates: { lat: 54.9626, lng: -1.6014 },
+        highway_authority: 'Gateshead Council',
+        promoter_organisation: 'Gateshead Council',
+        severity: 'critical',
+        review_status: 'pending',
+        affected_routes: ['53', '54', '27', '28'],
+        proposed_start_date: new Date().toISOString(),
+        proposed_end_date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        work_category: 'major',
+        activity_type: 'major_works',
+        traffic_management_type: 'multi_way_signals',
+        created_at: new Date().toISOString()
+      }
+    ];
+    
+    // Insert test streetworks
+    const { data: insertedStreetworks, error: streetworksError } = await supabase
+      .from('streetworks')
+      .insert(testStreetworks)
+      .select();
+    
+    // Create test data for legacy roadworks table
+    const testRoadworks = [
+      {
+        title: 'Test Manual Roadwork - Great North Road',
+        description: 'Manual entry for roadworks not in Street Manager',
+        location: 'Great North Road, Newcastle',
+        areas: ['Newcastle', 'Gosforth'],
+        status: 'active',
+        start_date: new Date().toISOString(),
+        end_date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+        routes_affected: ['1', '2'],
+        severity: 'medium',
+        source: 'manual',
+        created_by_supervisor_id: 'TEST001',
+        created_by_name: 'Test Supervisor',
+        coordinates: { latitude: 55.0083, longitude: -1.5808 }
+      }
+    ];
+    
+    // Insert test roadworks
+    const { data: insertedRoadworks, error: roadworksError } = await supabase
+      .from('roadworks')
+      .insert(testRoadworks)
+      .select();
+    
+    res.json({
+      success: true,
+      message: 'Test data created successfully',
+      results: {
+        streetworks: {
+          created: insertedStreetworks?.length || 0,
+          error: streetworksError?.message,
+          data: insertedStreetworks
+        },
+        roadworks: {
+          created: insertedRoadworks?.length || 0,
+          error: roadworksError?.message,
+          data: insertedRoadworks
+        }
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error creating test data:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+console.log('✅ Test data creation endpoint registered at /api/debug/create-test-roadworks');
 
 app.get('/api/incident-alerts', async (req, res) => {
   try {

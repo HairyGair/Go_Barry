@@ -66,12 +66,12 @@ const MessageAnalytics = ({ visible, onClose }) => {
       if (data.success) {
         setAnalytics(data.analytics);
       } else {
-        // Fallback to mock data
-        setAnalytics(generateMockAnalytics());
+        // No data available
+        setAnalytics(null);
       }
     } catch (error) {
       console.error('Failed to load analytics:', error);
-      setAnalytics(generateMockAnalytics());
+      setAnalytics(null);
     } finally {
       setLoading(false);
     }
@@ -99,54 +99,6 @@ const MessageAnalytics = ({ visible, onClose }) => {
     }
   };
 
-  // Generate mock analytics data
-  const generateMockAnalytics = () => {
-    const now = new Date();
-    const days = timeRange === '24h' ? 1 : timeRange === '7d' ? 7 : timeRange === '30d' ? 30 : 90;
-    
-    return {
-      overview: {
-        totalMessages: Math.floor(Math.random() * 500) + 200,
-        totalRecipients: Math.floor(Math.random() * 5000) + 2000,
-        averageOpenRate: Math.random() * 0.3 + 0.6, // 60-90%
-        averageResponseTime: Math.floor(Math.random() * 10) + 5, // 5-15 minutes
-        topPriority: 'urgent',
-        topCategory: 'roadworks'
-      },
-      delivery: {
-        sent: Math.floor(Math.random() * 400) + 150,
-        delivered: Math.floor(Math.random() * 380) + 140,
-        failed: Math.floor(Math.random() * 20) + 5,
-        pending: Math.floor(Math.random() * 30) + 10,
-        scheduled: Math.floor(Math.random() * 50) + 20
-      },
-      engagement: {
-        opened: Math.floor(Math.random() * 300) + 100,
-        clicked: Math.floor(Math.random() * 150) + 50,
-        replied: Math.floor(Math.random() * 50) + 10,
-        forwarded: Math.floor(Math.random() * 30) + 5
-      },
-      routePerformance: [
-        { route: '21', messages: 45, openRate: 0.82, avgDelay: 12 },
-        { route: 'X21', messages: 38, openRate: 0.78, avgDelay: 15 },
-        { route: '1', messages: 52, openRate: 0.85, avgDelay: 8 },
-        { route: '10', messages: 31, openRate: 0.75, avgDelay: 10 },
-        { route: '56', messages: 28, openRate: 0.72, avgDelay: 14 }
-      ],
-      timeSeriesData: generateTimeSeriesData(days),
-      categoryBreakdown: {
-        roadworks: Math.floor(Math.random() * 100) + 50,
-        incidents: Math.floor(Math.random() * 80) + 30,
-        service: Math.floor(Math.random() * 60) + 20,
-        general: Math.floor(Math.random() * 40) + 10
-      },
-      supervisorActivity: [
-        { supervisorId: 'AG003', name: 'Adam Gordon', messages: 125, avgResponseTime: 8 },
-        { supervisorId: 'BP009', name: 'Brian Peterson', messages: 98, avgResponseTime: 12 },
-        { supervisorId: 'JH045', name: 'James Harrison', messages: 76, avgResponseTime: 10 }
-      ]
-    };
-  };
 
   // Generate time series data for charts
   const generateTimeSeriesData = (days) => {

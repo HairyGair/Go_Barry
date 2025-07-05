@@ -127,11 +127,11 @@ export default function RoadworksPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0e16',
+    backgroundColor: '#f0f2f5',
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#0a0e16',
+    backgroundColor: '#f0f2f5',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   },
   errorContainer: {
     flex: 1,
-    backgroundColor: '#0a0e16',
+    backgroundColor: '#f0f2f5',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -150,13 +150,13 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#fff',
+    color: '#1e293b',
     marginTop: 20,
     marginBottom: 10,
   },
   errorMessage: {
     fontSize: 16,
-    color: '#d1d5db',
+    color: '#64748b',
     textAlign: 'center',
     marginBottom: 30,
   },
@@ -175,15 +175,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   header: {
-    backgroundColor: '#3B82F6',
-    paddingTop: Platform.OS === 'web' ? 20 : 10,
+    backgroundColor: '#1a1a2e',
+    paddingTop: Platform.OS === 'web' ? 20 : 60,
     paddingBottom: 20,
     paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: 2,
-    borderBottomColor: '#2563EB',
   },
   headerLeft: {
     flexDirection: 'row',
@@ -191,38 +189,31 @@ const styles = StyleSheet.create({
     gap: 15,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
   },
   headerContent: {
     flexDirection: 'column',
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#fff',
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: 'white',
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#bfdbfe',
+    color: '#94a3b8',
     marginTop: 2,
   },
   sessionInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
   },
   sessionText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '500',
     color: '#fff',
   },
   breadcrumb: {
@@ -231,17 +222,20 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
   },
   breadcrumbText: {
     fontSize: 14,
     color: '#9ca3af',
   },
   breadcrumbActive: {
-    color: '#3B82F6',
+    color: '#3b82f6',
     fontWeight: '600',
   },
   contentContainer: {
     flex: 1,
+    backgroundColor: '#f0f2f5',
   },
 });

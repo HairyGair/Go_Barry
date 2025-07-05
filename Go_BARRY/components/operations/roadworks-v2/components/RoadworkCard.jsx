@@ -24,12 +24,48 @@ const RoadworkCard = ({
   // Get status configuration
   const getStatusConfig = (status) => {
     const configs = {
-      active: { color: colors.success, icon: 'play-circle', label: 'Active' },
-      planned: { color: colors.warning, icon: 'calendar', label: 'Planned' },
-      completed: { color: colors.textMuted, icon: 'checkmark-done', label: 'Completed' },
-      cancelled: { color: colors.textMuted, icon: 'close-circle', label: 'Cancelled' },
-      critical: { color: colors.critical, icon: 'warning', label: 'Critical' },
-      monitoring: { color: colors.info, icon: 'eye', label: 'Monitoring' }
+      active: { 
+        color: colors.success, 
+        bgColor: colors.successBg,
+        textStyle: roadworksStyles.statusBadgeTextActive,
+        icon: 'play-circle', 
+        label: 'Active' 
+      },
+      planned: { 
+        color: colors.info, 
+        bgColor: colors.infoBg,
+        textStyle: roadworksStyles.statusBadgeTextPlanned,
+        icon: 'calendar', 
+        label: 'Planned' 
+      },
+      completed: { 
+        color: colors.textMuted, 
+        bgColor: colors.surfaceLight,
+        textStyle: roadworksStyles.statusBadgeTextCompleted,
+        icon: 'checkmark-done', 
+        label: 'Completed' 
+      },
+      cancelled: { 
+        color: colors.textMuted, 
+        bgColor: colors.surfaceLight,
+        textStyle: roadworksStyles.statusBadgeTextCompleted,
+        icon: 'close-circle', 
+        label: 'Cancelled' 
+      },
+      critical: { 
+        color: colors.critical, 
+        bgColor: colors.criticalBg,
+        textStyle: roadworksStyles.statusBadgeTextCritical,
+        icon: 'warning', 
+        label: 'Critical' 
+      },
+      monitoring: { 
+        color: colors.info, 
+        bgColor: colors.infoBg,
+        textStyle: roadworksStyles.statusBadgeTextPlanned,
+        icon: 'eye', 
+        label: 'Monitoring' 
+      }
     };
     return configs[status] || configs.active;
   };
@@ -89,11 +125,14 @@ const RoadworkCard = ({
   const cardContent = (
     <View style={[
       roadworksStyles.roadworkCard,
+      roadwork.severity === 'critical' && roadworksStyles.roadworkCardCritical,
+      roadwork.severity === 'high' && roadworksStyles.roadworkCardWarning,
       compact && { padding: spacing.md },
       isHovered && roadworksStyles.roadworkCardHover,
       Platform.OS === 'web' && { 
         cursor: onPress ? 'pointer' : 'default',
-        transition: 'all 0.2s ease'
+        transition: 'all 0.3s ease',
+        transitionProperty: 'transform, box-shadow, border-color'
       }
     ]}>
       {/* Header */}
@@ -107,24 +146,30 @@ const RoadworkCard = ({
           </Text>
           
           {roadwork.location && roadwork.title !== roadwork.location && (
-            <Text style={roadworksStyles.roadworkLocation} numberOfLines={1}>
-              <Ionicons name="location" size={12} color={colors.textSecondary} />
-              {' '}{roadwork.location}
-            </Text>
+            <View style={roadworksStyles.roadworkLocation}>
+              <Ionicons name="location" size={14} color={colors.textMuted} />
+              <Text style={[roadworksStyles.roadworkLocation, { marginBottom: 0, marginLeft: 4 }]} numberOfLines={1}>
+                {roadwork.location}
+              </Text>
+            </View>
           )}
         </View>
 
         {/* Status Badge */}
         <View style={[
           roadworksStyles.statusBadge,
-          { backgroundColor: statusConfig.color }
+          { 
+            backgroundColor: statusConfig.bgColor,
+            borderWidth: 1,
+            borderColor: statusConfig.color
+          }
         ]}>
           <Ionicons 
             name={statusConfig.icon} 
-            size={12} 
-            color={colors.textPrimary} 
+            size={14} 
+            color={statusConfig.color} 
           />
-          <Text style={roadworksStyles.statusBadgeText}>
+          <Text style={[roadworksStyles.statusBadgeText, statusConfig.textStyle]}>
             {statusConfig.label}
           </Text>
         </View>
@@ -146,10 +191,19 @@ const RoadworkCard = ({
         {roadwork.severity && (
           <View style={[
             roadworksStyles.statusBadge,
-            { backgroundColor: getSeverityColor(roadwork.severity) }
+            { 
+              backgroundColor: getSeverityColor(roadwork.severity) + '20',
+              borderWidth: 1,
+              borderColor: getSeverityColor(roadwork.severity)
+            }
           ]}>
-            <Text style={roadworksStyles.statusBadgeText}>
-              {roadwork.severity.toUpperCase()}
+            <Ionicons 
+              name={roadwork.severity === 'critical' ? 'warning' : roadwork.severity === 'high' ? 'alert' : 'information-circle'} 
+              size={14} 
+              color={getSeverityColor(roadwork.severity)} 
+            />
+            <Text style={[roadworksStyles.statusBadgeText, { color: getSeverityColor(roadwork.severity) }]}>
+              {roadwork.severity.charAt(0).toUpperCase() + roadwork.severity.slice(1)}
             </Text>
           </View>
         )}
@@ -158,11 +212,15 @@ const RoadworkCard = ({
         {(roadwork.details?.impactScore || roadwork.impactScore) && (
           <View style={[
             roadworksStyles.statusBadge,
-            { backgroundColor: impact.color }
+            { 
+              backgroundColor: impact.color + '20',
+              borderWidth: 1,
+              borderColor: impact.color
+            }
           ]}>
-            <Ionicons name="speedometer" size={12} color={colors.textPrimary} />
-            <Text style={roadworksStyles.statusBadgeText}>
-              {impact.text}
+            <Ionicons name="speedometer" size={14} color={impact.color} />
+            <Text style={[roadworksStyles.statusBadgeText, { color: impact.color }]}>
+              {impact.text} Impact
             </Text>
           </View>
         )}
@@ -172,16 +230,23 @@ const RoadworkCard = ({
           roadworksStyles.statusBadge,
           { 
             backgroundColor: roadwork.source === 'StreetManager' 
+              ? '#E0E7FF' 
+              : '#F3F4F6',
+            borderWidth: 1,
+            borderColor: roadwork.source === 'StreetManager' 
               ? colors.primary 
-              : colors.interactive 
+              : colors.border
           }
         ]}>
           <Ionicons 
-            name={roadwork.source === 'StreetManager' ? 'business' : 'person-add'} 
-            size={12} 
-            color={colors.textPrimary} 
+            name={roadwork.source === 'StreetManager' ? 'business' : 'person'} 
+            size={14} 
+            color={roadwork.source === 'StreetManager' ? colors.primary : colors.textMuted} 
           />
-          <Text style={roadworksStyles.statusBadgeText}>
+          <Text style={[
+            roadworksStyles.statusBadgeText, 
+            { color: roadwork.source === 'StreetManager' ? colors.primary : colors.textMuted }
+          ]}>
             {roadwork.source || 'Manual'}
           </Text>
         </View>
@@ -192,12 +257,23 @@ const RoadworkCard = ({
             roadworksStyles.statusBadge,
             { 
               backgroundColor: timeRemaining === 'Overdue' 
+                ? colors.criticalBg 
+                : colors.infoBg,
+              borderWidth: 1,
+              borderColor: timeRemaining === 'Overdue' 
                 ? colors.critical 
-                : colors.info 
+                : colors.info
             }
           ]}>
-            <Ionicons name="time" size={12} color={colors.textPrimary} />
-            <Text style={roadworksStyles.statusBadgeText}>
+            <Ionicons 
+              name="time" 
+              size={14} 
+              color={timeRemaining === 'Overdue' ? colors.critical : colors.info} 
+            />
+            <Text style={[
+              roadworksStyles.statusBadgeText,
+              { color: timeRemaining === 'Overdue' ? colors.critical : colors.info }
+            ]}>
               {timeRemaining}
             </Text>
           </View>
@@ -207,7 +283,7 @@ const RoadworkCard = ({
       {/* Affected Routes */}
       {roadwork.affectsRoutes && roadwork.affectsRoutes.length > 0 && (
         <View style={roadworksStyles.section}>
-          <Text style={[roadworksStyles.statLabel, { marginBottom: spacing.xs }]}>
+          <Text style={[roadworksStyles.statLabel, { marginBottom: spacing.xs, color: colors.textSecondary }]}>
             Affected Routes ({roadwork.affectsRoutes.length})
           </Text>
           <View style={roadworksStyles.roadworkMeta}>
@@ -217,9 +293,19 @@ const RoadworkCard = ({
               </View>
             ))}
             {roadwork.affectsRoutes.length > (compact ? 3 : 6) && (
-              <Text style={roadworksStyles.textMuted}>
-                +{roadwork.affectsRoutes.length - (compact ? 3 : 6)} more
-              </Text>
+              <View style={[
+                roadworksStyles.statusBadge,
+                { 
+                  backgroundColor: colors.surfaceLight,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  paddingHorizontal: spacing.sm
+                }
+              ]}>
+                <Text style={[roadworksStyles.statusBadgeText, { color: colors.textMuted }]}>
+                  +{roadwork.affectsRoutes.length - (compact ? 3 : 6)} more
+                </Text>
+              </View>
             )}
           </View>
         </View>
@@ -310,15 +396,17 @@ const RoadworkCard = ({
         <View style={[
           roadworksStyles.statusBadge,
           { 
-            backgroundColor: colors.critical,
+            backgroundColor: colors.criticalBg,
+            borderWidth: 1,
+            borderColor: colors.critical,
             position: 'absolute',
             top: spacing.sm,
             right: spacing.sm,
             zIndex: 1
           }
         ]}>
-          <Ionicons name="flash" size={12} color={colors.textPrimary} />
-          <Text style={roadworksStyles.statusBadgeText}>EMERGENCY</Text>
+          <Ionicons name="flash" size={14} color={colors.critical} />
+          <Text style={[roadworksStyles.statusBadgeText, { color: colors.critical, fontWeight: '700' }]}>EMERGENCY</Text>
         </View>
       )}
     </View>

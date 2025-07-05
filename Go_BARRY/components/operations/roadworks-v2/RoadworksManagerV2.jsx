@@ -19,8 +19,11 @@ import { roadworksStyles, colors, spacing } from './styles/roadworks.styles';
 import StatsCard, { StatCardPresets } from './components/StatsCard';
 import RoadworkCard from './components/RoadworkCard';
 import FilterPanel from './components/FilterPanel';
+import RoadworkQueue from '../RoadworkQueue';
 import MapOverview from './components/MapOverview';
 import TimelineView from './components/TimelineView';
+import DiversionTemplates from './templates/DiversionTemplates';
+import RoadworksAnalytics from './analytics/RoadworksAnalytics';
 
 const RoadworksManagerV2 = ({ baseUrl }) => {
   const {
@@ -62,16 +65,20 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
     routesAffected: 0,
     streetManager: 0,
     manual: 0,
-    diversions: 0
+    diversions: 0,
+    pendingReview: 0
   });
 
   // Tab configuration
   const tabs = [
     { id: 'overview', label: 'Overview', icon: 'grid', badge: null },
+    { id: 'queue', label: 'Review Queue', icon: 'alert-circle', badge: stats.pendingReview || null },
     { id: 'active', label: 'Active', icon: 'time', badge: stats.active > 0 ? stats.active : null },
     { id: 'planned', label: 'Planned', icon: 'calendar', badge: stats.planned > 0 ? stats.planned : null },
     { id: 'critical', label: 'Critical', icon: 'warning', badge: stats.critical > 0 ? stats.critical : null },
     { id: 'timeline', label: 'Timeline', icon: 'list', badge: null },
+    { id: 'templates', label: 'Templates', icon: 'folder', badge: null },
+    { id: 'analytics', label: 'Analytics', icon: 'analytics', badge: null },
   ];
 
   // Fetch roadworks data with improved error handling
@@ -171,7 +178,8 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       r.status === 'active' && r.hasDiversion
     ).length;
 
-    setStats({
+    setStats(prevStats => ({
+      ...prevStats,
       total: manual.length + streetManager.length,
       critical: manualCritical + streetManagerCritical,
       active: manualActive + streetManagerActive,
@@ -180,7 +188,28 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       streetManager: streetManager.length,
       manual: manual.length,
       diversions
-    });
+    }));
+  };
+
+  // Fetch pending review stats
+  const fetchPendingStats = async () => {
+    try {
+      const response = await fetch(`${baseUrl}/api/roadworks-v2/stats`, {
+        headers: {
+          'x-session-id': sessionId || ''
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setStats(prevStats => ({
+          ...prevStats,
+          pendingReview: data.stats?.pendingReview || 0
+        }));
+      }
+    } catch (error) {
+      console.warn('Failed to fetch pending stats:', error);
+    }
   };
 
   // Handle refresh
@@ -325,12 +354,18 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
   // Load data on component mount
   useEffect(() => {
     fetchRoadworks();
-  }, [baseUrl]);
+    if (sessionId) {
+      fetchPendingStats();
+    }
+  }, [baseUrl, sessionId]);
 
   // Auto-refresh every 5 minutes
   useEffect(() => {
     const interval = setInterval(() => {
       fetchRoadworks(false);
+      if (sessionId) {
+        fetchPendingStats();
+      }
     }, 5 * 60 * 1000);
 
     return () => clearInterval(interval);
@@ -742,6 +777,33 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={roadworksStyles.loadingText}>Loading roadworks data...</Text>
         </View>
+      );
+    }
+
+    // Render RoadworkQueue for queue tab
+    if (activeTab === 'queue') {
+      return <RoadworkQueue />;
+    }
+
+    // Render DiversionTemplates for templates tab
+    if (activeTab === 'templates') {
+      return (
+        <DiversionTemplates 
+          baseUrl={baseUrl}
+          sessionId={sessionId}
+          supervisorName={supervisorName}
+        />
+      );
+    }
+
+    // Render Analytics for analytics tab
+    if (activeTab === 'analytics') {
+      return (
+        <RoadworksAnalytics 
+          baseUrl={baseUrl}
+          sessionId={sessionId}
+          supervisorName={supervisorName}
+        />
       );
     }
 

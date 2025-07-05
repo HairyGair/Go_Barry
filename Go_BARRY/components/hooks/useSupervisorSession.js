@@ -217,10 +217,11 @@ let activityLog = [];
 // Supervisor session hook with password management
 export const useSupervisorSession = () => {
   const [supervisorSession, setSupervisorSession] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start with true to indicate checking session
   const [error, setError] = useState(null);
   const [needsPasswordSetup, setNeedsPasswordSetup] = useState(false);
   const [pendingLoginData, setPendingLoginData] = useState(null);
+  const [sessionCheckComplete, setSessionCheckComplete] = useState(false);
   
   // Convex mutations
   const convexLogin = useMutation(api.supervisors.login);
@@ -236,6 +237,9 @@ export const useSupervisorSession = () => {
     } else {
       console.log('❌ No saved session found in storage');
     }
+    // Mark session check as complete and stop loading
+    setSessionCheckComplete(true);
+    setIsLoading(false);
   }, []);
 
   // Log activity

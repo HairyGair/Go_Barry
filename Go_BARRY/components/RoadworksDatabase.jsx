@@ -1411,36 +1411,6 @@ const RoadworkDetailsModal = ({ visible, roadwork, onClose, onEmail, onMap }) =>
             <Text style={styles.detailsDescription}>{roadwork.description}</Text>
 
             <View style={styles.detailsSection}>
-              <Text style={styles.detailsSectionTitle}>Location & Authority</Text>
-              <Text style={styles.detailsText}>📍 {roadwork.location}</Text>
-              <Text style={styles.detailsText}>🏛️ {roadwork.authority || 'Unknown Authority'}</Text>
-              {roadwork.contactPerson && (
-                <Text style={styles.detailsText}>👤 {roadwork.contactPerson}</Text>
-              )}
-            </View>
-
-            {roadwork.affectedRoutes && roadwork.affectedRoutes.length > 0 && (
-              <View style={styles.detailsSection}>
-                <Text style={styles.detailsSectionTitle}>Affected Routes ({roadwork.affectedRoutes.length})</Text>
-                <View style={styles.routeTags}>
-                  {roadwork.affectedRoutes.map((route) => (
-                    <View key={route} style={styles.routeTag}>
-                      <Text style={styles.routeTagText}>{route}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-
-            <View style={styles.detailsSection}>
-              <Text style={styles.detailsSectionTitle}>Timeline</Text>
-              <Text style={styles.detailsText}>📅 Created: {formatDateTimeUK(roadwork.createdAt)}</Text>
-              <Text style={styles.detailsText}>🔄 Updated: {formatDateTimeUK(roadwork.lastUpdated)}</Text>
-              <Text style={styles.detailsText}>👤 Created by: {roadwork.createdByName}</Text>
-            </View>
-
-            {/* Quick Actions */}
-            <View style={styles.detailsSection}>
               <Text style={styles.detailsSectionTitle}>Quick Actions</Text>
               <View style={styles.detailActions}>
                 <TouchableOpacity
@@ -1473,7 +1443,7 @@ const RoadworkDetailsModal = ({ visible, roadwork, onClose, onEmail, onMap }) =>
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F9FAFB',
   },
   header: {
     backgroundColor: '#FFFFFF',
@@ -1481,17 +1451,21 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  headerContent: {
-    flex: 1,
-  },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#111827',
     marginBottom: 4,
   },
   headerSubtitle: {
@@ -1499,48 +1473,40 @@ const styles = StyleSheet.create({
     color: '#6B7280',
   },
   refreshButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    gap: 8,
+    padding: 8,
   },
-  refreshButtonText: {
-    color: '#3B82F6',
-    fontSize: 14,
-    fontWeight: '600',
+  refreshing: {
+    transform: [{ rotate: '360deg' }],
   },
   tabsContainer: {
-    flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
+  tabsScroll: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
   tab: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    borderBottomWidth: 3,
-    borderBottomColor: 'transparent',
-    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+    gap: 6,
   },
   activeTab: {
-    borderBottomColor: '#3B82F6',
+    backgroundColor: '#EBF5FF',
   },
   urgentTab: {
-    borderBottomColor: '#F59E0B',
+    backgroundColor: '#FFF7ED',
   },
   tabText: {
     fontSize: 14,
     fontWeight: '500',
     color: '#6B7280',
-    textAlign: 'center',
   },
   activeTabText: {
     color: '#3B82F6',
@@ -1554,14 +1520,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E7EB',
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 12,
+    borderRadius: 10,
     minWidth: 24,
   },
   activeTabBadge: {
-    backgroundColor: '#EBF5FF',
+    backgroundColor: '#3B82F6',
   },
   urgentTabBadge: {
-    backgroundColor: '#FFF7ED',
+    backgroundColor: '#F59E0B',
   },
   tabBadgeText: {
     fontSize: 12,
@@ -1570,12 +1536,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   activeTabBadgeText: {
-    color: '#3B82F6',
+    color: '#FFFFFF',
   },
   urgentTabBadgeText: {
-    color: '#F59E0B',
+    color: '#FFFFFF',
   },
-  controlsContainer: {
+  controlsSection: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 24,
     paddingVertical: 16,
@@ -1585,244 +1551,300 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     marginBottom: 16,
     gap: 8,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
-    color: '#1F2937',
+    fontSize: 15,
+    color: '#111827',
   },
-  statsRow: {
+  sortContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    alignItems: 'center',
+    gap: 12,
   },
-  statItem: {
+  sortLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    gap: 4,
+  },
+  sortButtonText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  activeSortText: {
+    color: '#3B82F6',
+    fontWeight: '600',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  statIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    backgroundColor: '#EBF5FF',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#111827',
   },
   statLabel: {
     fontSize: 12,
     color: '#6B7280',
     marginTop: 2,
   },
-  tableContainer: {
+  listContainer: {
     flex: 1,
   },
-  table: {
+  listContent: {
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
+  roadworksList: {
+    gap: 16,
+  },
+  roadworkCard: {
     backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  tableHeader: {
+  criticalCard: {
+    borderWidth: 2,
+    borderColor: '#FEE2E2',
+  },
+  priorityIndicator: {
+    height: 4,
+    width: '100%',
+  },
+  cardContent: {
+    padding: 20,
+  },
+  cardHeader: {
     flexDirection: 'row',
-    backgroundColor: '#F9FAFB',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  headerCell: {
+  headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 8,
+    flexWrap: 'wrap',
   },
-  headerText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#374151',
-    textTransform: 'uppercase',
-  },
-  priorityColumn: { width: 80 },
-  titleColumn: { flex: 2 },
-  statusColumn: { width: 100 },
-  routesColumn: { width: 120 },
-  timeColumn: { width: 90 },
-  actionColumn: { width: 50 },
-  tableRow: {
+  headerRight: {
     flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    alignItems: 'center',
+    gap: 8,
   },
-  evenRow: {
-    backgroundColor: '#FFFFFF',
-  },
-  oddRow: {
-    backgroundColor: '#FAFAFA',
-  },
-  criticalRow: {
-    backgroundColor: '#FEF2F2',
-  },
-  cell: {
-    justifyContent: 'center',
+  roadworkId: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontWeight: '500',
   },
   priorityBadge: {
-    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 8,
+    gap: 4,
   },
   priorityText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  titleText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 2,
-  },
-  locationText: {
     fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 2,
-  },
-  authorityText: {
-    fontSize: 11,
-    color: '#9CA3AF',
+    fontWeight: '600',
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 8,
     gap: 4,
-    marginBottom: 4,
   },
   statusText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
   },
-  displayIndicator: {
+  displayBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    backgroundColor: '#D1FAE5',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    gap: 4,
   },
-  displayText: {
-    fontSize: 10,
+  displayBadgeText: {
+    fontSize: 12,
     color: '#10B981',
+    fontWeight: '600',
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 8,
+    lineHeight: 24,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 6,
+  },
+  locationText: {
+    fontSize: 14,
+    color: '#374151',
+    flex: 1,
+  },
+  authorityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 12,
+  },
+  authorityText: {
+    fontSize: 13,
+    color: '#6B7280',
+    flex: 1,
+  },
+  routesSection: {
+    marginBottom: 16,
+  },
+  routesLabel: {
+    fontSize: 13,
     fontWeight: '500',
+    color: '#6B7280',
+    marginBottom: 8,
   },
   routesList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 2,
+    gap: 6,
   },
   routeTag: {
     backgroundColor: '#EBF5FF',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   routeTagText: {
-    fontSize: 10,
+    fontSize: 12,
     color: '#3B82F6',
-    fontWeight: '500',
+    fontWeight: '600',
+  },
+  moreRoutesTag: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   moreRoutesText: {
-    fontSize: 10,
+    fontSize: 12,
     color: '#6B7280',
     fontStyle: 'italic',
   },
-  timeText: {
-    fontSize: 12,
-    color: '#1F2937',
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  footerLeft: {
+    flex: 1,
+  },
+  footerLabel: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    marginBottom: 2,
+  },
+  footerValue: {
+    fontSize: 13,
+    color: '#4B5563',
     fontWeight: '500',
   },
-  timeDetailText: {
-    fontSize: 11,
-    color: '#6B7280',
-  },
-  actionButtonGroup: {
-    flexDirection: 'column',
-    gap: 2,
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 8,
   },
   actionButton: {
-    backgroundColor: '#10B981',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 6,
-    borderRadius: 4,
-    minWidth: 28,
-    justifyContent: 'center',
+    gap: 6,
+  },
+  primaryActionButton: {
+    backgroundColor: '#10B981',
+  },
+  secondaryActionButton: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  dangerActionButton: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   actionButtonText: {
     color: '#FFFFFF',
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '600',
-  },
-  viewButton: {
-    backgroundColor: '#F3F4F6',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 6,
-    borderRadius: 4,
-    minWidth: 28,
-    justifyContent: 'center',
-  },
-  viewButtonText: {
-    color: '#6B7280',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  editButton: {
-    backgroundColor: '#8B5CF6',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 6,
-    borderRadius: 4,
-    minWidth: 28,
-    justifyContent: 'center',
-  },
-  emailButton: {
-    backgroundColor: '#3B82F6',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 6,
-    borderRadius: 4,
-    minWidth: 28,
-    justifyContent: 'center',
-  },
-  mapButton: {
-    backgroundColor: '#059669',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 6,
-    borderRadius: 4,
-    minWidth: 28,
-    justifyContent: 'center',
-  },
-  removeButton: {
-    backgroundColor: '#DC2626',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 6,
-    borderRadius: 4,
-    minWidth: 28,
-    justifyContent: 'center',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 60,
   },
   loadingText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 14,
     color: '#6B7280',
   },
@@ -1830,14 +1852,16 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 60,
+  },
+  emptyIconContainer: {
+    marginBottom: 16,
   },
   emptyTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
-    color: '#1F2937',
-    marginTop: 12,
-    marginBottom: 4,
+    color: '#111827',
+    marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
@@ -1850,11 +1874,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
   },
+  loginIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#EBF5FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
   loginPromptTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
-    color: '#1F2937',
-    marginTop: 16,
+    color: '#111827',
     marginBottom: 8,
   },
   loginPromptText: {
@@ -1865,54 +1897,59 @@ const styles = StyleSheet.create({
   // Modal Styles
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContainer: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 20,
     width: '90%',
     maxWidth: 600,
     maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingVertical: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
   modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111827',
   },
   modalCloseButton: {
     padding: 4,
   },
   modalContent: {
     paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingVertical: 20,
   },
   roadworkTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#111827',
     marginBottom: 4,
   },
   roadworkLocation: {
     fontSize: 14,
     color: '#6B7280',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
-    marginTop: 16,
+    color: '#111827',
+    marginTop: 20,
     marginBottom: 12,
   },
   actionOption: {
@@ -1920,15 +1957,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
+    borderRadius: 12,
+    borderWidth: 2,
     borderColor: '#E5E7EB',
-    marginBottom: 8,
+    marginBottom: 12,
     backgroundColor: '#FFFFFF',
   },
   actionOptionSelected: {
     borderColor: '#10B981',
     backgroundColor: '#F0FDF4',
+  },
+  actionIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
   },
   actionOptionContent: {
     flex: 1,
@@ -1936,7 +1981,7 @@ const styles = StyleSheet.create({
   actionOptionLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#111827',
     marginBottom: 4,
   },
   actionOptionLabelSelected: {
@@ -1949,15 +1994,15 @@ const styles = StyleSheet.create({
   textInput: {
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#1F2937',
-    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: '#111827',
+    backgroundColor: '#F9FAFB',
   },
   textArea: {
-    minHeight: 80,
+    minHeight: 100,
     textAlignVertical: 'top',
   },
   modalActions: {
@@ -1965,35 +2010,36 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingVertical: 20,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
     gap: 12,
   },
   cancelButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
   },
   cancelButtonText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     color: '#6B7280',
   },
   submitButton: {
     backgroundColor: '#10B981',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
   submitButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
   buttonDisabled: {
@@ -2003,23 +2049,24 @@ const styles = StyleSheet.create({
   detailsHeader: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 16,
+    marginBottom: 20,
+    flexWrap: 'wrap',
   },
   detailsTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#111827',
     marginBottom: 8,
   },
   detailsDescription: {
-    fontSize: 14,
-    color: '#6B7280',
-    lineHeight: 20,
-    marginBottom: 16,
+    fontSize: 15,
+    color: '#4B5563',
+    lineHeight: 22,
+    marginBottom: 20,
   },
   detailsSection: {
-    marginBottom: 16,
-    paddingTop: 16,
+    marginBottom: 20,
+    paddingTop: 20,
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
   },
@@ -2027,17 +2074,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#374151',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     marginBottom: 8,
   },
   detailsText: {
     fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
+    color: '#4B5563',
+    flex: 1,
   },
   routeTags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 8,
   },
   detailActions: {
     flexDirection: 'row',
@@ -2048,30 +2103,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#3B82F6',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
     gap: 8,
   },
   detailActionText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
   // Email Modal Styles
   emailTypeSelector: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   emailTypeButtons: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
   emailTypeButton: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
+    borderRadius: 10,
+    borderWidth: 2,
     borderColor: '#E5E7EB',
     alignItems: 'center',
   },
@@ -2088,21 +2143,21 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   inputLabel: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#374151',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   emailTextArea: {
-    minHeight: 120,
+    minHeight: 200,
     textAlignVertical: 'top',
   },
   emailPreview: {
-    marginTop: 16,
-    paddingTop: 16,
+    marginTop: 20,
+    paddingTop: 20,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
@@ -2110,41 +2165,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   quickActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
     flexWrap: 'wrap',
   },
   quickActionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#3B82F6',
     backgroundColor: '#EFF6FF',
     gap: 6,
   },
   quickActionText: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#3B82F6',
-    fontWeight: '500',
+    fontWeight: '600',
   },
   sendEmailButton: {
     backgroundColor: '#3B82F6',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
   sendEmailButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
   // Edit Modal Styles
@@ -2235,18 +2290,19 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     backgroundColor: '#10B981',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
   saveButtonText: {
     color: '#FFFFFF',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
 });
 
 export default RoadworksDatabase;
+

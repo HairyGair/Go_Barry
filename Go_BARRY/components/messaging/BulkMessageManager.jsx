@@ -71,85 +71,17 @@ const BulkMessageManager = ({ visible, onClose }) => {
         
         setMessages(filteredMessages);
       } else {
-        // Fallback to mock data
-        setMessages(generateMockMessages());
+        // No data available
+        setMessages([]);
       }
     } catch (error) {
       console.error('Failed to load messages:', error);
-      setMessages(generateMockMessages());
+      setMessages([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Generate mock message data for testing
-  const generateMockMessages = () => {
-    const now = new Date();
-    return [
-      {
-        id: 'msg_001',
-        subject: 'URGENT: High Level Bridge - Police incident causing full closure',
-        content: 'URGENT ROADWORK NOTIFICATION...',
-        status: 'sent',
-        priority: 'urgent',
-        category: 'incident',
-        routes: ['1', '10', '11', '12', '21'],
-        createdAt: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
-        sentAt: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
-        createdBy: supervisor?.badgeNumber || 'AG003',
-        recipientCount: 25,
-        openRate: 0.84
-      },
-      {
-        id: 'msg_002',
-        subject: 'IMPORTANT: A1 Southbound - Lane closures for emergency repairs',
-        content: 'IMPORTANT ROADWORK NOTIFICATION...',
-        status: 'sent',
-        priority: 'normal',
-        category: 'roadworks',
-        routes: ['21', 'X21'],
-        createdAt: new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString(),
-        sentAt: new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString(),
-        createdBy: supervisor?.badgeNumber || 'AG003',
-        recipientCount: 18,
-        openRate: 0.72
-      },
-      {
-        id: 'msg_003',
-        subject: 'NOTICE: Central Station Bridge - Planned maintenance work',
-        content: 'NOTICE ROADWORK NOTIFICATION...',
-        status: 'draft',
-        priority: 'normal',
-        category: 'roadworks',
-        routes: ['10', '11', '12'],
-        createdAt: new Date(now.getTime() - 30 * 60 * 1000).toISOString(),
-        createdBy: supervisor?.badgeNumber || 'AG003'
-      },
-      {
-        id: 'msg_004',
-        subject: 'Service Update: Route 21 Delays',
-        content: 'Service update notification...',
-        status: 'scheduled',
-        priority: 'normal',
-        category: 'service',
-        routes: ['21'],
-        createdAt: new Date(now.getTime() - 10 * 60 * 1000).toISOString(),
-        scheduledFor: new Date(now.getTime() + 15 * 60 * 1000).toISOString(),
-        createdBy: supervisor?.badgeNumber || 'AG003'
-      },
-      {
-        id: 'msg_005',
-        subject: 'Weather Alert: Snow Expected',
-        content: 'Weather-related service adjustments...',
-        status: 'draft',
-        priority: 'urgent',
-        category: 'general',
-        routes: ['1', '21', '56'],
-        createdAt: new Date(now.getTime() - 60 * 60 * 1000).toISOString(),
-        createdBy: supervisor?.badgeNumber || 'AG003'
-      }
-    ];
-  };
 
   // Toggle message selection
   const toggleMessageSelection = (messageId) => {

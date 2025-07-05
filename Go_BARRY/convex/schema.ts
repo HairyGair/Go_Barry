@@ -671,4 +671,81 @@ export default defineSchema({
     .index("by_to_supervisor", ["toSupervisor"])
     .index("by_acknowledged", ["acknowledged"])
     .index("by_expiry", ["expiresAt"]),
+
+  // Disruptions table for unified disruption management
+  disruptions: defineTable({
+    // Core fields
+    type: v.union(
+      v.literal("roadwork"),
+      v.literal("incident"),
+      v.literal("event"),
+      v.literal("weather"),
+      v.literal("breakdown")
+    ),
+    status: v.union(
+      v.literal("active"),
+      v.literal("planned"),
+      v.literal("cleared"),
+      v.literal("monitoring")
+    ),
+    severity: v.union(
+      v.literal("critical"),
+      v.literal("high"),
+      v.literal("medium"),
+      v.literal("low")
+    ),
+    
+    // Location
+    location: v.object({
+      description: v.string(),
+      coordinates: v.object({
+        lat: v.number(),
+        lng: v.number(),
+      }),
+      road: v.optional(v.string()),
+      junction: v.optional(v.string()),
+      postcode: v.optional(v.string()),
+    }),
+    
+    // Time
+    startTime: v.number(),
+    endTime: v.optional(v.number()),
+    lastUpdated: v.number(),
+    
+    // Impact
+    affectedRoutes: v.array(v.string()),
+    estimatedDelay: v.optional(v.number()), // minutes
+    
+    // Details
+    title: v.string(),
+    description: v.string(),
+    source: v.string(),
+    sourceId: v.optional(v.string()),
+    
+    // Supervisor actions
+    dismissedBy: v.optional(v.array(v.string())),
+    priority: v.optional(v.number()),
+  })
+    .index("by_status", ["status"])
+    .index("by_severity", ["severity"])
+    .index("by_type", ["type"])
+    .index("by_start_time", ["startTime"])
+    .index("by_source", ["source", "sourceId"]),
+
+  // Disruption notes for supervisor comments and updates
+  disruptionNotes: defineTable({
+    disruptionId: v.id("disruptions"),
+    supervisorBadge: v.string(),
+    supervisorName: v.string(),
+    content: v.string(),
+    timestamp: v.number(),
+    type: v.union(
+      v.literal("update"),
+      v.literal("action"),
+      v.literal("observation")
+    ),
+  })
+    .index("by_disruption", ["disruptionId"])
+    .index("by_supervisor", ["supervisorBadge"])
+    .index("by_timestamp", ["timestamp"]),
 });

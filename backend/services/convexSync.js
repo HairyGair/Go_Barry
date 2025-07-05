@@ -3,6 +3,7 @@
 
 import fetch from 'node-fetch';
 import busLocationService from './busLocationService.js';
+import { disruptionSync } from './disruptionSync.js';
 
 class ConvexSyncService {
   constructor() {
@@ -79,6 +80,14 @@ class ConvexSyncService {
       });
 
       console.log(`✅ Synced ${convexAlerts.length} alerts to Convex`);
+      
+      // Also sync as disruptions for the new unified system
+      try {
+        await disruptionSync.syncFromAlerts(alerts);
+      } catch (disruptionError) {
+        console.warn('⚠️ Disruption sync failed:', disruptionError.message);
+      }
+      
       return { success: true, count: convexAlerts.length, result };
     } catch (error) {
       console.error('❌ Convex sync error:', error);
@@ -121,6 +130,14 @@ class ConvexSyncService {
       }
 
       console.log(`✅ Synced ${syncedCount}/${convexEvents.length} events to Convex`);
+      
+      // Also sync as disruptions for the new unified system
+      try {
+        await disruptionSync.syncEvents(events);
+      } catch (disruptionError) {
+        console.warn('⚠️ Disruption sync failed:', disruptionError.message);
+      }
+      
       return { success: true, count: syncedCount };
     } catch (error) {
       console.error('❌ Convex events sync error:', error);
@@ -245,6 +262,13 @@ class ConvexSyncService {
       });
 
       console.log(`🚧 Synced ${convexAlerts.length} high-impact StreetManager roadworks to Convex`);
+      
+      // Also sync as disruptions for the new unified system
+      try {
+        await disruptionSync.syncRoadworks(highImpactWorks);
+      } catch (disruptionError) {
+        console.warn('⚠️ Disruption sync failed:', disruptionError.message);
+      }
       
       // Log critical roadworks for supervisor attention
       const criticalWorks = convexAlerts.filter(a => a.severity === 'critical');

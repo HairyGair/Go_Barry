@@ -34,6 +34,7 @@ export default function RootLayout() {
             <Stack.Screen name="operations" options={{ headerShown: false }} />
             <Stack.Screen name="operations-centre" options={{ headerShown: false }} />
             <Stack.Screen name="admin" options={{ headerShown: false }} />
+            <Stack.Screen name="disruptions" options={{ headerShown: false }} />
           </Stack>
         </SupervisorProvider>
       </ThemeProvider>
