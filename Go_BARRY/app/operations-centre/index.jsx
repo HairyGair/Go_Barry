@@ -3,7 +3,7 @@ import { View, ScrollView, StyleSheet, Platform, Pressable, ActivityIndicator, T
 import { useRouter } from 'expo-router';
 import { useSupervisor } from '../../components/hooks/useSupervisorSession';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { UK_LOCALE } from './constants/locale.exports.js';
+import { UK_LOCALE } from './constants';
 import AppHeader from '../../components/common/AppHeader';
 
 // Mock utilities for now
@@ -31,7 +31,7 @@ import DisruptionDatabaseCard from '../../components/operations/cards/Disruption
 import StatisticsCard from '../../components/operations/cards/StatisticsCard.jsx';
 
 // Import theme
-import { operationsTheme } from './styles/theme.exports.js';
+import { operationsTheme } from './styles';
 
 // Initialize performance monitor
 const perfMonitor = new PerformanceMonitor();

@@ -7,7 +7,7 @@
 import React from 'react';
 import { Pressable, View, Text, StyleSheet, Platform, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { operationsTheme } from '../styles/theme.exports.js';
+import { operationsTheme } from '../styles';
 
 export default function OperationsCard({ 
   id,

@@ -7,8 +7,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { operationsTheme } from '../styles/theme.exports.js';
-import { UK_LOCALE } from '../constants/locale.exports.js';
+import { operationsTheme } from '../styles';
+import { UK_LOCALE } from '../constants';
 
 export default function ActivityFeed() {
   const [activities, setActivities] = useState([]);

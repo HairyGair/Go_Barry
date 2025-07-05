@@ -3,8 +3,8 @@ import React from 'react';
 import { View, Text } from 'react-native';
 
 // Test imports from operations-centre
-import { UK_LOCALE } from '../app/operations-centre/constants/locale.exports.js';
-import { operationsTheme } from '../app/operations-centre/styles/theme.exports.js';
+import { UK_LOCALE } from '../app/operations-centre/constants';
+import { operationsTheme } from '../app/operations-centre/styles';
 
 export default function TestImports() {
   console.log('UK_LOCALE:', UK_LOCALE);

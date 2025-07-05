@@ -8,8 +8,8 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { operationsTheme } from '../styles/theme.exports.js';
-import { UK_LOCALE } from '../constants/locale.exports.js';
+import { operationsTheme } from '../styles';
+import { UK_LOCALE } from '../constants';
 
 export default function OperationsHeader({ supervisorName, onLogout }) {
   const router = useRouter();

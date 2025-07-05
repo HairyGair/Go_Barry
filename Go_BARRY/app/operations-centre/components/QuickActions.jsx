@@ -7,8 +7,8 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { operationsTheme } from '../styles/theme.exports.js';
-import { UK_LOCALE } from '../constants/locale.exports.js';
+import { operationsTheme } from '../styles';
+import { UK_LOCALE } from '../constants';
 
 export default function QuickActions() {
   const actions = [
