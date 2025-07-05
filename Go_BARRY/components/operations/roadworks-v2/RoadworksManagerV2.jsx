@@ -154,6 +154,13 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       console.log('🔍 Manual roadworks sample:', validManualRoadworks.slice(0, 2));
       console.log('🔍 Street Manager roadworks sample:', validStreetManagerRoadworks.slice(0, 2));
       
+      // Debug: Check if we have old cached data
+      if (validStreetManagerRoadworks.length > 50) {
+        console.warn('⚠️ LARGE DATASET DETECTED:', validStreetManagerRoadworks.length, 'Street Manager roadworks');
+        console.warn('⚠️ This may include old non-North East data that should have been cleaned up');
+        console.warn('⚠️ First 5 locations:', validStreetManagerRoadworks.slice(0, 5).map(r => r.location || r.title));
+      }
+      
       console.log('🔄 Setting roadworks state...');
       setRoadworks(validManualRoadworks);
       setStreetManagerRoadworks(validStreetManagerRoadworks);
@@ -163,22 +170,40 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       calculateStats(validManualRoadworks, validStreetManagerRoadworks);
       setLastUpdate(new Date());
       
+      // Apply North East filtering to stats calculation
+      const neManualRoadworks = validManualRoadworks.filter(roadwork => {
+        const hasGNERoutes = affectsGNERoutes(roadwork);
+        const inNorthEast = roadwork.coordinates && isInNorthEastRegion(roadwork.coordinates.lat, roadwork.coordinates.lng);
+        return hasGNERoutes || inNorthEast;
+      });
+      
+      const neStreetManagerRoadworks = validStreetManagerRoadworks.filter(roadwork => {
+        const hasGNERoutes = affectsGNERoutes(roadwork);
+        const inNorthEast = roadwork.coordinates && isInNorthEastRegion(roadwork.coordinates.lat, roadwork.coordinates.lng);
+        return hasGNERoutes || inNorthEast;
+      });
+      
       // Force a stats update with immediate values for debugging
       const immediateStats = {
-        total: validManualRoadworks.length + validStreetManagerRoadworks.length,
-        active: validManualRoadworks.filter(r => r.status === 'active').length + 
-                validStreetManagerRoadworks.filter(r => r.status === 'active').length,
-        planned: validManualRoadworks.filter(r => r.status === 'planned').length + 
-                 validStreetManagerRoadworks.filter(r => r.status === 'planned').length,
-        critical: validManualRoadworks.filter(r => r.severity === 'critical').length + 
-                  validStreetManagerRoadworks.filter(r => r.severity === 'critical').length,
-        streetManager: validStreetManagerRoadworks.length,
-        manual: validManualRoadworks.length,
+        total: neManualRoadworks.length + neStreetManagerRoadworks.length,
+        active: neManualRoadworks.filter(r => r.status === 'active').length + 
+                neStreetManagerRoadworks.filter(r => r.status === 'active').length,
+        planned: neManualRoadworks.filter(r => r.status === 'planned').length + 
+                 neStreetManagerRoadworks.filter(r => r.status === 'planned').length,
+        critical: neManualRoadworks.filter(r => r.severity === 'critical').length + 
+                  neStreetManagerRoadworks.filter(r => r.severity === 'critical').length,
+        streetManager: neStreetManagerRoadworks.length,
+        manual: neManualRoadworks.length,
         routesAffected: 0,
         diversions: 0,
         pendingReview: 0
       };
-      console.log('🚀 IMMEDIATE stats calculation result:', immediateStats);
+      console.log('🚀 NORTH EAST FILTERED stats:', immediateStats);
+      console.log('🚀 Raw data stats (should be higher):', {
+        total: validManualRoadworks.length + validStreetManagerRoadworks.length,
+        streetManager: validStreetManagerRoadworks.length,
+        manual: validManualRoadworks.length
+      });
       setStats(immediateStats);
       
     } catch (error) {
