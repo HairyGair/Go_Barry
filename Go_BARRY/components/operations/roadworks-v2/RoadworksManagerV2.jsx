@@ -359,14 +359,15 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
     }
   }, [baseUrl, sessionId]);
 
-  // Auto-refresh every 5 minutes
+  // Auto-refresh every 90 seconds for real-time Street Manager data
   useEffect(() => {
     const interval = setInterval(() => {
+      console.log('🔄 Auto-refreshing Street Manager data...');
       fetchRoadworks(false);
       if (sessionId) {
         fetchPendingStats();
       }
-    }, 5 * 60 * 1000);
+    }, 90 * 1000); // 90 seconds for real-time updates
 
     return () => clearInterval(interval);
   }, [baseUrl]);
@@ -379,7 +380,7 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
           <Text style={roadworksStyles.headerTitle}>Roadworks Manager V2</Text>
           <View style={roadworksStyles.row}>
             <Text style={roadworksStyles.headerSubtitle}>
-              Real-time roadworks and diversions • Last updated {lastUpdate.toLocaleTimeString()}
+              Live Street Manager data • Updates every 90s • Last updated {lastUpdate.toLocaleTimeString()}
             </Text>
             
             {/* Connection Status Indicator */}

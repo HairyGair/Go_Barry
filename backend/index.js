@@ -1229,12 +1229,15 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
     
     const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
     
-    // TEMPORARY: Get roadworks from the roadworks table while fixing streetmanager_notifications
+    // Get recent Street Manager notifications (active roadworks)
     const { data: roadworks, error } = await supabase
-      .from('roadworks')
+      .from('streetmanager_notifications')
       .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50);
+      .not('raw_webhook_data', 'is', null)
+      .in('webhook_event_type', ['WORK_START', 'PERMIT_GRANTED', 'PERMIT_SUBMITTED', 'WORK_STOP'])
+      .gte('webhook_received_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()) // Last 30 days
+      .order('webhook_received_at', { ascending: false })
+      .limit(100);
     
     if (error) {
       console.error('❌ Error fetching streetworks:', error);
@@ -1245,27 +1248,68 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
       });
     }
     
-    // TEMPORARY: Transform roadworks table data to match frontend expectations
-    const transformedRoadworks = (roadworks || []).map(rw => ({
-      id: rw.id,
-      title: rw.title || 'Street Manager Roadwork',
-      location: rw.location || 'Location TBC',
-      description: rw.description || '',
-      status: rw.status || 'active',
-      severity: rw.severity || 'medium',
-      startDate: rw.start_date,
-      endDate: rw.end_date,
-      affectsRoutes: rw.routes_affected || rw.affects_routes || [],
-      coordinates: rw.coordinates,
-      source: rw.source || 'StreetManager',
-      permitReference: rw.permit_reference,
-      workReference: rw.work_reference,
-      authority: rw.authority,
-      promoter: rw.promoter,
-      hasDiversion: false,
-      createdAt: rw.created_at,
-      updatedAt: rw.updated_at
-    }));
+    // Transform Street Manager notifications to frontend format
+    const transformedRoadworks = (roadworks || []).map(rw => {
+      const rawData = rw.raw_webhook_data?.object_data || {};
+      
+      // Determine work status and severity
+      const workStatus = rawData.work_status_ref || rawData.work_status || 'unknown';
+      const workCategory = rawData.work_category_ref || rawData.work_category || 'standard';
+      
+      return {
+        id: rw.id,
+        title: rawData.street_name ? 
+          `${rawData.street_name} - ${rawData.activity_type || 'Street Works'}` : 
+          `Street Manager Roadwork (${rw.webhook_event_type})`,
+        location: [rawData.street_name, rawData.town, rawData.area_name]
+          .filter(Boolean)
+          .join(', ') || 'Location TBC',
+        description: [
+          rawData.activity_type,
+          rawData.traffic_management_type,
+          rawData.work_category
+        ].filter(Boolean).join(' • ') || rw.webhook_event_type,
+        
+        // Map work status to frontend status
+        status: workStatus === 'in_progress' ? 'active' :
+                workStatus === 'planned' ? 'planned' :
+                workStatus === 'completed' ? 'completed' :
+                rw.webhook_event_type === 'WORK_START' ? 'active' :
+                rw.webhook_event_type === 'WORK_STOP' ? 'completed' : 'planned',
+        
+        // Map work category to severity
+        severity: workCategory === 'immediate_urgent' ? 'critical' :
+                  workCategory === 'major' ? 'high' :
+                  workCategory === 'standard' ? 'medium' :
+                  workCategory === 'minor' ? 'low' : 'medium',
+        
+        startDate: rawData.actual_start_date_time || rawData.proposed_start_date,
+        endDate: rawData.actual_end_date_time || rawData.proposed_end_date,
+        affectsRoutes: rw.affected_routes || [],
+        
+        // Parse coordinates if available
+        coordinates: rawData.works_location_coordinates ? 
+          parseStreetManagerCoordinates(rawData.works_location_coordinates) : null,
+        
+        source: 'StreetManager',
+        eventType: rw.webhook_event_type,
+        permitReference: rawData.permit_reference_number,
+        workReference: rawData.work_reference_number,
+        authority: rawData.highway_authority,
+        promoter: rawData.promoter_organisation,
+        trafficManagement: rawData.traffic_management_type,
+        workCategory: rawData.work_category,
+        usrn: rawData.usrn,
+        roadCategory: rawData.road_category,
+        
+        // Metadata
+        webhookReceived: rw.webhook_received_at,
+        processedAt: rw.processed_at,
+        hasDiversion: (rw.affected_routes?.length || 0) > 0,
+        createdAt: rw.created_at,
+        updatedAt: rw.updated_at
+      };
+    });
     
     console.log(`✅ Found ${transformedRoadworks.length} Street Manager roadworks`);
     
@@ -1287,6 +1331,56 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
     });
   }
 });
+
+// Helper function to parse Street Manager coordinates
+function parseStreetManagerCoordinates(coordString) {
+  try {
+    if (!coordString) return null;
+    
+    // Handle POINT(x y) format
+    if (coordString.startsWith('POINT(')) {
+      const coords = coordString.match(/POINT\(([^)]+)\)/);
+      if (coords && coords[1]) {
+        const [x, y] = coords[1].split(' ').map(Number);
+        // Convert British National Grid to approximate lat/lng
+        return convertBNGToLatLng(x, y);
+      }
+    }
+    
+    // Handle LINESTRING format - use first point
+    if (coordString.startsWith('LINESTRING(')) {
+      const coords = coordString.match(/LINESTRING\(([^)]+)\)/);
+      if (coords && coords[1]) {
+        const firstPoint = coords[1].split(',')[0].trim();
+        const [x, y] = firstPoint.split(' ').map(Number);
+        return convertBNGToLatLng(x, y);
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.warn('Error parsing coordinates:', coordString, error);
+    return null;
+  }
+}
+
+// Approximate BNG to Lat/Lng conversion (for display purposes)
+function convertBNGToLatLng(easting, northing) {
+  try {
+    // This is a simplified conversion - for precise conversion, use proj4
+    const lat = 49.766 + (northing - 100000) * 0.000009;
+    const lng = -7.557 + (easting - 100000) * 0.000014;
+    
+    // Basic validation for UK coordinates
+    if (lat < 49 || lat > 61 || lng < -8 || lng > 2) {
+      return null;
+    }
+    
+    return { lat: parseFloat(lat.toFixed(6)), lng: parseFloat(lng.toFixed(6)) };
+  } catch (error) {
+    return null;
+  }
+}
 
 console.log('✅ Street Manager roadworks endpoint registered at /api/street-manager-roadworks');
 
