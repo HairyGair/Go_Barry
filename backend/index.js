@@ -1260,7 +1260,11 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
       const areaName = rawData.area_name || '';
       
       // Immediately exclude Birmingham and other non-North East areas
-      const excludePatterns = ['BIRMINGHAM', 'LONDON', 'MANCHESTER', 'LIVERPOOL', 'SHEFFIELD', 'LEEDS', 'BRISTOL'];
+      const excludePatterns = [
+        'BIRMINGHAM', 'STRETTON', 'WALSALL', 'WOLVERHAMPTON', 'COVENTRY', 
+        'LONDON', 'MANCHESTER', 'LIVERPOOL', 'SHEFFIELD', 'LEEDS', 'BRISTOL',
+        'NOTTINGHAM', 'LEICESTER', 'DERBY', 'STOKE', 'PRESTON', 'BLACKBURN'
+      ];
       const locationString = `${streetName} ${town} ${areaName}`.toUpperCase();
       
       const shouldExclude = excludePatterns.some(pattern => locationString.includes(pattern));

@@ -50,18 +50,17 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
   const [errorMessage, setErrorMessage] = useState(null);
   const [filters, setFilters] = useState({
     status: 'all',
-    severity: 'all',
     source: 'all',
     dateRange: 'all',
     affectedRoutes: [],
     searchQuery: ''
     // Removed gneOnly - always filter to North East only
+    // Removed severity - not required
   });
 
   // Statistics state
   const [stats, setStats] = useState({
     total: 0,
-    critical: 0,
     active: 0,
     planned: 0,
     routesAffected: 0,
@@ -77,7 +76,6 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
     { id: 'queue', label: 'Review Queue', icon: 'alert-circle', badge: stats.pendingReview || null },
     { id: 'active', label: 'Active', icon: 'time', badge: stats.active > 0 ? stats.active : null },
     { id: 'planned', label: 'Planned', icon: 'calendar', badge: stats.planned > 0 ? stats.planned : null },
-    { id: 'critical', label: 'Critical', icon: 'warning', badge: stats.critical > 0 ? stats.critical : null },
     { id: 'timeline', label: 'Timeline', icon: 'list', badge: null },
     { id: 'test', label: 'Test', icon: 'flask', badge: null },
     { id: 'templates', label: 'Templates', icon: 'folder', badge: null },
@@ -197,8 +195,6 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
                 neStreetManagerRoadworks.filter(r => r.status === 'active').length,
         planned: neManualRoadworks.filter(r => r.status === 'planned').length + 
                  neStreetManagerRoadworks.filter(r => r.status === 'planned').length,
-        critical: neManualRoadworks.filter(r => r.severity === 'critical').length + 
-                  neStreetManagerRoadworks.filter(r => r.severity === 'critical').length,
         streetManager: neStreetManagerRoadworks.length,
         manual: neManualRoadworks.length,
         routesAffected: 0,
@@ -241,7 +237,6 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
     });
     
     const manualPlanned = manual.filter(r => r.status === 'planned');
-    const manualCritical = manual.filter(r => r.severity === 'critical');
     
     const streetManagerActive = streetManager.filter(r => {
       const isActive = r.status === 'active';
@@ -250,15 +245,12 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
     });
     
     const streetManagerPlanned = streetManager.filter(r => r.status === 'planned');
-    const streetManagerCritical = streetManager.filter(r => r.severity === 'critical');
     
     console.log('📊 Detailed counts:', {
       manualActive: manualActive.length,
       manualPlanned: manualPlanned.length,
-      manualCritical: manualCritical.length,
       streetManagerActive: streetManagerActive.length,
-      streetManagerPlanned: streetManagerPlanned.length,
-      streetManagerCritical: streetManagerCritical.length
+      streetManagerPlanned: streetManagerPlanned.length
     });
     
     // Count affected routes (deduplicated)
@@ -276,7 +268,6 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
 
     const newStats = {
       total: manual.length + streetManager.length,
-      critical: manualCritical.length + streetManagerCritical.length,
       active: manualActive.length + streetManagerActive.length,
       planned: manualPlanned.length + streetManagerPlanned.length,
       routesAffected: allAffectedRoutes.size,
@@ -371,7 +362,6 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
           id: r.id || `manual-${Date.now()}-${Math.random()}`,
           title: r.title || r.location || 'Unnamed Roadwork',
           status: r.status || 'active',
-          severity: r.severity || 'medium'
         })),
         ...validStreetManagerRoadworks.map(r => ({ 
           ...r, 
@@ -380,7 +370,6 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
           id: r.id || `streetmanager-${Date.now()}-${Math.random()}`,
           title: r.title || r.location || 'Street Manager Roadwork',
           status: r.status || 'active',
-          severity: r.severity || 'medium'
         }))
       ];
       
@@ -421,7 +410,7 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       console.log('🎯 FILTERING DEBUG:');
       console.log('🎯 All roadworks before tab filtering:', allRoadworks.length);
       console.log('🎯 Active tab:', activeTab);
-      console.log('🎯 Sample roadworks statuses:', allRoadworks.slice(0, 5).map(r => ({ title: r.title, status: r.status, severity: r.severity })));
+      console.log('🎯 Sample roadworks statuses:', allRoadworks.slice(0, 5).map(r => ({ title: r.title, status: r.status })));
 
       // Filter by active tab
       if (activeTab === 'active') {
@@ -430,17 +419,11 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       } else if (activeTab === 'planned') {
         allRoadworks = allRoadworks.filter(r => r.status === 'planned');
         console.log('🎯 After planned filter:', allRoadworks.length);
-      } else if (activeTab === 'critical') {
-        allRoadworks = allRoadworks.filter(r => r.severity === 'critical');
-        console.log('🎯 After critical filter:', allRoadworks.length);
       }
 
       // Apply filters with null checks
       if (filters.status && filters.status !== 'all') {
         allRoadworks = allRoadworks.filter(r => r.status === filters.status);
-      }
-      if (filters.severity && filters.severity !== 'all') {
-        allRoadworks = allRoadworks.filter(r => r.severity === filters.severity);
       }
       if (filters.source && filters.source !== 'all') {
         allRoadworks = allRoadworks.filter(r => r.source === filters.source);
@@ -483,10 +466,6 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
   // Handle stat card press
   const handleStatPress = (statType) => {
     switch (statType) {
-      case 'critical':
-        setActiveTab('critical');
-        setViewMode('list');
-        break;
       case 'active':
         setActiveTab('active');
         setViewMode('list');
@@ -630,11 +609,6 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
           size="large"
         />
         
-        <StatsCard
-          {...StatCardPresets.critical(stats.critical, () => handleStatPress('critical'))}
-          trend={stats.critical > 5 ? '+2 from yesterday' : null}
-          trendDirection={stats.critical > 5 ? 'up' : 'neutral'}
-        />
         
         <StatsCard
           {...StatCardPresets.active(stats.active, () => handleStatPress('active'))}
@@ -817,8 +791,8 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       />
       <Text style={roadworksStyles.emptyTitle}>No Roadworks Found</Text>
       <Text style={roadworksStyles.emptyDescription}>
-        {(stats.active > 0 || stats.planned > 0 || stats.critical > 0) ? (
-          `The tab stats show ${stats.active + stats.planned + stats.critical} total roadworks, but the backend API routes are currently experiencing 404 errors. This is a temporary deployment issue that will be resolved shortly.`
+        {(stats.active > 0 || stats.planned > 0) ? (
+          `The tab stats show ${stats.active + stats.planned} total roadworks, but the backend API routes are currently experiencing 404 errors. This is a temporary deployment issue that will be resolved shortly.`
         ) : (
           activeTab === 'overview' 
             ? 'There are currently no roadworks to display. Check back later or refresh to see if new data is available.'
@@ -1111,7 +1085,6 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
             onFiltersChange={setFilters}
             onClearFilters={() => setFilters({
               status: 'all',
-              severity: 'all',
               source: 'all',
               dateRange: 'all',
               affectedRoutes: [],
