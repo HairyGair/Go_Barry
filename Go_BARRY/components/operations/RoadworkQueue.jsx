@@ -46,6 +46,7 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
   }, [supervisorSession, baseUrl, sessionId, supervisorName, supervisorRole, isLoggedIn, currentSession]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [pendingRoadworks, setPendingRoadworks] = useState([]);
   const [stats, setStats] = useState({
     pendingReview: 0,
@@ -70,7 +71,8 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
 
     try {
       setLoading(true);
-      const response = await fetch(`${baseUrl || 'https://go-barry.onrender.com'}/api/roadworks-v2/pending`, {
+      const apiUrl = (baseUrl && !baseUrl.includes('localhost')) ? baseUrl : 'https://go-barry.onrender.com';
+      const response = await fetch(`${apiUrl}/api/roadworks-v2/pending`, {
         headers: {
           'x-session-id': currentSession.sessionId
         }
@@ -82,7 +84,12 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
       setPendingRoadworks(data.data || []);
     } catch (error) {
       console.error('Error fetching pending roadworks:', error);
-      Alert.alert('Error', 'Failed to fetch pending roadworks');
+      if (error.message.includes('Failed to fetch')) {
+        console.log('ℹ️ Backend API unavailable - review queue will be empty until service is restored');
+        // Don't show alert for this known issue, just keep empty state
+      } else {
+        Alert.alert('Error', 'Failed to fetch pending roadworks');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -94,7 +101,8 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
     if (!currentSession) return;
 
     try {
-      const response = await fetch(`${baseUrl || 'https://go-barry.onrender.com'}/api/roadworks-v2/stats`, {
+      const apiUrl = (baseUrl && !baseUrl.includes('localhost')) ? baseUrl : 'https://go-barry.onrender.com';
+      const response = await fetch(`${apiUrl}/api/roadworks-v2/stats`, {
         headers: {
           'x-session-id': currentSession.sessionId
         }
@@ -111,7 +119,10 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
 
   // Submit review
   const submitReview = async () => {
-    console.log('🔍 submitReview called');
+    if (submitting) return; // Prevent double submission
+    
+    console.log('🔥🔥🔥 ===== SUBMIT REVIEW FUNCTION CALLED ===== 🔥🔥🔥');
+    console.log('🔍 submitReview called at:', new Date().toISOString());
     console.log('🔍 currentSession:', currentSession);
     console.log('🔍 selectedRoadwork:', selectedRoadwork);
     console.log('🔍 reviewData:', reviewData);
@@ -129,7 +140,9 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
     }
 
     try {
-      const url = `${baseUrl || 'https://go-barry.onrender.com'}/api/roadworks-v2/${selectedRoadwork.id}/review`;
+      setSubmitting(true);
+      const apiUrl = (baseUrl && !baseUrl.includes('localhost')) ? baseUrl : 'https://go-barry.onrender.com';
+      const url = `${apiUrl}/api/roadworks-v2/${selectedRoadwork.id}/review`;
       console.log('📡 Submitting review to:', url);
       
       // Ensure we have supervisor credentials - truncate supervisorId if it's too long
@@ -200,13 +213,31 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
       
       // Handle network errors gracefully
       if (error.message.includes('Failed to fetch')) {
-        Alert.alert('Network Error', 'Cannot connect to server. Review saved locally and will sync when connection is restored.');
-        // For now, just close the modal as if it succeeded
-        setReviewModalVisible(false);
-        setSelectedRoadwork(null);
+        Alert.alert(
+          'Backend Service Unavailable', 
+          'The review API is currently experiencing issues. The backend service is being redeployed to fix route registration problems. Please try again in a few minutes.',
+          [
+            { text: 'OK', onPress: () => {
+              // Close modal and refresh data even when API fails
+              setReviewModalVisible(false);
+              setSelectedRoadwork(null);
+              // Refresh the data to show any changes
+              fetchPendingRoadworks();
+              fetchStats();
+            }}
+          ]
+        );
       } else {
-        Alert.alert('Error', `Failed to submit review: ${error.message}`);
+        Alert.alert('Error', `Failed to submit review: ${error.message}`, [
+          { text: 'OK', onPress: () => {
+            // Close modal even on other errors
+            setReviewModalVisible(false);
+            setSelectedRoadwork(null);
+          }}
+        ]);
       }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -232,7 +263,8 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
           text: 'Approve', 
           onPress: async () => {
             try {
-              const response = await fetch(`${baseUrl || 'https://go-barry.onrender.com'}/api/roadworks-v2/batch-approve`, {
+              const apiUrl = (baseUrl && !baseUrl.includes('localhost')) ? baseUrl : 'https://go-barry.onrender.com';
+              const response = await fetch(`${apiUrl}/api/roadworks-v2/batch-approve`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
@@ -565,13 +597,43 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.modalButton, styles.modalButtonPrimary]}
-                onPress={() => {
+                style={[
+                  styles.modalButton, 
+                  styles.modalButtonPrimary,
+                  submitting && styles.modalButtonDisabled
+                ]}
+                onPress={async () => {
                   console.log('🔥 Submit Review button pressed!');
-                  submitReview();
+                  console.log('🔍 Current session check:', !!currentSession);
+                  console.log('🔍 Selected roadwork check:', !!selectedRoadwork);
+                  
+                  if (submitting) return; // Prevent double tap
+                  
+                  if (!currentSession) {
+                    console.log('❌ No current session - showing alert');
+                    Alert.alert('Authentication Error', 'Please ensure you are logged in as a supervisor');
+                    return;
+                  }
+                  if (!selectedRoadwork) {
+                    console.log('❌ No selected roadwork - showing alert');
+                    Alert.alert('Error', 'No roadwork selected for review');
+                    return;
+                  }
+                  console.log('✅ Pre-checks passed, calling submitReview()');
+                  await submitReview();
                 }}
+                disabled={submitting}
               >
-                <Text style={styles.modalButtonTextPrimary}>Submit Review</Text>
+                {submitting ? (
+                  <View style={styles.buttonLoadingContainer}>
+                    <ActivityIndicator size="small" color="white" />
+                    <Text style={[styles.modalButtonTextPrimary, { marginLeft: 8 }]}>
+                      Submitting...
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.modalButtonTextPrimary}>Submit Review</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -891,6 +953,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: 'white',
+  },
+  modalButtonDisabled: {
+    backgroundColor: '#bdc3c7',
+    opacity: 0.7,
+  },
+  buttonLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 
