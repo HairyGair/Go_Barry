@@ -23,6 +23,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
  */
 export async function getAllRoadworks(filters = {}) {
   try {
+    // Check if manual_roadworks table exists, return empty array if not
     let query = supabase
       .from('manual_roadworks')
       .select('*');
@@ -47,6 +48,11 @@ export async function getAllRoadworks(filters = {}) {
     const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
+      // Handle missing table gracefully
+      if (error.code === '42P01') {
+        console.log('ℹ️ manual_roadworks table does not exist yet, returning empty array');
+        return [];
+      }
       console.error('❌ Error fetching roadworks from Supabase:', error);
       return [];
     }
@@ -308,7 +314,16 @@ export async function getRoadworkById(id) {
       .eq('id', id)
       .single();
 
-    if (error || !data) {
+    if (error) {
+      // Handle missing table gracefully
+      if (error.code === '42P01') {
+        console.log('ℹ️ manual_roadworks table does not exist yet, returning null');
+        return null;
+      }
+      return null;
+    }
+
+    if (!data) {
       return null;
     }
 
@@ -332,6 +347,11 @@ export async function getDisplayRoadworks() {
       .order('display_promoted_at', { ascending: false });
 
     if (error) {
+      // Handle missing table gracefully
+      if (error.code === '42P01') {
+        console.log('ℹ️ manual_roadworks table does not exist yet, returning empty array');
+        return [];
+      }
       console.error('❌ Error fetching display roadworks:', error);
       return [];
     }
@@ -364,6 +384,11 @@ export async function getRoadworksStats() {
       .select('*');
 
     if (error) {
+      // Handle missing table gracefully
+      if (error.code === '42P01') {
+        console.log('ℹ️ manual_roadworks table does not exist yet, returning empty stats');
+        return getEmptyStats();
+      }
       console.error('❌ Error fetching roadworks for stats:', error);
       return getEmptyStats();
     }
@@ -565,6 +590,11 @@ export async function initializeStorage() {
       .limit(1);
 
     if (error) {
+      // Handle missing table gracefully
+      if (error.code === '42P01') {
+        console.log('ℹ️ manual_roadworks table does not exist yet, storage will create it when needed');
+        return true; // Return true to allow app to continue
+      }
       console.error('❌ Failed to initialize Supabase roadworks storage:', error.message);
       return false;
     }
