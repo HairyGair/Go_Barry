@@ -215,10 +215,17 @@ export async function getPendingStreetworks(limit = 50) {
  */
 export async function updateStreetworkReview(streetworkId, reviewData, supervisorId, supervisorName) {
   try {
+    console.log('📊 Updating streetwork review:', {
+      streetworkId,
+      supervisorId: `"${supervisorId}" (${supervisorId?.length} chars)`,
+      supervisorName: `"${supervisorName}" (${supervisorName?.length} chars)`,
+      reviewData
+    });
+
     const updateData = {
       status: reviewData.status,
       review_required: false,
-      reviewed_by: supervisorId,
+      reviewed_by: supervisorId.substring(0, 10), // Limit to 10 characters for DB constraint
       reviewed_at: new Date().toISOString(),
       confirmed_routes: reviewData.confirmedRoutes,
       severity: reviewData.severity,
