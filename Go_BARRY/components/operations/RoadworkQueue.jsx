@@ -422,19 +422,19 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
         
         <View style={styles.statsRow}>
           <View style={[styles.statCard, { backgroundColor: '#3498db' }]}>
-            <Text style={styles.statNumber}>{stats.pendingReview}</Text>
+            <Text style={styles.statNumber}>{stats.pendingReview || 0}</Text>
             <Text style={styles.statLabel}>Pending</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: '#e74c3c' }]}>
-            <Text style={styles.statNumber}>{stats.critical}</Text>
+            <Text style={styles.statNumber}>{stats.critical || 0}</Text>
             <Text style={styles.statLabel}>Critical</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: '#e67e22' }]}>
-            <Text style={styles.statNumber}>{stats.high}</Text>
+            <Text style={styles.statNumber}>{stats.high || 0}</Text>
             <Text style={styles.statLabel}>High</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: '#27ae60' }]}>
-            <Text style={styles.statNumber}>{stats.approved}</Text>
+            <Text style={styles.statNumber}>{stats.approved || 0}</Text>
             <Text style={styles.statLabel}>Approved</Text>
           </View>
         </View>
@@ -485,9 +485,9 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
             >
               <View style={styles.cardHeader}>
                 <View style={[styles.severityBadge, { backgroundColor: getSeverityColor(roadwork.severity) }]}>
-                  <Text style={styles.severityText}>{roadwork.severity?.toUpperCase()}</Text>
+                  <Text style={styles.severityText}>{roadwork.severity?.toUpperCase() || 'MEDIUM'}</Text>
                 </View>
-                <Text style={styles.reference}>{roadwork.sm_reference}</Text>
+                <Text style={styles.reference}>{roadwork.sm_reference || ''}</Text>
               </View>
 
               <Text style={styles.streetName}>{roadwork.sm_street_name || 'Unknown Street'}</Text>
@@ -504,7 +504,7 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
                 )}
                 {(roadwork.latitude && roadwork.longitude) && (
                   <Text style={styles.coordinatesText}>
-                    📌 {roadwork.latitude.toFixed(4)}, {roadwork.longitude.toFixed(4)}
+                    📌 {roadwork.latitude?.toFixed(4) || 'N/A'}, {roadwork.longitude?.toFixed(4) || 'N/A'}
                   </Text>
                 )}
               </View>
