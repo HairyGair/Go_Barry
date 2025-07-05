@@ -417,6 +417,7 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
         transparent={true}
         onRequestClose={() => setReviewModalVisible(false)}
       >
+        {console.log('🔍 Modal rendered with reviewModalVisible:', reviewModalVisible, 'selectedRoadwork:', selectedRoadwork?.title)}
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -535,7 +536,10 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
 
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonPrimary]}
-                onPress={submitReview}
+                onPress={() => {
+                  console.log('🔥 Submit Review button pressed!');
+                  submitReview();
+                }}
               >
                 <Text style={styles.modalButtonTextPrimary}>Submit Review</Text>
               </TouchableOpacity>
