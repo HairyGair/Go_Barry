@@ -3,6 +3,15 @@ import express from 'express';
 
 const router = express.Router();
 
+// Test endpoint to verify analytics routes are working
+router.get('/test', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'Analytics API is working',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // In-memory storage for analytics (in production, use database)
 const analyticsStore = {
   events: [],
@@ -26,10 +35,14 @@ setInterval(() => {
 
 // POST /api/analytics - Receive analytics events
 router.post('/', (req, res) => {
+  console.log('📊 Analytics POST request received');
+  console.log('Request body:', req.body);
+  
   try {
     const { events } = req.body;
     
     if (!Array.isArray(events)) {
+      console.log('❌ Invalid events format - not an array');
       return res.status(400).json({ 
         success: false, 
         error: 'Events must be an array' 
