@@ -44,15 +44,7 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
       } : 'No session'
     });
   }, [supervisorSession, baseUrl, sessionId, supervisorName, supervisorRole, isLoggedIn, currentSession]);
-
-  // Debug logging for modal state
-  useEffect(() => {
-    if (reviewModalVisible) {
-      console.log('🔍 Modal is now visible with selectedRoadwork:', selectedRoadwork?.title || selectedRoadwork?.sm_street_name || 'undefined');
-    } else {
-      console.log('🔍 Modal is now hidden');
-    }
-  }, [reviewModalVisible, selectedRoadwork]);
+  
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -73,6 +65,15 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
     diversionRequired: false,
     notes: ''
   });
+
+  // Debug logging for modal state
+  useEffect(() => {
+    if (reviewModalVisible) {
+      console.log('🔍 Modal is now visible with selectedRoadwork:', selectedRoadwork?.title || selectedRoadwork?.sm_street_name || 'undefined');
+    } else {
+      console.log('🔍 Modal is now hidden');
+    }
+  }, [reviewModalVisible, selectedRoadwork]);
 
   // Fetch pending roadworks
   const fetchPendingRoadworks = async () => {
