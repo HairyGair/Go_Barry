@@ -277,11 +277,11 @@ async function logSupervisorAction(actionData) {
  */
 export async function getStreetworkStats() {
   try {
-    // Get counts by review_status (not status)
+    // Get counts by status (not review_status)
     const { data: statusCounts, error: statusError } = await supabase
       .from('streetworks')
-      .select('review_status, severity')
-      .in('review_status', ['pending', 'approved', 'monitoring', 'rejected']);
+      .select('status, severity')
+      .in('status', ['pending_review', 'approved', 'monitoring', 'rejected']);
 
     if (statusError) throw statusError;
 
@@ -296,9 +296,9 @@ export async function getStreetworkStats() {
     };
 
     (statusCounts || []).forEach(item => {
-      if (item.review_status === 'pending') stats.pendingReview++;
-      if (item.review_status === 'approved') stats.approved++;
-      if (item.review_status === 'monitoring') stats.monitoring++;
+      if (item.status === 'pending_review') stats.pendingReview++;
+      if (item.status === 'approved') stats.approved++;
+      if (item.status === 'monitoring') stats.monitoring++;
       if (item.severity === 'critical') stats.critical++;
       if (item.severity === 'high') stats.high++;
     });
@@ -319,7 +319,7 @@ export async function searchStreetworks(criteria) {
 
     // Apply filters
     if (criteria.status) {
-      query = query.eq('review_status', criteria.status);
+      query = query.eq('status', criteria.status);
     }
     if (criteria.severity) {
       query = query.eq('severity', criteria.severity);

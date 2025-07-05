@@ -85,6 +85,7 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
 
   // Fetch roadworks data with improved error handling
   const fetchRoadworks = async (showLoading = true) => {
+    console.log('🔄 fetchRoadworks called with baseUrl:', baseUrl);
     if (showLoading) setLoading(true);
     
     let manualData = { roadworks: [] };
@@ -96,7 +97,9 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       const manualTimeout = setTimeout(() => manualController.abort(), 10000); // 10s timeout
       
       try {
-        const manualResponse = await fetch(`${baseUrl}/api/roadworks`, {
+        const manualUrl = `${baseUrl}/api/roadworks`;
+        console.log('📡 Fetching manual roadworks from:', manualUrl);
+        const manualResponse = await fetch(manualUrl, {
           signal: manualController.signal,
           headers: {
             'Content-Type': 'application/json',
@@ -104,8 +107,10 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
         });
         clearTimeout(manualTimeout);
         
+        console.log('📡 Manual roadworks response status:', manualResponse.status);
         if (manualResponse.ok) {
           manualData = await manualResponse.json();
+          console.log('📡 Manual roadworks data:', manualData);
         } else {
           console.warn('Manual roadworks API returned:', manualResponse.status);
         }
@@ -118,7 +123,9 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       const streetManagerTimeout = setTimeout(() => streetManagerController.abort(), 10000);
       
       try {
-        const streetManagerResponse = await fetch(`${baseUrl}/api/street-manager-roadworks`, {
+        const streetManagerUrl = `${baseUrl}/api/street-manager-roadworks`;
+        console.log('📡 Fetching Street Manager roadworks from:', streetManagerUrl);
+        const streetManagerResponse = await fetch(streetManagerUrl, {
           signal: streetManagerController.signal,
           headers: {
             'Content-Type': 'application/json',
@@ -126,8 +133,10 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
         });
         clearTimeout(streetManagerTimeout);
         
+        console.log('📡 Street Manager response status:', streetManagerResponse.status);
         if (streetManagerResponse.ok) {
           streetManagerData = await streetManagerResponse.json();
+          console.log('📡 Street Manager data:', streetManagerData);
         } else {
           console.warn('Street Manager API returned:', streetManagerResponse.status);
         }
@@ -138,6 +147,9 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       // Validate and set data
       const validManualRoadworks = Array.isArray(manualData.roadworks) ? manualData.roadworks : [];
       const validStreetManagerRoadworks = Array.isArray(streetManagerData.roadworks) ? streetManagerData.roadworks : [];
+      
+      console.log('🔍 Manual roadworks count:', validManualRoadworks.length);
+      console.log('🔍 Street Manager roadworks count:', validStreetManagerRoadworks.length);
       
       setRoadworks(validManualRoadworks);
       setStreetManagerRoadworks(validStreetManagerRoadworks);
@@ -157,6 +169,11 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
 
   // Calculate statistics from roadworks data
   const calculateStats = (manual, streetManager) => {
+    console.log('📊 Calculating stats for:', {
+      manual: manual.length,
+      streetManager: streetManager.length
+    });
+    
     const now = new Date();
     
     const manualActive = manual.filter(r => r.status === 'active').length;
@@ -180,7 +197,7 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       r.status === 'active' && r.hasDiversion
     ).length;
 
-    setStats(prevStats => ({
+    const newStats = {
       ...prevStats,
       total: manual.length + streetManager.length,
       critical: manualCritical + streetManagerCritical,
@@ -190,7 +207,10 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       streetManager: streetManager.length,
       manual: manual.length,
       diversions
-    }));
+    };
+    
+    console.log('📊 New stats calculated:', newStats);
+    setStats(newStats);
   };
 
   // Fetch pending review stats
@@ -227,6 +247,13 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       const validRoadworks = Array.isArray(roadworks) ? roadworks : [];
       const validStreetManagerRoadworks = Array.isArray(streetManagerRoadworks) ? streetManagerRoadworks : [];
       
+      console.log('🔍 getFilteredRoadworks - input data:', {
+        validRoadworks: validRoadworks.length,
+        validStreetManagerRoadworks: validStreetManagerRoadworks.length,
+        activeTab,
+        filters
+      });
+      
       let allRoadworks = [
         ...validRoadworks.map(r => ({ 
           ...r, 
@@ -247,6 +274,8 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
           severity: r.severity || 'medium'
         }))
       ];
+      
+      console.log('🔍 Combined roadworks before filtering:', allRoadworks.length);
 
       // Filter by active tab
       if (activeTab === 'active') {
@@ -283,6 +312,7 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
         });
       }
 
+      console.log('🔍 Final filtered roadworks:', allRoadworks.length);
       return allRoadworks;
     } catch (error) {
       console.error('Error filtering roadworks:', error);
@@ -355,6 +385,7 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
 
   // Load data on component mount
   useEffect(() => {
+    console.log('🚀 RoadworksManagerV2 mounting with baseUrl:', baseUrl, 'sessionId:', sessionId);
     fetchRoadworks();
     if (sessionId) {
       fetchPendingStats();
@@ -774,6 +805,15 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
   };
 
   const renderContent = () => {
+    console.log('🎨 renderContent called with:', { 
+      loading, 
+      activeTab, 
+      viewMode, 
+      totalStats: stats.total,
+      roadworksCount: roadworks.length,
+      streetManagerCount: streetManagerRoadworks.length
+    });
+    
     if (loading) {
       return (
         <View style={roadworksStyles.loadingContainer}>
