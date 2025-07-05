@@ -1229,13 +1229,13 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
     
     const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
     
-    // Get active roadworks from the streetworks table
+    // Get recent roadworks from the streetmanager_notifications table
     const { data: roadworks, error } = await supabase
-      .from('streetworks')
+      .from('streetmanager_notifications')
       .select('*')
-      .in('review_status', ['pending', 'approved', 'monitoring'])
-      .order('created_at', { ascending: false })
-      .limit(100);
+      .not('raw_webhook_data', 'is', null)
+      .order('webhook_received_at', { ascending: false })
+      .limit(50);
     
     if (error) {
       console.error('❌ Error fetching streetworks:', error);
@@ -1246,30 +1246,37 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
       });
     }
     
-    // Transform to match frontend expectations
-    const transformedRoadworks = (roadworks || []).map(rw => ({
-      id: rw.id,
-      title: rw.title || rw.description || 'Street Manager Roadwork',
-      location: rw.street_name || rw.location_description || 'Location TBC',
-      description: rw.description || '',
-      status: rw.review_status === 'approved' ? 'active' : rw.review_status === 'pending' ? 'planned' : 'active',
-      severity: rw.severity || 'medium',
-      startDate: rw.actual_start_date || rw.proposed_start_date,
-      endDate: rw.actual_end_date || rw.proposed_end_date,
-      affectsRoutes: rw.affected_routes || [],
-      coordinates: rw.coordinates ? {
-        lat: rw.coordinates.lat || rw.coordinates.latitude,
-        lng: rw.coordinates.lng || rw.coordinates.longitude
-      } : null,
-      source: 'StreetManager',
-      permitReference: rw.permit_reference_number,
-      workReference: rw.works_reference_number,
-      authority: rw.highway_authority,
-      promoter: rw.promoter_organisation,
-      hasDiversion: rw.diversion_required || false,
-      createdAt: rw.created_at,
-      updatedAt: rw.updated_at
-    }));
+    // Transform Street Manager notifications to match frontend expectations
+    const transformedRoadworks = (roadworks || []).map(rw => {
+      const rawData = rw.raw_webhook_data?.object_data || {};
+      return {
+        id: rw.id,
+        title: rawData.street_name ? `${rawData.street_name} - ${rawData.activity_type || 'Street Works'}` : 'Street Manager Roadwork',
+        location: rawData.street_name && rawData.town ? `${rawData.street_name}, ${rawData.town}` : (rawData.street_name || rawData.town || 'Location TBC'),
+        description: rawData.activity_type || rw.webhook_event_type || '',
+        status: rawData.work_status === 'Works in progress' ? 'active' : 
+                rawData.work_status === 'Works planned' ? 'planned' : 
+                rawData.work_status === 'Works completed' ? 'completed' : 'active',
+        severity: rawData.work_category_ref === 'immediate_urgent' ? 'critical' :
+                  rawData.work_category_ref === 'major' ? 'high' :
+                  rawData.work_category_ref === 'standard' ? 'medium' : 'medium',
+        startDate: rawData.actual_start_date_time || rawData.proposed_start_date,
+        endDate: rawData.actual_end_date_time || rawData.proposed_end_date,
+        affectsRoutes: rw.affected_routes || [],
+        coordinates: null, // Will need to parse from works_location_coordinates if needed
+        source: 'StreetManager',
+        permitReference: rawData.permit_reference_number,
+        workReference: rawData.work_reference_number,
+        authority: rawData.highway_authority,
+        promoter: rawData.promoter_organisation,
+        eventType: rw.webhook_event_type,
+        trafficManagement: rawData.traffic_management_type,
+        workCategory: rawData.work_category,
+        hasDiversion: false, // To be determined by supervisor
+        createdAt: rw.created_at,
+        updatedAt: rw.updated_at
+      };
+    });
     
     console.log(`✅ Found ${transformedRoadworks.length} Street Manager roadworks`);
     
