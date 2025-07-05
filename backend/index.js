@@ -1229,12 +1229,11 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
     
     const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
     
-    // Get recent roadworks from the streetmanager_notifications table
+    // TEMPORARY: Get roadworks from the roadworks table while fixing streetmanager_notifications
     const { data: roadworks, error } = await supabase
-      .from('streetmanager_notifications')
+      .from('roadworks')
       .select('*')
-      .not('raw_webhook_data', 'is', null)
-      .order('webhook_received_at', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(50);
     
     if (error) {
@@ -1246,37 +1245,27 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
       });
     }
     
-    // Transform Street Manager notifications to match frontend expectations
-    const transformedRoadworks = (roadworks || []).map(rw => {
-      const rawData = rw.raw_webhook_data?.object_data || {};
-      return {
-        id: rw.id,
-        title: rawData.street_name ? `${rawData.street_name} - ${rawData.activity_type || 'Street Works'}` : 'Street Manager Roadwork',
-        location: rawData.street_name && rawData.town ? `${rawData.street_name}, ${rawData.town}` : (rawData.street_name || rawData.town || 'Location TBC'),
-        description: rawData.activity_type || rw.webhook_event_type || '',
-        status: rawData.work_status === 'Works in progress' ? 'active' : 
-                rawData.work_status === 'Works planned' ? 'planned' : 
-                rawData.work_status === 'Works completed' ? 'completed' : 'active',
-        severity: rawData.work_category_ref === 'immediate_urgent' ? 'critical' :
-                  rawData.work_category_ref === 'major' ? 'high' :
-                  rawData.work_category_ref === 'standard' ? 'medium' : 'medium',
-        startDate: rawData.actual_start_date_time || rawData.proposed_start_date,
-        endDate: rawData.actual_end_date_time || rawData.proposed_end_date,
-        affectsRoutes: rw.affected_routes || [],
-        coordinates: null, // Will need to parse from works_location_coordinates if needed
-        source: 'StreetManager',
-        permitReference: rawData.permit_reference_number,
-        workReference: rawData.work_reference_number,
-        authority: rawData.highway_authority,
-        promoter: rawData.promoter_organisation,
-        eventType: rw.webhook_event_type,
-        trafficManagement: rawData.traffic_management_type,
-        workCategory: rawData.work_category,
-        hasDiversion: false, // To be determined by supervisor
-        createdAt: rw.created_at,
-        updatedAt: rw.updated_at
-      };
-    });
+    // TEMPORARY: Transform roadworks table data to match frontend expectations
+    const transformedRoadworks = (roadworks || []).map(rw => ({
+      id: rw.id,
+      title: rw.title || 'Street Manager Roadwork',
+      location: rw.location || 'Location TBC',
+      description: rw.description || '',
+      status: rw.status || 'active',
+      severity: rw.severity || 'medium',
+      startDate: rw.start_date,
+      endDate: rw.end_date,
+      affectsRoutes: rw.routes_affected || rw.affects_routes || [],
+      coordinates: rw.coordinates,
+      source: rw.source || 'StreetManager',
+      permitReference: rw.permit_reference,
+      workReference: rw.work_reference,
+      authority: rw.authority,
+      promoter: rw.promoter,
+      hasDiversion: false,
+      createdAt: rw.created_at,
+      updatedAt: rw.updated_at
+    }));
     
     console.log(`✅ Found ${transformedRoadworks.length} Street Manager roadworks`);
     
@@ -1300,6 +1289,28 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
 });
 
 console.log('✅ Street Manager roadworks endpoint registered at /api/street-manager-roadworks');
+
+// Quick test endpoint to verify data
+app.get('/api/test-streetmanager', async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    
+    const { data, error } = await supabase
+      .from('streetmanager_notifications')
+      .select('id, webhook_event_type, webhook_received_at')
+      .order('webhook_received_at', { ascending: false })
+      .limit(10);
+    
+    res.json({
+      success: true,
+      count: data?.length || 0,
+      sampleData: data || [],
+      error: error?.message || null
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Diagnostic endpoint to check Supabase data
 app.get('/api/debug/roadworks-data', async (req, res) => {
