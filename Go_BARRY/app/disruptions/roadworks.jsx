@@ -74,9 +74,7 @@ export default function RoadworksPage() {
     );
   }
 
-  const baseUrl = Platform.OS === 'web' 
-    ? (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://go-barry.onrender.com')
-    : 'https://go-barry.onrender.com';
+  const baseUrl = 'https://go-barry.onrender.com';
 
   return (
     <RoadworksErrorBoundary>
