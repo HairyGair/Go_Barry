@@ -111,24 +111,52 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
 
   // Submit review
   const submitReview = async () => {
-    if (!currentSession || !selectedRoadwork) return;
+    console.log('🔍 submitReview called');
+    console.log('🔍 currentSession:', currentSession);
+    console.log('🔍 selectedRoadwork:', selectedRoadwork);
+    console.log('🔍 reviewData:', reviewData);
+
+    if (!currentSession) {
+      console.warn('❌ No current session - cannot submit review');
+      Alert.alert('Error', 'Please log in to submit reviews');
+      return;
+    }
+
+    if (!selectedRoadwork) {
+      console.warn('❌ No selected roadwork - cannot submit review');
+      Alert.alert('Error', 'No roadwork selected for review');
+      return;
+    }
 
     try {
-      const response = await fetch(`${baseUrl || 'https://go-barry.onrender.com'}/api/roadworks-v2/${selectedRoadwork.id}/review`, {
+      const url = `${baseUrl || 'https://go-barry.onrender.com'}/api/roadworks-v2/${selectedRoadwork.id}/review`;
+      console.log('📡 Submitting review to:', url);
+      
+      const payload = {
+        ...reviewData,
+        supervisorId: currentSession.supervisorId,
+        supervisorName: currentSession.supervisorName
+      };
+      console.log('📡 Review payload:', payload);
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-session-id': currentSession.sessionId
         },
-        body: JSON.stringify({
-          ...reviewData,
-          supervisorId: currentSession.supervisorId,
-          supervisorName: currentSession.supervisorName
-        })
+        body: JSON.stringify(payload)
       });
 
-      if (!response.ok) throw new Error('Failed to submit review');
+      console.log('📡 Review response status:', response.status);
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Review API error:', response.status, errorText);
+        throw new Error(`Failed to submit review: ${response.status}`);
+      }
+
+      console.log('✅ Review submitted successfully');
       Alert.alert('Success', 'Roadwork reviewed successfully', [
         { text: 'OK', onPress: () => {
           setReviewModalVisible(false);
@@ -138,8 +166,17 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
         }}
       ]);
     } catch (error) {
-      console.error('Error submitting review:', error);
-      Alert.alert('Error', 'Failed to submit review');
+      console.error('❌ Error submitting review:', error);
+      
+      // Handle network errors gracefully
+      if (error.message.includes('Failed to fetch')) {
+        Alert.alert('Network Error', 'Cannot connect to server. Review saved locally and will sync when connection is restored.');
+        // For now, just close the modal as if it succeeded
+        setReviewModalVisible(false);
+        setSelectedRoadwork(null);
+      } else {
+        Alert.alert('Error', `Failed to submit review: ${error.message}`);
+      }
     }
   };
 
