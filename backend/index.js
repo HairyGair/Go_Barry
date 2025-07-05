@@ -38,6 +38,7 @@ import { parse } from 'csv-parse/sync';
 // Import ALL working services
 import { fetchTomTomTrafficWithStreetNames } from './services/tomtom-enhanced.js';
 import adminAPI from './routes/adminAPI.js';
+import cleanupAPI from './routes/cleanupAPI.js';
 
 
 import { fetchNationalHighways } from './services/nationalHighways.js';
@@ -450,6 +451,9 @@ app.get('/api/buses/health', (req, res) => {
 
 // Admin API routes
 app.use('/api/admin', adminAPI);
+
+// Cleanup & Maintenance API routes
+app.use('/api/cleanup', cleanupAPI);
 
 // Supervisor management routes
 app.use('/api/supervisor', supervisorAPI);

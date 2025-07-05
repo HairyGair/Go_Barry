@@ -55,6 +55,7 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
     dateRange: 'all',
     affectedRoutes: [],
     searchQuery: ''
+    // Removed gneOnly - always filter to North East only
   });
 
   // Statistics state
@@ -150,13 +151,35 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       
       console.log('🔍 Manual roadworks count:', validManualRoadworks.length);
       console.log('🔍 Street Manager roadworks count:', validStreetManagerRoadworks.length);
+      console.log('🔍 Manual roadworks sample:', validManualRoadworks.slice(0, 2));
+      console.log('🔍 Street Manager roadworks sample:', validStreetManagerRoadworks.slice(0, 2));
       
+      console.log('🔄 Setting roadworks state...');
       setRoadworks(validManualRoadworks);
       setStreetManagerRoadworks(validStreetManagerRoadworks);
       
-      // Calculate statistics
+      // Calculate statistics immediately with the fresh data
+      console.log('🔄 Calling calculateStats...');
       calculateStats(validManualRoadworks, validStreetManagerRoadworks);
       setLastUpdate(new Date());
+      
+      // Force a stats update with immediate values for debugging
+      const immediateStats = {
+        total: validManualRoadworks.length + validStreetManagerRoadworks.length,
+        active: validManualRoadworks.filter(r => r.status === 'active').length + 
+                validStreetManagerRoadworks.filter(r => r.status === 'active').length,
+        planned: validManualRoadworks.filter(r => r.status === 'planned').length + 
+                 validStreetManagerRoadworks.filter(r => r.status === 'planned').length,
+        critical: validManualRoadworks.filter(r => r.severity === 'critical').length + 
+                  validStreetManagerRoadworks.filter(r => r.severity === 'critical').length,
+        streetManager: validStreetManagerRoadworks.length,
+        manual: validManualRoadworks.length,
+        routesAffected: 0,
+        diversions: 0,
+        pendingReview: 0
+      };
+      console.log('🚀 IMMEDIATE stats calculation result:', immediateStats);
+      setStats(immediateStats);
       
     } catch (error) {
       console.error('Error fetching roadworks:', error);
@@ -171,18 +194,40 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
   const calculateStats = (manual, streetManager) => {
     console.log('📊 Calculating stats for:', {
       manual: manual.length,
-      streetManager: streetManager.length
+      streetManager: streetManager.length,
+      manualSample: manual.slice(0, 2),
+      streetManagerSample: streetManager.slice(0, 2)
     });
     
     const now = new Date();
     
-    const manualActive = manual.filter(r => r.status === 'active').length;
-    const manualPlanned = manual.filter(r => r.status === 'planned').length;
-    const manualCritical = manual.filter(r => r.severity === 'critical').length;
+    // Add detailed logging for each filter operation
+    const manualActive = manual.filter(r => {
+      const isActive = r.status === 'active';
+      if (manual.length < 5) console.log('🔍 Manual roadwork status:', r.title, 'status:', r.status, 'isActive:', isActive);
+      return isActive;
+    });
     
-    const streetManagerActive = streetManager.filter(r => r.status === 'active').length;
-    const streetManagerPlanned = streetManager.filter(r => r.status === 'planned').length;
-    const streetManagerCritical = streetManager.filter(r => r.severity === 'critical').length;
+    const manualPlanned = manual.filter(r => r.status === 'planned');
+    const manualCritical = manual.filter(r => r.severity === 'critical');
+    
+    const streetManagerActive = streetManager.filter(r => {
+      const isActive = r.status === 'active';
+      if (streetManager.length < 5) console.log('🔍 StreetManager roadwork status:', r.title, 'status:', r.status, 'isActive:', isActive);
+      return isActive;
+    });
+    
+    const streetManagerPlanned = streetManager.filter(r => r.status === 'planned');
+    const streetManagerCritical = streetManager.filter(r => r.severity === 'critical');
+    
+    console.log('📊 Detailed counts:', {
+      manualActive: manualActive.length,
+      manualPlanned: manualPlanned.length,
+      manualCritical: manualCritical.length,
+      streetManagerActive: streetManagerActive.length,
+      streetManagerPlanned: streetManagerPlanned.length,
+      streetManagerCritical: streetManagerCritical.length
+    });
     
     // Count affected routes (deduplicated)
     const allAffectedRoutes = new Set();
@@ -198,18 +243,19 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
     ).length;
 
     const newStats = {
-      ...prevStats,
       total: manual.length + streetManager.length,
-      critical: manualCritical + streetManagerCritical,
-      active: manualActive + streetManagerActive,
-      planned: manualPlanned + streetManagerPlanned,
+      critical: manualCritical.length + streetManagerCritical.length,
+      active: manualActive.length + streetManagerActive.length,
+      planned: manualPlanned.length + streetManagerPlanned.length,
       routesAffected: allAffectedRoutes.size,
       streetManager: streetManager.length,
       manual: manual.length,
-      diversions
+      diversions,
+      pendingReview: 0 // Will be updated by fetchPendingStats
     };
     
     console.log('📊 New stats calculated:', newStats);
+    console.log('📊 Previous stats for comparison:', stats);
     setStats(newStats);
   };
 
@@ -238,6 +284,37 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
   const handleRefresh = () => {
     setRefreshing(true);
     fetchRoadworks(false);
+  };
+
+  // Check if coordinates are in North East England region
+  const isInNorthEastRegion = (lat, lng) => {
+    if (!lat || !lng) return false;
+    
+    // North East England bounding box (approximate)
+    const northEastBounds = {
+      north: 55.8,  // Scottish border
+      south: 54.2,  // Yorkshire border
+      east: -0.5,   // North Sea coast
+      west: -3.0    // Cumbrian border
+    };
+    
+    return lat >= northEastBounds.south && 
+           lat <= northEastBounds.north && 
+           lng >= northEastBounds.west && 
+           lng <= northEastBounds.east;
+  };
+
+  // Check if roadwork affects Go North East routes
+  const affectsGNERoutes = (roadwork) => {
+    if (!roadwork.affectsRoutes || !Array.isArray(roadwork.affectsRoutes)) {
+      return false;
+    }
+    
+    // Check if any affected route is a GNE route (starts with route numbers 1-999 or has GNE prefix)
+    return roadwork.affectsRoutes.some(route => {
+      const routeStr = String(route).toUpperCase();
+      return routeStr.includes('GNE') || /^[1-9][0-9]{0,2}$/.test(routeStr);
+    });
   };
 
   // Filter roadworks based on current filters and active tab with data validation
@@ -276,6 +353,38 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       ];
       
       console.log('🔍 Combined roadworks before filtering:', allRoadworks.length);
+
+      // **PERMANENT FILTER: Only show Go North East relevant roadworks**
+      const preFilterCount = allRoadworks.length;
+      allRoadworks = allRoadworks.filter(roadwork => {
+        // Check if roadwork affects GNE routes
+        const hasGNERoutes = affectsGNERoutes(roadwork);
+        
+        // Check if roadwork is in North East region
+        const inNorthEast = roadwork.coordinates && 
+                           isInNorthEastRegion(roadwork.coordinates.lat, roadwork.coordinates.lng);
+        
+        // Include if it affects GNE routes OR is in North East region
+        const shouldInclude = hasGNERoutes || inNorthEast;
+        
+        if (preFilterCount < 10) { // Debug logging for small datasets
+          console.log(`🏴󠁧󠁢󠁥󠁮󠁧󠁿 Roadwork "${roadwork.title}":`, {
+            hasGNERoutes,
+            inNorthEast,
+            coordinates: roadwork.coordinates,
+            affectsRoutes: roadwork.affectsRoutes,
+            shouldInclude
+          });
+        }
+        
+        return shouldInclude;
+      });
+      
+      console.log(`🎯 GNE filtering: ${preFilterCount} → ${allRoadworks.length} roadworks (${preFilterCount - allRoadworks.length} filtered out)`);
+      
+      if (allRoadworks.length === 0) {
+        console.log('ℹ️ No North East roadworks currently active. System working correctly.');
+      }
 
       // Filter by active tab
       if (activeTab === 'active') {
@@ -413,7 +522,7 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
           <Text style={roadworksStyles.headerTitle}>Roadworks Manager V2</Text>
           <View style={roadworksStyles.row}>
             <Text style={roadworksStyles.headerSubtitle}>
-              Live Street Manager data • Updates every 90s • Last updated {lastUpdate.toLocaleTimeString()}
+              North East England roadworks • Live Street Manager data • Updates every 90s • Last updated {lastUpdate.toLocaleTimeString()}
             </Text>
             
             {/* Connection Status Indicator */}
@@ -467,36 +576,44 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
     </View>
   );
 
-  const renderStatsOverview = () => (
-    <View style={roadworksStyles.statsContainer}>
-      <StatsCard
-        {...StatCardPresets.total(stats.total, () => handleStatPress('total'))}
-        size="large"
-      />
-      
-      <StatsCard
-        {...StatCardPresets.critical(stats.critical, () => handleStatPress('critical'))}
-        trend={stats.critical > 5 ? '+2 from yesterday' : null}
-        trendDirection={stats.critical > 5 ? 'up' : 'neutral'}
-      />
-      
-      <StatsCard
-        {...StatCardPresets.active(stats.active, () => handleStatPress('active'))}
-      />
-      
-      <StatsCard
-        {...StatCardPresets.planned(stats.planned, () => handleStatPress('planned'))}
-      />
-      
-      <StatsCard
-        {...StatCardPresets.affected(stats.routesAffected, () => handleStatPress('routes'))}
-      />
-      
-      <StatsCard
-        {...StatCardPresets.diversions(stats.diversions, () => handleStatPress('diversions'))}
-      />
-    </View>
-  );
+  const renderStatsOverview = () => {
+    console.log('🎨 renderStatsOverview called with stats:', stats);
+    console.log('🎨 Current roadworks arrays length:', { 
+      roadworks: roadworks.length, 
+      streetManagerRoadworks: streetManagerRoadworks.length 
+    });
+    
+    return (
+      <View style={roadworksStyles.statsContainer}>
+        <StatsCard
+          {...StatCardPresets.total(stats.total, () => handleStatPress('total'))}
+          size="large"
+        />
+        
+        <StatsCard
+          {...StatCardPresets.critical(stats.critical, () => handleStatPress('critical'))}
+          trend={stats.critical > 5 ? '+2 from yesterday' : null}
+          trendDirection={stats.critical > 5 ? 'up' : 'neutral'}
+        />
+        
+        <StatsCard
+          {...StatCardPresets.active(stats.active, () => handleStatPress('active'))}
+        />
+        
+        <StatsCard
+          {...StatCardPresets.planned(stats.planned, () => handleStatPress('planned'))}
+        />
+        
+        <StatsCard
+          {...StatCardPresets.affected(stats.routesAffected, () => handleStatPress('routes'))}
+        />
+        
+        <StatsCard
+          {...StatCardPresets.diversions(stats.diversions, () => handleStatPress('diversions'))}
+        />
+      </View>
+    );
+  };
 
   const renderDataSourceStats = () => (
     <View style={[roadworksStyles.section, { marginTop: spacing.lg }]}>
@@ -825,7 +942,15 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
 
     // Render RoadworkQueue for queue tab
     if (activeTab === 'queue') {
-      return <RoadworkQueue />;
+      return (
+        <RoadworkQueue 
+          baseUrl={baseUrl}
+          sessionId={sessionId}
+          supervisorName={supervisorName}
+          supervisorRole={supervisorRole}
+          isLoggedIn={isLoggedIn}
+        />
+      );
     }
 
     // Render Test Integration for test tab
@@ -948,6 +1073,7 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
               dateRange: 'all',
               affectedRoutes: [],
               searchQuery: ''
+              // No gneOnly - permanently filtered to North East
             })}
             availableRoutes={getAvailableRoutes()}
             onClose={() => setShowFilters(false)}

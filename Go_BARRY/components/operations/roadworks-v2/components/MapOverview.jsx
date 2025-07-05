@@ -408,7 +408,7 @@ const MapOverview = ({
         position: 'relative',
         borderRadius: 12,
         overflow: 'hidden',
-        ...roadworksStyles.shadows.md
+        ...shadows.md
       }}>
         {renderMapBackground()}
         

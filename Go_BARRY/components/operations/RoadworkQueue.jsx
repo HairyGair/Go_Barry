@@ -15,8 +15,35 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useSupervisorSession } from '../hooks/useSupervisorSession';
 import BatchOperations from './roadworks-v2/components/BatchOperations';
 
-const RoadworkQueue = () => {
-  const { currentSession } = useSupervisorSession();
+const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isLoggedIn }) => {
+  const { supervisorSession } = useSupervisorSession();
+  
+  // Use props if available, otherwise fall back to hook data
+  const currentSession = supervisorSession || (isLoggedIn ? {
+    supervisor: {
+      name: supervisorName,
+      role: supervisorRole,
+      id: sessionId
+    },
+    sessionId: sessionId,
+    supervisorId: sessionId,
+    supervisorName: supervisorName,
+    isLoggedIn: isLoggedIn
+  } : null);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('🔐 RoadworkQueue session data:', {
+      supervisorSession: !!supervisorSession,
+      propsReceived: { baseUrl, sessionId, supervisorName, supervisorRole, isLoggedIn },
+      currentSession: !!currentSession,
+      sessionDetails: currentSession ? {
+        sessionId: currentSession.sessionId,
+        supervisorName: currentSession.supervisorName,
+        supervisorId: currentSession.supervisorId
+      } : 'No session'
+    });
+  }, [supervisorSession, baseUrl, sessionId, supervisorName, supervisorRole, isLoggedIn, currentSession]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [pendingRoadworks, setPendingRoadworks] = useState([]);
@@ -43,7 +70,7 @@ const RoadworkQueue = () => {
 
     try {
       setLoading(true);
-      const response = await fetch('https://go-barry.onrender.com/api/roadworks-v2/pending', {
+      const response = await fetch(`${baseUrl || 'https://go-barry.onrender.com'}/api/roadworks-v2/pending`, {
         headers: {
           'x-session-id': currentSession.sessionId
         }
@@ -67,7 +94,7 @@ const RoadworkQueue = () => {
     if (!currentSession) return;
 
     try {
-      const response = await fetch('https://go-barry.onrender.com/api/roadworks-v2/stats', {
+      const response = await fetch(`${baseUrl || 'https://go-barry.onrender.com'}/api/roadworks-v2/stats`, {
         headers: {
           'x-session-id': currentSession.sessionId
         }
@@ -87,7 +114,7 @@ const RoadworkQueue = () => {
     if (!currentSession || !selectedRoadwork) return;
 
     try {
-      const response = await fetch(`https://go-barry.onrender.com/api/roadworks-v2/${selectedRoadwork.id}/review`, {
+      const response = await fetch(`${baseUrl || 'https://go-barry.onrender.com'}/api/roadworks-v2/${selectedRoadwork.id}/review`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -138,7 +165,7 @@ const RoadworkQueue = () => {
           text: 'Approve', 
           onPress: async () => {
             try {
-              const response = await fetch('https://go-barry.onrender.com/api/roadworks-v2/batch-approve', {
+              const response = await fetch(`${baseUrl || 'https://go-barry.onrender.com'}/api/roadworks-v2/batch-approve`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
