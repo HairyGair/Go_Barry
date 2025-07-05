@@ -1406,6 +1406,37 @@ app.get('/api/test-streetmanager', async (req, res) => {
   }
 });
 
+// Stats endpoint for Roadworks Manager V2
+app.get('/api/roadworks-v2/stats', async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    
+    // Get pending review count (placeholder - customize as needed)
+    const { data: notifications, error } = await supabase
+      .from('streetmanager_notifications')
+      .select('id')
+      .eq('processing_status', 'pending')
+      .limit(100);
+    
+    const pendingReview = notifications?.length || 0;
+    
+    res.json({
+      success: true,
+      stats: {
+        pendingReview,
+        lastUpdated: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error fetching stats:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stats: { pendingReview: 0 }
+    });
+  }
+});
+
 // Comprehensive test endpoint for Roadworks Manager V2
 app.get('/api/roadworks-v2/status', async (req, res) => {
   try {

@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Pressable, Dimensions, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { roadworksStyles, colors, spacing } from '../styles/roadworks.styles';
+import { roadworksStyles, colors, spacing, shadows } from '../styles/roadworks.styles';
 
 const MapOverview = ({
   roadworks = [],
@@ -172,7 +172,7 @@ const MapOverview = ({
           borderColor: isSelected ? colors.textPrimary : colors.background,
           alignItems: 'center',
           justifyContent: 'center',
-          ...roadworksStyles.shadows.md
+          ...shadows.md
         }}
         onPress={() => {
           if (cluster.roadworks.length === 1) {
@@ -212,7 +212,7 @@ const MapOverview = ({
         backgroundColor: colors.surface,
         borderRadius: 8,
         padding: spacing.xs,
-        ...roadworksStyles.shadows.sm
+        ...shadows.sm
       }
     ]}>
       <Pressable
@@ -318,7 +318,7 @@ const MapOverview = ({
         borderRadius: 8,
         padding: spacing.sm,
         gap: spacing.sm,
-        ...roadworksStyles.shadows.sm
+        ...shadows.sm
       }
     ]}>
       {[
@@ -357,7 +357,7 @@ const MapOverview = ({
         borderRadius: 8,
         padding: spacing.sm,
         gap: spacing.md,
-        ...roadworksStyles.shadows.sm
+        ...shadows.sm
       }
     ]}>
       <View style={roadworksStyles.row}>
