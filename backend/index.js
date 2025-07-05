@@ -1315,15 +1315,52 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
       };
     });
     
-    console.log(`✅ Found ${transformedRoadworks.length} Street Manager roadworks`);
+    // Filter to North East England only
+    const isInNorthEastRegion = (lat, lng) => {
+      if (!lat || !lng) return false;
+      const northEastBounds = {
+        north: 55.8,  // Scottish border
+        south: 54.2,  // Yorkshire border
+        east: -0.5,   // North Sea coast
+        west: -3.0    // Cumbrian border
+      };
+      return lat >= northEastBounds.south && 
+             lat <= northEastBounds.north && 
+             lng >= northEastBounds.west && 
+             lng <= northEastBounds.east;
+    };
+    
+    // Filter roadworks to North East region only
+    const northEastRoadworks = transformedRoadworks.filter(roadwork => {
+      if (roadwork.coordinates && roadwork.coordinates.lat && roadwork.coordinates.lng) {
+        return isInNorthEastRegion(roadwork.coordinates.lat, roadwork.coordinates.lng);
+      }
+      
+      // If no coordinates, check location string for North East indicators
+      const location = roadwork.location.toUpperCase();
+      const northEastIndicators = [
+        'NEWCASTLE', 'GATESHEAD', 'SUNDERLAND', 'DURHAM', 'NORTH TYNESIDE', 'SOUTH TYNESIDE',
+        'NORTHUMBERLAND', 'CRAMLINGTON', 'HEXHAM', 'BLYTH', 'WASHINGTON', 'JARROW',
+        'WALLSEND', 'GOSFORTH', 'JESMOND', 'HEATON', 'WALKER', 'BYKER', 'FELLING'
+      ];
+      
+      return northEastIndicators.some(indicator => location.includes(indicator));
+    });
+    
+    console.log(`✅ Found ${transformedRoadworks.length} total Street Manager roadworks, ${northEastRoadworks.length} in North East region`);
+    if (transformedRoadworks.length > northEastRoadworks.length) {
+      console.log(`🗺️ Filtered out ${transformedRoadworks.length - northEastRoadworks.length} roadworks outside North East region`);
+    }
     
     res.json({
       success: true,
-      roadworks: transformedRoadworks,
+      roadworks: northEastRoadworks,
       metadata: {
-        total: transformedRoadworks.length,
+        total: northEastRoadworks.length,
+        totalUnfiltered: transformedRoadworks.length,
         source: 'streetworks_table',
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
+        filtering: 'North East England only'
       }
     });
   } catch (error) {
