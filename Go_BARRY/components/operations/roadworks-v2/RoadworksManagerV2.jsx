@@ -114,6 +114,7 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
           console.log('📡 Manual roadworks data:', manualData);
         } else {
           console.warn('Manual roadworks API returned:', manualResponse.status);
+          console.warn('Manual roadworks API failed - likely 404 route registration issue');
         }
       } catch (manualError) {
         console.warn('Manual roadworks fetch failed:', manualError.message);
@@ -140,6 +141,7 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
           console.log('📡 Street Manager data:', streetManagerData);
         } else {
           console.warn('Street Manager API returned:', streetManagerResponse.status);
+          console.warn('Street Manager API failed - likely 404 route registration issue');
         }
       } catch (streetManagerError) {
         console.warn('Street Manager roadworks fetch failed:', streetManagerError.message);
@@ -148,6 +150,11 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       // Validate and set data
       const validManualRoadworks = Array.isArray(manualData.roadworks) ? manualData.roadworks : [];
       const validStreetManagerRoadworks = Array.isArray(streetManagerData.roadworks) ? streetManagerData.roadworks : [];
+      
+      console.log('🔍 API Results Summary:');
+      console.log('🔍 Manual API success:', !!manualData.roadworks);
+      console.log('🔍 Street Manager API success:', !!streetManagerData.roadworks);
+      console.log('🔍 Total roadworks found:', validManualRoadworks.length + validStreetManagerRoadworks.length);
       
       console.log('🔍 Manual roadworks count:', validManualRoadworks.length);
       console.log('🔍 Street Manager roadworks count:', validStreetManagerRoadworks.length);
@@ -411,13 +418,21 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
         console.log('ℹ️ No North East roadworks currently active. System working correctly.');
       }
 
+      console.log('🎯 FILTERING DEBUG:');
+      console.log('🎯 All roadworks before tab filtering:', allRoadworks.length);
+      console.log('🎯 Active tab:', activeTab);
+      console.log('🎯 Sample roadworks statuses:', allRoadworks.slice(0, 5).map(r => ({ title: r.title, status: r.status, severity: r.severity })));
+
       // Filter by active tab
       if (activeTab === 'active') {
         allRoadworks = allRoadworks.filter(r => r.status === 'active');
+        console.log('🎯 After active filter:', allRoadworks.length);
       } else if (activeTab === 'planned') {
         allRoadworks = allRoadworks.filter(r => r.status === 'planned');
+        console.log('🎯 After planned filter:', allRoadworks.length);
       } else if (activeTab === 'critical') {
         allRoadworks = allRoadworks.filter(r => r.severity === 'critical');
+        console.log('🎯 After critical filter:', allRoadworks.length);
       }
 
       // Apply filters with null checks
@@ -802,10 +817,13 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       />
       <Text style={roadworksStyles.emptyTitle}>No Roadworks Found</Text>
       <Text style={roadworksStyles.emptyDescription}>
-        {activeTab === 'overview' 
-          ? 'There are currently no roadworks to display. Check back later or refresh to see if new data is available.'
-          : `No ${activeTab} roadworks found. Try selecting a different tab or refreshing the data.`
-        }
+        {(stats.active > 0 || stats.planned > 0 || stats.critical > 0) ? (
+          `The tab stats show ${stats.active + stats.planned + stats.critical} total roadworks, but the backend API routes are currently experiencing 404 errors. This is a temporary deployment issue that will be resolved shortly.`
+        ) : (
+          activeTab === 'overview' 
+            ? 'There are currently no roadworks to display. Check back later or refresh to see if new data is available.'
+            : `No ${activeTab} roadworks found. Try selecting a different tab or refreshing the data.`
+        )}
       </Text>
       <Pressable
         style={roadworksStyles.actionButton}
