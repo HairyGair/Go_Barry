@@ -1,2 +1,2 @@
 // Re-export theme
-export { operationsTheme } from './_theme.js';
+export { operationsTheme } from '../../../lib/_theme.js';

@@ -1252,8 +1252,30 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
       });
     }
     
+    // Pre-filter to exclude Birmingham and other non-North East areas immediately
+    const filteredRoadworks = (roadworks || []).filter(rw => {
+      const rawData = rw.raw_webhook_data?.object_data || {};
+      const streetName = rawData.street_name || '';
+      const town = rawData.town || '';
+      const areaName = rawData.area_name || '';
+      
+      // Immediately exclude Birmingham and other non-North East areas
+      const excludePatterns = ['BIRMINGHAM', 'LONDON', 'MANCHESTER', 'LIVERPOOL', 'SHEFFIELD', 'LEEDS', 'BRISTOL'];
+      const locationString = `${streetName} ${town} ${areaName}`.toUpperCase();
+      
+      const shouldExclude = excludePatterns.some(pattern => locationString.includes(pattern));
+      if (shouldExclude) {
+        console.log(`🚫 Excluding non-North East roadwork: ${locationString}`);
+        return false;
+      }
+      
+      return true;
+    });
+    
+    console.log(`🗺️ Pre-filtered ${roadworks?.length || 0} down to ${filteredRoadworks.length} roadworks (excluded non-North East areas)`);
+    
     // Transform Street Manager notifications to frontend format
-    const transformedRoadworks = (roadworks || []).map(rw => {
+    const transformedRoadworks = filteredRoadworks.map(rw => {
       const rawData = rw.raw_webhook_data?.object_data || {};
       
       // Determine work status and severity
@@ -1331,9 +1353,13 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
     };
     
     // Filter roadworks to North East region only
-    const northEastRoadworks = transformedRoadworks.filter(roadwork => {
+    const northEastRoadworks = transformedRoadworks.filter((roadwork, index) => {
       if (roadwork.coordinates && roadwork.coordinates.lat && roadwork.coordinates.lng) {
-        return isInNorthEastRegion(roadwork.coordinates.lat, roadwork.coordinates.lng);
+        const inRegion = isInNorthEastRegion(roadwork.coordinates.lat, roadwork.coordinates.lng);
+        if (index < 3) { // Debug first few
+          console.log(`🗺️ Coordinate check ${index}: ${roadwork.location} (${roadwork.coordinates.lat}, ${roadwork.coordinates.lng}) -> ${inRegion}`);
+        }
+        return inRegion;
       }
       
       // If no coordinates, check location string for North East indicators
@@ -1344,7 +1370,12 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
         'WALLSEND', 'GOSFORTH', 'JESMOND', 'HEATON', 'WALKER', 'BYKER', 'FELLING'
       ];
       
-      return northEastIndicators.some(indicator => location.includes(indicator));
+      const hasIndicator = northEastIndicators.some(indicator => location.includes(indicator));
+      if (index < 3) { // Debug first few
+        console.log(`🗺️ Location check ${index}: "${roadwork.location}" -> ${hasIndicator}`);
+      }
+      
+      return hasIndicator;
     });
     
     console.log(`✅ Found ${transformedRoadworks.length} total Street Manager roadworks, ${northEastRoadworks.length} in North East region`);
