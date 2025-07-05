@@ -9,7 +9,9 @@ import {
   ActivityIndicator,
   Alert,
   TextInput,
-  Modal
+  Modal,
+  Linking,
+  Platform
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSupervisorSession } from '../hooks/useSupervisorSession';
@@ -336,6 +338,51 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
     }
   };
 
+  const openMapLocation = (roadwork) => {
+    try {
+      const { latitude, longitude, sm_street_name, sm_area_name } = roadwork;
+      
+      if (latitude && longitude) {
+        const mapUrl = Platform.select({
+          ios: `maps:0,0?q=${latitude},${longitude}`,
+          android: `geo:0,0?q=${latitude},${longitude}`,
+          default: `https://www.google.com/maps?q=${latitude},${longitude}`
+        });
+        
+        Linking.openURL(mapUrl).catch(err => {
+          console.error('Failed to open map:', err);
+          // Fallback to web URL
+          const webUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+          if (Platform.OS === 'web') {
+            window.open(webUrl, '_blank');
+          }
+        });
+        console.log('🗺️ Opened map for:', sm_street_name, 'at', latitude, longitude);
+      } else {
+        // Fallback to search by street name and area
+        const searchQuery = encodeURIComponent(`${sm_street_name}, ${sm_area_name || ''}`);
+        const searchUrl = Platform.select({
+          ios: `maps:0,0?q=${searchQuery}`,
+          android: `geo:0,0?q=${searchQuery}`,
+          default: `https://www.google.com/maps/search/${searchQuery}`
+        });
+        
+        Linking.openURL(searchUrl).catch(err => {
+          console.error('Failed to open map search:', err);
+          // Fallback to web URL
+          const webUrl = `https://www.google.com/maps/search/${searchQuery}`;
+          if (Platform.OS === 'web') {
+            window.open(webUrl, '_blank');
+          }
+        });
+        console.log('🗺️ Opened map search for:', sm_street_name);
+      }
+    } catch (error) {
+      console.error('❌ Error opening map:', error);
+      Alert.alert('Error', 'Failed to open map location');
+    }
+  };
+
   const getSeverityColor = (severity) => {
     switch (severity?.toLowerCase()) {
       case 'critical': return '#e74c3c';
@@ -444,6 +491,24 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
               </View>
 
               <Text style={styles.streetName}>{roadwork.sm_street_name || 'Unknown Street'}</Text>
+              
+              {/* Enhanced location information */}
+              <View style={styles.locationDetails}>
+                {roadwork.sm_area_name && (
+                  <Text style={styles.locationText}>📍 {roadwork.sm_area_name}</Text>
+                )}
+                {roadwork.sm_location_description && (
+                  <Text style={styles.locationDescription} numberOfLines={1}>
+                    {roadwork.sm_location_description}
+                  </Text>
+                )}
+                {(roadwork.latitude && roadwork.longitude) && (
+                  <Text style={styles.coordinatesText}>
+                    📌 {roadwork.latitude.toFixed(4)}, {roadwork.longitude.toFixed(4)}
+                  </Text>
+                )}
+              </View>
+              
               <Text style={styles.description} numberOfLines={2}>
                 {roadwork.sm_works_description || 'No description available'}
               </Text>
@@ -471,16 +536,29 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
                 )}
               </View>
 
-              <TouchableOpacity 
-                style={styles.reviewButton}
-                onPress={(e) => {
-                  e.stopPropagation(); // Prevent card tap
-                  openReviewModal(roadwork);
-                }}
-              >
-                <Icon name="create-outline" size={20} color="white" />
-                <Text style={styles.reviewButtonText}>Review</Text>
-              </TouchableOpacity>
+              <View style={styles.cardActions}>
+                <TouchableOpacity 
+                  style={styles.mapButton}
+                  onPress={(e) => {
+                    e.stopPropagation(); // Prevent card tap
+                    openMapLocation(roadwork);
+                  }}
+                >
+                  <Icon name="map-outline" size={18} color="#3498db" />
+                  <Text style={styles.mapButtonText}>Map</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={styles.reviewButton}
+                  onPress={(e) => {
+                    e.stopPropagation(); // Prevent card tap
+                    openReviewModal(roadwork);
+                  }}
+                >
+                  <Icon name="create-outline" size={18} color="white" />
+                  <Text style={styles.reviewButtonText}>Review</Text>
+                </TouchableOpacity>
+              </View>
             </TouchableOpacity>
           ))
         )}
@@ -811,19 +889,110 @@ const styles = StyleSheet.create({
     color: '#7f8c8d',
     marginLeft: 8,
   },
+  locationDetails: {
+    marginBottom: 8,
+  },
+  locationText: {
+    fontSize: 12,
+    color: '#2c3e50',
+    marginBottom: 2,
+  },
+  locationDescription: {
+    fontSize: 11,
+    color: '#7f8c8d',
+    marginBottom: 2,
+    fontStyle: 'italic',
+  },
+  coordinatesText: {
+    fontSize: 10,
+    color: '#95a5a6',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  cardActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  mapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ecf0f1',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    flex: 0.4,
+  },
+  mapButtonText: {
+    fontSize: 12,
+    color: '#3498db',
+    marginLeft: 4,
+    fontWeight: '600',
+  },
   reviewButton: {
     backgroundColor: '#3498db',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderRadius: 6,
+    flex: 0.55,
   },
   reviewButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  cardActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 8,
+  },
+  mapButton: {
+    backgroundColor: '#ecf0f1',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
+    borderRadius: 6,
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#3498db',
+  },
+  mapButtonText: {
+    color: '#3498db',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  locationDetails: {
+    marginTop: 8,
+    marginBottom: 8,
+    padding: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 4,
+    borderLeftWidth: 3,
+    borderLeftColor: '#3498db',
+  },
+  locationText: {
+    fontSize: 13,
+    color: '#2c3e50',
+    marginBottom: 3,
+    fontWeight: '500',
+  },
+  locationDescription: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginBottom: 3,
+    fontStyle: 'italic',
+  },
+  coordinatesText: {
+    fontSize: 11,
+    color: '#95a5a6',
+    fontFamily: 'monospace',
   },
   modalOverlay: {
     flex: 1,
