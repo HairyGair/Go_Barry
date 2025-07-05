@@ -3,6 +3,7 @@
 import React from 'react';
 import { View, StyleSheet, StatusBar, Platform } from 'react-native';
 import StreetManagerDashboard from '../../components/StreetManagerDashboard';
+import AppHeader from '../../components/common/AppHeader';
 import { API_CONFIG } from '../../config/api';
 
 const isWeb = Platform.OS === 'web';
@@ -11,6 +12,7 @@ export default function RoadworksScreen() {
   return (
     <View style={styles.container}>
       {!isWeb && <StatusBar barStyle="light-content" backgroundColor="#111827" />}
+      <AppHeader />
       <StreetManagerDashboard 
         baseUrl={API_CONFIG.baseURL}
       />

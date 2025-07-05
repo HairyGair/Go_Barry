@@ -15,6 +15,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { apiRequest } from '../../config/api';
 import ServiceFrequencyDashboard from '../../components/ServiceFrequencyDashboard';
+import AppHeader from '../../components/common/AppHeader';
 
 const ServiceInformationDashboard = () => {
   const [activeTab, setActiveTab] = useState('routes');
@@ -339,7 +340,8 @@ const ServiceInformationDashboard = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <AppHeader />
+      <View style={styles.servicesHeader}>
         <View>
           <Text style={styles.title}>Service Information</Text>
           <Text style={styles.subtitle}>Real-time frequency and schedule data</Text>
@@ -494,7 +496,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6B7280',
   },
-  header: {
+  servicesHeader: {
     backgroundColor: '#FFFFFF',
     padding: 20,
     paddingTop: Platform.OS === 'ios' ? 60 : 20,

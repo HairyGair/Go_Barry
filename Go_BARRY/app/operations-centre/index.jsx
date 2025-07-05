@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useSupervisor } from '../../components/hooks/useSupervisorSession';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { UK_LOCALE } from './constants/locale.exports.js';
+import AppHeader from '../../components/common/AppHeader';
 
 // Mock utilities for now
 const auditLog = (action, data) => {
@@ -221,6 +222,7 @@ export default function OperationsCentre() {
   
   return (
     <View style={styles.container}>
+      <AppHeader />
       {/* Header */}
       <OperationsHeader 
         supervisorName={supervisorName}

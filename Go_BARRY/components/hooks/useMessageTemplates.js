@@ -46,6 +46,26 @@ let globalTemplatesStorage = [...FALLBACK_TEMPLATES];
 const templateUpdateCallbacks = new Set();
 const STORAGE_KEY = '@go_barry_templates';
 
+// Function to notify all subscribers when templates change
+const notifyTemplateUpdate = () => {
+  templateUpdateCallbacks.forEach(callback => callback());
+  saveTemplates(); // Auto-save when templates change
+};
+
+// Save templates to AsyncStorage
+const saveTemplates = async () => {
+  try {
+    const dataToStore = JSON.stringify(globalTemplatesStorage);
+    if (Platform.OS === 'web') {
+      localStorage.setItem(STORAGE_KEY, dataToStore);
+    } else {
+      await AsyncStorage.setItem(STORAGE_KEY, dataToStore);
+    }
+  } catch (error) {
+    console.error('Failed to save templates:', error);
+  }
+};
+
 // Load templates from AsyncStorage on init
 const loadStoredTemplates = async () => {
   try {
@@ -69,28 +89,8 @@ const loadStoredTemplates = async () => {
   }
 };
 
-// Save templates to AsyncStorage
-const saveTemplates = async () => {
-  try {
-    const dataToStore = JSON.stringify(globalTemplatesStorage);
-    if (Platform.OS === 'web') {
-      localStorage.setItem(STORAGE_KEY, dataToStore);
-    } else {
-      await AsyncStorage.setItem(STORAGE_KEY, dataToStore);
-    }
-  } catch (error) {
-    console.error('Failed to save templates:', error);
-  }
-};
-
 // Load templates on module init
 loadStoredTemplates();
-
-// Function to notify all subscribers when templates change
-const notifyTemplateUpdate = () => {
-  templateUpdateCallbacks.forEach(callback => callback());
-  saveTemplates(); // Auto-save when templates change
-};
 
 export const useMessageTemplates = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");

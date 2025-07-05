@@ -1,1 +1,22 @@
-// Go_BARRY/app/(tabs)/control.jsx\n// Sector 3: Control Dashboard Tab Page\n\nimport React from 'react';\nimport { View, StyleSheet } from 'react-native';\nimport ControlDashboard from '../../components/ControlDashboard';\n\nexport default function ControlDashboardTab() {\n  return (\n    <View style={styles.container}>\n      <ControlDashboard />\n    </View>\n  );\n}\n\nconst styles = StyleSheet.create({\n  container: {\n    flex: 1,\n  },\n});\n
+// Go_BARRY/app/(tabs)/control.jsx
+// Sector 3: Control Dashboard Tab Page
+
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
+import ControlDashboard from '../../components/ControlDashboard';
+import AppHeader from '../../components/common/AppHeader';
+
+export default function ControlDashboardTab() {
+  return (
+    <View style={styles.container}>
+      <AppHeader />
+      <ControlDashboard />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});

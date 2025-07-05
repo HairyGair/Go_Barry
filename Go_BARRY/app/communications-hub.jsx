@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import AppHeader from '../components/common/AppHeader';
 
 // Import only communications-related components
 import MessageDistributionEnhanced from '../components/communications/MessageDistributionEnhanced';
@@ -198,8 +199,9 @@ const CommunicationsHub = () => {
   // Otherwise show the card grid
   return (
     <View style={styles.container}>
+      <AppHeader />
       {/* Header */}
-      <View style={styles.header}>
+      <View style={styles.commHeader}>
         <View style={styles.headerContent}>
           <View style={styles.titleSection}>
             <Pressable onPress={() => router.replace('/')} style={styles.backButton}>
@@ -365,7 +367,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6B7280',
   },
-  header: {
+  commHeader: {
     backgroundColor: '#1F2937',
     paddingTop: Platform.OS === 'web' ? 20 : 60,
     paddingBottom: 20,

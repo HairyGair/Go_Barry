@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   Linking
 } from 'react-native';
+import AppHeader from '../../components/common/AppHeader';
 
 export default function AboutScreen() {
   const handleLinkPress = (url) => {
@@ -16,13 +17,15 @@ export default function AboutScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>🚦 BARRY</Text>
-        <Text style={styles.subtitle}>Bus Alerts and Roadworks Reporting for You</Text>
-        <Text style={styles.version}>Version 1.0.0</Text>
-      </View>
+    <View style={styles.mainContainer}>
+      <AppHeader />
+      <ScrollView style={styles.container}>
+        {/* Header */}
+        <View style={styles.aboutHeader}>
+          <Text style={styles.title}>🚦 BARRY</Text>
+          <Text style={styles.subtitle}>Bus Alerts and Roadworks Reporting for You</Text>
+          <Text style={styles.version}>Version 1.0.0</Text>
+        </View>
 
       {/* Description */}
       <View style={styles.section}>
@@ -204,15 +207,19 @@ export default function AboutScreen() {
         </Text>
       </View>
     </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: '#111827',
   },
-  header: {
+  aboutHeader: {
     alignItems: 'center',
     padding: 32,
     borderBottomWidth: 1,

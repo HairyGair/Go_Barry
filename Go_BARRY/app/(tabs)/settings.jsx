@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorSession } from '../../components/hooks/useSupervisorSessionSimple';
 import SystemHealthMonitor from '../../components/SystemHealthMonitor';
 import TrainingHelpSystem from '../../components/TrainingHelpSystem';
+import AppHeader from '../../components/common/AppHeader';
 import { API_CONFIG } from '../../config/api';
 
 const isWeb = Platform.OS === 'web';
@@ -109,8 +110,9 @@ export default function SettingsScreen() {
 
   return (
     <View style={styles.container}>
+      <AppHeader />
       {/* Header */}
-      <View style={styles.header}>
+      <View style={styles.settingsHeader}>
         <Text style={styles.title}>⚙️ Settings</Text>
         <Text style={styles.subtitle}>Customize your BARRY experience</Text>
       </View>
@@ -321,7 +323,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  header: {
+  settingsHeader: {
     backgroundColor: '#FFFFFF',
     padding: 20,
     paddingTop: 40,

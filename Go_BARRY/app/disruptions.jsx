@@ -11,6 +11,7 @@ import { useSupervisor } from '../components/hooks/useSupervisorSession';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
+import AppHeader from '../components/common/AppHeader';
 
 // Error Boundary Component
 class DisruptionsErrorBoundary extends React.Component {
@@ -126,8 +127,9 @@ export default function DisruptionsPage() {
   return (
     <DisruptionsErrorBoundary>
       <SafeAreaView style={styles.container}>
+        <AppHeader />
         {/* Header Section */}
-        <View style={styles.header}>
+        <View style={styles.disruptionsHeader}>
           <View style={styles.headerContent}>
             <View style={styles.titleSection}>
               <Pressable onPress={handleBack} style={styles.backButton}>
@@ -329,7 +331,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  header: {
+  disruptionsHeader: {
     backgroundColor: '#1a1a2e',
     paddingTop: Platform.OS === 'web' ? 20 : 60,
     paddingBottom: 20,
