@@ -22,6 +22,7 @@ import FilterPanel from './components/FilterPanel';
 import RoadworkQueue from '../RoadworkQueue';
 import MapOverview from './components/MapOverview';
 import TimelineView from './components/TimelineView';
+import TestRoadworksIntegration from './test/TestRoadworksIntegration';
 import DiversionTemplates from './templates/DiversionTemplates';
 import RoadworksAnalytics from './analytics/RoadworksAnalytics';
 
@@ -77,6 +78,7 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
     { id: 'planned', label: 'Planned', icon: 'calendar', badge: stats.planned > 0 ? stats.planned : null },
     { id: 'critical', label: 'Critical', icon: 'warning', badge: stats.critical > 0 ? stats.critical : null },
     { id: 'timeline', label: 'Timeline', icon: 'list', badge: null },
+    { id: 'test', label: 'Test', icon: 'flask', badge: null },
     { id: 'templates', label: 'Templates', icon: 'folder', badge: null },
     { id: 'analytics', label: 'Analytics', icon: 'analytics', badge: null },
   ];
@@ -784,6 +786,15 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
     // Render RoadworkQueue for queue tab
     if (activeTab === 'queue') {
       return <RoadworkQueue />;
+    }
+
+    // Render Test Integration for test tab
+    if (activeTab === 'test') {
+      return (
+        <TestRoadworksIntegration 
+          baseUrl={baseUrl}
+        />
+      );
     }
 
     // Render DiversionTemplates for templates tab

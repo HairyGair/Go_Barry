@@ -1406,6 +1406,56 @@ app.get('/api/test-streetmanager', async (req, res) => {
   }
 });
 
+// Comprehensive test endpoint for Roadworks Manager V2
+app.get('/api/roadworks-v2/status', async (req, res) => {
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    
+    // Test Street Manager notifications
+    const { data: notifications, error: notifError } = await supabase
+      .from('streetmanager_notifications')
+      .select('webhook_event_type')
+      .gte('webhook_received_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .limit(100);
+    
+    // Test roadworks endpoint
+    const roadworksResponse = await fetch(`${process.env.API_BASE_URL || 'http://localhost:3001'}/api/street-manager-roadworks`);
+    const roadworksData = roadworksResponse.ok ? await roadworksResponse.json() : null;
+    
+    // Group notifications by event type
+    const eventCounts = (notifications || []).reduce((acc, notif) => {
+      acc[notif.webhook_event_type] = (acc[notif.webhook_event_type] || 0) + 1;
+      return acc;
+    }, {});
+    
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      streetManager: {
+        totalNotifications24h: notifications?.length || 0,
+        eventTypes: eventCounts,
+        hasData: (notifications?.length || 0) > 0
+      },
+      roadworksEndpoint: {
+        accessible: roadworksResponse?.ok || false,
+        roadworksCount: roadworksData?.roadworks?.length || 0,
+        sampleRoadwork: roadworksData?.roadworks?.[0] || null
+      },
+      systemHealth: {
+        database: !notifError,
+        apiEndpoint: roadworksResponse?.ok || false,
+        dataFlow: (notifications?.length || 0) > 0 && (roadworksData?.roadworks?.length || 0) > 0
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Diagnostic endpoint to check Supabase data
 app.get('/api/debug/roadworks-data', async (req, res) => {
   try {
