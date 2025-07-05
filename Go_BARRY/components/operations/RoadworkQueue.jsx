@@ -132,12 +132,23 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
       const url = `${baseUrl || 'https://go-barry.onrender.com'}/api/roadworks-v2/${selectedRoadwork.id}/review`;
       console.log('📡 Submitting review to:', url);
       
+      // Ensure we have supervisor credentials
+      const supervisorId = currentSession.supervisorId || currentSession.sessionId || 'UNKNOWN';
+      const supervisorName = currentSession.supervisorName || currentSession.supervisor?.name || 'Unknown Supervisor';
+      
+      if (!supervisorId || supervisorId === 'UNKNOWN' || !supervisorName || supervisorName === 'Unknown Supervisor') {
+        console.warn('❌ Missing supervisor credentials:', { supervisorId, supervisorName });
+        Alert.alert('Authentication Error', 'Please ensure you are logged in as a supervisor');
+        return;
+      }
+
       const payload = {
         ...reviewData,
-        supervisorId: currentSession.supervisorId,
-        supervisorName: currentSession.supervisorName
+        supervisorId,
+        supervisorName
       };
       console.log('📡 Review payload:', payload);
+      console.log('📡 Current session details:', currentSession);
 
       const response = await fetch(url, {
         method: 'POST',
