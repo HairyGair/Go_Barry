@@ -132,8 +132,15 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
       const url = `${baseUrl || 'https://go-barry.onrender.com'}/api/roadworks-v2/${selectedRoadwork.id}/review`;
       console.log('📡 Submitting review to:', url);
       
-      // Ensure we have supervisor credentials
-      const supervisorId = currentSession.supervisorId || currentSession.sessionId || 'UNKNOWN';
+      // Ensure we have supervisor credentials - truncate supervisorId if it's too long
+      let supervisorId = currentSession.supervisorId || currentSession.sessionId || 'UNKNOWN';
+      
+      // If supervisorId is a UUID/session ID, truncate it or use a different identifier
+      if (supervisorId.length > 10) {
+        // Try to get a badge number or short ID instead
+        supervisorId = currentSession.supervisor?.badge || supervisorId.substring(0, 10);
+      }
+      
       const supervisorName = currentSession.supervisorName || currentSession.supervisor?.name || 'Unknown Supervisor';
       
       if (!supervisorId || supervisorId === 'UNKNOWN' || !supervisorName || supervisorName === 'Unknown Supervisor') {
@@ -142,12 +149,24 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
         return;
       }
 
+      // Ensure field lengths don't exceed database constraints
       const payload = {
         ...reviewData,
+        status: reviewData.status?.substring(0, 10), // Limit to 10 chars
+        severity: reviewData.severity?.substring(0, 10), // Limit to 10 chars
         supervisorId,
-        supervisorName
+        supervisorName: supervisorName?.substring(0, 50), // Reasonable limit for name
+        notes: reviewData.notes?.substring(0, 500) // Reasonable limit for notes
       };
       console.log('📡 Review payload:', payload);
+      console.log('📡 Payload field lengths:', {
+        status: `"${payload.status}" (${payload.status?.length} chars)`,
+        severity: `"${payload.severity}" (${payload.severity?.length} chars)`,
+        supervisorId: `"${supervisorId}" (${supervisorId?.length} chars)`,
+        supervisorName: `"${supervisorName}" (${supervisorName?.length} chars)`,
+        notes: `"${payload.notes}" (${payload.notes?.length} chars)`,
+        confirmedRoutes: payload.confirmedRoutes
+      });
       console.log('📡 Current session details:', currentSession);
 
       const response = await fetch(url, {
