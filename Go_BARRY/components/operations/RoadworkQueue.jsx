@@ -206,15 +206,21 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
   }, [currentSession]);
 
   const openReviewModal = (roadwork) => {
-    setSelectedRoadwork(roadwork);
-    setReviewData({
-      status: 'approved',
-      confirmedRoutes: roadwork.auto_matched_routes || [],
-      severity: roadwork.severity || 'medium',
-      diversionRequired: false,
-      notes: ''
-    });
-    setReviewModalVisible(true);
+    console.log('🔍 Opening review modal for roadwork:', roadwork);
+    try {
+      setSelectedRoadwork(roadwork);
+      setReviewData({
+        status: 'approved',
+        confirmedRoutes: roadwork.auto_matched_routes || [],
+        severity: roadwork.severity || 'medium',
+        diversionRequired: false,
+        notes: ''
+      });
+      setReviewModalVisible(true);
+      console.log('✅ Review modal should now be visible');
+    } catch (error) {
+      console.error('❌ Error opening review modal:', error);
+    }
   };
 
   const getSeverityColor = (severity) => {
@@ -352,7 +358,13 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
                 )}
               </View>
 
-              <TouchableOpacity style={styles.reviewButton}>
+              <TouchableOpacity 
+                style={styles.reviewButton}
+                onPress={(e) => {
+                  e.stopPropagation(); // Prevent card tap
+                  openReviewModal(roadwork);
+                }}
+              >
                 <Icon name="create-outline" size={20} color="white" />
                 <Text style={styles.reviewButtonText}>Review</Text>
               </TouchableOpacity>
