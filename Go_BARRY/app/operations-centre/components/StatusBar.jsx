@@ -7,8 +7,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { operationsTheme } from '../styles';
-import { UK_LOCALE } from '../constants';
+import { operationsTheme } from '../../../lib/_styles-index.js';
+import { UK_LOCALE } from '../../../lib/_constants-index.js';
 
 export default function StatusBar() {
   const [statuses, setStatuses] = useState([

@@ -7,7 +7,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { operationsTheme } from '../../../app/operations-centre/styles';
+import { operationsTheme } from '../../../lib/_styles-index.js';
 
 // Import custom hooks and components
 import { useLiveMapData } from './hooks/useLiveMapData';
