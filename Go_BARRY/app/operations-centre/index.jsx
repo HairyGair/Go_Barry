@@ -37,7 +37,6 @@ import DailyLostMileageCard from '../../components/operations/cards/DailyLostMil
 // Improved SharePoint components (iframe-based but enhanced)
 import OnTimeRequestImproved from '../../components/operations/cards/OnTimeRequestImproved.jsx';
 import DailyLostMileageImproved from '../../components/operations/cards/DailyLostMileageImproved.jsx';
-import HorizonVixCard from '../../components/operations/cards/HorizonVixCard.jsx';
 
 // Import theme
 import { operationsTheme } from '../../lib/_styles-index.js';
@@ -152,6 +151,14 @@ export default function OperationsCentre() {
       timestamp: new Date().toISOString() 
     });
     
+    // Special handling for Horizon VIX - open directly in new tab
+    if (cardId === 'horizon-vix') {
+      if (Platform.OS === 'web') {
+        window.open('https://horizon.gag.vix-its.com/', '_blank');
+      }
+      return;
+    }
+    
     setSelectedCard(cardId);
   };
   
@@ -211,6 +218,7 @@ export default function OperationsCentre() {
       icon: 'traffic-light',
       color: ['#7c3aed', '#5b21b6'], // Purple gradient for traffic management
       stats: { count: '●', label: 'Live' },
+      textColor: '#1e293b', // Dark text for better contrast on bright gradient
     },
   ];
   
@@ -240,9 +248,6 @@ export default function OperationsCentre() {
           const LiveMapContainer = require('../../components/operations/live-map/LiveMapContainer.jsx').default;
           return <LiveMapContainer onClose={() => setSelectedCard(null)} />;
         };
-        break;
-      case 'horizon-vix':
-        Component = () => <HorizonVixCard onClose={() => setSelectedCard(null)} />;
         break;
       default:
         return null;
