@@ -2,6 +2,41 @@
 // This will return real TomTom data directly
 
 export function addEmergencyEndpoint(app) {
+  // POST endpoint for sending priority alerts
+  app.post('/api/emergency-alerts', async (req, res) => {
+    console.log('🚨 Priority alert POST received:', req.body);
+    
+    try {
+      const { type, message, supervisorId, timestamp, priority } = req.body;
+      
+      // For now, just log the alert and return success
+      // In production, this would broadcast to all supervisors via Convex or WebSocket
+      const alertData = {
+        id: `alert_${Date.now()}`,
+        type: type || 'priority',
+        message: message || 'Priority alert from operations',
+        supervisorId: supervisorId || 'unknown',
+        timestamp: timestamp || new Date().toISOString(),
+        priority: priority || 'high',
+        status: 'sent'
+      };
+      
+      console.log('✅ Priority alert logged:', alertData);
+      
+      res.json({
+        success: true,
+        alert: alertData,
+        message: 'Priority alert sent successfully'
+      });
+    } catch (error) {
+      console.error('❌ Priority alert error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   app.get('/api/emergency-alerts', async (req, res) => {
     console.log('🚨 Emergency alerts endpoint called');
     

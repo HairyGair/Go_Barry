@@ -9,10 +9,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Platform } from 'react-native';
 
-// Use local backend in development, production backend otherwise
-const BACKEND_URL = process.env.NODE_ENV === 'development' 
-  ? 'http://localhost:3001' 
-  : 'https://go-barry.onrender.com';
+// Use production backend for both dev and production
+const BACKEND_URL = 'https://go-barry.onrender.com';
 const CACHE_TIMEOUT = 10 * 60 * 1000; // 10 minutes
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 3000; // 3 seconds

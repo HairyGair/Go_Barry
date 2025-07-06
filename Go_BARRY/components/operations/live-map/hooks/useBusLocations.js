@@ -51,10 +51,8 @@ try {
   api = null;
 }
 
-// Use local backend in development, production backend otherwise
-const BACKEND_URL = process.env.NODE_ENV === 'development' 
-  ? 'http://localhost:3001' 
-  : 'https://go-barry.onrender.com';
+// Use production backend for both dev and production
+const BACKEND_URL = 'https://go-barry.onrender.com';
 
 const CACHE_TIMEOUT = 30000; // 30 seconds
 const MAX_RETRIES = 3;

@@ -186,6 +186,36 @@ router.get('/fares', async (req, res) => {
 });
 
 /**
+ * GET /api/bods/status
+ * Quick status for operations centre
+ */
+router.get('/status', async (req, res) => {
+  try {
+    const metrics = bodsService.getMetrics();
+    const vehicleResult = await bodsService.getVehicleLocations({ operatorFilter: true });
+    
+    res.json({
+      success: true,
+      activeBuses: vehicleResult.count || 0,
+      totalBuses: vehicleResult.data?.length || 0,
+      lastUpdated: metrics.lastRequestTime || new Date().toISOString(),
+      status: metrics.health || 'unknown',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[BODS API] Status error:', error);
+    res.status(500).json({
+      success: false,
+      activeBuses: 0,
+      totalBuses: 0,
+      lastUpdated: new Date().toISOString(),
+      status: 'error',
+      error: error.message
+    });
+  }
+});
+
+/**
  * GET /api/bods/health
  * Service health and metrics
  */
