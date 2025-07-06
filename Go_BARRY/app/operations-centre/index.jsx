@@ -24,11 +24,19 @@ import StatusBar from './components/StatusBar.jsx';
 import OperationsCard from './components/OperationsCard.jsx';
 import QuickActions from './components/QuickActions.jsx';
 import ActivityFeed from './components/ActivityFeed.jsx';
+// Live data components
+import QuickActionsLive from './components/QuickActionsLive.jsx';
+import ActivityFeedLive from './components/ActivityFeedLive.jsx';
 
 // Import operational components
 import DutyBoardsCard from '../../components/operations/cards/DutyBoardsCard.jsx';
 import DisruptionDatabaseCard from '../../components/operations/cards/DisruptionDatabaseCard.jsx';
 import StatisticsCard from '../../components/operations/cards/StatisticsCard.jsx';
+import OnTimeRequestCard from '../../components/operations/cards/OnTimeRequestCard.jsx';
+import DailyLostMileageCard from '../../components/operations/cards/DailyLostMileageCard.jsx';
+// Improved SharePoint components (iframe-based but enhanced)
+import OnTimeRequestImproved from '../../components/operations/cards/OnTimeRequestImproved.jsx';
+import DailyLostMileageImproved from '../../components/operations/cards/DailyLostMileageImproved.jsx';
 
 // Import theme
 import { operationsTheme } from '../../lib/_styles-index.js';
@@ -41,11 +49,14 @@ export default function OperationsCentre() {
   const { isLoggedIn, supervisorName, logout, supervisor, isLoading } = useSupervisor();
   const [isInitializing, setIsInitializing] = useState(true);
   const [selectedCard, setSelectedCard] = useState(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [cardStats, setCardStats] = useState({
     dutyBoards: { value: '12', label: UK_LOCALE.ACTIVE },
     disruptions: { value: '156', label: UK_LOCALE.TOTAL },
     statistics: { value: '142', label: UK_LOCALE.TODAY },
     liveMap: { value: '37', label: UK_LOCALE.ALERTS },
+    onTimeRequest: { value: 'Live', label: 'SharePoint' },
+    dailyLostMileage: { value: 'SDC', label: 'Report' },
   });
   
   // Security check with loading state
@@ -95,12 +106,19 @@ export default function OperationsCentre() {
     perfMonitor.startMeasure('fetch-stats');
     
     try {
-      // Use local backend in development, production backend otherwise
-      const API_BASE = Platform.OS === 'web' 
-        ? (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://go-barry.onrender.com')
-        : 'https://go-barry.onrender.com';
+      // Use production backend only for now to avoid local dev issues
+      const API_BASE = 'https://go-barry.onrender.com';
       
-      const response = await fetch(`${API_BASE}/api/operations/stats`);
+      const response = await fetch(`${API_BASE}/api/operations/stats`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        // Add timeout to prevent hanging
+        ...(typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? { signal: AbortSignal.timeout(10000) } : {})
+      });
+      
       if (response.ok) {
         const data = await response.json();
         // Update card stats based on API response
@@ -108,11 +126,13 @@ export default function OperationsCentre() {
           ...prev,
           // Stats can be updated here as needed for remaining cards
         }));
+        console.log('✅ Operations stats loaded successfully');
+      } else {
+        console.warn('⚠️ Operations stats API returned:', response.status);
       }
     } catch (error) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.error('Failed to fetch stats:', error);
-      }
+      // Silently handle stats errors - not critical for app function
+      console.warn('⚠️ Stats fetch failed (non-critical):', error.message);
     } finally {
       perfMonitor.endMeasure('fetch-stats');
     }
@@ -142,6 +162,22 @@ export default function OperationsCentre() {
       icon: 'clipboard-list',
       color: operationsTheme.colors.gradients.dutyBoards,
       stats: cardStats.dutyBoards,
+    },
+    {
+      id: 'on-time-request',
+      title: 'On Time Request',
+      subtitle: 'Driver Finish Times',
+      icon: 'clock-check',
+      color: operationsTheme.colors.gradients.onTimeRequest || ['#0ea5e9', '#0284c7'],
+      stats: cardStats.onTimeRequest,
+    },
+    {
+      id: 'daily-lost-mileage',
+      title: 'Daily Lost Mileage',
+      subtitle: 'SDC Report',
+      icon: 'chart-line-variant',
+      color: operationsTheme.colors.gradients.dailyLostMileage || ['#dc2626', '#b91c1c'],
+      stats: cardStats.dailyLostMileage,
     },
     {
       id: 'disruptions',
@@ -178,7 +214,12 @@ export default function OperationsCentre() {
       case 'duty-boards':
         Component = DutyBoardsCard;
         break;
-
+      case 'on-time-request':
+        Component = () => <OnTimeRequestImproved onClose={() => setSelectedCard(null)} />;
+        break;
+      case 'daily-lost-mileage':
+        Component = () => <DailyLostMileageImproved onClose={() => setSelectedCard(null)} />;
+        break;
       case 'disruptions':
         Component = DisruptionDatabaseCard;
         break;
@@ -247,11 +288,11 @@ export default function OperationsCentre() {
           </View>
         </View>
         
-        {/* Quick Actions */}
-        <QuickActions />
+        {/* Quick Actions - Live Data */}
+        <QuickActionsLive onRefresh={() => setRefreshTrigger(prev => prev + 1)} />
         
-        {/* Activity Feed */}
-        <ActivityFeed />
+        {/* Activity Feed - Live Data */}
+        <ActivityFeedLive refreshTrigger={refreshTrigger} />
       </ScrollView>
       
       {/* Modal/Overlay for selected component */}

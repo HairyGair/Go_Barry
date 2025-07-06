@@ -15,7 +15,12 @@ class MicrosoftEmailService {
 
   // Generate Microsoft login URL for supervisor
   getMicrosoftLoginUrl(supervisorId, state = null) {
-    const scopes = ['https://graph.microsoft.com/Mail.Send', 'https://graph.microsoft.com/User.Read'].join(' ');
+    const scopes = [
+      'https://graph.microsoft.com/Mail.Send', 
+      'https://graph.microsoft.com/User.Read',
+      'https://graph.microsoft.com/Files.ReadWrite.All',
+      'https://graph.microsoft.com/Sites.ReadWrite.All'
+    ].join(' ');
     const stateParam = state || `supervisor_${supervisorId}_${Date.now()}`;
     
     const params = new URLSearchParams({
@@ -44,7 +49,7 @@ class MicrosoftEmailService {
         body: new URLSearchParams({
           client_id: this.clientId,
           client_secret: this.clientSecret,
-          scope: 'https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/User.Read',
+          scope: 'https://graph.microsoft.com/Mail.Send https://graph.microsoft.com/User.Read https://graph.microsoft.com/Files.ReadWrite.All https://graph.microsoft.com/Sites.ReadWrite.All',
           code: code,
           redirect_uri: this.redirectUri,
           grant_type: 'authorization_code'
