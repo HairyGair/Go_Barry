@@ -1,5 +1,6 @@
 // Weather API routes for Go BARRY
 import express from 'express';
+import fetch from 'node-fetch';
 import { weatherService } from '../services/weatherService.js';
 
 const router = express.Router();
@@ -64,9 +65,18 @@ router.post('/initialize', async (req, res) => {
 router.get('/status', async (req, res) => {
   try {
     const status = weatherService.getAPIStatus();
+    
+    // Add debug info about API key
+    const debugInfo = {
+      hasApiKey: !!process.env.OPENWEATHER_API_KEY,
+      apiKeyLength: process.env.OPENWEATHER_API_KEY ? process.env.OPENWEATHER_API_KEY.length : 0,
+      serviceInitialized: weatherService.initialized
+    };
+    
     res.json({
       success: true,
       status,
+      debug: debugInfo,
       message: status.canMakeCall ? 'Weather API available' : 'Daily limit reached',
       timestamp: new Date().toISOString()
     });
@@ -76,6 +86,69 @@ router.get('/status', async (req, res) => {
       success: false,
       error: 'Failed to get weather status',
       message: error.message
+    });
+  }
+});
+
+// Test API key functionality
+router.get('/test-api', async (req, res) => {
+  try {
+    const apiKey = process.env.OPENWEATHER_API_KEY;
+    
+    if (!apiKey) {
+      return res.json({
+        success: false,
+        error: 'No API key configured',
+        details: {
+          envVarName: 'OPENWEATHER_API_KEY',
+          hasKey: false
+        }
+      });
+    }
+    
+    // Test API call to Newcastle
+    const testUrl = `https://api.openweathermap.org/data/2.5/weather?lat=54.9783&lon=-1.6178&units=metric&appid=${apiKey}`;
+    
+    const response = await fetch(testUrl, {
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Go-BARRY-Traffic-System/2.0'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API returned ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    res.json({
+      success: true,
+      message: 'API key working correctly',
+      testLocation: 'Newcastle',
+      apiResponse: {
+        location: data.name,
+        temperature: Math.round(data.main.temp),
+        condition: data.weather[0].main,
+        description: data.weather[0].description
+      },
+      debug: {
+        hasApiKey: true,
+        apiKeyLength: apiKey.length,
+        responseStatus: response.status
+      }
+    });
+    
+  } catch (error) {
+    console.error('Weather API test error:', error);
+    res.json({
+      success: false,
+      error: 'API test failed',
+      message: error.message,
+      debug: {
+        hasApiKey: !!process.env.OPENWEATHER_API_KEY,
+        apiKeyLength: process.env.OPENWEATHER_API_KEY ? process.env.OPENWEATHER_API_KEY.length : 0
+      }
     });
   }
 });

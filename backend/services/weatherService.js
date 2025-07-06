@@ -7,6 +7,14 @@ class WeatherService {
   constructor() {
     this.apiKey = process.env.OPENWEATHER_API_KEY;
     this.baseUrl = 'https://api.openweathermap.org/data/2.5';
+    
+    // Debug API key loading
+    console.log('🌤️ Weather Service Debug:', {
+      hasApiKey: !!this.apiKey,
+      apiKeyLength: this.apiKey ? this.apiKey.length : 0,
+      apiKeyPrefix: this.apiKey ? this.apiKey.substring(0, 8) + '...' : 'undefined',
+      nodeEnv: process.env.NODE_ENV
+    });
     this.cache = new Map();
     this.cacheExpiry = 30 * 60 * 1000; // 30 minutes cache to reduce API calls
     this.dailyCallCount = 0;
