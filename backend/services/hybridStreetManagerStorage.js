@@ -21,9 +21,12 @@ const STORAGE_DIR = join(__dirname, '../data/streetmanager');
 
 class HybridStreetManagerStorage {
   constructor() {
+    // Use ANON key as fallback if SERVICE key not available
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY;
+    
     this.supabase = createClient(
       process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_KEY
+      supabaseKey
     );
     
     // Ensure storage directory exists

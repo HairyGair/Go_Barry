@@ -18,8 +18,16 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
-// Initialize hybrid storage
-const hybridStorage = new HybridStreetManagerStorage();
+// Initialize hybrid storage with error handling
+let hybridStorage;
+try {
+  hybridStorage = new HybridStreetManagerStorage();
+  console.log('✅ Hybrid Street Manager storage initialized');
+} catch (error) {
+  console.warn('⚠️ Hybrid storage failed to initialize:', error.message);
+  console.log('🔄 Webhook will continue processing without hybrid storage');
+  hybridStorage = null;
+}
 
 // Signature validation functions - EXACTLY as per official docs
 async function isValidSignature(snsMessage) {
@@ -137,23 +145,31 @@ async function handleNotification(snsMessage) {
     // Create consistent notification ID
     const notificationId = `sm_${notificationData.event_reference}_${snsMessage.MessageId}`;
     
-    // Store using new hybrid storage system (lightweight summary + JSON file)
-    const storageResult = await hybridStorage.storeNotification({
-      ...notificationData,
-      notificationId,
-      messageAttributes: snsMessage.MessageAttributes,
-      receivedAt: new Date().toISOString(),
-      processingStatus: 'pending'
-    });
-    
-    if (!storageResult.success) {
-      console.error('❌ Failed to save notification:', storageResult.error);
+    // Store using new hybrid storage system (with fallback)
+    if (hybridStorage) {
+      try {
+        const storageResult = await hybridStorage.storeNotification({
+          ...notificationData,
+          notificationId,
+          messageAttributes: snsMessage.MessageAttributes,
+          receivedAt: new Date().toISOString(),
+          processingStatus: 'pending'
+        });
+        
+        if (storageResult.success) {
+          console.log('✅ Notification saved via hybrid storage (summary + JSON file)');
+        } else {
+          console.error('❌ Failed to save notification:', storageResult.error);
+        }
+      } catch (storageError) {
+        console.warn('⚠️ Hybrid storage error (continuing anyway):', storageError.message);
+      }
     } else {
-      console.log('✅ Notification saved via hybrid storage (summary + JSON file)');
-      
-      // Process the notification
-      await processNotification(notificationData, notificationId);
+      console.log('⚠️ Hybrid storage not available - processing notification without storage');
     }
+    
+    // ALWAYS process the notification regardless of storage success
+    await processNotification(notificationData, notificationId);
   } catch (err) {
     console.error('❌ Error handling notification:', err);
   }
@@ -327,8 +343,15 @@ router.post('/', async (req, res) => {
 
 // Status endpoint (for GET requests to main webhook URL)
 router.get('/', async (req, res) => {
-  // Get storage stats
-  const stats = await hybridStorage.getStorageStats();
+  // Get storage stats (with fallback)
+  let stats = { database: { size_estimate: 'N/A' }, files: { size_estimate: 'N/A' } };
+  if (hybridStorage) {
+    try {
+      stats = await hybridStorage.getStorageStats();
+    } catch (error) {
+      console.warn('⚠️ Failed to get storage stats:', error.message);
+    }
+  }
   
   res.json({
     success: true,
@@ -338,11 +361,14 @@ router.get('/', async (req, res) => {
     expects: 'AWS SNS notifications with x-amz-sns-message-type header',
     bodyParser: 'text (as per official docs)',
     storage: {
-      type: 'hybrid',
-      description: 'Lightweight summaries in database + full payloads in JSON files',
+      type: hybridStorage ? 'hybrid' : 'processing-only',
+      description: hybridStorage 
+        ? 'Lightweight summaries in database + full payloads in JSON files'
+        : 'Webhook processing without storage (fallback mode)',
       database_size: stats.database.size_estimate,
       json_files: stats.files.size_estimate,
-      retention: '7 days after roadwork completion'
+      retention: '7 days after roadwork completion',
+      status: hybridStorage ? 'active' : 'fallback_mode'
     },
     documentation: 'https://department-for-transport-streetmanager.github.io/street-manager-docs/open-data/',
     test: 'GET /api/streetmanager/webhook/test',
