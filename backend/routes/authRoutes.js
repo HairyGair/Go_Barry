@@ -5,10 +5,32 @@ import express from 'express';
 import MicrosoftGraphAuth from '../services/microsoftGraphAuth.js';
 
 const router = express.Router();
-const graphAuth = new MicrosoftGraphAuth();
+
+// Initialize Microsoft Graph Auth with error handling
+let graphAuth;
+try {
+  graphAuth = new MicrosoftGraphAuth();
+} catch (error) {
+  console.warn('⚠️ Microsoft Graph Auth initialization failed:', error.message);
+  graphAuth = null;
+}
 
 // In-memory token storage (replace with database in production)
 const tokenStorage = new Map();
+
+// Middleware to check if Microsoft Graph is configured
+function requireGraphAuth(req, res, next) {
+  if (!graphAuth || !graphAuth.isConfigured) {
+    return res.status(503).json({
+      error: 'Microsoft Graph not configured',
+      message: 'SharePoint integration requires Azure AD configuration'
+    });
+  }
+  next();
+}
+
+// Apply middleware to all Microsoft routes
+router.use('/microsoft/*', requireGraphAuth);
 
 /**
  * GET /api/auth/microsoft/login
@@ -16,6 +38,7 @@ const tokenStorage = new Map();
  */
 router.get('/microsoft/login', async (req, res) => {
   try {
+
     // Validate configuration
     graphAuth.validateConfig();
 

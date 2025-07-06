@@ -5,6 +5,18 @@ import { ConfidentialClientApplication } from '@azure/msal-node';
 
 class MicrosoftGraphAuth {
   constructor() {
+    // Check if Azure credentials are configured
+    const hasCredentials = process.env.AZURE_CLIENT_ID && 
+                          process.env.AZURE_CLIENT_SECRET && 
+                          process.env.AZURE_TENANT_ID;
+
+    if (!hasCredentials) {
+      console.log('⚠️ Microsoft Graph: Azure credentials not configured - SharePoint features disabled');
+      this.isConfigured = false;
+      this.cca = null;
+      return;
+    }
+
     this.clientConfig = {
       auth: {
         clientId: process.env.AZURE_CLIENT_ID,
@@ -13,7 +25,15 @@ class MicrosoftGraphAuth {
       },
     };
 
-    this.cca = new ConfidentialClientApplication(this.clientConfig);
+    try {
+      this.cca = new ConfidentialClientApplication(this.clientConfig);
+      this.isConfigured = true;
+    } catch (error) {
+      console.warn('⚠️ Microsoft Graph: Failed to initialize:', error.message);
+      this.isConfigured = false;
+      this.cca = null;
+      return;
+    }
 
     // Required permissions for SharePoint Excel access
     this.requiredScopes = [
@@ -22,14 +42,27 @@ class MicrosoftGraphAuth {
       'https://graph.microsoft.com/User.Read',
     ];
 
-    console.log('🔐 Microsoft Graph Auth initialized');
-    console.log('🔐 Required scopes:', this.requiredScopes);
+    if (this.isConfigured) {
+      console.log('✅ Microsoft Graph Auth initialized');
+      console.log('🔐 Required scopes:', this.requiredScopes);
+    }
+  }
+
+  /**
+   * Check if service is configured
+   */
+  _checkConfigured() {
+    if (!this.isConfigured) {
+      throw new Error('Microsoft Graph not configured - Azure credentials missing');
+    }
   }
 
   /**
    * Get authorization URL for user login
    */
   getAuthUrl(state = 'default') {
+    this._checkConfigured();
+    
     const authCodeUrlParameters = {
       scopes: this.requiredScopes,
       redirectUri: process.env.AZURE_REDIRECT_URI || 'https://gobarry.co.uk/auth/callback',
