@@ -25,6 +25,7 @@ import TimelineView from './components/TimelineView';
 import TestRoadworksIntegration from './test/TestRoadworksIntegration';
 import DiversionTemplates from './templates/DiversionTemplates';
 import RoadworksAnalytics from './analytics/RoadworksAnalytics';
+import RoadworkDetailModal from './modals/RoadworkDetailModal';
 
 const RoadworksManagerV2 = ({ baseUrl }) => {
   const {
@@ -48,6 +49,7 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('online'); // 'online', 'offline', 'slow'
   const [errorMessage, setErrorMessage] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const [filters, setFilters] = useState({
     status: 'all',
     source: 'all',
@@ -560,6 +562,20 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
     // TODO: Open status change modal
   };
 
+  const handleCreateDiversion = (roadwork) => {
+    console.log('Create diversion message for:', roadwork.title);
+    setSelectedRoadwork(roadwork);
+    // TODO: Open Message Distribution Centre with roadwork data
+    // This will integrate with the Message Distribution Centre component
+    alert(`Creating diversion message for: ${roadwork.title}\n\nThis will open the Message Distribution Centre with roadwork data pre-populated.`);
+  };
+
+  const handleViewDetails = (roadwork) => {
+    console.log('View details for:', roadwork.title);
+    setSelectedRoadwork(roadwork);
+    setShowDetailModal(true);
+  };
+
   const handleViewFullMap = () => {
     setViewMode('map');
   };
@@ -916,6 +932,8 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
             onViewMap={handleViewMap}
             onViewDiversions={handleViewDiversions}
             onStatusChange={handleStatusChange}
+            onCreateDiversion={handleCreateDiversion}
+            onViewDetails={handleViewDetails}
             isAdmin={isAdmin}
             showActions={true}
           />
@@ -961,6 +979,8 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
               onViewMap={handleViewMap}
               onViewDiversions={handleViewDiversions}
               onStatusChange={handleStatusChange}
+              onCreateDiversion={handleCreateDiversion}
+              onViewDetails={handleViewDetails}
               isAdmin={isAdmin}
               showActions={true}
               compact={false}
@@ -1157,6 +1177,15 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
         
         {renderContent()}
       </ScrollView>
+
+      {/* Roadwork Detail Modal */}
+      <RoadworkDetailModal
+        roadwork={selectedRoadwork}
+        visible={showDetailModal}
+        onClose={() => setShowDetailModal(false)}
+        onCreateDiversion={handleCreateDiversion}
+        baseUrl={baseUrl}
+      />
     </View>
   );
 };

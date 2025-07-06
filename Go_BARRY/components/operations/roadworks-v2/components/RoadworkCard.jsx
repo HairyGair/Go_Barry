@@ -14,6 +14,8 @@ const RoadworkCard = ({
   onStatusChange,
   onViewDiversions,
   onViewMap,
+  onCreateDiversion,
+  onViewDetails,
   showActions = true,
   isAdmin = false,
   compact = false
@@ -336,6 +338,33 @@ const RoadworkCard = ({
       {/* Actions */}
       {showActions && !compact && (
         <View style={[roadworksStyles.roadworkMeta, { marginTop: spacing.md }]}>
+          {/* Primary Action: Create Diversion Message */}
+          {onCreateDiversion && roadwork.status === 'active' && (
+            <Pressable
+              style={[roadworksStyles.actionButton, roadworksStyles.actionButtonPrimary]}
+              onPress={() => onCreateDiversion(roadwork)}
+            >
+              <Ionicons name="megaphone" size={16} color={colors.textInverse} />
+              <Text style={[roadworksStyles.actionButtonText, { color: colors.textInverse }]}>
+                Create Diversion Message
+              </Text>
+            </Pressable>
+          )}
+
+          {/* View Details */}
+          {onViewDetails && (
+            <Pressable
+              style={roadworksStyles.actionButton}
+              onPress={() => onViewDetails(roadwork)}
+            >
+              <Ionicons name="information-circle" size={16} color={colors.textPrimary} />
+              <Text style={roadworksStyles.actionButtonText}>
+                View Details
+              </Text>
+            </Pressable>
+          )}
+
+          {/* View Map */}
           {onViewMap && (
             <Pressable
               style={[roadworksStyles.actionButton, roadworksStyles.actionButtonSecondary]}
@@ -348,6 +377,7 @@ const RoadworkCard = ({
             </Pressable>
           )}
 
+          {/* View Diversions */}
           {onViewDiversions && roadwork.hasDiversion && (
             <Pressable
               style={roadworksStyles.actionButton}
@@ -355,11 +385,12 @@ const RoadworkCard = ({
             >
               <Ionicons name="swap-horizontal" size={16} color={colors.textPrimary} />
               <Text style={roadworksStyles.actionButtonText}>
-                Diversions
+                View Diversions
               </Text>
             </Pressable>
           )}
 
+          {/* Admin Actions */}
           {isAdmin && onStatusChange && (
             <Pressable
               style={[roadworksStyles.actionButton, roadworksStyles.actionButtonSecondary]}

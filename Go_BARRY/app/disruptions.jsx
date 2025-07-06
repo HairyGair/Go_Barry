@@ -56,6 +56,7 @@ export default function DisruptionsPage() {
   const { isLoggedIn, supervisorName, logout, supervisor, isLoading } = useSupervisor();
   const [roadworkCount, setRoadworkCount] = useState(0);
   const [incidentCount, setIncidentCount] = useState(0);
+  const [totalDisruptions, setTotalDisruptions] = useState(0);
   const [isInitializing, setIsInitializing] = useState(true);
 
   // Get counts from the unified disruptions system
@@ -71,10 +72,15 @@ export default function DisruptionsPage() {
       // Active incidents
       const activeIncidents = disruptionStats.byType?.incident || 0;
       setIncidentCount(activeIncidents);
+      
+      // Total disruptions in database
+      const total = disruptionStats.total || roadworksPending + activeIncidents;
+      setTotalDisruptions(total);
     } else {
       // Fallback to static numbers if API not available
       setRoadworkCount(12);
       setIncidentCount(5);
+      setTotalDisruptions(28);
     }
   }, [disruptionStats]);
 
@@ -112,6 +118,10 @@ export default function DisruptionsPage() {
 
   const navigateToRoadworks = () => {
     router.push('/disruptions/roadworks');
+  };
+
+  const navigateToDatabase = () => {
+    router.push('/disruptions/database');
   };
 
   // Show loading if authentication is still being determined
@@ -213,6 +223,26 @@ export default function DisruptionsPage() {
                 </View>
                 <Text style={styles.cardTitle}>Incidents</Text>
                 <Text style={styles.cardSubtitle}>Track live incidents</Text>
+              </View>
+            </Pressable>
+
+            {/* Disruption Database Card */}
+            <Pressable
+              style={[styles.card, styles.databaseCard]}
+              onPress={navigateToDatabase}
+              accessibilityRole="button"
+              accessibilityLabel="Open Disruption Database"
+            >
+              <View style={styles.cardInner}>
+                <View style={styles.cardHeader}>
+                  <MaterialCommunityIcons name="database" size={32} color="white" />
+                  <View style={styles.cardStat}>
+                    <Text style={styles.statValue}>{totalDisruptions}</Text>
+                    <Text style={styles.statLabel}>Total</Text>
+                  </View>
+                </View>
+                <Text style={styles.cardTitle}>Disruption Database</Text>
+                <Text style={styles.cardSubtitle}>Historical disruption records</Text>
               </View>
             </Pressable>
           </View>
@@ -437,6 +467,9 @@ const styles = StyleSheet.create({
   },
   incidentsCard: {
     backgroundColor: '#fa709a',
+  },
+  databaseCard: {
+    backgroundColor: '#4f46e5',
   },
   cardInner: {
     flex: 1,

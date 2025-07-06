@@ -17,7 +17,7 @@ import { useSupervisorSession } from './hooks/useSupervisorSession';
 import { useConvexSync } from '../hooks/useConvexSync';
 import { formatDateUK, formatTime24, formatDateTimeUK } from '../utils/dateTime';
 
-const DisruptionDatabase = ({ baseUrl }) => {
+const DisruptionDatabase = ({ baseUrl, onBack }) => {
   const {
     isLoggedIn,
     supervisorName,
@@ -574,6 +574,16 @@ const DisruptionDatabase = ({ baseUrl }) => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
+          {onBack && (
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={onBack}
+              accessibilityLabel="Go back to Disruptions"
+            >
+              <Ionicons name="arrow-back" size={20} color="#3B82F6" />
+              <Text style={styles.backButtonText}>Disruptions</Text>
+            </TouchableOpacity>
+          )}
           <Text style={styles.title}>Disruption Database</Text>
           <Text style={styles.subtitle}>
             {selectionMode ? `${selectedItems.length} selected` : 'All roadworks and incidents in one place'}
@@ -1515,6 +1525,18 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     flex: 1,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+  },
+  backButtonText: {
+    marginLeft: 4,
+    fontSize: 14,
+    color: '#3B82F6',
+    fontWeight: '500',
   },
   title: {
     fontSize: 24,

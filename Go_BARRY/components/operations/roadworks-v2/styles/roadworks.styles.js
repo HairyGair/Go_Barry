@@ -578,6 +578,12 @@ export const roadworksStyles = StyleSheet.create({
     gap: spacing.xs,
     ...shadows.sm,
   },
+
+  actionButtonPrimary: {
+    backgroundColor: colors.primary,
+    borderWidth: 0,
+    ...shadows.md,
+  },
   
   actionButtonSecondary: {
     backgroundColor: colors.surface,
