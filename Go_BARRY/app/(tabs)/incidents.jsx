@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import IncidentManager from '../../components/operations/IncidentManager';
+import IncidentManager from '../../components/operations/IncidentManagerLegacy';
 import AppHeader from '../../components/common/AppHeader';
 
 export default function IncidentManagerTab() {

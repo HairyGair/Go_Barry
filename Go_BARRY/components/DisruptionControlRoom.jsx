@@ -11,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import ServiceFrequencyDashboard from './ServiceFrequencyDashboard';
 import AIDisruptionManager from './operations/DisruptionDatabase';
-import IncidentManager from './operations/IncidentManager';
+import IncidentManager from './operations/IncidentManagerLegacy';
 import MessageDistributionCenter from './MessageDistributionCenter';
 import AutomatedReportingSystem from './AutomatedReportingSystem';
 import SystemHealthMonitor from './SystemHealthMonitor';

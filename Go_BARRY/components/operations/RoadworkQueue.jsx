@@ -54,16 +54,13 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
   const [stats, setStats] = useState({
     pendingReview: 0,
     approved: 0,
-    monitoring: 0,
-    critical: 0,
-    high: 0
+    monitoring: 0
   });
   const [selectedRoadwork, setSelectedRoadwork] = useState(null);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [reviewData, setReviewData] = useState({
     status: 'approved',
     confirmedRoutes: [],
-    severity: 'medium',
     diversionRequired: false,
     notes: ''
   });
@@ -178,7 +175,6 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
       const payload = {
         ...reviewData,
         status: reviewData.status?.substring(0, 10), // Limit to 10 chars
-        severity: reviewData.severity?.substring(0, 10), // Limit to 10 chars
         supervisorId,
         supervisorName: supervisorName?.substring(0, 50), // Reasonable limit for name
         notes: reviewData.notes?.substring(0, 500) // Reasonable limit for notes
@@ -258,21 +254,19 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
   };
 
   // Batch approve
-  const batchApprove = async (severity = 'medium') => {
+  const batchApprove = async () => {
     if (!currentSession) return;
 
-    const selectedIds = pendingRoadworks
-      .filter(rw => rw.severity === severity)
-      .map(rw => rw.id);
+    const selectedIds = pendingRoadworks.map(rw => rw.id);
 
     if (selectedIds.length === 0) {
-      Alert.alert('Info', `No ${severity} severity roadworks to approve`);
+      Alert.alert('Info', 'No roadworks to approve');
       return;
     }
 
     Alert.alert(
       'Batch Approve',
-      `Approve all ${selectedIds.length} ${severity} severity roadworks?`,
+      `Approve all ${selectedIds.length} roadworks?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -288,7 +282,6 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
                 },
                 body: JSON.stringify({
                   streetworkIds: selectedIds,
-                  severity,
                   supervisorId: currentSession.supervisorId,
                   supervisorName: currentSession.supervisorName
                 })
@@ -327,7 +320,6 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
       setReviewData({
         status: 'approved',
         confirmedRoutes: roadwork.auto_matched_routes || [],
-        severity: roadwork.severity || 'medium',
         diversionRequired: false,
         notes: ''
       });
@@ -383,15 +375,6 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
     }
   };
 
-  const getSeverityColor = (severity) => {
-    switch (severity?.toLowerCase()) {
-      case 'critical': return '#e74c3c';
-      case 'high': return '#e67e22';
-      case 'medium': return '#f39c12';
-      case 'low': return '#27ae60';
-      default: return '#95a5a6';
-    }
-  };
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -424,14 +407,6 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
           <View style={[styles.statCard, { backgroundColor: '#3498db' }]}>
             <Text style={styles.statNumber}>{stats.pendingReview || 0}</Text>
             <Text style={styles.statLabel}>Pending</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: '#e74c3c' }]}>
-            <Text style={styles.statNumber}>{stats.critical || 0}</Text>
-            <Text style={styles.statLabel}>Critical</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: '#e67e22' }]}>
-            <Text style={styles.statNumber}>{stats.high || 0}</Text>
-            <Text style={styles.statLabel}>High</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: '#27ae60' }]}>
             <Text style={styles.statNumber}>{stats.approved || 0}</Text>
@@ -484,9 +459,6 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
               onPress={() => openReviewModal(roadwork)}
             >
               <View style={styles.cardHeader}>
-                <View style={[styles.severityBadge, { backgroundColor: getSeverityColor(roadwork.severity) }]}>
-                  <Text style={styles.severityText}>{roadwork.severity?.toUpperCase() || 'MEDIUM'}</Text>
-                </View>
                 <Text style={styles.reference}>{roadwork.sm_reference || ''}</Text>
               </View>
 
@@ -592,27 +564,6 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
                 <Text style={styles.modalSectionTitle}>Description</Text>
                 <Text style={styles.modalText}>{selectedRoadwork.sm_works_description}</Text>
 
-                <Text style={styles.modalSectionTitle}>Severity</Text>
-                <View style={styles.severityOptions}>
-                  {['critical', 'high', 'medium', 'low'].map((sev) => (
-                    <TouchableOpacity
-                      key={sev}
-                      style={[
-                        styles.severityOption,
-                        reviewData.severity === sev && styles.severityOptionSelected,
-                        { borderColor: getSeverityColor(sev) }
-                      ]}
-                      onPress={() => setReviewData({ ...reviewData, severity: sev })}
-                    >
-                      <Text style={[
-                        styles.severityOptionText,
-                        reviewData.severity === sev && { color: getSeverityColor(sev) }
-                      ]}>
-                        {sev.charAt(0).toUpperCase() + sev.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
 
                 <Text style={styles.modalSectionTitle}>Status</Text>
                 <View style={styles.statusOptions}>

@@ -12,7 +12,7 @@ import { useSupervisor } from '../components/hooks/useSupervisorSession';
 
 // Import operational components
 import DutyBoards from '../components/operations/DutyBoards';
-import IncidentManager from '../components/operations/IncidentManager';
+import IncidentManager from '../components/operations/IncidentManagerLegacy';
 import RoadworksManager from '../components/operations/RoadworksManager';
 import AIDisruptionManager from '../components/operations/DisruptionDatabase';
 

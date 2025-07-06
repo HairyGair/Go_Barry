@@ -145,9 +145,24 @@ function findRoutesNearCoordinatesFixed(lat, lng, radiusMeters = 250) {
     }
   }
 
-  // If no specific region, use major routes as fallback
+  // If no specific region, only use major routes as fallback if coordinates are within North East bounds
   if (foundRoutes.size === 0) {
-    ['21', '22', '10', '1', '2', 'Q3'].forEach(route => foundRoutes.add(route));
+    // Define broader North East England bounds
+    const northEastBounds = {
+      north: 55.2,   // Northumberland border
+      south: 54.5,   // County Durham southern border  
+      east: -1.0,    // North Sea coast
+      west: -2.5     // Western edge of Northumberland
+    };
+    
+    // Only assign fallback routes if the location is actually within North East England
+    if (lat >= northEastBounds.south && lat <= northEastBounds.north &&
+        lng >= northEastBounds.west && lng <= northEastBounds.east) {
+      console.log(`🏴󠁧󠁢󠁥󠁮󠁧󠁿 Assigning fallback routes for North East location: ${lat}, ${lng}`);
+      ['21', '22', '10', '1', '2', 'Q3'].forEach(route => foundRoutes.add(route));
+    } else {
+      console.log(`🚫 Location ${lat}, ${lng} is outside North East region - no routes assigned`);
+    }
   }
 
   return Array.from(foundRoutes).sort();

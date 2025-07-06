@@ -37,7 +37,7 @@ class RoadworksErrorBoundary extends React.Component {
           </Text>
           <Pressable 
             style={styles.errorButton}
-            onPress={() => router.back()}
+            onPress={() => router.push('/')}
           >
             <Icon name="arrow-left" size={16} color="#fff" />
             <Text style={styles.errorButtonText}>Go Back</Text>
@@ -61,7 +61,7 @@ export default function RoadworksPage() {
   }, [isLoggedIn, isLoading]);
 
   const handleBack = () => {
-    router.back();
+    router.push('/');
   };
 
   // Show loading if authentication is still being determined

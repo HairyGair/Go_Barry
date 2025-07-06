@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
-import IncidentManager from '../operations/IncidentManager';
+import IncidentManager from '../operations/IncidentManagerLegacy';
 
 // Error Boundary for IncidentTab
 class IncidentTabErrorBoundary extends React.Component {

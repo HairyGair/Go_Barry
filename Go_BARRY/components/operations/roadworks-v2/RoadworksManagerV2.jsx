@@ -378,6 +378,64 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       // **PERMANENT FILTER: Only show Go North East relevant roadworks**
       const preFilterCount = allRoadworks.length;
       allRoadworks = allRoadworks.filter(roadwork => {
+        // First, exclude known non-North East locations
+        const location = (roadwork.location || roadwork.title || '').toUpperCase();
+        const excludePatterns = [
+          // Major cities outside North East
+          'CHATHAM', 'LUTON', 'BOSTON', 'LONDON', 'BIRMINGHAM', 'MANCHESTER', 
+          'LIVERPOOL', 'BRISTOL', 'LEEDS', 'SHEFFIELD', 'NOTTINGHAM', 
+          'LEICESTER', 'COVENTRY', 'CARDIFF', 'SWANSEA', 'GLASGOW', 'EDINBURGH',
+          
+          // Counties outside North East
+          'KENT', 'BEDFORDSHIRE', 'LINCOLNSHIRE', 'DEVON', 'CORNWALL', 'SOMERSET',
+          'DORSET', 'HAMPSHIRE', 'SUSSEX', 'SURREY', 'ESSEX', 'NORFOLK', 
+          'SUFFOLK', 'HERTFORDSHIRE', 'BUCKINGHAMSHIRE', 'OXFORDSHIRE',
+          'BERKSHIRE', 'WILTSHIRE', 'GLOUCESTERSHIRE', 'WORCESTERSHIRE',
+          'WARWICKSHIRE', 'STAFFORDSHIRE', 'SHROPSHIRE', 'HEREFORDSHIRE',
+          'CHESHIRE', 'DERBYSHIRE', 'NOTTINGHAMSHIRE', 'LEICESTERSHIRE',
+          'RUTLAND', 'NORTHAMPTONSHIRE', 'CAMBRIDGESHIRE', 'ISLE OF WIGHT',
+          
+          // Specific problem locations
+          'GRAVESEND', 'DARTFORD', 'MAIDSTONE', 'ROCHESTER', 'GILLINGHAM',
+          'EXETER', 'PLYMOUTH', 'TORQUAY', 'BARNSTAPLE', 'TRURO', 'FALMOUTH',
+          'HONITON', 'TIVERTON', 'OKEHAMPTON', 'TAVISTOCK', 'TOTNES',
+          'BOURNEMOUTH', 'POOLE', 'WEYMOUTH', 'DORCHESTER',
+          'SOUTHAMPTON', 'PORTSMOUTH', 'WINCHESTER', 'BASINGSTOKE',
+          'BRIGHTON', 'WORTHING', 'HASTINGS', 'EASTBOURNE', 'CRAWLEY',
+          'CAMBRIDGE', 'OXFORD', 'READING', 'SLOUGH', 'SWINDON',
+          'GLOUCESTER', 'CHELTENHAM', 'BRISTOL', 'BATH', 'TAUNTON',
+          'CANTERBURY', 'FOLKESTONE', 'DOVER', 'ASHFORD', 'TUNBRIDGE',
+          
+          // M25 and southern motorway locations
+          'M25', 'M23', 'M3', 'M4', 'M40', 'A303', 'A30', 'A38',
+          
+          // Wales
+          'CARDIFF', 'SWANSEA', 'NEWPORT', 'WREXHAM', 'BANGOR', 'CAERNARFON',
+          
+          // Scotland  
+          'GLASGOW', 'EDINBURGH', 'DUNDEE', 'ABERDEEN', 'STIRLING', 'PERTH',
+          
+          // Midlands
+          'WOLVERHAMPTON', 'WALSALL', 'DUDLEY', 'WEST BROMWICH', 'SOLIHULL',
+          'REDDITCH', 'KIDDERMINSTER', 'STOKE', 'STAFFORD', 'LICHFIELD',
+          'TAMWORTH', 'NUNEATON', 'RUGBY', 'STRATFORD', 'EVESHAM',
+          
+          // East of England
+          'NORWICH', 'IPSWICH', 'COLCHESTER', 'CHELMSFORD', 'SOUTHEND',
+          'LUTON', 'BEDFORD', 'MILTON KEYNES', 'AYLESBURY', 'HIGH WYCOMBE',
+          'WATFORD', 'ST ALBANS', 'HEMEL HEMPSTEAD', 'STEVENAGE', 'HARLOW',
+          
+          // Southwest England
+          'PENZANCE', 'ST AUSTELL', 'BODMIN', 'LAUNCESTON', 'BUDE',
+          'ILFRACOMBE', 'MINEHEAD', 'BRIDGWATER', 'YEOVIL', 'FROME',
+          'WELLS', 'GLASTONBURY', 'CLEVEDON', 'WESTON-SUPER-MARE'
+        ];
+        
+        if (excludePatterns.some(pattern => location.includes(pattern))) {
+          console.log(`🚫 Excluding non-North East roadwork: ${location}`);
+          return false;
+        }
+        
         // Check if roadwork affects GNE routes
         const hasGNERoutes = affectsGNERoutes(roadwork);
         
@@ -818,8 +876,8 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
 
     // Performance optimization: limit rendering for very large datasets
     const maxItemsToShow = 100;
-    const itemsToShow = filteredRoadworks.slice(0, maxItemsToShow);
-    const hasMoreItems = filteredRoadworks.length > maxItemsToShow;
+    const itemsToShow = (filteredRoadworks || []).slice(0, maxItemsToShow);
+    const hasMoreItems = (filteredRoadworks || []).length > maxItemsToShow;
 
     return (
       <View style={roadworksStyles.section}>
@@ -828,8 +886,8 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
             {activeTab === 'overview' ? 'All Roadworks' : `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Roadworks`}
           </Text>
           <Text style={roadworksStyles.textMuted}>
-            {filteredRoadworks.length} item{filteredRoadworks.length === 1 ? '' : 's'}
-            {hasMoreItems && ` (showing first ${maxItemsToShow})`}
+            {(filteredRoadworks || []).length} item{(filteredRoadworks || []).length === 1 ? '' : 's'}
+            {hasMoreItems ? ` (showing first ${maxItemsToShow})` : ''}
           </Text>
         </View>
         
@@ -845,7 +903,7 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
           ]}>
             <Ionicons name="information-circle" size={12} color={colors.textPrimary} />
             <Text style={roadworksStyles.statusBadgeText}>
-              Large dataset - showing first {maxItemsToShow} items. Use filters to narrow results.
+              Large dataset - showing first {maxItemsToShow || 100} items. Use filters to narrow results.
             </Text>
           </View>
         )}
@@ -868,7 +926,7 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
           <View style={[roadworksStyles.emptyContainer, { padding: spacing.md }]}>
             <Ionicons name="funnel" size={32} color={colors.textMuted} />
             <Text style={roadworksStyles.emptyTitle}>
-              {filteredRoadworks.length - maxItemsToShow} more items available
+              {((filteredRoadworks || []).length - (maxItemsToShow || 100))} more items available
             </Text>
             <Text style={roadworksStyles.emptyDescription}>
               Use the filters above to narrow down the results and find specific roadworks.

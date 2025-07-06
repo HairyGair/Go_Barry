@@ -9,7 +9,7 @@ import { View, Text, StyleSheet, Platform, Pressable, ActivityIndicator, SafeAre
 import { router } from 'expo-router';
 import { useSupervisor } from '../../components/hooks/useSupervisorSession';
 import Icon from 'react-native-vector-icons/FontAwesome5';
-import IncidentManager from '../../components/operations/IncidentManager';
+import IncidentsManagerV2 from '../../components/operations/incidents-v2/IncidentsManagerV2';
 
 // Error Boundary Component
 class IncidentsErrorBoundary extends React.Component {
@@ -37,7 +37,7 @@ class IncidentsErrorBoundary extends React.Component {
           </Text>
           <Pressable 
             style={styles.errorButton}
-            onPress={() => router.back()}
+            onPress={() => router.push('/')}
           >
             <Icon name="arrow-left" size={16} color="#fff" />
             <Text style={styles.errorButtonText}>Go Back</Text>
@@ -61,7 +61,7 @@ export default function IncidentsPage() {
   }, [isLoggedIn, isLoading]);
 
   const handleBack = () => {
-    router.back();
+    router.push('/');
   };
 
   // Show loading if authentication is still being determined
@@ -115,9 +115,9 @@ export default function IncidentsPage() {
           <Text style={[styles.breadcrumbText, styles.breadcrumbActive]}>Incidents</Text>
         </View>
 
-        {/* Main Content - IncidentManager */}
+        {/* Main Content - IncidentsManagerV2 */}
         <View style={styles.contentContainer}>
-          <IncidentManager baseUrl={baseUrl} />
+          <IncidentsManagerV2 baseUrl={baseUrl} />
         </View>
       </SafeAreaView>
     </IncidentsErrorBoundary>

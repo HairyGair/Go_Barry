@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import IncidentManager from '../IncidentManager';
+import IncidentManager from '../IncidentManagerLegacy';
 
 export default function IncidentsCard() {
   return (

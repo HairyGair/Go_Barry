@@ -23,7 +23,7 @@ const isWeb = Platform.OS === 'web';
 const AdminPanel = lazy(() => import('../app/admin/index'));
 const SupervisorControl = lazy(() => import('../components/SupervisorControl'));
 const EnhancedDashboard = lazy(() => import('../components/EnhancedDashboard'));
-const IncidentManager = lazy(() => import('../components/operations/IncidentManager'));
+const IncidentManager = lazy(() => import('../components/operations/IncidentManagerLegacy'));
 const RoadworksManager = lazy(() => import('../components/operations/RoadworksManager'));
 const AIDisruptionManager = lazy(() => import('../components/operations/DisruptionDatabase'));
 const MessageDistributionCenter = lazy(() => import('../components/MessageDistributionCentre'));
