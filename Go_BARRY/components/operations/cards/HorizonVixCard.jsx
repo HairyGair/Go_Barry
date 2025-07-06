@@ -4,38 +4,26 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Platform, Modal, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Platform, Modal, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const HorizonVixCard = ({ onClose }) => {
-  const [isLoading, setIsLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(new Date());
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     // Set initial load time
     setLastRefresh(new Date());
   }, []);
 
+  const handleOpenExternal = () => {
+    if (Platform.OS === 'web') {
+      window.open('https://horizon.gag.vix-its.com/', '_blank');
+    }
+  };
+
   const handleRefresh = () => {
-    setIsLoading(true);
-    setError(null);
     setLastRefresh(new Date());
-    
-    // Simulate refresh time
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-  };
-
-  const handleIframeLoad = () => {
-    setIsLoading(false);
-    setError(null);
-  };
-
-  const handleIframeError = () => {
-    setIsLoading(false);
-    setError('Failed to load Horizon VIX-ITS system');
+    handleOpenExternal();
   };
 
   if (Platform.OS !== 'web') {
@@ -74,10 +62,9 @@ const HorizonVixCard = ({ onClose }) => {
           <View style={styles.headerRight}>
             <Pressable onPress={handleRefresh} style={styles.refreshButton}>
               <MaterialCommunityIcons 
-                name="refresh" 
+                name="open-in-new" 
                 size={20} 
-                color="#666" 
-                style={isLoading ? styles.spinning : null}
+                color="#666"
               />
             </Pressable>
             <Pressable onPress={onClose} style={styles.closeButton}>
@@ -95,44 +82,29 @@ const HorizonVixCard = ({ onClose }) => {
             </Text>
           </View>
           <View style={styles.statusItem}>
-            <View style={[styles.statusDot, { backgroundColor: error ? '#ef4444' : '#10b981' }]} />
+            <View style={[styles.statusDot, { backgroundColor: '#f59e0b' }]} />
             <Text style={styles.statusText}>
-              {error ? 'Connection Error' : 'Connected'}
+              External System
             </Text>
           </View>
         </View>
 
         {/* Content Area */}
         <View style={styles.content}>
-          {isLoading && (
-            <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color="#0284c7" />
-              <Text style={styles.loadingText}>Loading Horizon VIX-ITS...</Text>
-            </View>
-          )}
-
-          {error ? (
-            <View style={styles.errorContainer}>
-              <MaterialCommunityIcons name="alert-circle" size={48} color="#ef4444" />
-              <Text style={styles.errorText}>{error}</Text>
-              <Text style={styles.errorSubtext}>
-                Check your internet connection and try refreshing
-              </Text>
-              <Pressable onPress={handleRefresh} style={styles.retryButton}>
-                <Text style={styles.retryButtonText}>Retry</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <iframe
-              src="https://horizon.gag.vix-its.com/"
-              style={styles.iframe}
-              onLoad={handleIframeLoad}
-              onError={handleIframeError}
-              title="Horizon VIX-ITS Traffic Management System"
-              allow="fullscreen"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-            />
-          )}
+          <View style={styles.iframeBlockedMessage}>
+            <MaterialCommunityIcons name="web-off" size={64} color="#64748b" />
+            <Text style={styles.blockedTitle}>External System Access</Text>
+            <Text style={styles.blockedText}>
+              Horizon VIX-ITS cannot be embedded due to security restrictions.
+            </Text>
+            <Text style={styles.blockedSubtext}>
+              Click below to open the system in a new browser tab.
+            </Text>
+            <Pressable onPress={handleOpenExternal} style={styles.openExternalButton}>
+              <MaterialCommunityIcons name="open-in-new" size={16} color="#fff" />
+              <Text style={styles.openExternalButtonText}>Open Horizon VIX-ITS</Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* Footer */}
@@ -195,9 +167,6 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 8,
   },
-  spinning: {
-    transform: [{ rotate: '180deg' }],
-  },
   statusBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -225,58 +194,51 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     position: 'relative',
-  },
-  iframe: {
-    width: '100%',
-    height: '100%',
-    border: 'none',
     backgroundColor: '#fff',
   },
-  loadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: '#64748b',
-  },
-  errorContainer: {
+  iframeBlockedMessage: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 32,
   },
-  errorText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#ef4444',
+  blockedTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1e293b',
     textAlign: 'center',
     marginTop: 16,
   },
-  errorSubtext: {
-    fontSize: 14,
+  blockedText: {
+    fontSize: 16,
     color: '#64748b',
     textAlign: 'center',
     marginTop: 8,
   },
-  retryButton: {
-    marginTop: 16,
+  blockedSubtext: {
+    fontSize: 14,
+    color: '#94a3b8',
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 24,
+  },
+  openExternalButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: '#0284c7',
-    borderRadius: 6,
+    backgroundColor: '#7c3aed',
+    borderRadius: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  retryButtonText: {
+  openExternalButtonText: {
     color: '#fff',
     fontWeight: '500',
+    marginLeft: 8,
   },
   footer: {
     flexDirection: 'row',
