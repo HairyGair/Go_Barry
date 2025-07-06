@@ -11,6 +11,7 @@ import {
   validateInput, 
   checkRateLimit 
 } from '../utils/secureAuth.js';
+import { supabaseOptimizer } from './supabaseOptimizer.js';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -42,10 +43,13 @@ console.log('🔄 supervisorManager.js module loaded at', moduleLoadTime);
 // Initialize sessions from Supabase on startup
 async function loadSessionsFromSupabase() {
   try {
-    const { data, error } = await supabase
-      .from('supervisor_sessions')
-      .select('*')
-      .eq('is_active', true);
+    // Use optimized query with caching
+    const { data, error } = await supabaseOptimizer.optimizedSelect(supabase, 'supervisor_sessions', {
+      filters: { is_active: true },
+      limit: 20, // Limit active sessions
+      cacheTTL: 180, // 3 minutes cache for session data
+      cacheKey: 'active_supervisor_sessions'
+    });
     
     if (!error && data) {
       // Rebuild in-memory cache from Supabase

@@ -94,6 +94,10 @@ import roadworksV2API from './routes/roadworksV2API.js';
 console.log('✅ roadworksV2API imported');
 import disruptionsAPI from './routes/disruptionsAPI.js';
 console.log('✅ disruptionsAPI imported');
+import authRoutes from './routes/authRoutes.js';
+console.log('✅ authRoutes imported');
+import sharePointExcelAPI from './routes/sharePointExcelAPI.js';
+console.log('✅ sharePointExcelAPI imported');
 
 // Communications API Route
 app.use('/api/communications', communicationsAPI);
@@ -601,6 +605,11 @@ app.post('/api/roadwork-alerts', async (req, res) => {
 // Microsoft authentication routes
 app.use('/api/auth', microsoftAuthAPI);
 
+// SharePoint Excel integration routes
+console.log('📊 Registering SharePoint Excel routes at /api/sharepoint...');
+app.use('/api/sharepoint', sharePointExcelAPI);
+console.log('✅ SharePoint Excel routes registered successfully');
+
 // Intelligence system routes
 app.use('/api/intelligence', intelligenceAPI);
 
@@ -699,6 +708,11 @@ console.log('✅ Template routes registered successfully');
 // BODS (Bus Open Data Service) API routes
 console.log('🚌 Registering BODS routes at /api/bods...');
 app.use('/api/bods', bodsAPI);
+
+// Import and register Supabase optimization routes
+import supabaseOptimizationAPI from './routes/supabaseOptimizationAPI.js';
+console.log('🔧 Registering Supabase optimization routes at /api/supabase...');
+app.use('/api/supabase', supabaseOptimizationAPI);
 console.log('✅ BODS routes registered successfully');
 
 // Initialize BODS service

@@ -6,6 +6,7 @@ import axios from 'axios';
 import { generateAlertHash } from '../utils/alertDeduplication.js';
 import streetManager from './streetManager.js';
 import { convexSync } from './convexSync.js';
+import { supabaseOptimizer } from './supabaseOptimizer.js';
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
@@ -614,11 +615,17 @@ class UnifiedRoadworksManager {
    */
   async getRoadworkHistory(roadworkId) {
     try {
-      const [dismissals, acknowledgments, saves] = await Promise.all([
-        supabase.from('roadwork_dismissals').select('*').eq('roadwork_id', roadworkId),
-        supabase.from('roadwork_acknowledgments').select('*').eq('roadwork_id', roadworkId),
-        supabase.from('saved_roadworks').select('*').eq('roadwork_id', roadworkId)
-      ]);
+      // Use optimized batch queries
+      const historyQueries = [
+        { key: 'dismissals', table: 'roadwork_dismissals', options: { filters: { roadwork_id: roadworkId }, limit: 50, cacheTTL: 600 }},
+        { key: 'acknowledgments', table: 'roadwork_acknowledgments', options: { filters: { roadwork_id: roadworkId }, limit: 50, cacheTTL: 600 }},
+        { key: 'saves', table: 'saved_roadworks', options: { filters: { roadwork_id: roadworkId }, limit: 50, cacheTTL: 600 }}
+      ];
+      
+      const batchResults = await supabaseOptimizer.batchSelect(supabase, historyQueries);
+      const dismissals = batchResults.dismissals;
+      const acknowledgments = batchResults.acknowledgments;
+      const saves = batchResults.saves;
 
       return {
         success: true,
