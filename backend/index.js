@@ -92,6 +92,8 @@ import messageAPI from './routes/messageAPI.js';
 console.log('✅ messageAPI imported');
 import roadworksV2API from './routes/roadworksV2API.js';
 console.log('✅ roadworksV2API imported');
+import disruptionsAPI from './routes/disruptionsAPI.js';
+console.log('✅ disruptionsAPI imported');
 
 // Communications API Route
 app.use('/api/communications', communicationsAPI);
@@ -176,8 +178,22 @@ function basicGeographicRouteMatch(lat, lng) {
     }
   }
 
+  // Only assign fallback routes if the location is actually within North East England bounds
   if (foundRoutes.size === 0) {
-    ['21', '22', '10', '1', '2', 'Q3'].forEach(route => foundRoutes.add(route));
+    const northEastBounds = {
+      north: 55.8,  // Northumberland border
+      south: 54.5,  // County Durham border  
+      west: -2.5,   // Westernmost Northumberland
+      east: -1.0    // North Sea coast
+    };
+    
+    if (lat >= northEastBounds.south && lat <= northEastBounds.north &&
+        lng >= northEastBounds.west && lng <= northEastBounds.east) {
+      console.log(`🏴󠁧󠁢󠁥󠁮󠁧󠁿 Assigning fallback routes for North East location: ${lat}, ${lng}`);
+      ['21', '22', '10', '1', '2', 'Q3'].forEach(route => foundRoutes.add(route));
+    } else {
+      console.log(`🚫 Location ${lat}, ${lng} is outside North East region - no routes assigned`);
+    }
   }
 
   const routes = Array.from(foundRoutes).sort();
@@ -489,6 +505,11 @@ console.log('✅ StreetManager actions routes registered successfully');
 console.log('💬 Registering message API routes at /api/messages...');
 app.use('/api/messages', messageAPI);
 console.log('✅ Message API routes registered successfully');
+
+// Disruptions API routes for roadwork communication tracking
+console.log('📊 Registering disruptions API routes at /api/disruptions...');
+app.use('/api/disruptions', disruptionsAPI);
+console.log('✅ Disruptions API routes registered successfully');
 
 // Test endpoint for roadwork alerts debugging (after main router)
 app.get('/api/roadwork-alerts-test', (req, res) => {
@@ -1259,11 +1280,59 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
       const town = rawData.town || '';
       const areaName = rawData.area_name || '';
       
-      // Immediately exclude Birmingham and other non-North East areas (TEMPORARILY REDUCED)
+      // Aggressively exclude all non-North East areas
       const excludePatterns = [
+        // Major cities outside North East
         'BIRMINGHAM', 'STRETTON', 'WALSALL', 'WOLVERHAMPTON', 'COVENTRY', 
-        'LONDON', 'MANCHESTER', 'LIVERPOOL', 'BRISTOL'
-        // Temporarily removed: SHEFFIELD, LEEDS, NOTTINGHAM, etc. to see more data
+        'LONDON', 'MANCHESTER', 'LIVERPOOL', 'BRISTOL', 'SHEFFIELD', 'LEEDS', 
+        'NOTTINGHAM', 'LEICESTER', 'DERBY', 'LINCOLN', 'HULL', 'YORK',
+        
+        // Midlands
+        'SOLIHULL', 'DUDLEY', 'WEST BROMWICH', 'STOKE', 'STAFFORD', 'LICHFIELD',
+        'TAMWORTH', 'NUNEATON', 'RUGBY', 'WARWICK', 'STRATFORD', 'EVESHAM',
+        'KIDDERMINSTER', 'REDDITCH', 'WORCESTER', 'HEREFORD',
+        
+        // East England  
+        'NORWICH', 'IPSWICH', 'COLCHESTER', 'CHELMSFORD', 'SOUTHEND',
+        'LUTON', 'BEDFORD', 'MILTON KEYNES', 'AYLESBURY', 'HIGH WYCOMBE',
+        'WATFORD', 'ST ALBANS', 'HEMEL HEMPSTEAD', 'STEVENAGE', 'HARLOW',
+        'CAMBRIDGE', 'PETERBOROUGH', 'BURY ST EDMUNDS',
+        
+        // Southwest England
+        'EXETER', 'PLYMOUTH', 'TORQUAY', 'BARNSTAPLE', 'TRURO', 'FALMOUTH',
+        'BOURNEMOUTH', 'POOLE', 'WEYMOUTH', 'DORCHESTER', 'TAUNTON',
+        'BATH', 'GLOUCESTER', 'CHELTENHAM', 'SWINDON', 'OXFORD', 'READING',
+        'SLOUGH', 'BASINGSTOKE', 'WINCHESTER', 'SOUTHAMPTON', 'PORTSMOUTH',
+        
+        // Southeast England
+        'BRIGHTON', 'WORTHING', 'HASTINGS', 'EASTBOURNE', 'CRAWLEY',
+        'CANTERBURY', 'FOLKESTONE', 'DOVER', 'ASHFORD', 'TUNBRIDGE',
+        'MAIDSTONE', 'ROCHESTER', 'GILLINGHAM', 'DARTFORD', 'GRAVESEND',
+        
+        // Lincolnshire specifically (showing up in logs)
+        'LINCOLNSHIRE', 'SLEAFORD', 'CROWLE', 'CROPWELL BISHOP',
+        
+        // Wales
+        'CARDIFF', 'SWANSEA', 'NEWPORT', 'WREXHAM', 'BANGOR', 'CAERNARFON',
+        
+        // Scotland  
+        'GLASGOW', 'EDINBURGH', 'DUNDEE', 'ABERDEEN', 'STIRLING', 'PERTH',
+        
+        // Northwest England
+        'PRESTON', 'BLACKPOOL', 'LANCASTER', 'CARLISLE', 'BARROW', 'KENDAL',
+        
+        // Specific county names that are not North East
+        'GLOUCESTERSHIRE', 'WORCESTERSHIRE', 'WARWICKSHIRE', 'STAFFORDSHIRE',
+        'DERBYSHIRE', 'NOTTINGHAMSHIRE', 'LEICESTERSHIRE', 'RUTLAND',
+        'NORTHAMPTONSHIRE', 'BEDFORDSHIRE', 'BUCKINGHAMSHIRE', 'OXFORDSHIRE',
+        'BERKSHIRE', 'HAMPSHIRE', 'SURREY', 'KENT', 'ESSEX', 'HERTFORDSHIRE',
+        'SUFFOLK', 'NORFOLK', 'CAMBRIDGESHIRE', 'LINCOLNSHIRE', 'EAST RIDING',
+        'WEST YORKSHIRE', 'SOUTH YORKSHIRE', 'GREATER MANCHESTER', 'MERSEYSIDE',
+        'CHESHIRE', 'SHROPSHIRE', 'HEREFORDSHIRE', 'POWYS', 'GWYNEDD',
+        'CONWY', 'DENBIGHSHIRE', 'FLINTSHIRE', 'WREXHAM', 'CARMARTHENSHIRE',
+        'PEMBROKESHIRE', 'CEREDIGION', 'MONMOUTHSHIRE', 'BLAENAU GWENT',
+        'CAERPHILLY', 'CARDIFF', 'MERTHYR TYDFIL', 'NEATH PORT TALBOT',
+        'RHONDDA CYNON TAF', 'SWANSEA', 'TORFAEN', 'VALE OF GLAMORGAN'
       ];
       const locationString = `${streetName} ${town} ${areaName}`.toUpperCase();
       
