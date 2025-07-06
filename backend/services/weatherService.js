@@ -339,6 +339,399 @@ class WeatherService {
       lastUpdate: new Date().toISOString()
     };
   }
+
+  // Get weather forecast for transport planning
+  async getWeatherForecast(hours = 24) {
+    try {
+      if (!this.initialized) {
+        await this.initialize();
+      }
+      
+      if (!this.apiKey) {
+        return this.getMockForecastData();
+      }
+      
+      // Check cache first
+      const cacheKey = `forecast-${hours}h`;
+      const cached = this.cache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
+        console.log('🎯 Forecast data from cache');
+        return cached.data;
+      }
+      
+      if (!this.canMakeAPICall()) {
+        console.warn('⚠️ Cannot make forecast API call, using cached or mock data');
+        return cached?.data || this.getMockForecastData();
+      }
+      
+      // Get forecast for Newcastle (representative location)
+      const newcastle = this.locations.find(l => l.name === 'Newcastle');
+      const url = `${this.baseUrl}/forecast?lat=${newcastle.lat}&lon=${newcastle.lon}&units=metric&appid=${this.apiKey}`;
+      
+      const response = await fetch(url, {
+        timeout: 10000,
+        headers: {
+          'User-Agent': 'Go-BARRY-Traffic-System/2.0'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Forecast API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      this.dailyCallCount++;
+      
+      // Process forecast data
+      const forecastData = {
+        location: 'Newcastle',
+        forecast: data.list.slice(0, Math.ceil(hours / 3)).map(item => ({
+          datetime: new Date(item.dt * 1000).toISOString(),
+          temp: Math.round(item.main.temp),
+          tempC: Math.round(item.main.temp),
+          condition: item.weather[0].main,
+          description: item.weather[0].description,
+          icon: this.getWeatherIcon(item.weather[0].id, item.weather[0].icon),
+          windSpeed: item.wind?.speed || 0,
+          windSpeedMph: Math.round((item.wind?.speed || 0) * 2.237),
+          humidity: item.main.humidity,
+          precipitationChance: item.pop * 100, // Probability of precipitation
+          precipitationAmount: item.rain?.['3h'] || item.snow?.['3h'] || 0
+        })),
+        alerts: this.analyzeWeatherForecast(data.list.slice(0, Math.ceil(hours / 3))),
+        lastUpdate: new Date().toISOString()
+      };
+      
+      // Cache the results
+      this.cache.set(cacheKey, {
+        data: forecastData,
+        timestamp: Date.now()
+      });
+      
+      console.log(`📊 Weather forecast retrieved for next ${hours} hours`);
+      return forecastData;
+      
+    } catch (error) {
+      console.error('❌ Weather forecast error:', error);
+      return this.getMockForecastData();
+    }
+  }
+
+  // Analyze forecast for transport impacts
+  analyzeWeatherForecast(forecastList) {
+    const alerts = [];
+    const now = new Date();
+    
+    forecastList.forEach(item => {
+      const itemTime = new Date(item.dt * 1000);
+      const hoursAhead = Math.round((itemTime - now) / (1000 * 60 * 60));
+      const temp = item.main.temp;
+      const condition = item.weather[0].main.toLowerCase();
+      const windSpeed = (item.wind?.speed || 0) * 2.237; // Convert to mph
+      const precipChance = item.pop * 100;
+      
+      // Ice risk forecast
+      if (temp <= 0 && precipChance > 30) {
+        alerts.push({
+          type: 'ICE_RISK',
+          severity: temp <= -2 ? 'HIGH' : 'MEDIUM',
+          time: itemTime.toISOString(),
+          hoursAhead,
+          message: `Ice risk expected in ${hoursAhead}h: ${temp}°C with ${precipChance}% precipitation chance`,
+          impact: 'Severe delays likely on all routes'
+        });
+      }
+      
+      // Snow forecast
+      if (condition.includes('snow')) {
+        alerts.push({
+          type: 'SNOW_FORECAST',
+          severity: 'HIGH',
+          time: itemTime.toISOString(),
+          hoursAhead,
+          message: `Snow expected in ${hoursAhead}h: ${item.weather[0].description}`,
+          impact: 'Major service disruption expected'
+        });
+      }
+      
+      // High wind forecast
+      if (windSpeed > 35) {
+        alerts.push({
+          type: 'WIND_FORECAST',
+          severity: windSpeed > 45 ? 'HIGH' : 'MEDIUM',
+          time: itemTime.toISOString(),
+          hoursAhead,
+          message: `High winds expected in ${hoursAhead}h: ${Math.round(windSpeed)}mph`,
+          impact: 'Bridge restrictions possible'
+        });
+      }
+      
+      // Heavy rain forecast
+      if (condition.includes('rain') && precipChance > 70) {
+        alerts.push({
+          type: 'HEAVY_RAIN',
+          severity: 'MEDIUM',
+          time: itemTime.toISOString(),
+          hoursAhead,
+          message: `Heavy rain expected in ${hoursAhead}h: ${precipChance}% chance`,
+          impact: 'Possible delays and flooding'
+        });
+      }
+    });
+    
+    return alerts;
+  }
+
+  // Comprehensive transport impact analysis
+  analyzeTransportImpact(weatherData) {
+    const impacts = [];
+    let overallSeverity = 'low';
+    
+    // Current conditions analysis
+    Object.entries(weatherData.locations || {}).forEach(([location, weather]) => {
+      const impacts_location = this.analyzeLocationImpact(location, weather);
+      impacts.push(...impacts_location);
+      
+      // Update overall severity
+      impacts_location.forEach(impact => {
+        if (impact.severity === 'high' && overallSeverity !== 'high') {
+          overallSeverity = 'high';
+        } else if (impact.severity === 'medium' && overallSeverity === 'low') {
+          overallSeverity = 'medium';
+        }
+      });
+    });
+    
+    // Wind impact analysis
+    if (weatherData.redheughBridge) {
+      const windImpact = this.analyzeWindImpact(weatherData.redheughBridge);
+      if (windImpact) {
+        impacts.push(windImpact);
+        if (windImpact.severity === 'high') {
+          overallSeverity = 'high';
+        } else if (windImpact.severity === 'medium' && overallSeverity === 'low') {
+          overallSeverity = 'medium';
+        }
+      }
+    }
+    
+    return {
+      severity: overallSeverity,
+      impacts: impacts.slice(0, 6), // Limit to 6 most important impacts
+      summary: this.getImpactSummary(overallSeverity, impacts.length),
+      recommendations: this.getOperationalRecommendations(impacts),
+      lastAnalysis: new Date().toISOString()
+    };
+  }
+
+  // Analyze weather impact for a specific location
+  analyzeLocationImpact(location, weather) {
+    const impacts = [];
+    const temp = weather.tempC;
+    const condition = weather.condition?.toLowerCase() || '';
+    
+    // Temperature impacts
+    if (temp <= -3) {
+      impacts.push({
+        type: 'Critical Ice Risk',
+        severity: 'high',
+        location,
+        description: `Severe ice conditions at ${temp}°C`,
+        routes: this.getAffectedRoutes(location, 'ice'),
+        recommendation: 'Consider service suspension on affected routes'
+      });
+    } else if (temp <= 0) {
+      impacts.push({
+        type: 'Ice Risk',
+        severity: 'medium',
+        location,
+        description: `Ice formation likely at ${temp}°C`,
+        routes: this.getAffectedRoutes(location, 'ice'),
+        recommendation: 'Increase following distances, reduce speeds'
+      });
+    } else if (temp <= 2) {
+      impacts.push({
+        type: 'Frost Risk',
+        severity: 'low',
+        location,
+        description: `Frost possible at ${temp}°C`,
+        routes: this.getAffectedRoutes(location, 'frost'),
+        recommendation: 'Monitor elevated routes and bridges'
+      });
+    }
+    
+    // Precipitation impacts
+    if (condition.includes('snow')) {
+      impacts.push({
+        type: 'Snow Impact',
+        severity: 'high',
+        location,
+        description: 'Active snowfall affecting visibility and traction',
+        routes: this.getAffectedRoutes(location, 'snow'),
+        recommendation: 'Implement snow protocols, possible diversions'
+      });
+    } else if (condition.includes('rain') && temp <= 4) {
+      impacts.push({
+        type: 'Cold Rain',
+        severity: 'medium',
+        location,
+        description: `Rain with low temperature (${temp}°C)`,
+        routes: this.getAffectedRoutes(location, 'rain'),
+        recommendation: 'Caution on hills and bridges'
+      });
+    }
+    
+    // Visibility impacts
+    if (condition.includes('fog') || condition.includes('mist')) {
+      impacts.push({
+        type: 'Poor Visibility',
+        severity: 'medium',
+        location,
+        description: 'Reduced visibility due to fog/mist',
+        routes: this.getAffectedRoutes(location, 'visibility'),
+        recommendation: 'Reduce speeds, increase headlights usage'
+      });
+    }
+    
+    return impacts;
+  }
+
+  // Analyze wind impact specifically
+  analyzeWindImpact(windData) {
+    const windSpeedMph = windData.windSpeedMph;
+    
+    if (windSpeedMph > 50) {
+      return {
+        type: 'Extreme Wind',
+        severity: 'high',
+        location: 'Redheugh Bridge',
+        description: `Extreme wind conditions: ${windSpeedMph}mph`,
+        routes: ['Q3', 'Q3X', '57', '58'],
+        recommendation: 'Bridge closure likely - implement diversions'
+      };
+    } else if (windSpeedMph > 40) {
+      return {
+        type: 'Critical Wind',
+        severity: 'high',
+        location: 'Redheugh Bridge',
+        description: `Critical wind speeds: ${windSpeedMph}mph`,
+        routes: ['Q3', 'Q3X', '57', '58'],
+        recommendation: 'High sided vehicles advised to avoid bridge'
+      };
+    } else if (windSpeedMph > 30) {
+      return {
+        type: 'High Wind',
+        severity: 'medium',
+        location: 'Redheugh Bridge',
+        description: `High wind speeds: ${windSpeedMph}mph`,
+        routes: ['Q3', 'Q3X', '57', '58'],
+        recommendation: 'Caution for high-sided vehicles'
+      };
+    }
+    
+    return null;
+  }
+
+  // Get routes affected by weather in specific location
+  getAffectedRoutes(location, weatherType) {
+    const routeMap = {
+      'Newcastle': ['Q3', 'Q3X', '1', '2', '21', '22', '10', '10A', '10B', '56', '57', '58'],
+      'Gateshead': ['Q3', 'Q3X', '21', '22', '57', '58', '28', '28A'],
+      'Sunderland': ['2', '20', '20A', '56', '57', '58', '61', '62'],
+      'Durham': ['21', '22', '43', '44', '45', '46'],
+      'Consett': ['X45', 'X46', '47', '48', '49'],
+      'Stanley': ['43', '44', '45', '46', '47', '48']
+    };
+    
+    const baseRoutes = routeMap[location] || [];
+    
+    // Filter routes based on weather type
+    if (weatherType === 'ice' || weatherType === 'snow') {
+      // All routes affected by ice/snow
+      return baseRoutes;
+    } else if (weatherType === 'wind') {
+      // Only routes crossing bridges
+      return baseRoutes.filter(route => ['Q3', 'Q3X', '57', '58'].includes(route));
+    } else if (weatherType === 'frost') {
+      // Elevated routes more affected
+      return baseRoutes.filter(route => ['21', '22', 'X45', 'X46'].includes(route));
+    }
+    
+    return baseRoutes.slice(0, 4); // Limit to 4 main routes
+  }
+
+  // Get impact summary text
+  getImpactSummary(severity, impactCount) {
+    if (severity === 'high') {
+      return `Severe weather conditions affecting operations (${impactCount} impacts)`;
+    } else if (severity === 'medium') {
+      return `Moderate weather impacts requiring attention (${impactCount} impacts)`;
+    } else {
+      return `Minor weather impacts - normal operations (${impactCount} impacts)`;
+    }
+  }
+
+  // Get operational recommendations
+  getOperationalRecommendations(impacts) {
+    const recommendations = [];
+    
+    const hasIceRisk = impacts.some(i => i.type.includes('Ice'));
+    const hasSnow = impacts.some(i => i.type.includes('Snow'));
+    const hasWind = impacts.some(i => i.type.includes('Wind'));
+    const hasVisibility = impacts.some(i => i.type.includes('Visibility'));
+    
+    if (hasIceRisk) {
+      recommendations.push('Deploy gritting vehicles on priority routes');
+      recommendations.push('Inform drivers of ice risk protocols');
+    }
+    
+    if (hasSnow) {
+      recommendations.push('Activate snow operational procedures');
+      recommendations.push('Consider service frequency adjustments');
+    }
+    
+    if (hasWind) {
+      recommendations.push('Monitor Redheugh Bridge conditions');
+      recommendations.push('Prepare diversion routes if needed');
+    }
+    
+    if (hasVisibility) {
+      recommendations.push('Ensure all vehicles have lights operational');
+      recommendations.push('Brief drivers on reduced visibility procedures');
+    }
+    
+    return recommendations;
+  }
+
+  // Mock forecast data for testing
+  getMockForecastData() {
+    const now = new Date();
+    const forecast = [];
+    
+    for (let i = 0; i < 8; i++) {
+      const time = new Date(now.getTime() + (i * 3 * 60 * 60 * 1000));
+      forecast.push({
+        datetime: time.toISOString(),
+        temp: Math.round(12 - (i * 0.5)),
+        tempC: Math.round(12 - (i * 0.5)),
+        condition: i % 3 === 0 ? 'Rain' : 'Cloudy',
+        description: i % 3 === 0 ? 'light rain' : 'partly cloudy',
+        icon: i % 3 === 0 ? '🌧️' : '☁️',
+        windSpeed: 8 + (i * 2),
+        windSpeedMph: Math.round((8 + (i * 2)) * 2.237),
+        humidity: 70 + (i * 5),
+        precipitationChance: i % 3 === 0 ? 60 : 20,
+        precipitationAmount: i % 3 === 0 ? 2.5 : 0
+      });
+    }
+    
+    return {
+      location: 'Newcastle',
+      forecast,
+      alerts: [],
+      lastUpdate: new Date().toISOString()
+    };
+  }
   
   // Get API usage status
   getAPIStatus() {

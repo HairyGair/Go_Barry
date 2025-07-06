@@ -7,6 +7,8 @@ import OptimizedTomTomMap from './OptimizedTomTomMap';
 import { useConvexSync } from '../hooks/useConvexSyncFixed';
 import { formatTime24WithSeconds, formatDateWithWeekday } from '../utils/dateTime';
 import LateRunnersWidget from './LateRunnersWidget';
+import WeatherWidget from './display/WeatherWidget';
+import WeatherImpactAlert from './display/WeatherImpactAlert';
 
 const DisplayScreen = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -14,6 +16,8 @@ const DisplayScreen = () => {
   const [weather, setWeather] = useState(null);
   const [weatherLocationIndex, setWeatherLocationIndex] = useState(0);
   const [showSupervisorActivity, setShowSupervisorActivity] = useState(true);
+  const [showWeatherWidget, setShowWeatherWidget] = useState(false);
+  const [weatherAlerts, setWeatherAlerts] = useState([]);
   const weatherLocations = ['Newcastle', 'Gateshead', 'Sunderland', 'Durham', 'Consett', 'Stanley'];
 
   // Use Convex for real-time sync
@@ -108,13 +112,26 @@ const DisplayScreen = () => {
     return () => clearInterval(interval);
   }, [activeMessages?.length, currentMessageIndex]);
 
-  // Toggle supervisor activity panel every 30 seconds
+  // Toggle between supervisor activity, weather widget, and late runners every 30 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      setShowSupervisorActivity(prev => !prev);
+      setShowSupervisorActivity(prev => {
+        if (prev) {
+          // Show weather widget next
+          setShowWeatherWidget(true);
+          return false;
+        } else if (showWeatherWidget) {
+          // Show late runners next
+          setShowWeatherWidget(false);
+          return false;
+        } else {
+          // Show supervisor activity next
+          return true;
+        }
+      });
     }, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [showWeatherWidget]);
 
   // Check for recent handovers (last 2 hours)
   const hasRecentHandovers = recentHandovers?.some(handover => {
@@ -174,6 +191,15 @@ const DisplayScreen = () => {
   const currentWeatherLocation = weatherLocations[weatherLocationIndex];
   const currentWeatherData = weather?.locations?.[currentWeatherLocation];
   const passengerImpact = currentMessage ? calculatePassengerImpact(currentMessage) : null;
+  
+  // Handle weather alert generation
+  const handleWeatherAlert = (alert) => {
+    setWeatherAlerts(prev => {
+      const newAlerts = [alert, ...prev.slice(0, 4)]; // Keep last 5 alerts
+      return newAlerts;
+    });
+    console.log('🌤️ Weather alert generated:', alert);
+  };
   
   // Simple queue status for display
   const queueStatus = {
@@ -427,11 +453,16 @@ const DisplayScreen = () => {
             <HandoverStatusWidget recentHandovers={recentHandovers} />
           )}
           
-          {/* Supervisor Activity Panel (alternates with Late Runners) */}
+          {/* Rotating Panels: Supervisor Activity, Weather Widget, Late Runners */}
           {showSupervisorActivity ? (
             <SupervisorActivityPanel 
               activeSupervisors={activeSupervisors}
               recentActions={recentActions}
+            />
+          ) : showWeatherWidget ? (
+            <WeatherWidget 
+              weatherData={weather}
+              isActive={true}
             />
           ) : (
             lateRunners?.length > 0 && (
@@ -443,6 +474,12 @@ const DisplayScreen = () => {
           )}
         </div>
       </div>
+
+      {/* Weather Impact Alert Overlay */}
+      <WeatherImpactAlert 
+        weatherData={weather}
+        onAlertGenerated={handleWeatherAlert}
+      />
 
       {/* CSS for animations */}
       <style jsx>{`
