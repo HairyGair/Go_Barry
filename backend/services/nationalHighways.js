@@ -61,37 +61,56 @@ function parseRSSItem(itemText) {
   };
 }
 
-// Check if alert is in North East region
+// Check if alert is relevant to Go North East operations (expanded coverage)
 function isNorthEastAlert(alert) {
-  const northEastCounties = [
+  const relevantCounties = [
+    // Core North East
     'northumberland', 'tyne and wear', 'durham', 'tyne & wear',
-    'newcastle', 'gateshead', 'sunderland', 'north tyneside', 'south tyneside'
+    'newcastle', 'gateshead', 'sunderland', 'north tyneside', 'south tyneside',
+    // Adjacent regions with major routes
+    'yorkshire', 'north yorkshire', 'west yorkshire', 'lancashire', 'cumbria'
   ];
   
-  const northEastRoads = ['A1', 'A19', 'A69', 'A167', 'A194', 'A1058', 'A184', 'A690'];
+  const majorRoads = [
+    // Major highways through/near North East
+    'A1', 'A19', 'A69', 'A167', 'A194', 'A1058', 'A184', 'A690',
+    'M1', 'A1(M)', 'M62', 'M74', 'A66', 'A68'
+  ];
   
   // Check county
   if (alert.county) {
     const county = alert.county.toLowerCase();
-    if (northEastCounties.some(ne => county.includes(ne))) {
+    if (relevantCounties.some(county_name => county.includes(county_name))) {
       return true;
     }
   }
   
   // Check region
-  if (alert.region && alert.region.toLowerCase().includes('north east')) {
+  if (alert.region) {
+    const region = alert.region.toLowerCase();
+    if (region.includes('north east') || region.includes('yorkshire') || region.includes('north west')) {
+      return true;
+    }
+  }
+  
+  // Check road (more comprehensive)
+  if (alert.road) {
+    const road = alert.road.toUpperCase();
+    if (majorRoads.some(major_road => road.includes(major_road))) {
+      return true;
+    }
+  }
+  
+  // Check title/description for major routes
+  const fullText = `${alert.title || ''} ${alert.description || ''}`.toUpperCase();
+  if (majorRoads.some(road => fullText.includes(road))) {
     return true;
   }
   
-  // Check road
-  if (alert.road) {
-    return northEastRoads.some(road => alert.road.includes(road));
-  }
-  
-  // Check coordinates (rough North East boundary)
+  // Expanded coordinates (covers more of North England)
   if (alert.latitude && alert.longitude) {
-    return alert.latitude >= 54.5 && alert.latitude <= 55.5 && 
-           alert.longitude >= -2.5 && alert.longitude <= -1.0;
+    return alert.latitude >= 53.5 && alert.latitude <= 56.0 && 
+           alert.longitude >= -3.5 && alert.longitude <= -0.5;
   }
   
   return false;
@@ -101,9 +120,9 @@ async function fetchNationalHighways() {
   try {
     console.log('🛣️ Fetching National Highways RSS feed...');
     
-    // Use the RSS feed that works without API key
-    // Note: If this URL fails, try alternative: https://nationalhighways.co.uk/feeds/rss/unplanned-events.xml
-    const response = await axios.get('https://m.highwaysengland.co.uk/feeds/rss/UnplannedEvents.xml', {
+    // Use the comprehensive RSS feed with all events (3,310+ items vs 6 unplanned)
+    // Note: This provides much better coverage of incidents
+    const response = await axios.get('https://m.highwaysengland.co.uk/feeds/rss/AllEvents.xml', {
       headers: {
         'User-Agent': 'BARRY-TrafficWatch/3.0',
         'Accept': 'application/xml, text/xml'
@@ -123,7 +142,7 @@ async function fetchNationalHighways() {
     console.log(`📊 Total RSS items from National Highways: ${itemMatches.length}`);
     
     if (itemMatches.length === 0) {
-      console.log('📝 No current unplanned events from National Highways');
+      console.log('📝 No current events from National Highways');
       return { success: true, data: [], count: 0 };
     }
     
@@ -170,12 +189,12 @@ async function fetchNationalHighways() {
     // Filter for North East alerts
     const northEastAlerts = allAlerts.filter(isNorthEastAlert);
     
-    console.log(`✅ Processed ${northEastAlerts.length} North East alerts from ${allAlerts.length} total`);
+    console.log(`✅ Processed ${northEastAlerts.length} relevant alerts from ${allAlerts.length} total events`);
     return { 
       success: true, 
       data: northEastAlerts, 
       count: northEastAlerts.length,
-      method: 'RSS Feed (Unplanned Events)'
+      method: 'RSS Feed (All Events - Enhanced Coverage)'
     };
     
   } catch (error) {
