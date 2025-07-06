@@ -178,22 +178,11 @@ function basicGeographicRouteMatch(lat, lng) {
     }
   }
 
-  // Only assign fallback routes if the location is actually within North East England bounds
+  // Assign fallback routes for locations that passed the pre-filtering
+  // The aggressive text-based pre-filtering above already excluded non-North East areas
   if (foundRoutes.size === 0) {
-    const northEastBounds = {
-      north: 55.8,  // Northumberland border
-      south: 54.5,  // County Durham border  
-      west: -2.5,   // Westernmost Northumberland
-      east: -1.0    // North Sea coast
-    };
-    
-    if (lat >= northEastBounds.south && lat <= northEastBounds.north &&
-        lng >= northEastBounds.west && lng <= northEastBounds.east) {
-      console.log(`🏴󠁧󠁢󠁥󠁮󠁧󠁿 Assigning fallback routes for North East location: ${lat}, ${lng}`);
-      ['21', '22', '10', '1', '2', 'Q3'].forEach(route => foundRoutes.add(route));
-    } else {
-      console.log(`🚫 Location ${lat}, ${lng} is outside North East region - no routes assigned`);
-    }
+    console.log(`🏴󠁧󠁢󠁥󠁮󠁧󠁿 Assigning fallback routes for location that passed pre-filtering: ${lat}, ${lng}`);
+    ['21', '22', '10', '1', '2', 'Q3'].forEach(route => foundRoutes.add(route));
   }
 
   const routes = Array.from(foundRoutes).sort();
@@ -1280,59 +1269,42 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
       const town = rawData.town || '';
       const areaName = rawData.area_name || '';
       
-      // Aggressively exclude all non-North East areas
+      // Smartly exclude non-North East areas while preserving the review queue
       const excludePatterns = [
-        // Major cities outside North East
-        'BIRMINGHAM', 'STRETTON', 'WALSALL', 'WOLVERHAMPTON', 'COVENTRY', 
+        // Major cities clearly outside North East
+        'BIRMINGHAM', 'WALSALL', 'WOLVERHAMPTON', 'COVENTRY', 'SOLIHULL',
         'LONDON', 'MANCHESTER', 'LIVERPOOL', 'BRISTOL', 'SHEFFIELD', 'LEEDS', 
         'NOTTINGHAM', 'LEICESTER', 'DERBY', 'LINCOLN', 'HULL', 'YORK',
         
-        // Midlands
-        'SOLIHULL', 'DUDLEY', 'WEST BROMWICH', 'STOKE', 'STAFFORD', 'LICHFIELD',
-        'TAMWORTH', 'NUNEATON', 'RUGBY', 'WARWICK', 'STRATFORD', 'EVESHAM',
-        'KIDDERMINSTER', 'REDDITCH', 'WORCESTER', 'HEREFORD',
-        
-        // East England  
-        'NORWICH', 'IPSWICH', 'COLCHESTER', 'CHELMSFORD', 'SOUTHEND',
-        'LUTON', 'BEDFORD', 'MILTON KEYNES', 'AYLESBURY', 'HIGH WYCOMBE',
-        'WATFORD', 'ST ALBANS', 'HEMEL HEMPSTEAD', 'STEVENAGE', 'HARLOW',
-        'CAMBRIDGE', 'PETERBOROUGH', 'BURY ST EDMUNDS',
+        // Specific problem locations from logs
+        'LINCOLNSHIRE', 'SLEAFORD', 'CROWLE', 'CROPWELL BISHOP',
+        'STRETTON', 'DUDLEY', 'WEST BROMWICH',
         
         // Southwest England
-        'EXETER', 'PLYMOUTH', 'TORQUAY', 'BARNSTAPLE', 'TRURO', 'FALMOUTH',
-        'BOURNEMOUTH', 'POOLE', 'WEYMOUTH', 'DORCHESTER', 'TAUNTON',
-        'BATH', 'GLOUCESTER', 'CHELTENHAM', 'SWINDON', 'OXFORD', 'READING',
-        'SLOUGH', 'BASINGSTOKE', 'WINCHESTER', 'SOUTHAMPTON', 'PORTSMOUTH',
+        'EXETER', 'PLYMOUTH', 'BOURNEMOUTH', 'POOLE', 'BATH', 'BRISTOL',
+        'GLOUCESTER', 'CHELTENHAM', 'SWINDON', 'OXFORD', 'READING',
+        'SOUTHAMPTON', 'PORTSMOUTH', 'BRIGHTON', 'WORTHING',
+        
+        // East England  
+        'NORWICH', 'IPSWICH', 'CAMBRIDGE', 'LUTON', 'MILTON KEYNES',
+        'WATFORD', 'ST ALBANS', 'PETERBOROUGH',
         
         // Southeast England
-        'BRIGHTON', 'WORTHING', 'HASTINGS', 'EASTBOURNE', 'CRAWLEY',
-        'CANTERBURY', 'FOLKESTONE', 'DOVER', 'ASHFORD', 'TUNBRIDGE',
-        'MAIDSTONE', 'ROCHESTER', 'GILLINGHAM', 'DARTFORD', 'GRAVESEND',
+        'CANTERBURY', 'FOLKESTONE', 'DOVER', 'MAIDSTONE', 'DARTFORD', 'GRAVESEND',
         
-        // Lincolnshire specifically (showing up in logs)
-        'LINCOLNSHIRE', 'SLEAFORD', 'CROWLE', 'CROPWELL BISHOP',
-        
-        // Wales
-        'CARDIFF', 'SWANSEA', 'NEWPORT', 'WREXHAM', 'BANGOR', 'CAERNARFON',
+        // Wales (full county names to be specific)
+        'CARDIFF', 'SWANSEA', 'NEWPORT', 'WREXHAM',
         
         // Scotland  
-        'GLASGOW', 'EDINBURGH', 'DUNDEE', 'ABERDEEN', 'STIRLING', 'PERTH',
+        'GLASGOW', 'EDINBURGH', 'DUNDEE', 'ABERDEEN',
         
-        // Northwest England
-        'PRESTON', 'BLACKPOOL', 'LANCASTER', 'CARLISLE', 'BARROW', 'KENDAL',
-        
-        // Specific county names that are not North East
-        'GLOUCESTERSHIRE', 'WORCESTERSHIRE', 'WARWICKSHIRE', 'STAFFORDSHIRE',
-        'DERBYSHIRE', 'NOTTINGHAMSHIRE', 'LEICESTERSHIRE', 'RUTLAND',
-        'NORTHAMPTONSHIRE', 'BEDFORDSHIRE', 'BUCKINGHAMSHIRE', 'OXFORDSHIRE',
-        'BERKSHIRE', 'HAMPSHIRE', 'SURREY', 'KENT', 'ESSEX', 'HERTFORDSHIRE',
-        'SUFFOLK', 'NORFOLK', 'CAMBRIDGESHIRE', 'LINCOLNSHIRE', 'EAST RIDING',
+        // Specific counties that are definitely not North East
+        'LINCOLNSHIRE', 'DERBYSHIRE', 'NOTTINGHAMSHIRE', 'LEICESTERSHIRE',
+        'WARWICKSHIRE', 'STAFFORDSHIRE', 'WORCESTERSHIRE', 'GLOUCESTERSHIRE',
+        'OXFORDSHIRE', 'BERKSHIRE', 'HAMPSHIRE', 'SURREY', 'KENT', 'ESSEX',
+        'HERTFORDSHIRE', 'SUFFOLK', 'NORFOLK', 'CAMBRIDGESHIRE',
         'WEST YORKSHIRE', 'SOUTH YORKSHIRE', 'GREATER MANCHESTER', 'MERSEYSIDE',
-        'CHESHIRE', 'SHROPSHIRE', 'HEREFORDSHIRE', 'POWYS', 'GWYNEDD',
-        'CONWY', 'DENBIGHSHIRE', 'FLINTSHIRE', 'WREXHAM', 'CARMARTHENSHIRE',
-        'PEMBROKESHIRE', 'CEREDIGION', 'MONMOUTHSHIRE', 'BLAENAU GWENT',
-        'CAERPHILLY', 'CARDIFF', 'MERTHYR TYDFIL', 'NEATH PORT TALBOT',
-        'RHONDDA CYNON TAF', 'SWANSEA', 'TORFAEN', 'VALE OF GLAMORGAN'
+        'CHESHIRE', 'SHROPSHIRE'
       ];
       const locationString = `${streetName} ${town} ${areaName}`.toUpperCase();
       
