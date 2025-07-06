@@ -12,10 +12,10 @@ class BusLocationService {
       charkey: '_'
     });
     
-    // Caching
+    // Caching optimized for live tracking accuracy
     this.cache = new Map();
     this.lastFetch = null;
-    this.CACHE_DURATION = 10000; // 10 seconds
+    this.CACHE_DURATION = 15000; // 15 seconds for live accuracy balance
     this.fetchInProgress = false;
     
     // Stats tracking
@@ -26,6 +26,119 @@ class BusLocationService {
       lastError: null,
       averageBusCount: 0
     };
+  }
+
+  // Extract the most accurate location from SIRI-VM data
+  extractAccurateLocation(vehicleLocation, activity) {
+    if (!vehicleLocation) {
+      console.warn('⚠️ No vehicle location data');
+      return { lat: 0, lon: 0 };
+    }
+
+    // Try different location formats for maximum accuracy
+    let lat, lon;
+
+    // Method 1: Direct coordinate fields (most common in SIRI-VM)
+    if (vehicleLocation.Latitude && vehicleLocation.Longitude) {
+      lat = parseFloat(vehicleLocation.Latitude.$?.value || vehicleLocation.Latitude);
+      lon = parseFloat(vehicleLocation.Longitude.$?.value || vehicleLocation.Longitude);
+    }
+    
+    // Method 2: Location coordinates (alternative format)
+    else if (vehicleLocation.Coordinates) {
+      const coords = vehicleLocation.Coordinates;
+      lat = parseFloat(coords.Latitude?.$?.value || coords.Latitude);
+      lon = parseFloat(coords.Longitude?.$?.value || coords.Longitude);
+    }
+    
+    // Method 3: Activity-level location (fallback)
+    else if (activity?.MonitoredVehicleJourney?.VehicleLocation) {
+      const loc = activity.MonitoredVehicleJourney.VehicleLocation;
+      lat = parseFloat(loc.Latitude?.$?.value || loc.Latitude);
+      lon = parseFloat(loc.Longitude?.$?.value || loc.Longitude);
+    }
+
+    // Validate coordinates are within reasonable bounds for North East England
+    const isValidLat = lat >= 54.0 && lat <= 56.0; // North East bounds
+    const isValidLon = lon >= -3.0 && lon <= -0.5; // North East bounds
+
+    if (!isValidLat || !isValidLon || isNaN(lat) || isNaN(lon)) {
+      console.warn(`⚠️ Invalid coordinates: ${lat}, ${lon} - skipping bus`);
+      return null; // Mark for filtering out
+    }
+
+    // Round to 6 decimal places for GPS accuracy (±0.11m)
+    return {
+      lat: Math.round(lat * 1000000) / 1000000,
+      lon: Math.round(lon * 1000000) / 1000000
+    };
+  }
+
+  // Extract bearing with validation
+  extractBearing(journey) {
+    let bearing = 0;
+    
+    // Try different bearing formats
+    if (journey.Bearing !== undefined) {
+      bearing = parseInt(journey.Bearing.$?.value || journey.Bearing);
+    } else if (journey.VehicleLocation?.Bearing !== undefined) {
+      bearing = parseInt(journey.VehicleLocation.Bearing.$?.value || journey.VehicleLocation.Bearing);
+    }
+
+    // Validate bearing (0-359 degrees)
+    if (isNaN(bearing) || bearing < 0 || bearing >= 360) {
+      bearing = 0; // Default to north if invalid
+    }
+
+    return bearing;
+  }
+
+  // Enhanced validation for live tracking accuracy
+  isValidBusForLiveTracking(bus) {
+    // Essential fields for live tracking
+    if (!bus.id || !bus.location || !bus.operatorRef) {
+      return false;
+    }
+
+    // Location validation
+    if (!bus.location.lat || !bus.location.lon || 
+        bus.location.lat === 0 || bus.location.lon === 0) {
+      return false;
+    }
+
+    // North East England bounds check (stricter for live tracking)
+    const isInNorthEast = 
+      bus.location.lat >= 54.4 && bus.location.lat <= 55.8 &&
+      bus.location.lon >= -2.2 && bus.location.lon <= -0.8;
+
+    if (!isInNorthEast) {
+      console.warn(`⚠️ Bus ${bus.id} outside North East bounds: ${bus.location.lat}, ${bus.location.lon}`);
+      return false;
+    }
+
+    // Data freshness check - skip if data is too old
+    if (bus.recordedAt) {
+      const recordedTime = new Date(bus.recordedAt);
+      const ageMinutes = (Date.now() - recordedTime.getTime()) / (1000 * 60);
+      
+      // Skip buses with location data older than 30 minutes
+      if (ageMinutes > 30) {
+        console.warn(`⚠️ Bus ${bus.id} data too old: ${ageMinutes.toFixed(1)} minutes`);
+        return false;
+      }
+    }
+
+    // Go North East operator check
+    if (bus.operatorRef !== 'GNEL') {
+      return false;
+    }
+
+    return true;
+  }
+
+  // Legacy validation method (keep for compatibility)
+  isValidBus(bus) {
+    return this.isValidBusForLiveTracking(bus);
   }
 
   // Generate mock bus data for development/testing
@@ -86,32 +199,60 @@ class BusLocationService {
   }
 
   async fetchBusLocations() {
-    // Check if BODS API is configured
-    if (!process.env.BODS_API_KEY || !process.env.BODS_GNE_DATAFEED_ID) {
-      console.warn('⚠️ BODS API not configured - returning mock data');
-      return this.generateMockBusData();
+    // Check if BODS API is configured - prioritize live data
+    const hasBodsConfig = process.env.BODS_API_KEY && (process.env.BODS_GNE_DATAFEED_ID || process.env.BODS_API_URL);
+    
+    if (!hasBodsConfig) {
+      console.warn('⚠️ BODS API not configured - cannot fetch live bus data');
+      return []; // Return empty array instead of mock data
     }
     
-    // Check if already fetching
+    // Check if already fetching - return fresh cache if very recent
     if (this.fetchInProgress) {
       console.log('⏳ Fetch already in progress, returning cache');
-      return Array.from(this.cache.values());
+      const cachedBuses = Array.from(this.cache.values());
+      // Only return cache if it's less than 30 seconds old for live data
+      const cacheAge = Date.now() - this.lastFetch;
+      if (cacheAge < 30000 && cachedBuses.length > 0) {
+        return cachedBuses;
+      }
+      // Otherwise wait briefly and try again for fresher data
+      return cachedBuses;
     }
     
-    // Check cache validity
-    if (this.lastFetch && Date.now() - this.lastFetch < this.CACHE_DURATION) {
-      return Array.from(this.cache.values());
+    // For live vehicle tracking, reduce cache time to prioritize accuracy
+    const maxCacheAge = 15000; // 15 seconds for live tracking
+    if (this.lastFetch && Date.now() - this.lastFetch < maxCacheAge) {
+      const cachedBuses = Array.from(this.cache.values());
+      if (cachedBuses.length > 0) {
+        console.log(`🎯 Returning ${cachedBuses.length} buses from cache (${Math.round((Date.now() - this.lastFetch) / 1000)}s old)`);
+        return cachedBuses;
+      }
     }
     
     this.fetchInProgress = true;
     this.stats.totalFetches++;
     
     try {
-      // Build URL - BODS API accepts API key as query parameter
-      const url = `${process.env.BODS_API_URL}datafeed/${process.env.BODS_GNE_DATAFEED_ID}/?api_key=${process.env.BODS_API_KEY}`;
+      // Build URL with fallback for different BODS configurations
+      let url;
+      if (process.env.BODS_GNE_DATAFEED_ID) {
+        // Use specific Go North East datafeed for highest accuracy
+        url = `${process.env.BODS_API_URL}datafeed/${process.env.BODS_GNE_DATAFEED_ID}/?api_key=${process.env.BODS_API_KEY}`;
+        console.log('📡 Fetching from GNE-specific datafeed for maximum accuracy...');
+      } else {
+        // Fallback to general API with Go North East filter
+        url = `${process.env.BODS_API_URL}datafeed/?api_key=${process.env.BODS_API_KEY}&operatorRef=GNEL&boundingBox=-2.5,54.5,-1.0,55.5`;
+        console.log('📡 Fetching from general API with GNE filter...');
+      }
       
       const response = await fetch(url, {
-        timeout: 30000 // 30 second timeout
+        timeout: 20000, // Reduced timeout for faster responses
+        headers: {
+          'User-Agent': 'Go-BARRY-LiveTracking/2.0',
+          'Accept': 'application/xml, text/xml',
+          'Accept-Encoding': 'gzip, deflate'
+        }
       });
       
       if (!response.ok) {
@@ -141,15 +282,16 @@ class BusLocationService {
       this.stats.lastError = error.message;
       console.error('❌ BODS Fetch Error:', error.message);
       
-      // Return cached data on error, or mock data if no cache
+      // Return cached data on error - NO MOCK DATA fallback for live system
       const cachedBuses = Array.from(this.cache.values());
       if (cachedBuses.length > 0) {
+        console.warn(`⚠️ BODS API failed, returning ${cachedBuses.length} cached buses`);
         return cachedBuses;
       }
       
-      // Fall back to mock data
-      console.warn('⚠️ No cached data available, using mock data');
-      return this.generateMockBusData();
+      // No fallback to mock data - return empty array if no live data available
+      console.error('❌ No cached data available and BODS API failed - returning empty array');
+      return [];
     } finally {
       this.fetchInProgress = false;
     }
@@ -205,12 +347,9 @@ class BusLocationService {
             destinationRef: journey.DestinationRef?.$?.value || journey.DestinationRef,
             destinationName: journey.DestinationName?.$?.value || journey.DestinationName || 'Unknown',
             
-            // Position (mandatory fields)
-            location: {
-              lat: parseFloat(journey.VehicleLocation?.Latitude),
-              lon: parseFloat(journey.VehicleLocation?.Longitude)
-            },
-            bearing: parseInt(journey.Bearing) || 0,
+            // Position (mandatory fields) - Enhanced accuracy handling
+            location: this.extractAccurateLocation(journey.VehicleLocation, activity),
+            bearing: this.extractBearing(journey),
             
             // Journey references (for matching with timetables)
             blockRef: journey.BlockRef?.$?.value || journey.BlockRef,
@@ -236,14 +375,19 @@ class BusLocationService {
             vehicleFeatures: journey.VehicleFeatures
           };
           
+          // Skip buses with invalid locations (null returned from extractAccurateLocation)
+          if (!bus.location || bus.location === null) {
+            return; // Invalid coordinates - skip this bus
+          }
+          
           // Calculate status based on delay
           bus.status = this.calculateStatus(bus.delay);
           
-          // Validate mandatory fields
-          if (this.isValidBus(bus)) {
+          // Enhanced validation for live tracking accuracy
+          if (this.isValidBusForLiveTracking(bus)) {
             buses.push(bus);
           } else {
-            console.warn(`⚠️ Invalid bus data for ${bus.id}:`, bus);
+            console.warn(`⚠️ Invalid bus data for live tracking: ${bus.id}`);
           }
           
         } catch (error) {
