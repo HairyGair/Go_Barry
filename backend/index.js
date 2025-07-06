@@ -401,15 +401,24 @@ app.use((req, res, next) => {
     'http://localhost:19000'
   ];
   
-  console.log(`🌐 CORS Debug: Origin=${origin}, Path=${req.path}`);
+  // Only debug log CORS for unusual origins to reduce noise
+  if (origin && !origin.includes('localhost') && !origin.includes('gobarry.co.uk')) {
+    console.log(`🌐 CORS Debug: Origin=${origin}, Path=${req.path}`);
+  }
   
   // FIXED: Always allow gobarry.co.uk and www subdomain
   if (allowedOrigins.includes(origin) || !origin || 
       (origin && (origin.includes('gobarry.co.uk') || origin.includes('localhost')))) {
     res.header('Access-Control-Allow-Origin', origin || '*');
-    console.log(`✅ CORS: Allowed origin: ${origin}`);
+    // Only log unusual allowed origins
+    if (origin && !origin.includes('localhost') && !origin.includes('gobarry.co.uk')) {
+      console.log(`✅ CORS: Allowed origin: ${origin}`);
+    }
   } else {
-    console.log(`⚠️ CORS: Blocked origin: ${origin}, but allowing anyway for production`);
+    // Only log blocked origins occasionally to reduce spam  
+    if (Math.random() < 0.1) {
+      console.log(`⚠️ CORS: Blocked origin: ${origin}, but allowing anyway for production`);
+    }
     res.header('Access-Control-Allow-Origin', origin || 'https://gobarry.co.uk');
   }
   
@@ -419,7 +428,11 @@ app.use((req, res, next) => {
   res.header('Access-Control-Max-Age', '86400'); // 24 hours
   
   if (req.method === 'OPTIONS') {
-    console.log(`✅ CORS Preflight: ${req.headers.origin} → ${req.path}`);
+    // Only log preflight requests for non-localhost origins to reduce noise
+    const preflight_origin = req.headers.origin;
+    if (preflight_origin && !preflight_origin.includes('localhost')) {
+      console.log(`✅ CORS Preflight: ${preflight_origin} → ${req.path}`);
+    }
     return res.status(200).end();
   }
   

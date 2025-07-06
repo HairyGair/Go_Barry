@@ -78,10 +78,15 @@ app.use((req, res, next) => {
   // Always allow requests from allowed origins or no origin (server-to-server)
   if (!origin || allowedOrigins.includes(origin) || origin.includes('gobarry.co.uk')) {
     res.header('Access-Control-Allow-Origin', origin || '*');
-    console.log(`✅ CORS: Allowed origin: ${origin || 'no-origin'}`);
+    // Only log non-standard origins to reduce noise
+    if (origin && !origin.includes('localhost') && !origin.includes('gobarry.co.uk')) {
+      console.log(`✅ CORS: Allowed origin: ${origin}`);
+    }
   } else {
-    // Log blocked origins for debugging
-    console.log(`⚠️ CORS: Origin not in allowlist: ${origin}, allowing anyway`);
+    // Only log blocked origins occasionally to reduce spam
+    if (Math.random() < 0.1) { // Log only 10% of blocked origins
+      console.log(`⚠️ CORS: Blocked origin: ${origin} (allowing anyway)`);
+    }
     res.header('Access-Control-Allow-Origin', origin);
   }
   
@@ -91,7 +96,10 @@ app.use((req, res, next) => {
   res.header('Access-Control-Max-Age', '86400'); // 24 hours
   
   if (req.method === 'OPTIONS') {
-    console.log(`✅ CORS Preflight: ${origin} → ${req.path}`);
+    // Only log preflight requests for non-localhost origins to reduce noise
+    if (origin && !origin.includes('localhost')) {
+      console.log(`✅ CORS Preflight: ${origin} → ${req.path}`);
+    }
     return res.status(200).end();
   }
   next();
