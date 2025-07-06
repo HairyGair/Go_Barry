@@ -37,6 +37,7 @@ import DailyLostMileageCard from '../../components/operations/cards/DailyLostMil
 // Improved SharePoint components (iframe-based but enhanced)
 import OnTimeRequestImproved from '../../components/operations/cards/OnTimeRequestImproved.jsx';
 import DailyLostMileageImproved from '../../components/operations/cards/DailyLostMileageImproved.jsx';
+import HorizonVixCard from '../../components/operations/cards/HorizonVixCard.jsx';
 
 // Import theme
 import { operationsTheme } from '../../lib/_styles-index.js';
@@ -203,6 +204,14 @@ export default function OperationsCentre() {
       color: operationsTheme.colors.gradients.liveMap,
       stats: cardStats.liveMap,
     },
+    {
+      id: 'horizon-vix',
+      title: 'Horizon VIX-ITS',
+      subtitle: 'Traffic Management System',
+      icon: 'traffic-light',
+      color: ['#7c3aed', '#5b21b6'], // Purple gradient for traffic management
+      stats: { count: '●', label: 'Live' },
+    },
   ];
   
   // Render selected component in modal/overlay
@@ -231,6 +240,9 @@ export default function OperationsCentre() {
           const LiveMapContainer = require('../../components/operations/live-map/LiveMapContainer.jsx').default;
           return <LiveMapContainer onClose={() => setSelectedCard(null)} />;
         };
+        break;
+      case 'horizon-vix':
+        Component = () => <HorizonVixCard onClose={() => setSelectedCard(null)} />;
         break;
       default:
         return null;
