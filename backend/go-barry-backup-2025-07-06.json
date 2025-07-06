@@ -1,0 +1,308 @@
+{
+  "timestamp": "2025-07-06T18:15:04.992Z",
+  "data": {
+    "supervisors": [
+      {
+        "id": "supervisor001",
+        "name": "Alex Woodcock",
+        "badge": "AW001",
+        "role": "Supervisor",
+        "shift": "Day",
+        "permissions": [
+          "view-alerts",
+          "dismiss-alerts"
+        ],
+        "active": true,
+        "created_at": "2025-06-13T00:00:00+00:00",
+        "updated_at": "2025-06-18T18:14:29.370283+00:00"
+      },
+      {
+        "id": "supervisor002",
+        "name": "Andrew Cowley",
+        "badge": "AC002",
+        "role": "Supervisor",
+        "shift": "Day",
+        "permissions": [
+          "view-alerts",
+          "dismiss-alerts"
+        ],
+        "active": true,
+        "created_at": "2025-06-13T00:00:00+00:00",
+        "updated_at": "2025-06-18T18:14:29.458934+00:00"
+      },
+      {
+        "id": "supervisor003",
+        "name": "Anthony Gair",
+        "badge": "AG003",
+        "role": "Supervisor",
+        "shift": "Day",
+        "permissions": [
+          "view-alerts",
+          "dismiss-alerts"
+        ],
+        "active": true,
+        "created_at": "2025-06-13T00:00:00+00:00",
+        "updated_at": "2025-06-18T18:14:29.52342+00:00"
+      },
+      {
+        "id": "supervisor004",
+        "name": "Claire Fiddler",
+        "badge": "CF004",
+        "role": "Supervisor",
+        "shift": "Day",
+        "permissions": [
+          "view-alerts",
+          "dismiss-alerts"
+        ],
+        "active": true,
+        "created_at": "2025-06-13T00:00:00+00:00",
+        "updated_at": "2025-06-18T18:14:29.613314+00:00"
+      },
+      {
+        "id": "supervisor005",
+        "name": "David Hall",
+        "badge": "DH005",
+        "role": "Supervisor",
+        "shift": "Day",
+        "permissions": [
+          "view-alerts",
+          "dismiss-alerts"
+        ],
+        "active": true,
+        "created_at": "2025-06-13T00:00:00+00:00",
+        "updated_at": "2025-06-18T18:14:29.68662+00:00"
+      },
+      {
+        "id": "supervisor006",
+        "name": "James Daglish",
+        "badge": "JD006",
+        "role": "Supervisor",
+        "shift": "Day",
+        "permissions": [
+          "view-alerts",
+          "dismiss-alerts"
+        ],
+        "active": true,
+        "created_at": "2025-06-13T00:00:00+00:00",
+        "updated_at": "2025-06-18T18:14:29.751779+00:00"
+      },
+      {
+        "id": "supervisor007",
+        "name": "John Paterson",
+        "badge": "JP007",
+        "role": "Supervisor",
+        "shift": "Day",
+        "permissions": [
+          "view-alerts",
+          "dismiss-alerts"
+        ],
+        "active": true,
+        "created_at": "2025-06-13T00:00:00+00:00",
+        "updated_at": "2025-06-18T18:14:29.809667+00:00"
+      },
+      {
+        "id": "supervisor008",
+        "name": "Simon Glass",
+        "badge": "SG008",
+        "role": "Supervisor",
+        "shift": "Day",
+        "permissions": [
+          "view-alerts",
+          "dismiss-alerts"
+        ],
+        "active": true,
+        "created_at": "2025-06-13T00:00:00+00:00",
+        "updated_at": "2025-06-18T18:14:29.869924+00:00"
+      },
+      {
+        "id": "supervisor009",
+        "name": "Barry Perryman",
+        "badge": "BP009",
+        "role": "Service Delivery Controller - Line Manager",
+        "shift": "Day",
+        "permissions": [
+          "view-alerts",
+          "dismiss-alerts",
+          "view-reports",
+          "manage-supervisors"
+        ],
+        "active": true,
+        "created_at": "2025-06-13T00:00:00+00:00",
+        "updated_at": "2025-06-18T18:14:29.946198+00:00"
+      }
+    ],
+    "message_templates": [
+      {
+        "id": "route_delay_minor",
+        "category": "delays",
+        "title": "Minor Route Delay",
+        "message": "Service {route} experiencing minor delays up to {duration} minutes due to {reason}. Alternative routes available.",
+        "priority": "info",
+        "variables": [
+          "route",
+          "duration",
+          "reason"
+        ],
+        "channels": [
+          "display",
+          "web",
+          "mobile"
+        ],
+        "auto_trigger": {
+          "enabled": true,
+          "conditions": {
+            "delayMinutes": 5,
+            "alertSeverity": "medium"
+          }
+        },
+        "usage_count": 0,
+        "last_used": null,
+        "created_by": "system",
+        "created_at": "2024-01-01T00:00:00+00:00",
+        "updated_at": "2025-06-18T18:14:30.337413+00:00"
+      },
+      {
+        "id": "route_suspension",
+        "category": "disruptions",
+        "title": "Route Suspension",
+        "message": "Service {route} suspended between {startLocation} and {endLocation} due to {reason}. Use services {alternatives} as alternatives.",
+        "priority": "critical",
+        "variables": [
+          "route",
+          "startLocation",
+          "endLocation",
+          "reason",
+          "alternatives"
+        ],
+        "channels": [
+          "display",
+          "web",
+          "mobile",
+          "social"
+        ],
+        "auto_trigger": {
+          "enabled": false
+        },
+        "usage_count": 0,
+        "last_used": null,
+        "created_by": "system",
+        "created_at": "2024-01-01T00:00:00+00:00",
+        "updated_at": "2025-06-18T18:14:30.414805+00:00"
+      },
+      {
+        "id": "weather_advisory",
+        "category": "weather",
+        "title": "Weather Advisory",
+        "message": "Due to {weatherCondition}, expect delays on routes in {affectedAreas}. Services running with reduced frequency.",
+        "priority": "warning",
+        "variables": [
+          "weatherCondition",
+          "affectedAreas"
+        ],
+        "channels": [
+          "display",
+          "web"
+        ],
+        "auto_trigger": {
+          "enabled": true,
+          "conditions": {
+            "weatherSeverity": "high"
+          }
+        },
+        "usage_count": 0,
+        "last_used": null,
+        "created_by": "system",
+        "created_at": "2024-01-01T00:00:00+00:00",
+        "updated_at": "2025-06-18T18:14:30.569278+00:00"
+      },
+      {
+        "id": "incident_resolved",
+        "category": "updates",
+        "title": "Incident Resolved",
+        "message": "Traffic incident on {location} affecting service {route} has been cleared. Normal service resuming.",
+        "priority": "info",
+        "variables": [
+          "location",
+          "route"
+        ],
+        "channels": [
+          "display",
+          "web",
+          "mobile"
+        ],
+        "auto_trigger": {
+          "enabled": false
+        },
+        "usage_count": 0,
+        "last_used": null,
+        "created_by": "system",
+        "created_at": "2024-01-01T00:00:00+00:00",
+        "updated_at": "2025-06-18T18:14:30.62201+00:00"
+      },
+      {
+        "id": "emergency_diversion",
+        "category": "emergency",
+        "title": "Emergency Diversion",
+        "message": "URGENT: Service {route} diverted via {diversionRoute} due to emergency at {location}. Additional journey time {extraTime} minutes.",
+        "priority": "critical",
+        "variables": [
+          "route",
+          "diversionRoute",
+          "location",
+          "extraTime"
+        ],
+        "channels": [
+          "display",
+          "web",
+          "mobile",
+          "social"
+        ],
+        "auto_trigger": {
+          "enabled": false
+        },
+        "usage_count": 0,
+        "last_used": null,
+        "created_by": "system",
+        "created_at": "2024-01-01T00:00:00+00:00",
+        "updated_at": "2025-06-18T18:14:30.669367+00:00"
+      }
+    ],
+    "roadworks": [
+      {
+        "id": "f2377dfe-8677-45be-8691-d69ef21c0a50",
+        "title": "A1 Roadworks - Newcastle",
+        "description": "StreetManager webhook test roadwork",
+        "location": "A1 Great North Road, Newcastle",
+        "authority": null,
+        "coordinates": null,
+        "affects_routes": null,
+        "start_date": "2025-06-27T21:44:33.871941+00:00",
+        "end_date": "2025-07-04T21:44:33.871941+00:00",
+        "status": "active",
+        "severity": "high",
+        "type": "roadwork",
+        "source": "street_manager",
+        "permit_reference": null,
+        "work_reference": null,
+        "promoter": null,
+        "work_category": null,
+        "traffic_impact": null,
+        "work_status": null,
+        "last_updated": "2025-06-27T21:44:33.871941+00:00",
+        "processed_at": "2025-06-27T21:44:33.871941+00:00",
+        "raw_data": null,
+        "created_at": "2025-06-27T21:44:33.871941+00:00",
+        "updated_at": "2025-06-27T21:47:01.697412+00:00",
+        "created_by_supervisor_id": "WEBHOOK",
+        "created_by_name": "StreetManager System",
+        "routes_affected": [
+          "21",
+          "X21"
+        ],
+        "email_sent": false,
+        "email_sent_at": null,
+        "all_day": false
+      }
+    ]
+  }
+}

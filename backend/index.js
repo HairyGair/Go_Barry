@@ -85,6 +85,11 @@ import streetManagerWebhookRouter from './routes/streetManagerWebhook.js';
 // IMPORTANT: Apply text body parser ONLY to webhook route, as per StreetManager docs
 app.use('/api/streetmanager/webhook', express.text(), streetManagerWebhookRouter);
 console.log('✅ streetManagerWebhookRouter imported with text body parser');
+import streetManagerCleanupRouter from './routes/streetManagerCleanup.js';
+app.use('/api/streetmanager', streetManagerCleanupRouter);
+console.log('✅ streetManagerCleanupRouter imported for hybrid storage management');
+import streetManagerScheduler from './services/streetManagerScheduler.js';
+console.log('✅ streetManagerScheduler imported for automated cleanup');
 import streetManagerActionsAPI from './routes/streetManagerActionsAPI.js';
 console.log('✅ streetManagerActionsAPI imported');
 import unifiedRoadworksAPI from './routes/unifiedRoadworksAPI.js';
@@ -4887,6 +4892,14 @@ initializeApplication().then(async () => {
   } catch (error) {
     console.warn('⚠️ Bus update loop failed to start:', error.message);
   }
+  
+  // Start Street Manager cleanup scheduler
+  try {
+    streetManagerScheduler.start();
+    console.log('✅ Street Manager cleanup scheduler started (daily 2 AM cleanup)');
+  } catch (error) {
+    console.warn('⚠️ Street Manager scheduler failed to start:', error.message);
+  }
 }).catch(error => {
   console.error('⚠️ Initialization error:', error.message);
   console.log('⚠️ Continuing with limited functionality...');
@@ -4935,6 +4948,14 @@ process.on('SIGTERM', () => {
     console.log('✅ Bus update loop stopped');
   } catch (error) {
     console.warn('⚠️ Error stopping bus update loop:', error.message);
+  }
+  
+  // Stop Street Manager cleanup scheduler
+  try {
+    streetManagerScheduler.stop();
+    console.log('✅ Street Manager scheduler stopped');
+  } catch (error) {
+    console.warn('⚠️ Error stopping Street Manager scheduler:', error.message);
   }
   
   // Force garbage collection if available

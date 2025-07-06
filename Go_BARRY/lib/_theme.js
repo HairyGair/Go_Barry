@@ -15,6 +15,8 @@ export const operationsTheme = {
     // Brand colors for gradient cards
     gradients: {
       dutyBoards: '#667eea',      // Purple
+      onTimeRequest: '#0ea5e9',   // Sky blue for SharePoint integration
+      dailyLostMileage: '#dc2626', // Red for lost mileage reports
       incidents: '#fa709a',       // Pink
       roadworks: '#f093fb',       // Light purple
       disruptions: '#30cfd0',     // Cyan
