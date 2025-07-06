@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, Pressable, Platform } from 'react-native';
+import { View, Text, Pressable, Platform, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { roadworksStyles, colors, spacing } from '../styles/roadworks.styles';
 
@@ -373,6 +373,32 @@ const RoadworkCard = ({
               <Ionicons name="map" size={16} color={colors.textSecondary} />
               <Text style={[roadworksStyles.actionButtonText, roadworksStyles.actionButtonTextSecondary]}>
                 View Map
+              </Text>
+            </Pressable>
+          )}
+
+          {/* View on One.Network */}
+          {(roadwork.sm_permit_reference || roadwork.sm_reference || roadwork.permitReference) && (
+            <Pressable
+              style={[roadworksStyles.actionButton, roadworksStyles.actionButtonSecondary]}
+              onPress={async () => {
+                const reference = roadwork.sm_permit_reference || roadwork.sm_reference || roadwork.permitReference;
+                const oneNetworkUrl = `https://one.network/?${reference}`;
+                
+                try {
+                  if (Platform.OS === 'web') {
+                    window.open(oneNetworkUrl, '_blank');
+                  } else {
+                    await Linking.openURL(oneNetworkUrl);
+                  }
+                } catch (error) {
+                  console.error('Failed to open One.Network URL:', error);
+                }
+              }}
+            >
+              <Ionicons name="globe" size={16} color={colors.info} />
+              <Text style={[roadworksStyles.actionButtonText, { color: colors.info }]}>
+                View on One.Network
               </Text>
             </Pressable>
           )}
