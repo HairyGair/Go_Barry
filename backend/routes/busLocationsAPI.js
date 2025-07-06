@@ -508,4 +508,70 @@ router.get('/webhook/test-config', async (req, res) => {
   }
 });
 
+// Test BODS API configuration
+router.get('/test-bods', async (req, res) => {
+  try {
+    const hasBodsKey = !!process.env.BODS_API_KEY;
+    const hasDatafeedId = !!process.env.BODS_GNE_DATAFEED_ID;
+    const hasApiUrl = !!process.env.BODS_API_URL;
+    
+    const configStatus = {
+      hasBodsKey,
+      bodsKeyLength: process.env.BODS_API_KEY ? process.env.BODS_API_KEY.length : 0,
+      hasDatafeedId,
+      datafeedId: process.env.BODS_GNE_DATAFEED_ID || 'not set',
+      hasApiUrl,
+      apiUrl: process.env.BODS_API_URL || 'not set',
+      isConfigured: hasBodsKey && hasDatafeedId && hasApiUrl
+    };
+    
+    res.json({
+      success: true,
+      configuration: configStatus,
+      message: configStatus.isConfigured ? 'BODS API configured' : 'BODS API not configured',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('BODS test error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to test BODS configuration',
+      message: error.message
+    });
+  }
+});
+
+// Test Convex sync
+router.get('/test-convex-sync', async (req, res) => {
+  try {
+    // Get a small sample of bus data
+    const buses = await busLocationService.fetchBusLocations();
+    const sampleBuses = buses.slice(0, 3); // Just 3 buses for testing
+    
+    // Try to sync to Convex
+    const result = await convexSync.syncBusLocations();
+    
+    res.json({
+      success: true,
+      bodsDataReceived: buses.length,
+      sampleBuses: sampleBuses.map(b => ({
+        id: b.id,
+        route: b.lineName,
+        operator: b.operatorRef,
+        location: b.location
+      })),
+      convexSyncResult: result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Convex sync test error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to test Convex sync',
+      message: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 export default router;
