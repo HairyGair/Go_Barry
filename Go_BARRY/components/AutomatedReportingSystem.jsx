@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
+import StartOfServiceReportGenerator from './reports/StartOfServiceReportGenerator';
 
 const isWeb = Platform.OS === 'web';
 
@@ -75,6 +76,7 @@ const AutomatedReportingSystem = ({ baseUrl }) => {
   const [generatingReport, setGeneratingReport] = useState(null);
   const [reportSchedule, setReportSchedule] = useState([]);
   const [systemStats, setSystemStats] = useState({});
+  const [showStartOfServiceGenerator, setShowStartOfServiceGenerator] = useState(false);
 
   // API base URL
   const API_BASE = baseUrl || (isWeb 
@@ -163,6 +165,12 @@ const AutomatedReportingSystem = ({ baseUrl }) => {
   const generateReport = async (reportType) => {
     if (!isLoggedIn) {
       alert('Please log in as a supervisor to generate reports');
+      return;
+    }
+
+    // Special handling for Start of Service Report
+    if (reportType === 'startOfService') {
+      setShowStartOfServiceGenerator(true);
       return;
     }
 
@@ -463,6 +471,16 @@ const AutomatedReportingSystem = ({ baseUrl }) => {
           </View>
         </View>
       </ScrollView>
+
+      {/* Start of Service Report Generator Modal */}
+      {showStartOfServiceGenerator && (
+        <View style={styles.modalOverlay}>
+          <StartOfServiceReportGenerator
+            onClose={() => setShowStartOfServiceGenerator(false)}
+            baseUrl={API_BASE}
+          />
+        </View>
+      )}
     </View>
   );
 };
@@ -784,6 +802,15 @@ const styles = StyleSheet.create({
   systemInfoValue: {
     fontSize: 14,
     color: '#6B7280',
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 1000,
   },
 });
 

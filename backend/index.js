@@ -73,6 +73,8 @@ import analyticsAPI from './routes/analyticsAPI.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import communicationsAPI from './routes/communications/index.js';
 console.log('✅ communicationsAPI imported successfully');
+import startOfServiceAPI from './routes/startOfServiceAPI.js';
+console.log('✅ startOfServiceAPI imported successfully');
 import locationCorrectionAPI from './routes/locationCorrectionAPI.js';
 import supervisorManager from './services/supervisorManager.js';
 import serviceFrequencyAnalyzer from './services/serviceFrequencyAnalyzer.js';
@@ -521,6 +523,12 @@ console.log('✅ Message API routes registered successfully');
 console.log('📊 Registering disruptions API routes at /api/disruptions...');
 app.use('/api/disruptions', disruptionsAPI);
 console.log('✅ Disruptions API routes registered successfully');
+
+// Start of Service Report API routes
+console.log('📋 Registering Start of Service Report API routes...');
+app.use('/api/disruptions', startOfServiceAPI);  // For /api/disruptions/active
+app.use('/api/reports', startOfServiceAPI);      // For /api/reports/start-of-service
+console.log('✅ Start of Service Report API routes registered successfully');
 
 // Test endpoint for roadwork alerts debugging (after main router)
 app.get('/api/roadwork-alerts-test', (req, res) => {
