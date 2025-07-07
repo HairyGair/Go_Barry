@@ -75,7 +75,7 @@ const COMMUNICATIONS_CARDS = [
       '8x8 integration',
       'Quick dial',
       'Emergency numbers',
-      'Opens a new tab'
+      'Call history'
     ],
     stats: { label: 'Status', value: 'Ready' }
   },
