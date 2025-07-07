@@ -15,6 +15,7 @@ import {
   FlatList
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AppHeader from '../../components/common/AppHeader';
 // Simple Traffic Card component for mobile alerts
 const SimpleTrafficCard = ({ alert, supervisorSession, onDismiss, onAcknowledge, onAddToDatabase }) => {
   const getStatusColor = (status) => {
@@ -413,9 +414,10 @@ export default function AlertsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.white} />
+      <AppHeader />
       
       {/* Enhanced Header with Supervisor Status */}
-      <View style={styles.header}>
+      <View style={styles.alertsHeader}>
         <View style={styles.headerTop}>
           <View style={styles.headerLeft}>
             <Text style={styles.headerTitle}>Traffic Alerts</Text>
@@ -444,7 +446,7 @@ export default function AlertsScreen() {
         <View style={styles.headerStats}>
           <Text style={styles.headerStatsText}>
             {counts.total} alerts • {counts.active} active • Updated {formatLastUpdated(lastUpdated)}
-            {isLoggedIn && " • Supervisor Mode Active"}
+            {isLoggedIn ? " • Supervisor Mode Active" : ""}
           </Text>
         </View>
       </View>
@@ -777,7 +779,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  header: {
+  alertsHeader: {
     backgroundColor: Colors.white,
     paddingHorizontal: 20,
     paddingVertical: 16,

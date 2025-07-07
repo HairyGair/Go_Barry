@@ -69,11 +69,11 @@ const passwordStorageService = {
 const sessionStorageService = {
   memoryStorage: new Map(),
   storageKey: 'barry_supervisor_session',
-  defaultTimeout: 10 * 60 * 1000, // 10 minutes default
+  defaultTimeout: 10 * 60 * 60 * 1000, // 10 hours default
   
   saveSession(sessionData, rememberMe = false) {
     try {
-      const timeout = rememberMe ? (60 * 60 * 1000) : this.defaultTimeout; // 1 hour if remember me
+      const timeout = rememberMe ? (10 * 60 * 60 * 1000) : this.defaultTimeout; // 10 hours regardless
       const sessionWithTimestamp = {
         ...sessionData,
         savedAt: Date.now(),
@@ -175,7 +175,12 @@ const API_BASE_URL = 'https://go-barry.onrender.com';
 const SUPERVISOR_DB = {
   'alex_woodcock': { name: 'Alex Woodcock', role: 'Supervisor' },
   'andrew_cowley': { name: 'Andrew Cowley', role: 'Supervisor' },
-  'anthony_gair': { name: 'Anthony Gair', role: 'Developer/Admin', isAdmin: true },
+  'anthony_gair': { 
+    name: 'Anthony Gair', 
+    role: 'Developer/Admin', 
+    isAdmin: true,
+    defaultPassword: 'Anthony123' // Add default for testing
+  },
   'claire_fiddler': { name: 'Claire Fiddler', role: 'Supervisor' },
   'david_hall': { name: 'David Hall', role: 'Supervisor' },
   'james_daglish': { name: 'James Daglish', role: 'Supervisor' },
@@ -217,10 +222,11 @@ let activityLog = [];
 // Supervisor session hook with password management
 export const useSupervisorSession = () => {
   const [supervisorSession, setSupervisorSession] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start with true to indicate checking session
   const [error, setError] = useState(null);
   const [needsPasswordSetup, setNeedsPasswordSetup] = useState(false);
   const [pendingLoginData, setPendingLoginData] = useState(null);
+  const [sessionCheckComplete, setSessionCheckComplete] = useState(false);
   
   // Convex mutations
   const convexLogin = useMutation(api.supervisors.login);
@@ -236,6 +242,9 @@ export const useSupervisorSession = () => {
     } else {
       console.log('❌ No saved session found in storage');
     }
+    // Mark session check as complete and stop loading
+    setSessionCheckComplete(true);
+    setIsLoading(false);
   }, []);
 
   // Log activity
@@ -318,11 +327,11 @@ export const useSupervisorSession = () => {
 
       // Check if this is a first-time user who needs password setup
       if (!loginData.isPasswordSetup && passwordStorageService.isFirstTimeUser(loginData.supervisorId)) {
-        // Special case for Barry - migrate existing password
-        if (loginData.supervisorId === 'barry_perryman' && supervisor.defaultPassword) {
+        // Special case for users with default passwords - auto-migrate them
+        if ((loginData.supervisorId === 'barry_perryman' || loginData.supervisorId === 'anthony_gair') && supervisor.defaultPassword) {
           passwordStorageService.savePassword(loginData.supervisorId, supervisor.defaultPassword);
         } else {
-          // Show password setup screen
+          // Show password setup screen for other users
           setNeedsPasswordSetup(true);
           setPendingLoginData(loginData);
           setIsLoading(false);
@@ -335,9 +344,9 @@ export const useSupervisorSession = () => {
         throw new Error('Password is required');
       }
 
-      // Check password (special case for Barry's migration)
+      // Check password (special case for users with default passwords)
       const isValidPassword = passwordStorageService.checkPassword(loginData.supervisorId, loginData.password) ||
-        (loginData.supervisorId === 'barry_perryman' && loginData.password === supervisor.defaultPassword);
+        ((loginData.supervisorId === 'barry_perryman' || loginData.supervisorId === 'anthony_gair') && loginData.password === supervisor.defaultPassword);
 
       if (!isValidPassword) {
         throw new Error('Incorrect password');
@@ -383,6 +392,9 @@ export const useSupervisorSession = () => {
       // Save and set session with remember me option
       sessionStorageService.saveSession(session, loginData.rememberMe);
       setSupervisorSession(session);
+      
+      // Force a state update to ensure all components re-render
+      console.log('✅ Session state updated:', session.supervisor.name);
       
       // Log activity
       logActivity('LOGIN', `${supervisor.name} logged in on ${finalDuty.name}`);
@@ -628,7 +640,7 @@ export const useSupervisorSession = () => {
     supervisorRole: supervisorSession?.supervisor?.role,
     supervisorId: supervisorSession?.supervisor?.id,
     supervisorDuty: supervisorSession?.supervisor?.duty?.name,
-    sessionId: supervisorSession?.sessionId,
+    sessionId: supervisorSession?.backendSessionId || supervisorSession?.sessionId,
     isAdmin: supervisorSession?.supervisor?.isAdmin || false,
     hasPermission: (permission) => {
       return supervisorSession?.supervisor?.permissions?.includes(permission) ?? false;
