@@ -75,7 +75,7 @@ const COMMUNICATIONS_CARDS = [
       '8x8 integration',
       'Quick dial',
       'Emergency numbers',
-      'Call history'
+      'Opens a new tab'
     ],
     stats: { label: 'Status', value: 'Ready' }
   },
@@ -148,9 +148,11 @@ const CommunicationsHub = () => {
   };
 
   const handleCardPress = (cardId) => {
-    // Special handling for VoIP - navigate to dedicated route
+    // Special handling for VoIP - open 8x8 in new tab
     if (cardId === 'voip') {
-      router.push('/voip');
+      if (Platform.OS === 'web') {
+        window.open('https://apps.8x8.com/', '_blank');
+      }
       return;
     }
     
