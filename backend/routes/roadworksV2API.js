@@ -126,6 +126,73 @@ router.post('/search', async (req, res) => {
   }
 });
 
+// Get reviewed streetworks for monitoring tab
+router.get('/reviewed', async (req, res) => {
+  try {
+    console.log('📡 Fetching reviewed streetworks for monitoring tab...');
+    
+    const { data: streetworks, error } = await supabase
+      .from('streetworks')
+      .select('*')
+      .not('status', 'eq', 'pending_review') // Exclude pending reviews
+      .not('reviewed_by', 'is', null) // Must have been reviewed
+      .order('reviewed_at', { ascending: false })
+      .limit(100);
+    
+    if (error) {
+      console.error('❌ Error fetching reviewed streetworks:', error);
+      throw error;
+    }
+    
+    // Transform to frontend format
+    const transformedRoadworks = (streetworks || []).map(sw => ({
+      id: sw.id,
+      title: sw.sm_street_name ? 
+        `${sw.sm_street_name} - ${sw.sm_activity_type || 'Street Works'}` : 
+        sw.sm_works_description || 'Reviewed Streetwork',
+      location: sw.sm_street_name,
+      description: sw.sm_works_description,
+      status: sw.status, // This is the key field for monitoring tab
+      severity: sw.severity || 'medium',
+      source: 'ReviewedStreetworks',
+      startDate: sw.sm_start_date,
+      endDate: sw.sm_end_date,
+      affectsRoutes: sw.confirmed_routes || [],
+      hasDiversion: sw.diversion_required || false,
+      reviewedBy: sw.reviewed_by,
+      reviewedAt: sw.reviewed_at,
+      notes: sw.notes,
+      coordinates: sw.latitude && sw.longitude ? [sw.latitude, sw.longitude] : null,
+      // Original Street Manager data
+      originalData: {
+        sm_street_name: sw.sm_street_name,
+        sm_area_name: sw.sm_area_name,
+        sm_town: sw.sm_town,
+        sm_works_description: sw.sm_works_description,
+        sm_activity_type: sw.sm_activity_type
+      }
+    }));
+    
+    console.log(`✅ Found ${transformedRoadworks.length} reviewed streetworks`);
+    console.log('📊 Status breakdown:', {
+      monitoring: transformedRoadworks.filter(r => r.status === 'monitoring').length,
+      approved: transformedRoadworks.filter(r => r.status === 'approved').length,
+      rejected: transformedRoadworks.filter(r => r.status === 'rejected').length,
+      completed: transformedRoadworks.filter(r => r.status === 'completed').length
+    });
+    
+    res.json({
+      success: true,
+      roadworks: transformedRoadworks,
+      count: transformedRoadworks.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching reviewed streetworks:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Get all diversion templates
 router.get('/diversion-templates', async (req, res) => {
   try {
