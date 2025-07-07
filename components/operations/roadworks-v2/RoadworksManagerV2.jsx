@@ -172,10 +172,11 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
         console.log('📡 Reviewed streetworks response status:', reviewedResponse.status);
         if (reviewedResponse.ok) {
           reviewedStreetworksData = await reviewedResponse.json();
-          console.log('📡 Reviewed streetworks data:', reviewedStreetworksData);
+          console.log('📡 ✅ SUCCESS: Reviewed streetworks data:', reviewedStreetworksData);
+          console.log('📡 ✅ SUCCESS: Found', reviewedStreetworksData?.roadworks?.length || 0, 'reviewed roadworks');
         } else {
-          console.warn('Reviewed streetworks API returned:', reviewedResponse.status);
-          console.warn('Reviewed streetworks API failed - endpoint may not exist yet');
+          console.error('❌ FAILED: Reviewed streetworks API returned:', reviewedResponse.status);
+          console.error('❌ FAILED: Reviewed streetworks API failed - endpoint may not exist yet');
         }
       } catch (reviewedError) {
         console.warn('Reviewed streetworks fetch failed:', reviewedError.message);
@@ -194,10 +195,17 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       
       console.log('🔍 Manual roadworks count:', validManualRoadworks.length);
       console.log('🔍 Street Manager roadworks count:', validStreetManagerRoadworks.length);
-      console.log('🔍 Reviewed streetworks count:', validReviewedStreetworks.length);
+      console.log('🔍 ⭐ REVIEWED STREETWORKS COUNT:', validReviewedStreetworks.length);
       console.log('🔍 Manual roadworks sample:', validManualRoadworks.slice(0, 2));
       console.log('🔍 Street Manager roadworks sample:', validStreetManagerRoadworks.slice(0, 2));
-      console.log('🔍 Reviewed streetworks sample:', validReviewedStreetworks.slice(0, 2));
+      console.log('🔍 ⭐ REVIEWED STREETWORKS SAMPLE:', validReviewedStreetworks.slice(0, 2));
+      
+      // DEBUG: Check monitoring items specifically
+      const monitoringItems = validReviewedStreetworks.filter(r => r.status === 'monitoring');
+      console.log('🔍 ⭐ MONITORING ITEMS IN REVIEWED DATA:', monitoringItems.length);
+      if (monitoringItems.length > 0) {
+        console.log('🔍 ⭐ MONITORING ITEMS DETAILS:', monitoringItems.slice(0, 3));
+      }
       
       // Debug: Check if we have old cached data
       if (validStreetManagerRoadworks.length > 50) {
@@ -512,6 +520,11 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
         if (excludePatterns.some(pattern => location.includes(pattern))) {
           console.log(`🚫 Excluding non-North East roadwork: ${location}`);
           return false;
+        }
+        
+        // Skip geographical filtering for reviewed streetworks (already verified as relevant)
+        if (roadwork.source === 'ReviewedStreetworks') {
+          return true; // Already reviewed and confirmed as relevant to North East
         }
         
         // Check if roadwork affects GNE routes
@@ -1280,7 +1293,15 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
 
   // Enhanced Workflow Tab Renderers (Phase 2)
   const renderMonitoringTab = () => {
-    const monitoringRoadworks = getFilteredRoadworks().filter(r => r.status === 'monitoring');
+    const allFilteredRoadworks = getFilteredRoadworks();
+    const monitoringRoadworks = allFilteredRoadworks.filter(r => r.status === 'monitoring');
+    
+    // DEBUG: Log the filtering results
+    console.log('🔍 MONITORING TAB DEBUG:');
+    console.log('🔍 Total filtered roadworks:', allFilteredRoadworks.length);
+    console.log('🔍 Monitoring roadworks found:', monitoringRoadworks.length);
+    console.log('🔍 All statuses in filtered data:', [...new Set(allFilteredRoadworks.map(r => r.status))]);
+    console.log('🔍 Monitoring roadworks details:', monitoringRoadworks.slice(0, 3));
     
     return (
       <View style={roadworksStyles.section}>
