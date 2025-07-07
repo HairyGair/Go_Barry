@@ -660,37 +660,49 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
   };
 
   const handleStatusChange = async (roadwork) => {
-    console.log('Changing status for:', roadwork.title);
+    console.log('Monitoring action for:', roadwork.title);
     
-    // For monitoring roadworks, show status change options
-    const statusOptions = [
-      { value: 'monitoring', label: 'Continue Monitoring' },
-      { value: 'completed', label: 'Mark Completed' },
-      { value: 'escalated', label: 'Escalate Issue' },
-      { value: 'active', label: 'Revert to Active' }
-    ];
-    
-    // Simple implementation for now - in production would use a proper modal
-    const newStatus = prompt(
-      `Change status for "${roadwork.title}"\n\nCurrent status: ${roadwork.status}\n\nOptions:\n` +
-      statusOptions.map(opt => `- ${opt.label} (${opt.value})`).join('\n') +
-      '\n\nEnter new status:'
+    // Monitoring-specific actions
+    const actionChoice = confirm(
+      `📋 Monitoring Action Required\n\n` +
+      `Roadwork: "${roadwork.title}"\n` +
+      `Location: ${roadwork.location}\n\n` +
+      `Choose action:\n` +
+      `• OK = Make ACTIVE (needs immediate attention)\n` +
+      `• Cancel = ARCHIVE/DISMISS (monitoring complete)\n\n` +
+      `Click OK to make active, Cancel to archive.`
     );
     
-    if (newStatus && statusOptions.some(opt => opt.value === newStatus)) {
-      try {
-        // Call API to update status (placeholder - would need actual API)
-        console.log(`Updating ${roadwork.title} from ${roadwork.status} to ${newStatus}`);
-        
-        // Show success message
-        alert(`✅ Status updated successfully!\n\n"${roadwork.title}" changed from "${roadwork.status}" to "${newStatus}"`);
-        
-        // Refresh data
-        fetchRoadworks(false);
-      } catch (error) {
-        console.error('Failed to update status:', error);
-        alert('❌ Failed to update status. Please try again.');
+    const newStatus = actionChoice ? 'active' : 'archived';
+    const action = actionChoice ? 'activated' : 'archived';
+    const targetTab = actionChoice ? 'Active & Approved' : 'Completed & Archived';
+    
+    try {
+      // Call API to update status (placeholder - would need actual API)
+      console.log(`${action.charAt(0).toUpperCase() + action.slice(1)} ${roadwork.title}: ${roadwork.status} → ${newStatus}`);
+      
+      // Show success message with tab guidance
+      alert(
+        `✅ Roadwork ${action} successfully!\n\n` +
+        `"${roadwork.title}"\n\n` +
+        `Status: ${roadwork.status} → ${newStatus}\n` +
+        `Now available in: ${targetTab} tab\n\n` +
+        `${actionChoice ? '🚨 Action required in Active tab' : '📁 Moved to archive'}`
+      );
+      
+      // Refresh data to update tabs
+      fetchRoadworks(false);
+      
+      // Optional: Auto-switch to the target tab
+      if (actionChoice) {
+        setTimeout(() => setActiveTab('active'), 1000);
+      } else {
+        setTimeout(() => setActiveTab('completed'), 1000);
       }
+      
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      alert('❌ Failed to update status. Please try again.');
     }
   };
 
