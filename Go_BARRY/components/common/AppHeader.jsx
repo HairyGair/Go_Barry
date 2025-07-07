@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Image, Text, Pressable, StyleSheet, Platform } from 'react-native';
+import React, { useState } from 'react';
+import { View, Image, Text, Pressable, StyleSheet, Platform, TextInput } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSupervisor } from '../hooks/useSupervisorSession';
@@ -7,7 +7,26 @@ import { useSupervisor } from '../hooks/useSupervisorSession';
 const AppHeader = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const { supervisorName, logout } = useSupervisor();
+  const { supervisorName, logout, login, isLoading } = useSupervisor();
+  
+  // Login form state
+  const [showLoginForm, setShowLoginForm] = useState(false);
+  const [selectedSupervisor, setSelectedSupervisor] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+
+  // Supervisor options for the login form
+  const SUPERVISOR_OPTIONS = [
+    { id: 'alex_woodcock', name: 'Alex Woodcock', badge: 'AW001' },
+    { id: 'andrew_cowley', name: 'Andrew Cowley', badge: 'AC002' },
+    { id: 'anthony_gair', name: 'Anthony Gair', badge: 'AG003', isAdmin: true },
+    { id: 'claire_fiddler', name: 'Claire Fiddler', badge: 'CF004' },
+    { id: 'david_hall', name: 'David Hall', badge: 'DH005' },
+    { id: 'james_daglish', name: 'James Daglish', badge: 'JD006' },
+    { id: 'john_paterson', name: 'John Paterson', badge: 'JP007' },
+    { id: 'simon_glass', name: 'Simon Glass', badge: 'SG008' },
+    { id: 'barry_perryman', name: 'Barry Perryman', badge: 'BP009', isAdmin: true },
+  ];
   
   const isOperationsCentre = pathname === '/operations-centre' || pathname === '/operations';
   const isHomePage = pathname === '/' || pathname === '/index';
@@ -17,6 +36,26 @@ const AppHeader = () => {
   const handleLogout = async () => {
     await logout();
     router.replace('/');
+  };
+
+  const handleLogin = async () => {
+    if (!selectedSupervisor || !password) {
+      setLoginError('Please select supervisor and enter password');
+      return;
+    }
+
+    setLoginError('');
+    const result = await login(selectedSupervisor, password, 'end_of_shift');
+    
+    if (!result.success) {
+      setLoginError(result.error || 'Login failed');
+    } else {
+      // Clear form and hide login
+      setSelectedSupervisor('');
+      setPassword('');
+      setShowLoginForm(false);
+      setLoginError('');
+    }
   };
   
   // Get current time and system status
@@ -191,15 +230,88 @@ const AppHeader = () => {
               </Pressable>
             </View>
           ) : (
-            <View style={styles.quickLinks}>
-              <Pressable style={styles.quickLink}>
-                <MaterialCommunityIcons name="phone" size={18} color="#64748b" />
-                <Text style={styles.quickLinkText}>Support</Text>
-              </Pressable>
-              <Pressable style={styles.quickLink}>
-                <MaterialCommunityIcons name="information" size={18} color="#64748b" />
-                <Text style={styles.quickLinkText}>About</Text>
-              </Pressable>
+            <View style={styles.loginSection}>
+              {!showLoginForm ? (
+                <Pressable 
+                  style={styles.loginButton}
+                  onPress={() => setShowLoginForm(true)}
+                >
+                  <MaterialCommunityIcons name="login" size={20} color="#fff" />
+                  <Text style={styles.loginButtonText}>Supervisor Login</Text>
+                </Pressable>
+              ) : (
+                <View style={styles.headerLoginForm}>
+                  <View style={styles.loginFormGroup}>
+                    <Text style={styles.loginLabel}>Supervisor</Text>
+                    {Platform.OS === 'web' ? (
+                      <select
+                        style={styles.headerSelect}
+                        value={selectedSupervisor}
+                        onChange={(e) => setSelectedSupervisor(e.target.value)}
+                      >
+                        <option value="">Select Supervisor</option>
+                        {SUPERVISOR_OPTIONS.map(supervisor => (
+                          <option key={supervisor.id} value={supervisor.id}>
+                            {supervisor.name} ({supervisor.badge})
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <TextInput
+                        style={styles.headerInput}
+                        placeholder="Supervisor ID"
+                        value={selectedSupervisor}
+                        onChangeText={setSelectedSupervisor}
+                      />
+                    )}
+                  </View>
+                  
+                  <View style={styles.loginFormGroup}>
+                    <Text style={styles.loginLabel}>Password</Text>
+                    <TextInput
+                      style={styles.headerInput}
+                      placeholder="Password"
+                      secureTextEntry
+                      value={password}
+                      onChangeText={setPassword}
+                      onSubmitEditing={handleLogin}
+                    />
+                  </View>
+                  
+                  <View style={styles.loginActions}>
+                    <Pressable 
+                      style={styles.loginActionButton}
+                      onPress={handleLogin}
+                      disabled={isLoading}
+                    >
+                      <MaterialCommunityIcons 
+                        name={isLoading ? "loading" : "check"} 
+                        size={16} 
+                        color="#fff" 
+                      />
+                      <Text style={styles.loginActionText}>
+                        {isLoading ? 'Logging in...' : 'Login'}
+                      </Text>
+                    </Pressable>
+                    
+                    <Pressable 
+                      style={styles.cancelButton}
+                      onPress={() => {
+                        setShowLoginForm(false);
+                        setLoginError('');
+                        setSelectedSupervisor('');
+                        setPassword('');
+                      }}
+                    >
+                      <MaterialCommunityIcons name="close" size={16} color="#94a3b8" />
+                    </Pressable>
+                  </View>
+                  
+                  {loginError ? (
+                    <Text style={styles.loginError}>{loginError}</Text>
+                  ) : null}
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -381,20 +493,120 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  quickLinks: {
+  loginSection: {
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  loginButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    gap: 8,
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
-  quickLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    padding: 8,
-  },
-  quickLinkText: {
+  loginButtonText: {
+    color: '#fff',
     fontSize: 14,
-    color: '#64748b',
+    fontWeight: '600',
+  },
+  headerLoginForm: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 12,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+    minWidth: 400,
+  },
+  loginFormGroup: {
+    flexDirection: 'column',
+    gap: 4,
+  },
+  loginLabel: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  headerSelect: {
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    color: '#fff',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    fontWeight: '500',
+    minWidth: 160,
+    ...Platform.select({
+      web: {
+        outlineWidth: 0,
+        outlineStyle: 'none',
+      },
+    }),
+  },
+  headerInput: {
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    color: '#fff',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    fontWeight: '500',
+    minWidth: 120,
+    ...Platform.select({
+      web: {
+        outlineWidth: 0,
+        outlineStyle: 'none',
+      },
+    }),
+  },
+  loginActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  loginActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#10b981',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  loginActionText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  cancelButton: {
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  loginError: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    marginTop: 4,
+    fontSize: 11,
+    color: '#ef4444',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   communicationsInfo: {
     marginLeft: 16,

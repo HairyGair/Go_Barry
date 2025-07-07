@@ -40,14 +40,7 @@ const HomePageWithLogin = () => {
     setPassword
   } = useSupervisor();
 
-  const [showLogin, setShowLogin] = useState(false);
-  const [selectedSupervisor, setSelectedSupervisor] = useState('');
-  const [selectedDuty, setSelectedDuty] = useState('');
-  const [password, setPasswordInput] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
-  const [loginError, setLoginError] = useState('');
+  // Removed login form state - now handled in AppHeader
   const [systemStatus, setSystemStatus] = useState('checking');
 
   // Check system status
@@ -66,60 +59,7 @@ const HomePageWithLogin = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Clear errors when form changes
-  useEffect(() => {
-    setLoginError('');
-  }, [selectedSupervisor, selectedDuty, password]);
-
-  const handleLogin = async () => {
-    if (!selectedSupervisor || !selectedDuty || !password) {
-      setLoginError('Please fill in all fields');
-      return;
-    }
-
-    const result = await login({
-      supervisorId: selectedSupervisor,
-      duty: selectedDuty,
-      password: password,
-      rememberMe: rememberMe
-    });
-
-    if (!result.success && !result.needsPasswordSetup) {
-      setLoginError(result.error || 'Login failed');
-    } else {
-      // Clear form on successful login
-      setSelectedSupervisor('');
-      setSelectedDuty('');
-      setPasswordInput('');
-      setShowLogin(false);
-    }
-  };
-
-  const handleSetPassword = async () => {
-    if (!newPassword || newPassword.length < 6) {
-      setLoginError('Password must be at least 6 characters');
-      return;
-    }
-    
-    if (newPassword !== confirmPassword) {
-      setLoginError('Passwords do not match');
-      return;
-    }
-
-    const result = await setPassword(newPassword);
-    
-    if (!result.success) {
-      setLoginError(result.error || 'Failed to set password');
-    } else {
-      // Clear form on success
-      setNewPassword('');
-      setConfirmPassword('');
-    }
-  };
-
-  const handleLogout = async () => {
-    await logout();
-  };
+  // Login functions moved to AppHeader
 
   const navigateToApp = (path) => {
     console.log(`[Navigation] Navigating to: ${path}`);
@@ -305,11 +245,10 @@ const HomePageWithLogin = () => {
       ],
       buttonText: isLoggedIn ? 'Access Communications' : 'Login Required',
       onPress: () => {
-        if (!isLoggedIn) {
-          setShowLogin(true);
-        } else {
+        if (isLoggedIn) {
           navigateToApp('/communications-hub');
         }
+        // If not logged in, user can use the header login
       },
       accessibilityLabel: 'Communications Hub - Unified messaging center for all communication channels',
       iconBackgroundColor: '#8B5CF6',
@@ -328,11 +267,10 @@ const HomePageWithLogin = () => {
       ],
       buttonText: isLoggedIn ? 'Access Operations' : 'Login Required',
       onPress: () => {
-        if (!isLoggedIn) {
-          setShowLogin(true);
-        } else {
+        if (isLoggedIn) {
           navigateToApp('/operations');
         }
+        // If not logged in, user can use the header login
       },
       accessibilityLabel: 'Operations - Daily operational tools including duty boards and incident management',
       iconBackgroundColor: '#059669',
@@ -349,13 +287,12 @@ const HomePageWithLogin = () => {
         { icon: 'route', text: 'Real-time GTFS route matching' },
         { icon: 'bell', text: 'Automated supervisor notifications' }
       ],
-      buttonText: 'Manage Disruptions',
+      buttonText: isLoggedIn ? 'Manage Disruptions' : 'Login Required',
       onPress: () => {
-        if (!isLoggedIn) {
-          setShowLogin(true);
-        } else {
+        if (isLoggedIn) {
           navigateToApp('/disruptions');
         }
+        // If not logged in, user can use the header login
       },
       accessibilityLabel: 'Open Disruptions Management - Create and manage network incidents and roadworks',
       iconBackgroundColor: '#FF9800',
@@ -373,11 +310,10 @@ const HomePageWithLogin = () => {
       buttonText: !isLoggedIn ? 'Admin Login Required' : 
                  isAdmin ? 'Open Admin Dashboard' : 'Admin Access Only',
       onPress: () => {
-        if (!isLoggedIn) {
-          setShowLogin(true);
-        } else if (isAdmin) {
+        if (isLoggedIn && isAdmin) {
           navigateToApp('/admin');
         }
+        // If not logged in, user can use the header login
       },
       accessibilityLabel: 'Admin Dashboard - System administration tools for managing supervisors and monitoring',
       iconBackgroundColor: '#8b5cf6',
@@ -409,21 +345,12 @@ const HomePageWithLogin = () => {
           <Text style={styles.welcomeDescription}>
             {isLoggedIn ? 
               'Select the application you want to access.' : 
-              showLogin ?
-              'Please log in with your supervisor credentials.' :
               'Select the application you want to access. Supervisor tools require authentication.'}
           </Text>
         </View>
 
         {/* Always show app options, with Control Room accessible without login */}
         {renderApps()}
-
-        {/* Show login form when needed */}
-        {!isLoggedIn && showLogin && (
-          <View style={styles.loginSection}>
-            {renderLoginForm()}
-          </View>
-        )}
         </View>
       </ScrollView>
     </View>
