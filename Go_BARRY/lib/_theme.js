@@ -20,7 +20,7 @@ export const operationsTheme = {
       incidents: '#fa709a',       // Pink
       roadworks: '#f093fb',       // Light purple
       disruptions: '#30cfd0',     // Cyan
-      statistics: '#ffecd2',      // Light orange
+      statistics: '#3b82f6', // Blue
       liveMap: '#ff9a9e',         // Light red
     },
     

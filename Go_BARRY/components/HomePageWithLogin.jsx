@@ -11,6 +11,7 @@ import { useSupervisor, DUTY_OPTIONS } from './hooks/useSupervisorSession';
 import Icon from 'react-native-vector-icons/FontAwesome5';
 import AppCard from './AppCard';
 import { Picker } from '@react-native-picker/picker';
+import AppHeader from './common/AppHeader';
 
 // Supervisor database - matching the one in useSupervisorSession
 const SUPERVISOR_OPTIONS = [
@@ -396,160 +397,11 @@ const HomePageWithLogin = () => {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <View style={styles.logoSection}>
-            <View style={styles.logo}>
-              <Text style={styles.logoEmoji}>🚦</Text>
-            </View>
-            <View style={styles.brandText}>
-              <Text style={styles.brandTitle}>Go Barry</Text>
-              <Text style={styles.brandSubtitle}>Traffic Intelligence Platform</Text>
-            </View>
-          </View>
-          
-          {isLoggedIn ? (
-            <View style={styles.userInfo}>
-              <View style={styles.userBadge}>
-                <Icon name="user-circle" size={20} color="#fff" />
-                <Text style={styles.userName}>{supervisorName}</Text>
-              </View>
-              <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-                <Icon name="sign-out-alt" size={16} color="#fff" />
-                <Text style={styles.logoutText}>Logout</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.headerLoginContainer}>
-              {/* Quick Login Form in Header */}
-              <View style={styles.headerLoginForm}>
-                <View style={styles.headerInputGroup}>
-                  <Text style={styles.headerInputLabel}>Supervisor</Text>
-                  {Platform.OS === 'web' ? (
-                    <View style={styles.headerSelectWrapper}>
-                      <select
-                        style={styles.headerSelect}
-                        value={selectedSupervisor}
-                        onChange={(e) => setSelectedSupervisor(e.target.value)}
-                      >
-                        <option value="">Select...</option>
-                        {SUPERVISOR_OPTIONS.map(sup => (
-                          <option key={sup.id} value={sup.id}>
-                            {sup.name} ({sup.badge})
-                          </option>
-                        ))}
-                      </select>
-                    </View>
-                  ) : (
-                    <View style={styles.headerSelectWrapper}>
-                      <Picker
-                        selectedValue={selectedSupervisor}
-                        onValueChange={setSelectedSupervisor}
-                        style={styles.headerSelect}
-                      >
-                        <Picker.Item label="Select..." value="" />
-                        {SUPERVISOR_OPTIONS.map(sup => (
-                          <Picker.Item
-                            key={sup.id}
-                            label={`${sup.name} (${sup.badge})`}
-                            value={sup.id}
-                          />
-                        ))}
-                      </Picker>
-                    </View>
-                  )}
-                </View>
-                
-                <View style={styles.headerInputGroup}>
-                  <Text style={styles.headerInputLabel}>Duty</Text>
-                  {Platform.OS === 'web' ? (
-                    <View style={styles.headerSelectWrapper}>
-                      <select
-                        style={styles.headerSelect}
-                        value={selectedDuty}
-                        onChange={(e) => setSelectedDuty(e.target.value)}
-                      >
-                        <option value="">Select...</option>
-                        {DUTY_OPTIONS.map(duty => (
-                          <option key={duty.id} value={duty.id}>{duty.name}</option>
-                        ))}
-                      </select>
-                    </View>
-                  ) : (
-                    <View style={styles.headerSelectWrapper}>
-                      <Picker
-                        selectedValue={selectedDuty}
-                        onValueChange={setSelectedDuty}
-                        style={styles.headerSelect}
-                      >
-                        <Picker.Item label="Select..." value="" />
-                        {DUTY_OPTIONS.map(duty => (
-                          <Picker.Item key={duty.id} label={duty.name} value={duty.id} />
-                        ))}
-                      </Picker>
-                    </View>
-                  )}
-                </View>
-                
-                <View style={styles.headerInputGroup}>
-                  <Text style={styles.headerInputLabel}>Password</Text>
-                  <TextInput
-                    style={styles.headerPasswordInput}
-                    value={password}
-                    onChangeText={setPasswordInput}
-                    placeholder="••••••"
-                    placeholderTextColor="#94a3b8"
-                    secureTextEntry
-                    onKeyPress={(e) => {
-                      if (e.nativeEvent.key === 'Enter') {
-                        handleLogin();
-                      }
-                    }}
-                  />
-                </View>
-                
-                <TouchableOpacity 
-                  style={[styles.headerLoginBtn, isLoading && styles.headerLoginBtnDisabled]} 
-                  onPress={handleLogin}
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <ActivityIndicator size="small" color="#E31E24" />
-                  ) : (
-                    <>
-                      <Icon name="sign-in-alt" size={14} color="#E31E24" />
-                      <Text style={styles.headerLoginBtnText}>Login</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
-              
-              {/* Login Error */}
-              {loginError && (
-                <Text style={styles.headerLoginError}>{loginError}</Text>
-              )}
-              
-              {/* System Status */}
-              <View style={styles.statusIndicator}>
-                <View style={[
-                  styles.statusDot,
-                  { backgroundColor: systemStatus === 'operational' ? '#10b981' : 
-                    systemStatus === 'issues' ? '#ef4444' : '#f59e0b' }
-                ]} />
-                <Text style={styles.statusText}>
-                  {systemStatus === 'operational' ? 'System OK' :
-                   systemStatus === 'issues' ? 'Issues' : 'Checking...'}
-                </Text>
-              </View>
-            </View>
-          )}
-        </View>
-      </View>
-
-      {/* Main Content */}
-      <View style={styles.mainContent}>
+    <View style={styles.container}>
+      <AppHeader />
+      <ScrollView style={styles.scrollContent}>
+        {/* Main Content */}
+        <View style={styles.mainContent}>
         <View style={styles.welcomeSection}>
           <Text style={styles.welcomeTitle}>
             {isLoggedIn ? `Welcome, ${supervisorName}` : 'Welcome to Go Barry'}
@@ -572,8 +424,9 @@ const HomePageWithLogin = () => {
             {renderLoginForm()}
           </View>
         )}
-      </View>
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </View>
   );
 };
 
@@ -582,9 +435,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f0f2f5',
   },
+  scrollContent: {
+    flex: 1,
+  },
   header: {
     backgroundColor: '#1a1a2e',
-    paddingTop: Platform.OS === 'web' ? 20 : 60,
+    paddingTop: 20,
     paddingBottom: 20,
     paddingHorizontal: 20,
   },
@@ -592,35 +448,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  logoSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-  },
-  logo: {
-    width: 50,
-    height: 50,
-    backgroundColor: '#E31E24',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoEmoji: {
-    fontSize: 28,
-  },
-  brandText: {
-    flexDirection: 'column',
-  },
-  brandTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  brandSubtitle: {
-    fontSize: 14,
-    color: '#94a3b8',
-    marginTop: 4,
   },
   userInfo: {
     flexDirection: 'row',

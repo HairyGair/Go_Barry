@@ -19,7 +19,6 @@ class PerformanceMonitor {
 }
 
 // Import UI components
-import OperationsHeader from './components/OperationsHeader.jsx';
 import StatusBar from './components/StatusBar.jsx';
 import OperationsCard from './components/OperationsCard.jsx';
 import QuickActions from './components/QuickActions.jsx';
@@ -159,6 +158,14 @@ export default function OperationsCentre() {
       return;
     }
     
+    // Special handling for Blink - open directly in new tab
+    if (cardId === 'blink') {
+      if (Platform.OS === 'web') {
+        window.open('https://app.joinblink.com/#/login', '_blank');
+      }
+      return;
+    }
+    
     setSelectedCard(cardId);
   };
   
@@ -214,11 +221,20 @@ export default function OperationsCentre() {
     {
       id: 'horizon-vix',
       title: 'Horizon VIX-ITS',
-      subtitle: 'Traffic Management System',
+      subtitle: 'Traffic Management System • Opens a new tab',
       icon: 'traffic-light',
       color: ['#7c3aed', '#5b21b6'], // Purple gradient for traffic management
       stats: { count: '●', label: 'Live' },
       textColor: '#1e293b', // Dark text for better contrast on bright gradient
+    },
+    {
+      id: 'blink',
+      title: 'Blink',
+      subtitle: 'Driver Communications • Opens a new tab',
+      icon: 'message-text',
+      color: '#15803d', // Dark green for communications
+      stats: { count: '●', label: 'Live' },
+      textColor: 'white',
     },
   ];
   
@@ -281,11 +297,6 @@ export default function OperationsCentre() {
   return (
     <View style={styles.container}>
       <AppHeader />
-      {/* Header */}
-      <OperationsHeader 
-        supervisorName={supervisorName}
-        onLogout={handleLogout}
-      />
       
       {/* Main Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>

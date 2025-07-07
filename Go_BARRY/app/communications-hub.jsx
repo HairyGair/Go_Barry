@@ -46,7 +46,7 @@ const COMMUNICATIONS_CARDS = [
       'Smart replies',
       'Message tracking'
     ],
-    stats: { label: 'Sent Today', value: '156' }
+    stats: { label: 'Status', value: 'Ready' }
   },
   {
     id: 'email',
@@ -62,7 +62,7 @@ const COMMUNICATIONS_CARDS = [
       'Email templates',
       'Distribution lists'
     ],
-    stats: { label: 'Unread', value: '12' }
+    stats: { label: 'Status', value: 'Ready' }
   },
   {
     id: 'voip',
@@ -78,7 +78,7 @@ const COMMUNICATIONS_CARDS = [
       'Emergency numbers',
       'Call history'
     ],
-    stats: { label: 'Active', value: 'Ready' }
+    stats: { label: 'Status', value: 'Ready' }
   },
   {
     id: 'reports',
@@ -94,7 +94,7 @@ const COMMUNICATIONS_CARDS = [
       'Auto-generation',
       'Email scheduling'
     ],
-    stats: { label: 'Generated', value: '8' }
+    stats: { label: 'Status', value: 'Ready' }
   },
   {
     id: 'sharepoint',
@@ -110,7 +110,7 @@ const COMMUNICATIONS_CARDS = [
       'Quick access',
       'File sharing'
     ],
-    stats: { label: 'Files', value: '234' }
+    stats: { label: 'Status', value: 'Ready' }
   }
 ];
 
@@ -200,67 +200,15 @@ const CommunicationsHub = () => {
   return (
     <View style={styles.container}>
       <AppHeader />
-      {/* Header */}
-      <View style={styles.commHeader}>
-        <View style={styles.headerContent}>
-          <View style={styles.titleSection}>
-            <Pressable onPress={() => router.replace('/')} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={20} color="#fff" />
-              <Text style={styles.backText}>Home</Text>
-            </Pressable>
-            <View style={styles.logoContainer}>
-              <Text style={styles.logoEmoji}>💬</Text>
-              <Text style={styles.headerTitle}>Communications Hub</Text>
-            </View>
-            <Text style={styles.headerSubtitle}>Unified messaging and communication center</Text>
-          </View>
-          
-          <View style={styles.headerActions}>
-            <View style={styles.userInfo}>
-              <Ionicons name="person-circle" size={24} color="#8B5CF6" />
-              <Text style={styles.userName}>{supervisorName}</Text>
-              <Text style={styles.userRole}>{supervisorRole}</Text>
-            </View>
-            
-            <Text style={styles.currentTime}>
-              {currentTime.toLocaleTimeString('en-GB', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                hour12: false 
-              })}
-            </Text>
-            
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-              <Ionicons name="log-out" size={20} color="#ef4444" />
-              <Text style={styles.logoutText}>Logout</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
 
       {/* Main Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Quick Stats Bar */}
+        {/* Quick Stats Bar - Removed hardcoded values */}
         <View style={styles.statsBar}>
           <View style={styles.statItem}>
-            <Ionicons name="checkmark-circle" size={20} color="#10B981" />
-            <Text style={styles.statLabel}>Messages Sent</Text>
-            <Text style={styles.statValue}>342</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Ionicons name="mail-unread" size={20} color="#F59E0B" />
-            <Text style={styles.statLabel}>Unread Emails</Text>
-            <Text style={styles.statValue}>12</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Ionicons name="call" size={20} color="#7C3AED" />
-            <Text style={styles.statLabel}>Calls Today</Text>
-            <Text style={styles.statValue}>28</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Ionicons name="document" size={20} color="#059669" />
-            <Text style={styles.statLabel}>Reports</Text>
-            <Text style={styles.statValue}>8</Text>
+            <Ionicons name="information-circle" size={20} color="#6B7280" />
+            <Text style={styles.statLabel}>Statistics</Text>
+            <Text style={styles.statValue}>Available Soon</Text>
           </View>
         </View>
 

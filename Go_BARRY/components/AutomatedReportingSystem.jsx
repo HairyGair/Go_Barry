@@ -101,59 +101,8 @@ const AutomatedReportingSystem = ({ baseUrl }) => {
   const loadReportHistory = async () => {
     setLoading(true);
     try {
-      // Mock report history - in production this would come from backend
-      const now = new Date();
-      const mockHistory = [
-        {
-          id: 'report_001',
-          type: 'startOfService',
-          title: 'Start of Service Report - ' + now.toDateString(),
-          generatedAt: new Date(now.getTime() - 6 * 60 * 60 * 1000).toISOString(), // 6 hours ago
-          generatedBy: 'System (Automated)',
-          status: 'sent',
-          recipients: 8,
-          size: '245KB',
-          summary: {
-            totalAlerts: 12,
-            activeIncidents: 3,
-            affectedRoutes: 7,
-            resolvedIssues: 9
-          }
-        },
-        {
-          id: 'report_002',
-          type: 'disruption',
-          title: 'Disruption Summary - Newcastle City Centre',
-          generatedAt: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-          generatedBy: 'Alex Woodcock',
-          status: 'sent',
-          recipients: 5,
-          size: '156KB',
-          summary: {
-            totalDisruptions: 2,
-            affectedRoutes: 4,
-            estimatedDelay: '15-20 minutes',
-            diversionsActive: 1
-          }
-        },
-        {
-          id: 'report_003',
-          type: 'alerts',
-          title: 'Alert Activity Report - Yesterday',
-          generatedAt: new Date(now.getTime() - 18 * 60 * 60 * 1000).toISOString(), // 18 hours ago
-          generatedBy: 'System (Automated)',
-          status: 'sent',
-          recipients: 12,
-          size: '89KB',
-          summary: {
-            totalAlerts: 45,
-            dismissed: 38,
-            acknowledged: 7,
-            responseTime: '3.2 minutes'
-          }
-        }
-      ];
-      setReportHistory(mockHistory);
+      // No mock data - start with empty history
+      setReportHistory([]);
     } catch (error) {
       console.error('Failed to load report history:', error);
     } finally {
@@ -194,16 +143,16 @@ const AutomatedReportingSystem = ({ baseUrl }) => {
 
   const loadSystemStats = async () => {
     try {
-      // Mock system statistics
+      // No mock data - show actual status only
       setSystemStats({
-        reportsGenerated: 156,
-        automatedReports: 134,
-        manualReports: 22,
-        totalRecipients: 45,
-        averageGenerationTime: '2.3 seconds',
-        successRate: 99.2,
-        lastAutomatedReport: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-        nextScheduledReport: new Date(Date.now() + 18 * 60 * 60 * 1000).toISOString()
+        reportsGenerated: 0,
+        automatedReports: 0,
+        manualReports: 0,
+        totalRecipients: 0,
+        averageGenerationTime: 'N/A',
+        successRate: 0,
+        lastAutomatedReport: null,
+        nextScheduledReport: null
       });
     } catch (error) {
       console.error('Failed to load system stats:', error);
