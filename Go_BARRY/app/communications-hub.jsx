@@ -21,7 +21,6 @@ import AppHeader from '../components/common/AppHeader';
 // Import only communications-related components
 import MessageDistributionEnhanced from '../components/communications/MessageDistributionEnhanced';
 import EmailIntegrationEnhanced from '../components/communications/EmailIntegrationEnhanced';
-import VoIPIntegrationEnhanced from '../components/communications/voip/VoIPIntegrationEnhanced';
 import SharePointIntegration from '../components/communications/sharepoint/SharePointIntegration';
 import AutomatedReportingSystem from '../components/AutomatedReportingSystem';
 
@@ -149,6 +148,12 @@ const CommunicationsHub = () => {
   };
 
   const handleCardPress = (cardId) => {
+    // Special handling for VoIP - navigate to dedicated route
+    if (cardId === 'voip') {
+      router.push('/voip');
+      return;
+    }
+    
     setLoading(true);
     setActiveComponent(cardId);
     setTimeout(() => setLoading(false), 300);
@@ -169,8 +174,6 @@ const CommunicationsHub = () => {
         return <MessageDistributionEnhanced {...componentProps} />;
       case 'email':
         return <EmailIntegrationEnhanced {...componentProps} />;
-      case 'voip':
-        return <VoIPIntegrationEnhanced {...componentProps} />;
       case 'reports':
         return <AutomatedReportingSystem {...componentProps} />;
       case 'sharepoint':

@@ -12,6 +12,7 @@ const AppHeader = () => {
   const isOperationsCentre = pathname === '/operations-centre' || pathname === '/operations';
   const isHomePage = pathname === '/' || pathname === '/index';
   const isCommunicationsHub = pathname === '/communications-hub';
+  const isVoIPPage = pathname === '/voip';
   
   const handleLogout = async () => {
     await logout();
@@ -49,7 +50,8 @@ const AppHeader = () => {
       styles.header, 
       isOperationsCentre && styles.operationsHeader,
       isHomePage && styles.homeHeader,
-      isCommunicationsHub && styles.communicationsHeader
+      isCommunicationsHub && styles.communicationsHeader,
+      isVoIPPage && styles.voipHeader
     ]}>
       <View style={styles.leftSection}>
         <Image 
@@ -73,6 +75,12 @@ const AppHeader = () => {
           <View style={styles.communicationsInfo}>
             <Text style={styles.communicationsTitle}>Communications Hub</Text>
             <Text style={styles.communicationsSubtitle}>Unified messaging and communication center</Text>
+          </View>
+        )}
+        {isVoIPPage && (
+          <View style={styles.voipInfo}>
+            <Text style={styles.voipTitle}>8x8 VoIP System</Text>
+            <Text style={styles.voipSubtitle}>Phone system with quick dial</Text>
           </View>
         )}
       </View>
@@ -101,6 +109,25 @@ const AppHeader = () => {
           <Pressable onPress={() => router.replace('/')} style={styles.backButton}>
             <MaterialCommunityIcons name="arrow-left" size={20} color="#fff" />
             <Text style={styles.backText}>Home</Text>
+          </Pressable>
+          
+          <View style={styles.userInfo}>
+            <MaterialCommunityIcons name="account-circle" size={24} color="#fff" />
+            <Text style={styles.userName}>{supervisorName}</Text>
+          </View>
+          
+          <Pressable onPress={handleLogout} style={styles.logoutButton}>
+            <MaterialCommunityIcons name="logout" size={20} color="#ff6b6b" />
+            <Text style={styles.logoutText}>Logout</Text>
+          </Pressable>
+        </View>
+      )}
+      
+      {isVoIPPage && (
+        <View style={styles.rightSection}>
+          <Pressable onPress={() => router.replace('/communications-hub')} style={styles.backButton}>
+            <MaterialCommunityIcons name="arrow-left" size={20} color="#fff" />
+            <Text style={styles.backText}>Communications</Text>
           </Pressable>
           
           <View style={styles.userInfo}>
@@ -219,6 +246,16 @@ const styles = StyleSheet.create({
     height: 80,
   },
   communicationsHeader: {
+    backgroundColor: '#1a1a2e',
+    borderBottomColor: '#333',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: Platform.OS === 'web' ? 10 : 10,
+    paddingBottom: 10,
+    height: 70,
+  },
+  voipHeader: {
     backgroundColor: '#1a1a2e',
     borderBottomColor: '#333',
     flexDirection: 'row',
@@ -368,6 +405,19 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   communicationsSubtitle: {
+    fontSize: 13,
+    color: '#94a3b8',
+    marginTop: 2,
+  },
+  voipInfo: {
+    marginLeft: 16,
+  },
+  voipTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  voipSubtitle: {
     fontSize: 13,
     color: '#94a3b8',
     marginTop: 2,
