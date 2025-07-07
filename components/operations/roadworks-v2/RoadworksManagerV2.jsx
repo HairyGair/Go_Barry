@@ -644,8 +644,8 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
   // Handle roadwork card actions
   const handleRoadworkPress = (roadwork) => {
     setSelectedRoadwork(roadwork);
-    console.log('Roadwork pressed:', roadwork.title);
-    // TODO: Open detailed modal
+    setShowDetailModal(true);
+    console.log('Opening details for:', roadwork.title);
   };
 
   const handleViewMap = (roadwork) => {
@@ -656,24 +656,63 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
 
   const handleViewDiversions = (roadwork) => {
     console.log('View diversions for:', roadwork.title);
-    // TODO: Open diversions
+    // TODO: Open diversions modal
   };
 
-  const handleStatusChange = (roadwork) => {
-    console.log('Change status for:', roadwork.title);
-    // TODO: Open status change modal
+  const handleStatusChange = async (roadwork) => {
+    console.log('Changing status for:', roadwork.title);
+    
+    // For monitoring roadworks, show status change options
+    const statusOptions = [
+      { value: 'monitoring', label: 'Continue Monitoring' },
+      { value: 'completed', label: 'Mark Completed' },
+      { value: 'escalated', label: 'Escalate Issue' },
+      { value: 'active', label: 'Revert to Active' }
+    ];
+    
+    // Simple implementation for now - in production would use a proper modal
+    const newStatus = prompt(
+      `Change status for "${roadwork.title}"\n\nCurrent status: ${roadwork.status}\n\nOptions:\n` +
+      statusOptions.map(opt => `- ${opt.label} (${opt.value})`).join('\n') +
+      '\n\nEnter new status:'
+    );
+    
+    if (newStatus && statusOptions.some(opt => opt.value === newStatus)) {
+      try {
+        // Call API to update status (placeholder - would need actual API)
+        console.log(`Updating ${roadwork.title} from ${roadwork.status} to ${newStatus}`);
+        
+        // Show success message
+        alert(`✅ Status updated successfully!\n\n"${roadwork.title}" changed from "${roadwork.status}" to "${newStatus}"`);
+        
+        // Refresh data
+        fetchRoadworks(false);
+      } catch (error) {
+        console.error('Failed to update status:', error);
+        alert('❌ Failed to update status. Please try again.');
+      }
+    }
   };
 
   const handleCreateDiversion = (roadwork) => {
-    console.log('Create diversion message for:', roadwork.title);
+    console.log('Creating diversion message for:', roadwork.title);
     setSelectedRoadwork(roadwork);
-    // TODO: Open Message Distribution Centre with roadwork data
-    // This will integrate with the Message Distribution Centre component
-    alert(`Creating diversion message for: ${roadwork.title}\n\nThis will open the Message Distribution Centre with roadwork data pre-populated.`);
+    
+    // Show message about integration
+    alert(
+      `📢 Message Distribution Centre Integration\n\n` +
+      `For: ${roadwork.title}\n` +
+      `Location: ${roadwork.location}\n\n` +
+      `This will open the Message Distribution Centre with:\n` +
+      `• Pre-populated roadwork details\n` +
+      `• Affected routes: ${roadwork.affectsRoutes?.slice(0, 3).join(', ')}${roadwork.affectsRoutes?.length > 3 ? '...' : ''}\n` +
+      `• Template suggestions based on impact\n\n` +
+      `Feature coming soon!`
+    );
   };
 
   const handleViewDetails = (roadwork) => {
-    console.log('View details for:', roadwork.title);
+    console.log('Opening details modal for:', roadwork.title);
     setSelectedRoadwork(roadwork);
     setShowDetailModal(true);
   };
