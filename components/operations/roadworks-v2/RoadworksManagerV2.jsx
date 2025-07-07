@@ -449,14 +449,22 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
           title: r.title || r.location || 'Street Manager Roadwork',
           status: r.status || 'active',
         })),
-        ...validReviewedStreetworks.map(r => ({ 
-          ...r, 
-          source: 'ReviewedStreetworks',
-          // Ensure required fields exist
-          id: r.id || `reviewed-${Date.now()}-${Math.random()}`,
-          title: r.title || r.location || 'Reviewed Streetwork',
-          status: r.status || 'monitoring',
-        }))
+        ...validReviewedStreetworks.map(r => {
+          const mappedRoadwork = { 
+            ...r, 
+            source: 'ReviewedStreetworks',
+            // Ensure required fields exist
+            id: r.id || `reviewed-${Date.now()}-${Math.random()}`,
+            title: r.title || r.location || 'Reviewed Streetwork',
+            status: r.status || 'monitoring',
+          };
+          console.log('🔍 ⭐ Mapping reviewed streetwork:', {
+            original_status: r.status,
+            final_status: mappedRoadwork.status,
+            title: mappedRoadwork.title
+          });
+          return mappedRoadwork;
+        })
       ];
       
       console.log('🔍 Combined roadworks before filtering:', allRoadworks.length);
@@ -524,6 +532,7 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
         
         // Skip geographical filtering for reviewed streetworks (already verified as relevant)
         if (roadwork.source === 'ReviewedStreetworks') {
+          console.log('🔍 ✅ Keeping reviewed streetwork (bypassing geo filter):', roadwork.title, 'Status:', roadwork.status);
           return true; // Already reviewed and confirmed as relevant to North East
         }
         
@@ -567,8 +576,15 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
         allRoadworks = allRoadworks.filter(r => r.status === 'active' || r.status === 'approved');
         console.log('🎯 After active filter (active + approved):', allRoadworks.length);
       } else if (activeTab === 'monitoring') {
+        const beforeFilter = allRoadworks.length;
+        const monitoringStatuses = [...new Set(allRoadworks.map(r => r.status))];
+        console.log('🎯 Before monitoring filter:', beforeFilter, 'Available statuses:', monitoringStatuses);
         allRoadworks = allRoadworks.filter(r => r.status === 'monitoring');
         console.log('🎯 After monitoring filter:', allRoadworks.length);
+        if (allRoadworks.length === 0 && beforeFilter > 0) {
+          console.log('🚨 PROBLEM: No monitoring roadworks found but', beforeFilter, 'roadworks existed before filtering');
+          console.log('🚨 This suggests the reviewed streetworks may not have status="monitoring"');
+        }
       } else if (activeTab === 'completed') {
         // Include completed, archived, and rejected statuses
         allRoadworks = allRoadworks.filter(r => 
@@ -1344,15 +1360,48 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
 
   // Enhanced Workflow Tab Renderers (Phase 2)
   const renderMonitoringTab = () => {
-    const allFilteredRoadworks = getFilteredRoadworks();
-    const monitoringRoadworks = allFilteredRoadworks.filter(r => r.status === 'monitoring');
+    // SPECIAL HANDLING: For monitoring tab, we need to combine data differently
+    // because reviewed streetworks might be filtered out by geographical filter
+    // but they should still appear in monitoring tab since they're already confirmed relevant
+    
+    const validRoadworks = Array.isArray(roadworks) ? roadworks : [];
+    const validStreetManagerRoadworks = Array.isArray(streetManagerRoadworks) ? streetManagerRoadworks : [];
+    const validReviewedStreetworks = Array.isArray(reviewedStreetworks) ? reviewedStreetworks : [];
+    
+    // Get all monitoring roadworks directly, bypassing geographical filtering for reviewed items
+    let allMonitoringRoadworks = [
+      // Manual and Street Manager roadworks go through normal filtering
+      ...getFilteredRoadworks().filter(r => r.status === 'monitoring'),
+      // Reviewed streetworks with monitoring status - bypass geographical filtering
+      ...validReviewedStreetworks.filter(r => r.status === 'monitoring').map(r => ({
+        ...r,
+        source: 'ReviewedStreetworks',
+        id: r.id || `reviewed-${Date.now()}-${Math.random()}`,
+        title: r.title || r.location || 'Reviewed Streetwork'
+      }))
+    ];
+    
+    // Remove duplicates by ID
+    const uniqueIds = new Set();
+    allMonitoringRoadworks = allMonitoringRoadworks.filter(roadwork => {
+      if (uniqueIds.has(roadwork.id)) {
+        return false;
+      }
+      uniqueIds.add(roadwork.id);
+      return true;
+    });
     
     // DEBUG: Log the filtering results
-    console.log('🔍 MONITORING TAB DEBUG:');
-    console.log('🔍 Total filtered roadworks:', allFilteredRoadworks.length);
-    console.log('🔍 Monitoring roadworks found:', monitoringRoadworks.length);
-    console.log('🔍 All statuses in filtered data:', [...new Set(allFilteredRoadworks.map(r => r.status))]);
-    console.log('🔍 Monitoring roadworks details:', monitoringRoadworks.slice(0, 3));
+    console.log('🔍 MONITORING TAB DEBUG (FIXED):');
+    console.log('🔍 Total monitoring roadworks found:', allMonitoringRoadworks.length);
+    console.log('🔍 Sources breakdown:', {
+      manual: allMonitoringRoadworks.filter(r => r.source === 'manual').length,
+      streetManager: allMonitoringRoadworks.filter(r => r.source === 'StreetManager').length,
+      reviewed: allMonitoringRoadworks.filter(r => r.source === 'ReviewedStreetworks').length
+    });
+    console.log('🔍 Sample monitoring roadworks:', allMonitoringRoadworks.slice(0, 3));
+    
+    const monitoringRoadworks = allMonitoringRoadworks;
     
     return (
       <View style={roadworksStyles.section}>
