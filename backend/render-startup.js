@@ -8,11 +8,8 @@ if (process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.SUPABASE_SERVICE_KEY) 
   console.log('✅ Mapped SUPABASE_SERVICE_ROLE_KEY to SUPABASE_SERVICE_KEY');
 }
 
-// Fix SUPABASE_URL typo if present
-if (process.env.SUPABASE_URL && process.env.SUPABASE_URL.includes('haountnghecfrsoniubq')) {
-  process.env.SUPABASE_URL = process.env.SUPABASE_URL.replace('haountnghecfrsoniubq', 'haountnqhecfrsonivbq');
-  console.log('✅ Fixed SUPABASE_URL typo');
-}
+// REMOVED - This was incorrectly "fixing" the correct URL
+// The actual Supabase URL is: haountnghecfrsoniubq (without extra 'n')
 
 // Test Supabase URL accessibility
 async function testSupabaseConnection() {
