@@ -20,7 +20,6 @@ import AppHeader from '../components/common/AppHeader';
 
 // Import only communications-related components
 import MessageDistributionEnhanced from '../components/communications/MessageDistributionEnhanced';
-import EmailIntegrationEnhanced from '../components/communications/EmailIntegrationEnhanced';
 import SharePointIntegration from '../components/communications/sharepoint/SharePointIntegration';
 import AutomatedReportingSystem from '../components/AutomatedReportingSystem';
 
@@ -44,22 +43,6 @@ const COMMUNICATIONS_CARDS = [
       'Email templates',
       'Smart replies',
       'Message tracking'
-    ],
-    stats: { label: 'Status', value: 'Ready' }
-  },
-  {
-    id: 'email',
-    title: 'Email Integration',
-    subtitle: 'Outlook Web Access & Quick Compose',
-    description: 'Access your Outlook inbox and send emails directly',
-    icon: 'mail',
-    color: '#10B981',
-    gradient: ['#27AE60', '#229954'],
-    features: [
-      'Outlook integration',
-      'Quick compose',
-      'Email templates',
-      'Distribution lists'
     ],
     stats: { label: 'Status', value: 'Ready' }
   },
@@ -174,8 +157,6 @@ const CommunicationsHub = () => {
     switch (activeComponent) {
       case 'messaging':
         return <MessageDistributionEnhanced {...componentProps} />;
-      case 'email':
-        return <EmailIntegrationEnhanced {...componentProps} />;
       case 'reports':
         return <AutomatedReportingSystem {...componentProps} />;
       case 'sharepoint':
