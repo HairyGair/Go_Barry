@@ -32,6 +32,7 @@ const AppHeader = () => {
   const isHomePage = pathname === '/' || pathname === '/index';
   const isCommunicationsHub = pathname === '/communications-hub';
   const isVoIPPage = pathname === '/voip';
+  const isDisruptionsPage = pathname === '/disruptions' || pathname.startsWith('/disruptions/');
   
   const handleLogout = async () => {
     await logout();
@@ -106,7 +107,8 @@ const AppHeader = () => {
       isOperationsCentre && styles.operationsHeader,
       isHomePage && styles.homeHeader,
       isCommunicationsHub && styles.communicationsHeader,
-      isVoIPPage && styles.voipHeader
+      isVoIPPage && styles.voipHeader,
+      isDisruptionsPage && styles.disruptionsHeader
     ]}>
       <View style={styles.leftSection}>
         <Image 
@@ -136,6 +138,12 @@ const AppHeader = () => {
           <View style={styles.voipInfo}>
             <Text style={styles.voipTitle}>8x8 VoIP System</Text>
             <Text style={styles.voipSubtitle}>Phone system with quick dial</Text>
+          </View>
+        )}
+        {isDisruptionsPage && (
+          <View style={styles.disruptionsInfo}>
+            <Text style={styles.disruptionsTitle}>Disruptions Centre</Text>
+            <Text style={styles.disruptionsSubtitle}>Daily Operational Tools</Text>
           </View>
         )}
       </View>
@@ -183,6 +191,25 @@ const AppHeader = () => {
           <Pressable onPress={() => router.replace('/communications-hub')} style={styles.backButton}>
             <MaterialCommunityIcons name="arrow-left" size={20} color="#fff" />
             <Text style={styles.backText}>Communications</Text>
+          </Pressable>
+          
+          <View style={styles.userInfo}>
+            <MaterialCommunityIcons name="account-circle" size={24} color="#fff" />
+            <Text style={styles.userName}>{supervisorName}</Text>
+          </View>
+          
+          <Pressable onPress={handleLogout} style={styles.logoutButton}>
+            <MaterialCommunityIcons name="logout" size={20} color="#ff6b6b" />
+            <Text style={styles.logoutText}>Logout</Text>
+          </Pressable>
+        </View>
+      )}
+      
+      {isDisruptionsPage && (
+        <View style={styles.rightSection}>
+          <Pressable onPress={() => router.replace('/')} style={styles.backButton}>
+            <MaterialCommunityIcons name="arrow-left" size={20} color="#fff" />
+            <Text style={styles.backText}>Home</Text>
           </Pressable>
           
           <View style={styles.userInfo}>
@@ -384,6 +411,16 @@ const styles = StyleSheet.create({
     height: 70,
   },
   voipHeader: {
+    backgroundColor: '#1a1a2e',
+    borderBottomColor: '#333',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: Platform.OS === 'web' ? 10 : 10,
+    paddingBottom: 10,
+    height: 70,
+  },
+  disruptionsHeader: {
     backgroundColor: '#1a1a2e',
     borderBottomColor: '#333',
     flexDirection: 'row',
@@ -646,6 +683,19 @@ const styles = StyleSheet.create({
     color: 'white',
   },
   voipSubtitle: {
+    fontSize: 13,
+    color: '#94a3b8',
+    marginTop: 2,
+  },
+  disruptionsInfo: {
+    marginLeft: 16,
+  },
+  disruptionsTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  disruptionsSubtitle: {
     fontSize: 13,
     color: '#94a3b8',
     marginTop: 2,

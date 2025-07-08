@@ -170,10 +170,6 @@ export default function DisruptionsPage() {
     return `${diffInDays} day${diffInDays === 1 ? '' : 's'} ago`;
   };
 
-  const handleBack = () => {
-    router.back();
-  };
-
   const navigateToIncidents = () => {
     router.push('/disruptions/incidents');
   };
@@ -200,27 +196,6 @@ export default function DisruptionsPage() {
     <DisruptionsErrorBoundary>
       <SafeAreaView style={styles.container}>
         <AppHeader />
-        {/* Header Section */}
-        <View style={styles.disruptionsHeader}>
-          <View style={styles.headerContent}>
-            <View style={styles.titleSection}>
-              <Pressable onPress={handleBack} style={styles.backButton}>
-                <MaterialCommunityIcons name="arrow-left" size={20} color="#fff" />
-                <Text style={styles.backText}>Home</Text>
-              </Pressable>
-              <Text style={styles.headerTitle}>Disruptions Centre</Text>
-              <Text style={styles.headerSubtitle}>Daily Operational Tools</Text>
-            </View>
-            <View style={styles.headerActions}>
-              {supervisorName && (
-                <View style={styles.userInfo}>
-                  <MaterialCommunityIcons name="account-circle" size={24} color="#fff" />
-                  <Text style={styles.userName}>{supervisorName}</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </View>
 
         {/* Status Bar */}
         <View style={styles.statusBar}>
@@ -438,58 +413,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-  },
-  disruptionsHeader: {
-    backgroundColor: '#1a1a2e',
-    paddingTop: Platform.OS === 'web' ? 20 : 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  titleSection: {
-    flex: 1,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
-  },
-  backText: {
-    color: '#94a3b8',
-    fontSize: 14,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#94a3b8',
-    marginTop: 2,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  userName: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '500',
   },
   statusBar: {
     flexDirection: 'row',
