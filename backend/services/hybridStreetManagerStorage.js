@@ -47,28 +47,61 @@ class HybridStreetManagerStorage {
       // Calculate cleanup date (end_date + 7 days)
       summary.cleanup_date = this.calculateCleanupDate(summary.end_date);
       
-      // Store full payload as JSON file
+      // Store full payload as JSON file (always successful)
       const filename = `${summary.notification_id}.json`;
       summary.file_reference = filename;
       
       this.writeNotificationFile(filename, notification);
+      console.log(`✅ Saved notification file: ${filename}`);
       
-      // Store lightweight summary in database
-      const { data, error } = await this.supabase
-        .from('streetmanager_summaries')
-        .upsert(summary, { onConflict: 'notification_id' });
+      // Try to store lightweight summary in database with retry logic
+      const dbResult = await this.storeWithRetry(summary);
       
-      if (error) {
-        console.error('❌ Failed to store summary:', error);
-        return { success: false, error };
+      if (dbResult.success) {
+        console.log(`✅ Stored notification ${summary.notification_id} (${summary.location})`);
+        return { success: true, data: dbResult.data };
+      } else {
+        console.warn(`⚠️ Database storage failed for ${summary.notification_id}, but file saved locally`);
+        return { success: true, data: summary, fallback: true };
       }
-      
-      console.log(`✅ Stored notification ${summary.notification_id} (${summary.location})`);
-      return { success: true, data };
       
     } catch (error) {
       console.error('❌ Storage error:', error);
       return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Store summary with retry logic
+   */
+  async storeWithRetry(summary, maxRetries = 3) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const { data, error } = await Promise.race([
+          this.supabase
+            .from('streetmanager_summaries')
+            .upsert(summary, { onConflict: 'notification_id' }),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Database timeout')), 10000)
+          )
+        ]);
+        
+        if (error) {
+          throw error;
+        }
+        
+        return { success: true, data };
+        
+      } catch (error) {
+        console.warn(`❌ Database attempt ${attempt}/${maxRetries} failed:`, error.message);
+        
+        if (attempt === maxRetries) {
+          return { success: false, error };
+        }
+        
+        // Wait before retry (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+      }
     }
   }
 
