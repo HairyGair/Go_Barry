@@ -42,7 +42,13 @@ async function testSupabaseConnection() {
 }
 
 // Run connection test (non-blocking)
-testSupabaseConnection().catch(console.error);
+(async () => {
+  try {
+    await testSupabaseConnection();
+  } catch (error) {
+    console.error('Connection test failed:', error.message);
+  }
+})();
 
 import express from 'express';
 import { createServer } from 'http';
