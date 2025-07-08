@@ -1,9 +1,37 @@
 // backend/services/streetManagerWebhooksSimple.js
 // Simple StreetManager webhook handler - Quick Fix
 
-// Storage for webhook data
+import memoryMonitor from './memoryMonitor.js';
+
+// Storage for webhook data with memory limits
 let webhookActivities = [];
 let webhookPermits = [];
+const MAX_WEBHOOK_STORAGE = 100; // Limit to prevent memory bloat
+const MAX_ACTIVITIES = 50;
+const MAX_PERMITS = 50;
+
+// Memory cleanup callback for emergency situations
+function webhookMemoryCleanup(level) {
+  console.log(`🧹 Street Manager Webhooks: ${level} memory cleanup triggered`);
+  
+  if (level === 'emergency') {
+    // Emergency: Clear most webhook data, keep only recent
+    webhookActivities = webhookActivities.slice(-10);
+    webhookPermits = webhookPermits.slice(-10);
+    console.log(`🚨 Emergency cleanup: Kept only 10 most recent activities and permits`);
+  } else {
+    // Preventive: Trim to half size
+    webhookActivities = webhookActivities.slice(-Math.floor(MAX_ACTIVITIES / 2));
+    webhookPermits = webhookPermits.slice(-Math.floor(MAX_PERMITS / 2));
+    console.log(`🧹 Preventive cleanup: Trimmed to ${webhookActivities.length} activities, ${webhookPermits.length} permits`);
+  }
+}
+
+// Register memory cleanup callback
+if (typeof memoryMonitor?.registerCleanupCallback === 'function') {
+  memoryMonitor.registerCleanupCallback(webhookMemoryCleanup);
+  console.log('📊 Registered Street Manager webhook memory cleanup callback');
+}
 
 /**
  * Clear all stored webhook data - no samples allowed

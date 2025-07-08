@@ -12,6 +12,7 @@ import {
   checkRateLimit 
 } from '../utils/secureAuth.js';
 import { supabaseOptimizer } from './supabaseOptimizer.js';
+import memoryMonitor from './memoryMonitor.js';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -32,9 +33,11 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
-// Supabase-backed session storage
-let supervisorSessions = {}; // Keep as cache
+// Supabase-backed session storage with memory optimization
+let supervisorSessions = {}; // Keep as cache with size limit
 let sessionCounter = 0;
+const MAX_SESSIONS_IN_MEMORY = 50; // Limit to prevent memory bloat
+const SESSION_CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes instead of 1 minute
 
 // Debug: Log when module is loaded
 const moduleLoadTime = new Date().toISOString();
@@ -555,10 +558,59 @@ async function cleanupInactiveSessions() {
   }
 }
 
-// Start auto-cleanup interval
+// Enforce session count limit to prevent memory bloat
+function enforceSessionLimit() {
+  const sessionIds = Object.keys(supervisorSessions);
+  if (sessionIds.length > MAX_SESSIONS_IN_MEMORY) {
+    // Sort by last activity and remove oldest sessions
+    const sortedSessions = sessionIds
+      .map(id => ({ id, lastActivity: supervisorSessions[id].lastActivity }))
+      .sort((a, b) => new Date(a.lastActivity) - new Date(b.lastActivity));
+    
+    const toRemove = sortedSessions.slice(0, sessionIds.length - MAX_SESSIONS_IN_MEMORY);
+    for (const session of toRemove) {
+      delete supervisorSessions[session.id];
+    }
+    
+    console.log(`🧹 Memory optimization: Removed ${toRemove.length} oldest sessions to stay under ${MAX_SESSIONS_IN_MEMORY} limit`);
+  }
+}
+
+// Memory cleanup callback for emergency situations
+function memoryCleanupCallback(level) {
+  console.log(`🧹 Supervisor Manager: ${level} memory cleanup triggered`);
+  
+  if (level === 'emergency') {
+    // Emergency: Clear all inactive sessions immediately
+    const beforeCount = Object.keys(supervisorSessions).length;
+    supervisorSessions = Object.fromEntries(
+      Object.entries(supervisorSessions).filter(([id, session]) => 
+        session.active && (Date.now() - new Date(session.lastActivity).getTime()) < 3600000 // Keep only sessions active in last hour
+      )
+    );
+    const afterCount = Object.keys(supervisorSessions).length;
+    console.log(`🚨 Emergency cleanup: Removed ${beforeCount - afterCount} supervisor sessions`);
+  } else {
+    // Preventive: Normal cleanup
+    cleanupInactiveSessions();
+    enforceSessionLimit();
+  }
+}
+
+// Start auto-cleanup interval with memory optimization
 function startSessionCleanup() {
-  cleanupInterval = setInterval(cleanupInactiveSessions, 60 * 1000);
-  console.log('🕐 Session auto-timeout enabled: 10 hours inactivity limit, cleanup every 60 seconds');
+  cleanupInterval = setInterval(() => {
+    cleanupInactiveSessions();
+    enforceSessionLimit(); // Also enforce memory limits
+  }, SESSION_CLEANUP_INTERVAL);
+  
+  // Register memory cleanup callback
+  if (typeof memoryMonitor?.registerCleanupCallback === 'function') {
+    memoryMonitor.registerCleanupCallback(memoryCleanupCallback);
+    console.log('📊 Registered supervisor manager memory cleanup callback');
+  }
+  
+  console.log(`🕐 Session auto-timeout enabled: 10 hours inactivity limit, cleanup every ${SESSION_CLEANUP_INTERVAL/1000/60} minutes`);
 }
 
 // Stop auto-cleanup interval  

@@ -90,6 +90,7 @@ import startOfServiceAPI from './routes/startOfServiceAPI.js';
 console.log('✅ startOfServiceAPI imported successfully');
 import locationCorrectionAPI from './routes/locationCorrectionAPI.js';
 import supervisorManager from './services/supervisorManager.js';
+import memoryMonitor from './services/memoryMonitor.js';
 import serviceFrequencyAnalyzer from './services/serviceFrequencyAnalyzer.js';
 import supervisorSyncService from './services/supervisorSync.js';
 import enhancedDataSourceManager from './services/enhancedDataSourceManager.js';
@@ -122,6 +123,8 @@ import authRoutes from './routes/authRoutes.js';
 console.log('✅ authRoutes imported');
 import sharePointExcelAPI from './routes/sharePointExcelAPI.js';
 console.log('✅ sharePointExcelAPI imported');
+import memoryAPI from './routes/memoryAPI.js';
+console.log('✅ memoryAPI imported');
 
 // Communications API Route
 app.use('/api/communications', communicationsAPI);
@@ -497,6 +500,9 @@ app.get('/api/buses/health', (req, res) => {
 
 // Admin API routes
 app.use('/api/admin', adminAPI);
+
+// Memory monitoring API routes
+app.use('/api/memory', memoryAPI);
 
 // Cleanup & Maintenance API routes
 app.use('/api/cleanup', cleanupAPI);
@@ -4945,6 +4951,14 @@ import { emailService } from './services/communications/emailService.js';
       console.log('✅ WebSocket service initialized');
     }
     
+    // Start memory monitoring for Render.com 2GB limit
+    try {
+      memoryMonitor.start();
+      console.log('✅ Memory monitoring started (2GB limit)');
+    } catch (error) {
+      console.warn('⚠️ Memory monitor failed to start:', error.message);
+    }
+    
     // Start real-time disruption scoring (5-minute intervals)
     try {
       realTimeDisruptionScoring.startMonitoring(5);
@@ -5025,6 +5039,14 @@ process.on('SIGTERM', () => {
     console.log('✅ Street Manager scheduler stopped');
   } catch (error) {
     console.warn('⚠️ Error stopping Street Manager scheduler:', error.message);
+  }
+  
+  // Stop memory monitoring
+  try {
+    memoryMonitor.stop();
+    console.log('✅ Memory monitor stopped');
+  } catch (error) {
+    console.warn('⚠️ Error stopping memory monitor:', error.message);
   }
   
   // Force garbage collection if available

@@ -347,11 +347,21 @@ export const useSupervisorSession = () => {
     setError(null);
     
     try {
+      console.log('🔐 Login attempt:', { 
+        supervisorId: loginData.supervisorId, 
+        hasPassword: !!loginData.password,
+        duty: loginData.duty 
+      });
+      
       // Validate supervisor
       const supervisor = SUPERVISOR_DB[loginData.supervisorId];
       if (!supervisor) {
+        console.error('❌ Supervisor not found:', loginData.supervisorId);
+        console.log('Available supervisors:', Object.keys(SUPERVISOR_DB));
         throw new Error('Supervisor not found');
       }
+      
+      console.log('✅ Supervisor found:', supervisor.name);
 
       // Check if this is a first-time user who needs password setup
       if (!loginData.isPasswordSetup && passwordStorageService.isFirstTimeUser(loginData.supervisorId)) {
@@ -370,16 +380,29 @@ export const useSupervisorSession = () => {
 
       // Validate password
       if (!loginData.password) {
+        console.error('❌ No password provided');
         throw new Error('Password is required');
       }
 
       // Check password (includes checking default passwords for all supervisors)
-      const isValidPassword = passwordStorageService.checkPassword(loginData.supervisorId, loginData.password) ||
-        (supervisor.defaultPassword && loginData.password === supervisor.defaultPassword);
+      const storedPasswordValid = passwordStorageService.checkPassword(loginData.supervisorId, loginData.password);
+      const defaultPasswordValid = supervisor.defaultPassword && loginData.password === supervisor.defaultPassword;
+      const isValidPassword = storedPasswordValid || defaultPasswordValid;
+      
+      console.log('🔑 Password check:', { 
+        enteredPassword: loginData.password,
+        defaultPassword: supervisor.defaultPassword,
+        storedPasswordValid,
+        defaultPasswordValid,
+        isValidPassword 
+      });
 
       if (!isValidPassword) {
+        console.error('❌ Password validation failed');
         throw new Error('Incorrect password');
       }
+      
+      console.log('✅ Password validated successfully');
 
       // Get backend mapping
       const backendSupervisor = BACKEND_MAPPING[loginData.supervisorId];

@@ -5,6 +5,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import memoryMonitor from './memoryMonitor.js';
 
 // Initialize Supabase client for caching
 const supabase = createClient(
@@ -12,10 +13,53 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
-// In-memory cache for frequently accessed locations
+// In-memory cache for frequently accessed locations with size limits
 const memoryCache = new Map();
 const MEMORY_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 const DB_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days
+const MAX_MEMORY_CACHE_SIZE = 500; // Reduced from 1000 to be more memory-friendly
+
+// Memory cleanup callback for emergency situations
+function geocodingMemoryCleanup(level) {
+  console.log(`🧹 Geocoding Cache: ${level} memory cleanup triggered`);
+  
+  if (level === 'emergency') {
+    // Emergency: Clear most of the cache
+    memoryCache.clear();
+    console.log(`🚨 Emergency cleanup: Cleared geocoding memory cache`);
+  } else {
+    // Preventive: Remove expired entries and oldest 50%
+    const now = Date.now();
+    const cutoff = now - MEMORY_CACHE_TTL;
+    const entries = Array.from(memoryCache.entries());
+    
+    // Remove expired entries
+    for (const [key, value] of entries) {
+      if (value.timestamp < cutoff) {
+        memoryCache.delete(key);
+      }
+    }
+    
+    // If still too large, remove oldest entries
+    if (memoryCache.size > MAX_MEMORY_CACHE_SIZE / 2) {
+      const remainingEntries = Array.from(memoryCache.entries())
+        .sort((a, b) => a[1].timestamp - b[1].timestamp);
+      
+      const toRemove = remainingEntries.slice(0, remainingEntries.length / 2);
+      for (const [key] of toRemove) {
+        memoryCache.delete(key);
+      }
+    }
+    
+    console.log(`🧹 Preventive cleanup: Geocoding cache now has ${memoryCache.size} entries`);
+  }
+}
+
+// Register memory cleanup callback
+if (typeof memoryMonitor?.registerCleanupCallback === 'function') {
+  memoryMonitor.registerCleanupCallback(geocodingMemoryCleanup);
+  console.log('📊 Registered geocoding cache memory cleanup callback');
+}
 
 /**
  * Reverse geocode coordinates with caching
@@ -329,8 +373,8 @@ function setMemoryCache(cacheKey, data) {
     timestamp: Date.now()
   });
   
-  // Cleanup old entries if cache gets too large
-  if (memoryCache.size > 1000) {
+  // Cleanup old entries if cache gets too large (using new limit)
+  if (memoryCache.size > MAX_MEMORY_CACHE_SIZE) {
     const oldestEntries = Array.from(memoryCache.entries())
       .sort((a, b) => a[1].timestamp - b[1].timestamp)
       .slice(0, 100);

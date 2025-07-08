@@ -51,15 +51,26 @@ const AppHeader = () => {
     const loginData = {
       supervisorId: selectedSupervisor,
       password: password,
-      duty: 'end_of_shift',
+      duty: '200', // Default to Duty 200 (Day shift)
       rememberMe: false
     };
     
+    console.log('🔐 AppHeader: Attempting login with:', { 
+      supervisorId: loginData.supervisorId, 
+      duty: loginData.duty,
+      hasPassword: !!loginData.password
+    });
+    
     const result = await login(loginData);
     
+    console.log('🔐 AppHeader: Login result:', result);
+    
     if (!result.success) {
-      setLoginError(result.error || 'Login failed');
+      const errorMsg = result.error || 'Login failed';
+      console.error('❌ AppHeader: Login failed:', errorMsg);
+      setLoginError(errorMsg);
     } else {
+      console.log('✅ AppHeader: Login successful, clearing form');
       // Clear form and hide login
       setSelectedSupervisor('');
       setPassword('');
