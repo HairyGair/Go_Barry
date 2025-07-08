@@ -1,14 +1,5 @@
-// Redirect to the new Operations Centre
-import { useEffect } from 'react';
-import { useRouter } from 'expo-router';
+// Direct import of Operations Centre component
+import OperationsCentre from './operations-centre/index';
 
-export default function Operations() {
-  const router = useRouter();
-  
-  useEffect(() => {
-    // Redirect to the new operations centre
-    router.replace('/operations-centre');
-  }, []);
-  
-  return null;
-}
+// Export the Operations Centre component directly
+export default OperationsCentre;

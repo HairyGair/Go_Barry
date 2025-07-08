@@ -23,10 +23,10 @@ const isWeb = Platform.OS === 'web';
 const AdminPanel = lazy(() => import('../app/admin/index'));
 const SupervisorControl = lazy(() => import('../components/SupervisorControl'));
 const EnhancedDashboard = lazy(() => import('../components/EnhancedDashboard'));
-const IncidentManager = lazy(() => import('../components/IncidentManager'));
-const RoadworksManager = lazy(() => import('../components/RoadworksManager'));
-const AIDisruptionManager = lazy(() => import('../components/AIDisruptionManager'));
-const MessageDistributionCenter = lazy(() => import('../components/MessageDistributionCenter'));
+const IncidentManager = lazy(() => import('../components/operations/IncidentManagerLegacy'));
+const RoadworksManager = lazy(() => import('../components/operations/RoadworksManager'));
+const AIDisruptionManager = lazy(() => import('../components/operations/DisruptionDatabase'));
+const MessageDistributionCenter = lazy(() => import('../components/MessageDistributionCentre'));
 const AutomatedReportingSystem = lazy(() => import('../components/AutomatedReportingSystem'));
 const SystemHealthMonitor = lazy(() => import('../components/SystemHealthMonitor'));
 const TrainingHelpSystem = lazy(() => import('../components/TrainingHelpSystem'));
@@ -101,6 +101,15 @@ const BrowserMain = () => {
     },
     { 
       id: 'disruptions', 
+      title: 'Disruption Manager', 
+      description: 'Unified disruption management with real-time tracking',
+      icon: 'alert-circle', 
+      color: '#DC2626',
+      component: lazy(() => import('../components/disruptions/DisruptionManager')),
+      requiresAuth: true
+    },
+    { 
+      id: 'ai-disruptions', 
       title: 'AI Disruption Manager', 
       description: 'Smart diversions & automated messaging',
       icon: 'flash', 

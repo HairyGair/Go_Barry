@@ -28,6 +28,12 @@ const SupervisorManager = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
+  const [showAuditTrail, setShowAuditTrail] = useState(false);
+  const [auditTrailData, setAuditTrailData] = useState([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [showActivityView, setShowActivityView] = useState(false);
+  const [activityData, setActivityData] = useState(null);
+  const [activityLoading, setActivityLoading] = useState(false);
 
   // Load supervisors
   useEffect(() => {
@@ -56,6 +62,64 @@ const SupervisorManager = () => {
       console.error('Error loading supervisors:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAuditTrail = async (supervisorId) => {
+    setAuditLoading(true);
+    try {
+      // TODO: Implement audit trail endpoint in backend
+      // Expected endpoint: GET /api/supervisor/audit-trail/:supervisorId
+      // Should return: { actions: [{ action, timestamp, details, type }] }
+      const response = await fetch(`${API_BASE}/api/supervisor/audit-trail/${supervisorId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setAuditTrailData(data.actions || []);
+      } else {
+        // For now, show mock data
+        setAuditTrailData([
+          { action: 'Logged In', timestamp: new Date().toISOString(), details: 'Successfully authenticated' },
+          { action: 'Dismissed Alert', timestamp: new Date(Date.now() - 3600000).toISOString(), details: 'Alert ID: A1234 - Traffic on A1' },
+          { action: 'Created Incident', timestamp: new Date(Date.now() - 7200000).toISOString(), details: 'Route 21 - Major delay' },
+        ]);
+      }
+    } catch (error) {
+      console.error('Error loading audit trail:', error);
+      Alert.alert('Note', 'Audit trail endpoint not yet implemented');
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  const loadActivityData = async (supervisorId) => {
+    setActivityLoading(true);
+    try {
+      // TODO: Implement activity endpoint in backend
+      // Expected endpoint: GET /api/supervisor/activity/:supervisorId
+      // Should return: { totalLogins, alertsDismissed, incidentsCreated, avgSessionTime, timeline }
+      const response = await fetch(`${API_BASE}/api/supervisor/activity/${supervisorId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setActivityData(data);
+      } else {
+        // For now, show mock data
+        setActivityData({
+          totalLogins: 3,
+          alertsDismissed: 12,
+          incidentsCreated: 2,
+          avgSessionTime: '45m',
+          timeline: [
+            { timestamp: new Date().toISOString(), action: 'Logged In', details: 'Via supervisor portal' },
+            { timestamp: new Date(Date.now() - 1800000).toISOString(), action: 'Viewed Dashboard', details: 'Checked active alerts' },
+            { timestamp: new Date(Date.now() - 3600000).toISOString(), action: 'Dismissed Alert', details: 'A1 congestion cleared' },
+          ]
+        });
+      }
+    } catch (error) {
+      console.error('Error loading activity data:', error);
+      Alert.alert('Note', 'Activity tracking endpoint not yet implemented');
+    } finally {
+      setActivityLoading(false);
     }
   };
 
@@ -159,7 +223,10 @@ const SupervisorManager = () => {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.sectionTitle}>Active Sessions ({activeSessions.length})</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Active Sessions ({activeSessions.length})</Text>
+        <Text style={styles.sectionDescription}>Currently logged in supervisors</Text>
+      </View>
       
       <View style={styles.sessionsGrid}>
         {activeSessions.map(session => (
@@ -183,6 +250,9 @@ const SupervisorManager = () => {
               <Text style={styles.sessionInfoText}>
                 Last Activity: {new Date(session.lastActivity).toLocaleTimeString()}
               </Text>
+              <Text style={styles.sessionInfoText}>
+                Duration: {Math.floor((Date.now() - new Date(session.loginTime).getTime()) / 60000)} minutes
+              </Text>
             </View>
             
             <TouchableOpacity
@@ -196,7 +266,10 @@ const SupervisorManager = () => {
         ))}
       </View>
 
-      <Text style={styles.sectionTitle}>All Supervisors ({supervisors.length})</Text>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>All Supervisors ({supervisors.length})</Text>
+        <Text style={styles.sectionDescription}>Complete list of registered supervisors</Text>
+      </View>
       
       <View style={styles.supervisorsList}>
         {supervisors.map(supervisor => {
@@ -208,18 +281,49 @@ const SupervisorManager = () => {
                 <View style={[styles.statusIndicator, { 
                   backgroundColor: isOnline ? '#10B981' : '#E5E7EB' 
                 }]} />
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.supervisorName}>{supervisor.name}</Text>
                   <Text style={styles.supervisorDetails}>
                     {supervisor.role} • Badge: {supervisor.badge}
                   </Text>
-                  {supervisor.isAdmin && (
-                    <Text style={styles.adminBadge}>ADMIN ACCESS</Text>
-                  )}
+                  <View style={styles.supervisorMeta}>
+                    {supervisor.isAdmin && (
+                      <View style={styles.adminBadgeContainer}>
+                        <Ionicons name="shield-checkmark" size={12} color="#F59E0B" />
+                        <Text style={styles.adminBadge}>ADMIN</Text>
+                      </View>
+                    )}
+                    {isOnline && (
+                      <View style={styles.onlineBadgeContainer}>
+                        <Ionicons name="radio-button-on" size={12} color="#10B981" />
+                        <Text style={styles.onlineBadge}>ONLINE</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
               </View>
               
               <View style={styles.supervisorActions}>
+                <TouchableOpacity 
+                  style={styles.activityButton}
+                  onPress={() => {
+                    setSelectedSupervisor(supervisor);
+                    setShowActivityView(true);
+                    loadActivityData(supervisor.id);
+                  }}
+                >
+                  <Ionicons name="bar-chart" size={18} color="#10B981" />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.auditButton}
+                  onPress={() => {
+                    setSelectedSupervisor(supervisor);
+                    setShowAuditTrail(true);
+                    loadAuditTrail(supervisor.id);
+                  }}
+                >
+                  <Ionicons name="document-text" size={18} color="#6366F1" />
+                </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.resetPasswordButton}
                   onPress={() => {
@@ -231,9 +335,6 @@ const SupervisorManager = () => {
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.editButton}>
                   <Ionicons name="create" size={18} color="#3B82F6" />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.deleteButton}>
-                  <Ionicons name="trash" size={18} color="#EF4444" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -248,6 +349,119 @@ const SupervisorManager = () => {
         <Ionicons name="add-circle" size={20} color="#FFFFFF" />
         <Text style={styles.addButtonText}>Add New Supervisor</Text>
       </TouchableOpacity>
+
+      {/* Audit Trail Modal */}
+      {showAuditTrail && selectedSupervisor && (
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxWidth: 600 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Audit Trail - {selectedSupervisor.name}</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowAuditTrail(false);
+                  setAuditTrailData([]);
+                  setSelectedSupervisor(null);
+                }}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.auditTrailContainer}>
+              {auditLoading ? (
+                <ActivityIndicator size="large" color="#3B82F6" />
+              ) : auditTrailData.length === 0 ? (
+                <Text style={styles.noDataText}>No audit trail data available</Text>
+              ) : (
+                auditTrailData.map((action, index) => (
+                  <View key={index} style={styles.auditItem}>
+                    <View style={styles.auditHeader}>
+                      <Text style={styles.auditAction}>{action.action}</Text>
+                      <Text style={styles.auditTime}>
+                        {new Date(action.timestamp).toLocaleString()}
+                      </Text>
+                    </View>
+                    {action.details && (
+                      <Text style={styles.auditDetails}>{action.details}</Text>
+                    )}
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      )}
+
+      {/* Activity View Modal */}
+      {showActivityView && selectedSupervisor && (
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxWidth: 700 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Daily Activity - {selectedSupervisor.name}</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowActivityView(false);
+                  setActivityData(null);
+                  setSelectedSupervisor(null);
+                }}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.activityContainer}>
+              {activityLoading ? (
+                <ActivityIndicator size="large" color="#3B82F6" />
+              ) : !activityData ? (
+                <Text style={styles.noDataText}>No activity data available</Text>
+              ) : (
+                <>
+                  <View style={styles.activityStats}>
+                    <View style={styles.statCard}>
+                      <Text style={styles.statValue}>{activityData.totalLogins || 0}</Text>
+                      <Text style={styles.statLabel}>Total Logins</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                      <Text style={styles.statValue}>{activityData.alertsDismissed || 0}</Text>
+                      <Text style={styles.statLabel}>Alerts Dismissed</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                      <Text style={styles.statValue}>{activityData.incidentsCreated || 0}</Text>
+                      <Text style={styles.statLabel}>Incidents Created</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                      <Text style={styles.statValue}>
+                        {activityData.avgSessionTime || '0m'}
+                      </Text>
+                      <Text style={styles.statLabel}>Avg Session Time</Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.sectionSubtitle}>Today's Timeline</Text>
+                  <View style={styles.timeline}>
+                    {activityData.timeline?.map((event, index) => (
+                      <View key={index} style={styles.timelineItem}>
+                        <View style={styles.timelineDot} />
+                        <View style={styles.timelineContent}>
+                          <Text style={styles.timelineTime}>
+                            {new Date(event.timestamp).toLocaleTimeString()}
+                          </Text>
+                          <Text style={styles.timelineAction}>{event.action}</Text>
+                          {event.details && (
+                            <Text style={styles.timelineDetails}>{event.details}</Text>
+                          )}
+                        </View>
+                      </View>
+                    )) || (
+                      <Text style={styles.noDataText}>No timeline data for today</Text>
+                    )}
+                  </View>
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      )}
 
       {/* Password Reset Modal */}
       {showResetPassword && selectedSupervisor && (
@@ -344,11 +558,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 100,
   },
+  sectionHeader: {
+    marginBottom: 16,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#1F2937',
-    marginBottom: 16,
+    marginBottom: 4,
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: '#6B7280',
   },
   sessionsGrid: {
     flexDirection: 'row',
@@ -456,11 +677,38 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 2,
   },
+  supervisorMeta: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  adminBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
   adminBadge: {
     fontSize: 10,
     color: '#F59E0B',
     fontWeight: '700',
-    marginTop: 2,
+  },
+  onlineBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#D1FAE5',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  onlineBadge: {
+    fontSize: 10,
+    color: '#10B981',
+    fontWeight: '700',
   },
   supervisorActions: {
     flexDirection: 'row',
@@ -480,6 +728,16 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 6,
     backgroundColor: '#FEF8F1',
+  },
+  activityButton: {
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: '#D1FAE5',
+  },
+  auditButton: {
+    padding: 8,
+    borderRadius: 6,
+    backgroundColor: '#E0E7FF',
   },
   addButton: {
     flexDirection: 'row',
@@ -590,6 +848,116 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  auditTrailContainer: {
+    maxHeight: 400,
+    marginVertical: 10,
+  },
+  auditItem: {
+    backgroundColor: '#F9FAFB',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  auditHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  auditAction: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  auditTime: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  auditDetails: {
+    fontSize: 12,
+    color: '#4B5563',
+    marginTop: 4,
+  },
+  noDataText: {
+    textAlign: 'center',
+    color: '#6B7280',
+    fontSize: 14,
+    paddingVertical: 20,
+  },
+  activityContainer: {
+    maxHeight: 500,
+  },
+  activityStats: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 24,
+  },
+  statCard: {
+    flex: 1,
+    minWidth: 140,
+    backgroundColor: '#F3F4F6',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  sectionSubtitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  timeline: {
+    borderLeftWidth: 2,
+    borderLeftColor: '#E5E7EB',
+    marginLeft: 12,
+    paddingLeft: 20,
+  },
+  timelineItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  timelineDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#3B82F6',
+    position: 'absolute',
+    left: -26,
+    top: 4,
+  },
+  timelineContent: {
+    flex: 1,
+  },
+  timelineTime: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 2,
+  },
+  timelineAction: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  timelineDetails: {
+    fontSize: 12,
+    color: '#4B5563',
   },
 });
 

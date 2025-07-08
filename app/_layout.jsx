@@ -29,8 +29,14 @@ export default function RootLayout() {
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="browser-main" options={{ headerShown: false }} />
+            <Stack.Screen name="browser-main-optimized" options={{ headerShown: false }} />
             <Stack.Screen name="display" options={{ headerShown: false }} />
+            <Stack.Screen name="operations" options={{ headerShown: false }} />
+            <Stack.Screen name="operations-centre" options={{ headerShown: false }} />
+            <Stack.Screen name="admin" options={{ headerShown: false }} />
+            <Stack.Screen name="disruptions" options={{ headerShown: false }} />
+            <Stack.Screen name="voip" options={{ headerShown: false }} />
+            <Stack.Screen name="communications-hub" options={{ headerShown: false }} />
           </Stack>
         </SupervisorProvider>
       </ThemeProvider>

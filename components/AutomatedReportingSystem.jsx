@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
+import StartOfServiceReportGenerator from './reports/StartOfServiceReportGenerator';
 
 const isWeb = Platform.OS === 'web';
 
@@ -75,6 +76,7 @@ const AutomatedReportingSystem = ({ baseUrl }) => {
   const [generatingReport, setGeneratingReport] = useState(null);
   const [reportSchedule, setReportSchedule] = useState([]);
   const [systemStats, setSystemStats] = useState({});
+  const [showStartOfServiceGenerator, setShowStartOfServiceGenerator] = useState(false);
 
   // API base URL
   const API_BASE = baseUrl || (isWeb 
@@ -101,59 +103,8 @@ const AutomatedReportingSystem = ({ baseUrl }) => {
   const loadReportHistory = async () => {
     setLoading(true);
     try {
-      // Mock report history - in production this would come from backend
-      const now = new Date();
-      const mockHistory = [
-        {
-          id: 'report_001',
-          type: 'startOfService',
-          title: 'Start of Service Report - ' + now.toDateString(),
-          generatedAt: new Date(now.getTime() - 6 * 60 * 60 * 1000).toISOString(), // 6 hours ago
-          generatedBy: 'System (Automated)',
-          status: 'sent',
-          recipients: 8,
-          size: '245KB',
-          summary: {
-            totalAlerts: 12,
-            activeIncidents: 3,
-            affectedRoutes: 7,
-            resolvedIssues: 9
-          }
-        },
-        {
-          id: 'report_002',
-          type: 'disruption',
-          title: 'Disruption Summary - Newcastle City Centre',
-          generatedAt: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(), // 2 hours ago
-          generatedBy: 'Alex Woodcock',
-          status: 'sent',
-          recipients: 5,
-          size: '156KB',
-          summary: {
-            totalDisruptions: 2,
-            affectedRoutes: 4,
-            estimatedDelay: '15-20 minutes',
-            diversionsActive: 1
-          }
-        },
-        {
-          id: 'report_003',
-          type: 'alerts',
-          title: 'Alert Activity Report - Yesterday',
-          generatedAt: new Date(now.getTime() - 18 * 60 * 60 * 1000).toISOString(), // 18 hours ago
-          generatedBy: 'System (Automated)',
-          status: 'sent',
-          recipients: 12,
-          size: '89KB',
-          summary: {
-            totalAlerts: 45,
-            dismissed: 38,
-            acknowledged: 7,
-            responseTime: '3.2 minutes'
-          }
-        }
-      ];
-      setReportHistory(mockHistory);
+      // No mock data - start with empty history
+      setReportHistory([]);
     } catch (error) {
       console.error('Failed to load report history:', error);
     } finally {
@@ -194,16 +145,16 @@ const AutomatedReportingSystem = ({ baseUrl }) => {
 
   const loadSystemStats = async () => {
     try {
-      // Mock system statistics
+      // No mock data - show actual status only
       setSystemStats({
-        reportsGenerated: 156,
-        automatedReports: 134,
-        manualReports: 22,
-        totalRecipients: 45,
-        averageGenerationTime: '2.3 seconds',
-        successRate: 99.2,
-        lastAutomatedReport: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-        nextScheduledReport: new Date(Date.now() + 18 * 60 * 60 * 1000).toISOString()
+        reportsGenerated: 0,
+        automatedReports: 0,
+        manualReports: 0,
+        totalRecipients: 0,
+        averageGenerationTime: 'N/A',
+        successRate: 0,
+        lastAutomatedReport: null,
+        nextScheduledReport: null
       });
     } catch (error) {
       console.error('Failed to load system stats:', error);
@@ -214,6 +165,12 @@ const AutomatedReportingSystem = ({ baseUrl }) => {
   const generateReport = async (reportType) => {
     if (!isLoggedIn) {
       alert('Please log in as a supervisor to generate reports');
+      return;
+    }
+
+    // Special handling for Start of Service Report
+    if (reportType === 'startOfService') {
+      setShowStartOfServiceGenerator(true);
       return;
     }
 
@@ -514,6 +471,16 @@ const AutomatedReportingSystem = ({ baseUrl }) => {
           </View>
         </View>
       </ScrollView>
+
+      {/* Start of Service Report Generator Modal */}
+      {showStartOfServiceGenerator && (
+        <View style={styles.modalOverlay}>
+          <StartOfServiceReportGenerator
+            onClose={() => setShowStartOfServiceGenerator(false)}
+            baseUrl={API_BASE}
+          />
+        </View>
+      )}
     </View>
   );
 };
@@ -835,6 +802,15 @@ const styles = StyleSheet.create({
   systemInfoValue: {
     fontSize: 14,
     color: '#6B7280',
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 1000,
   },
 });
 

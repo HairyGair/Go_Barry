@@ -1576,14 +1576,20 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
               roadwork={{
                 ...roadwork,
                 completedDate: roadwork.updated_at,
-                canArchive: new Date(roadwork.updated_at) < new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+                canArchive: new Date(roadwork.updated_at) < new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+                // Add archive reason for rejected/archived items
+                archiveReason: roadwork.status === 'rejected' ? 
+                  (roadwork.notes || 'Rejected - No GNE routes affected') :
+                  roadwork.status === 'archived' ?
+                  (roadwork.notes || 'Monitoring complete - Archived') :
+                  null
               }}
               onPress={handleRoadworkPress}
               onViewMap={handleViewMap}
               onStatusChange={handleStatusChange}
               isAdmin={isAdmin}
-              showActions={true}
-              showArchiveAction={true}
+              showActions={roadwork.status === 'completed'} // Only show actions for completed items
+              archived={roadwork.status === 'archived' || roadwork.status === 'rejected'} // Mark as archived for display
             />
           ))
         ) : (
@@ -1663,7 +1669,9 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
               roadwork={{
                 ...roadwork,
                 archivedDate: roadwork.updated_at,
-                archiveReason: roadwork.status === 'rejected' ? 'Rejected' : 'Completed'
+                archiveReason: roadwork.status === 'rejected' ? 
+                  (roadwork.notes || roadwork.rejection_reason || 'Rejected - No GNE routes affected') :
+                  (roadwork.notes || 'Monitoring complete - Archived')
               }}
               onPress={handleRoadworkPress}
               onViewMap={handleViewMap}

@@ -7,7 +7,7 @@
 import React from 'react';
 import { Pressable, View, Text, StyleSheet, Platform, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { operationsTheme } from '../styles/theme';
+import { operationsTheme } from '../../../lib/_styles-index.js';
 
 export default function OperationsCard({ 
   id,
@@ -17,7 +17,8 @@ export default function OperationsCard({
   color, 
   stats,
   onPress,
-  isLoading = false 
+  isLoading = false,
+  textColor = "white" // Default to white text for backward compatibility
 }) {
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
   
@@ -57,18 +58,18 @@ export default function OperationsCard({
               <MaterialCommunityIcons 
                 name={icon} 
                 size={32} 
-                color="white" 
+                color={textColor} 
               />
               {stats && (
                 <View style={styles.cardStat}>
-                  <Text style={styles.statValue}>{stats.value}</Text>
-                  <Text style={styles.statLabel}>{stats.label}</Text>
+                  <Text style={[styles.statValue, { color: textColor }]}>{stats.value}</Text>
+                  <Text style={[styles.statLabel, { color: textColor }]}>{stats.label}</Text>
                 </View>
               )}
             </View>
             <View style={styles.cardInfo}>
-              <Text style={styles.cardTitle}>{title}</Text>
-              <Text style={styles.cardSubtitle}>{subtitle}</Text>
+              <Text style={[styles.cardTitle, { color: textColor }]}>{title}</Text>
+              <Text style={[styles.cardSubtitle, { color: textColor }]}>{subtitle}</Text>
             </View>
           </View>
           
@@ -85,7 +86,7 @@ export default function OperationsCard({
 
 const styles = StyleSheet.create({
   cardContainer: {
-    width: Platform.OS === 'web' ? 'calc(33.333% - 11px)' : '48%',
+    width: Platform.OS === 'web' ? '31%' : '48%',
     height: 180,
     marginBottom: 16,
   },

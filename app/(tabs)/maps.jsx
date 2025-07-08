@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useBarryAPI } from '../../components/hooks/useBARRYapi';
+import AppHeader from '../../components/common/AppHeader';
 import { API_CONFIG, ENV_INFO } from '../../config/api';
 
 const { width } = Dimensions.get('window');
@@ -356,9 +357,10 @@ export default function TrafficIntelligenceScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+      <AppHeader />
       
       {/* Header */}
-      <View style={styles.header}>
+      <View style={styles.mapsHeader}>
         <View style={styles.headerLeft}>
           <View style={styles.headerTitleContainer}>
             <Text style={styles.headerEmoji}>🚦</Text>
@@ -530,7 +532,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontFamily: 'monospace',
   },
-  header: {
+  mapsHeader: {
     backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     justifyContent: 'space-between',

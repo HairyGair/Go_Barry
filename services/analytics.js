@@ -1,5 +1,6 @@
 // Analytics Service for Go BARRY
-import { Platform } from 'react-native';
+import React from 'react';
+import { Platform, Dimensions } from 'react-native';
 
 class AnalyticsService {
   constructor() {
@@ -217,16 +218,25 @@ class AnalyticsService {
       });
 
       if (!response.ok) {
-        // Re-queue events if send failed
+        // Don't re-queue events on 404 - endpoint doesn't exist
+        if (response.status === 404) {
+          if (this.debugMode) {
+            console.warn('📊 Analytics endpoint not available (404), dropping events');
+          }
+          return;
+        }
+        
+        // Re-queue events for other errors
         this.queue.unshift(...events);
         console.error('Analytics flush failed:', response.status);
       } else if (this.debugMode) {
         console.log(`📊 Flushed ${events.length} events`);
       }
     } catch (error) {
-      // Re-queue events if send failed
-      this.queue.unshift(...events);
-      console.error('Analytics flush error:', error);
+      // Don't re-queue on network errors - backend might not be running
+      if (this.debugMode) {
+        console.warn('📊 Analytics network error, dropping events:', error.message);
+      }
     }
   }
 
@@ -235,7 +245,7 @@ class AnalyticsService {
     if (Platform.OS === 'web') {
       return `${window.screen.width}x${window.screen.height}`;
     }
-    const { width, height } = require('react-native').Dimensions.get('window');
+    const { width, height } = Dimensions.get('window');
     return `${width}x${height}`;
   }
 

@@ -5,6 +5,7 @@ import { View, StyleSheet, StatusBar, Platform, TouchableOpacity, Text } from 'r
 import { Ionicons } from '@expo/vector-icons';
 import DisruptionControlRoom from '../../components/DisruptionControlRoom';
 import DisruptionLogger from '../../components/DisruptionLogger';
+import AppHeader from '../../components/common/AppHeader';
 import { API_CONFIG } from '../../config/api';
 
 const isWeb = Platform.OS === 'web';
@@ -15,6 +16,7 @@ export default function DisruptionScreen() {
   return (
     <View style={styles.container}>
       {!isWeb && <StatusBar barStyle="light-content" backgroundColor="#111827" />}
+      <AppHeader />
       
       {/* Tab Header */}
       <View style={styles.tabHeader}>

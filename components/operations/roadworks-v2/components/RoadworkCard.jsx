@@ -67,6 +67,20 @@ const RoadworkCard = ({
         textStyle: roadworksStyles.statusBadgeTextPlanned,
         icon: 'eye', 
         label: 'Monitoring' 
+      },
+      archived: { 
+        color: colors.textMuted, 
+        bgColor: colors.surfaceLight,
+        textStyle: roadworksStyles.statusBadgeTextCompleted,
+        icon: 'filing', 
+        label: 'Archived' 
+      },
+      rejected: { 
+        color: colors.error, 
+        bgColor: colors.errorBg || '#ffe6e6',
+        textStyle: roadworksStyles.statusBadgeTextCritical,
+        icon: 'close-circle', 
+        label: 'Rejected' 
       }
     };
     return configs[status] || configs.active;
@@ -185,6 +199,30 @@ const RoadworkCard = ({
         >
           {roadwork.description}
         </Text>
+      )}
+      
+      {/* Archive Reason */}
+      {roadwork.archiveReason && (
+        <View style={[roadworksStyles.section, { marginTop: spacing.sm, marginBottom: spacing.sm }]}>
+          <View style={[roadworksStyles.row, { alignItems: 'flex-start' }]}>
+            <Ionicons 
+              name={roadwork.status === 'rejected' ? 'close-circle' : 'filing'} 
+              size={16} 
+              color={roadwork.status === 'rejected' ? colors.error : colors.textMuted} 
+              style={{ marginRight: spacing.xs, marginTop: 2 }}
+            />
+            <Text style={[
+              roadworksStyles.roadworkDescription, 
+              { 
+                fontStyle: 'italic',
+                color: roadwork.status === 'rejected' ? colors.error : colors.textMuted,
+                flex: 1 
+              }
+            ]}>
+              {roadwork.archiveReason}
+            </Text>
+          </View>
+        </View>
       )}
 
       {/* Metadata Row */}

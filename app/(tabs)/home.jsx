@@ -13,6 +13,7 @@ import {
   TextInput
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import AppHeader from '../../components/common/AppHeader';
 
 const DUTIES = [
   { key: '100', label: 'Duty 100 (6am-3:30pm)', password: null },
@@ -145,20 +146,9 @@ export default function HomeScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLogoContainer}>
-          <View style={styles.headerLogo}>
-            {/* Logo placeholder - React Native Image component would be used here */}
-            <Text style={styles.headerLogoText}>GO BARRY</Text>
-          </View>
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.title}>BARRY Control</Text>
-            <Text style={styles.subtitle}>Bus Alerts and Roadworks Reporting for You</Text>
-          </View>
-        </View>
-        
+    <View style={styles.mainContainer}>
+      <AppHeader />
+      <ScrollView style={styles.container}>
         {/* Connection Status */}
         <View style={styles.statusContainer}>
           {systemStatus ? (
@@ -181,7 +171,6 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
-      </View>
 
       {/* Duty status display */}
       {currentDuty && (
@@ -321,10 +310,14 @@ export default function HomeScreen() {
         </View>
       </Modal>
     </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: '#111827',

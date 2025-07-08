@@ -57,7 +57,9 @@ const SupervisorLogin = ({ visible, onClose, onLoginSuccess }) => {
     updateSessionTimeout
   } = useSupervisor();
 
-  const { recentLogins = [], trackLogin = async () => ({ success: false }) } = useConvexSync();
+  const convexSync = useConvexSync();
+  const recentLogins = Array.isArray(convexSync?.recentLogins) ? convexSync.recentLogins : [];
+  const trackLogin = convexSync?.trackLogin || (async () => ({ success: false }));
   
   const [selectedSupervisor, setSelectedSupervisor] = useState(null);
   const [selectedDuty, setSelectedDuty] = useState(null);
@@ -744,7 +746,8 @@ const SupervisorLogin = ({ visible, onClose, onLoginSuccess }) => {
 
 // Separate component for login analytics (admin only)
 const LoginAnalyticsModal = ({ visible, onClose }) => {
-  const { loginHistory = [] } = useConvexSync();
+  const convexSync = useConvexSync();
+  const loginHistory = Array.isArray(convexSync?.loginHistory) ? convexSync.loginHistory : [];
   
   return (
     <Modal

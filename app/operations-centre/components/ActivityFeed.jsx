@@ -7,8 +7,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { operationsTheme } from '../styles/theme';
-import { UK_LOCALE } from '../constants/locale';
+import { operationsTheme } from '../../../lib/_styles-index.js';
+import { UK_LOCALE } from '../../../lib/_constants-index.js';
 
 export default function ActivityFeed() {
   const [activities, setActivities] = useState([]);
@@ -110,7 +110,6 @@ const styles = StyleSheet.create({
   activityItem: {
     flexDirection: 'row',
     marginBottom: 16,
-    gap: 12,
   },
   iconContainer: {
     width: 32,
@@ -118,6 +117,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 12,
   },
   activityContent: {
     flex: 1,

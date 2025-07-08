@@ -1,0 +1,564 @@
+import React from 'react';
+
+const HomePageHTML = () => {
+  return (
+    <div
+      dangerouslySetInnerHTML={{
+        __html: `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go Barry - Traffic Intelligence Platform</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --gne-red: #E31E24; --gne-red-dark: #B71C1C; --gne-red-light: #FF5252;
+            --dark-bg: #0a0e16; --glass-bg: rgba(0, 0, 0, 0.4); --glass-border: rgba(255, 255, 255, 0.2);
+            --text-bright: #ffffff; --text-primary: #f3f4f6; --text-secondary: #d1d5db;
+            --accent-blue: #3b82f6; --accent-cyan: #06b6d4;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, var(--dark-bg) 0%, #1a202c 100%); color: var(--text-bright); min-height: 100vh; position: relative; overflow-x: hidden; }
+        body::before { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-image: radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 50%), radial-gradient(circle at 40% 40%, rgba(227, 30, 36, 0.1) 0%, transparent 50%); animation: float 30s ease-in-out infinite; pointer-events: none; z-index: -1; }
+        @keyframes float { 0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.7; } 33% { transform: translateY(-10px) rotate(45deg); opacity: 1; } 66% { transform: translateY(-20px) rotate(90deg); opacity: 0.8; } }
+        .header { background: linear-gradient(135deg, var(--gne-red) 0%, var(--gne-red-dark) 100%); backdrop-filter: blur(20px); border-bottom: 2px solid var(--gne-red-light); padding: 20px 0; box-shadow: 0 8px 32px rgba(227, 30, 36, 0.3); position: relative; z-index: 100; }
+        .header::before { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, var(--gne-red-light), #ffffff, var(--gne-red-light)); animation: flow 4s ease-in-out infinite; }
+        @keyframes flow { 0%, 100% { opacity: 0.8; transform: translateX(-10%); } 50% { opacity: 1; transform: translateX(10%); } }
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 32px; }
+        .header-content { display: flex; align-items: center; justify-content: space-between; }
+        .logo-section { display: flex; align-items: center; gap: 20px; }
+        .logo { display: flex; align-items: center; gap: 16px; }
+        .logo img { height: 60px; width: auto; filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.3)); animation: logo-glow 3s ease-in-out infinite; }
+        @keyframes logo-glow { 0%, 100% { filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.3)); transform: scale(1); } 50% { filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.6)); transform: scale(1.02); } }
+        .logo-fallback { width: 60px; height: 60px; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); color: var(--gne-red); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; letter-spacing: 1px; border: 3px solid white; box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+        .brand-text { display: flex; flex-direction: column; }
+        .brand-title { font-size: 32px; font-weight: 900; color: var(--text-bright); text-shadow: 0 2px 4px rgba(0,0,0,0.3); letter-spacing: 1px; }
+        .brand-subtitle { font-size: 16px; color: var(--text-primary); font-weight: 500; margin-top: 4px; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .status-indicator { display: flex; align-items: center; gap: 12px; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 12px; padding: 12px 20px; }
+        .status-dot { width: 12px; height: 12px; background: #10b981; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(1.1); } }
+        .status-text { font-weight: 600; font-size: 16px; color: var(--text-bright); text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        
+        /* User Info Section */
+        .user-info { display: flex; align-items: center; gap: 20px; }
+        .user-badge { background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 12px; padding: 12px 20px; display: flex; align-items: center; gap: 12px; }
+        .user-name { font-weight: 600; color: var(--text-bright); }
+        .logout-btn { background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
+        .logout-btn:hover { background: rgba(255, 255, 255, 0.3); transform: translateY(-1px); }
+        
+        .main-content { padding: 80px 0; }
+        .welcome-section { text-align: center; margin-bottom: 80px; }
+        .welcome-title { font-size: 48px; font-weight: 900; margin-bottom: 24px; background: linear-gradient(135deg, var(--text-bright) 0%, var(--accent-cyan) 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1.2; }
+        .welcome-description { font-size: 20px; color: var(--text-primary); max-width: 600px; margin: 0 auto; line-height: 1.6; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+        
+        /* Login Section */
+        .login-section { max-width: 500px; margin: 0 auto 60px; }
+        .login-card { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 24px; padding: 40px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+        .login-title { font-size: 24px; font-weight: 700; color: var(--text-bright); margin-bottom: 24px; text-align: center; }
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px; }
+        .form-input, .form-select { width: 100%; padding: 12px 16px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 8px; color: white; font-size: 16px; transition: all 0.3s ease; }
+        .form-input:focus, .form-select:focus { outline: none; border-color: var(--accent-blue); background: rgba(255, 255, 255, 0.15); }
+        .form-input::placeholder { color: rgba(255, 255, 255, 0.5); }
+        .form-select option { background: var(--dark-bg); color: white; }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; margin-bottom: 24px; }
+        .checkbox-group input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+        .checkbox-label { font-size: 14px; color: var(--text-primary); cursor: pointer; }
+        .login-btn { width: 100%; background: linear-gradient(135deg, var(--gne-red) 0%, var(--gne-red-dark) 100%); color: white; border: none; padding: 14px 24px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
+        .login-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(227, 30, 36, 0.3); }
+        .login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .error-message { background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; text-align: center; }
+        .show-login-btn { background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-cyan) 100%); color: white; border: none; padding: 16px 32px; border-radius: 12px; font-size: 18px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; }
+        .show-login-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3); }
+        
+        .apps-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 40px; max-width: 1200px; margin: 0 auto; }
+        .app-card { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 24px; padding: 40px; text-align: center; transition: all 0.3s ease; position: relative; overflow: hidden; cursor: pointer; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+        .app-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 100%); opacity: 0; transition: opacity 0.3s ease; }
+        .app-card:hover { transform: translateY(-8px); box-shadow: 0 20px 60px rgba(0,0,0,0.3); border-color: var(--accent-blue); }
+        .app-card:hover::before { opacity: 1; }
+        .app-icon { width: 80px; height: 80px; margin: 0 auto 24px; border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 36px; color: white; position: relative; z-index: 2; }
+        .control-room-icon { background: linear-gradient(135deg, var(--gne-red) 0%, var(--gne-red-dark) 100%); }
+        .supervisor-icon { background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-cyan) 100%); }
+        .admin-icon { background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); }
+        .app-title { font-size: 24px; font-weight: 700; margin-bottom: 16px; color: var(--text-bright); position: relative; z-index: 2; text-shadow: 0 2px 4px rgba(0,0,0,0.6); }
+        .app-description { font-size: 16px; color: var(--text-primary); line-height: 1.6; margin-bottom: 32px; position: relative; z-index: 2; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .app-features { list-style: none; margin-bottom: 32px; position: relative; z-index: 2; }
+        .app-features li { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--text-secondary); margin-bottom: 8px; text-shadow: 0 1px 2px rgba(0,0,0,0.5); text-align: left; justify-content: flex-start; }
+        .app-features i { color: var(--accent-cyan); font-size: 16px; min-width: 20px; }
+        .app-button { background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-cyan) 100%); color: white; border: none; padding: 16px 32px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; position: relative; z-index: 2; width: 100%; text-decoration: none; display: inline-block; }
+        .app-button:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3); }
+        .control-room-button { background: linear-gradient(135deg, var(--gne-red) 0%, var(--gne-red-dark) 100%); }
+        .control-room-button:hover { box-shadow: 0 8px 24px rgba(227, 30, 36, 0.3); }
+        .admin-button { background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); }
+        .admin-button:hover { box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3); }
+        
+        .footer { background: rgba(0, 0, 0, 0.3); backdrop-filter: blur(10px); border-top: 1px solid var(--glass-border); padding: 40px 0; text-align: center; margin-top: 80px; }
+        .footer-content { color: var(--text-secondary); font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .footer-brand { font-weight: 600; color: var(--gne-red-light); }
+        @media (max-width: 768px) { .apps-grid { grid-template-columns: 1fr; gap: 24px; } .welcome-title { font-size: 36px; } .header-content { flex-direction: column; gap: 20px; text-align: center; } .brand-title { font-size: 24px; } .app-card { padding: 32px 24px; } }
+    </style>
+</head>
+<body>
+    <script>
+        // Define global functions immediately
+        window.handleLogout = function() {
+            if (window.parent !== window) {
+                window.parent.postMessage(JSON.stringify({ type: 'logout' }), '*');
+            }
+        };
+    </script>
+    <div class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo">
+                        <img src="./gobarry-logo.png" alt="Go Barry" onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex';">
+                        <div id="logo-fallback" class="logo-fallback" style="display: none;">GO BARRY</div>
+                    </div>
+                    <div class="brand-text">
+                        <div class="brand-title">Go Barry</div>
+                        <div class="brand-subtitle">Traffic Intelligence Platform</div>
+                    </div>
+                </div>
+                <div id="header-right" class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span class="status-text">System Operational</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="container">
+            <div class="welcome-section">
+                <h1 class="welcome-title" id="welcome-title">Welcome to Go Barry</h1>
+                <p class="welcome-description" id="welcome-description">
+                    Please log in to access the traffic intelligence platform.
+                </p>
+            </div>
+
+            <div id="login-section" class="login-section" style="display: none;">
+                <div class="login-card">
+                    <h2 class="login-title" id="login-title">Supervisor Login</h2>
+                    
+                    <div id="error-container"></div>
+                    
+                    <form id="login-form">
+                        <div class="form-group">
+                            <label class="form-label">Select Supervisor</label>
+                            <select id="supervisor-select" class="form-select" required>
+                                <option value="">Choose a supervisor...</option>
+                                <option value="alex_woodcock">Alex Woodcock (AW001)</option>
+                                <option value="andrew_cowley">Andrew Cowley (AC002)</option>
+                                <option value="anthony_gair">Anthony Gair (AG003)</option>
+                                <option value="claire_fiddler">Claire Fiddler (CF004)</option>
+                                <option value="david_hall">David Hall (DH005)</option>
+                                <option value="james_daglish">James Daglish (JD006)</option>
+                                <option value="john_paterson">John Paterson (JP007)</option>
+                                <option value="simon_glass">Simon Glass (SG008)</option>
+                                <option value="barry_perryman">Barry Perryman (BP009)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Select Duty</label>
+                            <select id="duty-select" class="form-select" required>
+                                <option value="">Choose your duty...</option>
+                                <option value="100">Duty 100 (6am-3:30pm)</option>
+                                <option value="200">Duty 200 (7:30am-5pm)</option>
+                                <option value="400">Duty 400 (12:30pm-10pm)</option>
+                                <option value="500">Duty 500 (2:45pm-12:15am)</option>
+                                <option value="xops">XOps</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Password</label>
+                            <input type="password" id="password-input" class="form-input" placeholder="Enter your password" required>
+                        </div>
+                        
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="remember-me" />
+                            <label for="remember-me" class="checkbox-label">Remember me for 10 hours</label>
+                        </div>
+                        
+                        <button type="submit" class="login-btn" id="login-btn">
+                            <i class="fas fa-sign-in-alt"></i> Login
+                        </button>
+                    </form>
+                    
+                    <form id="password-setup-form" style="display: none;">
+                        <p style="color: var(--text-primary); margin-bottom: 20px;">
+                            This is your first time logging in. Please set a password for your account.
+                        </p>
+                        
+                        <div class="form-group">
+                            <label class="form-label">New Password</label>
+                            <input type="password" id="new-password-input" class="form-input" placeholder="Enter new password (min 6 chars)" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Confirm Password</label>
+                            <input type="password" id="confirm-password-input" class="form-input" placeholder="Confirm your password" required>
+                        </div>
+                        
+                        <button type="submit" class="login-btn">
+                            <i class="fas fa-key"></i> Set Password
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="apps-container">
+                <div class="apps-grid" id="apps-grid">
+                    <div style="grid-column: 1 / -1; text-align: center;">
+                        <button class="show-login-btn" id="login-button">
+                            <i class="fas fa-sign-in-alt"></i> Login to Continue
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <p>
+                    Powered by <span class="footer-brand">Go Barry</span> | 
+                    Traffic Intelligence for <strong>Go North East</strong> | 
+                    Real-time monitoring and alert management
+                </p>
+                <p style="margin-top: 12px; font-size: 13px; color: #9ca3af;">
+                    © 2024-2025 Anthony Gair. All rights reserved.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Application state
+        window.appState = {
+            isLoggedIn: false,
+            isAdmin: false,
+            supervisorName: null,
+            showingLogin: false,
+            needsPasswordSetup: false
+        };
+        
+        // Initialize the page
+        function initializePage() {
+            window.updateUI();
+            setupEventListeners();
+        }
+        
+        // Update UI based on login state
+        window.updateUI = function() {
+            const loginSection = document.getElementById('login-section');
+            const appsGrid = document.getElementById('apps-grid');
+            const headerRight = document.getElementById('header-right');
+            const welcomeTitle = document.getElementById('welcome-title');
+            const welcomeDescription = document.getElementById('welcome-description');
+            const loginForm = document.getElementById('login-form');
+            const passwordSetupForm = document.getElementById('password-setup-form');
+            
+            if (window.appState.needsPasswordSetup) {
+                loginSection.style.display = 'block';
+                loginForm.style.display = 'none';
+                passwordSetupForm.style.display = 'block';
+                appsGrid.innerHTML = '';
+                document.getElementById('login-title').textContent = 'Set Your Password';
+            } else if (window.appState.isLoggedIn) {
+                loginSection.style.display = 'none';
+                welcomeTitle.textContent = 'Welcome, ' + window.appState.supervisorName;
+                welcomeDescription.textContent = 'Select the application you want to access.';
+                
+                // Update header with user info
+                headerRight.innerHTML = \`
+                    <div class="user-info">
+                        <div class="user-badge">
+                            <i class="fas fa-user-circle"></i>
+                            <span class="user-name">\${window.appState.supervisorName}</span>
+                        </div>
+                        <button class="logout-btn" onclick="handleLogout()">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </button>
+                    </div>
+                \`;
+                
+                // Render apps
+                window.renderApps();
+            } else if (window.appState.showingLogin) {
+                loginSection.style.display = 'block';
+                loginForm.style.display = 'block';
+                passwordSetupForm.style.display = 'none';
+                appsGrid.innerHTML = '';
+            } else {
+                loginSection.style.display = 'none';
+                welcomeTitle.textContent = 'Welcome to Go Barry';
+                welcomeDescription.textContent = 'Please log in to access the traffic intelligence platform.';
+                
+                appsGrid.innerHTML = \`
+                    <div style="grid-column: 1 / -1; text-align: center;">
+                        <button class="show-login-btn" id="login-button-main">
+                            <i class="fas fa-sign-in-alt"></i> Login to Continue
+                        </button>
+                    </div>
+                \`;
+                
+                // Add click handler to the newly created button
+                const loginBtn = document.getElementById('login-button-main');
+                if (loginBtn) {
+                    loginBtn.addEventListener('click', function() {
+                        window.appState.showingLogin = true;
+                        window.updateUI();
+                    });
+                }
+            }
+        }
+        
+        // Render application cards
+        window.renderApps = function() {
+            const appsGrid = document.getElementById('apps-grid');
+            
+            let appsHTML = \`
+                <div class="app-card" onclick="window.open('/display', '_blank')">
+                    <div class="app-icon control-room-icon">
+                        <i class="fas fa-tv"></i>
+                    </div>
+                    <h2 class="app-title">Control Room Display</h2>
+                    <p class="app-description">
+                        24/7 traffic monitoring display designed for control room environments and large screens.
+                    </p>
+                    <ul class="app-features">
+                        <li><i class="fas fa-eye"></i> Real-time traffic alerts</li>
+                        <li><i class="fas fa-map"></i> Live traffic map</li>
+                        <li><i class="fas fa-clock"></i> Automatic alert cycling</li>
+                        <li><i class="fas fa-desktop"></i> Fullscreen optimized</li>
+                        <li><i class="fas fa-shield-alt"></i> Read-only monitoring</li>
+                    </ul>
+                    <a href="/display" target="_blank" class="app-button control-room-button">
+                        <i class="fas fa-external-link-alt"></i> Open Control Room
+                    </a>
+                </div>
+
+                <div class="app-card" onclick="window.open('/browser-main', '_blank')">
+                    <div class="app-icon supervisor-icon">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                    <h2 class="app-title">Supervisor Screen</h2>
+                    <p class="app-description">
+                        Interactive platform for supervisors to manage alerts, coordinate responses, and monitor operations.
+                    </p>
+                    <ul class="app-features">
+                        <li><i class="fas fa-tasks"></i> Alert management</li>
+                        <li><i class="fas fa-users"></i> Team coordination</li>
+                        <li><i class="fas fa-edit"></i> Interactive controls</li>
+                        <li><i class="fas fa-mobile-alt"></i> Mobile responsive</li>
+                        <li><i class="fas fa-key"></i> Secure authentication</li>
+                    </ul>
+                    <a href="/browser-main" target="_blank" class="app-button">
+                        <i class="fas fa-sign-in-alt"></i> Access Supervisor Tools
+                    </a>
+                </div>
+            \`;
+            
+            // Add admin card if user is admin
+            if (window.appState.isAdmin) {
+                appsHTML += \`
+                    <div class="app-card" onclick="window.location.href='/admin'">
+                        <div class="app-icon admin-icon">
+                            <i class="fas fa-cog"></i>
+                        </div>
+                        <h2 class="app-title">Admin Dashboard</h2>
+                        <p class="app-description">
+                            System administration tools for managing supervisors, monitoring health, and configuring settings.
+                        </p>
+                        <ul class="app-features">
+                            <li><i class="fas fa-users-cog"></i> Supervisor management</li>
+                            <li><i class="fas fa-chart-line"></i> System monitoring</li>
+                            <li><i class="fas fa-sliders-h"></i> Configuration</li>
+                            <li><i class="fas fa-history"></i> Activity logs</li>
+                            <li><i class="fas fa-shield-alt"></i> Admin only access</li>
+                        </ul>
+                        <a href="/admin" class="app-button admin-button">
+                            <i class="fas fa-cogs"></i> Open Admin Dashboard
+                        </a>
+                    </div>
+                \`;
+            }
+            
+            appsGrid.innerHTML = appsHTML;
+        }
+
+        
+        // Handle login form submission
+        function handleLoginSubmit(e) {
+            e.preventDefault();
+            
+            const supervisorId = document.getElementById('supervisor-select').value;
+            const dutyId = document.getElementById('duty-select').value;
+            const password = document.getElementById('password-input').value;
+            const rememberMe = document.getElementById('remember-me').checked;
+            
+            if (!supervisorId || !dutyId || !password) {
+                window.showError('Please fill in all fields');
+                return;
+            }
+            
+            // Send login request to parent
+            if (window.parent !== window) {
+                window.parent.postMessage(JSON.stringify({
+                    type: 'login',
+                    data: {
+                        supervisorId,
+                        duty: dutyId,
+                        password,
+                        rememberMe
+                    }
+                }), '*');
+            }
+            
+            // Disable form while processing
+            document.getElementById('login-btn').disabled = true;
+            document.getElementById('login-btn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
+        }
+        
+        // Handle password setup form submission
+        function handlePasswordSetupSubmit(e) {
+            e.preventDefault();
+            
+            const newPassword = document.getElementById('new-password-input').value;
+            const confirmPassword = document.getElementById('confirm-password-input').value;
+            
+            if (!newPassword || newPassword.length < 6) {
+                window.showError('Password must be at least 6 characters');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                window.showError('Passwords do not match');
+                return;
+            }
+            
+            // Send password setup request to parent
+            if (window.parent !== window) {
+                window.parent.postMessage(JSON.stringify({
+                    type: 'setPassword',
+                    data: { password: newPassword }
+                }), '*');
+            }
+        }
+        
+        // Show error message
+        window.showError = function(message) {
+            const errorContainer = document.getElementById('error-container');
+            errorContainer.innerHTML = \`<div class="error-message">\${message}</div>\`;
+            setTimeout(() => {
+                errorContainer.innerHTML = '';
+            }, 5000);
+        }
+        
+        // Check system status
+        window.checkSystemStatus = async function() {
+            try {
+                const response = await fetch('https://go-barry.onrender.com/api/health');
+                if (response.ok) {
+                    document.querySelector('.status-text').textContent = 'System Operational';
+                    document.querySelector('.status-dot').style.background = '#10b981';
+                } else {
+                    document.querySelector('.status-text').textContent = 'System Issues';
+                    document.querySelector('.status-dot').style.background = '#ef4444';
+                }
+            } catch (error) {
+                document.querySelector('.status-text').textContent = 'Checking Status...';
+                document.querySelector('.status-dot').style.background = '#f59e0b';
+            }
+        }
+        
+        // Setup event listeners
+        function setupEventListeners() {
+            document.getElementById('login-form').addEventListener('submit', handleLoginSubmit);
+            document.getElementById('password-setup-form').addEventListener('submit', handlePasswordSetupSubmit);
+            
+            // Add login button listener if it exists
+            const loginButton = document.getElementById('login-button');
+            if (loginButton) {
+                loginButton.addEventListener('click', function() {
+                    window.appState.showingLogin = true;
+                    window.updateUI();
+                });
+            }
+            
+            // Listen for messages from parent
+            window.addEventListener('message', (event) => {
+                try {
+                    if (event.origin !== window.location.origin) return;
+                    
+                    const message = JSON.parse(event.data);
+                    
+                    if (message.type === 'stateUpdate') {
+                        window.appState = {
+                            isLoggedIn: message.isLoggedIn,
+                            isAdmin: message.isAdmin,
+                            supervisorName: message.supervisorName,
+                            needsPasswordSetup: message.needsPasswordSetup,
+                            showingLogin: message.showLogin
+                        };
+                        window.updateUI();
+                    } else if (message.type === 'loginResult') {
+                        if (message.success) {
+                            window.appState.isLoggedIn = true;
+                            window.appState.isAdmin = message.isAdmin || false;
+                            window.appState.supervisorName = message.supervisorName;
+                            window.appState.showingLogin = false;
+                            window.appState.needsPasswordSetup = false;
+                            window.updateUI();
+                        } else if (message.needsPasswordSetup) {
+                            window.appState.needsPasswordSetup = true;
+                            window.updateUI();
+                        } else {
+                            window.showError(message.error || 'Login failed');
+                            document.getElementById('login-btn').disabled = false;
+                            document.getElementById('login-btn').innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
+                        }
+                    } else if (message.type === 'passwordSetResult') {
+                        if (message.success) {
+                            window.appState.needsPasswordSetup = false;
+                            window.appState.isLoggedIn = true;
+                            window.appState.isAdmin = message.isAdmin || false;
+                            window.appState.supervisorName = message.supervisorName;
+                            window.updateUI();
+                        } else {
+                            window.showError(message.error || 'Failed to set password');
+                        }
+                    } else if (message.type === 'logoutResult') {
+                        window.appState.isLoggedIn = false;
+                        window.appState.isAdmin = false;
+                        window.appState.supervisorName = null;
+                        window.updateUI();
+                    }
+                } catch (error) {
+                    console.error('Error processing message:', error);
+                }
+            });
+        }
+        
+        // Initialize on load
+        initializePage();
+        window.checkSystemStatus();
+        setInterval(window.checkSystemStatus, 30000);
+        console.log('🚦 Go Barry Traffic Intelligence Platform Loaded');
+    </script>
+</body>
+</html>`
+      }}
+    />
+  );
+};
+
+export default HomePageHTML;

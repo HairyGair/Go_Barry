@@ -315,6 +315,8 @@ const SupervisorControl = ({
   onClose,
   sector = 1 // Sector 1: Supervisor Control
 }) => {
+  // Ensure alerts is always an array
+  const safeAlerts = Array.isArray(alerts) ? alerts : [];
   // Get session management functions - FIXED: Use the hook properly
   const { 
     supervisorSession: hookSession,
@@ -461,10 +463,10 @@ const SupervisorControl = ({
 
   // Sync alerts when they change
   useEffect(() => {
-    if (isConnected && alerts.length > 0) {
-      updateAlerts(alerts);
+    if (isConnected && safeAlerts.length > 0) {
+      updateAlerts(safeAlerts);
     }
-  }, [alerts, isConnected, updateAlerts]);
+  }, [safeAlerts, isConnected, updateAlerts]);
 
   // Session timer effect
   useEffect(() => {
@@ -634,9 +636,9 @@ const SupervisorControl = ({
   // Get alert stats
   const getAlertStats = () => {
     const severityCount = {
-      High: alerts.filter(a => a.severity === 'High').length,
-      Medium: alerts.filter(a => a.severity === 'Medium').length,
-      Low: alerts.filter(a => a.severity === 'Low').length
+      High: safeAlerts.filter(a => a.severity === 'High').length,
+      Medium: safeAlerts.filter(a => a.severity === 'Medium').length,
+      Low: safeAlerts.filter(a => a.severity === 'Low').length
     };
     
     const avgResponseTime = recentActivity
@@ -1148,7 +1150,7 @@ const SupervisorControl = ({
                   <Text style={styles.queueStatLabel}>Connected Displays</Text>
                 </View>
                 <View style={styles.queueStat}>
-                  <Text style={styles.queueStatValue}>{alerts.filter(a => !dismissedFromDisplay.has(a.id)).length}</Text>
+                  <Text style={styles.queueStatValue}>{safeAlerts.filter(a => !dismissedFromDisplay.has(a.id)).length}</Text>
                   <Text style={styles.queueStatLabel}>Visible Alerts</Text>
                 </View>
                 <View style={styles.queueStat}>
@@ -1159,7 +1161,7 @@ const SupervisorControl = ({
               
               <Text style={styles.queueSectionTitle}>Priority Queue Order:</Text>
               
-              {alerts
+              {safeAlerts
                 .filter(alert => !dismissedFromDisplay.has(alert.id))
                 .sort((a, b) => {
                   const priorityOrder = { 'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 };
@@ -1407,10 +1409,10 @@ const SupervisorControl = ({
 
       {/* Service Frequency Impact Summary */}
       {(() => {
-        const highFreqAlerts = alerts.filter(a => 
+        const highFreqAlerts = safeAlerts.filter(a => 
           a.frequencyImpact?.affectedHighFrequency?.length > 0
         );
-        const severeImpact = alerts.filter(a => 
+        const severeImpact = safeAlerts.filter(a => 
           a.frequencyImpact?.impactLevel === 'severe'
         );
         
@@ -1441,10 +1443,10 @@ const SupervisorControl = ({
       <View style={styles.mainContent}>
         <View style={styles.leftPanel}>
           <ScrollView style={styles.alertsList} showsVerticalScrollIndicator={false}>
-            <Text style={styles.sectionTitle}>Active Alerts ({alerts.length})</Text>
+            <Text style={styles.sectionTitle}>Active Alerts ({safeAlerts.length})</Text>
             
-            {alerts.length > 0 ? (
-          alerts.map((alert) => (
+            {safeAlerts.length > 0 ? (
+          safeAlerts.map((alert) => (
             <View key={alert.id} style={styles.alertWrapper}>
               <SimpleAlertCard
                 alert={alert}

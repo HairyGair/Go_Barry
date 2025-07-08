@@ -1,33 +1,15 @@
-const { getDefaultConfig } = require("expo/metro-config");
+// Metro configuration for React Native
+// Learn more: https://docs.expo.dev/guides/customizing-metro
+const { getDefaultConfig } = require('expo/metro-config');
 
-const config = getDefaultConfig(__dirname);
+module.exports = (() => {
+  const config = getDefaultConfig(__dirname);
 
-// Performance optimizations
-config.resolver = {
-  ...config.resolver,
-  // Faster module resolution
-  hasteImplModulePath: null,
-  // Skip unused platforms
-  platforms: ['web', 'ios', 'android'],
-};
+  // Ensure operations-centre route is included
+  config.resolver = {
+    ...config.resolver,
+    // Add any custom resolvers here if needed
+  };
 
-// Minification for production
-config.transformer = {
-  ...config.transformer,
-  minifierPath: 'metro-minify-terser',
-  minifierConfig: {
-    keep_fnames: true,
-    mangle: {
-      keep_fnames: true,
-    },
-    compress: {
-      drop_console: process.env.NODE_ENV === 'production',
-    },
-  },
-};
-
-// Caching optimization
-config.cacheVersion = '1.0';
-config.resetCache = false;
-
-module.exports = config;
+  return config;
+})();

@@ -32,15 +32,47 @@ export const API_CONFIG = {
   
   // Endpoints
   endpoints: {
+    // Core alerts
     alerts: '/api/alerts',
-    alertsEnhanced: '/api/alerts-enhanced', 
+    alertsEnhanced: '/api/alerts-enhanced',
+    alertsTest: '/api/alerts-test',
+    
+    // Service frequency monitoring
+    serviceFrequency: '/api/service-frequency',
+    serviceFrequencyDashboard: '/api/service-frequency/dashboard',
+    serviceFrequencyNetworkStatus: '/api/service-frequency/network-status',
+    serviceFrequencyBreakdownAlerts: '/api/service-frequency/breakdown-alerts',
+    serviceFrequencyTrends: '/api/service-frequency/trends',
+    serviceFrequencyStatus: '/api/service-frequency/status',
+    serviceFrequencyRoute: '/api/service-frequency/route',
+    
+    // Disruption logging
+    disruptionsLog: '/api/disruptions/log',
+    disruptionsLogs: '/api/disruptions/logs',
+    disruptionsStatistics: '/api/disruptions/statistics',
+    disruptionsHealth: '/api/disruptions/health',
+    
+    // StreetManager integration
+    streetManagerActivities: '/api/streetmanager/activities',
+    streetManagerPermits: '/api/streetmanager/permits',
+    streetManagerAll: '/api/streetmanager/all',
+    streetManagerStatus: '/api/streetmanager/status',
+    streetManagerWebhook: '/api/streetmanager/webhook',
+    
+    // Legacy endpoints
     incidents: '/api/incidents',
     reports: '/api/reports',
     messaging: '/api/messaging',
     supervisor: '/api/supervisor',
     geocoding: '/api/geocode',
     routes: '/api/routes',
-    health: '/api/health'
+    health: '/api/health',
+    
+    // System endpoints
+    config: '/api/config',
+    status: '/api/status',
+    refresh: '/api/refresh',
+    debugTraffic: '/api/debug-traffic'
   }
 };
 

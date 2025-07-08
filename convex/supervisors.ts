@@ -180,7 +180,19 @@ export const getActiveSupervisors = query({
       .withIndex("by_active", q => q.eq("isActive", true))
       .collect();
 
-    return activeSessions.map(session => ({
+    // Filter out expired sessions (10 minutes timeout)
+    const sessionTimeout = 10 * 60 * 1000; // 10 minutes
+    const now = Date.now();
+    
+    const validSessions = activeSessions.filter(session => {
+      // Check if session has expired
+      if (now - session.lastActivity > sessionTimeout) {
+        return false;
+      }
+      return true;
+    });
+
+    return validSessions.map(session => ({
       supervisorId: session.supervisorId,
       supervisorName: session.supervisorName,
       badge: session.badge,

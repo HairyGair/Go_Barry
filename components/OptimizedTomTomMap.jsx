@@ -34,7 +34,6 @@ const OptimizedTomTomMap = ({
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState(null);
   const [debugInfo, setDebugInfo] = useState('Starting initialization...');
-  const [tileStats, setTileStats] = useState({ ...TILE_REQUEST_STATS });
   
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
@@ -251,11 +250,6 @@ const OptimizedTomTomMap = ({
           } catch (trafficError) {
             console.warn(`⚠️ [${mapId}] Traffic layer failed:`, trafficError);
           }
-          
-          // Update tile stats
-          setInterval(() => {
-            setTileStats({ ...TILE_REQUEST_STATS });
-          }, 5000);
         });
 
         map.on('error', (error) => {
@@ -312,7 +306,7 @@ const OptimizedTomTomMap = ({
         border-radius: 50%;
         cursor: pointer;
         box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        ${isCurrentAlert ? 'animation: pulse 2s infinite;' : ''}
+        ${isCurrentAlert && Platform.OS === 'web' ? 'animation: pulse 2s infinite;' : ''}
       `;
 
       const marker = new window.maplibregl.Marker({ element: markerElement })
@@ -419,27 +413,6 @@ const OptimizedTomTomMap = ({
         }}
       />
       
-      {/* Tile usage stats */}
-      {mapLoaded && (
-        <div style={{
-          position: 'absolute',
-          bottom: 10,
-          left: 10,
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
-          color: 'white',
-          padding: '8px 12px',
-          borderRadius: '6px',
-          fontSize: '11px',
-          fontFamily: 'monospace',
-          zIndex: 1000
-        }}>
-          <div>📊 Tile Stats (Daily)</div>
-          <div>Total: {tileStats.total} | Cached: {tileStats.cached} ({Math.round((tileStats.cached / Math.max(tileStats.total, 1)) * 100)}%)</div>
-          <div>Network: {tileStats.network} | Saved: {tileStats.cached}</div>
-          <div>Cache Size: {tileCache.size} tiles</div>
-        </div>
-      )}
-      
       {/* Loading overlay */}
       {!mapLoaded && !mapError && (
         <div style={{
@@ -487,14 +460,16 @@ const OptimizedTomTomMap = ({
         </div>
       )}
       
-      {/* Add CSS for pulse animation */}
-      <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes pulse {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.2); }
-          100% { transform: scale(1); }
-        }
-      `}} />
+      {/* Add CSS for pulse animation (web only) */}
+      {Platform.OS === 'web' && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+          }
+        `}} />
+      )}
     </div>
   );
 };

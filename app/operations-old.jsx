@@ -11,10 +11,10 @@ import Icon from 'react-native-vector-icons/FontAwesome5';
 import { useSupervisor } from '../components/hooks/useSupervisorSession';
 
 // Import operational components
-import DutyBoards from '../components/DutyBoards';
-import IncidentManager from '../components/IncidentManager';
-import RoadworksManager from '../components/RoadworksManager';
-import AIDisruptionManager from '../components/AIDisruptionManager';
+import DutyBoards from '../components/operations/DutyBoards';
+import IncidentManager from '../components/operations/IncidentManagerLegacy';
+import RoadworksManager from '../components/operations/RoadworksManager';
+import AIDisruptionManager from '../components/operations/DisruptionDatabase';
 
 const OperationsScreen = () => {
   const router = useRouter();

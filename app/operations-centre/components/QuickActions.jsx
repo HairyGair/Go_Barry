@@ -7,8 +7,8 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { operationsTheme } from '../styles/theme';
-import { UK_LOCALE } from '../constants/locale';
+import { operationsTheme } from '../../../lib/_styles-index.js';
+import { UK_LOCALE } from '../../../lib/_constants-index.js';
 
 export default function QuickActions() {
   const actions = [
@@ -92,7 +92,6 @@ const styles = StyleSheet.create({
   },
   actionsGrid: {
     flexDirection: 'row',
-    gap: 12,
   },
   actionButton: {
     flex: 1,
@@ -100,6 +99,7 @@ const styles = StyleSheet.create({
     borderRadius: operationsTheme.borderRadius.md,
     padding: 16,
     alignItems: 'center',
+    marginHorizontal: 6,
     ...operationsTheme.shadows.sm,
   },
   actionPressed: {

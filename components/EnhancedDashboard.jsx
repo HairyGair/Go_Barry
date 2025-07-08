@@ -19,7 +19,7 @@ import SupervisorLogin from './SupervisorLogin';
 import OptimizedTomTomMap from './OptimizedTomTomMap';
 import TomTomUsageMonitor from './TomTomUsageMonitor';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
-import { useConvexSync } from '../hooks/useConvexSync';
+import { useConvexSync, useHeartbeat } from '../hooks/useConvexSyncFixed';
 import typography, { getAlertIcon, getSeverityIcon } from '../theme/typography';
 import ConvexTest from './ConvexTest'; // Temporary test component
 import { formatTime24, formatDateTimeUK } from '../utils/dateTime';
@@ -27,6 +27,10 @@ import { SkeletonAlert } from './ui/SkeletonLoader';
 import { SystemHealthMonitor } from './ui/TrustSignals';
 import { useAnalytics } from '../services/analytics';
 import LocationCorrectionModal from './LocationCorrectionModal';
+import AlertDetailModal from './AlertDetailModal';
+import VixUploadButton from './VixUploadButton';
+import useVixData from './hooks/useVixData';
+import BODSIntegration from './BODSIntegration';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -96,6 +100,17 @@ const EnhancedDashboard = ({
   // Supervisor session management with force update on change
   const [sessionKey, setSessionKey] = useState(0);
   const { supervisorSession: session, logout } = useSupervisorSession();
+  
+  // Send heartbeat to keep session alive when supervisor is logged in
+  // Use the actual Convex session ID that's returned from login
+  const convexSessionId = useMemo(() => {
+    if (session?.convexSessionId) {
+      return session.convexSessionId;
+    }
+    return null;
+  }, [session]);
+  
+  useHeartbeat(convexSessionId, 30000); // Every 30 seconds
   
   // Force re-render when session changes
   useEffect(() => {
@@ -243,9 +258,20 @@ const EnhancedDashboard = ({
 
   // State for alert details modal
   const [selectedAlertDetails, setSelectedAlertDetails] = useState(null);
+  const [showAlertDetailModal, setShowAlertDetailModal] = useState(false);
   
   // State for location correction modal
   const [correctionModalAlert, setCorrectionModalAlert] = useState(null);
+  
+  // VIX late runners data
+  const { 
+    lateRunners, 
+    lastUpdated: vixLastUpdated, 
+    isLoading: vixLoading,
+    stats: vixStats,
+    processVixFile,
+    dataAge: vixDataAge 
+  } = useVixData();
 
   // Handle alert interactions
   const handleAlertClick = useCallback((alert) => {
@@ -273,8 +299,9 @@ const EnhancedDashboard = ({
     if (onAlertPress) {
       onAlertPress(alert);
     } else {
-      // Show alert details in modal instead of browser alert
+      // Show enhanced alert details modal
       setSelectedAlertDetails(alert);
+      setShowAlertDetailModal(true);
     }
   }, [onAlertPress, track]);
   
@@ -578,6 +605,16 @@ const EnhancedDashboard = ({
               <Ionicons name="settings" size={16} color="#3B82F6" />
               <Text style={styles.controlButtonText}>Control Panel</Text>
             </TouchableOpacity>
+            {/* VIX Upload Button - Only show when ready */}
+            {processVixFile && (
+              <VixUploadButton
+                onUpload={processVixFile}
+                isLoading={vixLoading}
+                lastUpdated={vixLastUpdated}
+                dataAge={vixDataAge}
+                stats={vixStats}
+              />
+            )}
             {/* Debug button - KEEP FOR NOW to diagnose sync issues */}
             <TouchableOpacity
               onPress={() => {
@@ -602,6 +639,22 @@ const EnhancedDashboard = ({
             >
               <Ionicons name="bug" size={16} color="#F59E0B" />
               <Text style={[styles.controlButtonText, { color: '#F59E0B' }]}>Debug</Text>
+            </TouchableOpacity>
+            {/* Cleanup button for testing */}
+            <TouchableOpacity
+              onPress={async () => {
+                try {
+                  // We need to create a mutation hook for cleanup
+                  console.log('Manual session cleanup triggered');
+                  alert('Session cleanup needs to be run via:\nnpx convex run supervisors:cleanupExpiredSessions');
+                } catch (error) {
+                  console.error('Cleanup failed:', error);
+                }
+              }}
+              style={[styles.controlButton, { backgroundColor: '#FEE2E2' }]}
+            >
+              <Ionicons name="trash" size={16} color="#DC2626" />
+              <Text style={[styles.controlButtonText, { color: '#DC2626' }]}>Cleanup</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => {
@@ -734,6 +787,12 @@ const EnhancedDashboard = ({
         {/* System Status */}
         <SystemStatus />
 
+        {/* BODS Integration */}
+        <BODSIntegration 
+          supervisorSession={session}
+          compact={false}
+        />
+
         {/* Interactive TomTom Map */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Enhanced Traffic Map - TomTom Powered with Real-time Sync</Text>
@@ -824,104 +883,31 @@ const EnhancedDashboard = ({
         }}
       />
       
-      {/* Alert Details Modal */}
-      {selectedAlertDetails && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.alertModal}>
-            <View style={styles.alertModalHeader}>
-              <Text style={styles.alertModalTitle}>
-                {selectedAlertDetails.title || 'Traffic Alert'}
-              </Text>
-              <TouchableOpacity
-                onPress={() => setSelectedAlertDetails(null)}
-                style={styles.closeModalButton}
-              >
-                <Ionicons name="close" size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView style={styles.alertModalContent}>
-              <View style={styles.alertModalSection}>
-                <Text style={styles.alertModalLabel}>Location:</Text>
-                <Text style={styles.alertModalValue}>
-                  {selectedAlertDetails.location || 'Unknown'}
-                </Text>
-              </View>
-              
-              {selectedAlertDetails.description && (
-                <View style={styles.alertModalSection}>
-                  <Text style={styles.alertModalLabel}>Description:</Text>
-                  <Text style={styles.alertModalValue}>
-                    {selectedAlertDetails.description}
-                  </Text>
-                </View>
-              )}
-              
-              <View style={styles.alertModalSection}>
-                <Text style={styles.alertModalLabel}>Severity:</Text>
-                <Text style={[styles.alertModalValue, {
-                  color: selectedAlertDetails.severity?.toLowerCase() === 'high' ? '#DC2626' :
-                         selectedAlertDetails.severity?.toLowerCase() === 'medium' ? '#F59E0B' : '#3B82F6'
-                }]}>
-                  {selectedAlertDetails.severity?.toUpperCase() || 'UNKNOWN'}
-                </Text>
-              </View>
-              
-              {selectedAlertDetails.affectsRoutes && selectedAlertDetails.affectsRoutes.length > 0 && (
-                <View style={styles.alertModalSection}>
-                  <Text style={styles.alertModalLabel}>Affected Routes:</Text>
-                  <Text style={styles.alertModalValue}>
-                    {selectedAlertDetails.affectsRoutes.join(', ')}
-                  </Text>
-                </View>
-              )}
-              
-              <View style={styles.alertModalSection}>
-                <Text style={styles.alertModalLabel}>Source:</Text>
-                <Text style={styles.alertModalValue}>
-                  {selectedAlertDetails.source === 'manual_incident' ? 'Manual Incident' : 
-                   selectedAlertDetails.source || 'Unknown'}
-                </Text>
-              </View>
-              
-              {selectedAlertDetails.createdBy && (
-                <View style={styles.alertModalSection}>
-                  <Text style={styles.alertModalLabel}>Created By:</Text>
-                  <Text style={styles.alertModalValue}>
-                    {selectedAlertDetails.createdBy} ({selectedAlertDetails.createdByRole || 'Unknown Role'})
-                  </Text>
-                </View>
-              )}
-              
-              <View style={styles.alertModalSection}>
-                <Text style={styles.alertModalLabel}>Time:</Text>
-                <Text style={styles.alertModalValue}>
-                  {selectedAlertDetails.timestamp ? 
-                    formatDateTimeUK(selectedAlertDetails.timestamp) : 'Unknown'}
-                </Text>
-              </View>
-              
-              {selectedAlertDetails.notes && (
-                <View style={styles.alertModalSection}>
-                  <Text style={styles.alertModalLabel}>Notes:</Text>
-                  <Text style={styles.alertModalValue}>
-                    {selectedAlertDetails.notes}
-                  </Text>
-                </View>
-              )}
-            </ScrollView>
-            
-            <View style={styles.alertModalActions}>
-              <TouchableOpacity
-                style={styles.closeAlertButton}
-                onPress={() => setSelectedAlertDetails(null)}
-              >
-                <Text style={styles.closeAlertButtonText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      )}
+      {/* Enhanced Alert Details Modal */}
+      <AlertDetailModal
+        visible={showAlertDetailModal}
+        onClose={() => {
+          setShowAlertDetailModal(false);
+          setSelectedAlertDetails(null);
+        }}
+        alert={selectedAlertDetails}
+        onUpdateAlert={(updatedAlert) => {
+          // Handle alert update - could trigger refresh
+          console.log('Alert updated:', updatedAlert);
+          // You could trigger a data refresh here if needed
+        }}
+        onDismissAlert={(alert) => {
+          // Handle alert dismissal
+          console.log('Alert dismissed:', alert.id);
+          setShowAlertDetailModal(false);
+          setSelectedAlertDetails(null);
+          // Trigger refresh to remove dismissed alert
+        }}
+        onPushToDisplay={(alert) => {
+          // Handle push to display
+          console.log('Alert pushed to display:', alert.id);
+        }}
+      />
     </View>
   );
 };
@@ -1391,79 +1377,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,
   },
-  // Alert Details Modal Styles
-  modalOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  alertModal: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    width: '90%',
-    maxWidth: 500,
-    maxHeight: '80%',
-    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.25)',
-  },
-  alertModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  alertModalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-    flex: 1,
-    marginRight: 16,
-  },
-  closeModalButton: {
-    padding: 4,
-  },
-  alertModalContent: {
-    flex: 1,
-    padding: 20,
-  },
-  alertModalSection: {
-    marginBottom: 16,
-  },
-  alertModalLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 4,
-  },
-  alertModalValue: {
-    fontSize: 14,
-    color: '#1F2937',
-    lineHeight: 20,
-  },
-  alertModalActions: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-  },
-  closeAlertButton: {
-    backgroundColor: '#3B82F6',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  closeAlertButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  // Removed old alert modal styles - now using AlertDetailModal component
   locationEditButton: {
     flexDirection: 'row',
     alignItems: 'center',

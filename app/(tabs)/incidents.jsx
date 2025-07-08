@@ -1,1 +1,22 @@
-// Go_BARRY/app/(tabs)/incidents.jsx\n// Sector 4: Incident Manager Tab Page\n\nimport React from 'react';\nimport { View, StyleSheet } from 'react-native';\nimport IncidentManager from '../../components/IncidentManager';\n\nexport default function IncidentManagerTab() {\n  return (\n    <View style={styles.container}>\n      <IncidentManager />\n    </View>\n  );\n}\n\nconst styles = StyleSheet.create({\n  container: {\n    flex: 1,\n  },\n});\n
+// Go_BARRY/app/(tabs)/incidents.jsx
+// Sector 4: Incident Manager Tab Page
+
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
+import IncidentManager from '../../components/operations/IncidentManagerLegacy';
+import AppHeader from '../../components/common/AppHeader';
+
+export default function IncidentManagerTab() {
+  return (
+    <View style={styles.container}>
+      <AppHeader />
+      <IncidentManager />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+});

@@ -284,7 +284,7 @@ export default function AdminDashboard() {
           <View style={styles.navigationGrid}>
             <Pressable 
               style={[styles.navButton, styles.primaryNav]}
-              onPress={() => router.push('/browser-main')}
+              onPress={() => router.push('/browser-main-optimized')}
             >
               <MaterialCommunityIcons name="desktop" size={24} color="#fff" />
               <Text style={styles.navText}>Supervisor Dashboard</Text>

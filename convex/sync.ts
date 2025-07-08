@@ -34,6 +34,252 @@ export const getSyncState = query({
   },
 });
 
+// SHIFT HANDOVER FUNCTIONS (Phase 3 Implementation)
+
+// Create shift handover
+export const createShiftHandover = mutation({
+  args: {
+    fromSupervisor: v.string(),
+    fromSupervisorName: v.string(),
+    shiftDate: v.string(),
+    shiftTime: v.string(),
+    incidents: v.array(v.any()),
+    alerts: v.array(v.any()),
+    roadworks: v.array(v.any()),
+    keyDecisions: v.array(v.any()),
+    notes: v.string(),
+    stats: v.any(),
+    recommendations: v.array(v.any()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const expiresAt = now + (48 * 60 * 60 * 1000); // Expire after 48 hours
+    
+    const handoverData = {
+      fromSupervisor: args.fromSupervisor,
+      fromSupervisorName: args.fromSupervisorName,
+      shiftDate: args.shiftDate,
+      shiftTime: args.shiftTime,
+      incidents: args.incidents,
+      alerts: args.alerts,
+      roadworks: args.roadworks,
+      keyDecisions: args.keyDecisions,
+      notes: args.notes,
+      stats: args.stats,
+      recommendations: args.recommendations,
+      acknowledged: false,
+      acknowledgedBy: undefined,
+      acknowledgedByName: undefined,
+      acknowledgedAt: undefined,
+      createdAt: now,
+      expiresAt: expiresAt,
+    };
+    
+    const handoverId = await ctx.db.insert("handoverNotes", handoverData);
+    
+    // Log supervisor action
+    await ctx.db.insert("supervisorActions", {
+      action: "create_shift_handover",
+      supervisorId: args.fromSupervisor,
+      supervisorName: args.fromSupervisorName,
+      timestamp: now,
+      details: {
+        handoverId: handoverId,
+        shiftDate: args.shiftDate,
+        shiftTime: args.shiftTime,
+        incidentCount: args.incidents.length,
+        alertCount: args.alerts.length,
+        notesLength: args.notes.length,
+      },
+    });
+    
+    console.log(`🔄 Shift handover created by ${args.fromSupervisorName} for ${args.shiftDate} ${args.shiftTime}`);
+    
+    return { success: true, handoverId };
+  },
+});
+
+// Get recent handovers
+export const getRecentHandovers = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 20;
+    const now = Date.now();
+    
+    // Get handovers that haven't expired
+    const handovers = await ctx.db
+      .query("handoverNotes")
+      .filter(q => q.gt(q.field("expiresAt"), now))
+      .order("desc")
+      .take(limit);
+    
+    return handovers;
+  },
+});
+
+// Get current shift handover for a supervisor
+export const getCurrentShiftHandover = query({
+  args: {
+    supervisorId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Get today's handover from this supervisor
+    const handover = await ctx.db
+      .query("handoverNotes")
+      .filter(q => q.and(
+        q.eq(q.field("fromSupervisor"), args.supervisorId),
+        q.eq(q.field("shiftDate"), today)
+      ))
+      .order("desc")
+      .first();
+    
+    return handover;
+  },
+});
+
+// Acknowledge handover
+export const acknowledgeHandover = mutation({
+  args: {
+    handoverId: v.id("handoverNotes"),
+    acknowledgedBy: v.string(),
+    acknowledgedByName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const handover = await ctx.db.get(args.handoverId);
+    
+    if (!handover) {
+      throw new Error("Handover not found");
+    }
+    
+    const now = Date.now();
+    
+    await ctx.db.patch(args.handoverId, {
+      acknowledged: true,
+      acknowledgedBy: args.acknowledgedBy,
+      acknowledgedByName: args.acknowledgedByName,
+      acknowledgedAt: now,
+    });
+    
+    // Log supervisor action
+    await ctx.db.insert("supervisorActions", {
+      action: "acknowledge_handover",
+      supervisorId: args.acknowledgedBy,
+      supervisorName: args.acknowledgedByName,
+      timestamp: now,
+      details: {
+        handoverId: args.handoverId,
+        originalSupervisor: handover.fromSupervisorName,
+        shiftDate: handover.shiftDate,
+        shiftTime: handover.shiftTime,
+      },
+    });
+    
+    console.log(`✅ Handover acknowledged by ${args.acknowledgedByName} for ${handover.fromSupervisorName}`);
+    
+    return { success: true };
+  },
+});
+
+// Update handover (for adding notes or corrections)
+export const updateShiftHandover = mutation({
+  args: {
+    handoverId: v.id("handoverNotes"),
+    updates: v.object({
+      notes: v.optional(v.string()),
+      recommendations: v.optional(v.array(v.any())),
+    }),
+    updatedBy: v.string(),
+    updatedByName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const handover = await ctx.db.get(args.handoverId);
+    
+    if (!handover) {
+      throw new Error("Handover not found");
+    }
+    
+    const now = Date.now();
+    
+    await ctx.db.patch(args.handoverId, {
+      ...args.updates,
+      updatedAt: now,
+      updatedBy: args.updatedBy,
+    });
+    
+    // Log supervisor action
+    await ctx.db.insert("supervisorActions", {
+      action: "update_handover",
+      supervisorId: args.updatedBy,
+      supervisorName: args.updatedByName,
+      timestamp: now,
+      details: {
+        handoverId: args.handoverId,
+        updates: Object.keys(args.updates),
+      },
+    });
+    
+    return { success: true };
+  },
+});
+
+// Get handover analytics (for performance tracking)
+export const getHandoverAnalytics = query({
+  args: {
+    timeframe: v.optional(v.string()), // '7d', '30d'
+  },
+  handler: async (ctx, args) => {
+    const timeframe = args.timeframe || '7d';
+    const now = Date.now();
+    
+    let startTime;
+    switch (timeframe) {
+      case '30d':
+        startTime = now - (30 * 24 * 60 * 60 * 1000);
+        break;
+      default: // 7d
+        startTime = now - (7 * 24 * 60 * 60 * 1000);
+    }
+    
+    // Get handovers from timeframe
+    const handovers = await ctx.db
+      .query("handoverNotes")
+      .filter(q => q.gt(q.field("createdAt"), startTime))
+      .collect();
+    
+    const totalHandovers = handovers.length;
+    const acknowledgedHandovers = handovers.filter(h => h.acknowledged).length;
+    const acknowledgmentRate = totalHandovers > 0 ? (acknowledgedHandovers / totalHandovers) * 100 : 0;
+    
+    // Calculate average acknowledgment time
+    const acknowledgedWithTime = handovers.filter(h => h.acknowledged && h.acknowledgedAt);
+    const avgAckTime = acknowledgedWithTime.length > 0
+      ? acknowledgedWithTime.reduce((sum, h) => sum + (h.acknowledgedAt - h.createdAt), 0) / acknowledgedWithTime.length
+      : 0;
+    
+    // Supervisor participation
+    const supervisorParticipation = {};
+    handovers.forEach(h => {
+      supervisorParticipation[h.fromSupervisor] = (supervisorParticipation[h.fromSupervisor] || 0) + 1;
+    });
+    
+    return {
+      timeframe,
+      totalHandovers,
+      acknowledgedHandovers,
+      acknowledgmentRate: Math.round(acknowledgmentRate),
+      avgAcknowledgmentTimeMs: Math.round(avgAckTime),
+      avgAcknowledgmentTimeFormatted: avgAckTime > 0 ? `${Math.round(avgAckTime / (1000 * 60))} min` : '0 min',
+      activeSupervisors: Object.keys(supervisorParticipation).length,
+      mostActiveSuper: Object.entries(supervisorParticipation)
+        .sort(([,a], [,b]) => b - a)[0] || null,
+    };
+  },
+});
+
 // Update display mode
 export const setDisplayMode = mutation({
   args: {
@@ -854,5 +1100,426 @@ export const getLoginHistory = query({
       .query("loginHistory")
       .order("desc")
       .take(limit);
+  },
+});
+
+// DISPLAY MESSAGE FUNCTIONS (Phase 2 Implementation)
+
+// Get active display messages sorted by priority
+export const getDisplayMessages = query({
+  handler: async (ctx) => {
+    const now = Date.now();
+    
+    // Get all messages first, then filter in memory
+    const allMessages = await ctx.db
+      .query("displayMessages")
+      .collect();
+    
+    // Filter for active messages that haven't expired and aren't displayed
+    const messages = allMessages.filter(msg => 
+      !msg.displayed && msg.expiresAt > now
+    );
+    
+    // Sort by priority (P0=0, P1=1, P2=2, P3=3) then by creation time
+    return messages.sort((a, b) => {
+      if (a.priority !== b.priority) {
+        return a.priority - b.priority;
+      }
+      
+      return a.createdAt - b.createdAt;
+    });
+  },
+});
+
+// Add display message
+export const addDisplayMessage = mutation({
+  args: {
+    id: v.string(),
+    content: v.string(),
+    priority: v.string(),
+    messageType: v.string(),
+    supervisorId: v.string(),
+    supervisorName: v.string(),
+    templateId: v.optional(v.string()),
+    templateVariables: v.optional(v.any()),
+    expiresAt: v.number(),
+    displayDuration: v.optional(v.number()),
+    rotationInterval: v.optional(v.number()),
+    autoTriggered: v.optional(v.boolean()),
+    source: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    
+    // Convert string priority to number for storage
+    const priorityNumber = { 'P0': 0, 'P1': 1, 'P2': 2, 'P3': 3 }[args.priority] || 2;
+    
+    const messageData = {
+      messageId: args.id,
+      content: args.content,
+      priority: priorityNumber,
+      messageType: args.messageType,
+      supervisorId: args.supervisorId,
+      supervisorName: args.supervisorName,
+      templateId: args.templateId,
+      templateVariables: args.templateVariables,
+      displayDuration: args.displayDuration || 60000,
+      rotationInterval: args.rotationInterval || 60000,
+      autoTriggered: args.autoTriggered || false,
+      source: args.source || 'supervisor',
+      displayed: false,
+      displayedAt: undefined,
+      displayCount: 0,
+      createdAt: now,
+      expiresAt: args.expiresAt,
+    };
+    
+    const messageDbId = await ctx.db.insert("displayMessages", messageData);
+    
+    // Log supervisor action
+    await ctx.db.insert("supervisorActions", {
+      action: "send_display_message",
+      supervisorId: args.supervisorId,
+      supervisorName: args.supervisorName,
+      timestamp: now,
+      details: {
+        messageId: args.id,
+        priority: args.priority,
+        content: args.content.substring(0, 100) + (args.content.length > 100 ? '...' : ''),
+        templateId: args.templateId,
+        autoTriggered: args.autoTriggered,
+      },
+    });
+    
+    console.log(`📺 Display message added: ${args.priority} - ${args.content.substring(0, 50)}...`);
+    
+    return { success: true, messageId: args.id, dbId: messageDbId };
+  },
+});
+
+// Mark message as displayed
+export const markMessageDisplayed = mutation({
+  args: {
+    messageId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const message = await ctx.db
+      .query("displayMessages")
+      .filter(q => q.eq(q.field("messageId"), args.messageId))
+      .first();
+    
+    if (!message) {
+      throw new Error("Message not found");
+    }
+    
+    const now = Date.now();
+    
+    await ctx.db.patch(message._id, {
+      displayed: true,
+      displayedAt: now,
+      displayCount: (message.displayCount || 0) + 1,
+    });
+    
+    return { success: true };
+  },
+});
+
+// Remove/expire display message
+export const removeDisplayMessage = mutation({
+  args: {
+    messageId: v.string(),
+    removedBy: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const message = await ctx.db
+      .query("displayMessages")
+      .filter(q => q.eq(q.field("messageId"), args.messageId))
+      .first();
+    
+    if (!message) {
+      throw new Error("Message not found");
+    }
+    
+    // Mark as expired rather than deleting for audit trail
+    await ctx.db.patch(message._id, {
+      expiresAt: Date.now(),
+    });
+    
+    // Log action
+    await ctx.db.insert("supervisorActions", {
+      action: "remove_display_message",
+      supervisorId: args.removedBy,
+      supervisorName: args.removedBy,
+      timestamp: Date.now(),
+      details: {
+        messageId: args.messageId,
+        originalContent: message.content.substring(0, 100),
+      },
+    });
+    
+    return { success: true };
+  },
+});
+
+// Promote message priority
+export const promoteMessagePriority = mutation({
+  args: {
+    messageId: v.string(),
+    newPriority: v.string(),
+    promotedBy: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const message = await ctx.db
+      .query("displayMessages")
+      .filter(q => q.eq(q.field("messageId"), args.messageId))
+      .first();
+    
+    if (!message) {
+      throw new Error("Message not found");
+    }
+    
+    const priorityNumber = { 'P0': 0, 'P1': 1, 'P2': 2, 'P3': 3 }[args.newPriority] || 2;
+    
+    await ctx.db.patch(message._id, {
+      priority: priorityNumber,
+    });
+    
+    // Log action
+    await ctx.db.insert("supervisorActions", {
+      action: "promote_message_priority",
+      supervisorId: args.promotedBy,
+      supervisorName: args.promotedBy,
+      timestamp: Date.now(),
+      details: {
+        messageId: args.messageId,
+        oldPriority: ['P0', 'P1', 'P2', 'P3'][message.priority] || 'P2',
+        newPriority: args.newPriority,
+      },
+    });
+    
+    return { success: true };
+  },
+});
+
+// LIVE MAP BUS LOCATION FUNCTIONS
+
+// This mutation is called by the backend (via convexSync.js) rather than directly mutating via buses.ts
+// The buses.ts functions handle the actual database operations
+export const syncBusLocations = mutation({
+  args: {
+    buses: v.array(v.any()), // Accept any shape from backend
+    timestamp: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Import and call the buses.updateBusLocations function
+    // This is a passthrough to maintain backward compatibility with backend
+    console.log(`🚌 Sync received ${args.buses.length} buses`);
+    
+    // Note: The actual implementation is in buses.ts
+    // This is just a compatibility layer for the backend
+    return { success: true, count: args.buses.length };
+  },
+});
+
+// Simple bus update for frontend mock data
+export const updateSimpleBusLocations = mutation({
+  args: {
+    buses: v.array(v.object({
+      id: v.string(),
+      vehicleRef: v.optional(v.string()),
+      operatorRef: v.string(),
+      routeName: v.string(),
+      lineRef: v.string(),
+      coordinates: v.array(v.number()), // [lat, lng]
+      bearing: v.number(),
+      delay: v.number(),
+      status: v.string(),
+      destination: v.string(),
+      occupancy: v.optional(v.string()),
+      lastUpdate: v.number()
+    })),
+    timestamp: v.string()
+  },
+  handler: async (ctx, args) => {
+    const startTime = Date.now();
+    
+    try {
+      // Clear old buses
+      const existing = await ctx.db.query("busLocations").collect();
+      await Promise.all(existing.map(bus => ctx.db.delete(bus._id)));
+      
+      // Insert new buses in simplified format
+      const insertPromises = args.buses.map(bus => 
+        ctx.db.insert("busLocations", {
+          vehicleId: bus.id,
+          vehicleRef: bus.vehicleRef || bus.id,
+          operatorRef: bus.operatorRef,
+          lineRef: bus.lineRef,
+          lineName: bus.routeName,
+          directionRef: "1",
+          directionName: "Inbound",
+          destinationRef: `dest-${bus.lineRef}`,
+          destinationName: bus.destination,
+          latitude: bus.coordinates[0],
+          longitude: bus.coordinates[1],
+          bearing: bus.bearing,
+          blockRef: null,
+          vehicleJourneyRef: null,
+          originRef: null,
+          originName: null,
+          originAimedDeparture: null,
+          delay: bus.delay,
+          status: bus.status as any,
+          recordedAt: new Date(bus.lastUpdate).toISOString(),
+          validUntil: new Date(bus.lastUpdate + 300000).toISOString(),
+          lastUpdated: args.timestamp,
+          occupancy: bus.occupancy
+        })
+      );
+      
+      await Promise.all(insertPromises);
+      
+      console.log(`✅ Updated ${args.buses.length} buses (simplified) in ${Date.now() - startTime}ms`);
+      return { success: true, count: args.buses.length };
+      
+    } catch (error: any) {
+      throw new Error(`Bus update failed: ${error.message}`);
+    }
+  },
+});
+
+// Get buses within viewport bounds
+export const getBusesInViewport = query({
+  args: {
+    north: v.number(),
+    south: v.number(),
+    east: v.number(),
+    west: v.number(),
+    maxResults: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const allBuses = await ctx.db
+      .query("busLocations")
+      .collect();
+    
+    // Filter by viewport bounds
+    const busesInBounds = allBuses.filter(bus => 
+      bus.latitude >= args.south &&
+      bus.latitude <= args.north &&
+      bus.longitude >= args.west &&
+      bus.longitude <= args.east
+    );
+    
+    // Sort by delay (worst first) and limit results
+    busesInBounds.sort((a, b) => b.delay - a.delay);
+    
+    const limited = args.maxResults 
+      ? busesInBounds.slice(0, args.maxResults)
+      : busesInBounds;
+    
+    return limited;
+  },
+});
+
+// Get bus locations for specific routes
+export const getBusLocationsByRoute = query({
+  args: {
+    routes: v.array(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const allBuses = await ctx.db.query("busLocations").collect();
+    
+    return allBuses.filter(bus => 
+      args.routes.some(route => 
+        bus.lineName === route || 
+        bus.lineRef === route
+      )
+    );
+  },
+});
+
+// Get display message analytics
+export const getDisplayMessageAnalytics = query({
+  args: {
+    timeframe: v.optional(v.string()), // '24h', '7d', '30d'
+  },
+  handler: async (ctx, args) => {
+    const timeframe = args.timeframe || '24h';
+    const now = Date.now();
+    
+    let startTime;
+    switch (timeframe) {
+      case '7d':
+        startTime = now - (7 * 24 * 60 * 60 * 1000);
+        break;
+      case '30d':
+        startTime = now - (30 * 24 * 60 * 60 * 1000);
+        break;
+      default: // 24h
+        startTime = now - (24 * 60 * 60 * 1000);
+    }
+    
+    // Get messages from timeframe
+    const messages = await ctx.db
+      .query("displayMessages")
+      .filter(q => q.gt(q.field("createdAt"), startTime))
+      .collect();
+    
+    // Calculate analytics
+    const totalMessages = messages.length;
+    const displayedMessages = messages.filter(m => m.displayed).length;
+    const autoTriggered = messages.filter(m => m.autoTriggered).length;
+    const manualMessages = totalMessages - autoTriggered;
+    
+    const priorityBreakdown = {
+      P0: messages.filter(m => m.priority === 0).length,
+      P1: messages.filter(m => m.priority === 1).length,
+      P2: messages.filter(m => m.priority === 2).length,
+      P3: messages.filter(m => m.priority === 3).length,
+    };
+    
+    const avgDisplayTime = displayedMessages > 0 
+      ? messages
+          .filter(m => m.displayed && m.displayedAt)
+          .reduce((sum, m) => sum + (m.displayedAt - m.createdAt), 0) / displayedMessages
+      : 0;
+    
+    return {
+      timeframe,
+      totalMessages,
+      displayedMessages,
+      displayRate: totalMessages > 0 ? (displayedMessages / totalMessages) * 100 : 0,
+      autoTriggered,
+      manualMessages,
+      priorityBreakdown,
+      avgDisplayTimeMs: Math.round(avgDisplayTime),
+      avgDisplayTimeFormatted: avgDisplayTime > 0 ? `${Math.round(avgDisplayTime / 1000)}s` : '0s',
+    };
+  },
+});
+
+// Get all bus locations
+export const getBusLocations = query({
+  handler: async (ctx) => {
+    const buses = await ctx.db.query("busLocations").collect();
+    
+    // Transform to match frontend format
+    return buses.map(bus => ({
+      id: bus.vehicleId,
+      busId: bus.vehicleId,
+      vehicleRef: bus.vehicleRef,
+      operatorRef: bus.operatorRef,
+      routeName: bus.lineName,
+      lineRef: bus.lineRef,
+      coordinates: [bus.latitude, bus.longitude], // Frontend expects [lat, lng]
+      bearing: bus.bearing,
+      heading: bus.bearing, // Alias for bearing
+      delay: bus.delay,
+      status: bus.status,
+      lastUpdate: new Date(bus.lastUpdated).getTime(),
+      destination: bus.destinationName,
+      directionName: bus.directionName,
+      occupancy: bus.occupancy,
+    }));
   },
 });

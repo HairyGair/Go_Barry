@@ -1,0 +1,42 @@
+/*
+ * Test implementation for AppCard component
+ * This will be removed after testing
+ */
+
+import React from 'react';
+import { View, StyleSheet } from 'react-native';
+import Icon from 'react-native-vector-icons/FontAwesome5';
+import AppCard from './AppCard';
+
+const AppCardTest = () => {
+  return (
+    <View style={styles.container}>
+      <AppCard
+        icon={<Icon name="tv" size={36} color="#fff" />}
+        title="Test Application"
+        description="This is a test of the AppCard component to verify it renders correctly."
+        features={[
+          { icon: 'eye', text: 'Real-time monitoring' },
+          { icon: 'map', text: 'Live traffic map' }
+        ]}
+        buttonText="Open Test App"
+        onPress={() => console.log('Test card pressed')}
+        accessibilityLabel="Test Application Card"
+        iconBackgroundColor="#E31E24"
+        testID="test-app-card"
+      />
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#0a0e16',
+    padding: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});
+
+export default AppCardTest;

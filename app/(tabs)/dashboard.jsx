@@ -4,6 +4,7 @@ import React from 'react';
 import { View, StyleSheet, StatusBar, Platform } from 'react-native';
 import OptimizedMobileDashboard from '../../components/mobile/OptimizedMobileDashboard';
 import EnhancedDashboard from '../../components/EnhancedDashboard';
+import AppHeader from '../../components/common/AppHeader';
 import { API_CONFIG } from '../../config/api';
 
 const isWeb = Platform.OS === 'web';
@@ -24,23 +25,26 @@ export default function DashboardScreen({ navigation }) {
   return (
     <View style={styles.container}>
       {!isWeb && <StatusBar barStyle="light-content" backgroundColor="#111827" />}
+      <AppHeader />
       
       {/* Use optimized mobile dashboard for better performance */}
-      {Platform.OS !== 'web' ? (
-        <OptimizedMobileDashboard 
-          baseUrl={API_CONFIG.baseURL}
-          onAlertPress={handleAlertPress}
-          onViewAllPress={handleViewAllPress}
-          autoRefreshInterval={API_CONFIG.refreshIntervals.dashboard}
-        />
-      ) : (
-        <EnhancedDashboard 
-          baseUrl={API_CONFIG.baseURL}
-          onAlertPress={handleAlertPress}
-          onViewAllPress={handleViewAllPress}
-          autoRefreshInterval={API_CONFIG.refreshIntervals.dashboard}
-        />
-      )}
+      <View style={styles.content}>
+        {Platform.OS !== 'web' ? (
+          <OptimizedMobileDashboard 
+            baseUrl={API_CONFIG.baseURL}
+            onAlertPress={handleAlertPress}
+            onViewAllPress={handleViewAllPress}
+            autoRefreshInterval={API_CONFIG.refreshIntervals.dashboard}
+          />
+        ) : (
+          <EnhancedDashboard 
+            baseUrl={API_CONFIG.baseURL}
+            onAlertPress={handleAlertPress}
+            onViewAllPress={handleViewAllPress}
+            autoRefreshInterval={API_CONFIG.refreshIntervals.dashboard}
+          />
+        )}
+      </View>
     </View>
   );
 }
@@ -49,5 +53,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#111827',
+  },
+  content: {
+    flex: 1,
   },
 });
