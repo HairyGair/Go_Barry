@@ -183,9 +183,21 @@ const SUPERVISOR_DB = {
   },
   'claire_fiddler': { name: 'Claire Fiddler', role: 'Supervisor' },
   'david_hall': { name: 'David Hall', role: 'Supervisor' },
-  'james_daglish': { name: 'James Daglish', role: 'Supervisor' },
-  'john_paterson': { name: 'John Paterson', role: 'Supervisor' },
-  'simon_glass': { name: 'Simon Glass', role: 'Supervisor' },
+  'james_daglish': { 
+    name: 'James Daglish', 
+    role: 'Supervisor',
+    defaultPassword: 'James123'
+  },
+  'john_paterson': { 
+    name: 'John Paterson', 
+    role: 'Supervisor',
+    defaultPassword: 'John123'
+  },
+  'simon_glass': { 
+    name: 'Simon Glass', 
+    role: 'Supervisor',
+    defaultPassword: 'Simon123'
+  },
   'barry_perryman': { 
     name: 'Barry Perryman', 
     role: 'Service Delivery Controller - Line Manager',
@@ -328,7 +340,7 @@ export const useSupervisorSession = () => {
       // Check if this is a first-time user who needs password setup
       if (!loginData.isPasswordSetup && passwordStorageService.isFirstTimeUser(loginData.supervisorId)) {
         // Special case for users with default passwords - auto-migrate them
-        if ((loginData.supervisorId === 'barry_perryman' || loginData.supervisorId === 'anthony_gair') && supervisor.defaultPassword) {
+        if (supervisor.defaultPassword && ['barry_perryman', 'anthony_gair', 'james_daglish', 'john_paterson', 'simon_glass'].includes(loginData.supervisorId)) {
           passwordStorageService.savePassword(loginData.supervisorId, supervisor.defaultPassword);
         } else {
           // Show password setup screen for other users
@@ -346,7 +358,7 @@ export const useSupervisorSession = () => {
 
       // Check password (special case for users with default passwords)
       const isValidPassword = passwordStorageService.checkPassword(loginData.supervisorId, loginData.password) ||
-        ((loginData.supervisorId === 'barry_perryman' || loginData.supervisorId === 'anthony_gair') && loginData.password === supervisor.defaultPassword);
+        (supervisor.defaultPassword && ['barry_perryman', 'anthony_gair', 'james_daglish', 'john_paterson', 'simon_glass'].includes(loginData.supervisorId) && loginData.password === supervisor.defaultPassword);
 
       if (!isValidPassword) {
         throw new Error('Incorrect password');
