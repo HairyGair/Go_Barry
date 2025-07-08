@@ -494,7 +494,8 @@ async function initializeSupervisorData() {
   }
   
   console.log('⚠️ Supervisor system starting in offline mode due to Supabase connection issues');
-    
+  
+  try {
     // Load existing sessions from Supabase
     await loadSessionsFromSupabase();
     

@@ -65,11 +65,15 @@ export function handleWebhookMessage(message) {
     if (messageType === 'SubscriptionConfirmation') {
       console.log(`📧 [HANDLER-${handlerId}] Auto-confirming StreetManager subscription`);
       if (message.SubscribeURL) {
-        fetch(message.SubscribeURL).then(() => {
-          console.log(`✅ [HANDLER-${handlerId}] StreetManager subscription confirmed`);
-        }).catch(err => {
-          console.error(`❌ [HANDLER-${handlerId}] Failed to confirm subscription:`, err.message);
-        });
+        // Use async IIFE to handle the promise properly
+        (async () => {
+          try {
+            await fetch(message.SubscribeURL);
+            console.log(`✅ [HANDLER-${handlerId}] StreetManager subscription confirmed`);
+          } catch (err) {
+            console.error(`❌ [HANDLER-${handlerId}] Failed to confirm subscription:`, err.message);
+          }
+        })();
       } else {
         console.warn(`⚠️ [HANDLER-${handlerId}] Subscription confirmation missing SubscribeURL`);
       }

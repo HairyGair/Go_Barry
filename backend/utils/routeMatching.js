@@ -12,15 +12,18 @@ import {
 
 // Initialize enhanced matcher on import
 let enhancedMatcherInitialized = false;
-initializeEnhancedMatcher().then(success => {
-  enhancedMatcherInitialized = success;
-  if (success) {
-    const stats = getEnhancedMatcherStats();
-    console.log(`🚌 Enhanced Route Matcher Ready: ${stats.routes} routes, ${stats.stops} stops`);
+(async () => {
+  try {
+    const success = await initializeEnhancedMatcher();
+    enhancedMatcherInitialized = success;
+    if (success) {
+      const stats = getEnhancedMatcherStats();
+      console.log(`🚌 Enhanced Route Matcher Ready: ${stats.routes} routes, ${stats.stops} stops`);
+    }
+  } catch (error) {
+    console.warn('⚠️ Enhanced matcher initialization failed, using fallback methods');
   }
-}).catch(error => {
-  console.warn('⚠️ Enhanced matcher initialization failed, using fallback methods');
-});
+})();
 
 // Route mapping data - maps location keywords to bus routes
 const LOCATION_ROUTE_MAPPING = {
