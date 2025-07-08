@@ -10,6 +10,12 @@ class ConvexSyncService {
     this.convexUrl = process.env.CONVEX_URL;
     this.isEnabled = this.convexUrl && this.convexUrl !== '';
     
+    // Circuit breaker for bus sync
+    this.busyncFailures = 0;
+    this.busyncLastFailure = 0;
+    this.busyncDisabled = false;
+    this.busyncDisabledUntil = 0;
+    
     if (this.isEnabled) {
       console.log('✅ Convex sync service enabled (URL: ' + this.convexUrl + ')');
     } else {
@@ -38,7 +44,7 @@ class ConvexSyncService {
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`❌ Convex HTTP error ${response.status}:`, errorText);
-        throw new Error(`Convex error: ${response.status} - ${errorText}`);
+        throw new Error(`Convex HTTP error: ${response.status} - ${errorText.substring(0, 200)}`);
       }
 
       const result = await response.json();
@@ -343,6 +349,10 @@ class ConvexSyncService {
     if (!this.isEnabled) {
       return { success: false, reason: 'Convex not configured' };
     }
+    
+    // EMERGENCY: Completely disable bus sync due to persistent Convex server errors
+    console.log('🚨 Bus sync DISABLED due to persistent Convex server errors');
+    return { success: false, reason: 'Bus sync disabled - Convex server errors' };
 
     try {
       // Fetch latest bus data from BODS
@@ -419,10 +429,26 @@ class ConvexSyncService {
       });
       
       console.log(`✅ Synced ${busesToSync.length} bus locations to Convex`);
+      
+      // Reset failure count on success
+      this.busyncFailures = 0;
+      
       return { success: true, count: busesToSync.length, result };
       
     } catch (error) {
       console.error('❌ Bus sync error:', error.message);
+      
+      // Circuit breaker logic - track failures
+      this.busyncFailures++;
+      this.busyncLastFailure = Date.now();
+      
+      // Disable after 5 consecutive failures
+      if (this.busyncFailures >= 5) {
+        this.busyncDisabled = true;
+        this.busyncDisabledUntil = Date.now() + (10 * 60 * 1000); // 10 minute cooldown
+        console.warn(`🚨 Bus sync disabled for 10 minutes after ${this.busyncFailures} failures`);
+      }
+      
       return { success: false, error: error.message };
     }
   }

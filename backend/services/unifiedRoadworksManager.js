@@ -171,21 +171,64 @@ class UnifiedRoadworksManager {
    */
   async getStreetManagerRoadworks() {
     try {
-      // 🔧 FIXED: Read directly from streetmanager_notifications (webhook data)
-      console.log('📊 Fetching Street Manager data from webhook notifications...');
+      // 🔧 FIXED: Read directly from streetmanager_summaries (processed webhook data)
+      console.log('📊 Fetching Street Manager data from processed summaries...');
       
       // Import location validation
       const { isNorthEastLocation } = await import('./locationValidation.js');
       
-      const { data: notifications, error: notifError } = await supabase
-        .from('streetmanager_notifications')
-        .select('*')
-        .order('webhook_received_at', { ascending: false })
-        .limit(500); // Increased limit
+      // Add retry logic for database connection
+      let summaries = null;
+      let notifError = null;
+      
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const result = await Promise.race([
+            supabase
+              .from('streetmanager_summaries')
+              .select('*')
+              .order('created_at', { ascending: false })
+              .limit(500),
+            new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Database timeout')), 10000)
+            )
+          ]);
+          
+          summaries = result.data;
+          notifError = result.error;
+          break;
+          
+        } catch (error) {
+          console.warn(`⚠️ Street Manager query attempt ${attempt}/3 failed:`, error.message);
+          notifError = error;
+          
+          if (attempt < 3) {
+            await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // Progressive delay
+          }
+        }
+      }
 
       if (notifError) {
-        console.error('❌ Street Manager notifications error:', notifError);
-        console.warn('⚠️ Failed to fetch Street Manager notifications:', notifError);
+        console.error('❌ Street Manager notifications error after 3 attempts:', notifError);
+        
+        // Try to return cached data if available
+        if (this.cache.has('streetmanager_data')) {
+          const cached = this.cache.get('streetmanager_data');
+          if (Date.now() - cached.timestamp < this.cacheTimeout * 3) { // Allow stale cache during errors
+            console.log('📋 Returning cached Street Manager data due to database error');
+            return {
+              success: true,
+              data: cached.data,
+              cached: true,
+              cacheAge: Date.now() - cached.timestamp,
+              error: `Database error: ${notifError.message}`,
+              source: 'street_manager'
+            };
+          }
+        }
+        
+        // If no cache available, return empty but don't spam errors
+        console.warn('⚠️ No cached data available, returning empty Street Manager data');
         return {
           success: false,
           data: [],
@@ -194,17 +237,17 @@ class UnifiedRoadworksManager {
         };
       }
 
-      console.log(`📨 Found ${notifications?.length || 0} Street Manager webhook notifications`);
+      console.log(`📨 Found ${summaries?.length || 0} Street Manager summaries`);
       
-      if (!notifications || notifications.length === 0) {
-        console.log('📋 No notifications found, returning empty array');
+      if (!summaries || summaries.length === 0) {
+        console.log('📋 No summaries found, returning empty array');
         return {
           success: true,
           data: [],
           lastUpdate: new Date().toISOString(),
           source: 'street_manager',
           metadata: {
-            webhookNotifications: 0,
+            webhookSummaries: 0,
             processedRoadworks: 0,
             total: 0,
             directWebhookRead: true
@@ -212,23 +255,23 @@ class UnifiedRoadworksManager {
         };
       }
       
-      console.log('🔄 Converting notifications to roadworks format...');
+      console.log('🔄 Converting summaries to roadworks format...');
       
-      // Convert notifications to roadworks format
+      // Convert summaries to roadworks format
       const roadworks = [];
       
-      for (let i = 0; i < notifications.length; i++) {
+      for (let i = 0; i < summaries.length; i++) {
         try {
-          const notification = notifications[i];
-          const rawData = notification.raw_webhook_data || {};
+          const summary = summaries[i];
+          const rawData = summary.raw_webhook_data || {};
           const objectData = rawData.object_data || {};
           
-          console.log(`🔍 Processing notification ${i+1}/${notifications.length}: ${notification.notification_id}`);
+          console.log(`🔍 Processing summary ${i+1}/${summaries.length}: ${summary.notification_id}`);
           
           // 📍 FIXED: Extract location from raw webhook data
           const location = objectData.street_name || objectData.area_name || 
-                          notification.street_name || notification.area_name || 
-                          notification.location_description || 'Unknown location';
+                          summary.street_name || summary.area_name || 
+                          summary.location_description || 'Unknown location';
           
           const fullLocation = objectData.town ? 
             `${location}, ${objectData.town}` : location;
@@ -248,11 +291,11 @@ class UnifiedRoadworksManager {
           }
           
           const roadwork = {
-            id: notification.notification_id,
+            id: summary.notification_id,
             title: `${objectData.activity_type || rawData.object_type} - ${objectData.street_name || 'Unknown Street'}`,
-            description: `${objectData.work_category || 'Works'}: ${objectData.activity_type || 'Street Manager notification'} (${rawData.event_type})`,
+            description: `${objectData.work_category || 'Works'}: ${objectData.activity_type || 'Street Manager summary'} (${rawData.event_type})`,
             location: fullLocation,
-            coordinates: notification.coordinates ? [notification.coordinates.lat, notification.coordinates.lng] : null,
+            coordinates: summary.coordinates ? [summary.coordinates.lat, summary.coordinates.lng] : null,
             
             // Status and severity
             status: objectData.work_status_ref === 'completed' ? 'green' : 
@@ -264,12 +307,12 @@ class UnifiedRoadworksManager {
             // Source information  
             source: 'StreetManager',
             dataSource: 'StreetManager Webhook',
-            sourceId: notification.notification_id,
+            sourceId: summary.notification_id,
             
             // Timing
             startDate: objectData.actual_start_date_time || objectData.proposed_start_date,
             endDate: objectData.actual_end_date_time || objectData.proposed_end_date,
-            lastUpdated: notification.webhook_received_at,
+            lastUpdated: summary.webhook_received_at,
             
             // Street Manager specific
             permitReference: objectData.permit_reference_number,
@@ -279,7 +322,7 @@ class UnifiedRoadworksManager {
             streetName: objectData.street_name,
             areaName: objectData.area_name,
             town: objectData.town,
-            eventType: notification.webhook_event_type,
+            eventType: summary.webhook_event_type,
             
             // Work details
             activityType: objectData.activity_type,
@@ -290,8 +333,8 @@ class UnifiedRoadworksManager {
             workLocationCoordinates: objectData.works_location_coordinates,
             
             // Processing status
-            processingStatus: notification.processing_status,
-            processedAt: notification.processed_at,
+            processingStatus: summary.processing_status,
+            processedAt: summary.processed_at,
             
             // Enhancement flags
             locationAccuracy: objectData.works_location_coordinates ? 'high' : 
@@ -315,15 +358,15 @@ class UnifiedRoadworksManager {
           };
           
           roadworks.push(roadwork);
-          console.log(`✅ Successfully converted notification ${i+1}: ${roadwork.title}`);
+          console.log(`✅ Successfully converted summary ${i+1}: ${roadwork.title}`);
           
         } catch (conversionError) {
-          console.error(`❌ Error converting notification ${i+1}:`, conversionError);
-          console.error('Notification data:', notifications[i]);
+          console.error(`❌ Error converting summary ${i+1}:`, conversionError);
+          console.error('Summary data:', summaries[i]);
         }
       }
       
-      console.log(`🚧 Converted ${roadworks.length}/${notifications.length} notifications to roadworks`);
+      console.log(`🚧 Converted ${roadworks.length}/${summaries.length} summaries to roadworks`);
       
       // Also try to fetch from processed tables (fallback)
       let additionalRoadworks = [];
@@ -353,18 +396,28 @@ class UnifiedRoadworksManager {
       
       console.log(`🚧 Street Manager: ${uniqueRoadworks.length} total roadworks (${roadworks.length} from webhooks, ${additionalRoadworks.length} processed)`);
       
-      return {
+      const result = {
         success: true,
         data: uniqueRoadworks,
         lastUpdate: new Date().toISOString(),
         source: 'street_manager',
         metadata: {
-          webhookNotifications: roadworks.length,
+          webhookSummaries: roadworks.length,
           processedRoadworks: additionalRoadworks.length,
           total: uniqueRoadworks.length,
           directWebhookRead: true
         }
       };
+      
+      // Cache successful results for resilience
+      this.cache.set('streetmanager_data', {
+        data: uniqueRoadworks,
+        timestamp: Date.now()
+      });
+      
+      console.log(`🗄️ Cached ${uniqueRoadworks.length} Street Manager roadworks for resilience`);
+      
+      return result;
     } catch (error) {
       console.error('❌ CRITICAL: Street Manager fetch failed:', error);
       console.error('Stack trace:', error.stack);
@@ -680,38 +733,38 @@ class UnifiedRoadworksManager {
       // Import location validation
       const { isNorthEastLocation } = await import('./locationValidation.js');
       
-      // Fetch all notifications
-      const { data: notifications, error } = await supabase
-        .from('streetmanager_notifications')
+      // Fetch all summaries
+      const { data: summaries, error } = await supabase
+        .from('streetmanager_summaries')
         .select('*')
-        .order('webhook_received_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('❌ Failed to fetch notifications:', error);
+        console.error('❌ Failed to fetch summaries:', error);
         return { success: false, error: error.message };
       }
 
-      console.log(`📊 Found ${notifications.length} total notifications to check`);
+      console.log(`📊 Found ${summaries.length} total summaries to check`);
       
       const toDelete = [];
       let northEastCount = 0;
       
-      // Check each notification
-      for (const notification of notifications) {
-        const rawData = notification.raw_webhook_data || {};
+      // Check each summary
+      for (const summary of summaries) {
+        const rawData = summary.raw_webhook_data || {};
         const objectData = rawData.object_data || {};
         
         const locationData = {
-          location: objectData.street_name || objectData.area_name || notification.location_description,
+          location: objectData.street_name || objectData.area_name || summary.location_description,
           town: objectData.town,
           authority: objectData.highway_authority || objectData.promoter_organisation,
-          areaName: objectData.area_name || notification.area_name,
-          streetName: objectData.street_name || notification.street_name,
-          coordinates: notification.coordinates
+          areaName: objectData.area_name || summary.area_name,
+          streetName: objectData.street_name || summary.street_name,
+          coordinates: summary.coordinates
         };
         
         if (!isNorthEastLocation(locationData)) {
-          toDelete.push(notification.notification_id);
+          toDelete.push(summary.notification_id);
           console.log(`🗑️ Marked for deletion: ${locationData.location} (${locationData.authority})`);
         } else {
           northEastCount++;
@@ -731,7 +784,7 @@ class UnifiedRoadworksManager {
           const batch = toDelete.slice(i, i + batchSize);
           
           const { error: deleteError } = await supabase
-            .from('streetmanager_notifications')
+            .from('streetmanager_summaries')
             .delete()
             .in('notification_id', batch);
           
@@ -747,7 +800,7 @@ class UnifiedRoadworksManager {
         
         return {
           success: true,
-          totalChecked: notifications.length,
+          totalChecked: summaries.length,
           northEastKept: northEastCount,
           deleted: deleted
         };
@@ -755,7 +808,7 @@ class UnifiedRoadworksManager {
         console.log('✅ No non-NE roadworks found - database is clean!');
         return {
           success: true,
-          totalChecked: notifications.length,
+          totalChecked: summaries.length,
           northEastKept: northEastCount,
           deleted: 0
         };
@@ -773,10 +826,10 @@ class UnifiedRoadworksManager {
     try {
       const { isNorthEastLocation } = await import('./locationValidation.js');
       
-      const { data: notifications, error } = await supabase
-        .from('streetmanager_notifications')
+      const { data: summaries, error } = await supabase
+        .from('streetmanager_summaries')
         .select('notification_id, location_description, street_name, area_name, town, raw_webhook_data')
-        .order('webhook_received_at', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(1000);
 
       if (error) throw error;
@@ -785,16 +838,16 @@ class UnifiedRoadworksManager {
       let nonNorthEast = 0;
       const sampleNonNE = [];
       
-      for (const notification of notifications) {
-        const rawData = notification.raw_webhook_data || {};
+      for (const summary of summaries) {
+        const rawData = summary.raw_webhook_data || {};
         const objectData = rawData.object_data || {};
         
         const locationData = {
-          location: objectData.street_name || objectData.area_name || notification.location_description,
+          location: objectData.street_name || objectData.area_name || summary.location_description,
           town: objectData.town,
           authority: objectData.highway_authority || objectData.promoter_organisation,
-          areaName: objectData.area_name || notification.area_name,
-          streetName: objectData.street_name || notification.street_name
+          areaName: objectData.area_name || summary.area_name,
+          streetName: objectData.street_name || summary.street_name
         };
         
         if (isNorthEastLocation(locationData)) {
@@ -803,7 +856,7 @@ class UnifiedRoadworksManager {
           nonNorthEast++;
           if (sampleNonNE.length < 10) {
             sampleNonNE.push({
-              id: notification.notification_id,
+              id: summary.notification_id,
               location: locationData.location,
               authority: locationData.authority,
               town: locationData.town
@@ -815,10 +868,10 @@ class UnifiedRoadworksManager {
       return {
         success: true,
         stats: {
-          total: notifications.length,
+          total: summaries.length,
           northEast,
           nonNorthEast,
-          percentageNE: Math.round((northEast / notifications.length) * 100),
+          percentageNE: Math.round((northEast / summaries.length) * 100),
           sampleNonNE
         }
       };

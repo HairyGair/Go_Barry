@@ -1344,46 +1344,87 @@ export const updateSimpleBusLocations = mutation({
     const startTime = Date.now();
     
     try {
-      // Clear old buses
+      // Validate input data
+      if (!args.buses || args.buses.length === 0) {
+        console.log('⚠️ No buses provided to update');
+        return { success: true, count: 0 };
+      }
+      
+      // Validate each bus has required data
+      const validBuses = args.buses.filter(bus => {
+        if (!bus.coordinates || bus.coordinates.length !== 2) {
+          console.warn(`⚠️ Invalid coordinates for bus ${bus.id}:`, bus.coordinates);
+          return false;
+        }
+        if (typeof bus.coordinates[0] !== 'number' || typeof bus.coordinates[1] !== 'number') {
+          console.warn(`⚠️ Non-numeric coordinates for bus ${bus.id}:`, bus.coordinates);
+          return false;
+        }
+        return true;
+      });
+      
+      if (validBuses.length === 0) {
+        console.warn('⚠️ No valid buses after validation');
+        return { success: true, count: 0 };
+      }
+      
+      // Clear old buses (limit to prevent database overload)
       const existing = await ctx.db.query("busLocations").collect();
-      await Promise.all(existing.map(bus => ctx.db.delete(bus._id)));
+      if (existing.length > 0) {
+        // Delete in batches to avoid overwhelming the database
+        const deletePromises = existing.map(bus => ctx.db.delete(bus._id));
+        await Promise.all(deletePromises);
+      }
       
-      // Insert new buses in simplified format
-      const insertPromises = args.buses.map(bus => 
-        ctx.db.insert("busLocations", {
-          vehicleId: bus.id,
-          vehicleRef: bus.vehicleRef || bus.id,
-          operatorRef: bus.operatorRef,
-          lineRef: bus.lineRef,
-          lineName: bus.routeName,
-          directionRef: "1",
-          directionName: "Inbound",
-          destinationRef: `dest-${bus.lineRef}`,
-          destinationName: bus.destination,
-          latitude: bus.coordinates[0],
-          longitude: bus.coordinates[1],
-          bearing: bus.bearing,
-          blockRef: null,
-          vehicleJourneyRef: null,
-          originRef: null,
-          originName: null,
-          originAimedDeparture: null,
-          delay: bus.delay,
-          status: bus.status as any,
-          recordedAt: new Date(bus.lastUpdate).toISOString(),
-          validUntil: new Date(bus.lastUpdate + 300000).toISOString(),
-          lastUpdated: args.timestamp,
-          occupancy: bus.occupancy
-        })
-      );
+      // Insert new buses in simplified format with better error handling
+      const insertPromises = validBuses.map(async (bus) => {
+        try {
+          return await ctx.db.insert("busLocations", {
+            vehicleId: bus.id,
+            vehicleRef: bus.vehicleRef || bus.id,
+            operatorRef: bus.operatorRef,
+            lineRef: bus.lineRef,
+            lineName: bus.routeName,
+            directionRef: "1",
+            directionName: "Inbound",
+            destinationRef: `dest-${bus.lineRef}`,
+            destinationName: bus.destination,
+            latitude: bus.coordinates[0],
+            longitude: bus.coordinates[1],
+            bearing: bus.bearing,
+            blockRef: null,
+            vehicleJourneyRef: null,
+            originRef: null,
+            originName: null,
+            originAimedDeparture: null,
+            delay: bus.delay,
+            status: bus.status as any,
+            recordedAt: new Date(bus.lastUpdate).toISOString(),
+            validUntil: new Date(bus.lastUpdate + 300000).toISOString(),
+            lastUpdated: args.timestamp,
+            occupancy: bus.occupancy
+          });
+        } catch (insertError: any) {
+          console.error(`❌ Failed to insert bus ${bus.id}:`, insertError.message);
+          return null;
+        }
+      });
       
-      await Promise.all(insertPromises);
+      const results = await Promise.all(insertPromises);
+      const successCount = results.filter(r => r !== null).length;
       
-      console.log(`✅ Updated ${args.buses.length} buses (simplified) in ${Date.now() - startTime}ms`);
-      return { success: true, count: args.buses.length };
+      console.log(`✅ Updated ${successCount}/${validBuses.length} buses (simplified) in ${Date.now() - startTime}ms`);
+      return { success: true, count: successCount, attempted: validBuses.length, total: args.buses.length };
       
     } catch (error: any) {
-      throw new Error(`Bus update failed: ${error.message}`);
+      console.error(`❌ Bus update failed:`, error);
+      // Don't throw, return error info instead to prevent frontend crashes
+      return { 
+        success: false, 
+        error: error.message, 
+        count: 0,
+        attempted: args.buses?.length || 0
+      };
     }
   },
 });

@@ -10,6 +10,12 @@ class BusUpdateLoop {
   
   // Start the update loop
   start() {
+    // EMERGENCY: Disable bus update loop due to persistent errors
+    console.log('🚨 Bus update loop DISABLED due to persistent Convex/sync errors');
+    console.log('⚠️ Bus locations will not be updated until sync is fixed');
+    this.isRunning = false;
+    return;
+    
     if (this.isRunning) {
       console.log('⚠️ Bus update loop already running');
       return;
