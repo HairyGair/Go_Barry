@@ -768,15 +768,18 @@ app.use('/api/supabase', supabaseOptimizationAPI);
 console.log('✅ BODS routes registered successfully');
 
 // Initialize BODS service
-bodsService.initialize().then(result => {
-  if (result.success) {
-    console.log('✅ BODS service initialized successfully');
-  } else {
-    console.warn('⚠️ BODS service initialization failed:', result.error);
+(async () => {
+  try {
+    const result = await bodsService.initialize();
+    if (result.success) {
+      console.log('✅ BODS service initialized successfully');
+    } else {
+      console.warn('⚠️ BODS service initialization failed:', result.error);
+    }
+  } catch (err) {
+    console.warn('⚠️ BODS service initialization error:', err.message);
   }
-}).catch(err => {
-  console.warn('⚠️ BODS service initialization error:', err.message);
-});
+})();
 
 // Bus location API endpoints
 console.log('🚌 Registering bus location routes at /api/bus-locations...');
@@ -784,47 +787,56 @@ app.use('/api/bus-locations', busLocationsAPI);
 console.log('✅ Bus location routes registered successfully');
 
 // Initialize bus location service
-busLocationService.initialize().then(result => {
-  if (result.success) {
-    console.log('✅ Bus location service initialized successfully');
-    
-    // Start the bus update loop for Convex sync
-    console.log('🚌 Starting bus update loop for real-time sync...');
-    busUpdateLoop.start();
-    console.log('✅ Bus update loop started - syncing to Convex every 10 seconds');
-  } else {
-    console.warn('⚠️ Bus location service initialization failed:', result.error);
+(async () => {
+  try {
+    const result = await busLocationService.initialize();
+    if (result.success) {
+      console.log('✅ Bus location service initialized successfully');
+      
+      // Start the bus update loop for Convex sync
+      console.log('🚌 Starting bus update loop for real-time sync...');
+      busUpdateLoop.start();
+      console.log('✅ Bus update loop started - syncing to Convex every 10 seconds');
+    } else {
+      console.warn('⚠️ Bus location service initialization failed:', result.error);
+    }
+  } catch (err) {
+    console.warn('⚠️ Bus location service initialization error:', err.message);
   }
-}).catch(err => {
-  console.warn('⚠️ Bus location service initialization error:', err.message);
-});
+})();
 
 // Bus location API endpoints
 console.log('🚌 Registering bus location routes at /api/bus-locations...');
 app.use('/api/bus-locations', busLocationsAPI);
 console.log('✅ Bus location routes registered successfully');
 
-// Initialize bus location service
-busLocationService.initialize().then(result => {
-  if (result.success) {
-    console.log('✅ Bus location service initialized successfully');
-  } else {
-    console.warn('⚠️ Bus location service initialization failed:', result.error);
-  }
-}).catch(err => {
-  console.warn('⚠️ Bus location service initialization error:', err.message);
-});
+// Initialize bus location service (duplicate - removing)
+// (async () => {
+//   try {
+//     const result = await busLocationService.initialize();
+//     if (result.success) {
+//       console.log('✅ Bus location service initialized successfully');
+//     } else {
+//       console.warn('⚠️ Bus location service initialization failed:', result.error);
+//     }
+//   } catch (err) {
+//     console.warn('⚠️ Bus location service initialization error:', err.message);
+//   }
+// })();
 
 // Initialize GTFS route shapes service (Phase 3)
-gtfsRouteShapesService.initialize().then(result => {
-  if (result.success) {
-    console.log(`✅ GTFS route shapes service initialized: ${result.routeCount} routes loaded`);
-  } else {
-    console.warn('⚠️ GTFS route shapes service initialization failed:', result.error);
+(async () => {
+  try {
+    const result = await gtfsRouteShapesService.initialize();
+    if (result.success) {
+      console.log(`✅ GTFS route shapes service initialized: ${result.routeCount} routes loaded`);
+    } else {
+      console.warn('⚠️ GTFS route shapes service initialization failed:', result.error);
+    }
+  } catch (err) {
+    console.warn('⚠️ GTFS route shapes service initialization error:', err.message);
   }
-}).catch(err => {
-  console.warn('⚠️ GTFS route shapes service initialization error:', err.message);
-});
+})();
 
 // Operations stats endpoint
 app.get('/api/operations/stats', async (req, res) => {
@@ -4797,21 +4809,24 @@ async function startServer() {
       console.log('🏃 Starting async initialization...');
       
       // Initialize AFTER port binding
-      initializeApplication().then(async () => {
-        console.log('✅ Basic initialization complete');
-        
-        // Initialize Go BARRY system with 3-month data retention
+      (async () => {
         try {
-          await startupService.initializeGoBarrySystem();
-          console.log('✅ Go BARRY system initialization complete');
+          await initializeApplication();
+          console.log('✅ Basic initialization complete');
+          
+          // Initialize Go BARRY system with 3-month data retention
+          try {
+            await startupService.initializeGoBarrySystem();
+            console.log('✅ Go BARRY system initialization complete');
+          } catch (error) {
+            console.error('⚠️ Go BARRY system initialization error:', error.message);
+            console.log('⚠️ Continuing without data retention system...');
+          }
         } catch (error) {
-          console.error('⚠️ Go BARRY system initialization error:', error.message);
-          console.log('⚠️ Continuing without data retention system...');
+          console.error('⚠️ Initialization error:', error.message);
+          console.log('⚠️ Continuing with limited functionality...');
         }
-      }).catch(error => {
-        console.error('⚠️ Initialization error:', error.message);
-        console.log('⚠️ Continuing with limited functionality...');
-      });
+      })();
       
       // Initialize WebSocket service
       supervisorSyncService.initialize(server);
@@ -4896,61 +4911,64 @@ import { communicationService } from './services/communications/communicationSer
 import { emailService } from './services/communications/emailService.js';
 
 // Initialize the application when this module is imported
-initializeApplication().then(async () => {
-  console.log('✅ Basic initialization complete');
-  
-  // Initialize communication services
+(async () => {
   try {
-    await communicationService.initialize();
-    await emailService.initialize();
-    console.log('✅ Communication services initialized');
+    await initializeApplication();
+    console.log('✅ Basic initialization complete');
+    
+    // Initialize communication services
+    try {
+      await communicationService.initialize();
+      await emailService.initialize();
+      console.log('✅ Communication services initialized');
+    } catch (error) {
+      console.error('⚠️ Communication services initialization error:', error.message);
+      console.log('⚠️ Continuing without full communication features...');
+    }
+    
+    // Initialize Go BARRY system with 3-month data retention
+    try {
+      await startupService.initializeGoBarrySystem();
+      console.log('✅ Go BARRY system initialization complete');
+    } catch (error) {
+      console.error('⚠️ Go BARRY system initialization error:', error.message);
+      console.log('⚠️ Continuing without data retention system...');
+    }
+    
+    // Initialize WebSocket service if server is available
+    if (server) {
+      supervisorSyncService.initialize(server);
+      console.log('✅ WebSocket service initialized');
+    }
+    
+    // Start real-time disruption scoring (5-minute intervals)
+    try {
+      realTimeDisruptionScoring.startMonitoring(5);
+      console.log('✅ Real-time disruption scoring started');
+    } catch (error) {
+      console.warn('⚠️ Disruption scoring failed to start:', error.message);
+    }
+    
+    // Start bus location update loop
+    try {
+      busUpdateLoop.start();
+      console.log('✅ Bus location update loop started');
+    } catch (error) {
+      console.warn('⚠️ Bus update loop failed to start:', error.message);
+    }
+    
+    // Start Street Manager cleanup scheduler
+    try {
+      streetManagerScheduler.start();
+      console.log('✅ Street Manager cleanup scheduler started (daily 2 AM cleanup)');
+    } catch (error) {
+      console.warn('⚠️ Street Manager scheduler failed to start:', error.message);
+    }
   } catch (error) {
-    console.error('⚠️ Communication services initialization error:', error.message);
-    console.log('⚠️ Continuing without full communication features...');
+    console.error('⚠️ Initialization error:', error.message);
+    console.log('⚠️ Continuing with limited functionality...');
   }
-  
-  // Initialize Go BARRY system with 3-month data retention
-  try {
-    await startupService.initializeGoBarrySystem();
-    console.log('✅ Go BARRY system initialization complete');
-  } catch (error) {
-    console.error('⚠️ Go BARRY system initialization error:', error.message);
-    console.log('⚠️ Continuing without data retention system...');
-  }
-  
-  // Initialize WebSocket service if server is available
-  if (server) {
-    supervisorSyncService.initialize(server);
-    console.log('✅ WebSocket service initialized');
-  }
-  
-  // Start real-time disruption scoring (5-minute intervals)
-  try {
-    realTimeDisruptionScoring.startMonitoring(5);
-    console.log('✅ Real-time disruption scoring started');
-  } catch (error) {
-    console.warn('⚠️ Disruption scoring failed to start:', error.message);
-  }
-  
-  // Start bus location update loop
-  try {
-    busUpdateLoop.start();
-    console.log('✅ Bus location update loop started');
-  } catch (error) {
-    console.warn('⚠️ Bus update loop failed to start:', error.message);
-  }
-  
-  // Start Street Manager cleanup scheduler
-  try {
-    streetManagerScheduler.start();
-    console.log('✅ Street Manager cleanup scheduler started (daily 2 AM cleanup)');
-  } catch (error) {
-    console.warn('⚠️ Street Manager scheduler failed to start:', error.message);
-  }
-}).catch(error => {
-  console.error('⚠️ Initialization error:', error.message);
-  console.log('⚠️ Continuing with limited functionality...');
-});
+})();
 
 // Top-level error handling for unhandled crashes
 process.on('uncaughtException', err => {
