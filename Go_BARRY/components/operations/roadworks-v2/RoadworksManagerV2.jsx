@@ -39,6 +39,7 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
   // State management
   const [roadworks, setRoadworks] = useState([]);
   const [streetManagerRoadworks, setStreetManagerRoadworks] = useState([]);
+  const [reviewedStreetworks, setReviewedStreetworks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -60,28 +61,33 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
     // Removed severity - not required
   });
 
-  // Statistics state
+  // Enhanced Statistics state with workflow statuses
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
     planned: 0,
+    monitoring: 0,
+    completed: 0,
+    archived: 0,
+    rejected: 0,
     routesAffected: 0,
     streetManager: 0,
     manual: 0,
     diversions: 0,
-    pendingReview: 0
+    pendingReview: 0,
+    escalated: 0,
+    overdue: 0
   });
 
-  // Tab configuration
+  // Streamlined Tab configuration - Essential workflow tabs only
+  // Enhanced status mapping: Active includes 'approved', Completed includes 'archived' and 'rejected'
   const tabs = [
     { id: 'overview', label: 'Overview', icon: 'grid', badge: null },
     { id: 'queue', label: 'Review Queue', icon: 'alert-circle', badge: stats.pendingReview || null },
-    { id: 'active', label: 'Active', icon: 'time', badge: stats.active > 0 ? stats.active : null },
-    { id: 'planned', label: 'Planned', icon: 'calendar', badge: stats.planned > 0 ? stats.planned : null },
-    { id: 'timeline', label: 'Timeline', icon: 'list', badge: null },
-    { id: 'test', label: 'Test', icon: 'flask', badge: null },
-    { id: 'templates', label: 'Templates', icon: 'folder', badge: null },
-    { id: 'analytics', label: 'Analytics', icon: 'analytics', badge: null },
+    { id: 'active', label: 'Active & Approved', icon: 'time', badge: stats.active > 0 ? stats.active : null },
+    { id: 'monitoring', label: 'Monitoring', icon: 'eye', badge: stats.monitoring > 0 ? stats.monitoring : null },
+    { id: 'completed', label: 'Completed & Archived', icon: 'checkmark-circle', badge: (stats.completed + stats.archived + stats.rejected) > 0 ? (stats.completed + stats.archived + stats.rejected) : null },
+    { id: 'analytics', label: 'Analytics', icon: 'analytics', badge: null }
   ];
 
   // Fetch roadworks data with improved error handling
@@ -91,6 +97,7 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
     
     let manualData = { roadworks: [] };
     let streetManagerData = { roadworks: [] };
+    let reviewedStreetworksData = { roadworks: [] };
     
     try {
       // Fetch manual roadworks with timeout
@@ -146,20 +153,59 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       } catch (streetManagerError) {
         console.warn('Street Manager roadworks fetch failed:', streetManagerError.message);
       }
+      
+      // Fetch reviewed streetworks data (the missing piece!)
+      const reviewedController = new AbortController();
+      const reviewedTimeout = setTimeout(() => reviewedController.abort(), 10000);
+      
+      try {
+        const reviewedUrl = `${baseUrl}/api/roadworks-v2/reviewed`;
+        console.log('📡 Fetching reviewed streetworks from:', reviewedUrl);
+        const reviewedResponse = await fetch(reviewedUrl, {
+          signal: reviewedController.signal,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        clearTimeout(reviewedTimeout);
+        
+        console.log('📡 Reviewed streetworks response status:', reviewedResponse.status);
+        if (reviewedResponse.ok) {
+          reviewedStreetworksData = await reviewedResponse.json();
+          console.log('📡 ✅ SUCCESS: Reviewed streetworks data:', reviewedStreetworksData);
+          console.log('📡 ✅ SUCCESS: Found', reviewedStreetworksData?.roadworks?.length || 0, 'reviewed roadworks');
+        } else {
+          console.error('❌ FAILED: Reviewed streetworks API returned:', reviewedResponse.status);
+          console.error('❌ FAILED: Reviewed streetworks API failed - endpoint may not exist yet');
+        }
+      } catch (reviewedError) {
+        console.warn('Reviewed streetworks fetch failed:', reviewedError.message);
+      }
 
       // Validate and set data
       const validManualRoadworks = Array.isArray(manualData.roadworks) ? manualData.roadworks : [];
       const validStreetManagerRoadworks = Array.isArray(streetManagerData.roadworks) ? streetManagerData.roadworks : [];
+      const validReviewedStreetworks = Array.isArray(reviewedStreetworksData.roadworks) ? reviewedStreetworksData.roadworks : [];
       
       console.log('🔍 API Results Summary:');
       console.log('🔍 Manual API success:', !!manualData.roadworks);
       console.log('🔍 Street Manager API success:', !!streetManagerData.roadworks);
-      console.log('🔍 Total roadworks found:', validManualRoadworks.length + validStreetManagerRoadworks.length);
+      console.log('🔍 Reviewed Streetworks API success:', !!reviewedStreetworksData.roadworks);
+      console.log('🔍 Total roadworks found:', validManualRoadworks.length + validStreetManagerRoadworks.length + validReviewedStreetworks.length);
       
       console.log('🔍 Manual roadworks count:', validManualRoadworks.length);
       console.log('🔍 Street Manager roadworks count:', validStreetManagerRoadworks.length);
+      console.log('🔍 ⭐ REVIEWED STREETWORKS COUNT:', validReviewedStreetworks.length);
       console.log('🔍 Manual roadworks sample:', validManualRoadworks.slice(0, 2));
       console.log('🔍 Street Manager roadworks sample:', validStreetManagerRoadworks.slice(0, 2));
+      console.log('🔍 ⭐ REVIEWED STREETWORKS SAMPLE:', validReviewedStreetworks.slice(0, 2));
+      
+      // DEBUG: Check monitoring items specifically
+      const monitoringItems = validReviewedStreetworks.filter(r => r.status === 'monitoring');
+      console.log('🔍 ⭐ MONITORING ITEMS IN REVIEWED DATA:', monitoringItems.length);
+      if (monitoringItems.length > 0) {
+        console.log('🔍 ⭐ MONITORING ITEMS DETAILS:', monitoringItems.slice(0, 3));
+      }
       
       // Debug: Check if we have old cached data
       if (validStreetManagerRoadworks.length > 50) {
@@ -171,10 +217,11 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       console.log('🔄 Setting roadworks state...');
       setRoadworks(validManualRoadworks);
       setStreetManagerRoadworks(validStreetManagerRoadworks);
+      setReviewedStreetworks(validReviewedStreetworks);
       
       // Calculate statistics immediately with the fresh data
       console.log('🔄 Calling calculateStats...');
-      calculateStats(validManualRoadworks, validStreetManagerRoadworks);
+      calculateStats(validManualRoadworks, validStreetManagerRoadworks, validReviewedStreetworks);
       setLastUpdate(new Date());
       
       // Apply North East filtering to stats calculation
@@ -221,19 +268,21 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
   };
 
   // Calculate statistics from roadworks data
-  const calculateStats = (manual, streetManager) => {
+  const calculateStats = (manual, streetManager, reviewed = []) => {
     console.log('📊 Calculating stats for:', {
       manual: manual.length,
       streetManager: streetManager.length,
+      reviewed: reviewed.length,
       manualSample: manual.slice(0, 2),
-      streetManagerSample: streetManager.slice(0, 2)
+      streetManagerSample: streetManager.slice(0, 2),
+      reviewedSample: reviewed.slice(0, 2)
     });
     
     const now = new Date();
     
-    // Add detailed logging for each filter operation
+    // Add detailed logging for each filter operation with enhanced status mapping
     const manualActive = manual.filter(r => {
-      const isActive = r.status === 'active';
+      const isActive = r.status === 'active' || r.status === 'approved';
       if (manual.length < 5) console.log('🔍 Manual roadwork status:', r.title, 'status:', r.status, 'isActive:', isActive);
       return isActive;
     });
@@ -241,7 +290,7 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
     const manualPlanned = manual.filter(r => r.status === 'planned');
     
     const streetManagerActive = streetManager.filter(r => {
-      const isActive = r.status === 'active';
+      const isActive = r.status === 'active' || r.status === 'approved';
       if (streetManager.length < 5) console.log('🔍 StreetManager roadwork status:', r.title, 'status:', r.status, 'isActive:', isActive);
       return isActive;
     });
@@ -263,20 +312,45 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       }
     });
     
-    // Count active diversions
-    const diversions = [...manual, ...streetManager].filter(r => 
-      r.status === 'active' && r.hasDiversion
+    // Count active diversions (include both active and approved, plus reviewed data)
+    const diversions = [...manual, ...streetManager, ...reviewed].filter(r => 
+      (r.status === 'active' || r.status === 'approved') && r.hasDiversion
     ).length;
 
+    // Enhanced workflow status calculations - INCLUDE REVIEWED DATA
+    const allRoadworks = [...manual, ...streetManager, ...reviewed];
+    const monitoring = allRoadworks.filter(r => r.status === 'monitoring').length;
+    const completed = allRoadworks.filter(r => r.status === 'completed').length;
+    const archived = allRoadworks.filter(r => r.status === 'archived').length;
+    const rejected = allRoadworks.filter(r => r.status === 'rejected').length;
+    const escalated = allRoadworks.filter(r => r.escalation_level > 0).length;
+    const overdue = allRoadworks.filter(r => r.is_overdue).length;
+
+    console.log('🔍 Enhanced status calculations:', {
+      monitoring,
+      completed,
+      archived,
+      rejected,
+      totalRoadworks: allRoadworks.length,
+      reviewedContribution: reviewed.length
+    });
+
     const newStats = {
-      total: manual.length + streetManager.length,
+      total: manual.length + streetManager.length + reviewed.length,
       active: manualActive.length + streetManagerActive.length,
       planned: manualPlanned.length + streetManagerPlanned.length,
+      monitoring,
+      completed,
+      archived,
+      rejected,
       routesAffected: allAffectedRoutes.size,
       streetManager: streetManager.length,
       manual: manual.length,
+      reviewed: reviewed.length,
       diversions,
-      pendingReview: 0 // Will be updated by fetchPendingStats
+      pendingReview: 0, // Will be updated by fetchPendingStats
+      escalated,
+      overdue
     };
     
     console.log('📊 New stats calculated:', newStats);
@@ -348,10 +422,12 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       // Validate input data
       const validRoadworks = Array.isArray(roadworks) ? roadworks : [];
       const validStreetManagerRoadworks = Array.isArray(streetManagerRoadworks) ? streetManagerRoadworks : [];
+      const validReviewedStreetworks = Array.isArray(reviewedStreetworks) ? reviewedStreetworks : [];
       
       console.log('🔍 getFilteredRoadworks - input data:', {
         validRoadworks: validRoadworks.length,
         validStreetManagerRoadworks: validStreetManagerRoadworks.length,
+        validReviewedStreetworks: validReviewedStreetworks.length,
         activeTab,
         filters
       });
@@ -372,7 +448,23 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
           id: r.id || `streetmanager-${Date.now()}-${Math.random()}`,
           title: r.title || r.location || 'Street Manager Roadwork',
           status: r.status || 'active',
-        }))
+        })),
+        ...validReviewedStreetworks.map(r => {
+          const mappedRoadwork = { 
+            ...r, 
+            source: 'ReviewedStreetworks',
+            // Ensure required fields exist
+            id: r.id || `reviewed-${Date.now()}-${Math.random()}`,
+            title: r.title || r.location || 'Reviewed Streetwork',
+            status: r.status || 'monitoring',
+          };
+          console.log('🔍 ⭐ Mapping reviewed streetwork:', {
+            original_status: r.status,
+            final_status: mappedRoadwork.status,
+            title: mappedRoadwork.title
+          });
+          return mappedRoadwork;
+        })
       ];
       
       console.log('🔍 Combined roadworks before filtering:', allRoadworks.length);
@@ -438,6 +530,12 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
           return false;
         }
         
+        // Skip geographical filtering for reviewed streetworks (already verified as relevant)
+        if (roadwork.source === 'ReviewedStreetworks') {
+          console.log('🔍 ✅ Keeping reviewed streetwork (bypassing geo filter):', roadwork.title, 'Status:', roadwork.status);
+          return true; // Already reviewed and confirmed as relevant to North East
+        }
+        
         // Check if roadwork affects GNE routes
         const hasGNERoutes = affectsGNERoutes(roadwork);
         
@@ -472,18 +570,38 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       console.log('🎯 Active tab:', activeTab);
       console.log('🎯 Sample roadworks statuses:', allRoadworks.slice(0, 5).map(r => ({ title: r.title, status: r.status })));
 
-      // Filter by active tab
+      // Filter by active tab (Enhanced Workflow with proper status mapping)
       if (activeTab === 'active') {
-        allRoadworks = allRoadworks.filter(r => r.status === 'active');
-        console.log('🎯 After active filter:', allRoadworks.length);
-      } else if (activeTab === 'planned') {
-        allRoadworks = allRoadworks.filter(r => r.status === 'planned');
-        console.log('🎯 After planned filter:', allRoadworks.length);
+        // Include both 'active' and 'approved' statuses in the active tab
+        allRoadworks = allRoadworks.filter(r => r.status === 'active' || r.status === 'approved');
+        console.log('🎯 After active filter (active + approved):', allRoadworks.length);
+      } else if (activeTab === 'monitoring') {
+        const beforeFilter = allRoadworks.length;
+        const monitoringStatuses = [...new Set(allRoadworks.map(r => r.status))];
+        console.log('🎯 Before monitoring filter:', beforeFilter, 'Available statuses:', monitoringStatuses);
+        allRoadworks = allRoadworks.filter(r => r.status === 'monitoring');
+        console.log('🎯 After monitoring filter:', allRoadworks.length);
+        if (allRoadworks.length === 0 && beforeFilter > 0) {
+          console.log('🚨 PROBLEM: No monitoring roadworks found but', beforeFilter, 'roadworks existed before filtering');
+          console.log('🚨 This suggests the reviewed streetworks may not have status="monitoring"');
+        }
+      } else if (activeTab === 'completed') {
+        // Include completed, archived, and rejected statuses
+        allRoadworks = allRoadworks.filter(r => 
+          r.status === 'completed' || r.status === 'archived' || r.status === 'rejected'
+        );
+        console.log('🎯 After completed filter (completed + archived + rejected):', allRoadworks.length);
       }
 
       // Apply filters with null checks
       if (filters.status && filters.status !== 'all') {
-        allRoadworks = allRoadworks.filter(r => r.status === filters.status);
+        if (filters.status.includes(',')) {
+          // Handle multiple statuses (e.g., "archived,rejected")
+          const statuses = filters.status.split(',');
+          allRoadworks = allRoadworks.filter(r => statuses.includes(r.status));
+        } else {
+          allRoadworks = allRoadworks.filter(r => r.status === filters.status);
+        }
       }
       if (filters.source && filters.source !== 'all') {
         allRoadworks = allRoadworks.filter(r => r.source === filters.source);
@@ -542,8 +660,8 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
   // Handle roadwork card actions
   const handleRoadworkPress = (roadwork) => {
     setSelectedRoadwork(roadwork);
-    console.log('Roadwork pressed:', roadwork.title);
-    // TODO: Open detailed modal
+    setShowDetailModal(true);
+    console.log('Opening details for:', roadwork.title);
   };
 
   const handleViewMap = (roadwork) => {
@@ -554,24 +672,99 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
 
   const handleViewDiversions = (roadwork) => {
     console.log('View diversions for:', roadwork.title);
-    // TODO: Open diversions
+    // TODO: Open diversions modal
   };
 
-  const handleStatusChange = (roadwork) => {
-    console.log('Change status for:', roadwork.title);
-    // TODO: Open status change modal
+  const handleStatusChange = async (roadwork) => {
+    console.log('Monitoring action for:', roadwork.title);
+    
+    // Monitoring-specific actions
+    const actionChoice = confirm(
+      `📋 Monitoring Action Required\n\n` +
+      `Roadwork: "${roadwork.title}"\n` +
+      `Location: ${roadwork.location}\n\n` +
+      `Choose action:\n` +
+      `• OK = Make ACTIVE (needs immediate attention)\n` +
+      `• Cancel = ARCHIVE/DISMISS (monitoring complete)\n\n` +
+      `Click OK to make active, Cancel to archive.`
+    );
+    
+    const newStatus = actionChoice ? 'active' : 'archived';
+    const action = actionChoice ? 'activated' : 'archived';
+    const targetTab = actionChoice ? 'Active & Approved' : 'Completed & Archived';
+    
+    try {
+      // Call API to update status - REAL IMPLEMENTATION
+      const apiUrl = baseUrl || 'https://go-barry.onrender.com';
+      console.log(`🔥 CALLING API to ${action} ${roadwork.title}: ${roadwork.status} → ${newStatus}`);
+      
+      const response = await fetch(`${apiUrl}/api/roadworks-v2/${roadwork.id}/review`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-session-id': sessionId
+        },
+        body: JSON.stringify({
+          status: newStatus,
+          confirmedRoutes: roadwork.affectsRoutes || [],
+          severity: roadwork.severity || 'medium',
+          diversionRequired: roadwork.hasDiversion || false,
+          notes: `Monitoring decision: ${action} by supervisor`,
+          supervisorId: sessionId,
+          supervisorName: supervisorName
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API call failed: ${response.status}`);
+      }
+
+      console.log(`✅ API SUCCESS: Roadwork ${action} successfully`);
+      
+      // Show success message with tab guidance
+      alert(
+        `✅ Roadwork ${action} successfully!\n\n` +
+        `"${roadwork.title}"\n\n` +
+        `Status: ${roadwork.status} → ${newStatus}\n` +
+        `Now available in: ${targetTab} tab\n\n` +
+        `${actionChoice ? '🚨 Action required in Active tab' : '📁 Moved to archive'}`
+      );
+      
+      // Refresh data to update tabs
+      fetchRoadworks(false);
+      
+      // Optional: Auto-switch to the target tab
+      if (actionChoice) {
+        setTimeout(() => setActiveTab('active'), 1000);
+      } else {
+        setTimeout(() => setActiveTab('completed'), 1000);
+      }
+      
+    } catch (error) {
+      console.error('Failed to update status:', error);
+      alert('❌ Failed to update status. Please try again.');
+    }
   };
 
   const handleCreateDiversion = (roadwork) => {
-    console.log('Create diversion message for:', roadwork.title);
+    console.log('Creating diversion message for:', roadwork.title);
     setSelectedRoadwork(roadwork);
-    // TODO: Open Message Distribution Centre with roadwork data
-    // This will integrate with the Message Distribution Centre component
-    alert(`Creating diversion message for: ${roadwork.title}\n\nThis will open the Message Distribution Centre with roadwork data pre-populated.`);
+    
+    // Show message about integration
+    alert(
+      `📢 Message Distribution Centre Integration\n\n` +
+      `For: ${roadwork.title}\n` +
+      `Location: ${roadwork.location}\n\n` +
+      `This will open the Message Distribution Centre with:\n` +
+      `• Pre-populated roadwork details\n` +
+      `• Affected routes: ${roadwork.affectsRoutes?.slice(0, 3).join(', ')}${roadwork.affectsRoutes?.length > 3 ? '...' : ''}\n` +
+      `• Template suggestions based on impact\n\n` +
+      `Feature coming soon!`
+    );
   };
 
   const handleViewDetails = (roadwork) => {
-    console.log('View details for:', roadwork.title);
+    console.log('Opening details modal for:', roadwork.title);
     setSelectedRoadwork(roadwork);
     setShowDetailModal(true);
   };
@@ -689,7 +882,12 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
         />
         
         <StatsCard
-          {...StatCardPresets.planned(stats.planned, () => handleStatPress('planned'))}
+          title="Planned"
+          value={stats.planned}
+          subtitle="Upcoming roadworks"
+          icon="calendar"
+          color={colors.info}
+          onPress={() => setFilters(prev => ({ ...prev, status: 'planned' }))}
         />
         
         <StatsCard
@@ -1048,35 +1246,50 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       );
     }
 
-    // Render Test Integration for test tab
-    if (activeTab === 'test') {
-      return (
-        <TestRoadworksIntegration 
-          baseUrl={baseUrl}
-        />
-      );
-    }
-
-    // Render DiversionTemplates for templates tab
-    if (activeTab === 'templates') {
-      return (
-        <DiversionTemplates 
-          baseUrl={baseUrl}
-          sessionId={sessionId}
-          supervisorName={supervisorName}
-        />
-      );
-    }
-
-    // Render Analytics for analytics tab
+    // Render Analytics for analytics tab (includes templates and test tools)
     if (activeTab === 'analytics') {
       return (
-        <RoadworksAnalytics 
-          baseUrl={baseUrl}
-          sessionId={sessionId}
-          supervisorName={supervisorName}
-        />
+        <ScrollView style={roadworksStyles.section}>
+          <RoadworksAnalytics 
+            baseUrl={baseUrl}
+            sessionId={sessionId}
+            supervisorName={supervisorName}
+          />
+          
+          {/* Templates Section */}
+          <View style={[roadworksStyles.section, { marginTop: spacing.lg }]}>
+            <Text style={[roadworksStyles.filterTitle, { marginBottom: spacing.md }]}>
+              Diversion Templates
+            </Text>
+            <DiversionTemplates 
+              baseUrl={baseUrl}
+              sessionId={sessionId}
+              supervisorName={supervisorName}
+            />
+          </View>
+
+          {/* Test Integration Section */}
+          {isAdmin && (
+            <View style={[roadworksStyles.section, { marginTop: spacing.lg }]}>
+              <Text style={[roadworksStyles.filterTitle, { marginBottom: spacing.md }]}>
+                Integration Testing
+              </Text>
+              <TestRoadworksIntegration 
+                baseUrl={baseUrl}
+              />
+            </View>
+          )}
+        </ScrollView>
       );
+    }
+
+    // Render Enhanced Workflow Tabs (Phase 2)
+    if (activeTab === 'monitoring') {
+      return renderMonitoringTab();
+    }
+
+    if (activeTab === 'completed') {
+      return renderCompletedTab();
     }
 
     if (activeTab === 'overview' && viewMode === 'dashboard') {
@@ -1084,6 +1297,39 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
         <View style={roadworksStyles.section}>
           {renderStatsOverview()}
           {renderDataSourceStats()}
+          
+          {/* Additional Status Access */}
+          <View style={[roadworksStyles.section, { marginTop: spacing.lg }]}>
+            <Text style={[roadworksStyles.filterTitle, { marginBottom: spacing.md }]}>
+              Quick Access
+            </Text>
+            <View style={roadworksStyles.statsContainer}>
+              <StatsCard
+                title="Planned Works"
+                value={stats.planned}
+                subtitle="Click to view planned"
+                icon="calendar"
+                color={colors.info}
+                onPress={() => setFilters(prev => ({ ...prev, status: 'planned' }))}
+              />
+              <StatsCard
+                title="Archives"
+                value={stats.archived + stats.rejected}
+                subtitle="View archived items"
+                icon="filing"
+                color={colors.textMuted}
+                onPress={() => setFilters(prev => ({ ...prev, status: 'archived,rejected' }))}
+              />
+              <StatsCard
+                title="Timeline View"
+                value="📅"
+                subtitle="View timeline"
+                icon="list"
+                color={colors.primary}
+                onPress={() => setViewMode('timeline')}
+              />
+            </View>
+          </View>
           
           {/* Quick Preview Components */}
           {stats.total > 0 && (
@@ -1134,6 +1380,329 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
       default:
         return renderRoadworksList();
     }
+  };
+
+  // Enhanced Workflow Tab Renderers (Phase 2)
+  const renderMonitoringTab = () => {
+    // SPECIAL HANDLING: For monitoring tab, we need to combine data differently
+    // because reviewed streetworks might be filtered out by geographical filter
+    // but they should still appear in monitoring tab since they're already confirmed relevant
+    
+    const validRoadworks = Array.isArray(roadworks) ? roadworks : [];
+    const validStreetManagerRoadworks = Array.isArray(streetManagerRoadworks) ? streetManagerRoadworks : [];
+    const validReviewedStreetworks = Array.isArray(reviewedStreetworks) ? reviewedStreetworks : [];
+    
+    // Get all monitoring roadworks directly, bypassing geographical filtering for reviewed items
+    let allMonitoringRoadworks = [
+      // Manual and Street Manager roadworks go through normal filtering
+      ...getFilteredRoadworks().filter(r => r.status === 'monitoring'),
+      // Reviewed streetworks with monitoring status - bypass geographical filtering
+      ...validReviewedStreetworks.filter(r => r.status === 'monitoring').map(r => ({
+        ...r,
+        source: 'ReviewedStreetworks',
+        id: r.id || `reviewed-${Date.now()}-${Math.random()}`,
+        title: r.title || r.location || 'Reviewed Streetwork'
+      }))
+    ];
+    
+    // Remove duplicates by ID
+    const uniqueIds = new Set();
+    allMonitoringRoadworks = allMonitoringRoadworks.filter(roadwork => {
+      if (uniqueIds.has(roadwork.id)) {
+        return false;
+      }
+      uniqueIds.add(roadwork.id);
+      return true;
+    });
+    
+    // DEBUG: Log the filtering results
+    console.log('🔍 MONITORING TAB DEBUG (FIXED):');
+    console.log('🔍 Total monitoring roadworks found:', allMonitoringRoadworks.length);
+    console.log('🔍 Sources breakdown:', {
+      manual: allMonitoringRoadworks.filter(r => r.source === 'manual').length,
+      streetManager: allMonitoringRoadworks.filter(r => r.source === 'StreetManager').length,
+      reviewed: allMonitoringRoadworks.filter(r => r.source === 'ReviewedStreetworks').length
+    });
+    console.log('🔍 Sample monitoring roadworks:', allMonitoringRoadworks.slice(0, 3));
+    
+    const monitoringRoadworks = allMonitoringRoadworks;
+    
+    return (
+      <View style={roadworksStyles.section}>
+        <View style={[roadworksStyles.row, { justifyContent: 'space-between', marginBottom: spacing.md }]}>
+          <Text style={roadworksStyles.filterTitle}>Monitoring Dashboard</Text>
+          <Text style={roadworksStyles.textMuted}>
+            {monitoringRoadworks.length} monitored roadworks
+          </Text>
+        </View>
+        
+        {/* Monitoring Stats */}
+        <View style={roadworksStyles.statsContainer}>
+          <StatsCard
+            title="Daily Checks"
+            value={monitoringRoadworks.filter(r => r.sub_status === 'daily_check').length}
+            subtitle="Require daily monitoring"
+            icon="calendar"
+            color={colors.warning}
+            onPress={() => {}}
+          />
+          <StatsCard
+            title="Weekly Checks"
+            value={monitoringRoadworks.filter(r => r.sub_status === 'weekly_check').length}
+            subtitle="Weekly monitoring schedule"
+            icon="time"
+            color={colors.info}
+            onPress={() => {}}
+          />
+          <StatsCard
+            title="Escalated"
+            value={monitoringRoadworks.filter(r => r.escalation_level > 0).length}
+            subtitle="Requiring attention"
+            icon="alert-triangle"
+            color={colors.error}
+            onPress={() => {}}
+          />
+        </View>
+
+        {/* Overdue Reviews Alert */}
+        {monitoringRoadworks.some(r => r.is_overdue) && (
+          <View style={[roadworksStyles.statusBadge, { backgroundColor: colors.error, marginBottom: spacing.md }]}>
+            <Ionicons name="warning" size={16} color="#ffffff" />
+            <Text style={[roadworksStyles.statusBadgeText, { color: '#ffffff' }]}>
+              {monitoringRoadworks.filter(r => r.is_overdue).length} overdue reviews requiring immediate attention
+            </Text>
+          </View>
+        )}
+
+        {/* Monitoring List */}
+        {monitoringRoadworks.length > 0 ? (
+          monitoringRoadworks.map((roadwork, index) => (
+            <RoadworkCard
+              key={roadwork.id || `monitoring-${index}`}
+              roadwork={{
+                ...roadwork,
+                isOverdue: roadwork.is_overdue,
+                nextReviewDate: roadwork.next_review_date,
+                escalationLevel: roadwork.escalation_level
+              }}
+              onPress={handleRoadworkPress}
+              onViewMap={handleViewMap}
+              onStatusChange={handleStatusChange}
+              isAdmin={isAdmin}
+              showActions={true}
+              showWorkflowActions={true}
+            />
+          ))
+        ) : (
+          <View style={roadworksStyles.emptyContainer}>
+            <Ionicons name="eye" size={64} color={colors.textMuted} />
+            <Text style={roadworksStyles.emptyTitle}>No Monitoring Required</Text>
+            <Text style={roadworksStyles.emptyDescription}>
+              All roadworks are currently in active or completed states.
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const renderCompletedTab = () => {
+    // getFilteredRoadworks() already filters for completed, archived, AND rejected statuses
+    // when activeTab === 'completed', so no additional filtering needed
+    const completedRoadworks = getFilteredRoadworks();
+    
+    // DEBUG: Log the breakdown of completed tab items
+    console.log('🔍 COMPLETED TAB DEBUG:');
+    console.log('🔍 Total completed/archived/rejected:', completedRoadworks.length);
+    console.log('🔍 Status breakdown:', {
+      completed: completedRoadworks.filter(r => r.status === 'completed').length,
+      archived: completedRoadworks.filter(r => r.status === 'archived').length,
+      rejected: completedRoadworks.filter(r => r.status === 'rejected').length
+    });
+    console.log('🔍 Sample items:', completedRoadworks.slice(0, 3).map(r => ({ title: r.title, status: r.status, source: r.source })));
+    
+    return (
+      <View style={roadworksStyles.section}>
+        <View style={[roadworksStyles.row, { justifyContent: 'space-between', marginBottom: spacing.md }]}>
+          <Text style={roadworksStyles.filterTitle}>Completed Roadworks</Text>
+          <Text style={roadworksStyles.textMuted}>
+            {completedRoadworks.length} completed works
+          </Text>
+        </View>
+
+        {/* Completion Stats */}
+        <View style={roadworksStyles.statsContainer}>
+          <StatsCard
+            title="This Week"
+            value={completedRoadworks.filter(r => {
+              const completedDate = new Date(r.updated_at);
+              const weekAgo = new Date();
+              weekAgo.setDate(weekAgo.getDate() - 7);
+              return completedDate > weekAgo;
+            }).length}
+            subtitle="Completed this week"
+            icon="checkmark-circle"
+            color={colors.success}
+            onPress={() => {}}
+          />
+          <StatsCard
+            title="This Month"
+            value={completedRoadworks.filter(r => {
+              const completedDate = new Date(r.updated_at);
+              const monthAgo = new Date();
+              monthAgo.setMonth(monthAgo.getMonth() - 1);
+              return completedDate > monthAgo;
+            }).length}
+            subtitle="Completed this month"
+            icon="trending-up"
+            color={colors.info}
+            onPress={() => {}}
+          />
+          <StatsCard
+            title="Archived Items"
+            value={stats.archived + stats.rejected}
+            subtitle="View archived works"
+            icon="archive"
+            color={colors.primary}
+            onPress={() => setFilters(prev => ({ ...prev, status: 'archived,rejected' }))}
+          />
+        </View>
+
+        {/* Completed List */}
+        {completedRoadworks.length > 0 ? (
+          completedRoadworks.map((roadwork, index) => (
+            <RoadworkCard
+              key={roadwork.id || `completed-${index}`}
+              roadwork={{
+                ...roadwork,
+                completedDate: roadwork.updated_at,
+                canArchive: new Date(roadwork.updated_at) < new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+                // Add archive reason for rejected/archived items
+                archiveReason: roadwork.status === 'rejected' ? 
+                  (roadwork.notes || 'Rejected - No GNE routes affected') :
+                  roadwork.status === 'archived' ?
+                  (roadwork.notes || 'Monitoring complete - Archived') :
+                  null
+              }}
+              onPress={handleRoadworkPress}
+              onViewMap={handleViewMap}
+              onStatusChange={handleStatusChange}
+              isAdmin={isAdmin}
+              showActions={roadwork.status === 'completed'} // Only show actions for completed items
+              archived={roadwork.status === 'archived' || roadwork.status === 'rejected'} // Mark as archived for display
+            />
+          ))
+        ) : (
+          <View style={roadworksStyles.emptyContainer}>
+            <Ionicons name="checkmark-circle" size={64} color={colors.textMuted} />
+            <Text style={roadworksStyles.emptyTitle}>No Completed Works</Text>
+            <Text style={roadworksStyles.emptyDescription}>
+              Completed roadworks will appear here for review and archiving.
+            </Text>
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const renderArchivesTab = () => {
+    const archivedRoadworks = getFilteredRoadworks().filter(r => r.status === 'archived' || r.status === 'rejected');
+    
+    return (
+      <View style={roadworksStyles.section}>
+        <View style={[roadworksStyles.row, { justifyContent: 'space-between', marginBottom: spacing.md }]}>
+          <Text style={roadworksStyles.filterTitle}>Archived Roadworks</Text>
+          <Text style={roadworksStyles.textMuted}>
+            {archivedRoadworks.length} archived items
+          </Text>
+        </View>
+
+        {/* Archive Stats */}
+        <View style={roadworksStyles.statsContainer}>
+          <StatsCard
+            title="Archived"
+            value={archivedRoadworks.filter(r => r.status === 'archived').length}
+            subtitle="Successfully completed"
+            icon="archive"
+            color={colors.info}
+            onPress={() => {}}
+          />
+          <StatsCard
+            title="Rejected"
+            value={archivedRoadworks.filter(r => r.status === 'rejected').length}
+            subtitle="Not approved"
+            icon="close-circle"
+            color={colors.error}
+            onPress={() => {}}
+          />
+          <StatsCard
+            title="Total Storage"
+            value={archivedRoadworks.length}
+            subtitle="All archived items"
+            icon="filing"
+            color={colors.textMuted}
+            onPress={() => {}}
+          />
+        </View>
+
+        {/* Search and Filter for Archives */}
+        <View style={[roadworksStyles.row, { marginBottom: spacing.md }]}>
+          <TextInput
+            style={[roadworksStyles.searchInput, { flex: 1 }]}
+            placeholder="Search archived roadworks..."
+            value={filters.searchQuery || ''}
+            onChangeText={(text) => setFilters(prev => ({ ...prev, searchQuery: text }))}
+          />
+          <Pressable
+            style={roadworksStyles.filterButton}
+            onPress={() => setShowFilters(!showFilters)}
+          >
+            <Ionicons name="funnel" size={16} color={colors.textMuted} />
+          </Pressable>
+        </View>
+
+        {/* Archives List */}
+        {archivedRoadworks.length > 0 ? (
+          archivedRoadworks.slice(0, 50).map((roadwork, index) => (
+            <RoadworkCard
+              key={roadwork.id || `archived-${index}`}
+              roadwork={{
+                ...roadwork,
+                archivedDate: roadwork.updated_at,
+                archiveReason: roadwork.status === 'rejected' ? 
+                  (roadwork.notes || roadwork.rejection_reason || 'Rejected - No GNE routes affected') :
+                  (roadwork.notes || 'Monitoring complete - Archived')
+              }}
+              onPress={handleRoadworkPress}
+              onViewMap={handleViewMap}
+              isAdmin={isAdmin}
+              showActions={false}
+              compact={true}
+              archived={true}
+            />
+          ))
+        ) : (
+          <View style={roadworksStyles.emptyContainer}>
+            <Ionicons name="filing" size={64} color={colors.textMuted} />
+            <Text style={roadworksStyles.emptyTitle}>No Archived Items</Text>
+            <Text style={roadworksStyles.emptyDescription}>
+              Completed and rejected roadworks will be archived here for future reference.
+            </Text>
+          </View>
+        )}
+
+        {archivedRoadworks.length > 50 && (
+          <View style={[roadworksStyles.emptyContainer, { padding: spacing.md }]}>
+            <Text style={roadworksStyles.emptyTitle}>
+              Showing 50 of {archivedRoadworks.length} archived items
+            </Text>
+            <Text style={roadworksStyles.emptyDescription}>
+              Use search and filters to find specific archived roadworks.
+            </Text>
+          </View>
+        )}
+      </View>
+    );
   };
 
   return (

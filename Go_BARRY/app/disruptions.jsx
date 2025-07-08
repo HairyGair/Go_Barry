@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Platform, Pressable, ActivityIndicator, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, Platform, Pressable, ActivityIndicator, SafeAreaView, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { useSupervisor } from '../components/hooks/useSupervisorSession';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -58,6 +58,8 @@ export default function DisruptionsPage() {
   const [incidentCount, setIncidentCount] = useState(0);
   const [totalDisruptions, setTotalDisruptions] = useState(0);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [activityLoading, setActivityLoading] = useState(false);
 
   // Get counts from the unified disruptions system
   const disruptionStats = useQuery(api.disruptions?.getDisruptionStats);
@@ -108,8 +110,64 @@ export default function DisruptionsPage() {
     setIsInitializing(false);
   }, [isLoggedIn, isLoading, supervisorName]);
 
-  const handleBack = () => {
-    router.back();
+  // Fetch recent activity from the API
+  const fetchRecentActivity = async () => {
+    try {
+      setActivityLoading(true);
+      const response = await fetch('https://go-barry.onrender.com/api/dashboard/activity?limit=8&hours=24');
+      
+      if (!response.ok) {
+        console.warn('Activity API not available, using fallback');
+        // Fallback to recent activity based on current data
+        setRecentActivity([
+          {
+            id: 'fallback_1',
+            description: `${supervisorName || 'Supervisor'} accessed disruptions centre`,
+            icon: 'view-dashboard',
+            color: '#3b82f6',
+            timestamp: new Date().toISOString(),
+            type: 'access'
+          }
+        ]);
+        return;
+      }
+      
+      const data = await response.json();
+      if (data.success && data.data) {
+        setRecentActivity(data.data);
+      }
+    } catch (error) {
+      console.warn('Failed to fetch activity:', error);
+      // Graceful fallback
+      setRecentActivity([]);
+    } finally {
+      setActivityLoading(false);
+    }
+  };
+
+  // Fetch activity on component mount and every 30 seconds
+  useEffect(() => {
+    if (isLoggedIn && !isInitializing) {
+      fetchRecentActivity();
+      const interval = setInterval(fetchRecentActivity, 30000); // Update every 30 seconds
+      return () => clearInterval(interval);
+    }
+  }, [isLoggedIn, isInitializing, supervisorName]);
+
+  // Helper function to format relative time
+  const getRelativeTime = (timestamp) => {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diffInMinutes = Math.floor((now - time) / 1000 / 60);
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes} minute${diffInMinutes === 1 ? '' : 's'} ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours} hour${diffInHours === 1 ? '' : 's'} ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    return `${diffInDays} day${diffInDays === 1 ? '' : 's'} ago`;
   };
 
   const navigateToIncidents = () => {
@@ -138,27 +196,6 @@ export default function DisruptionsPage() {
     <DisruptionsErrorBoundary>
       <SafeAreaView style={styles.container}>
         <AppHeader />
-        {/* Header Section */}
-        <View style={styles.disruptionsHeader}>
-          <View style={styles.headerContent}>
-            <View style={styles.titleSection}>
-              <Pressable onPress={handleBack} style={styles.backButton}>
-                <MaterialCommunityIcons name="arrow-left" size={20} color="#fff" />
-                <Text style={styles.backText}>Home</Text>
-              </Pressable>
-              <Text style={styles.headerTitle}>Disruptions Centre</Text>
-              <Text style={styles.headerSubtitle}>Daily Operational Tools</Text>
-            </View>
-            <View style={styles.headerActions}>
-              {supervisorName && (
-                <View style={styles.userInfo}>
-                  <MaterialCommunityIcons name="account-circle" size={24} color="#fff" />
-                  <Text style={styles.userName}>{supervisorName}</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </View>
 
         {/* Status Bar */}
         <View style={styles.statusBar}>
@@ -278,31 +315,47 @@ export default function DisruptionsPage() {
             </View>
           </View>
 
-          {/* Recent Activity */}
+          {/* Recent Activity - Live Feed */}
           <View style={styles.activitySection}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            <View style={styles.activityHeader}>
+              <Text style={styles.sectionTitle}>Recent Activity</Text>
+              {activityLoading && (
+                <ActivityIndicator size="small" color="#6b7280" />
+              )}
+            </View>
             <View style={styles.activityFeed}>
-              <View style={styles.activityItem}>
-                <View style={styles.activityDot} />
-                <View style={styles.activityContent}>
-                  <Text style={styles.activityText}>New roadwork created: A1 Northbound</Text>
-                  <Text style={styles.activityTime}>2 minutes ago</Text>
+              {recentActivity.length > 0 ? (
+                <ScrollView 
+                  showsVerticalScrollIndicator={false}
+                  style={styles.activityScrollView}
+                  nestedScrollEnabled={true}
+                >
+                  {recentActivity.map((activity) => (
+                    <View key={activity.id} style={styles.activityItem}>
+                      <View style={[styles.activityIcon, { backgroundColor: activity.color + '20' }]}>
+                        <MaterialCommunityIcons 
+                          name={activity.icon} 
+                          size={14} 
+                          color={activity.color} 
+                        />
+                      </View>
+                      <View style={styles.activityContent}>
+                        <Text style={styles.activityText} numberOfLines={2}>
+                          {activity.description}
+                        </Text>
+                        <Text style={styles.activityTime}>
+                          {getRelativeTime(activity.timestamp)}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+              ) : (
+                <View style={styles.noActivityContainer}>
+                  <MaterialCommunityIcons name="history" size={32} color="#d1d5db" />
+                  <Text style={styles.noActivityText}>No recent activity</Text>
                 </View>
-              </View>
-              <View style={styles.activityItem}>
-                <View style={styles.activityDot} />
-                <View style={styles.activityContent}>
-                  <Text style={styles.activityText}>Incident resolved: Queen Street congestion</Text>
-                  <Text style={styles.activityTime}>15 minutes ago</Text>
-                </View>
-              </View>
-              <View style={styles.activityItem}>
-                <View style={styles.activityDot} />
-                <View style={styles.activityContent}>
-                  <Text style={styles.activityText}>Weather alert: Heavy rain expected 14:00-18:00</Text>
-                  <Text style={styles.activityTime}>1 hour ago</Text>
-                </View>
-              </View>
+              )}
             </View>
           </View>
         </View>
@@ -360,58 +413,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
-  },
-  disruptionsHeader: {
-    backgroundColor: '#1a1a2e',
-    paddingTop: Platform.OS === 'web' ? 20 : 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  titleSection: {
-    flex: 1,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
-  },
-  backText: {
-    color: '#94a3b8',
-    fontSize: 14,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#94a3b8',
-    marginTop: 2,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  userName: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '500',
   },
   statusBar: {
     flexDirection: 'row',
@@ -545,6 +546,12 @@ const styles = StyleSheet.create({
   activitySection: {
     marginBottom: 32,
   },
+  activityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   activityFeed: {
     backgroundColor: 'white',
     borderRadius: 12,
@@ -554,11 +561,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+    minHeight: 200,
+  },
+  activityScrollView: {
+    maxHeight: 300,
   },
   activityItem: {
     flexDirection: 'row',
-    marginBottom: 16,
+    marginBottom: 12,
     gap: 12,
+    alignItems: 'flex-start',
+  },
+  activityIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
   },
   activityDot: {
     width: 8,
@@ -574,9 +594,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#334155',
     marginBottom: 4,
+    lineHeight: 20,
   },
   activityTime: {
     fontSize: 12,
     color: '#94a3b8',
+  },
+  noActivityContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  noActivityText: {
+    fontSize: 14,
+    color: '#94a3b8',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
 });

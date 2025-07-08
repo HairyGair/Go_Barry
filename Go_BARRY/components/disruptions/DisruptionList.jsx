@@ -19,6 +19,7 @@ export default function DisruptionList({
   onDisruptionPress,
   onDismiss,
   onAddNote,
+  onPushToDisplay,
   showFilters = true,
   compactMode = false,
   limit = 50
@@ -73,6 +74,7 @@ export default function DisruptionList({
       onPress={onDisruptionPress}
       onDismiss={onDismiss || handleDismiss}
       onAddNote={handleAddNote}
+      onPushToDisplay={onPushToDisplay}
       supervisorBadge={supervisorBadge}
       isCompact={compactMode}
     />

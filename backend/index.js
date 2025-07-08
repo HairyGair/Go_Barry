@@ -97,6 +97,10 @@ console.log('✅ streetManagerActionsAPI imported');
 import unifiedRoadworksAPI from './routes/unifiedRoadworksAPI.js';
 import messageAPI from './routes/messageAPI.js';
 console.log('✅ messageAPI imported');
+import enhancedWorkflowAPI from './routes/enhancedWorkflowAPI.js';
+console.log('✅ enhancedWorkflowAPI imported');
+import dashboardActivityAPI from './routes/dashboardActivityAPI.js';
+console.log('✅ dashboardActivityAPI imported');
 import roadworksV2API from './routes/roadworksV2API.js';
 console.log('✅ roadworksV2API imported');
 import disruptionsAPI from './routes/disruptionsAPI.js';
@@ -493,6 +497,15 @@ app.use('/api/roadworks', roadworksAPI);
 // Unified roadworks management API (additional routes under /api/roadworks)
 app.use('/api/roadworks', unifiedRoadworksAPI);
 console.log('✅ unified roadworks API routes registered under /api/roadworks');
+
+// Enhanced Workflow Management API
+app.use('/api/enhanced-workflow', enhancedWorkflowAPI);
+console.log('✅ enhanced workflow API routes registered at /api/enhanced-workflow');
+
+// Dashboard Activity API routes
+console.log('📊 Registering dashboard activity API routes at /api/dashboard...');
+app.use('/api/dashboard', dashboardActivityAPI);
+console.log('✅ Dashboard activity API routes registered successfully');
 
 // Roadworks V2 API routes
 console.log('🔄 Registering roadworks V2 routes at /api/roadworks-v2...');

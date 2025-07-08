@@ -111,6 +111,11 @@ const APP_CARDS = [
 const HomePageWithLogin = () => {
   const router = useRouter();
   const { isLoggedIn, supervisorName, isAdmin } = useSupervisor();
+  
+  // Force re-render when login state changes
+  useEffect(() => {
+    console.log('Login state changed:', { isLoggedIn, supervisorName, isAdmin });
+  }, [isLoggedIn, supervisorName, isAdmin]);
 
   const navigateToApp = (card) => {
     if (card.requiresLogin && !isLoggedIn) {

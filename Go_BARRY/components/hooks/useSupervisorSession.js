@@ -175,12 +175,29 @@ const API_BASE_URL = 'https://go-barry.onrender.com';
 const SUPERVISOR_DB = {
   'alex_woodcock': { name: 'Alex Woodcock', role: 'Supervisor' },
   'andrew_cowley': { name: 'Andrew Cowley', role: 'Supervisor' },
-  'anthony_gair': { name: 'Anthony Gair', role: 'Developer/Admin', isAdmin: true },
+  'anthony_gair': { 
+    name: 'Anthony Gair', 
+    role: 'Developer/Admin', 
+    isAdmin: true,
+    defaultPassword: 'Anthony123' // Add default for testing
+  },
   'claire_fiddler': { name: 'Claire Fiddler', role: 'Supervisor' },
   'david_hall': { name: 'David Hall', role: 'Supervisor' },
-  'james_daglish': { name: 'James Daglish', role: 'Supervisor' },
-  'john_paterson': { name: 'John Paterson', role: 'Supervisor' },
-  'simon_glass': { name: 'Simon Glass', role: 'Supervisor' },
+  'james_daglish': { 
+    name: 'James Daglish', 
+    role: 'Supervisor',
+    defaultPassword: 'James123'
+  },
+  'john_paterson': { 
+    name: 'John Paterson', 
+    role: 'Supervisor',
+    defaultPassword: 'John123'
+  },
+  'simon_glass': { 
+    name: 'Simon Glass', 
+    role: 'Supervisor',
+    defaultPassword: 'Simon123'
+  },
   'barry_perryman': { 
     name: 'Barry Perryman', 
     role: 'Service Delivery Controller - Line Manager',
@@ -322,11 +339,11 @@ export const useSupervisorSession = () => {
 
       // Check if this is a first-time user who needs password setup
       if (!loginData.isPasswordSetup && passwordStorageService.isFirstTimeUser(loginData.supervisorId)) {
-        // Special case for Barry - migrate existing password
-        if (loginData.supervisorId === 'barry_perryman' && supervisor.defaultPassword) {
+        // Special case for users with default passwords - auto-migrate them
+        if (supervisor.defaultPassword && ['barry_perryman', 'anthony_gair', 'james_daglish', 'john_paterson', 'simon_glass'].includes(loginData.supervisorId)) {
           passwordStorageService.savePassword(loginData.supervisorId, supervisor.defaultPassword);
         } else {
-          // Show password setup screen
+          // Show password setup screen for other users
           setNeedsPasswordSetup(true);
           setPendingLoginData(loginData);
           setIsLoading(false);
@@ -339,9 +356,9 @@ export const useSupervisorSession = () => {
         throw new Error('Password is required');
       }
 
-      // Check password (special case for Barry's migration)
+      // Check password (special case for users with default passwords)
       const isValidPassword = passwordStorageService.checkPassword(loginData.supervisorId, loginData.password) ||
-        (loginData.supervisorId === 'barry_perryman' && loginData.password === supervisor.defaultPassword);
+        (supervisor.defaultPassword && ['barry_perryman', 'anthony_gair', 'james_daglish', 'john_paterson', 'simon_glass'].includes(loginData.supervisorId) && loginData.password === supervisor.defaultPassword);
 
       if (!isValidPassword) {
         throw new Error('Incorrect password');
@@ -387,6 +404,9 @@ export const useSupervisorSession = () => {
       // Save and set session with remember me option
       sessionStorageService.saveSession(session, loginData.rememberMe);
       setSupervisorSession(session);
+      
+      // Force a state update to ensure all components re-render
+      console.log('✅ Session state updated:', session.supervisor.name);
       
       // Log activity
       logActivity('LOGIN', `${supervisor.name} logged in on ${finalDuty.name}`);

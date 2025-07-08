@@ -395,7 +395,7 @@ const DisruptionLogViewer = ({ supervisorInfo, visible, onClose }) => {
 
         <View style={styles.statsRow}>
           <Text style={styles.statsText}>
-            {logs.length} logs {supervisorInfo?.id && '(your logs)'}
+            {logs.length} logs {supervisorInfo?.id ? '(your logs)' : ''}
           </Text>
           <TouchableOpacity onPress={fetchLogs} style={styles.refreshButton}>
             <Text style={styles.refreshButtonText}>🔄 Refresh</Text>

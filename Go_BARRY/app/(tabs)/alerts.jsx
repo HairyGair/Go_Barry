@@ -446,7 +446,7 @@ export default function AlertsScreen() {
         <View style={styles.headerStats}>
           <Text style={styles.headerStatsText}>
             {counts.total} alerts • {counts.active} active • Updated {formatLastUpdated(lastUpdated)}
-            {isLoggedIn && " • Supervisor Mode Active"}
+            {isLoggedIn ? " • Supervisor Mode Active" : ""}
           </Text>
         </View>
       </View>

@@ -108,27 +108,72 @@ export default function OperationsCentre() {
       // Use production backend only for now to avoid local dev issues
       const API_BASE = 'https://go-barry.onrender.com';
       
-      const response = await fetch(`${API_BASE}/api/operations/stats`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        // Add timeout to prevent hanging
-        ...(typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? { signal: AbortSignal.timeout(10000) } : {})
-      });
+      // Fetch multiple data sources in parallel
+      const [alertsResponse, analyticsResponse, healthResponse] = await Promise.all([
+        fetch(`${API_BASE}/api/alerts-enhanced`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          ...(typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? { signal: AbortSignal.timeout(10000) } : {})
+        }),
+        fetch(`${API_BASE}/api/analytics/summary`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          ...(typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? { signal: AbortSignal.timeout(10000) } : {})
+        }),
+        fetch(`${API_BASE}/api/health-extended`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          ...(typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? { signal: AbortSignal.timeout(10000) } : {})
+        })
+      ]);
       
-      if (response.ok) {
-        const data = await response.json();
-        // Update card stats based on API response
-        setCardStats(prev => ({
-          ...prev,
-          // Stats can be updated here as needed for remaining cards
-        }));
-        console.log('✅ Operations stats loaded successfully');
-      } else {
-        console.warn('⚠️ Operations stats API returned:', response.status);
+      let alertsData = null;
+      let analyticsData = null;
+      let healthData = null;
+      
+      if (alertsResponse.ok) {
+        alertsData = await alertsResponse.json();
       }
+      
+      if (analyticsResponse.ok) {
+        analyticsData = await analyticsResponse.json();
+      }
+      
+      if (healthResponse.ok) {
+        healthData = await healthResponse.json();
+      }
+      
+      // Update card stats based on API responses
+      setCardStats(prev => ({
+        ...prev,
+        disruptions: { 
+          value: alertsData?.alerts?.length?.toString() || prev.disruptions.value, 
+          label: UK_LOCALE.TOTAL 
+        },
+        liveMap: { 
+          value: alertsData?.alerts?.filter(alert => alert.severity === 'high')?.length?.toString() || prev.liveMap.value, 
+          label: UK_LOCALE.ALERTS 
+        },
+        statistics: { 
+          value: analyticsData?.summary?.last24Hours?.events?.toString() || prev.statistics.value, 
+          label: UK_LOCALE.TODAY 
+        },
+        dutyBoards: { 
+          value: healthData?.activeSupervisors?.toString() || prev.dutyBoards.value, 
+          label: UK_LOCALE.ACTIVE 
+        },
+      }));
+      
+      console.log('✅ Operations stats loaded successfully');
     } catch (error) {
       // Silently handle stats errors - not critical for app function
       console.warn('⚠️ Stats fetch failed (non-critical):', error.message);

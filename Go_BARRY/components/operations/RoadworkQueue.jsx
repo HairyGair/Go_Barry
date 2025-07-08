@@ -62,8 +62,113 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
     status: 'approved',
     confirmedRoutes: [],
     diversionRequired: false,
-    notes: ''
+    notes: '',
+    selectedReasons: []
   });
+  const [sortBy, setSortBy] = useState('date'); // 'date', 'location', 'severity', 'duration'
+  const [sortOrder, setSortOrder] = useState('desc'); // 'asc', 'desc'
+
+  // Structured reason options for different review decisions
+  const reasonOptions = {
+    approved: [
+      { 
+        id: 'routes_confirmed', 
+        text: 'Routes confirmed affected', 
+        icon: 'checkmark-circle',
+        requiresRoutes: true
+      },
+      { 
+        id: 'diversion_planned', 
+        text: 'Diversion route planned', 
+        icon: 'map',
+        requiresDiversion: true
+      },
+      { 
+        id: 'minimal_impact', 
+        text: 'Minimal service impact expected', 
+        icon: 'thumbs-up'
+      },
+      { 
+        id: 'passenger_info_ready', 
+        text: 'Passenger information prepared', 
+        icon: 'information-circle'
+      },
+      { 
+        id: 'standard_approval', 
+        text: 'Standard roadwork approval', 
+        icon: 'document-text'
+      }
+    ],
+    monitoring: [
+      { 
+        id: 'routes_unclear', 
+        text: 'Unable to determine routes affected', 
+        icon: 'help-circle'
+      },
+      { 
+        id: 'location_confirmation', 
+        text: 'Waiting for confirmation on exact location', 
+        icon: 'location'
+      },
+      { 
+        id: 'closure_details', 
+        text: 'Need more information on lane/road closure', 
+        icon: 'warning'
+      },
+      { 
+        id: 'timing_unclear', 
+        text: 'Start/end dates need confirmation', 
+        icon: 'time'
+      },
+      { 
+        id: 'promoter_contact', 
+        text: 'Awaiting response from works promoter', 
+        icon: 'person'
+      },
+      { 
+        id: 'impact_assessment', 
+        text: 'Reviewing potential traffic impact', 
+        icon: 'analytics'
+      }
+    ],
+    rejected: [
+      { 
+        id: 'no_routes_affected', 
+        text: 'No GNE routes affected', 
+        icon: 'close-circle'
+      },
+      { 
+        id: 'outside_region', 
+        text: 'Not in GNE operating region', 
+        icon: 'location-outline'
+      },
+      { 
+        id: 'insufficient_notice', 
+        text: 'Insufficient advance notice given', 
+        icon: 'calendar'
+      },
+      { 
+        id: 'duplicate_entry', 
+        text: 'Duplicate of existing roadwork', 
+        icon: 'copy'
+      },
+      { 
+        id: 'cancelled_works', 
+        text: 'Works cancelled or postponed', 
+        icon: 'pause-circle'
+      },
+      { 
+        id: 'private_land', 
+        text: 'Works on private land only', 
+        icon: 'business'
+      },
+      { 
+        id: 'emergency_only', 
+        text: 'Emergency works - no advance planning possible', 
+        icon: 'flash'
+      }
+    ]
+  };
 
   // Debug logging for modal state
   useEffect(() => {
@@ -171,13 +276,17 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
         return;
       }
 
+      // Build structured notes from selected reasons
+      const structuredNotes = buildNotesFromReasons();
+
       // Ensure field lengths don't exceed database constraints
       const payload = {
         ...reviewData,
         status: reviewData.status?.substring(0, 10), // Limit to 10 chars
         supervisorId,
         supervisorName: supervisorName?.substring(0, 50), // Reasonable limit for name
-        notes: reviewData.notes?.substring(0, 500) // Reasonable limit for notes
+        notes: structuredNotes.substring(0, 500), // Use structured notes
+        selectedReasons: reviewData.selectedReasons // Include for audit trail
       };
       console.log('📡 Review payload:', payload);
       console.log('📡 Payload field lengths:', {
@@ -212,42 +321,57 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
       }
 
       console.log('✅ Review submitted successfully');
-      Alert.alert('Success', 'Roadwork reviewed successfully', [
-        { text: 'OK', onPress: () => {
-          setReviewModalVisible(false);
-          setSelectedRoadwork(null);
-          fetchPendingRoadworks();
-          fetchStats();
-        }}
-      ]);
+      
+      // Close modal immediately
+      setReviewModalVisible(false);
+      setSelectedRoadwork(null);
+      
+      // Show success alert with specific messaging for rejected items
+      setTimeout(() => {
+        if (reviewData.status === 'rejected') {
+          Alert.alert(
+            'Roadwork Rejected & Archived', 
+            `"${selectedRoadwork?.sm_street_name || 'Roadwork'}" has been rejected and moved to the archive.\n\n` +
+            `Reason: ${buildNotesFromReasons()}\n\n` +
+            `This decision is logged for audit purposes.`,
+            [
+              { text: 'View Archive', onPress: () => {
+                // Could navigate to archive tab if needed
+                console.log('User wants to view archive tab');
+              }},
+              { text: 'OK' }
+            ]
+          );
+        } else {
+          Alert.alert('Success', `Roadwork ${reviewData.status} successfully`);
+        }
+      }, 100);
+      
+      // Refresh data
+      fetchPendingRoadworks();
+      fetchStats();
     } catch (error) {
       console.error('❌ Error submitting review:', error);
       
+      // Close modal immediately on error
+      setReviewModalVisible(false);
+      setSelectedRoadwork(null);
+      
       // Handle network errors gracefully
-      if (error.message.includes('Failed to fetch') || error.message.includes('Backend routes not available')) {
-        Alert.alert(
-          'Review API Temporarily Unavailable', 
-          'The backend API routes are currently not responding (404 error). This is a known deployment issue that will be resolved shortly. Your review data has been noted locally.',
-          [
-            { text: 'OK', onPress: () => {
-              // Close modal and refresh data even when API fails
-              setReviewModalVisible(false);
-              setSelectedRoadwork(null);
-              // Refresh the data to show any changes
-              fetchPendingRoadworks();
-              fetchStats();
-            }}
-          ]
-        );
-      } else {
-        Alert.alert('Error', `Failed to submit review: ${error.message}`, [
-          { text: 'OK', onPress: () => {
-            // Close modal even on other errors
-            setReviewModalVisible(false);
-            setSelectedRoadwork(null);
-          }}
-        ]);
-      }
+      setTimeout(() => {
+        if (error.message.includes('Failed to fetch') || error.message.includes('Backend routes not available')) {
+          Alert.alert(
+            'Review API Temporarily Unavailable', 
+            'The backend API routes are currently not responding (404 error). This is a known deployment issue that will be resolved shortly. Your review data has been noted locally.'
+          );
+        } else {
+          Alert.alert('Error', `Failed to submit review: ${error.message}`);
+        }
+      }, 100);
+      
+      // Refresh the data to show any changes
+      fetchPendingRoadworks();
+      fetchStats();
     } finally {
       setSubmitting(false);
     }
@@ -313,6 +437,30 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
     }
   }, [currentSession]);
 
+  // Helper functions for reason selection
+  const toggleReason = (reasonId) => {
+    setReviewData(prev => ({
+      ...prev,
+      selectedReasons: prev.selectedReasons.includes(reasonId)
+        ? prev.selectedReasons.filter(id => id !== reasonId)
+        : [...prev.selectedReasons, reasonId]
+    }));
+  };
+
+  const buildNotesFromReasons = () => {
+    const selectedOptions = reasonOptions[reviewData.status] || [];
+    const selectedReasonTexts = reviewData.selectedReasons
+      .map(reasonId => selectedOptions.find(option => option.id === reasonId)?.text)
+      .filter(Boolean);
+    
+    // Add routes information for approved items
+    if (reviewData.status === 'approved' && reviewData.confirmedRoutes.length > 0) {
+      selectedReasonTexts.unshift(`Affects routes: ${reviewData.confirmedRoutes.join(', ')}`);
+    }
+    
+    return selectedReasonTexts.join('; ');
+  };
+
   const openReviewModal = (roadwork) => {
     console.log('🔍 Opening review modal for roadwork:', roadwork);
     try {
@@ -321,7 +469,8 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
         status: 'approved',
         confirmedRoutes: roadwork.auto_matched_routes || [],
         diversionRequired: false,
-        notes: ''
+        notes: '',
+        selectedReasons: []
       });
       setReviewModalVisible(true);
       console.log('✅ Review modal should now be visible');
@@ -332,27 +481,57 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
 
   const openMapLocation = (roadwork) => {
     try {
-      const { latitude, longitude, sm_street_name, sm_area_name } = roadwork;
+      const { 
+        latitude, 
+        longitude, 
+        sm_street_name, 
+        sm_area_name, 
+        sm_location_description,
+        sm_town,
+        sm_authority 
+      } = roadwork;
+      
+      // Build the most accurate location string possible
+      let locationParts = [];
+      if (sm_street_name) locationParts.push(sm_street_name);
+      if (sm_location_description && sm_location_description !== sm_street_name) {
+        locationParts.push(sm_location_description);
+      }
+      if (sm_area_name) locationParts.push(sm_area_name);
+      if (sm_town && sm_town !== sm_area_name) locationParts.push(sm_town);
+      
+      // Add North East England context if not already included
+      if (!locationParts.some(part => part.toLowerCase().includes('newcastle') || 
+                                    part.toLowerCase().includes('gateshead') ||
+                                    part.toLowerCase().includes('sunderland') ||
+                                    part.toLowerCase().includes('durham') ||
+                                    part.toLowerCase().includes('northumberland'))) {
+        locationParts.push('North East England');
+      }
       
       if (latitude && longitude) {
+        // Use coordinates with descriptive label for better accuracy
+        const coordinateUrl = `${latitude},${longitude}`;
+        const label = encodeURIComponent(locationParts.slice(0, 2).join(', '));
+        
         const mapUrl = Platform.select({
-          ios: `maps:0,0?q=${latitude},${longitude}`,
-          android: `geo:0,0?q=${latitude},${longitude}`,
-          default: `https://www.google.com/maps?q=${latitude},${longitude}`
+          ios: `maps:0,0?q=${coordinateUrl}`,
+          android: `geo:0,0?q=${coordinateUrl}`,
+          default: `https://www.google.com/maps/place/${label}/@${latitude},${longitude},17z`
         });
         
         Linking.openURL(mapUrl).catch(err => {
           console.error('Failed to open map:', err);
-          // Fallback to web URL
-          const webUrl = `https://www.google.com/maps?q=${latitude},${longitude}`;
+          // Enhanced fallback with satellite view for better accuracy
+          const webUrl = `https://www.google.com/maps/@${latitude},${longitude},17z/data=!3m1!1e3`;
           if (Platform.OS === 'web') {
             window.open(webUrl, '_blank');
           }
         });
-        console.log('🗺️ Opened map for:', sm_street_name, 'at', latitude, longitude);
+        console.log('🗺️ Opened precise map location for:', locationParts.join(', '), 'at', latitude, longitude);
       } else {
-        // Fallback to search by street name and area
-        const searchQuery = encodeURIComponent(`${sm_street_name}, ${sm_area_name || ''}`);
+        // Enhanced fallback search with better location context
+        const searchQuery = encodeURIComponent(locationParts.join(', '));
         const searchUrl = Platform.select({
           ios: `maps:0,0?q=${searchQuery}`,
           android: `geo:0,0?q=${searchQuery}`,
@@ -361,13 +540,13 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
         
         Linking.openURL(searchUrl).catch(err => {
           console.error('Failed to open map search:', err);
-          // Fallback to web URL
+          // Fallback to web URL with enhanced search
           const webUrl = `https://www.google.com/maps/search/${searchQuery}`;
           if (Platform.OS === 'web') {
             window.open(webUrl, '_blank');
           }
         });
-        console.log('🗺️ Opened map search for:', sm_street_name);
+        console.log('🗺️ Opened map search for enhanced location:', locationParts.join(', '));
       }
     } catch (error) {
       console.error('❌ Error opening map:', error);
@@ -375,6 +554,63 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
     }
   };
 
+
+  // Sort roadworks
+  const sortRoadworks = (roadworks) => {
+    if (!roadworks || roadworks.length === 0) return roadworks;
+
+    const sorted = [...roadworks].sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortBy) {
+        case 'date':
+          aValue = new Date(a.sm_start_date || a.created_at || '1970-01-01').getTime();
+          bValue = new Date(b.sm_start_date || b.created_at || '1970-01-01').getTime();
+          break;
+        case 'location':
+          aValue = (a.sm_street_name || '').toLowerCase();
+          bValue = (b.sm_street_name || '').toLowerCase();
+          break;
+        case 'severity':
+          const severityOrder = { critical: 4, high: 3, medium: 2, low: 1, undefined: 0 };
+          aValue = severityOrder[a.severity] || 0;
+          bValue = severityOrder[b.severity] || 0;
+          break;
+        case 'duration':
+          const aDuration = a.sm_start_date && a.sm_end_date ? 
+            (new Date(a.sm_end_date) - new Date(a.sm_start_date)) / (1000 * 60 * 60 * 24) : 0;
+          const bDuration = b.sm_start_date && b.sm_end_date ? 
+            (new Date(b.sm_end_date) - new Date(b.sm_start_date)) / (1000 * 60 * 60 * 24) : 0;
+          aValue = aDuration;
+          bValue = bDuration;
+          break;
+        default:
+          return 0;
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
+      } else {
+        return aValue < bValue ? 1 : aValue > bValue ? -1 : 0;
+      }
+    });
+    
+    return sorted;
+  };
+
+  const handleSort = (newSortBy) => {
+    if (sortBy === newSortBy) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(newSortBy);
+      setSortOrder('desc');
+    }
+  };
+
+  const getSortIcon = (columnSort) => {
+    if (sortBy !== columnSort) return 'swap-vertical-outline';
+    return sortOrder === 'asc' ? 'chevron-up' : 'chevron-down';
+  };
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -427,6 +663,36 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
         baseUrl="https://go-barry.onrender.com"
       />
 
+      {/* Sort Controls */}
+      {pendingRoadworks.length > 0 && (
+        <View style={styles.sortControls}>
+          <Text style={styles.sortLabel}>Sort by:</Text>
+          <TouchableOpacity 
+            style={[styles.sortButton, sortBy === 'date' && styles.sortButtonActive]}
+            onPress={() => handleSort('date')}
+          >
+            <Text style={[styles.sortButtonText, sortBy === 'date' && styles.sortButtonTextActive]}>Date</Text>
+            <Icon name={getSortIcon('date')} size={16} color={sortBy === 'date' ? '#3498db' : '#7f8c8d'} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.sortButton, sortBy === 'location' && styles.sortButtonActive]}
+            onPress={() => handleSort('location')}
+          >
+            <Text style={[styles.sortButtonText, sortBy === 'location' && styles.sortButtonTextActive]}>Location</Text>
+            <Icon name={getSortIcon('location')} size={16} color={sortBy === 'location' ? '#3498db' : '#7f8c8d'} />
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.sortButton, sortBy === 'duration' && styles.sortButtonActive]}
+            onPress={() => handleSort('duration')}
+          >
+            <Text style={[styles.sortButtonText, sortBy === 'duration' && styles.sortButtonTextActive]}>Duration</Text>
+            <Icon name={getSortIcon('duration')} size={16} color={sortBy === 'duration' ? '#3498db' : '#7f8c8d'} />
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* Roadworks List */}
       <ScrollView
         style={styles.list}
@@ -452,7 +718,7 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
             <Text style={styles.emptyText}>No roadworks pending review</Text>
           </View>
         ) : (
-          pendingRoadworks.map((roadwork) => (
+          sortRoadworks(pendingRoadworks).map((roadwork) => (
             <TouchableOpacity
               key={roadwork.id}
               style={styles.roadworkCard}
@@ -492,11 +758,29 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
                 </View>
                 
                 <View style={styles.detailRow}>
-                  <Icon name="calendar-outline" size={14} color="#7f8c8d" />
+                  <Icon name="play-outline" size={14} color="#27ae60" />
                   <Text style={styles.detailText}>
-                    {roadwork.sm_start_date ? new Date(roadwork.sm_start_date).toLocaleDateString() : 'TBD'}
+                    Start: {roadwork.sm_start_date ? new Date(roadwork.sm_start_date).toLocaleDateString('en-GB') : 'TBD'}
                   </Text>
                 </View>
+
+                {roadwork.sm_end_date && (
+                  <View style={styles.detailRow}>
+                    <Icon name="stop-outline" size={14} color="#e74c3c" />
+                    <Text style={styles.detailText}>
+                      End: {new Date(roadwork.sm_end_date).toLocaleDateString('en-GB')}
+                    </Text>
+                  </View>
+                )}
+
+                {roadwork.sm_start_date && roadwork.sm_end_date && (
+                  <View style={styles.detailRow}>
+                    <Icon name="time-outline" size={14} color="#f39c12" />
+                    <Text style={styles.detailText}>
+                      Duration: {Math.ceil((new Date(roadwork.sm_end_date) - new Date(roadwork.sm_start_date)) / (1000 * 60 * 60 * 24))} days
+                    </Text>
+                  </View>
+                )}
 
                 {roadwork.auto_matched_routes?.length > 0 && (
                   <View style={styles.detailRow}>
@@ -541,14 +825,34 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
         visible={reviewModalVisible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setReviewModalVisible(false)}
+        onRequestClose={() => {
+          setReviewModalVisible(false);
+          setSelectedRoadwork(null);
+          setReviewData({
+            status: 'approved',
+            confirmedRoutes: [],
+            diversionRequired: false,
+            notes: '',
+            selectedReasons: []
+          });
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Review Roadwork</Text>
               <TouchableOpacity
-                onPress={() => setReviewModalVisible(false)}
+                onPress={() => {
+                  setReviewModalVisible(false);
+                  setSelectedRoadwork(null);
+                  setReviewData({
+                    status: 'approved',
+                    confirmedRoutes: [],
+                    diversionRequired: false,
+                    notes: '',
+                    selectedReasons: []
+                  });
+                }}
                 style={styles.closeButton}
               >
                 <Icon name="close" size={24} color="#7f8c8d" />
@@ -572,7 +876,7 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
                       styles.statusOption,
                       reviewData.status === 'approved' && styles.statusOptionSelected
                     ]}
-                    onPress={() => setReviewData({ ...reviewData, status: 'approved' })}
+                    onPress={() => setReviewData({ ...reviewData, status: 'approved', selectedReasons: [] })}
                   >
                     <Icon name="checkmark-circle" size={20} color={reviewData.status === 'approved' ? '#27ae60' : '#7f8c8d'} />
                     <Text style={styles.statusOptionText}>Approve</Text>
@@ -583,7 +887,7 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
                       styles.statusOption,
                       reviewData.status === 'monitoring' && styles.statusOptionSelected
                     ]}
-                    onPress={() => setReviewData({ ...reviewData, status: 'monitoring' })}
+                    onPress={() => setReviewData({ ...reviewData, status: 'monitoring', selectedReasons: [] })}
                   >
                     <Icon name="eye" size={20} color={reviewData.status === 'monitoring' ? '#3498db' : '#7f8c8d'} />
                     <Text style={styles.statusOptionText}>Monitor</Text>
@@ -594,10 +898,10 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
                       styles.statusOption,
                       reviewData.status === 'rejected' && styles.statusOptionSelected
                     ]}
-                    onPress={() => setReviewData({ ...reviewData, status: 'rejected' })}
+                    onPress={() => setReviewData({ ...reviewData, status: 'rejected', selectedReasons: [] })}
                   >
                     <Icon name="close-circle" size={20} color={reviewData.status === 'rejected' ? '#e74c3c' : '#7f8c8d'} />
-                    <Text style={styles.statusOptionText}>Reject</Text>
+                    <Text style={styles.statusOptionText}>Reject & Archive</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -618,22 +922,90 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
                   </TouchableOpacity>
                 </View>
 
-                <Text style={styles.modalSectionTitle}>Notes</Text>
-                <TextInput
-                  style={styles.notesInput}
-                  value={reviewData.notes}
-                  onChangeText={(text) => setReviewData({ ...reviewData, notes: text })}
-                  placeholder="Add any notes..."
-                  multiline
-                  numberOfLines={4}
-                />
+                {/* Conditional Routes Input for Approved Status */}
+                {reviewData.status === 'approved' && (
+                  <>
+                    <Text style={styles.modalSectionTitle}>Affected Routes</Text>
+                    <TextInput
+                      style={styles.routesInput}
+                      value={reviewData.confirmedRoutes.join(', ')}
+                      onChangeText={(text) => setReviewData({ 
+                        ...reviewData, 
+                        confirmedRoutes: text.split(',').map(r => r.trim()).filter(r => r) 
+                      })}
+                      placeholder="Enter route numbers (e.g., 21, X21, Q3)"
+                    />
+                  </>
+                )}
+
+                <Text style={styles.modalSectionTitle}>
+                  {reviewData.status === 'approved' ? 'Approval Reasons' : 
+                   reviewData.status === 'monitoring' ? 'Monitoring Reasons' : 
+                   'Rejection Reasons'}
+                </Text>
+                
+                {/* Archive reminder for rejections */}
+                {reviewData.status === 'rejected' && (
+                  <View style={styles.archiveReminder}>
+                    <Icon name="filing-outline" size={16} color="#e74c3c" />
+                    <Text style={styles.archiveReminderText}>
+                      Rejected roadworks are automatically archived for audit purposes.
+                    </Text>
+                  </View>
+                )}
+                
+                {/* Structured Reason Buttons */}
+                <View style={styles.reasonsContainer}>
+                  {(reasonOptions[reviewData.status] || []).map((reason) => (
+                    <TouchableOpacity
+                      key={reason.id}
+                      style={[
+                        styles.reasonButton,
+                        reviewData.selectedReasons.includes(reason.id) && styles.reasonButtonSelected
+                      ]}
+                      onPress={() => toggleReason(reason.id)}
+                    >
+                      <Icon 
+                        name={reason.icon} 
+                        size={16} 
+                        color={reviewData.selectedReasons.includes(reason.id) ? '#ffffff' : '#7f8c8d'} 
+                      />
+                      <Text style={[
+                        styles.reasonButtonText,
+                        reviewData.selectedReasons.includes(reason.id) && styles.reasonButtonTextSelected
+                      ]}>
+                        {reason.text}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Preview of generated notes */}
+                {reviewData.selectedReasons.length > 0 && (
+                  <>
+                    <Text style={styles.modalSectionTitle}>Review Summary</Text>
+                    <View style={styles.notesPreview}>
+                      <Text style={styles.notesPreviewText}>{buildNotesFromReasons()}</Text>
+                    </View>
+                  </>
+                )}
               </ScrollView>
             )}
 
             <View style={styles.modalFooter}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.modalButtonSecondary]}
-                onPress={() => setReviewModalVisible(false)}
+                onPress={() => {
+                  setReviewModalVisible(false);
+                  setSelectedRoadwork(null);
+                  setReviewData({
+                    status: 'approved',
+                    confirmedRoutes: [],
+                    diversionRequired: false,
+                    notes: '',
+                    selectedReasons: []
+                  });
+                }}
               >
                 <Text style={styles.modalButtonTextSecondary}>Cancel</Text>
               </TouchableOpacity>
@@ -659,6 +1031,10 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
                   if (!selectedRoadwork) {
                     console.log('❌ No selected roadwork - showing alert');
                     Alert.alert('Error', 'No roadwork selected for review');
+                    return;
+                  }
+                  if (reviewData.selectedReasons.length === 0) {
+                    Alert.alert('Incomplete Review', 'Please select at least one reason for your decision');
                     return;
                   }
                   console.log('✅ Pre-checks passed, calling submitReview()');
@@ -752,6 +1128,51 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginLeft: 4,
+  },
+  sortControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    padding: 12,
+    marginHorizontal: 8,
+    marginVertical: 4,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  sortLabel: {
+    fontSize: 14,
+    color: '#2c3e50',
+    fontWeight: '600',
+    marginRight: 12,
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginRight: 8,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  sortButtonActive: {
+    backgroundColor: '#e3f2fd',
+    borderColor: '#3498db',
+  },
+  sortButtonText: {
+    fontSize: 12,
+    color: '#7f8c8d',
+    marginRight: 4,
+    fontWeight: '500',
+  },
+  sortButtonTextActive: {
+    color: '#3498db',
+    fontWeight: '600',
   },
   list: {
     flex: 1,
@@ -1058,6 +1479,56 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
     textAlignVertical: 'top',
   },
+  routesInput: {
+    borderWidth: 1,
+    borderColor: '#ecf0f1',
+    borderRadius: 6,
+    padding: 12,
+    fontSize: 14,
+    color: '#2c3e50',
+    marginBottom: 8,
+  },
+  reasonsContainer: {
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  reasonButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    marginBottom: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#ecf0f1',
+    backgroundColor: '#f8f9fa',
+  },
+  reasonButtonSelected: {
+    backgroundColor: '#3498db',
+    borderColor: '#3498db',
+  },
+  reasonButtonText: {
+    fontSize: 14,
+    color: '#2c3e50',
+    marginLeft: 8,
+    flex: 1,
+  },
+  reasonButtonTextSelected: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  notesPreview: {
+    backgroundColor: '#f8f9fa',
+    padding: 12,
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: '#3498db',
+    marginBottom: 16,
+  },
+  notesPreviewText: {
+    fontSize: 13,
+    color: '#2c3e50',
+    lineHeight: 18,
+  },
   modalFooter: {
     flexDirection: 'row',
     padding: 20,
@@ -1095,6 +1566,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  archiveReminder: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fdf2f2',
+    padding: 10,
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: '#e74c3c',
+    marginBottom: 12,
+  },
+  archiveReminderText: {
+    fontSize: 12,
+    color: '#e74c3c',
+    marginLeft: 8,
+    flex: 1,
+    fontStyle: 'italic',
   },
 });
 

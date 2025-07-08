@@ -10,7 +10,21 @@ const router = express.Router();
 // Push an alert to the display screen
 router.post('/push-alert', async (req, res) => {
   try {
-    const { sessionId, alert, displayDuration = 300, priority = 'normal' } = req.body;
+    const { 
+      sessionId, 
+      alertId,
+      type,
+      title, 
+      message, 
+      priority = 'medium',
+      severity,
+      location,
+      affectedRoutes,
+      source,
+      duration = 600,
+      iconCategory,
+      mapIcon
+    } = req.body;
     
     // Validate session
     const sessionValidation = supervisorManager.validateSupervisorSession(sessionId);
@@ -23,42 +37,90 @@ router.post('/push-alert', async (req, res) => {
     
     const supervisor = sessionValidation.supervisor;
     
-    // Create display alert
-    const displayAlert = {
-      ...alert,
-      id: alert.id || `display_${Date.now()}`,
+    // Map priority levels to display priority numbers
+    const priorityMap = {
+      'high': 1,     // P1 Critical
+      'medium': 2,   // P2 Important  
+      'low': 3       // P3 Information
+    };
+    
+    // Create display message with proper structure
+    const displayMessage = {
+      id: `display_${alertId || Date.now()}`,
+      content: title || message,
+      priority: priorityMap[priority] || 2,
+      supervisorName: supervisor.name,
+      supervisorBadge: supervisor.badge,
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + (duration * 1000)).toISOString(),
+      // Disruption-specific data
+      alertType: type,
+      alertSeverity: severity,
+      location: location,
+      affectsRoutes: affectedRoutes || [],
+      source: source,
+      iconCategory: iconCategory,
+      mapIcon: mapIcon,
+      autoTriggered: false,
+      displayed: false,
+      // Display metadata
       pushedToDisplay: true,
       pushedBy: supervisor.name,
       pushedAt: new Date().toISOString(),
-      displayPriority: priority,
-      displayDuration,
-      expiresAt: new Date(Date.now() + (displayDuration * 1000)).toISOString()
+      displayDuration: duration,
+      rotationInterval: 30000 // 30 seconds
     };
+    
+    // Store in global display messages (in production, use Convex)
+    if (!global.displayMessages) {
+      global.displayMessages = [];
+    }
+    
+    // Remove any existing message for the same alert
+    global.displayMessages = global.displayMessages.filter(msg => msg.id !== displayMessage.id);
+    
+    // Add new message
+    global.displayMessages.push(displayMessage);
+    
+    // Keep only last 10 messages
+    global.displayMessages = global.displayMessages.slice(-10);
     
     // Log the action
     await supervisorManager.logSupervisorAction(sessionId, 'push_to_display', {
-      alertId: alert.id,
-      alertTitle: alert.title,
-      alertType: alert.alertCategory || 'unknown',
-      displayDuration,
+      alertId: alertId,
+      alertTitle: title,
+      alertType: type,
+      severity: severity,
+      affectedRoutes: affectedRoutes?.length || 0,
+      displayDuration: duration,
       priority
     });
     
     // Sync to Convex for real-time update
     if (convexSync.isEnabled) {
-      await convexSync.syncAlerts([displayAlert]);
+      try {
+        await convexSync.syncDisplayMessages([displayMessage]);
+      } catch (syncError) {
+        console.warn('⚠️ Convex sync failed, continuing with local storage:', syncError.message);
+      }
     }
     
-    console.log(`📺 Alert pushed to display by ${supervisor.name}: ${alert.title}`);
+    console.log(`📺 Disruption pushed to display by ${supervisor.name}: ${title}`);
+    console.log(`   Type: ${type}, Severity: ${severity}, Routes: ${affectedRoutes?.join(', ')}`);
     
     res.json({
       success: true,
-      message: 'Alert pushed to display screen',
-      displayAlert
+      message: 'Disruption pushed to display screen successfully',
+      displayMessage: {
+        id: displayMessage.id,
+        content: displayMessage.content,
+        priority: displayMessage.priority,
+        expiresAt: displayMessage.expiresAt
+      }
     });
     
   } catch (error) {
-    console.error('❌ Error pushing alert to display:', error);
+    console.error('❌ Error pushing disruption to display:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -106,7 +168,37 @@ router.post('/remove-alert', async (req, res) => {
   }
 });
 
-// Get current display alerts
+// Get current display messages
+router.get('/current-messages', async (req, res) => {
+  try {
+    // Get stored display messages
+    const currentMessages = global.displayMessages || [];
+    
+    // Filter out expired messages
+    const activeMessages = currentMessages.filter(msg => {
+      const expiresAt = new Date(msg.expiresAt).getTime();
+      return expiresAt > Date.now();
+    });
+    
+    // Update global storage with only active messages
+    global.displayMessages = activeMessages;
+    
+    res.json({
+      success: true,
+      messages: activeMessages,
+      count: activeMessages.length,
+      lastUpdated: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error getting display messages:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get current display alerts (legacy endpoint for compatibility)
 router.get('/current-alerts', async (req, res) => {
   try {
     // Import the alerts from main API

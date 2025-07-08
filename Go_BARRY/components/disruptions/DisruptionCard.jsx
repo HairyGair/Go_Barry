@@ -45,6 +45,7 @@ export default function DisruptionCard({
   onPress, 
   onDismiss,
   onAddNote,
+  onPushToDisplay,
   supervisorBadge,
   isCompact = false 
 }) {
@@ -231,6 +232,15 @@ export default function DisruptionCard({
               </View>
             )}
           </TouchableOpacity>
+          
+          {onPushToDisplay && (
+            <TouchableOpacity 
+              onPress={() => onPushToDisplay?.(disruption)}
+              style={[styles.actionButton, styles.displayButton]}
+            >
+              <Ionicons name="tv-outline" size={18} color="#2563eb" />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -413,6 +423,10 @@ const styles = StyleSheet.create({
     padding: 4,
     marginLeft: 8,
     position: 'relative',
+  },
+  displayButton: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 4,
   },
   noteBadge: {
     position: 'absolute',

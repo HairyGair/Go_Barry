@@ -13,9 +13,23 @@ import {
   Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSupervisorSession } from './hooks/useSupervisorSession';
+import { useSupervisor } from './hooks/useSupervisorSession';
 import { useConvexSync } from '../hooks/useConvexSync';
 import { formatDateUK, formatTime24, formatDateTimeUK } from '../utils/dateTime';
+import { exportDisruptions, EXPORT_FORMATS, generateExportSummary } from '../utils/exportUtils';
+import { 
+  COMMUNICATION_CHANNELS, 
+  STAKEHOLDER_GROUPS, 
+  COMMUNICATION_WORKFLOWS,
+  distributeMessage,
+  generateEmailContent,
+  generateSocialContent,
+  sendEmail,
+  shareOnTwitter,
+  shareOnFacebook,
+  shareOnTeams
+} from '../utils/communicationUtils';
+import { generateTestDisruptions, getTestSummary } from '../utils/testData';
 
 const DisruptionDatabase = ({ baseUrl, onBack }) => {
   const {
@@ -24,7 +38,7 @@ const DisruptionDatabase = ({ baseUrl, onBack }) => {
     supervisorRole,
     sessionId,
     isAdmin
-  } = useSupervisorSession();
+  } = useSupervisor();
 
   // Get incidents from Convex
   const { activeIncidents, allIncidents } = useConvexSync();
@@ -48,6 +62,22 @@ const DisruptionDatabase = ({ baseUrl, onBack }) => {
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [showBulkStatusModal, setShowBulkStatusModal] = useState(false);
   const [showBulkPriorityModal, setShowBulkPriorityModal] = useState(false);
+  
+  // Export states
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
+  
+  // Communication states
+  const [showCommunicationModal, setShowCommunicationModal] = useState(false);
+  const [communicationLoading, setCommunicationLoading] = useState(false);
+  const [selectedChannels, setSelectedChannels] = useState([]);
+  const [selectedStakeholders, setSelectedStakeholders] = useState([]);
+  const [communicationTemplate, setCommunicationTemplate] = useState('disruption_alert');
+  const [customMessage, setCustomMessage] = useState('');
+  
+  // Test mode states
+  const [testMode, setTestMode] = useState(false);
+  const [testDisruptions, setTestDisruptions] = useState([]);
 
   const apiBaseUrl = baseUrl || 'https://go-barry.onrender.com';
 
@@ -88,6 +118,13 @@ const DisruptionDatabase = ({ baseUrl, onBack }) => {
       loadRoadworks();
     }
   }, [isLoggedIn]);
+  
+  // Initialize test data
+  useEffect(() => {
+    if (testMode) {
+      setTestDisruptions(generateTestDisruptions());
+    }
+  }, [testMode]);
 
   const loadRoadworks = async () => {
     setLoading(true);
@@ -263,6 +300,220 @@ const DisruptionDatabase = ({ baseUrl, onBack }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Export functionality
+  const handleExport = async (format, includeFilters = false) => {
+    try {
+      setExportLoading(true);
+      
+      // Get data to export
+      let dataToExport;
+      if (selectedItems.length > 0) {
+        // Export selected items
+        const allDisruptions = getAllDisruptions();
+        dataToExport = allDisruptions.filter(item => 
+          selectedItems.includes(`${item.type}-${item.id}`)
+        );
+      } else if (includeFilters) {
+        // Export filtered data
+        dataToExport = getFilteredDisruptions();
+      } else {
+        // Export all data
+        dataToExport = getAllDisruptions();
+      }
+      
+      if (dataToExport.length === 0) {
+        Alert.alert('No Data', 'No data available to export');
+        return;
+      }
+      
+      // Generate filename
+      const timestamp = new Date().toISOString().split('T')[0];
+      const scope = selectedItems.length > 0 ? 'selected' : 
+                   includeFilters ? `filtered_${activeTab}` : 'all';
+      const filename = `gobarry_disruptions_${scope}_${timestamp}`;
+      
+      // Perform export
+      await exportDisruptions(dataToExport, format, filename);
+      
+      // Success feedback
+      const exportType = format.toUpperCase();
+      const itemCount = dataToExport.length;
+      
+      if (Platform.OS === 'web') {
+        // Web-specific success message
+        Alert.alert(
+          'Export Started', 
+          `${exportType} export initiated for ${itemCount} disruption${itemCount > 1 ? 's' : ''}. ` +
+          `${format === 'pdf' ? 'A new tab will open with the report.' : 'The file will download shortly.'}`
+        );
+      } else {
+        Alert.alert(
+          'Export Successful', 
+          `Exported ${itemCount} disruption${itemCount > 1 ? 's' : ''} to ${exportType} format`
+        );
+      }
+      
+      // Close export modal and exit selection mode
+      setShowExportModal(false);
+      if (selectedItems.length > 0) {
+        setSelectedItems([]);
+        setSelectionMode(false);
+      }
+      
+    } catch (error) {
+      Alert.alert('Export Failed', error.message || 'An error occurred during export');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  // Communication functionality
+  const handleCommunication = async () => {
+    try {
+      setCommunicationLoading(true);
+      
+      // Get disruption data to communicate about
+      let disruptionData;
+      if (selectedItems.length === 1) {
+        // Single item communication
+        const allDisruptions = getAllDisruptions();
+        disruptionData = allDisruptions.find(item => 
+          selectedItems.includes(`${item.type}-${item.id}`)
+        );
+      } else if (selectedItems.length > 1) {
+        // Multiple items - create summary
+        const allDisruptions = getAllDisruptions();
+        const selectedDisruptions = allDisruptions.filter(item => 
+          selectedItems.includes(`${item.type}-${item.id}`)
+        );
+        disruptionData = createCommunicationSummary(selectedDisruptions);
+      } else {
+        Alert.alert('No Selection', 'Please select at least one disruption to communicate about');
+        return;
+      }
+      
+      if (!disruptionData) {
+        Alert.alert('Error', 'Could not find disruption data');
+        return;
+      }
+      
+      // Prepare communication channels
+      const channels = selectedChannels.map(channelType => ({
+        type: channelType,
+        name: COMMUNICATION_CHANNELS[channelType].name,
+        recipients: channelType === 'email' ? ['control.room@gonortheast.co.uk'] : []
+      }));
+      
+      if (channels.length === 0) {
+        Alert.alert('No Channels', 'Please select at least one communication channel');
+        return;
+      }
+      
+      // Distribute message
+      const results = await distributeMessage(channels, disruptionData, communicationTemplate);
+      
+      // Show results
+      const successCount = results.filter(r => r.success).length;
+      const failCount = results.filter(r => !r.success).length;
+      
+      if (successCount > 0) {
+        const successMessage = failCount > 0 ?
+          `Successfully sent to ${successCount} channel${successCount > 1 ? 's' : ''}, ${failCount} failed.` :
+          `Successfully sent to ${successCount} channel${successCount > 1 ? 's' : ''}.`;
+          
+        Alert.alert(
+          'Communication Sent',
+          successMessage + '\n\n' +
+          (selectedChannels.includes('email') ? 'Email: Opens your default email client\n' : '') +
+          (selectedChannels.includes('twitter') ? 'Twitter: Opens in new tab\n' : '') +
+          (selectedChannels.includes('facebook') ? 'Facebook: Opens in new tab\n' : '') +
+          (selectedChannels.includes('teams') ? 'Teams: Opens Teams web app' : '')
+        );
+      } else {
+        Alert.alert(
+          'Communication Failed', 
+          'Failed to send to any channels. Please check your popup blocker settings and try again.'
+        );
+      }
+      
+      // Close modal and reset
+      setShowCommunicationModal(false);
+      resetCommunicationState();
+      
+    } catch (error) {
+      Alert.alert('Communication Error', error.message || 'An error occurred while sending communications');
+    } finally {
+      setCommunicationLoading(false);
+    }
+  };
+  
+  const createCommunicationSummary = (disruptions) => {
+    const typeCount = {};
+    const priorityCount = {};
+    const affectedRoutes = new Set();
+    
+    disruptions.forEach(d => {
+      typeCount[d.type] = (typeCount[d.type] || 0) + 1;
+      priorityCount[d.priority] = (priorityCount[d.priority] || 0) + 1;
+      d.affectedRoutes?.forEach(route => affectedRoutes.add(route));
+    });
+    
+    const summary = {
+      id: 'summary',
+      type: 'multiple disruptions',
+      title: `${disruptions.length} Active Disruptions`,
+      location: `Multiple locations (${disruptions.length} total)`,
+      status: 'active',
+      priority: Object.keys(priorityCount).includes('critical') ? 'critical' : 'high',
+      description: `Summary of ${disruptions.length} disruptions: ` +
+                  Object.entries(typeCount).map(([type, count]) => `${count} ${type}`).join(', '),
+      affectedRoutes: Array.from(affectedRoutes),
+      createdAt: new Date().toISOString(),
+      createdBy: supervisorName || 'System',
+      lastUpdated: new Date().toISOString()
+    };
+    
+    return summary;
+  };
+  
+  const resetCommunicationState = () => {
+    setSelectedChannels([]);
+    setSelectedStakeholders([]);
+    setCommunicationTemplate('disruption_alert');
+    setCustomMessage('');
+  };
+  
+  const toggleChannel = (channel) => {
+    setSelectedChannels(prev => 
+      prev.includes(channel) 
+        ? prev.filter(c => c !== channel)
+        : [...prev, channel]
+    );
+  };
+  
+  const toggleStakeholder = (stakeholder) => {
+    setSelectedStakeholders(prev => {
+      const newSelection = prev.includes(stakeholder) 
+        ? prev.filter(s => s !== stakeholder)
+        : [...prev, stakeholder];
+      
+      // Auto-select channels based on stakeholder groups
+      if (!prev.includes(stakeholder)) {
+        const stakeholderConfig = STAKEHOLDER_GROUPS[stakeholder];
+        if (stakeholderConfig) {
+          const autoChannels = stakeholderConfig.channels.filter(c => 
+            COMMUNICATION_CHANNELS[c] && COMMUNICATION_CHANNELS[c].available
+          );
+          setSelectedChannels(current => 
+            [...new Set([...current, ...autoChannels])]
+          );
+        }
+      }
+      
+      return newSelection;
+    });
   };
 
   // Edit handler for both incidents and roadworks
@@ -442,6 +693,10 @@ const DisruptionDatabase = ({ baseUrl, onBack }) => {
 
   // Combine and filter all disruptions
   const getAllDisruptions = () => {
+    if (testMode) {
+      return testDisruptions;
+    }
+    
     const incidents = getFormattedIncidents();
     const roadworks = getFormattedRoadworks();
     const traffic = getFormattedTrafficIncidents();
@@ -591,6 +846,11 @@ const DisruptionDatabase = ({ baseUrl, onBack }) => {
         </View>
         
         <View style={styles.headerActions}>
+          {testMode && (
+            <View style={styles.testModeBadge}>
+              <Text style={styles.testModeBadgeText}>TEST MODE</Text>
+            </View>
+          )}
           {selectionMode && selectedItems.length === getFilteredDisruptions().length && (
             <TouchableOpacity
               style={styles.selectAllButton}
@@ -618,6 +878,15 @@ const DisruptionDatabase = ({ baseUrl, onBack }) => {
             />
             <Text style={[styles.selectionModeText, selectionMode && styles.selectionModeTextActive]}>
               {selectionMode ? 'Cancel' : 'Select'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.testModeButton, testMode && styles.testModeActive]}
+            onPress={() => setTestMode(!testMode)}
+          >
+            <Ionicons name="flask" size={16} color={testMode ? "#FFFFFF" : "#8B5CF6"} />
+            <Text style={[styles.testModeText, testMode && styles.testModeTextActive]}>
+              {testMode ? 'Test' : 'Live'}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -990,6 +1259,20 @@ const DisruptionDatabase = ({ baseUrl, onBack }) => {
                 <Text style={styles.floatingActionButtonText}>Priority</Text>
               </TouchableOpacity>
               <TouchableOpacity
+                style={styles.floatingActionButton}
+                onPress={() => setShowExportModal(true)}
+              >
+                <Ionicons name="download" size={20} color="#FFFFFF" />
+                <Text style={styles.floatingActionButtonText}>Export</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.floatingActionButton, styles.communicateButton]}
+                onPress={() => setShowCommunicationModal(true)}
+              >
+                <Ionicons name="megaphone" size={20} color="#FFFFFF" />
+                <Text style={styles.floatingActionButtonText}>Share</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[styles.floatingActionButton, styles.archiveButton]}
                 onPress={handleBulkArchive}
               >
@@ -1241,6 +1524,312 @@ const DisruptionDatabase = ({ baseUrl, onBack }) => {
                 </TouchableOpacity>
               ))}
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Export Modal */}
+      <Modal
+        visible={showExportModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowExportModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.exportModal}>
+            <View style={styles.bulkModalHeader}>
+              <Text style={styles.bulkModalTitle}>Export Disruptions</Text>
+              <TouchableOpacity
+                onPress={() => setShowExportModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.exportContent}>
+              <Text style={styles.exportSubtitle}>
+                {selectedItems.length > 0 
+                  ? `Export ${selectedItems.length} selected items`
+                  : `Export all ${getFilteredDisruptions().length} disruptions`
+                }
+              </Text>
+              
+              {/* Export Summary */}
+              <View style={styles.exportSummary}>
+                <Text style={styles.exportSummaryTitle}>Export Summary</Text>
+                {(() => {
+                  const dataToSummarize = selectedItems.length > 0 
+                    ? getAllDisruptions().filter(item => selectedItems.includes(`${item.type}-${item.id}`))
+                    : getFilteredDisruptions();
+                  const summary = generateExportSummary(dataToSummarize);
+                  
+                  return (
+                    <View style={styles.summaryStats}>
+                      <Text style={styles.summaryText}>Total: {summary.total}</Text>
+                      <Text style={styles.summaryText}>
+                        Types: {Object.entries(summary.byType)
+                          .map(([type, count]) => `${type} (${count})`)
+                          .join(', ')}
+                      </Text>
+                      <Text style={styles.summaryText}>
+                        Statuses: {Object.entries(summary.byStatus)
+                          .map(([status, count]) => `${status} (${count})`)
+                          .join(', ')}
+                      </Text>
+                    </View>
+                  );
+                })()}
+              </View>
+              
+              {/* Export Format Options */}
+              <Text style={styles.exportOptionsTitle}>Choose Export Format:</Text>
+              <View style={styles.exportOptions}>
+                <TouchableOpacity
+                  style={styles.exportOptionButton}
+                  onPress={() => handleExport(EXPORT_FORMATS.CSV, true)}
+                  disabled={exportLoading}
+                >
+                  <View style={[styles.bulkOptionIcon, { backgroundColor: '#F0FDF4' }]}>
+                    <Ionicons name="document-text" size={20} color="#16A34A" />
+                  </View>
+                  <View style={styles.exportOptionText}>
+                    <Text style={styles.exportOptionTitle}>CSV Spreadsheet</Text>
+                    <Text style={styles.exportOptionSubtitle}>Excel-compatible format</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.exportOptionButton}
+                  onPress={() => handleExport(EXPORT_FORMATS.EXCEL, true)}
+                  disabled={exportLoading}
+                >
+                  <View style={[styles.bulkOptionIcon, { backgroundColor: '#FFF7ED' }]}>
+                    <Ionicons name="grid" size={20} color="#EA580C" />
+                  </View>
+                  <View style={styles.exportOptionText}>
+                    <Text style={styles.exportOptionTitle}>Excel Workbook</Text>
+                    <Text style={styles.exportOptionSubtitle}>Formatted with styles</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.exportOptionButton}
+                  onPress={() => handleExport(EXPORT_FORMATS.PDF, true)}
+                  disabled={exportLoading}
+                >
+                  <View style={[styles.bulkOptionIcon, { backgroundColor: '#FEF2F2' }]}>
+                    <Ionicons name="document" size={20} color="#DC2626" />
+                  </View>
+                  <View style={styles.exportOptionText}>
+                    <Text style={styles.exportOptionTitle}>PDF Report</Text>
+                    <Text style={styles.exportOptionSubtitle}>Print-ready format</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                </TouchableOpacity>
+              </View>
+              
+              {exportLoading && (
+                <View style={styles.exportLoading}>
+                  <ActivityIndicator size="small" color="#3B82F6" />
+                  <Text style={styles.exportLoadingText}>Preparing export...</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Communication Modal */}
+      <Modal
+        visible={showCommunicationModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCommunicationModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.communicationModal}>
+            <View style={styles.bulkModalHeader}>
+              <Text style={styles.bulkModalTitle}>Share Disruption Updates</Text>
+              <TouchableOpacity
+                onPress={() => setShowCommunicationModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.communicationContent}>
+              <Text style={styles.exportSubtitle}>
+                {selectedItems.length === 1 
+                  ? 'Share information about the selected disruption'
+                  : selectedItems.length > 1
+                  ? `Share summary of ${selectedItems.length} selected disruptions`
+                  : 'No disruptions selected'}
+              </Text>
+              
+              {/* Template Selection */}
+              <View style={styles.communicationSection}>
+                <Text style={styles.communicationSectionTitle}>Message Type</Text>
+                <View style={styles.templateOptions}>
+                  <TouchableOpacity
+                    style={[
+                      styles.templateOption,
+                      communicationTemplate === 'disruption_alert' && styles.templateOptionSelected
+                    ]}
+                    onPress={() => setCommunicationTemplate('disruption_alert')}
+                  >
+                    <Text style={[
+                      styles.templateOptionText,
+                      communicationTemplate === 'disruption_alert' && styles.templateOptionTextSelected
+                    ]}>New Alert</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.templateOption,
+                      communicationTemplate === 'status_update' && styles.templateOptionSelected
+                    ]}
+                    onPress={() => setCommunicationTemplate('status_update')}
+                  >
+                    <Text style={[
+                      styles.templateOptionText,
+                      communicationTemplate === 'status_update' && styles.templateOptionTextSelected
+                    ]}>Status Update</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              
+              {/* Stakeholder Groups */}
+              <View style={styles.communicationSection}>
+                <Text style={styles.communicationSectionTitle}>Who to Notify</Text>
+                <View style={styles.stakeholderGrid}>
+                  {Object.entries(STAKEHOLDER_GROUPS).map(([key, group]) => (
+                    <TouchableOpacity
+                      key={key}
+                      style={[
+                        styles.stakeholderOption,
+                        selectedStakeholders.includes(key) && styles.stakeholderOptionSelected
+                      ]}
+                      onPress={() => toggleStakeholder(key)}
+                    >
+                      <View style={[
+                        styles.stakeholderCheckbox,
+                        selectedStakeholders.includes(key) && styles.stakeholderCheckboxSelected
+                      ]}>
+                        {selectedStakeholders.includes(key) && (
+                          <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                        )}
+                      </View>
+                      <View style={styles.stakeholderInfo}>
+                        <Text style={styles.stakeholderName}>{group.name}</Text>
+                        <Text style={styles.stakeholderDescription}>{group.description}</Text>
+                        <Text style={styles.stakeholderChannels}>
+                          Via: {group.channels.join(', ')}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              
+              {/* Communication Channels */}
+              <View style={styles.communicationSection}>
+                <Text style={styles.communicationSectionTitle}>Communication Channels</Text>
+                <View style={styles.channelGrid}>
+                  {Object.entries(COMMUNICATION_CHANNELS)
+                    .filter(([key, channel]) => channel.available)
+                    .map(([key, channel]) => (
+                    <TouchableOpacity
+                      key={key}
+                      style={[
+                        styles.channelOption,
+                        selectedChannels.includes(key) && styles.channelOptionSelected,
+                        { borderColor: channel.color }
+                      ]}
+                      onPress={() => toggleChannel(key)}
+                    >
+                      <View style={[styles.channelIcon, { backgroundColor: channel.color }]}>
+                        <Ionicons name={channel.icon} size={20} color="#FFFFFF" />
+                      </View>
+                      <Text style={styles.channelName}>{channel.name}</Text>
+                      <Text style={styles.channelDescription}>{channel.description}</Text>
+                      {selectedChannels.includes(key) && (
+                        <View style={styles.channelSelected}>
+                          <Ionicons name="checkmark-circle" size={16} color={channel.color} />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              
+              {/* Preview */}
+              {selectedItems.length > 0 && selectedChannels.length > 0 && (
+                <View style={styles.communicationSection}>
+                  <Text style={styles.communicationSectionTitle}>Preview</Text>
+                  <View style={styles.previewContainer}>
+                    {(() => {
+                      try {
+                        const sampleDisruption = getAllDisruptions().find(item => 
+                          selectedItems.includes(`${item.type}-${item.id}`)
+                        ) || createCommunicationSummary(getAllDisruptions().filter(item => 
+                          selectedItems.includes(`${item.type}-${item.id}`)
+                        ));
+                        
+                        if (selectedChannels.includes('email')) {
+                          const emailContent = generateEmailContent(communicationTemplate, sampleDisruption);
+                          return (
+                            <View style={styles.previewSection}>
+                              <Text style={styles.previewLabel}>Email Preview:</Text>
+                              <Text style={styles.previewSubject}>Subject: {emailContent.subject}</Text>
+                              <Text style={styles.previewBody}>{emailContent.body.substring(0, 200)}...</Text>
+                            </View>
+                          );
+                        } else if (selectedChannels.includes('twitter')) {
+                          const twitterContent = generateSocialContent('twitter', communicationTemplate, sampleDisruption);
+                          return (
+                            <View style={styles.previewSection}>
+                              <Text style={styles.previewLabel}>Twitter Preview:</Text>
+                              <Text style={styles.previewBody}>{twitterContent}</Text>
+                            </View>
+                          );
+                        }
+                      } catch (error) {
+                        return (
+                          <Text style={styles.previewError}>Preview unavailable</Text>
+                        );
+                      }
+                    })()}
+                  </View>
+                </View>
+              )}
+              
+              {/* Send Button */}
+              <View style={styles.communicationActions}>
+                <TouchableOpacity
+                  style={[
+                    styles.sendButton,
+                    (selectedItems.length === 0 || selectedChannels.length === 0 || communicationLoading) && 
+                    styles.sendButtonDisabled
+                  ]}
+                  onPress={handleCommunication}
+                  disabled={selectedItems.length === 0 || selectedChannels.length === 0 || communicationLoading}
+                >
+                  {communicationLoading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="send" size={20} color="#FFFFFF" />
+                      <Text style={styles.sendButtonText}>
+                        Send to {selectedChannels.length} Channel{selectedChannels.length !== 1 ? 's' : ''}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -2274,6 +2863,314 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: '#374151',
+  },
+  // Export modal styles
+  exportModal: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 40,
+    maxHeight: '90%',
+  },
+  exportContent: {
+    paddingHorizontal: 20,
+  },
+  exportSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  exportSummary: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 20,
+  },
+  exportSummaryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  summaryStats: {
+    gap: 4,
+  },
+  summaryText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  exportOptionsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 16,
+  },
+  exportOptions: {
+    gap: 8,
+  },
+  exportOptionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  exportOptionText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  exportOptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 2,
+  },
+  exportOptionSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  exportLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    gap: 8,
+  },
+  exportLoadingText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  // Test mode styles
+  testModeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  testModeActive: {
+    backgroundColor: '#8B5CF6',
+  },
+  testModeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#8B5CF6',
+  },
+  testModeTextActive: {
+    color: '#FFFFFF',
+  },
+  testModeBadge: {
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginRight: 8,
+  },
+  testModeBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#D97706',
+  },
+  // Communication modal styles
+  communicationModal: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 40,
+    maxHeight: '95%',
+  },
+  communicationContent: {
+    paddingHorizontal: 20,
+    maxHeight: '100%',
+  },
+  communicationSection: {
+    marginBottom: 24,
+  },
+  communicationSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+  },
+  templateOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  templateOption: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+  },
+  templateOptionSelected: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  templateOptionText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  templateOptionTextSelected: {
+    color: '#FFFFFF',
+  },
+  stakeholderGrid: {
+    gap: 8,
+  },
+  stakeholderOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  stakeholderOptionSelected: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+  },
+  stakeholderCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  stakeholderCheckboxSelected: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  stakeholderInfo: {
+    flex: 1,
+  },
+  stakeholderName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 2,
+  },
+  stakeholderDescription: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 2,
+  },
+  stakeholderChannels: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+  },
+  channelGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  channelOption: {
+    width: '48%',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 2,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  channelOptionSelected: {
+    backgroundColor: '#F8FAFC',
+  },
+  channelIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  channelName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  channelDescription: {
+    fontSize: 11,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  channelSelected: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+  },
+  previewContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    padding: 12,
+  },
+  previewSection: {
+    marginBottom: 8,
+  },
+  previewLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  previewSubject: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  previewBody: {
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 16,
+  },
+  previewError: {
+    fontSize: 12,
+    color: '#DC2626',
+    fontStyle: 'italic',
+  },
+  communicationActions: {
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  sendButton: {
+    backgroundColor: '#10B981',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  sendButtonDisabled: {
+    opacity: 0.5,
+  },
+  sendButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  communicateButton: {
+    backgroundColor: '#8B5CF6',
   },
 });
 

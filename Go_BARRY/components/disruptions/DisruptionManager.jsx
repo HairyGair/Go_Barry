@@ -8,7 +8,8 @@ import {
   Platform,
   Modal,
   TextInput,
-  ScrollView
+  ScrollView,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DisruptionList from './DisruptionList';
@@ -19,7 +20,7 @@ import { useDisruptions } from '../hooks/useDisruptions';
 import { useSupervisorSession } from '../hooks/useSupervisorSession';
 
 export default function DisruptionManager() {
-  const { supervisor } = useSupervisorSession();
+  const { supervisor, supervisorSession } = useSupervisorSession();
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'map'
   const [selectedDisruption, setSelectedDisruption] = useState(null);
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -70,6 +71,90 @@ export default function DisruptionManager() {
     } catch (error) {
       console.error('Failed to add note:', error);
     }
+  };
+
+  // Handle push to display
+  const handlePushToDisplay = async (disruption) => {
+    if (!supervisor || !supervisorSession) return;
+
+    try {
+      // Map severity to priority
+      const priorityMap = {
+        'critical': 'high',
+        'high': 'high',
+        'medium': 'medium',
+        'low': 'low'
+      };
+
+      // Format the display message
+      const displayData = {
+        sessionId: supervisorSession.sessionId,
+        alertId: disruption._id,
+        type: disruption.type,
+        title: `${disruption.affectedRoutes?.join(', ') || 'Multiple Routes'} - ${disruption.location?.description || disruption.title}`,
+        message: `${disruption.type.toUpperCase()}: ${disruption.description || disruption.title}`,
+        priority: priorityMap[disruption.severity?.toLowerCase()] || 'medium',
+        severity: disruption.severity,
+        location: disruption.location,
+        affectedRoutes: disruption.affectedRoutes,
+        source: disruption.source,
+        duration: 600, // 10 minutes default
+        iconCategory: getIconCategory(disruption.type),
+        mapIcon: getMapIcon(disruption.type)
+      };
+
+      // Push to display API
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_BASE_URL || 'https://go-barry.onrender.com'}/api/display/push-alert`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(displayData)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        Alert.alert(
+          'Success',
+          'Disruption pushed to control room display',
+          [{ text: 'OK' }]
+        );
+      } else {
+        throw new Error(result.error || 'Failed to push to display');
+      }
+    } catch (error) {
+      console.error('Failed to push to display:', error);
+      Alert.alert(
+        'Error',
+        'Failed to push disruption to display',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  // Get icon category for display
+  const getIconCategory = (type) => {
+    const iconMap = {
+      'roadwork': 6,
+      'incident': 9,
+      'event': 7,
+      'weather': 11,
+      'breakdown': 3
+    };
+    return iconMap[type] || 9;
+  };
+
+  // Get map icon for display
+  const getMapIcon = (type) => {
+    const iconMap = {
+      'roadwork': '🚧',
+      'incident': '⚠️',
+      'event': '📅',
+      'weather': '🌧️',
+      'breakdown': '🚌'
+    };
+    return iconMap[type] || '⚠️';
   };
 
   return (
@@ -175,6 +260,7 @@ export default function DisruptionManager() {
             onDisruptionPress={handleDisruptionSelect}
             onDismiss={handleDismiss}
             onAddNote={handleAddNote}
+            onPushToDisplay={handlePushToDisplay}
             showFilters={true}
             limit={100}
           />
@@ -194,6 +280,7 @@ export default function DisruptionManager() {
             disruption={selectedDisruption}
             onDismiss={handleDismiss}
             onAddNote={handleAddNote}
+            onPushToDisplay={handlePushToDisplay}
             supervisorBadge={supervisor?.badge}
             isCompact={false}
           />
