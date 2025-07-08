@@ -2,9 +2,9 @@
 // Unified roadworks data aggregator and management system
 
 import { createClient } from '@supabase/supabase-js';
-import axios from 'axios';
+// Removed axios import - app only uses database/webhook data, not external API calls
 import { generateAlertHash } from '../utils/alertDeduplication.js';
-import streetManager from './streetManager.js';
+// Removed streetManager import - app only uses AWS webhook data, not external API calls
 import { convexSync } from './convexSync.js';
 import { supabaseOptimizer } from './supabaseOptimizer.js';
 
@@ -160,11 +160,17 @@ class UnifiedRoadworksManager {
       if (highImpact.length > 0) {
         console.log(`🔄 Syncing ${highImpact.length} high-impact roadworks to systems...`);
         
-        // Use the StreetManager sync function which handles both Intelligence Engine and Convex
-        const result = await streetManager.syncStreetManagerToSystems();
-        
-        if (result.success) {
-          console.log(`✅ Systems sync complete: ${result.convexSynced} to Convex, ${result.enhancedAlerts} with ML predictions`);
+        // ✅ FIXED: Use existing webhook data instead of external API calls
+        // Sync the high-impact roadworks we already have to Convex
+        try {
+          const convexResult = await convexSync.syncStreetManagerRoadworks(highImpact);
+          if (convexResult.success) {
+            console.log(`✅ Systems sync complete: ${convexResult.count} to Convex`);
+          } else {
+            console.warn('⚠️ Convex sync failed:', convexResult.error);
+          }
+        } catch (syncError) {
+          console.error('❌ Failed to sync roadworks to Convex:', syncError.message);
         }
       }
     } catch (error) {
