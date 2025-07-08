@@ -1,6 +1,19 @@
 #!/usr/bin/env node
 // Quick fix for Render.com port binding issue
 
+// Environment variable compatibility fix - MUST run before any imports
+// Render uses SUPABASE_SERVICE_ROLE_KEY but code expects SUPABASE_SERVICE_KEY
+if (process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.SUPABASE_SERVICE_KEY) {
+  process.env.SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  console.log('✅ Mapped SUPABASE_SERVICE_ROLE_KEY to SUPABASE_SERVICE_KEY');
+}
+
+// Fix SUPABASE_URL typo if present
+if (process.env.SUPABASE_URL && process.env.SUPABASE_URL.includes('haountnqhecfrsoniubq')) {
+  process.env.SUPABASE_URL = process.env.SUPABASE_URL.replace('haountnqhecfrsoniubq', 'haountnqhecfrsonivbq');
+  console.log('✅ Fixed SUPABASE_URL typo');
+}
+
 import express from 'express';
 import { createServer } from 'http';
 import { fileURLToPath } from 'url';

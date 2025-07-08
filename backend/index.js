@@ -9,6 +9,19 @@
 
 console.log('🌟 index.js: Module loading started at', new Date().toISOString());
 
+// Environment variable compatibility fix
+// Render uses SUPABASE_SERVICE_ROLE_KEY but code expects SUPABASE_SERVICE_KEY
+if (process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.SUPABASE_SERVICE_KEY) {
+  process.env.SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  console.log('✅ Mapped SUPABASE_SERVICE_ROLE_KEY to SUPABASE_SERVICE_KEY');
+}
+
+// Fix SUPABASE_URL typo if present
+if (process.env.SUPABASE_URL && process.env.SUPABASE_URL.includes('haountnqhecfrsoniubq')) {
+  process.env.SUPABASE_URL = process.env.SUPABASE_URL.replace('haountnqhecfrsoniubq', 'haountnqhecfrsonivbq');
+  console.log('✅ Fixed SUPABASE_URL typo');
+}
+
 /*
  * ARCHITECTURAL FIX (June 2025):
  * Previously, this file created its own Express app, resulting in TWO separate app instances:
