@@ -36,14 +36,16 @@ class ConvexSyncService {
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Convex error: ${response.status} - ${error}`);
+        const errorText = await response.text();
+        console.error(`❌ Convex HTTP error ${response.status}:`, errorText);
+        throw new Error(`Convex error: ${response.status} - ${errorText}`);
       }
 
       const result = await response.json();
       
       if (result.status === 'error') {
-        throw new Error(result.errorMessage || 'Unknown Convex error');
+        console.error('❌ Convex function error:', result);
+        throw new Error(result.errorMessage || result.error?.message || 'Unknown Convex error');
       }
 
       return result.value;
@@ -389,22 +391,30 @@ class ConvexSyncService {
           };
         });
       
+      // Prepare bus data for Convex
+      const convexBuses = busesToSync.map(bus => ({
+        id: bus.id,
+        vehicleRef: bus.id,
+        operatorRef: bus.operatorRef,
+        routeName: bus.lineName,
+        lineRef: bus.lineRef,
+        coordinates: [bus.location.lat, bus.location.lon],
+        bearing: bus.bearing,
+        delay: bus.delay,
+        status: bus.status,
+        destination: bus.destinationName,
+        occupancy: bus.occupancy,
+        lastUpdate: Date.now()
+      }));
+      
+      // Log sample data for debugging
+      if (convexBuses.length > 0) {
+        console.log('📊 Sample bus data being sent to Convex:', JSON.stringify(convexBuses[0], null, 2));
+      }
+      
       // Call the Convex mutation - use sync function instead of buses function
       const result = await this.callConvexFunction('sync:updateSimpleBusLocations', {
-        buses: busesToSync.map(bus => ({
-          id: bus.id,
-          vehicleRef: bus.id,
-          operatorRef: bus.operatorRef,
-          routeName: bus.lineName,
-          lineRef: bus.lineRef,
-          coordinates: [bus.location.lat, bus.location.lon],
-          bearing: bus.bearing,
-          delay: bus.delay,
-          status: bus.status,
-          destination: bus.destinationName,
-          occupancy: bus.occupancy,
-          lastUpdate: Date.now()
-        })),
+        buses: convexBuses,
         timestamp: new Date().toISOString()
       });
       
