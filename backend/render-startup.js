@@ -284,10 +284,12 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`📡 Health check: https://go-barry.onrender.com/api/health`);
   
   // Load full backend after port is bound
-  setTimeout(() => {
+  setTimeout(async () => {
     console.log('🔄 Loading full backend functionality...');
     console.log(`🔄 Route count before import - GET: ${routeCount.get}, POST: ${routeCount.post}, USE: ${routeCount.use}`);
-    import('./index.js').then(() => {
+    
+    try {
+      await import('./index.js');
       console.log('✅ Full backend loaded - ALL ROUTES NOW ACTIVE');
       console.log(`🎆 Route count after import - GET: ${routeCount.get}, POST: ${routeCount.post}, USE: ${routeCount.use}`);
       console.log('🎆 All API endpoints from index.js are now accessible!');
@@ -312,10 +314,10 @@ server.listen(PORT, '0.0.0.0', () => {
           source: 'Added after index.js import'
         });
       });
-    }).catch(error => {
+    } catch (error) {
       console.error('⚠️ Full backend failed to load:', error);
       console.log('🚨 Running in minimal mode');
-    });
+    }
   }, 5000); // 5 second delay
 });
 

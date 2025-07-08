@@ -4795,9 +4795,13 @@ async function startServer() {
         console.log('🔄 Server likely restarting, continuing...');
         
         // Still try to initialize
-        initializeApplication().catch(error => {
-          console.error('⚠️ Initialization error:', error.message);
-        });
+        (async () => {
+          try {
+            await initializeApplication();
+          } catch (error) {
+            console.error('⚠️ Initialization error:', error.message);
+          }
+        })();
       } else {
         console.error('❌ Server error:', err);
         throw err;
