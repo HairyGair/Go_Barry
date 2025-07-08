@@ -243,7 +243,7 @@ class UnifiedRoadworksManager {
               .order('created_at', { ascending: false })
               .limit(500),
             new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Database timeout after 15s')), 15000)
+              setTimeout(() => reject(new Error('Supabase query timeout after 15s - network connectivity issue')), 15000)
             )
           ]);
           
@@ -258,7 +258,7 @@ class UnifiedRoadworksManager {
           }
           
         } catch (error) {
-          console.warn(`⚠️ Street Manager query attempt ${attempt}/5 failed:`, error.message);
+          console.warn(`⚠️ Supabase database query attempt ${attempt}/5 failed:`, error.message);
           notifError = error;
           
           if (attempt < 5) {
@@ -270,7 +270,9 @@ class UnifiedRoadworksManager {
       }
 
       if (notifError) {
-        console.error('❌ Street Manager notifications error after 5 attempts:', notifError);
+        // Log clearer error message - this is a database connection issue, not external API
+        console.error('❌ Supabase database connection failed after 5 attempts (Street Manager webhook data):', notifError);
+        console.log('ℹ️ This is a database connectivity issue, NOT an external API call');
         
         // Try to return cached data if available
         if (this.cache.has('streetmanager_data')) {
