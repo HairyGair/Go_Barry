@@ -694,8 +694,32 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
     const targetTab = actionChoice ? 'Active & Approved' : 'Completed & Archived';
     
     try {
-      // Call API to update status (placeholder - would need actual API)
-      console.log(`${action.charAt(0).toUpperCase() + action.slice(1)} ${roadwork.title}: ${roadwork.status} → ${newStatus}`);
+      // Call API to update status - REAL IMPLEMENTATION
+      const apiUrl = baseUrl || 'https://go-barry.onrender.com';
+      console.log(`🔥 CALLING API to ${action} ${roadwork.title}: ${roadwork.status} → ${newStatus}`);
+      
+      const response = await fetch(`${apiUrl}/api/roadworks-v2/${roadwork.id}/review`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-session-id': sessionId
+        },
+        body: JSON.stringify({
+          status: newStatus,
+          confirmedRoutes: roadwork.affectsRoutes || [],
+          severity: roadwork.severity || 'medium',
+          diversionRequired: roadwork.hasDiversion || false,
+          notes: `Monitoring decision: ${action} by supervisor`,
+          supervisorId: sessionId,
+          supervisorName: supervisorName
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API call failed: ${response.status}`);
+      }
+
+      console.log(`✅ API SUCCESS: Roadwork ${action} successfully`);
       
       // Show success message with tab guidance
       alert(
@@ -1483,7 +1507,19 @@ const RoadworksManagerV2 = ({ baseUrl }) => {
   };
 
   const renderCompletedTab = () => {
-    const completedRoadworks = getFilteredRoadworks().filter(r => r.status === 'completed');
+    // getFilteredRoadworks() already filters for completed, archived, AND rejected statuses
+    // when activeTab === 'completed', so no additional filtering needed
+    const completedRoadworks = getFilteredRoadworks();
+    
+    // DEBUG: Log the breakdown of completed tab items
+    console.log('🔍 COMPLETED TAB DEBUG:');
+    console.log('🔍 Total completed/archived/rejected:', completedRoadworks.length);
+    console.log('🔍 Status breakdown:', {
+      completed: completedRoadworks.filter(r => r.status === 'completed').length,
+      archived: completedRoadworks.filter(r => r.status === 'archived').length,
+      rejected: completedRoadworks.filter(r => r.status === 'rejected').length
+    });
+    console.log('🔍 Sample items:', completedRoadworks.slice(0, 3).map(r => ({ title: r.title, status: r.status, source: r.source })));
     
     return (
       <View style={roadworksStyles.section}>
