@@ -173,16 +173,32 @@ const API_BASE_URL = 'https://go-barry.onrender.com';
 
 // Supervisor database - ALL now require passwords
 const SUPERVISOR_DB = {
-  'alex_woodcock': { name: 'Alex Woodcock', role: 'Supervisor' },
-  'andrew_cowley': { name: 'Andrew Cowley', role: 'Supervisor' },
+  'alex_woodcock': { 
+    name: 'Alex Woodcock', 
+    role: 'Supervisor',
+    defaultPassword: 'Alex123'
+  },
+  'andrew_cowley': { 
+    name: 'Andrew Cowley', 
+    role: 'Supervisor',
+    defaultPassword: 'Andrew123'
+  },
   'anthony_gair': { 
     name: 'Anthony Gair', 
     role: 'Developer/Admin', 
     isAdmin: true,
-    defaultPassword: 'Anthony123' // Add default for testing
+    defaultPassword: 'Anthony123'
   },
-  'claire_fiddler': { name: 'Claire Fiddler', role: 'Supervisor' },
-  'david_hall': { name: 'David Hall', role: 'Supervisor' },
+  'claire_fiddler': { 
+    name: 'Claire Fiddler', 
+    role: 'Supervisor',
+    defaultPassword: 'Claire123'
+  },
+  'david_hall': { 
+    name: 'David Hall', 
+    role: 'Supervisor',
+    defaultPassword: 'David123'
+  },
   'james_daglish': { 
     name: 'James Daglish', 
     role: 'Supervisor',
@@ -202,7 +218,7 @@ const SUPERVISOR_DB = {
     name: 'Barry Perryman', 
     role: 'Service Delivery Controller - Line Manager',
     isAdmin: true,
-    defaultPassword: 'Barry123' // Keep Barry's existing password as default
+    defaultPassword: 'Barry123'
   },
 };
 
@@ -339,11 +355,12 @@ export const useSupervisorSession = () => {
 
       // Check if this is a first-time user who needs password setup
       if (!loginData.isPasswordSetup && passwordStorageService.isFirstTimeUser(loginData.supervisorId)) {
-        // Special case for users with default passwords - auto-migrate them
-        if (supervisor.defaultPassword && ['barry_perryman', 'anthony_gair', 'james_daglish', 'john_paterson', 'simon_glass'].includes(loginData.supervisorId)) {
+        // Auto-migrate users with default passwords
+        if (supervisor.defaultPassword) {
           passwordStorageService.savePassword(loginData.supervisorId, supervisor.defaultPassword);
+          console.log(`✅ Auto-migrated default password for ${supervisor.name}`);
         } else {
-          // Show password setup screen for other users
+          // Show password setup screen for users without default passwords
           setNeedsPasswordSetup(true);
           setPendingLoginData(loginData);
           setIsLoading(false);
@@ -356,9 +373,9 @@ export const useSupervisorSession = () => {
         throw new Error('Password is required');
       }
 
-      // Check password (special case for users with default passwords)
+      // Check password (includes checking default passwords for all supervisors)
       const isValidPassword = passwordStorageService.checkPassword(loginData.supervisorId, loginData.password) ||
-        (supervisor.defaultPassword && ['barry_perryman', 'anthony_gair', 'james_daglish', 'john_paterson', 'simon_glass'].includes(loginData.supervisorId) && loginData.password === supervisor.defaultPassword);
+        (supervisor.defaultPassword && loginData.password === supervisor.defaultPassword);
 
       if (!isValidPassword) {
         throw new Error('Incorrect password');
