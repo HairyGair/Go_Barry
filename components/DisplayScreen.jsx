@@ -23,20 +23,18 @@ const DisplayScreen = () => {
   // Use Convex for real-time sync
   const convexData = useConvexSync();
   
-  // TODO: Fix Convex deployment to enable display messages
-  // For now, using empty array as fallback
-  const displayMessages = [];
+  // Get display messages from Convex
+  const displayMessages = convexData?.customMessages || [];
   
   // Get data from Convex
   const activeSupervisors = convexData?.activeSupervisors || [];
   const vixData = convexData?.vixData;
-  // TODO: Fix Convex deployment to enable recent actions
-  const recentActions = [];
+  // Get recent actions from Convex
+  const recentActions = convexData?.recentActions || [];
   const mostSevereEvent = convexData?.mostSevereEvent || null;
   
-  // Get recent handovers for display
-  // TODO: Re-enable when Convex is deployed properly
-  const recentHandovers = [];
+  // Get recent handovers from Convex
+  const recentHandovers = convexData?.recentHandovers || [];
   
   // Extract VIX data from Convex (with safe fallback)
   const lateRunners = vixData?.lateRunners || [];

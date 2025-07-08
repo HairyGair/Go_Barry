@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorSession } from './hooks/useSupervisorSessionSimple';
+import { DUTY_OPTIONS } from './hooks/useSupervisorSession';
 
 const SupervisorLoginSimple = ({ visible, onClose, onLoginSuccess }) => {
   const { 
@@ -31,12 +32,25 @@ const SupervisorLoginSimple = ({ visible, onClose, onLoginSuccess }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [availableSupervisors, setAvailableSupervisors] = useState([]);
   const [selectedSupervisor, setSelectedSupervisor] = useState(null);
+  const [selectedDuty, setSelectedDuty] = useState(null);
 
   // Load available supervisors when modal opens
   useEffect(() => {
     if (visible) {
       loadSupervisors();
       clearError();
+      // Auto-select duty based on current time
+      const hour = new Date().getHours();
+      let suggestedDuty = null;
+      if (hour >= 6 && hour < 12) suggestedDuty = DUTY_OPTIONS.find(d => d.id === '100');
+      else if (hour >= 7 && hour < 17) suggestedDuty = DUTY_OPTIONS.find(d => d.id === '200');
+      else if (hour >= 12 && hour < 22) suggestedDuty = DUTY_OPTIONS.find(d => d.id === '400');
+      else if (hour >= 14 || hour < 1) suggestedDuty = DUTY_OPTIONS.find(d => d.id === '500');
+      else suggestedDuty = DUTY_OPTIONS.find(d => d.id === 'xops');
+      
+      if (suggestedDuty) {
+        setSelectedDuty(suggestedDuty);
+      }
     }
   }, [visible]);
 
@@ -60,17 +74,27 @@ const SupervisorLoginSimple = ({ visible, onClose, onLoginSuccess }) => {
       return;
     }
 
+    if (!selectedDuty) {
+      Alert.alert('Error', 'Please select a duty');
+      return;
+    }
+
     try {
-      const result = await login({ badge: badge.trim(), password: password.trim() });
+      const result = await login({ 
+        badge: badge.trim(), 
+        password: password.trim(),
+        duty: selectedDuty.id
+      });
       
       if (result.success) {
-        Alert.alert('Success', `Welcome ${result.session.supervisor.name}!`);
+        Alert.alert('Success', `Welcome ${result.session.supervisor.name}!\nDuty: ${selectedDuty.name}`);
         onLoginSuccess?.(result.session);
         onClose();
         // Reset form
         setBadge('');
         setPassword('Barry123');
         setSelectedSupervisor(null);
+        setSelectedDuty(null);
       } else {
         Alert.alert('Login Failed', result.error || 'Invalid credentials');
       }
@@ -87,11 +111,22 @@ const SupervisorLoginSimple = ({ visible, onClose, onLoginSuccess }) => {
   const handleQuickLogin = (supervisor) => {
     setBadge(supervisor.badge);
     setSelectedSupervisor(supervisor);
+    
+    // Check if duty is selected
+    if (!selectedDuty) {
+      Alert.alert('Error', 'Please select a duty first');
+      return;
+    }
+    
     // Auto-trigger login with default password
     setTimeout(() => {
-      login({ badge: supervisor.badge, password: 'Barry123' }).then((result) => {
+      login({ 
+        badge: supervisor.badge, 
+        password: 'Barry123',
+        duty: selectedDuty.id
+      }).then((result) => {
         if (result.success) {
-          Alert.alert('Success', `Welcome ${result.session.supervisor.name}!`);
+          Alert.alert('Success', `Welcome ${result.session.supervisor.name}!\nDuty: ${selectedDuty.name}`);
           onLoginSuccess?.(result.session);
           onClose();
         } else {
@@ -119,6 +154,42 @@ const SupervisorLoginSimple = ({ visible, onClose, onLoginSuccess }) => {
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <Ionicons name="close" size={24} color="#666" />
             </TouchableOpacity>
+          </View>
+
+          {/* Duty Selection */}
+          <Text style={styles.sectionTitle}>Select Duty</Text>
+          <View style={styles.dutyGrid}>
+            {DUTY_OPTIONS.map((duty) => (
+              <TouchableOpacity
+                key={duty.id}
+                style={[
+                  styles.dutyCard,
+                  selectedDuty?.id === duty.id && styles.dutyCardSelected
+                ]}
+                onPress={() => setSelectedDuty(duty)}
+              >
+                <Text style={[
+                  styles.dutyName,
+                  selectedDuty?.id === duty.id && styles.dutyNameSelected
+                ]}>
+                  {duty.name}
+                </Text>
+                <Text style={[
+                  styles.dutyShift,
+                  selectedDuty?.id === duty.id && styles.dutyShiftSelected
+                ]}>
+                  {duty.shift}
+                </Text>
+                {selectedDuty?.id === duty.id && (
+                  <Ionicons 
+                    name="checkmark-circle" 
+                    size={20} 
+                    color="#10B981" 
+                    style={styles.dutyCheck}
+                  />
+                )}
+              </TouchableOpacity>
+            ))}
           </View>
 
           {/* Quick Select Supervisors */}
@@ -358,6 +429,47 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     lineHeight: 16,
+  },
+  dutyGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  dutyCard: {
+    flex: 1,
+    minWidth: '45%',
+    padding: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    position: 'relative',
+  },
+  dutyCardSelected: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#10B981',
+  },
+  dutyName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  dutyNameSelected: {
+    color: '#10B981',
+  },
+  dutyShift: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  dutyShiftSelected: {
+    color: '#10B981',
+  },
+  dutyCheck: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
   },
 });
 

@@ -90,6 +90,8 @@ export function useConvexSync() {
   const activeEventsRaw = useQuery(convexAvailable && api ? api.sync.getActiveEvents : undefined);
   const mostSevereEvent = useQuery(convexAvailable && api ? api.sync.getMostSevereEvent : undefined);
   const syncState = useQuery(convexAvailable && api ? api.sync.getSyncState : undefined);
+  const recentActionsRaw = useQuery(convexAvailable && api ? api.sync.getRecentActions : undefined, convexAvailable ? { limit: 20 } : undefined);
+  const recentHandoversRaw = useQuery(convexAvailable && api ? api.sync.getRecentHandovers : undefined, convexAvailable ? { limit: 10 } : undefined);
   
   // Mutations - always called, returns noOpMutation if no api
   const acknowledgeAlert = useMutation(convexAvailable && api ? api.alerts.acknowledge : undefined);
@@ -108,6 +110,8 @@ export function useConvexSync() {
   const dismissedAlerts = ensureArray(dismissedAlertsRaw);
   const activeSupervisors = ensureArray(activeSupervisorsRaw);
   const activeEvents = ensureArray(activeEventsRaw);
+  const recentActions = ensureArray(recentActionsRaw);
+  const recentHandovers = ensureArray(recentHandoversRaw);
   
   // Load session ID on mount
   useEffect(() => {
@@ -127,8 +131,11 @@ export function useConvexSync() {
     dismissedAlerts,
     activeSupervisors,
     activeEvents,
+    recentActions,
+    recentHandovers,
     mostSevereEvent: mostSevereEvent || null,
     syncState: syncState || null,
+    customMessages: syncState?.customMessages || [],
     pushedAlerts: [], // Hardcoded for now
     
     // Alert actions
