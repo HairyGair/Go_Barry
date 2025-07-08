@@ -9,8 +9,8 @@ if (process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.SUPABASE_SERVICE_KEY) 
 }
 
 // Fix SUPABASE_URL typo if present
-if (process.env.SUPABASE_URL && process.env.SUPABASE_URL.includes('haountnqhecfrsoniubq')) {
-  process.env.SUPABASE_URL = process.env.SUPABASE_URL.replace('haountnqhecfrsoniubq', 'haountnqhecfrsonivbq');
+if (process.env.SUPABASE_URL && process.env.SUPABASE_URL.includes('haountnghecfrsoniubq')) {
+  process.env.SUPABASE_URL = process.env.SUPABASE_URL.replace('haountnghecfrsoniubq', 'haountnqhecfrsonivbq');
   console.log('✅ Fixed SUPABASE_URL typo');
 }
 
