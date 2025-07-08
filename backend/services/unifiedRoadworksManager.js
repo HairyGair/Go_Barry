@@ -25,6 +25,12 @@ class UnifiedRoadworksManager {
     this.lastUpdate = null;
     this.cache = new Map();
     this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
+    
+    // Circuit breaker for Street Manager
+    this.streetManagerFailures = 0;
+    this.streetManagerLastFailure = 0;
+    this.streetManagerDisabled = false;
+    this.streetManagerDisabledUntil = 0;
   }
 
   /**
@@ -171,18 +177,59 @@ class UnifiedRoadworksManager {
    */
   async getStreetManagerRoadworks() {
     try {
+      // Check circuit breaker
+      if (this.streetManagerDisabled && Date.now() < this.streetManagerDisabledUntil) {
+        const remainingTime = Math.round((this.streetManagerDisabledUntil - Date.now()) / 1000);
+        console.log(`🚨 Street Manager disabled by circuit breaker for ${remainingTime}s`);
+        
+        // Try to return cached data
+        if (this.cache.has('streetmanager_data')) {
+          const cached = this.cache.get('streetmanager_data');
+          console.log('📋 Returning cached data during circuit breaker cooldown');
+          return {
+            success: true,
+            data: cached.data,
+            cached: true,
+            circuitBreaker: true,
+            source: 'street_manager_cached'
+          };
+        }
+        
+        return {
+          success: false,
+          data: [],
+          error: 'Street Manager disabled by circuit breaker',
+          circuitBreaker: true,
+          retryAfter: this.streetManagerDisabledUntil - Date.now(),
+          source: 'street_manager'
+        };
+      }
+      
       // 🔧 FIXED: Read directly from streetmanager_summaries (processed webhook data)
       console.log('📊 Fetching Street Manager data from processed summaries...');
       
       // Import location validation
       const { isNorthEastLocation } = await import('./locationValidation.js');
       
-      // Add retry logic for database connection
+      // Enhanced retry logic with exponential backoff and connection recovery
       let summaries = null;
       let notifError = null;
       
-      for (let attempt = 1; attempt <= 3; attempt++) {
+      for (let attempt = 1; attempt <= 5; attempt++) {
         try {
+          console.log(`🔄 Street Manager connection attempt ${attempt}/5...`);
+          
+          // Test basic connection first
+          if (attempt > 1) {
+            try {
+              await supabase.from('streetmanager_summaries').select('id').limit(1);
+              console.log(`✅ Connection test passed on attempt ${attempt}`);
+            } catch (connError) {
+              console.warn(`⚠️ Connection test failed on attempt ${attempt}:`, connError.message);
+              throw connError;
+            }
+          }
+          
           const result = await Promise.race([
             supabase
               .from('streetmanager_summaries')
@@ -190,50 +237,85 @@ class UnifiedRoadworksManager {
               .order('created_at', { ascending: false })
               .limit(500),
             new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Database timeout')), 10000)
+              setTimeout(() => reject(new Error('Database timeout after 15s')), 15000)
             )
           ]);
           
           summaries = result.data;
           notifError = result.error;
-          break;
+          
+          if (!notifError && summaries) {
+            console.log(`✅ Street Manager data fetch successful on attempt ${attempt}`);
+            break;
+          } else if (notifError) {
+            throw new Error(notifError.message);
+          }
           
         } catch (error) {
-          console.warn(`⚠️ Street Manager query attempt ${attempt}/3 failed:`, error.message);
+          console.warn(`⚠️ Street Manager query attempt ${attempt}/5 failed:`, error.message);
           notifError = error;
           
-          if (attempt < 3) {
-            await new Promise(resolve => setTimeout(resolve, 2000 * attempt)); // Progressive delay
+          if (attempt < 5) {
+            const delay = Math.min(1000 * Math.pow(2, attempt), 10000); // Exponential backoff, max 10s
+            console.log(`⏳ Waiting ${delay}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
           }
         }
       }
 
       if (notifError) {
-        console.error('❌ Street Manager notifications error after 3 attempts:', notifError);
+        console.error('❌ Street Manager notifications error after 5 attempts:', notifError);
         
         // Try to return cached data if available
         if (this.cache.has('streetmanager_data')) {
           const cached = this.cache.get('streetmanager_data');
-          if (Date.now() - cached.timestamp < this.cacheTimeout * 3) { // Allow stale cache during errors
+          if (Date.now() - cached.timestamp < this.cacheTimeout * 6) { // Allow longer stale cache during errors
             console.log('📋 Returning cached Street Manager data due to database error');
+            console.log(`   Cache age: ${Math.round((Date.now() - cached.timestamp) / 1000 / 60)} minutes`);
             return {
               success: true,
               data: cached.data,
               cached: true,
               cacheAge: Date.now() - cached.timestamp,
               error: `Database error: ${notifError.message}`,
-              source: 'street_manager'
+              source: 'street_manager_cached'
             };
+          } else {
+            console.warn('⚠️ Cached data too old, not using');
           }
         }
         
-        // If no cache available, return empty but don't spam errors
-        console.warn('⚠️ No cached data available, returning empty Street Manager data');
+        // Try local file fallback for critical scenarios
+        try {
+          const fs = await import('fs');
+          const path = await import('path');
+          const fallbackPath = path.join(process.cwd(), 'data', 'streetmanager_fallback.json');
+          
+          if (fs.existsSync(fallbackPath)) {
+            const fallbackData = JSON.parse(fs.readFileSync(fallbackPath, 'utf8'));
+            console.log('📁 Using local fallback Street Manager data');
+            return {
+              success: true,
+              data: fallbackData.data || [],
+              fallback: true,
+              fallbackAge: fallbackData.timestamp ? Date.now() - fallbackData.timestamp : 'unknown',
+              error: `Database error, using fallback: ${notifError.message}`,
+              source: 'street_manager_fallback'
+            };
+          }
+        } catch (fallbackError) {
+          console.warn('⚠️ Failed to load fallback data:', fallbackError.message);
+        }
+        
+        // Return empty data but mark as degraded service
+        console.warn('⚠️ No cached or fallback data available - returning empty (degraded service)');
         return {
           success: false,
           data: [],
-          error: notifError.message,
-          source: 'street_manager'
+          error: `Critical: Database connection failed after 5 attempts: ${notifError.message}`,
+          source: 'street_manager',
+          degraded: true,
+          retryAfter: 60000 // Suggest retry after 1 minute
         };
       }
 
@@ -415,12 +497,66 @@ class UnifiedRoadworksManager {
         timestamp: Date.now()
       });
       
-      console.log(`🗄️ Cached ${uniqueRoadworks.length} Street Manager roadworks for resilience`);
+      // Also save to local file as emergency fallback
+      try {
+        const fs = await import('fs');
+        const path = await import('path');
+        const fallbackDir = path.join(process.cwd(), 'data');
+        const fallbackPath = path.join(fallbackDir, 'streetmanager_fallback.json');
+        
+        // Ensure directory exists
+        if (!fs.existsSync(fallbackDir)) {
+          fs.mkdirSync(fallbackDir, { recursive: true });
+        }
+        
+        const fallbackData = {
+          data: uniqueRoadworks,
+          timestamp: Date.now(),
+          lastUpdate: new Date().toISOString(),
+          count: uniqueRoadworks.length
+        };
+        
+        fs.writeFileSync(fallbackPath, JSON.stringify(fallbackData, null, 2));
+        console.log(`🗄️ Cached ${uniqueRoadworks.length} Street Manager roadworks (memory + file fallback)`);
+      } catch (fallbackSaveError) {
+        console.warn('⚠️ Failed to save fallback data:', fallbackSaveError.message);
+        console.log(`🗄️ Cached ${uniqueRoadworks.length} Street Manager roadworks (memory only)`);
+      }
+      
+      // Reset circuit breaker on success
+      this.streetManagerFailures = 0;
+      this.streetManagerDisabled = false;
       
       return result;
     } catch (error) {
       console.error('❌ CRITICAL: Street Manager fetch failed:', error);
       console.error('Stack trace:', error.stack);
+      
+      // Circuit breaker logic
+      this.streetManagerFailures++;
+      this.streetManagerLastFailure = Date.now();
+      
+      if (this.streetManagerFailures >= 3) {
+        this.streetManagerDisabled = true;
+        this.streetManagerDisabledUntil = Date.now() + (5 * 60 * 1000); // 5 minute cooldown
+        console.warn(`🚨 Street Manager circuit breaker activated: ${this.streetManagerFailures} consecutive failures`);
+        console.warn(`⏰ Will retry after 5 minutes`);
+        
+        // Try to return cached data during circuit breaker
+        if (this.cache.has('streetmanager_data')) {
+          const cached = this.cache.get('streetmanager_data');
+          console.log('📋 Returning cached data due to circuit breaker activation');
+          return {
+            success: true,
+            data: cached.data,
+            cached: true,
+            circuitBreaker: true,
+            error: `Circuit breaker: ${error.message}`,
+            source: 'street_manager_cached'
+          };
+        }
+      }
+      
       throw new Error(`Street Manager fetch failed: ${error.message}`);
     }
   }

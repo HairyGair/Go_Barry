@@ -1368,18 +1368,42 @@ export const updateSimpleBusLocations = mutation({
         return { success: true, count: 0 };
       }
       
-      // Clear old buses (limit to prevent database overload)
-      const existing = await ctx.db.query("busLocations").collect();
-      if (existing.length > 0) {
-        // Delete in batches to avoid overwhelming the database
-        const deletePromises = existing.map(bus => ctx.db.delete(bus._id));
-        await Promise.all(deletePromises);
+      // Clear old buses with improved error handling
+      try {
+        const existing = await ctx.db.query("busLocations").collect();
+        if (existing.length > 0) {
+          console.log(`🗑️ Deleting ${existing.length} existing bus records...`);
+          // Delete in smaller batches to avoid timeout
+          const batchSize = 50;
+          for (let i = 0; i < existing.length; i += batchSize) {
+            const batch = existing.slice(i, i + batchSize);
+            const deletePromises = batch.map(bus => ctx.db.delete(bus._id));
+            await Promise.all(deletePromises);
+          }
+          console.log(`✅ Deleted ${existing.length} existing records`);
+        }
+      } catch (deleteError: any) {
+        console.error(`⚠️ Error deleting existing buses:`, deleteError.message);
+        // Continue with insert even if delete fails
       }
       
-      // Insert new buses in simplified format with better error handling
-      const insertPromises = validBuses.map(async (bus) => {
+      // Insert new buses with improved error handling and data validation
+      const insertPromises = validBuses.map(async (bus, index) => {
         try {
-          return await ctx.db.insert("busLocations", {
+          // Validate and convert status to match schema exactly
+          let validStatus: 'on-time' | 'delayed' | 'severely-delayed' | 'early' = 'on-time';
+          if (bus.status === 'delayed' || bus.status === 'severely-delayed' || bus.status === 'early') {
+            validStatus = bus.status;
+          }
+          
+          // Ensure lastUpdate is a valid number
+          const lastUpdateTime = typeof bus.lastUpdate === 'number' ? bus.lastUpdate : Date.now();
+          
+          // Create safe date strings
+          const recordedAt = new Date(lastUpdateTime).toISOString();
+          const validUntil = new Date(lastUpdateTime + 300000).toISOString(); // 5 minutes from now
+          
+          const busRecord = {
             vehicleId: bus.id,
             vehicleRef: bus.vehicleRef || bus.id,
             operatorRef: bus.operatorRef,
@@ -1392,20 +1416,24 @@ export const updateSimpleBusLocations = mutation({
             latitude: bus.coordinates[0],
             longitude: bus.coordinates[1],
             bearing: bus.bearing,
-            blockRef: null,
-            vehicleJourneyRef: null,
-            originRef: null,
-            originName: null,
-            originAimedDeparture: null,
+            blockRef: undefined,
+            vehicleJourneyRef: undefined,
+            originRef: undefined,
+            originName: undefined,
+            originAimedDeparture: undefined,
             delay: bus.delay,
-            status: bus.status as any,
-            recordedAt: new Date(bus.lastUpdate).toISOString(),
-            validUntil: new Date(bus.lastUpdate + 300000).toISOString(),
+            status: validStatus,
+            recordedAt: recordedAt,
+            validUntil: validUntil,
             lastUpdated: args.timestamp,
-            occupancy: bus.occupancy
-          });
+            occupancy: bus.occupancy || undefined
+          };
+          
+          console.log(`📝 Inserting bus ${index + 1}/${validBuses.length}: ${bus.id}`);
+          return await ctx.db.insert("busLocations", busRecord);
         } catch (insertError: any) {
           console.error(`❌ Failed to insert bus ${bus.id}:`, insertError.message);
+          console.error(`   Bus data:`, bus);
           return null;
         }
       });

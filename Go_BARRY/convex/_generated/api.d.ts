@@ -15,6 +15,7 @@ import type {
 } from "convex/server";
 import type * as alerts from "../alerts.js";
 import type * as analytics from "../analytics.js";
+import type * as busTest from "../busTest.js";
 import type * as buses from "../buses.js";
 import type * as communications from "../communications.js";
 import type * as coordination from "../coordination.js";
@@ -39,6 +40,7 @@ import type * as vixData from "../vixData.js";
 declare const fullApi: ApiFromModules<{
   alerts: typeof alerts;
   analytics: typeof analytics;
+  busTest: typeof busTest;
   buses: typeof buses;
   communications: typeof communications;
   coordination: typeof coordination;

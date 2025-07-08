@@ -350,9 +350,7 @@ class ConvexSyncService {
       return { success: false, reason: 'Convex not configured' };
     }
     
-    // EMERGENCY: Completely disable bus sync due to persistent Convex server errors
-    console.log('🚨 Bus sync DISABLED due to persistent Convex server errors');
-    return { success: false, reason: 'Bus sync disabled - Convex server errors' };
+    console.log('🚌 Bus sync enabled - syncing to Convex...');
 
     try {
       // Fetch latest bus data from BODS
