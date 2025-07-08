@@ -7,11 +7,23 @@ import supervisorManager from '../services/supervisorManager.js';
 
 const router = express.Router();
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
-);
+// Initialize Supabase client with error handling
+let supabase;
+try {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+    console.log('⚠️ Enhanced Workflow API: Supabase environment variables not configured');
+    supabase = null;
+  } else {
+    supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY
+    );
+    console.log('✅ Enhanced Workflow API: Supabase client initialized');
+  }
+} catch (error) {
+  console.error('❌ Enhanced Workflow API: Failed to initialize Supabase client:', error.message);
+  supabase = null;
+}
 
 // Enhanced status definitions
 const ENHANCED_STATUSES = {
@@ -39,6 +51,20 @@ const ESCALATION_LEVELS = {
   URGENT: 2,
   CRITICAL: 3,
   EMERGENCY: 4
+};
+
+// Helper function to check if Supabase is available
+const checkSupabaseAvailability = (res) => {
+  if (!supabase) {
+    res.status(503).json({
+      success: false,
+      error: 'Database service temporarily unavailable',
+      message: 'The enhanced workflow features require database connectivity. Please try again later.',
+      fallback: true
+    });
+    return false;
+  }
+  return true;
 };
 
 // Middleware to validate supervisor session

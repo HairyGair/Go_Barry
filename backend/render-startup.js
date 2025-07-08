@@ -14,6 +14,36 @@ if (process.env.SUPABASE_URL && process.env.SUPABASE_URL.includes('haountnghecfr
   console.log('✅ Fixed SUPABASE_URL typo');
 }
 
+// Test Supabase URL accessibility
+async function testSupabaseConnection() {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+    console.log('⚠️ Supabase environment variables not fully configured');
+    return;
+  }
+  
+  try {
+    console.log('🔄 Testing Supabase connection...');
+    const response = await fetch(process.env.SUPABASE_URL + '/rest/v1/', {
+      method: 'GET',
+      headers: {
+        'apikey': process.env.SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`
+      }
+    });
+    
+    if (response.ok) {
+      console.log('✅ Supabase connection test successful');
+    } else {
+      console.log('❌ Supabase connection test failed:', response.status, response.statusText);
+    }
+  } catch (error) {
+    console.log('❌ Supabase connection test error:', error.message);
+  }
+}
+
+// Run connection test (non-blocking)
+testSupabaseConnection().catch(console.error);
+
 import express from 'express';
 import { createServer } from 'http';
 import { fileURLToPath } from 'url';

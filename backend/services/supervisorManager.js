@@ -451,21 +451,49 @@ function getLastAction(acks, divs, notifs) {
 const SESSION_TIMEOUT_MS = 10 * 60 * 60 * 1000; // 10 hours in milliseconds
 let cleanupInterval;
 
-// Initialize supervisor data and start cleanup
+// Initialize supervisor data and start cleanup with retry logic
 async function initializeSupervisorData() {
-  try {
-    // Verify Supabase connection
-    const { data, error } = await supabase
-      .from('supervisors')
-      .select('count', { count: 'exact' })
-      .limit(1);
+  const maxRetries = 3;
+  let retryCount = 0;
+  
+  while (retryCount < maxRetries) {
+    try {
+      console.log(`🔄 Attempting Supabase connection (attempt ${retryCount + 1}/${maxRetries})...`);
       
-    if (error) {
-      console.error('❌ Supabase connection failed:', error);
-      return;
-    }
+      // Verify Supabase connection with timeout
+      const { data, error } = await Promise.race([
+        supabase
+          .from('supervisors')
+          .select('count', { count: 'exact' })
+          .limit(1),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Connection timeout')), 10000)
+        )
+      ]);
+        
+      if (error) {
+        throw error;
+      }
 
-    console.log(`✅ Supervisor system initialized with Supabase`);
+      console.log(`✅ Supervisor system initialized with Supabase (attempt ${retryCount + 1})`);
+      return; // Success, exit retry loop
+      
+    } catch (error) {
+      retryCount++;
+      console.error(`❌ Supabase connection failed (attempt ${retryCount}/${maxRetries}):`, {
+        message: error.message,
+        details: error.stack?.substring(0, 200) + '...',
+        hint: retryCount < maxRetries ? 'Retrying in 2 seconds...' : 'Max retries reached, continuing in offline mode',
+        code: error.code || 'NETWORK_ERROR'
+      });
+      
+      if (retryCount < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+      }
+    }
+  }
+  
+  console.log('⚠️ Supervisor system starting in offline mode due to Supabase connection issues');
     
     // Load existing sessions from Supabase
     await loadSessionsFromSupabase();
