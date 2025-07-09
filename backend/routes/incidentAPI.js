@@ -6,6 +6,13 @@ import geocodingService, { geocodeLocation } from '../services/geocoding.js';
 import findGTFSRoutesNearCoordinates from '../gtfs-route-matcher.js';
 import supabaseStorage from '../services/supabaseIncidentStorage.js';
 import { enhanceIncidentWithTomTom } from '../services/tomtomEnhancementService.js';
+import { 
+  enhancedIncidentManager, 
+  createIncidentFromAlert, 
+  bulkCreateIncidents, 
+  pushToControlRoomDisplay 
+} from '../services/enhancedIncidentManager.js';
+import { autoIncidentCreator } from '../services/autoIncidentCreator.js';
 
 const router = express.Router();
 
@@ -367,6 +374,252 @@ router.get('/:id/diversions', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to generate diversion suggestions'
+    });
+  }
+});
+
+// ==============================
+// ENHANCED INCIDENT MANAGEMENT ENDPOINTS
+// ==============================
+
+// POST /api/incidents/from-alert - Create incident from traffic alert (Enhanced ADD TO DB)
+router.post('/from-alert', async (req, res) => {
+  try {
+    const { alert, supervisorData } = req.body;
+    
+    if (!alert) {
+      return res.status(400).json({
+        success: false,
+        error: 'Alert data is required'
+      });
+    }
+
+    console.log(`🚨 Creating incident from alert: ${alert.id}`);
+    
+    const incident = await createIncidentFromAlert(alert, supervisorData);
+    
+    res.json({
+      success: true,
+      incident: incident,
+      message: 'Incident created from traffic alert successfully'
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to create incident from alert:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// POST /api/incidents/bulk-create - Bulk create incidents from multiple alerts
+router.post('/bulk-create', async (req, res) => {
+  try {
+    const { alerts, supervisorData, options = {} } = req.body;
+    
+    if (!alerts || !Array.isArray(alerts) || alerts.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Alerts array is required'
+      });
+    }
+
+    console.log(`📋 Starting bulk incident creation: ${alerts.length} alerts`);
+    
+    const result = await bulkCreateIncidents(alerts, supervisorData, options);
+    
+    res.json(result);
+    
+  } catch (error) {
+    console.error('❌ Bulk incident creation failed:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET /api/incidents/bulk-status/:operationId - Check bulk operation status
+router.get('/bulk-status/:operationId', async (req, res) => {
+  try {
+    const { operationId } = req.params;
+    const status = enhancedIncidentManager.getBulkOperationStatus(operationId);
+    
+    if (!status) {
+      return res.status(404).json({
+        success: false,
+        error: 'Bulk operation not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      operation: status
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to get bulk operation status:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// POST /api/incidents/:id/push-to-display - Push incident to control room display
+router.post('/:id/push-to-display', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { supervisorData, displayOptions = {} } = req.body;
+    
+    console.log(`📺 Pushing incident ${id} to control room display`);
+    
+    const result = await pushToControlRoomDisplay(id, supervisorData, displayOptions);
+    
+    res.json(result);
+    
+  } catch (error) {
+    console.error('❌ Failed to push to control room display:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET /api/incidents/control-room-display - Get control room display messages
+router.get('/control-room-display', async (req, res) => {
+  try {
+    const messages = enhancedIncidentManager.getControlRoomDisplayMessages();
+    
+    res.json({
+      success: true,
+      messages: messages,
+      count: messages.length,
+      lastUpdated: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to get control room display messages:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// ==============================
+// AUTOMATIC INCIDENT CREATION ENDPOINTS
+// ==============================
+
+// POST /api/incidents/auto-create/start - Start automatic incident creation monitoring
+router.post('/auto-create/start', async (req, res) => {
+  try {
+    await autoIncidentCreator.startMonitoring();
+    
+    res.json({
+      success: true,
+      message: 'Automatic incident creation monitoring started',
+      status: 'monitoring'
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to start auto incident creation:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// POST /api/incidents/auto-create/stop - Stop automatic incident creation monitoring
+router.post('/auto-create/stop', async (req, res) => {
+  try {
+    autoIncidentCreator.stopMonitoring();
+    
+    res.json({
+      success: true,
+      message: 'Automatic incident creation monitoring stopped',
+      status: 'stopped'
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to stop auto incident creation:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET /api/incidents/auto-create/status - Get auto incident creation status
+router.get('/auto-create/status', async (req, res) => {
+  try {
+    const stats = autoIncidentCreator.getStatistics();
+    
+    res.json({
+      success: true,
+      statistics: stats,
+      monitoring: stats.monitoring,
+      lastCheck: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to get auto incident creation status:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// POST /api/incidents/auto-create/check - Manual check for auto incidents
+router.post('/auto-create/check', async (req, res) => {
+  try {
+    const incidents = await autoIncidentCreator.checkForAutoIncidents();
+    
+    res.json({
+      success: true,
+      incidents: incidents,
+      count: incidents.length,
+      message: `Manual check completed - ${incidents.length} incidents created`
+    });
+    
+  } catch (error) {
+    console.error('❌ Manual auto incident check failed:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// POST /api/incidents/auto-create/evaluate/:alertId - Evaluate specific alert for auto-creation
+router.post('/auto-create/evaluate/:alertId', async (req, res) => {
+  try {
+    const { alertId } = req.params;
+    const evaluation = await autoIncidentCreator.evaluateSpecificAlert(alertId);
+    
+    if (!evaluation) {
+      return res.status(404).json({
+        success: false,
+        error: 'Alert not found in traffic intelligence'
+      });
+    }
+    
+    res.json({
+      success: true,
+      alertId: alertId,
+      evaluation: evaluation,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to evaluate alert for auto-creation:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
