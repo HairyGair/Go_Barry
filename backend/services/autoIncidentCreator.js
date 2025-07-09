@@ -1,6 +1,6 @@
 // services/autoIncidentCreator.js
 // Automatic Incident Creation from Traffic Intelligence Alerts
-import { createIncident } from './incidentManager.js';
+import { createIncident } from './enhancedIncidentManager.js';
 import { trafficIntelligence } from './unifiedTrafficIntelligence.js';
 
 // Thresholds for automatic incident creation
