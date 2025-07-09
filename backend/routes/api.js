@@ -180,72 +180,17 @@ export function setupAPIRoutes(app, globalState) {
         };
       }
       
-      // 6. Get StreetManager roadworks via UnifiedRoadworksManager
-      console.log('🚧 Fetching StreetManager roadworks via unified manager...');
-      try {
-        // Import unified roadworks manager
-        const { default: unifiedRoadworksManager } = await import('../services/unifiedRoadworksManager.js');
-        
-        // Get Street Manager roadworks specifically
-        const streetManagerResult = await unifiedRoadworksManager.getStreetManagerRoadworks();
-        
-        if (streetManagerResult.success && streetManagerResult.data.length > 0) {
-          // Convert roadworks to alert format
-          const streetManagerAlerts = streetManagerResult.data.map(roadwork => {
-            return {
-              id: roadwork.id,
-              title: roadwork.title,
-              description: roadwork.description,
-              location: roadwork.location,
-              streetName: roadwork.streetName,
-              coordinates: roadwork.coordinates,
-              severity: roadwork.severity || 'Medium',
-              status: roadwork.status === 'green' ? 'green' : 
-                     roadwork.status === 'red' ? 'red' : 'amber',
-              source: 'StreetManager',
-              type: 'roadwork',
-              lastUpdated: roadwork.lastUpdated,
-              startDate: roadwork.startDate,
-              endDate: roadwork.endDate,
-              affectsRoutes: roadwork.affectedRoutes || [],
-              permitReference: roadwork.permitReference,
-              authority: roadwork.authority,
-              workCategory: roadwork.workCategory,
-              official: true,
-              locationAccuracy: roadwork.locationAccuracy || 'medium'
-            };
-          });
-          
-          allAlerts.push(...streetManagerAlerts);
-          sources.streetmanager = {
-            success: true,
-            count: streetManagerAlerts.length,
-            method: 'Unified Roadworks Manager (Enhanced Processing)',
-            official: true,
-            mode: 'live',
-            metadata: streetManagerResult.metadata
-          };
-          console.log(`✅ StreetManager: ${streetManagerAlerts.length} roadwork alerts integrated`);
-        } else {
-          sources.streetmanager = {
-            success: streetManagerResult.success,
-            count: 0,
-            method: 'Unified Roadworks Manager',
-            error: streetManagerResult.error || 'No roadworks data available',
-            mode: 'live'
-          };
-          console.log('ℹ️ StreetManager: No roadworks available via unified manager');
-        }
-      } catch (streetManagerError) {
-        console.error('❌ StreetManager unified manager failed:', streetManagerError.message);
-        sources.streetmanager = {
-          success: false,
-          count: 0,
-          error: streetManagerError.message,
-          method: 'Unified Roadworks Manager',
-          mode: 'live'
-        };
-      }
+      // 6. Street Manager roadworks are NOT included in incidents
+      // Street Manager contains planned roadworks, not real-time incidents
+      // This data should only be available via dedicated roadworks endpoints
+      console.log('🚧 Street Manager roadworks excluded from incidents (planned works only)');
+      sources.streetmanager = {
+        success: true,
+        count: 0,
+        method: 'Excluded - Planned Works Only',
+        note: 'Street Manager contains planned roadworks, not incidents',
+        mode: 'excluded'
+      };
       
       console.log(`📊 Raw alerts collected: ${allAlerts.length}`);
       

@@ -134,7 +134,7 @@ const IncidentsManagerV2 = ({ baseUrl }) => {
       
       // Fetch traffic incidents
       const trafficController = new AbortController();
-      const trafficTimeout = setTimeout(() => trafficController.abort(), 10000);
+      const trafficTimeout = setTimeout(() => trafficController.abort(), 30000); // Increased timeout for real traffic data
       
       try {
         const trafficUrl = `${baseUrl}/api/traffic-incidents`;
@@ -282,8 +282,9 @@ const IncidentsManagerV2 = ({ baseUrl }) => {
         source: incident.source || 'manual'
       }));
 
-      // **PERMANENT FILTER: Only show Go North East relevant incidents**
+      // Apply GNE filtering for Go North East operations
       const preFilterCount = allIncidents.length;
+      
       allIncidents = allIncidents.filter(incident => {
         // Check if incident affects GNE routes
         const hasGNERoutes = affectsGNERoutes(incident);
@@ -294,14 +295,6 @@ const IncidentsManagerV2 = ({ baseUrl }) => {
         
         // Include if it affects GNE routes OR is in North East region
         const shouldInclude = hasGNERoutes || inNorthEast;
-        
-        if (preFilterCount < 10) { // Debug logging for small datasets
-          console.log(`🏴󠁧󠁢󠁥󠁮󠁧󠁿 Incident "${incident.title}":`, {
-            hasGNERoutes,
-            inNorthEast, 
-            shouldInclude
-          });
-        }
         
         return shouldInclude;
       });

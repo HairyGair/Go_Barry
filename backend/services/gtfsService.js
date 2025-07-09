@@ -570,8 +570,15 @@ class GTFSService {
     const words = searchTerm.split(/\s+/);
     return words.some(word => {
       if (word.length < 3) return false;
-      const regex = new RegExp(`\\b${word}`, 'i');
-      return regex.test(text);
+      // Escape special regex characters
+      const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      try {
+        const regex = new RegExp(`\\b${escapedWord}`, 'i');
+        return regex.test(text);
+      } catch (e) {
+        // If regex fails, fall back to simple includes
+        return text.toLowerCase().includes(word.toLowerCase());
+      }
     });
   }
   

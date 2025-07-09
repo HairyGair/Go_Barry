@@ -5,6 +5,7 @@
 import axios from 'axios';
 import { isAlertDismissed, getAlertDismissalInfo } from './supervisorManager.js';
 import { enhancedFindRoutesNearCoordinates, enhancedLocationWithRoutes } from '../enhanced-gtfs-route-matcher.js';
+import { trafficIntelligence } from './unifiedTrafficIntelligence.js';
 
 // Enhanced geocoding with multiple fallbacks
 export async function getEnhancedLocation(lat, lng, fallbackDescription = '') {
@@ -384,6 +385,20 @@ export async function processEnhancedAlerts(rawAlerts) {
       // Recalculate severity with enhanced data
       enhancedAlert.calculatedSeverity = calculateAlertSeverity(enhancedAlert);
       
+      // Add intelligence scoring from unified traffic intelligence
+      enhancedAlert.intelligenceScore = trafficIntelligence.calculateIntelligenceScore(enhancedAlert);
+      
+      // Add route impact assessment
+      enhancedAlert.routeImpact = trafficIntelligence.assessRouteImpact(enhancedAlert);
+      
+      // Add time context
+      enhancedAlert.timeContext = trafficIntelligence.generateTimeContext(enhancedAlert);
+      
+      // Add congestion context for traffic alerts
+      if (enhancedAlert.type === 'congestion' && enhancedAlert.congestionLevel) {
+        enhancedAlert.congestionContext = trafficIntelligence.generateCongestionContext(enhancedAlert);
+      }
+      
       // Add dismissal info if available
       const dismissalInfo = getAlertDismissalInfo(alert.id);
       if (dismissalInfo) {
@@ -397,7 +412,11 @@ export async function processEnhancedAlerts(rawAlerts) {
         routesEnhanced: routeResult.routes.length > 0,
         severityRecalculated: true,
         enhancedRouteMatching: true,
-        routeMatchingVersion: 'enhanced-gtfs-v1'
+        routeMatchingVersion: 'enhanced-gtfs-v1',
+        intelligenceScored: true,
+        routeImpactAssessed: true,
+        timeContextAdded: true,
+        trafficIntelligenceVersion: 'unified-v1'
       };
       
       enhancedAlerts.push(enhancedAlert);
@@ -409,21 +428,33 @@ export async function processEnhancedAlerts(rawAlerts) {
     }
   }
   
-  // Sort by calculated priority
+  // Sort by calculated priority (enhanced with intelligence scoring)
   enhancedAlerts.sort((a, b) => {
     const priorityScore = (alert) => {
       let score = 0;
       
-      // Status priority
-      const statusPriority = { red: 3, amber: 2, green: 1 };
-      score += (statusPriority[alert.status] || 0) * 100;
+      // Intelligence score (highest priority - 50% weight)
+      score += (alert.intelligenceScore || 0) * 5;
       
-      // Severity priority
+      // Status priority (30% weight)
+      const statusPriority = { red: 3, amber: 2, green: 1 };
+      score += (statusPriority[alert.status] || 0) * 30;
+      
+      // Severity priority (20% weight)
       const severityPriority = { High: 3, Medium: 2, Low: 1 };
-      score += (severityPriority[alert.calculatedSeverity || alert.severity] || 0) * 10;
+      score += (severityPriority[alert.calculatedSeverity || alert.severity] || 0) * 20;
+      
+      // Route impact level bonus
+      const routeImpactBonus = {
+        high: 15,
+        medium: 10,
+        low: 5,
+        none: 0
+      };
+      score += routeImpactBonus[alert.routeImpact?.level] || 0;
       
       // Route count (more affected routes = higher priority)
-      score += (alert.affectsRoutes?.length || 0);
+      score += (alert.affectsRoutes?.length || 0) * 2;
       
       // Route matching accuracy bonus
       const accuracyBonus = {
@@ -434,15 +465,31 @@ export async function processEnhancedAlerts(rawAlerts) {
       };
       score += accuracyBonus[alert.routeMatchingAccuracy] || 0;
       
+      // Time context bonuses
+      if (alert.timeContext?.rushHour) {
+        score += 10;
+      }
+      if (alert.timeContext?.schoolHours) {
+        score += 5;
+      }
+      
       return score;
     };
     
     return priorityScore(b) - priorityScore(a);
   });
   
-  console.log(`✅ Enhanced ${enhancedAlerts.length} alerts with improved route matching`);
+  // Calculate intelligence score statistics
+  const intelligenceScores = enhancedAlerts.map(a => a.intelligenceScore || 0);
+  const averageIntelligenceScore = intelligenceScores.reduce((sum, score) => sum + score, 0) / intelligenceScores.length;
+  const highIntelligenceAlerts = intelligenceScores.filter(score => score >= 75).length;
+  const mediumIntelligenceAlerts = intelligenceScores.filter(score => score >= 50 && score < 75).length;
+  const lowIntelligenceAlerts = intelligenceScores.filter(score => score < 50).length;
+  
+  console.log(`✅ Enhanced ${enhancedAlerts.length} alerts with improved route matching and intelligence scoring`);
   console.log(`📊 Route matching accuracy: High: ${routeMatchingStats.high}, Medium: ${routeMatchingStats.medium}, Low: ${routeMatchingStats.low}, None: ${routeMatchingStats.none}`);
   console.log(`🎯 Enhanced ${enhancedCount}/${rawAlerts.length} alerts (${(enhancedCount/rawAlerts.length*100).toFixed(1)}%)`);
+  console.log(`🧠 Intelligence scores: Avg: ${averageIntelligenceScore.toFixed(1)}, High (75+): ${highIntelligenceAlerts}, Medium (50-74): ${mediumIntelligenceAlerts}, Low (<50): ${lowIntelligenceAlerts}`);
   
   return enhancedAlerts;
 }
