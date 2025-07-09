@@ -55,6 +55,9 @@ import {
   getFrequencyStats
 } from '../services/serviceFrequencyService.js';
 
+// Import enhanced traffic intelligence
+import { trafficIntelligence } from '../services/unifiedTrafficIntelligence.js';
+
 // Setup function that takes the app and global state
 export function setupAPIRoutes(app, globalState) {
   const { 
@@ -1791,6 +1794,206 @@ export function setupAPIRoutes(app, globalState) {
     }
   }).catch(error => {
     console.error('❌ Service Frequency initialization error:', error.message);
+  });
+
+  // ==============================
+  // INTELLIGENT TRAFFIC ANALYSIS ENDPOINTS
+  // ==============================
+
+  // Enhanced traffic intelligence endpoint - combines TomTom flow + incidents + National Highways
+  app.get('/api/traffic-intelligence', async (req, res) => {
+    try {
+      console.log('🧠 Fetching intelligent traffic analysis...');
+      
+      const intelligence = await trafficIntelligence.getTrafficIntelligence();
+      
+      if (intelligence.success) {
+        console.log(`✅ Traffic Intelligence: ${intelligence.data.length} alerts with intelligence scoring`);
+        res.json({
+          success: true,
+          alerts: intelligence.data,
+          metadata: {
+            ...intelligence.metadata,
+            endpoint: 'traffic-intelligence',
+            capabilities: [
+              'TomTom Flow Analysis (Red Congestion Sections)',
+              'TomTom Incident Detection',
+              'National Highways Enhanced Classification',
+              'Intelligent Deduplication',
+              'Smart Priority Scoring',
+              'Route Impact Assessment',
+              'Time-Based Context Analysis'
+            ]
+          }
+        });
+      } else {
+        console.log('❌ Traffic Intelligence failed');
+        res.status(500).json({
+          success: false,
+          error: intelligence.error,
+          alerts: [],
+          metadata: intelligence.metadata
+        });
+      }
+    } catch (error) {
+      console.error('❌ Traffic Intelligence endpoint failed:', error.message);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        alerts: [],
+        metadata: {
+          endpoint: 'traffic-intelligence',
+          error: error.message,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+  });
+
+  // Traffic flow congestion analysis endpoint
+  app.get('/api/traffic-flow', async (req, res) => {
+    try {
+      console.log('🚦 Fetching TomTom traffic flow analysis...');
+      
+      const { trafficFlowAnalyzer } = await import('../services/intelligentTrafficFlow.js');
+      const boundingBox = req.query.bbox || '-1.8,54.8,-1.4,55.1';
+      
+      const result = await trafficFlowAnalyzer.analyzeTrafficFlow(boundingBox);
+      
+      if (result.success) {
+        console.log(`✅ Traffic Flow: ${result.data.length} congestion alerts`);
+        res.json({
+          success: true,
+          alerts: result.data,
+          metadata: {
+            ...result.metadata,
+            endpoint: 'traffic-flow',
+            description: 'TomTom Flow API analysis for red congestion sections',
+            boundingBox: boundingBox
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: result.error,
+          alerts: [],
+          metadata: {
+            endpoint: 'traffic-flow',
+            error: result.error,
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
+    } catch (error) {
+      console.error('❌ Traffic Flow endpoint failed:', error.message);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        alerts: [],
+        metadata: {
+          endpoint: 'traffic-flow',
+          error: error.message,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+  });
+
+  // Enhanced National Highways endpoint
+  app.get('/api/national-highways-enhanced', async (req, res) => {
+    try {
+      console.log('🛣️ Fetching enhanced National Highways analysis...');
+      
+      const { nhProcessor } = await import('../services/enhancedNationalHighways.js');
+      const result = await nhProcessor.fetchEnhancedIncidents();
+      
+      if (result.success) {
+        console.log(`✅ Enhanced National Highways: ${result.data.length} classified incidents`);
+        res.json({
+          success: true,
+          alerts: result.data,
+          metadata: {
+            ...result.metadata,
+            endpoint: 'national-highways-enhanced',
+            description: 'Enhanced National Highways with intelligent classification',
+            features: [
+              'Intelligent incident classification',
+              'Strategic road prioritization',
+              'Route impact assessment',
+              'Enhanced location geocoding'
+            ]
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          error: result.error,
+          alerts: [],
+          metadata: {
+            endpoint: 'national-highways-enhanced',
+            error: result.error,
+            timestamp: new Date().toISOString()
+          }
+        });
+      }
+    } catch (error) {
+      console.error('❌ Enhanced National Highways endpoint failed:', error.message);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        alerts: [],
+        metadata: {
+          endpoint: 'national-highways-enhanced',
+          error: error.message,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+  });
+
+  // Traffic intelligence system status
+  app.get('/api/traffic-intelligence/status', async (req, res) => {
+    try {
+      const status = trafficIntelligence.getSystemStatus();
+      res.json({
+        success: true,
+        status: status,
+        capabilities: [
+          'TomTom Flow Analysis',
+          'TomTom Incident Detection', 
+          'National Highways Enhanced Classification',
+          'Intelligent Alert Deduplication',
+          'Smart Priority Scoring',
+          'Route Impact Assessment'
+        ],
+        endpoints: [
+          '/api/traffic-intelligence',
+          '/api/traffic-flow',
+          '/api/national-highways-enhanced'
+        ]
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
+  // Clear traffic intelligence caches (for testing)
+  app.post('/api/traffic-intelligence/clear-cache', async (req, res) => {
+    try {
+      trafficIntelligence.clearCaches();
+      res.json({
+        success: true,
+        message: 'All traffic intelligence caches cleared'
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
   });
 }
 

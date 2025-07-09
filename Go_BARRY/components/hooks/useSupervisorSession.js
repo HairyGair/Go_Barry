@@ -173,32 +173,16 @@ const API_BASE_URL = 'https://go-barry.onrender.com';
 
 // Supervisor database - ALL now require passwords
 const SUPERVISOR_DB = {
-  'alex_woodcock': { 
-    name: 'Alex Woodcock', 
-    role: 'Supervisor',
-    defaultPassword: 'Alex123'
-  },
-  'andrew_cowley': { 
-    name: 'Andrew Cowley', 
-    role: 'Supervisor',
-    defaultPassword: 'Andrew123'
-  },
+  'alex_woodcock': { name: 'Alex Woodcock', role: 'Supervisor' },
+  'andrew_cowley': { name: 'Andrew Cowley', role: 'Supervisor' },
   'anthony_gair': { 
     name: 'Anthony Gair', 
     role: 'Developer/Admin', 
     isAdmin: true,
-    defaultPassword: 'Anthony123'
+    defaultPassword: 'Anthony123' // Add default for testing
   },
-  'claire_fiddler': { 
-    name: 'Claire Fiddler', 
-    role: 'Supervisor',
-    defaultPassword: 'Claire123'
-  },
-  'david_hall': { 
-    name: 'David Hall', 
-    role: 'Supervisor',
-    defaultPassword: 'David123'
-  },
+  'claire_fiddler': { name: 'Claire Fiddler', role: 'Supervisor' },
+  'david_hall': { name: 'David Hall', role: 'Supervisor' },
   'james_daglish': { 
     name: 'James Daglish', 
     role: 'Supervisor',
@@ -218,7 +202,7 @@ const SUPERVISOR_DB = {
     name: 'Barry Perryman', 
     role: 'Service Delivery Controller - Line Manager',
     isAdmin: true,
-    defaultPassword: 'Barry123'
+    defaultPassword: 'Barry123' // Keep Barry's existing password as default
   },
 };
 
@@ -347,30 +331,19 @@ export const useSupervisorSession = () => {
     setError(null);
     
     try {
-      console.log('🔐 Login attempt:', { 
-        supervisorId: loginData.supervisorId, 
-        hasPassword: !!loginData.password,
-        duty: loginData.duty 
-      });
-      
       // Validate supervisor
       const supervisor = SUPERVISOR_DB[loginData.supervisorId];
       if (!supervisor) {
-        console.error('❌ Supervisor not found:', loginData.supervisorId);
-        console.log('Available supervisors:', Object.keys(SUPERVISOR_DB));
         throw new Error('Supervisor not found');
       }
-      
-      console.log('✅ Supervisor found:', supervisor.name);
 
       // Check if this is a first-time user who needs password setup
       if (!loginData.isPasswordSetup && passwordStorageService.isFirstTimeUser(loginData.supervisorId)) {
-        // Auto-migrate users with default passwords
-        if (supervisor.defaultPassword) {
+        // Special case for users with default passwords - auto-migrate them
+        if (supervisor.defaultPassword && ['barry_perryman', 'anthony_gair', 'james_daglish', 'john_paterson', 'simon_glass'].includes(loginData.supervisorId)) {
           passwordStorageService.savePassword(loginData.supervisorId, supervisor.defaultPassword);
-          console.log(`✅ Auto-migrated default password for ${supervisor.name}`);
         } else {
-          // Show password setup screen for users without default passwords
+          // Show password setup screen for other users
           setNeedsPasswordSetup(true);
           setPendingLoginData(loginData);
           setIsLoading(false);
@@ -380,29 +353,16 @@ export const useSupervisorSession = () => {
 
       // Validate password
       if (!loginData.password) {
-        console.error('❌ No password provided');
         throw new Error('Password is required');
       }
 
-      // Check password (includes checking default passwords for all supervisors)
-      const storedPasswordValid = passwordStorageService.checkPassword(loginData.supervisorId, loginData.password);
-      const defaultPasswordValid = supervisor.defaultPassword && loginData.password === supervisor.defaultPassword;
-      const isValidPassword = storedPasswordValid || defaultPasswordValid;
-      
-      console.log('🔑 Password check:', { 
-        enteredPassword: loginData.password,
-        defaultPassword: supervisor.defaultPassword,
-        storedPasswordValid,
-        defaultPasswordValid,
-        isValidPassword 
-      });
+      // Check password (special case for users with default passwords)
+      const isValidPassword = passwordStorageService.checkPassword(loginData.supervisorId, loginData.password) ||
+        (supervisor.defaultPassword && ['barry_perryman', 'anthony_gair', 'james_daglish', 'john_paterson', 'simon_glass'].includes(loginData.supervisorId) && loginData.password === supervisor.defaultPassword);
 
       if (!isValidPassword) {
-        console.error('❌ Password validation failed');
         throw new Error('Incorrect password');
       }
-      
-      console.log('✅ Password validated successfully');
 
       // Get backend mapping
       const backendSupervisor = BACKEND_MAPPING[loginData.supervisorId];
