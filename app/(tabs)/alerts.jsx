@@ -17,7 +17,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import AppHeader from '../../components/common/AppHeader';
 // Simple Traffic Card component for mobile alerts
-const SimpleTrafficCard = ({ alert, supervisorSession, onDismiss, onAcknowledge, onAddToDatabase }) => {
+const SimpleTrafficCard = ({ alert, supervisorSession, onDismiss, onAcknowledge, onAddToDatabase, onPushToDisplay }) => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'red': return '#EF4444';
@@ -129,13 +129,15 @@ const SimpleTrafficCard = ({ alert, supervisorSession, onDismiss, onAcknowledge,
         </View>
         
         {supervisorSession && (
-          <View style={{ flexDirection: 'row' }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
             <TouchableOpacity
               style={{
                 backgroundColor: '#10B981',
                 paddingHorizontal: 8,
                 paddingVertical: 4,
-                borderRadius: 6
+                borderRadius: 6,
+                marginRight: 4,
+                marginBottom: 4
               }}
               onPress={() => onAddToDatabase && onAddToDatabase(alert)}
             >
@@ -143,25 +145,42 @@ const SimpleTrafficCard = ({ alert, supervisorSession, onDismiss, onAcknowledge,
             </TouchableOpacity>
             <TouchableOpacity
               style={{
+                backgroundColor: '#3B82F6',
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 6,
+                marginRight: 4,
+                marginBottom: 4
+              }}
+              onPress={() => onPushToDisplay && onPushToDisplay(alert)}
+            >
+              <Text style={{ fontSize: 11, color: '#FFFFFF', fontWeight: '600' }}>PUSH TO DISPLAY</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{
                 backgroundColor: '#F59E0B',
                 paddingHorizontal: 8,
                 paddingVertical: 4,
-                borderRadius: 6
+                borderRadius: 6,
+                marginRight: 4,
+                marginBottom: 4
               }}
               onPress={() => onAcknowledge && onAcknowledge(alert.id)}
             >
-              <Text style={{ fontSize: 12, color: '#FFFFFF', fontWeight: '600' }}>ACK</Text>
+              <Text style={{ fontSize: 11, color: '#FFFFFF', fontWeight: '600' }}>ACK</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={{
                 backgroundColor: '#EF4444',
                 paddingHorizontal: 8,
                 paddingVertical: 4,
-                borderRadius: 6
+                borderRadius: 6,
+                marginRight: 4,
+                marginBottom: 4
               }}
               onPress={() => onDismiss && onDismiss(alert.id, 'Supervisor dismissed', 'Mobile action')}
             >
-              <Text style={{ fontSize: 12, color: '#FFFFFF', fontWeight: '600' }}>DISMISS</Text>
+              <Text style={{ fontSize: 11, color: '#FFFFFF', fontWeight: '600' }}>DISMISS</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -281,6 +300,82 @@ export default function AlertsScreen() {
   const handleAddToDatabase = (alert) => {
     setSelectedAlertForRoadwork(alert);
     setShowCreateRoadworkModal(true);
+  };
+
+  const handlePushToDisplay = async (alert) => {
+    try {
+      if (!supervisorSession) {
+        Alert.alert('Error', 'Supervisor login required');
+        return;
+      }
+
+      Alert.alert(
+        'Push to Control Room Display',
+        `Push "${alert.title}" to the control room display?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Push', 
+            onPress: async () => {
+              try {
+                // First create incident from alert
+                const incidentResponse = await fetch('/api/incidents/from-alert', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    alert: alert,
+                    supervisorData: {
+                      name: supervisorName,
+                      role: supervisorRole,
+                      id: supervisorSession.sessionId
+                    }
+                  })
+                });
+
+                const incidentResult = await incidentResponse.json();
+                
+                if (incidentResult.success) {
+                  // Push the incident to display
+                  const displayResponse = await fetch(`/api/incidents/${incidentResult.incident.id}/push-to-display`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      supervisorData: {
+                        name: supervisorName,
+                        role: supervisorRole,
+                        id: supervisorSession.sessionId
+                      },
+                      displayOptions: {
+                        duration: 300, // 5 minutes
+                        urgency: alert.severity === 'High' ? 'high' : 'normal'
+                      }
+                    })
+                  });
+
+                  const displayResult = await displayResponse.json();
+                  
+                  if (displayResult.success) {
+                    Alert.alert('Success', 'Alert pushed to control room display and created as incident');
+                  } else {
+                    Alert.alert('Error', 'Failed to push to display: ' + displayResult.error);
+                  }
+                } else {
+                  Alert.alert('Error', 'Failed to create incident: ' + incidentResult.error);
+                }
+              } catch (error) {
+                Alert.alert('Error', 'Failed to push to display: ' + error.message);
+              }
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to push to display: ' + error.message);
+    }
   };
 
   // Advanced filtering and sorting logic
@@ -523,6 +618,7 @@ export default function AlertsScreen() {
               onDismiss={handleAlertDismiss}
               onAcknowledge={handleAlertAcknowledge}
               onAddToDatabase={handleAddToDatabase}
+              onPushToDisplay={handlePushToDisplay}
             />
           </View>
         )}
