@@ -4,23 +4,24 @@
 class MemoryMonitor {
   constructor() {
     this.memoryLimit = 2 * 1024 * 1024 * 1024; // 2GB in bytes
-    this.warningThreshold = 0.8; // 80% of limit
-    this.criticalThreshold = 0.9; // 90% of limit
+    this.warningThreshold = 0.7; // 70% of limit (more aggressive)
+    this.criticalThreshold = 0.85; // 85% of limit (more headroom)
     this.monitoringInterval = null;
     this.cleanupCallbacks = new Set();
     this.lastMemoryCheck = 0;
+    this.emergencyGCThreshold = 0.8; // Force GC at 80%
   }
 
   start() {
-    // Monitor memory every 30 seconds
+    // Monitor memory every 15 seconds for better response time
     this.monitoringInterval = setInterval(() => {
       this.checkMemoryUsage();
-    }, 30000);
+    }, 15000);
 
     // Also check immediately
     this.checkMemoryUsage();
     
-    console.log('📊 Memory Monitor started (2GB limit, checking every 30s)');
+    console.log('📊 Memory Monitor started (2GB limit, checking every 15s)');
   }
 
   stop() {
@@ -57,6 +58,12 @@ class MemoryMonitor {
     if (usagePercentage >= this.criticalThreshold) {
       console.warn(`🚨 CRITICAL: Memory usage at ${Math.round(usagePercentage * 100)}% (${rssMemoryMB}MB/2048MB)`);
       this.performEmergencyCleanup();
+    } else if (usagePercentage >= this.emergencyGCThreshold) {
+      console.warn(`⚠️ HIGH MEMORY: Forcing GC at ${Math.round(usagePercentage * 100)}% (${rssMemoryMB}MB/2048MB)`);
+      if (global.gc) {
+        global.gc();
+        console.log('🗑️ Emergency garbage collection completed');
+      }
     } else if (usagePercentage >= this.warningThreshold) {
       console.warn(`⚠️ WARNING: Memory usage at ${Math.round(usagePercentage * 100)}% (${rssMemoryMB}MB/2048MB)`);
       this.performPreventiveCleanup();

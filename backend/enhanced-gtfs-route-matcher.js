@@ -220,31 +220,37 @@ class EnhancedGTFSMatcher {
   }
 
   async buildStopRouteRelationships() {
-    // This would typically use stop_times.txt to map stops to routes
-    // For now, we'll use proximity-based matching as a fallback
-    console.log('📍 Building stop-route relationships...');
+    console.log('📍 Building stop-route relationships with memory optimization...');
     
     let relationshipCount = 0;
+    const maxStopsToProcess = 1000; // Process in batches to avoid memory issues
+    let processedStops = 0;
     
-    // For each stop, find nearby shapes and associate with routes
-    for (const [stopId, stop] of this.stops) {
-      const nearbyRoutes = this.findRoutesNearStop(stop.lat, stop.lon, 200); // 200m radius
+    // Process stops in batches
+    const stopEntries = Array.from(this.stops.entries());
+    
+    for (let i = 0; i < stopEntries.length && processedStops < maxStopsToProcess; i += 100) {
+      const batch = stopEntries.slice(i, Math.min(i + 100, stopEntries.length));
       
-      for (const routeShortName of nearbyRoutes) {
-        stop.routes.add(routeShortName);
+      for (const [stopId, stop] of batch) {
+        if (processedStops >= maxStopsToProcess) break;
         
-        // Add stop to route
-        for (const [routeId, route] of this.routes) {
-          if (route.shortName === routeShortName) {
-            route.stops.add(stopId);
-            relationshipCount++;
-            break;
-          }
+        const nearbyRoutes = this.findRoutesNearStop(stop.lat, stop.lon, 200);
+        
+        for (const routeShortName of nearbyRoutes) {
+          stop.routes.add(routeShortName);
+          relationshipCount++;
         }
+        
+        processedStops++;
       }
+      
+      // Allow garbage collection between batches
+      if (global.gc) global.gc();
     }
     
-    console.log(`✅ Built ${relationshipCount} stop-route relationships`);
+    console.log(`✅ Built ${relationshipCount} stop-route relationships for ${processedStops} stops`);
+    return relationshipCount;
   }
 
   findRoutesNearStop(lat, lon, radiusMeters = 200) {

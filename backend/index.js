@@ -536,6 +536,29 @@ console.log('🚌 Registering GTFS routes at /api/gtfs...');
 app.use('/api/gtfs', gtfsAPI);
 console.log('✅ GTFS routes registered successfully');
 
+// Traffic Intelligence API routes
+console.log('🧠 Registering traffic intelligence routes...');
+import { setupAPIRoutes } from './routes/api.js';
+setupAPIRoutes(app, {
+  acknowledgedAlerts,
+  alertNotes,
+  alertsCache: new Map(),
+  GTFS_ROUTES,
+  NORTH_EAST_BBOXES: [
+    { name: 'newcastle', bounds: '-1.8,54.9,-1.4,55.1' },
+    { name: 'sunderland', bounds: '-1.45,54.85,-1.35,54.95' },
+    { name: 'durham', bounds: '-1.65,54.75,-1.50,54.85' },
+    { name: 'consett', bounds: '-1.95,54.80,-1.80,54.90' },
+    { name: 'hexham', bounds: '-2.15,54.95,-1.95,55.05' },
+    { name: 'northTyneside', bounds: '-1.55,55.00,-1.40,55.10' }
+  ],
+  ACK_FILE,
+  NOTES_FILE,
+  cachedAlerts: null,
+  lastFetchTime: null
+});
+console.log('✅ Traffic intelligence routes registered successfully');
+
 // Roadwork alerts routes (supervisor-created roadwork notifications)
 console.log('📦 Registering roadwork alerts routes at /api/roadwork-alerts...');
 app.use('/api/roadwork-alerts', roadworkAlertsAPI);
@@ -702,8 +725,8 @@ app.get('/api/traffic-incidents', async (req, res) => {
       });
     }
     
-    // Convert traffic alerts to incident format
-    const trafficIncidents = intelligence.data.map(alert => {
+    // Convert traffic incidents to incident format (roadworks excluded)
+    const trafficIncidents = (intelligence.incidents || []).map(alert => {
       // Handle coordinates in both array and object format
       let coordinates = null;
       if (alert.coordinates) {
@@ -757,8 +780,10 @@ app.get('/api/traffic-incidents', async (req, res) => {
       metadata: {
         total: highPriorityIncidents.length,
         totalUnfiltered: trafficIncidents.length,
+        roadworksExcluded: (intelligence.roadworks || []).length,
         sources: intelligence.metadata.sources,
-        intelligenceThreshold: 50
+        intelligenceThreshold: 50,
+        note: 'Roadworks are routed to roadworks manager via /api/traffic-intelligence/roadworks'
       }
     });
     

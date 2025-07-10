@@ -646,8 +646,11 @@ router.get('/traffic-incidents', async (req, res) => {
       });
     }
     
-    // Convert traffic alerts to incident format
-    const trafficIncidents = intelligence.data.map(alert => {
+    // Use only incidents data (roadworks are excluded)
+    const incidentsData = intelligence.incidents || intelligence.data || [];
+    
+    // Convert traffic incidents to incident format (excluding roadworks)
+    const trafficIncidents = incidentsData.map(alert => {
       // Convert alert to incident structure
       return {
         id: alert.id,
@@ -686,12 +689,13 @@ router.get('/traffic-incidents', async (req, res) => {
       };
     });
     
-    // Filter for high-priority incidents (intelligence score >= 50)
+    // Filter for high-priority incidents (intelligence score >= 50, or undefined scores for now)
     const highPriorityIncidents = trafficIncidents.filter(incident => 
-      incident.intelligenceScore >= 50
+      (incident.intelligenceScore && incident.intelligenceScore >= 50) || 
+      (incident.intelligenceScore === undefined && incident.severity === 'High')
     );
     
-    console.log(`✅ Returning ${highPriorityIncidents.length} high-priority traffic incidents (filtered from ${trafficIncidents.length} total)`);
+    console.log(`✅ Returning ${highPriorityIncidents.length} high-priority traffic incidents (filtered from ${trafficIncidents.length} total incidents, roadworks excluded)`);
     
     res.json({
       success: true,
@@ -699,11 +703,13 @@ router.get('/traffic-incidents', async (req, res) => {
       metadata: {
         total: highPriorityIncidents.length,
         totalUnfiltered: trafficIncidents.length,
+        roadworksExcluded: (intelligence.roadworks || []).length,
         sources: intelligence.metadata.sources,
         statistics: intelligence.metadata.statistics,
         lastUpdated: intelligence.metadata.lastUpdated,
         processingTime: intelligence.metadata.processingTime,
-        intelligenceThreshold: 50
+        intelligenceThreshold: 50,
+        note: 'Roadworks are routed to roadworks manager via /api/traffic-intelligence/roadworks'
       }
     });
     

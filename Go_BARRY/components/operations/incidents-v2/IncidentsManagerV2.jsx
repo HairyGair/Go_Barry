@@ -346,6 +346,73 @@ const IncidentsManagerV2 = ({ baseUrl }) => {
     }
   };
 
+  // Handle view incident on map
+  const handleViewMap = (incident) => {
+    console.log('🗺️ View incident on map:', incident.id);
+    
+    if (!incident.coordinates) {
+      alert('No coordinates available for this incident');
+      return;
+    }
+    
+    // Create the map URL with the incident coordinates
+    const lat = incident.coordinates.lat;
+    const lng = incident.coordinates.lng;
+    const mapUrl = `http://localhost:8081/map?lat=${lat}&lng=${lng}&zoom=15&incident=${incident.id}`;
+    
+    // For web, open in a new tab
+    if (Platform.OS === 'web') {
+      window.open(mapUrl, '_blank');
+    } else {
+      // For mobile, navigate to the map page
+      // This would need to be implemented based on your navigation setup
+      console.log('Navigate to map:', mapUrl);
+    }
+  };
+
+  // Handle push to display
+  const handlePushToDisplay = async (incident) => {
+    console.log('📺 Push incident to display:', incident.id);
+    
+    try {
+      const response = await fetch(`${baseUrl}/api/incidents/${incident.id}/push-to-display`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          supervisorData: {
+            supervisorName: supervisorName,
+            sessionId: sessionId
+          },
+          displayOptions: {
+            autoZoom: true,
+            highlightIncident: true,
+            showRoutes: true,
+            duration: 30000 // Show for 30 seconds
+          }
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Incident pushed to display successfully:', result);
+        
+        // Show success message
+        alert(`Incident "${incident.title}" has been pushed to the control room display`);
+        
+        // Optionally refresh the incidents to update display status
+        fetchIncidents(false);
+      } else {
+        console.error('Failed to push to display:', response.status);
+        alert('Failed to push incident to display. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error pushing to display:', error);
+      alert('Error pushing incident to display. Please check your connection.');
+    }
+  };
+
   // Render loading state
   if (loading && !refreshing) {
     return (
@@ -420,6 +487,8 @@ const IncidentsManagerV2 = ({ baseUrl }) => {
             onPress={(inc) => setSelectedIncident(inc)}
             onEdit={(inc) => console.log('Edit incident:', inc.id)}
             onResolve={(inc) => console.log('Resolve incident:', inc.id)}
+            onViewMap={handleViewMap}
+            onPushToDisplay={handlePushToDisplay}
             compact={false}
           />
         ))}

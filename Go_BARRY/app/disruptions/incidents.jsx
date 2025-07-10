@@ -74,9 +74,8 @@ export default function IncidentsPage() {
     );
   }
 
-  const baseUrl = Platform.OS === 'web' 
-    ? (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://go-barry.onrender.com')
-    : 'https://go-barry.onrender.com';
+  // Force localhost for development - override production settings
+  const baseUrl = 'http://localhost:3001';
 
   return (
     <IncidentsErrorBoundary>

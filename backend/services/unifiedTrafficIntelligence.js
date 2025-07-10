@@ -9,6 +9,29 @@ export class UnifiedTrafficIntelligence {
     this.alertCache = new Map();
     this.cacheTTL = 2 * 60 * 1000; // 2 minutes
     this.lastUpdate = null;
+    this.maxCacheSize = 100; // Limit cache size to prevent memory bloat
+    
+    // Set up cache cleanup
+    setInterval(() => this.cleanupCache(), 60000); // Clean every minute
+  }
+  
+  cleanupCache() {
+    // Remove expired entries
+    const now = Date.now();
+    for (const [key, value] of this.alertCache.entries()) {
+      if (now - value.timestamp > this.cacheTTL) {
+        this.alertCache.delete(key);
+      }
+    }
+    
+    // If still over limit, remove oldest entries
+    if (this.alertCache.size > this.maxCacheSize) {
+      const entries = Array.from(this.alertCache.entries())
+        .sort((a, b) => a[1].timestamp - b[1].timestamp);
+      
+      const toRemove = entries.slice(0, entries.length - this.maxCacheSize);
+      toRemove.forEach(([key]) => this.alertCache.delete(key));
+    }
   }
 
   /**
@@ -20,7 +43,7 @@ export class UnifiedTrafficIntelligence {
     const startTime = Date.now();
     
     try {
-      // Fetch from all sources in parallel
+      // Fetch from all sources with proper error handling
       const [
         tomtomFlowResult,
         tomtomIncidentsResult,
@@ -97,18 +120,33 @@ export class UnifiedTrafficIntelligence {
         };
       }
 
+      // Note: Real-time congestion detection moved to TomTom Flow analysis
+      intelligence.metadata.sources.realTimeCongestion = {
+        success: true,
+        note: 'Integrated into TomTom Flow analysis',
+        alerts: intelligence.data.filter(a => a.source === 'tomtom_flow').length
+      };
+
       // Remove duplicates and enhance alerts
       intelligence.data = this.removeDuplicates(intelligence.data);
       intelligence.data = this.enhanceAlerts(intelligence.data);
       
+      // Separate roadworks from incidents
+      const separatedData = this.separateRoadworksFromIncidents(intelligence.data);
+      intelligence.incidents = separatedData.incidents;
+      intelligence.roadworks = separatedData.roadworks;
+      intelligence.data = separatedData.incidents; // Keep incidents in main data for backward compatibility
+      
       // Sort by priority and impact
-      intelligence.data = this.sortByIntelligence(intelligence.data);
+      intelligence.incidents = this.sortByIntelligence(intelligence.incidents);
+      intelligence.roadworks = this.sortByIntelligence(intelligence.roadworks);
       
       // Generate statistics
-      intelligence.metadata.statistics = this.generateStatistics(intelligence.data);
+      intelligence.metadata.statistics = this.generateStatistics(intelligence.incidents);
+      intelligence.metadata.roadworksStatistics = this.generateStatistics(intelligence.roadworks);
       intelligence.metadata.processingTime = Date.now() - startTime;
 
-      console.log(`🎯 Traffic Intelligence: ${intelligence.data.length} total alerts processed in ${intelligence.metadata.processingTime}ms`);
+      console.log(`🎯 Traffic Intelligence: ${intelligence.incidents.length} incidents, ${intelligence.roadworks.length} roadworks processed in ${intelligence.metadata.processingTime}ms`);
       
       // Cache the result
       this.cacheResult(intelligence);
@@ -404,6 +442,100 @@ export class UnifiedTrafficIntelligence {
   isSchoolHours(hour, day) {
     if (day < 1 || day > 5) return false; // Weekend
     return (hour >= 8 && hour <= 9) || (hour >= 15 && hour <= 16);
+  }
+
+  /**
+   * Separate roadworks from incidents based on classification and type
+   */
+  separateRoadworksFromIncidents(alerts) {
+    const incidents = [];
+    const roadworks = [];
+    
+    for (const alert of alerts) {
+      // Check multiple criteria to determine if it's a roadwork
+      const isRoadwork = this.isRoadwork(alert);
+      
+      if (isRoadwork) {
+        roadworks.push({
+          ...alert,
+          category: 'roadwork',
+          managerType: 'roadworks'
+        });
+      } else {
+        incidents.push({
+          ...alert,
+          category: 'incident',
+          managerType: 'incidents'
+        });
+      }
+    }
+    
+    console.log(`📊 Separated: ${incidents.length} incidents, ${roadworks.length} roadworks`);
+    
+    return {
+      incidents,
+      roadworks
+    };
+  }
+
+  /**
+   * Determine if an alert is a roadwork or incident
+   */
+  isRoadwork(alert) {
+    // Check National Highways classification first (most reliable)
+    if (alert.classification === 'ROADWORKS') {
+      return true;
+    }
+    
+    // Check explicit type mapping
+    if (alert.type === 'roadwork' || alert.type === 'roadworks') {
+      return true;
+    }
+    
+    const text = `${alert.title || ''} ${alert.description || ''}`.toLowerCase();
+    
+    // Check for specific roadwork keywords (more precise)
+    const roadworkKeywords = [
+      'roadworks', 'road works', 'planned works', 'scheduled works', 
+      'maintenance works', 'resurfacing', 'construction', 'repair work',
+      'surface treatment', 'bridge work', 'barrier replacement', 'carriageway works'
+    ];
+    
+    for (const keyword of roadworkKeywords) {
+      if (text.includes(keyword)) {
+        return true;
+      }
+    }
+    
+    // Check for planned/scheduled status indicators (but be more specific)
+    if (text.includes('roadworks are planned') || 
+        text.includes('maintenance is planned') ||
+        text.includes('works are planned') ||
+        text.includes('scheduled maintenance') ||
+        text.includes('planned closure')) {
+      return true;
+    }
+    
+    // Incidents: Check for incident-specific keywords
+    const incidentKeywords = [
+      'accident', 'incident', 'collision', 'breakdown', 'vehicle fire',
+      'overturned vehicle', 'congestion', 'traffic jam', 'emergency',
+      'police incident', 'serious incident'
+    ];
+    
+    for (const keyword of incidentKeywords) {
+      if (text.includes(keyword)) {
+        return false; // Definitely an incident, not roadwork
+      }
+    }
+    
+    // Default: if classification is CRITICAL/HIGH/MEDIUM and no clear roadwork indicators, treat as incident
+    if ((alert.classification === 'CRITICAL' || alert.classification === 'HIGH' || alert.classification === 'MEDIUM') && 
+        !text.includes('works') && !text.includes('maintenance')) {
+      return false;
+    }
+    
+    return false; // Default to incident if unclear
   }
 
   /**

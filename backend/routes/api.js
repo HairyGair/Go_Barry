@@ -3,7 +3,7 @@
 
 // Import all the services and utilities
 import { fetchTomTomTrafficWithStreetNames } from "../services/tomtom.js";
-import { fetchHERETrafficWithStreetNames } from "../services/here.js";
+// import { fetchHERETrafficWithStreetNames } from "../services/here.js"; // HERE service not available
 import { fetchNationalHighways } from "../services/nationalHighways.js";
 import { fetchSCOOTTrafficData } from "../services/scoot.js";
 // OLD REST API (removed):
@@ -112,38 +112,14 @@ export function setupAPIRoutes(app, globalState) {
         };
       }
       
-      // 2. Get HERE alerts (enhanced coverage)
-      console.log('🗺️ Fetching HERE alerts...');
-      try {
-        const hereResult = await fetchHERETrafficWithStreetNames();
-        if (hereResult.success && hereResult.data && hereResult.data.length > 0) {
-          allAlerts.push(...hereResult.data);
-          sources.here = {
-            success: true,
-            count: hereResult.data.length,
-            method: 'Enhanced with GTFS (Live Data)',
-            coverage: hereResult.coverage,
-            mode: 'live'
-          };
-          console.log(`✅ HERE: ${hereResult.data.length} alerts fetched`);
-        } else {
-          sources.here = {
-            success: false,
-            count: 0,
-            error: hereResult.error || 'No data returned',
-            mode: 'live'
-          };
-          console.log('⚠️ HERE: No alerts returned or error occurred');
-        }
-      } catch (hereError) {
-        console.error('❌ HERE fetch failed:', hereError.message);
-        sources.here = {
-          success: false,
-          count: 0,
-          error: hereError.message,
-          mode: 'live'
-        };
-      }
+      // 2. HERE alerts (disabled - service not available)
+      console.log('🗺️ HERE alerts disabled (service not available)...');
+      sources.here = {
+        success: false,
+        count: 0,
+        error: 'HERE service not available',
+        mode: 'disabled'
+      };
       
       
       // 5. Get SCOOT real-time traffic intelligence
@@ -652,7 +628,17 @@ export function setupAPIRoutes(app, globalState) {
     try {
       console.log('🧹 Running non-NE roadworks cleanup...');
       
-      // TODO: Add admin authentication check here
+      // Check admin authentication
+      const sessionId = req.headers['x-session-id'];
+      const { supervisorManager } = await import('../services/supervisorManager.js');
+      const supervisor = await supervisorManager.getSupervisorBySessionId(sessionId);
+      
+      if (!supervisor || !supervisor.isAdmin) {
+        return res.status(403).json({
+          success: false,
+          error: 'Admin authentication required'
+        });
+      }
       
       const { default: unifiedRoadworksManager } = await import('../services/unifiedRoadworksManager.js');
       const result = await unifiedRoadworksManager.cleanupNonNorthEastRoadworks();
@@ -1937,6 +1923,72 @@ export function setupAPIRoutes(app, globalState) {
       res.status(500).json({
         success: false,
         error: error.message
+      });
+    }
+  });
+
+  // Separate endpoint for traffic incidents (goes to incident manager)
+  app.get('/api/traffic-intelligence/incidents', async (req, res) => {
+    try {
+      const { trafficIntelligence } = await import('../services/unifiedTrafficIntelligence.js');
+      const intelligence = await trafficIntelligence.getTrafficIntelligence();
+      
+      if (!intelligence.success) {
+        return res.status(500).json({
+          success: false,
+          error: intelligence.error || 'Failed to get traffic intelligence',
+          incidents: []
+        });
+      }
+      
+      res.json({
+        success: true,
+        incidents: intelligence.incidents || [],
+        metadata: {
+          ...intelligence.metadata,
+          type: 'incidents',
+          routedTo: 'incident_manager'
+        }
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        incidents: []
+      });
+    }
+  });
+
+  // Separate endpoint for traffic roadworks (goes to roadworks manager)
+  app.get('/api/traffic-intelligence/roadworks', async (req, res) => {
+    try {
+      const { trafficIntelligence } = await import('../services/unifiedTrafficIntelligence.js');
+      const intelligence = await trafficIntelligence.getTrafficIntelligence();
+      
+      if (!intelligence.success) {
+        return res.status(500).json({
+          success: false,
+          error: intelligence.error || 'Failed to get traffic intelligence',
+          roadworks: []
+        });
+      }
+      
+      res.json({
+        success: true,
+        roadworks: intelligence.roadworks || [],
+        metadata: {
+          ...intelligence.metadata.roadworksStatistics ? 
+            { ...intelligence.metadata, statistics: intelligence.metadata.roadworksStatistics } : 
+            intelligence.metadata,
+          type: 'roadworks',
+          routedTo: 'roadworks_manager'
+        }
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        roadworks: []
       });
     }
   });

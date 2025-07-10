@@ -150,7 +150,20 @@ router.post('/remove-alert', async (req, res) => {
       removedBy: supervisor.name
     });
     
-    // TODO: Implement actual removal logic with Convex
+    // Remove from display array
+    const index = displayState.activeAlerts.findIndex(alert => alert.alertId === alertId);
+    if (index !== -1) {
+      displayState.activeAlerts.splice(index, 1);
+    }
+    
+    // Sync with Convex if available
+    if (convexClient) {
+      try {
+        await convexClient.mutation('displaySync:removeAlert', { alertId });
+      } catch (convexError) {
+        console.warn('⚠️ Convex sync failed, continuing with local removal:', convexError.message);
+      }
+    }
     
     console.log(`📺 Alert removed from display by ${supervisor.name}: ${alertId}`);
     

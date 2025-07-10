@@ -29,6 +29,12 @@ export class IntelligentTrafficFlowAnalyzer {
     this.baseUrl = 'https://api.tomtom.com/traffic/services/4';
     this.cache = new Map();
     this.cacheTTL = 60000; // 1 minute cache
+    
+    // Debug API key
+    console.log('🔑 TomTom Flow API Key:', this.apiKey ? 'Present' : 'Missing');
+    if (!this.apiKey) {
+      console.warn('⚠️ TomTom API key is not configured for traffic flow analysis');
+    }
   }
 
   /**
@@ -43,8 +49,11 @@ export class IntelligentTrafficFlowAnalyzer {
     console.log('🚦 Analyzing TomTom traffic flow for red congestion sections...');
     
     try {
-      // Get flow segment data for the entire area
-      const flowData = await this.fetchFlowSegmentData(boundingBox);
+      // Define monitoring points across the network
+      const monitoringPoints = this.getNetworkMonitoringPoints();
+      
+      // Fetch flow data for each monitoring point
+      const flowData = await this.fetchFlowDataForPoints(monitoringPoints);
       
       // Analyze each flow segment for congestion
       const congestionAlerts = await this.processCongestionSegments(flowData);
@@ -78,44 +87,114 @@ export class IntelligentTrafficFlowAnalyzer {
   }
 
   /**
-   * Fetch flow segment data from TomTom Flow API
+   * Get network monitoring points for traffic flow analysis
    */
-  async fetchFlowSegmentData(boundingBox) {
-    const cacheKey = `flow-${boundingBox}`;
-    const cached = this.cache.get(cacheKey);
-    
-    if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
-      console.log('📦 Using cached flow data');
-      return cached.data;
-    }
+  getNetworkMonitoringPoints() {
+    return [
+      // Major Newcastle corridors
+      { name: 'A167 Central Motorway North', lat: 55.0021, lng: -1.6058, routes: ['Q3', '21', '22'] },
+      { name: 'A167 Central Motorway South', lat: 54.9456, lng: -1.6098, routes: ['21', '22', 'X21'] },
+      { name: 'A1058 Coast Road East', lat: 55.0089, lng: -1.4892, routes: ['1', '307', '309'] },
+      { name: 'A1058 Coast Road West', lat: 54.9945, lng: -1.5678, routes: ['1', '307', '309'] },
+      
+      // Gateshead key points
+      { name: 'A184 Felling Bypass', lat: 54.9456, lng: -1.5678, routes: ['27', '28', '56'] },
+      { name: 'A167 Durham Road', lat: 54.9234, lng: -1.5896, routes: ['21', '25', '28'] },
+      
+      // A19 corridor
+      { name: 'A19 Tyne Tunnel', lat: 54.9889, lng: -1.4567, routes: ['9', '10', '11'] },
+      { name: 'A19 Testos Roundabout', lat: 54.9798, lng: -1.5234, routes: ['1', '35', '36'] },
+      { name: 'A19 Silverlink', lat: 55.0234, lng: -1.4678, routes: ['307', '309', '311'] },
+      
+      // Sunderland approaches
+      { name: 'A690 Durham Road', lat: 54.8867, lng: -1.4234, routes: ['61', '62', '63'] },
+      { name: 'A183 Chester Road', lat: 54.8945, lng: -1.3876, routes: ['35', '36', '61'] },
+      
+      // A1 Western Bypass
+      { name: 'A1 Kingston Park', lat: 55.0123, lng: -1.6789, routes: ['43', '44', '45'] },
+      { name: 'A1 MetroCentre', lat: 54.9567, lng: -1.6543, routes: ['6', '7', '10'] },
+      
+      // City centres
+      { name: 'Newcastle City Centre', lat: 54.9734, lng: -1.6139, routes: ['Q3', '10', '21', '22'] },
+      { name: 'Gateshead Town Centre', lat: 54.9629, lng: -1.6026, routes: ['53', '54', 'Q3'] },
+      { name: 'Sunderland City Centre', lat: 54.9069, lng: -1.3838, routes: ['16', '20', '61', '62'] }
+    ];
+  }
 
-    console.log('🚀 Fetching TomTom flow segment data...');
+  /**
+   * Fetch flow data for multiple monitoring points
+   */
+  async fetchFlowDataForPoints(monitoringPoints) {
+    console.log(`🚀 Fetching TomTom flow data for ${monitoringPoints.length} monitoring points...`);
     
-    const response = await axios.get(
-      `${this.baseUrl}/flowSegmentData/absolute/10/json`,
-      {
-        params: {
-          key: this.apiKey,
-          bbox: boundingBox,
-          unit: 'KMPH'
-        },
-        timeout: 15000,
-        headers: {
-          'User-Agent': 'BARRY-FlowAnalyzer/1.0'
+    const flowSegments = [];
+    const batchSize = 5; // Process 5 points at a time to avoid rate limiting
+    
+    for (let i = 0; i < monitoringPoints.length; i += batchSize) {
+      const batch = monitoringPoints.slice(i, i + batchSize);
+      const batchPromises = batch.map(point => this.fetchFlowForPoint(point));
+      
+      const batchResults = await Promise.allSettled(batchPromises);
+      
+      for (let j = 0; j < batchResults.length; j++) {
+        const result = batchResults[j];
+        const point = batch[j];
+        
+        if (result.status === 'fulfilled' && result.value) {
+          flowSegments.push({
+            ...result.value,
+            monitoringPoint: point
+          });
         }
       }
-    );
-
-    const flowSegments = response.data.flowSegmentData || [];
+      
+      // Small delay between batches to avoid rate limiting
+      if (i + batchSize < monitoringPoints.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
     
-    // Cache the result
-    this.cache.set(cacheKey, {
-      data: flowSegments,
-      timestamp: Date.now()
-    });
-
-    console.log(`📊 Retrieved ${flowSegments.length} traffic flow segments`);
+    console.log(`📊 Retrieved ${flowSegments.length} flow segments from ${monitoringPoints.length} points`);
     return flowSegments;
+  }
+
+  /**
+   * Fetch flow data for a single point
+   */
+  async fetchFlowForPoint(point) {
+    const url = `${this.baseUrl}/flowSegmentData/relative/10/json`;
+    
+    try {
+      const response = await axios.get(url, {
+        params: {
+          key: this.apiKey,
+          point: `${point.lat},${point.lng}`,
+          unit: 'KMPH',
+          openLr: false
+        },
+        timeout: 5000
+      });
+      
+      const flowData = response.data.flowSegmentData;
+      if (flowData) {
+        // Add point information to the flow data
+        return {
+          ...flowData,
+          pointName: point.name,
+          pointRoutes: point.routes,
+          coordinates: [point.lat, point.lng]
+        };
+      }
+      return null;
+      
+    } catch (error) {
+      if (error.response?.status === 400) {
+        console.warn(`⚠️ Invalid coordinates for ${point.name}: ${point.lat},${point.lng}`);
+      } else if (error.response?.status !== 403) {
+        console.warn(`⚠️ Flow data error for ${point.name}:`, error.message);
+      }
+      return null;
+    }
   }
 
   /**
@@ -128,8 +207,8 @@ export class IntelligentTrafficFlowAnalyzer {
 
     for (const [index, segment] of flowSegments.entries()) {
       try {
-        // Extract coordinates from segment
-        const coordinates = this.extractSegmentCoordinates(segment);
+        // Use coordinates from monitoring point
+        const coordinates = segment.coordinates || this.extractSegmentCoordinates(segment);
         if (!coordinates) continue;
 
         const [lat, lng] = coordinates;
@@ -145,8 +224,8 @@ export class IntelligentTrafficFlowAnalyzer {
         // Enhance location information
         const locationInfo = await this.enhanceSegmentLocation(lat, lng, segment);
         
-        // Match to affected bus routes
-        const affectedRoutes = await this.matchRoutesToSegment(lat, lng, locationInfo);
+        // Use monitoring point routes if available, otherwise match routes
+        const affectedRoutes = segment.pointRoutes || await this.matchRoutesToSegment(lat, lng, locationInfo);
         
         // Determine congestion severity
         const severity = this.determineCongestionSeverity(congestionMetrics);
@@ -261,6 +340,15 @@ export class IntelligentTrafficFlowAnalyzer {
    */
   async enhanceSegmentLocation(lat, lng, segment) {
     try {
+      // Use monitoring point name if available
+      if (segment.pointName) {
+        return {
+          enhancedLocation: segment.pointName,
+          roadName: this.extractRoadNameFromLocation(segment.pointName) || segment.roadName,
+          functionalRoadClass: segment.frc || 'unknown'
+        };
+      }
+      
       // Get enhanced location with fallbacks
       const enhancedLocation = await getEnhancedLocationWithFallbacks(
         lat, lng, 
@@ -276,7 +364,7 @@ export class IntelligentTrafficFlowAnalyzer {
     } catch (error) {
       console.warn('⚠️ Location enhancement failed:', error.message);
       return {
-        enhancedLocation: `Traffic at ${lat.toFixed(4)}, ${lng.toFixed(4)}`,
+        enhancedLocation: segment.pointName || `Traffic at ${lat.toFixed(4)}, ${lng.toFixed(4)}`,
         roadName: segment.roadName || 'Unknown road',
         functionalRoadClass: segment.frc || 'unknown'
       };

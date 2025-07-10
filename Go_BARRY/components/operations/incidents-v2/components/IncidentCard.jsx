@@ -13,6 +13,8 @@ const IncidentCard = ({
   onPress = null,
   onEdit = null,
   onResolve = null,
+  onViewMap = null,
+  onPushToDisplay = null,
   showActions = true,
   compact = false 
 }) => {
@@ -117,6 +119,24 @@ const IncidentCard = ({
       
       {showActions && (
         <View style={styles.headerActions}>
+          {onViewMap && incident.coordinates && (
+            <Pressable 
+              style={[styles.actionButton, styles.mapButton]} 
+              onPress={() => onViewMap(incident)}
+              title="View on Map"
+            >
+              <Ionicons name="map-outline" size={16} color={colors.primary} />
+            </Pressable>
+          )}
+          {onPushToDisplay && (
+            <Pressable 
+              style={[styles.actionButton, styles.displayButton]} 
+              onPress={() => onPushToDisplay(incident)}
+              title="Push to Control Room Display"
+            >
+              <Ionicons name="tv-outline" size={16} color={colors.warning} />
+            </Pressable>
+          )}
           {onEdit && (
             <Pressable style={styles.actionButton} onPress={() => onEdit(incident)}>
               <Ionicons name="create-outline" size={16} color={colors.textSecondary} />
@@ -325,6 +345,14 @@ const styles = {
     backgroundColor: colors.backgroundDark,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  mapButton: {
+    backgroundColor: `${colors.primary}15`,
+  },
+
+  displayButton: {
+    backgroundColor: `${colors.warning}15`,
   },
 
   content: {
