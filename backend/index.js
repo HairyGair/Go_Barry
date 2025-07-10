@@ -767,9 +767,10 @@ app.get('/api/traffic-incidents', async (req, res) => {
       };
     });
     
-    // Filter for high-priority incidents (intelligence score >= 50)
+    // Filter for high-priority incidents (intelligence score >= 50, or undefined scores for now)
     const highPriorityIncidents = trafficIncidents.filter(incident => 
-      incident.intelligenceScore >= 50
+      (incident.intelligenceScore && incident.intelligenceScore >= 50) || 
+      (incident.intelligenceScore === undefined && incident.severity === 'High')
     );
     
     console.log(`✅ Returning ${highPriorityIncidents.length} high-priority traffic incidents`);
