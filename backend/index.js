@@ -371,7 +371,7 @@ console.log(`
 
 // FIXED: More generous rate limiting for Display Screen
 let activeRequests = 0;
-const MAX_CONCURRENT_REQUESTS = 50; // INCREASED from 10 to 50 for live production
+const MAX_CONCURRENT_REQUESTS = 100; // INCREASED from 50 to 100 for incident creation
 
 app.use((req, res, next) => {
   if (activeRequests >= MAX_CONCURRENT_REQUESTS) {
@@ -387,7 +387,24 @@ app.use((req, res, next) => {
   
   activeRequests++;
   
+  // Add timeout to prevent hanging requests
+  // Use longer timeout for traffic intelligence endpoints (they need more time for external API calls)
+  const isTrafficEndpoint = req.path.includes('/traffic-incidents') || req.path.includes('/traffic-intelligence');
+  const timeoutDuration = isTrafficEndpoint ? 45000 : 30000; // 45s for traffic, 30s for others
+  
+  const timeout = setTimeout(() => {
+    if (!res.headersSent) {
+      console.log(`⏰ Request timeout: ${req.method} ${req.path} (${timeoutDuration/1000}s)`);
+      activeRequests--;
+      res.status(408).json({
+        success: false,
+        error: 'Request timeout'
+      });
+    }
+  }, timeoutDuration);
+  
   res.on('finish', () => {
+    clearTimeout(timeout);
     activeRequests--;
     
     if (activeRequests === 0 && global.gc && Math.random() < 0.1) {

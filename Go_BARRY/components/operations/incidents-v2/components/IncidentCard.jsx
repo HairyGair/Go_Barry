@@ -56,14 +56,26 @@ const IncidentCard = ({
 
   // Get type icon
   const getTypeIcon = () => {
-    switch (type.toLowerCase()) {
-      case 'rtc': return 'car-sport';
-      case 'roadworks': return 'construct';
-      case 'weather': return 'partly-sunny';
-      case 'breakdown': return 'warning';
-      case 'event': return 'calendar';
-      default: return 'alert-circle';
-    }
+    const incidentType = type.toLowerCase();
+    if (incidentType.includes('traffic')) return 'car-sport';
+    if (incidentType.includes('congestion')) return 'speedometer';
+    if (incidentType.includes('roadwork')) return 'construct';
+    if (incidentType.includes('weather')) return 'partly-sunny';
+    if (incidentType.includes('breakdown')) return 'warning';
+    if (incidentType.includes('event')) return 'calendar';
+    if (incidentType.includes('accident')) return 'medical';
+    return 'alert-circle';
+  };
+
+  // Get type color based on severity and type
+  const getTypeColor = () => {
+    const incidentType = type.toLowerCase();
+    if (incidentType.includes('traffic') || incidentType.includes('congestion')) return colors.rtc;
+    if (incidentType.includes('roadwork')) return colors.roadworks;
+    if (incidentType.includes('weather')) return colors.weather;
+    if (incidentType.includes('breakdown')) return colors.breakdown;
+    if (incidentType.includes('event')) return colors.event;
+    return colors.other;
   };
 
   // Format time
@@ -90,8 +102,8 @@ const IncidentCard = ({
   const renderHeader = () => (
     <View style={styles.header}>
       <View style={styles.headerLeft}>
-        <View style={[styles.typeIcon, { backgroundColor: `${getPriorityColor()}15` }]}>
-          <Ionicons name={getTypeIcon()} size={16} color={getPriorityColor()} />
+        <View style={[styles.typeIcon, { backgroundColor: `${getTypeColor()}15` }]}>
+          <Ionicons name={getTypeIcon()} size={16} color={getTypeColor()} />
         </View>
         <View style={styles.headerInfo}>
           <Text style={styles.title} numberOfLines={compact ? 1 : 2}>
@@ -105,6 +117,16 @@ const IncidentCard = ({
             <Text style={[styles.status, { color: getStatusColor() }]}>
               {status.toUpperCase()}
             </Text>
+            {/* Intelligence Score for Traffic Incidents */}
+            {incident.intelligenceScore && (
+              <>
+                <Text style={styles.separator}>•</Text>
+                <View style={styles.intelligenceScore}>
+                  <Ionicons name="analytics" size={12} color={colors.textMuted} />
+                  <Text style={styles.intelligenceText}>{incident.intelligenceScore}</Text>
+                </View>
+              </>
+            )}
             {source && (
               <>
                 <Text style={styles.separator}>•</Text>
@@ -330,6 +352,18 @@ const styles = {
     ...typography.caption,
     color: colors.textMuted,
     marginHorizontal: spacing.xs,
+  },
+
+  intelligenceScore: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+
+  intelligenceText: {
+    ...typography.caption,
+    color: colors.textMuted,
+    fontWeight: '600',
   },
 
   headerActions: {

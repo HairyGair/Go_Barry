@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Go North East Breakdown Guide - Digital wizard for bus engineering diagnostics">
+    <meta name="author" content="Go North East">
+    <title>Breakdown Guide - Go North East</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="../assets/images/favicon.ico">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="../styles.css?v=2.1">
+    
+    <!-- Preconnect to font services -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-container">
+            <div class="logo-section">
+                <div class="logo">
+                    <span class="logo-go">Go</span><span class="logo-northeast">NorthEast</span>
+                </div>
+                <div class="tagline">Breakdown Guide v1.3</div>
+            </div>
+            <div class="header-actions">
+                <button class="header-button" id="quickRefBtn" aria-label="Quick Reference">
+                    <span class="icon">📋</span>
+                    <span class="button-text">Quick Reference</span>
+                </button>
+                <button class="header-button emergency" id="emergencyBtn" aria-label="Emergency Stops">
+                    <span class="icon">🚨</span>
+                    <span class="button-text">Emergency Stops</span>
+                </button>
+                <button class="header-button" onclick="window.location.href='/';" aria-label="Back to Home">
+                    <span class="icon">🏠</span>
+                    <span class="button-text">Home</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Welcome Screen -->
+            <section id="welcomeScreen" class="screen active">
+                <div class="welcome-content">
+                    <h1 class="welcome-title">Breakdown Guide</h1>
+                    <p class="welcome-subtitle">Digital diagnostic wizard for bus engineering issues</p>
+                    
+                    <div class="safety-declaration">
+                        <h2 class="safety-title">⚠️ Safety Declaration</h2>
+                        <p class="safety-text">
+                            <strong>Safety is Non-Negotiable.</strong> The safety of everyone—staff, passengers, and the public—is our highest priority. 
+                            Any action that compromises this is unacceptable.
+                        </p>
+                    </div>
+
+                    <div class="action-grid">
+                        <button class="action-card primary" id="startDiagnosisBtn">
+                            <span class="card-icon">🔧</span>
+                            <h3 class="card-title">Start Diagnosis</h3>
+                            <p class="card-description">Begin a new diagnostic session</p>
+                        </button>
+
+                        <button class="action-card" id="searchIssuesBtn">
+                            <span class="card-icon">🔍</span>
+                            <h3 class="card-title">Search Issues</h3>
+                            <p class="card-description">Find specific problems quickly</p>
+                        </button>
+
+                        <button class="action-card" id="recentLogsBtn">
+                            <span class="card-icon">📊</span>
+                            <h3 class="card-title">Recent Logs</h3>
+                            <p class="card-description">View recent diagnostic sessions</p>
+                        </button>
+
+                        <button class="action-card" id="helpBtn">
+                            <span class="card-icon">ℹ️</span>
+                            <h3 class="card-title">Help & About</h3>
+                            <p class="card-description">User guide and information</p>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Category Selection Screen -->
+            <section id="categoryScreen" class="screen">
+                <div class="screen-header">
+                    <button class="back-button" id="backToWelcomeBtn" aria-label="Back to home">
+                        <span class="icon">←</span>
+                        <span>Back</span>
+                    </button>
+                    <h1 class="screen-title">Select Issue Category</h1>
+                </div>
+
+                <div class="search-container">
+                    <input type="text" 
+                           class="search-input" 
+                           id="categorySearch" 
+                           placeholder="Search for an issue (e.g., brakes, ABS light, overheating)..."
+                           aria-label="Search issues">
+                    <span class="search-icon">🔍</span>
+                </div>
+
+                <div class="category-controls">
+                    <div class="sort-group">
+                        <span class="control-label">Sort:</span>
+                        <select class="sort-select" id="sortSelect">
+                            <option value="priority">Priority (High to Low)</option>
+                            <option value="alphabetical">Alphabetical (A-Z)</option>
+                            <option value="recent">Recently Used</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="category-summary" id="categorySummary">
+                    Showing <span id="visibleCount">29</span> issues
+                </div>
+
+                <div class="category-grid" id="categoryGrid">
+                    <!-- Categories will be dynamically inserted here -->
+                </div>
+            </section>
+
+            <!-- Diagnostic Wizard Screen -->
+            <section id="wizardScreen" class="screen">
+                <div class="wizard-header">
+                    <div class="wizard-nav">
+                        <button class="back-button" id="wizardBackBtn" aria-label="Back">
+                            <span class="icon">←</span>
+                            <span>Back</span>
+                        </button>
+                        <nav class="breadcrumb" aria-label="Breadcrumb">
+                            <span id="breadcrumbTrail">Home > Category > Issue</span>
+                        </nav>
+                    </div>
+                    <h1 class="wizard-title" id="wizardTitle">Issue Title</h1>
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+                        </div>
+                        <span class="progress-text" id="progressText">Step 1 of 5</span>
+                    </div>
+                </div>
+
+                <div class="wizard-content" id="wizardContent">
+                    <!-- Dynamic content will be inserted here -->
+                </div>
+
+                <div class="wizard-footer">
+                    <div class="wizard-actions">
+                        <button class="btn btn-secondary" id="previousStepBtn" disabled>
+                            Previous Step
+                        </button>
+                        <button class="btn btn-secondary" id="returnToCategoriesBtn">
+                            Return to Categories
+                        </button>
+                    </div>
+
+                    <div class="notes-section">
+                        <h3 class="notes-title">📝 Notes</h3>
+                        <textarea class="notes-input" 
+                                  id="notesInput" 
+                                  placeholder="Record any observations or additional information..."
+                                  aria-label="Notes"></textarea>
+                        <button class="btn btn-primary" id="saveNotesBtn">Save Notes</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-info">
+                <span class="version">Version 1.3</span>
+                <span class="separator">|</span>
+                <span class="company">© 2025 Go North East</span>
+                <span class="separator">|</span>
+                <span class="contact">Engineering Support: 0191 XXX XXXX</span>
+            </div>
+            <div class="footer-status">
+                <span class="status-indicator online" id="statusIndicator"></span>
+                <span class="status-text" id="statusText">System Online</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modals -->
+    <!-- Quick Reference Modal -->
+    <div class="modal" id="quickRefModal" role="dialog" aria-labelledby="quickRefTitle" aria-hidden="true">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="quickRefTitle">Quick Reference</h2>
+                <button class="modal-close" id="closeQuickRefBtn" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Quick reference content will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Emergency Stops Modal -->
+    <div class="modal" id="emergencyModal" role="dialog" aria-labelledby="emergencyTitle" aria-hidden="true">
+        <div class="modal-content emergency-content">
+            <div class="modal-header">
+                <h2 id="emergencyTitle">🚨 EMERGENCY STOP PROCEDURES</h2>
+                <button class="modal-close" id="closeEmergencyBtn" aria-label="Close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="emergency-list">
+                    <div class="emergency-item">
+                        <h3>🛑 Brake Failure</h3>
+                        <p>Pedal sinks to floor, no resistance, ineffective braking</p>
+                    </div>
+                    <div class="emergency-item">
+                        <h3>🎯 Steering Issues</h3>
+                        <p>Excessive play, unresponsive, pulling to one side</p>
+                    </div>
+                    <div class="emergency-item">
+                        <h3>🛢️ Oil Warning Light</h3>
+                        <p>Stop immediately, check for leaks</p>
+                    </div>
+                    <div class="emergency-item">
+                        <h3>🔩 Loose Wheel Nuts</h3>
+                        <p>Do not continue under any circumstances</p>
+                    </div>
+                    <div class="emergency-item">
+                        <h3>🚨 Red ABS Light</h3>
+                        <p>If remains on after reset and 10mph check</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay" aria-hidden="true">
+        <div class="spinner"></div>
+        <p class="loading-text">Loading...</p>
+    </div>
+
+    <!-- Scripts -->
+    <script src="../diagnostic-logger.js?v=1.0"></script>
+    
+    <!-- Complete diagnostic flows -->
+    <script src="../data/diagnostic-flows-complete.js?v=1.0"></script>
+    
+    <!-- Main application -->
+    <script src="../app.js?v=3.1"></script>
+    <script src="../minimal-state-fix.js?v=1.0"></script>
+    <script src="../enhanced-wizard-styling.js?v=1.0"></script>
+</body>
+</html>

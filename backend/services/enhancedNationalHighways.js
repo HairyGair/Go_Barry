@@ -376,30 +376,16 @@ export class EnhancedNationalHighwaysProcessor {
    * Enhance incidents with route matching and location data
    */
   async enhanceIncidents(incidents) {
-    console.log(`🔍 Enhancing ${incidents.length} incidents with route matching...`);
+    // Emergency quota protection - skip route matching to preserve API calls
+    console.log(`⚠️ QUOTA PROTECTION: Skipping route matching for ${incidents.length} incidents to preserve API quota`);
     
     const enhanced = [];
     
     for (const incident of incidents) {
       try {
-        // Get precise coordinates if not available
-        if (!incident.coordinates) {
-          incident.coordinates = await this.geocodeLocation(incident.location);
-        }
-        
-        // Match to affected routes
-        if (incident.coordinates) {
-          const [lat, lng] = incident.coordinates;
-          const affectedRoutes = await findAffectedRoutesEnhanced(
-            lat, lng, incident.location, 500
-          );
-          
-          incident.affectsRoutes = affectedRoutes.length > 0 
-            ? affectedRoutes 
-            : incident.potentialRoutes || [];
-        } else {
-          incident.affectsRoutes = incident.potentialRoutes || [];
-        }
+        // Skip geocoding and route matching for quota protection
+        incident.affectsRoutes = incident.potentialRoutes || [];
+        incident.coordinates = incident.coordinates || null;
         
         // Calculate impact score
         incident.impactScore = this.calculateImpactScore(incident);

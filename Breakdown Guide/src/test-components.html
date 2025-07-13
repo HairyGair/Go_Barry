@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Component Test - Go North East Breakdown Guide</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .test-section {
+            margin: 40px 0;
+            padding: 20px;
+            background-color: #f9fafb;
+            border-radius: 8px;
+        }
+        .test-title {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #1a2b5a;
+        }
+        .component-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" style="padding: 40px 20px;">
+        <h1 style="text-align: center; margin-bottom: 40px;">
+            <span class="logo-go">Go</span><span class="logo-northeast">NorthEast</span> Component Test
+        </h1>
+
+        <!-- Buttons Test -->
+        <div class="test-section">
+            <h2 class="test-title">Buttons</h2>
+            <div class="component-grid">
+                <button class="btn btn-primary">Primary Button</button>
+                <button class="btn btn-secondary">Secondary Button</button>
+                <button class="btn btn-danger">Danger Button</button>
+                <button class="btn btn-primary" disabled>Disabled Button</button>
+            </div>
+        </div>
+
+        <!-- Cards Test -->
+        <div class="test-section">
+            <h2 class="test-title">Action Cards</h2>
+            <div class="action-grid">
+                <button class="action-card">
+                    <span class="card-icon">🔧</span>
+                    <h3 class="card-title">Normal Card</h3>
+                    <p class="card-description">Standard action card</p>
+                </button>
+                <button class="action-card primary">
+                    <span class="card-icon">🚀</span>
+                    <h3 class="card-title">Primary Card</h3>
+                    <p class="card-description">Emphasized action</p>
+                </button>
+                <button class="action-card safety-critical">
+                    <span class="card-icon">🛑</span>
+                    <h3 class="card-title">Safety Critical</h3>
+                    <p class="card-description">Immediate attention required</p>
+                </button>
+            </div>
+        </div>
+
+        <!-- Alerts Test -->
+        <div class="test-section">
+            <h2 class="test-title">Safety Alerts</h2>
+            <div class="safety-declaration" style="margin-bottom: 20px;">
+                <h2 class="safety-title">⚠️ Safety Declaration</h2>
+                <p class="safety-text">
+                    <strong>Safety is Non-Negotiable.</strong> This is how safety declarations appear.
+                </p>
+            </div>
+            <div class="safety-warning" style="margin-bottom: 20px;">
+                <h3>⚠️ Warning Message</h3>
+                <p>This is a warning alert for important but non-critical information.</p>
+            </div>
+            <div class="safety-stop">
+                🛑 STOP IMMEDIATELY - Critical Safety Issue
+            </div>
+        </div>
+
+        <!-- Search Test -->
+        <div class="test-section">
+            <h2 class="test-title">Search Input</h2>
+            <div class="search-container">
+                <input type="text" class="search-input" placeholder="Search for an issue...">
+                <span class="search-icon">🔍</span>
+            </div>
+        </div>
+
+        <!-- Progress Bar Test -->
+        <div class="test-section">
+            <h2 class="test-title">Progress Indicators</h2>
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 40%"></div>
+                </div>
+                <span class="progress-text">Step 2 of 5</span>
+            </div>
+        </div>
+
+        <!-- Typography Test -->
+        <div class="test-section">
+            <h2 class="test-title">Typography</h2>
+            <h1>Heading 1 - Main Title</h1>
+            <h2>Heading 2 - Section Title</h2>
+            <h3>Heading 3 - Subsection</h3>
+            <p>Regular paragraph text with <strong>bold emphasis</strong> for important information.</p>
+            <p class="text-muted">Muted text for secondary information</p>
+        </div>
+
+        <!-- Color Palette -->
+        <div class="test-section">
+            <h2 class="test-title">Color Palette</h2>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <div style="width: 100px; height: 100px; background-color: #1a2b5a; color: white; display: flex; align-items: center; justify-content: center; border-radius: 8px;">Navy</div>
+                <div style="width: 100px; height: 100px; background-color: #dc2626; color: white; display: flex; align-items: center; justify-content: center; border-radius: 8px;">Red</div>
+                <div style="width: 100px; height: 100px; background-color: #f59e0b; color: white; display: flex; align-items: center; justify-content: center; border-radius: 8px;">Warning</div>
+                <div style="width: 100px; height: 100px; background-color: #10b981; color: white; display: flex; align-items: center; justify-content: center; border-radius: 8px;">Success</div>
+                <div style="width: 100px; height: 100px; background-color: #3b82f6; color: white; display: flex; align-items: center; justify-content: center; border-radius: 8px;">Info</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

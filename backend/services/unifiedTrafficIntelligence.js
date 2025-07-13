@@ -7,14 +7,52 @@ import { fetchTomTomTrafficWithStreetNames } from './tomtom.js';
 export class UnifiedTrafficIntelligence {
   constructor() {
     this.alertCache = new Map();
-    this.cacheTTL = 2 * 60 * 1000; // 2 minutes
+    this.cacheTTL = 5 * 60 * 1000; // 5 minutes cache (increased to reduce API calls)
     this.lastUpdate = null;
     this.maxCacheSize = 100; // Limit cache size to prevent memory bloat
     
+    // Quota protection
+    this.quotaExhausted = false;
+    this.quotaResetTime = null;
+    this.dailyAPICallCount = 0;
+    this.maxDailyAPICalls = 0; // Emergency quota protection - disable all TomTom calls today
+    
     // Set up cache cleanup
     setInterval(() => this.cleanupCache(), 60000); // Clean every minute
+    
+    // Reset quota counter at midnight
+    this.scheduleQuotaReset();
   }
   
+  scheduleQuotaReset() {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    
+    const msUntilMidnight = tomorrow.getTime() - now.getTime();
+    setTimeout(() => {
+      this.dailyAPICallCount = 0;
+      this.quotaExhausted = false;
+      console.log('🔄 TomTom API quota reset for new day');
+      this.scheduleQuotaReset(); // Schedule next reset
+    }, msUntilMidnight);
+  }
+
+  checkQuotaLimit() {
+    if (this.dailyAPICallCount >= this.maxDailyAPICalls) {
+      this.quotaExhausted = true;
+      console.log(`⚠️ TomTom API quota limit reached: ${this.dailyAPICallCount}/${this.maxDailyAPICalls} calls used today`);
+      return false;
+    }
+    return true;
+  }
+
+  incrementAPICallCount() {
+    this.dailyAPICallCount++;
+    console.log(`📊 TomTom API calls today: ${this.dailyAPICallCount}/${this.maxDailyAPICalls}`);
+  }
+
   cleanupCache() {
     // Remove expired entries
     const now = Date.now();
@@ -40,19 +78,48 @@ export class UnifiedTrafficIntelligence {
   async getTrafficIntelligence() {
     console.log('🧠 Fetching unified traffic intelligence...');
     
+    // Check cache first to avoid unnecessary API calls
+    const cachedResult = this.getCachedResult();
+    if (cachedResult) {
+      console.log(`📋 Using cached traffic intelligence (${Math.round((Date.now() - this.lastUpdate) / 1000)}s old)`);
+      return cachedResult;
+    }
+    
+    // Check quota before making any API calls
+    if (this.quotaExhausted || !this.checkQuotaLimit()) {
+      console.log('⚠️ TomTom API quota exhausted, using National Highways only');
+      return this.getNationalHighwaysOnly();
+    }
+    
     const startTime = Date.now();
     
     try {
       // Fetch from all sources with proper error handling
+      // Only make TomTom calls if quota allows
+      const promises = [];
+      
+      if (this.checkQuotaLimit()) {
+        promises.push(trafficFlowAnalyzer.analyzeTrafficFlow());
+        this.incrementAPICallCount();
+      } else {
+        promises.push(Promise.resolve({ success: false, reason: 'Quota exhausted' }));
+      }
+      
+      if (this.checkQuotaLimit()) {
+        promises.push(fetchTomTomTrafficWithStreetNames());
+        this.incrementAPICallCount();
+      } else {
+        promises.push(Promise.resolve({ success: false, reason: 'Quota exhausted' }));
+      }
+      
+      // National Highways doesn't use TomTom quota
+      promises.push(nhProcessor.fetchEnhancedIncidents());
+      
       const [
         tomtomFlowResult,
         tomtomIncidentsResult,
         nhResult
-      ] = await Promise.allSettled([
-        trafficFlowAnalyzer.analyzeTrafficFlow(),
-        fetchTomTomTrafficWithStreetNames(),
-        nhProcessor.fetchEnhancedIncidents()
-      ]);
+      ] = await Promise.allSettled(promises);
 
       // Process results
       const intelligence = {
@@ -162,6 +229,84 @@ export class UnifiedTrafficIntelligence {
         metadata: {
           processingTime: Date.now() - startTime,
           lastUpdated: new Date().toISOString()
+        }
+      };
+    }
+  }
+
+  /**
+   * Fallback method when TomTom quota is exhausted - use National Highways only
+   */
+  async getNationalHighwaysOnly() {
+    console.log('🛣️ Using National Highways only (quota protection)');
+    
+    const startTime = Date.now();
+    
+    try {
+      const nhResult = await nhProcessor.fetchEnhancedIncidents();
+      
+      const intelligence = {
+        success: true,
+        data: [],
+        incidents: [],
+        roadworks: [],
+        metadata: {
+          sources: {
+            tomtomFlow: { success: false, reason: 'Quota exhausted' },
+            tomtomIncidents: { success: false, reason: 'Quota exhausted' },
+            nationalHighways: { success: false }
+          },
+          statistics: {},
+          processingTime: 0,
+          lastUpdated: new Date().toISOString(),
+          quotaProtection: true
+        }
+      };
+
+      // Process National Highways data
+      if (nhResult && nhResult.success) {
+        intelligence.data = nhResult.data || [];
+        intelligence.metadata.sources.nationalHighways = {
+          success: true,
+          alerts: intelligence.data.length
+        };
+        console.log(`✅ National Highways: ${intelligence.data.length} enhanced alerts`);
+      } else {
+        intelligence.metadata.sources.nationalHighways = {
+          success: false,
+          error: nhResult?.reason?.message || 'Failed to fetch'
+        };
+      }
+
+      // Separate roadworks from incidents
+      const separatedData = this.separateRoadworksFromIncidents(intelligence.data);
+      intelligence.incidents = separatedData.incidents;
+      intelligence.roadworks = separatedData.roadworks;
+      intelligence.data = separatedData.incidents;
+      
+      // Sort and generate statistics
+      intelligence.incidents = this.sortByIntelligence(intelligence.incidents);
+      intelligence.roadworks = this.sortByIntelligence(intelligence.roadworks);
+      intelligence.metadata.statistics = this.generateStatistics(intelligence.incidents);
+      intelligence.metadata.roadworksStatistics = this.generateStatistics(intelligence.roadworks);
+      intelligence.metadata.processingTime = Date.now() - startTime;
+
+      console.log(`🎯 National Highways Only: ${intelligence.incidents.length} incidents, ${intelligence.roadworks.length} roadworks processed in ${intelligence.metadata.processingTime}ms`);
+      
+      return intelligence;
+
+    } catch (error) {
+      console.error('❌ National Highways fallback failed:', error.message);
+      return {
+        success: false,
+        data: [],
+        incidents: [],
+        roadworks: [],
+        error: error.message,
+        metadata: {
+          processingTime: Date.now() - startTime,
+          lastUpdated: new Date().toISOString(),
+          quotaProtection: true
         }
       };
     }

@@ -310,9 +310,9 @@ export class EnhancedIncidentManager {
         location: incident.location,
         affectedRoutes: incident.affectsRoutes,
         
-        // Display options
-        duration: displayOptions.duration || 300, // 5 minutes default
-        urgency: displayOptions.urgency || 'normal',
+        // Display options with lifecycle-based duration rules
+        duration: this.calculateDisplayDuration(incident, displayOptions),
+        urgency: displayOptions.urgency || this.calculateUrgency(incident),
         color: this.getDisplayColor(incident.priority),
         
         // Source information
@@ -478,6 +478,205 @@ export class EnhancedIncidentManager {
       'Low': '#6B7280'
     };
     return colors[priority] || '#6B7280';
+  }
+
+  /**
+   * Calculate display duration based on incident lifecycle and priority
+   */
+  calculateDisplayDuration(incident, displayOptions = {}) {
+    // Override duration if explicitly specified
+    if (displayOptions.duration) {
+      return displayOptions.duration;
+    }
+
+    // Base duration rules from our plan
+    let baseDuration;
+    
+    switch (incident.status?.toLowerCase()) {
+      case 'active':
+        // Active incidents: Show continuously while active (default 30 minutes, refreshed)
+        baseDuration = 1800; // 30 minutes
+        break;
+      case 'monitoring':
+        // Monitoring state: Show for 15 minutes after clearing
+        baseDuration = 900; // 15 minutes
+        break;
+      case 'resolved':
+        // Resolved: Show for 5 minutes with "RESOLVED" badge
+        baseDuration = 300; // 5 minutes
+        break;
+      default:
+        baseDuration = 600; // 10 minutes default
+    }
+
+    // Priority modifiers
+    switch (incident.priority?.toLowerCase()) {
+      case 'critical':
+      case 'high':
+        // High priority incidents show longer, even when cleared
+        if (incident.status?.toLowerCase() === 'resolved') {
+          baseDuration = 1800; // 30 minutes for cleared high priority
+        }
+        break;
+      case 'low':
+        // Low priority incidents show for shorter time
+        baseDuration = Math.max(300, baseDuration * 0.7); // At least 5 minutes
+        break;
+    }
+
+    // Source modifiers
+    if (incident.source === 'traffic_intelligence') {
+      // Traffic incidents auto-resolve faster
+      baseDuration = Math.max(300, baseDuration * 0.8);
+    }
+
+    return Math.round(baseDuration);
+  }
+
+  /**
+   * Calculate display urgency based on incident characteristics
+   */
+  calculateUrgency(incident) {
+    // High urgency for critical incidents or high intelligence scores
+    if (incident.priority?.toLowerCase() === 'critical' || 
+        incident.intelligenceScore >= 80) {
+      return 'high';
+    }
+    
+    // Medium urgency for high priority or busy routes
+    if (incident.priority?.toLowerCase() === 'high' || 
+        (incident.affectsRoutes && incident.affectsRoutes.length > 3)) {
+      return 'medium';
+    }
+    
+    return 'normal';
+  }
+
+  /**
+   * Process incident lifecycle state transitions
+   */
+  async processIncidentLifecycle(incident) {
+    const now = new Date();
+    const updates = {};
+    let stateChanged = false;
+
+    // Calculate time since creation
+    const createdAt = new Date(incident.createdAt);
+    const minutesSinceCreated = (now - createdAt) / (1000 * 60);
+
+    // Auto-transition based on conditions
+    switch (incident.status?.toLowerCase()) {
+      case 'active':
+        // Check if we should transition to monitoring
+        if (this.shouldTransitionToMonitoring(incident, minutesSinceCreated)) {
+          updates.status = 'monitoring';
+          updates.monitoringStartedAt = now.toISOString();
+          stateChanged = true;
+          console.log(`🔄 Incident ${incident.id}: Active → Monitoring (auto-transition)`);
+        }
+        break;
+
+      case 'monitoring':
+        // Check if we should transition to resolved
+        const monitoringStarted = incident.monitoringStartedAt ? new Date(incident.monitoringStartedAt) : createdAt;
+        const minutesSinceMonitoring = (now - monitoringStarted) / (1000 * 60);
+        
+        if (minutesSinceMonitoring >= 15 && !this.hasRecentTrafficReports(incident)) {
+          updates.status = 'resolved';
+          updates.resolvedAt = now.toISOString();
+          updates.autoResolved = true;
+          stateChanged = true;
+          console.log(`✅ Incident ${incident.id}: Monitoring → Resolved (auto-resolved after 15 min)`);
+        }
+        break;
+
+      case 'resolved':
+        // Check if we should archive (after 3 months - handled by data retention service)
+        // No action needed here as archiving is handled by the retention service
+        break;
+    }
+
+    // Update last processed timestamp
+    updates.lastProcessed = now.toISOString();
+
+    // Save updates if any state changed
+    if (stateChanged || Object.keys(updates).length > 1) {
+      try {
+        await supabaseStorage.updateIncident(incident.id, updates);
+        return { ...incident, ...updates };
+      } catch (error) {
+        console.error(`❌ Failed to update incident ${incident.id}:`, error.message);
+        return incident;
+      }
+    }
+
+    return incident;
+  }
+
+  /**
+   * Determine if an active incident should transition to monitoring
+   */
+  shouldTransitionToMonitoring(incident, minutesSinceCreated) {
+    // Traffic intelligence incidents auto-transition faster
+    if (incident.source === 'traffic_intelligence') {
+      // If no longer appearing in traffic feeds for 10+ minutes
+      return minutesSinceCreated >= 10;
+    }
+
+    // Manual incidents require supervisor intervention
+    if (incident.source === 'manual') {
+      return false; // Only manual resolution for manual incidents
+    }
+
+    // Default: auto-transition after 30 minutes for other sources
+    return minutesSinceCreated >= 30;
+  }
+
+  /**
+   * Check if there are recent traffic reports for this incident
+   */
+  hasRecentTrafficReports(incident) {
+    // This would integrate with traffic intelligence to check if the incident
+    // is still being reported by traffic feeds
+    // For now, return false to allow auto-resolution
+    return false;
+  }
+
+  /**
+   * Batch process lifecycle for multiple incidents
+   */
+  async batchProcessLifecycle(incidents) {
+    const results = [];
+    const batchSize = 10; // Process in batches to avoid overwhelming the system
+
+    for (let i = 0; i < incidents.length; i += batchSize) {
+      const batch = incidents.slice(i, i + batchSize);
+      const batchPromises = batch.map(incident => this.processIncidentLifecycle(incident));
+      
+      try {
+        const batchResults = await Promise.all(batchPromises);
+        results.push(...batchResults);
+      } catch (error) {
+        console.error('❌ Batch lifecycle processing error:', error.message);
+        // Continue with individual processing if batch fails
+        for (const incident of batch) {
+          try {
+            const result = await this.processIncidentLifecycle(incident);
+            results.push(result);
+          } catch (individualError) {
+            console.error(`❌ Individual lifecycle processing failed for ${incident.id}:`, individualError.message);
+            results.push(incident); // Keep original if processing fails
+          }
+        }
+      }
+
+      // Small delay between batches
+      if (i + batchSize < incidents.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    return results;
   }
 }
 

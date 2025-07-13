@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Button Test - Breakdown Guide</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Button Functionality Test</h1>
+    
+    <div id="results"></div>
+    
+    <h2>Test Actions:</h2>
+    <button onclick="testFunction('showScreen', 'category')">Test showScreen('category')</button>
+    <button onclick="testFunction('filterCategories')">Test filterCategories()</button>
+    <button onclick="testFunction('saveAppState')">Test saveAppState()</button>
+    <button onclick="testFunction('logAction', 'Test action', {test: true})">Test logAction()</button>
+    <button onclick="location.href='index.html'">Go to Main App</button>
+    
+    <script src="data/diagnostic-flows.js?v=3.0"></script>
+    <script src="wizard-engine.js?v=3.0"></script>
+    <script src="app.js?v=3.0"></script>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        function addResult(message, isSuccess) {
+            const div = document.createElement('div');
+            div.className = `test-result ${isSuccess ? 'success' : 'error'}`;
+            div.textContent = message;
+            results.appendChild(div);
+        }
+        
+        function testFunction(funcName, ...args) {
+            try {
+                if (typeof window[funcName] === 'function') {
+                    window[funcName](...args);
+                    addResult(`✓ ${funcName} executed successfully`, true);
+                } else {
+                    addResult(`✗ ${funcName} is not defined`, false);
+                }
+            } catch (error) {
+                addResult(`✗ ${funcName} threw error: ${error.message}`, false);
+            }
+        }
+        
+        // Run initial checks
+        window.addEventListener('DOMContentLoaded', () => {
+            // Check if key functions exist
+            const functionsToCheck = [
+                'showScreen',
+                'filterCategories',
+                'saveAppState',
+                'loadAppState',
+                'logAction',
+                'initializeApp',
+                'startDiagnostic',
+                'updateHomepage'
+            ];
+            
+            functionsToCheck.forEach(func => {
+                if (typeof window[func] === 'function') {
+                    addResult(`✓ ${func} is defined`, true);
+                } else {
+                    addResult(`✗ ${func} is NOT defined`, false);
+                }
+            });
+            
+            // Check if app initialized
+            setTimeout(() => {
+                if (typeof appState !== 'undefined') {
+                    addResult('✓ appState is available', true);
+                } else {
+                    addResult('✗ appState is NOT available', false);
+                }
+                
+                if (typeof elements !== 'undefined') {
+                    addResult('✓ elements object is available', true);
+                } else {
+                    addResult('✗ elements object is NOT available', false);
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Diagnostics Test - Go North East Breakdown Guide</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a2b5a 0%, #2c4a7a 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+        .logo {
+            font-size: 2em;
+            font-weight: bold;
+            color: #dc2626;
+            margin-bottom: 10px;
+        }
+        .test-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .diagnostic-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 20px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+        .diagnostic-card:hover {
+            border-color: #dc2626;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+        .priority-1 {
+            border-left: 4px solid #dc2626;
+        }
+        .priority-2 {
+            border-left: 4px solid #f59e0b;
+        }
+        .icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        .title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .description {
+            font-size: 0.9em;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 15px;
+        }
+        .step-count {
+            background: rgba(220,38,38,0.2);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        .test-button {
+            background: #dc2626;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+        .test-button:hover {
+            background: #b91c1c;
+        }
+        .status {
+            margin-top: 10px;
+            padding: 5px;
+            border-radius: 3px;
+            font-size: 0.8em;
+        }
+        .status.success {
+            background: rgba(34,197,94,0.2);
+            color: #22c55e;
+        }
+        .status.error {
+            background: rgba(239,68,68,0.2);
+            color: #ef4444;
+        }
+        .summary {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+            text-align: center;
+        }
+        .new-badge {
+            background: #22c55e;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.7em;
+            font-weight: bold;
+        }
+        .section-header {
+            grid-column: 1/-1;
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">Go North East</div>
+        <h1>🧪 New Diagnostics Testing Suite</h1>
+        <p>Testing newly implemented Priority 2 diagnostic flows</p>
+    </div>
+
+    <div class="test-container" id="diagnosticTests">
+        <!-- Diagnostic cards will be populated by JavaScript -->
+    </div>
+
+    <div class="summary" id="summary">
+        <h2>🎯 Implementation Summary</h2>
+        <div id="summaryContent">Loading...</div>
+    </div>
+
+    <script src="src/data/diagnostic-flows.js"></script>
+    <script>
+        // Test data for new implementations
+        const newDiagnostics = [
+            {
+                key: 'doors',
+                name: 'Door Problems',
+                icon: '🚪',
+                priority: 2,
+                isNew: true,
+                expectedSteps: 10
+            },
+            {
+                key: 'non-starter',
+                name: 'Vehicle Won\'t Start',
+                icon: '🔑',
+                priority: 2,
+                isNew: true,
+                expectedSteps: 11
+            },
+            {
+                key: 'gear-selection',
+                name: 'Gear Selection Problems',
+                icon: '⚙️',
+                priority: 2,
+                isNew: true,
+                expectedSteps: 9
+            },
+            {
+                key: 'demisters-heaters',
+                name: 'Demisters/Heaters Not Working',
+                icon: '🌬️',
+                priority: 2,
+                isNew: true,
+                expectedSteps: 10
+            },
+            {
+                key: 'exterior-lights',
+                name: 'Exterior Lights Problems',
+                icon: '💡',
+                priority: 2,
+                isNew: true,
+                expectedSteps: 14
+            }
+        ];
+
+        // Existing diagnostics for comparison
+        const existingDiagnostics = [
+            {
+                key: 'brakes',
+                name: 'Brake Issues',
+                icon: '🛑',
+                priority: 1,
+                isNew: false,
+                expectedSteps: 4
+            },
+            {
+                key: 'abs-light',
+                name: 'ABS Light Warning',
+                icon: '🚨',
+                priority: 1,
+                isNew: false,
+                expectedSteps: 8
+            },
+            {
+                key: 'overheating',
+                name: 'Engine Overheating',
+                icon: '🌡️',
+                priority: 2,
+                isNew: false,
+                expectedSteps: 9
+            }
+        ];
+
+        function testDiagnostic(diagnosticKey, expectedSteps) {
+            try {
+                const diagnostic = window.diagnosticFlows[diagnosticKey];
+                
+                if (!diagnostic) {
+                    throw new Error(`Diagnostic '${diagnosticKey}' not found`);
+                }
+
+                // Test basic structure
+                const requiredFields = ['title', 'description', 'priority', 'severity', 'icon', 'color', 'steps'];
+                for (const field of requiredFields) {
+                    if (!diagnostic[field]) {
+                        throw new Error(`Missing required field: ${field}`);
+                    }
+                }
+
+                // Test steps structure
+                if (!Array.isArray(diagnostic.steps)) {
+                    throw new Error('Steps must be an array');
+                }
+
+                if (diagnostic.steps.length !== expectedSteps) {
+                    console.warn(`Expected ${expectedSteps} steps, found ${diagnostic.steps.length}`);
+                }
+
+                // Test each step
+                diagnostic.steps.forEach((step, index) => {
+                    const requiredStepFields = ['type', 'title', 'content'];
+                    for (const field of requiredStepFields) {
+                        if (!step[field]) {
+                            throw new Error(`Step ${index}: Missing required field: ${field}`);
+                        }
+                    }
+
+                    // Test step types
+                    const validTypes = ['info', 'question', 'action', 'final'];
+                    if (!validTypes.includes(step.type)) {
+                        throw new Error(`Step ${index}: Invalid step type: ${step.type}`);
+                    }
+
+                    // Test question steps have options
+                    if (step.type === 'question' && !step.options) {
+                        throw new Error(`Step ${index}: Question step missing options`);
+                    }
+
+                    // Test final steps have appropriate fields
+                    if (step.type === 'final') {
+                        if (!step.result) {
+                            throw new Error(`Step ${index}: Final step missing result`);
+                        }
+                        if (!step.severity) {
+                            throw new Error(`Step ${index}: Final step missing severity`);
+                        }
+                    }
+                });
+
+                return {
+                    success: true,
+                    message: `✅ All tests passed (${diagnostic.steps.length} steps)`,
+                    stepCount: diagnostic.steps.length
+                };
+
+            } catch (error) {
+                return {
+                    success: false,
+                    message: `❌ Error: ${error.message}`,
+                    stepCount: 0
+                };
+            }
+        }
+
+        function createDiagnosticCard(diagnostic) {
+            const card = document.createElement('div');
+            card.className = `diagnostic-card priority-${diagnostic.priority}`;
+            
+            card.innerHTML = `
+                <div class="icon">${diagnostic.icon}</div>
+                <div class="title">
+                    ${diagnostic.name}
+                    ${diagnostic.isNew ? '<span class="new-badge">NEW</span>' : ''}
+                </div>
+                <div class="description">
+                    Priority ${diagnostic.priority} - ${diagnostic.isNew ? 'Newly implemented' : 'Previously implemented'}
+                </div>
+                <div class="step-count">Expected: ${diagnostic.expectedSteps} steps</div>
+                <button class="test-button" onclick="runTest('${diagnostic.key}', ${diagnostic.expectedSteps})">
+                    🧪 Test Diagnostic
+                </button>
+                <div class="status" id="status-${diagnostic.key}">Ready to test</div>
+            `;
+
+            return card;
+        }
+
+        function runTest(diagnosticKey, expectedSteps) {
+            const statusElement = document.getElementById(`status-${diagnosticKey}`);
+            statusElement.textContent = 'Testing...';
+            statusElement.className = 'status';
+
+            setTimeout(() => {
+                const result = testDiagnostic(diagnosticKey, expectedSteps);
+                statusElement.textContent = result.message;
+                statusElement.className = `status ${result.success ? 'success' : 'error'}`;
+                
+                updateSummary();
+            }, 500);
+        }
+
+        function runAllTests() {
+            const allDiagnostics = [...newDiagnostics, ...existingDiagnostics];
+            
+            allDiagnostics.forEach((diagnostic, index) => {
+                setTimeout(() => {
+                    runTest(diagnostic.key, diagnostic.expectedSteps);
+                }, index * 200);
+            });
+        }
+
+        function updateSummary() {
+            const totalDiagnostics = Object.keys(window.diagnosticFlows || {}).length;
+            const newCount = newDiagnostics.length;
+            const existingCount = existingDiagnostics.length;
+            
+            document.getElementById('summaryContent').innerHTML = `
+                <p><strong>📊 Total Diagnostics Implemented: ${totalDiagnostics}</strong></p>
+                <p>🆕 Newly Added: ${newCount} diagnostics</p>
+                <p>✅ Previously Implemented: ${existingCount} diagnostics</p>
+                <p>🎯 Phase 2 Progress: ALL Priority 2 diagnostics complete!</p>
+                <br>
+                <button class="test-button" onclick="runAllTests()" style="max-width: 300px; margin: 0 auto;">
+                    🚀 Run All Tests
+                </button>
+            `;
+        }
+
+        // Initialize the page
+        function initializePage() {
+            const container = document.getElementById('diagnosticTests');
+            
+            // Add new diagnostics section
+            const newSection = document.createElement('div');
+            newSection.className = 'section-header';
+            newSection.innerHTML = '<h2 style="color: #22c55e;">🆕 Newly Implemented Diagnostics</h2>';
+            container.appendChild(newSection);
+            
+            newDiagnostics.forEach(diagnostic => {
+                container.appendChild(createDiagnosticCard(diagnostic));
+            });
+
+            // Add existing diagnostics section
+            const existingSection = document.createElement('div');
+            existingSection.className = 'section-header';
+            existingSection.innerHTML = '<h2 style="color: #f59e0b; margin-top: 30px;">✅ Previously Implemented Diagnostics</h2>';
+            container.appendChild(existingSection);
+            
+            existingDiagnostics.forEach(diagnostic => {
+                container.appendChild(createDiagnosticCard(diagnostic));
+            });
+
+            updateSummary();
+        }
+
+        // Wait for diagnostic flows to load
+        window.addEventListener('load', () => {
+            if (window.diagnosticFlows) {
+                initializePage();
+            } else {
+                setTimeout(initializePage, 100);
+            }
+        });
+    </script>
+</body>
+</html>

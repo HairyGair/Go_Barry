@@ -57,7 +57,9 @@ const saveTemplates = async () => {
   try {
     const dataToStore = JSON.stringify(globalTemplatesStorage);
     if (Platform.OS === 'web') {
-      localStorage.setItem(STORAGE_KEY, dataToStore);
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(STORAGE_KEY, dataToStore);
+      }
     } else {
       await AsyncStorage.setItem(STORAGE_KEY, dataToStore);
     }
@@ -70,11 +72,13 @@ const saveTemplates = async () => {
 const loadStoredTemplates = async () => {
   try {
     if (Platform.OS === 'web') {
-      // Use localStorage for web
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        globalTemplatesStorage = JSON.parse(stored);
-        notifyTemplateUpdate();
+      // Check if localStorage is available
+      if (typeof localStorage !== 'undefined') {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          globalTemplatesStorage = JSON.parse(stored);
+          notifyTemplateUpdate();
+        }
       }
     } else {
       // Use AsyncStorage for native
@@ -89,8 +93,10 @@ const loadStoredTemplates = async () => {
   }
 };
 
-// Load templates on module init
-loadStoredTemplates();
+// Load templates on module init (only when localStorage is available)
+if (typeof localStorage !== 'undefined' || Platform.OS !== 'web') {
+  loadStoredTemplates();
+}
 
 export const useMessageTemplates = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");

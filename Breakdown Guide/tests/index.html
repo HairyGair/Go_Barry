@@ -1,0 +1,259 @@
+        </div>
+        
+        <div class="console-output" id="consoleOutput" style="display: none;">
+            <strong>Console Output:</strong>
+            <pre id="consoleContent"></pre>
+        </div>
+    </div>
+    
+    <!-- Load test dependencies -->
+    <script>
+        // Mock some globals that tests expect
+        const STORAGE_PREFIX = 'breakdownGuide_';
+        const issueCategories = [
+            { id: 'abs-light', name: 'ABS Light', icon: '🚨', description: 'ABS warning light issues' },
+            { id: 'brakes', name: 'Brakes', icon: '🛑', description: 'Brake system problems' },
+            { id: 'oil-warning', name: 'Oil Warning Light', icon: '🛢️', description: 'Oil pressure warnings' }
+        ];
+        
+        // Mock functions
+        function showScreen(screen) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            const target = document.getElementById(screen + 'Screen');
+            if (target) target.classList.add('active');
+        }
+        
+        function showModal(modalName) {
+            const modal = document.getElementById(modalName + 'Modal');
+            if (modal) modal.style.display = 'block';
+        }
+        
+        function showHelp() {
+            console.log('Help function called');
+        }
+        
+        function showRecentLogs() {
+            console.log('Recent logs function called');
+        }
+        
+        function logAction(action, data) {
+            console.log('Action logged:', action, data);
+        }
+        
+        // Mock sessionManager
+        const sessionManager = {
+            getPreferences: () => ({}),
+            savePreferences: (prefs) => localStorage.setItem(STORAGE_PREFIX + 'preferences', JSON.stringify(prefs))
+        };
+    </script>
+    
+    <!-- Load actual app files (for testing real functionality) -->
+    <script src="../src/session-manager.js"></script>
+    <script src="../src/data/diagnostic-flows.js"></script>
+    
+    <!-- Load test framework -->
+    <script src="test-runner.js"></script>
+    
+    <!-- Load test scenarios -->
+    <script src="scenarios/abs-light-tests.js"></script>
+    <script src="scenarios/navigation-tests.js"></script>
+    <script src="scenarios/data-persistence-tests.js"></script>
+    <script src="scenarios/error-handling-tests.js"></script>
+    <script src="scenarios/browser-compatibility-tests.js"></script>
+    <script src="scenarios/phase2-critical-safety-tests.js"></script>
+    
+    <!-- Test Runner Implementation -->
+    <script>
+        // Store original console methods
+        const originalConsole = {
+            log: console.log,
+            error: console.error,
+            warn: console.warn
+        };
+        
+        let consoleOutput = [];
+        
+        // Override console to capture output
+        console.log = function(...args) {
+            originalConsole.log(...args);
+            consoleOutput.push(['log', args.join(' ')]);
+            updateConsoleDisplay();
+        };
+        
+        console.error = function(...args) {
+            originalConsole.error(...args);
+            consoleOutput.push(['error', args.join(' ')]);
+            updateConsoleDisplay();
+        };
+        
+        // Initialize test list
+        function initializeTests() {
+            const testList = document.getElementById('testList');
+            testList.innerHTML = '';
+            
+            testRunner.tests.forEach((test, index) => {
+                const li = document.createElement('li');
+                li.className = 'test-item';
+                li.dataset.testIndex = index;
+                li.innerHTML = `
+                    <div class="test-status">
+                        <input type="checkbox" checked>
+                    </div>
+                    <div class="test-info">
+                        <div class="test-name">${test.name}</div>
+                        <div class="test-description">${test.description}</div>
+                    </div>
+                    <div class="test-duration"></div>
+                `;
+                testList.appendChild(li);
+            });
+        }
+        
+        // Run all tests
+        async function runAllTests() {
+            clearResults();
+            consoleOutput = [];
+            document.getElementById('consoleOutput').style.display = 'block';
+            
+            // Mark all tests as selected
+            document.querySelectorAll('.test-item input[type="checkbox"]').forEach(cb => {
+                cb.checked = true;
+            });
+            
+            await runTests();
+        }
+        
+        // Run selected tests
+        async function runSelectedTests() {
+            clearResults();
+            consoleOutput = [];
+            document.getElementById('consoleOutput').style.display = 'block';
+            
+            await runTests();
+        }
+        
+        // Main test runner
+        async function runTests() {
+            const testItems = document.querySelectorAll('.test-item');
+            const selectedTests = [];
+            
+            testItems.forEach((item, index) => {
+                const checkbox = item.querySelector('input[type="checkbox"]');
+                if (checkbox.checked) {
+                    selectedTests.push(index);
+                    item.className = 'test-item';
+                    item.querySelector('.test-duration').textContent = '';
+                }
+            });
+            
+            if (selectedTests.length === 0) {
+                alert('Please select at least one test to run');
+                return;
+            }
+            
+            let completed = 0;
+            const total = selectedTests.length;
+            
+            for (const index of selectedTests) {
+                const test = testRunner.tests[index];
+                const testItem = testItems[index];
+                
+                // Update UI
+                testItem.className = 'test-item running';
+                testItem.querySelector('.test-status').innerHTML = '<div class="spinner"></div>';
+                
+                // Run test
+                try {
+                    const startTime = performance.now();
+                    await test.testFunction();
+                    const endTime = performance.now();
+                    
+                    test.status = 'passed';
+                    test.duration = (endTime - startTime).toFixed(2) + 'ms';
+                    
+                    testItem.className = 'test-item passed';
+                    testItem.querySelector('.test-status').innerHTML = '✅';
+                    testItem.querySelector('.test-duration').textContent = test.duration;
+                    
+                } catch (error) {
+                    test.status = 'failed';
+                    test.error = error.message;
+                    
+                    testItem.className = 'test-item failed';
+                    testItem.querySelector('.test-status').innerHTML = '❌';
+                    
+                    // Add error message
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'test-error';
+                    errorDiv.textContent = error.message;
+                    testItem.querySelector('.test-info').appendChild(errorDiv);
+                }
+                
+                completed++;
+                updateProgress(completed, total);
+                
+                // Small delay between tests
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            
+            showResults(selectedTests);
+        }
+        
+        // Update progress bar
+        function updateProgress(completed, total) {
+            const percentage = (completed / total) * 100;
+            document.getElementById('testProgressBar').style.width = percentage + '%';
+        }
+        
+        // Show results summary
+        function showResults(selectedTests) {
+            const results = selectedTests.map(index => testRunner.tests[index]);
+            const passed = results.filter(r => r.status === 'passed').length;
+            const failed = results.filter(r => r.status === 'failed').length;
+            const total = results.length;
+            const successRate = total > 0 ? ((passed / total) * 100).toFixed(1) : 0;
+            
+            document.getElementById('totalTests').textContent = total;
+            document.getElementById('passedTests').textContent = passed;
+            document.getElementById('failedTests').textContent = failed;
+            document.getElementById('successRate').textContent = successRate + '%';
+            
+            document.getElementById('resultsSummary').style.display = 'block';
+        }
+        
+        // Clear results
+        function clearResults() {
+            document.querySelectorAll('.test-item').forEach(item => {
+                item.className = 'test-item';
+                item.querySelector('.test-status').innerHTML = '<input type="checkbox" checked>';
+                item.querySelector('.test-duration').textContent = '';
+                const errorDiv = item.querySelector('.test-error');
+                if (errorDiv) errorDiv.remove();
+            });
+            
+            document.getElementById('testProgressBar').style.width = '0';
+            document.getElementById('resultsSummary').style.display = 'none';
+            document.getElementById('consoleOutput').style.display = 'none';
+        }
+        
+        // Update console display
+        function updateConsoleDisplay() {
+            const content = consoleOutput.map(([type, message]) => {
+                const prefix = type === 'error' ? '❌ ' : type === 'warn' ? '⚠️ ' : '';
+                return prefix + message;
+            }).join('\n');
+            
+            document.getElementById('consoleContent').textContent = content;
+            
+            // Auto-scroll to bottom
+            const consoleDiv = document.getElementById('consoleOutput');
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+        
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            initializeTests();
+        });
+    </script>
+</body>
+</html>

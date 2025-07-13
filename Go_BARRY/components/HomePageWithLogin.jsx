@@ -88,6 +88,24 @@ const APP_CARDS = [
     route: '/disruptions'
   },
   {
+    id: 'breakdown-guide',
+    title: 'Breakdown Guide',
+    subtitle: 'Engineering issues guide',
+    description: 'SDC guide to engineering issues with troubleshooting steps and safety protocols',
+    icon: 'construct-outline',
+    color: '#DC2626',
+    gradient: ['#DC2626', '#B91C1C'],
+    features: [
+      'Engineering troubleshooting',
+      'Safety protocols',
+      'Step-by-step guides',
+      'Emergency procedures'
+    ],
+    buttonText: 'Open Breakdown Guide',
+    requiresLogin: false,
+    route: '/breakdown-guide'
+  },
+  {
     id: 'admin',
     title: 'Admin Dashboard',
     subtitle: 'System administration',
@@ -124,6 +142,17 @@ const HomePageWithLogin = () => {
     if (card.adminOnly && !isAdmin) {
       return; // Admin only
     }
+    
+    // Special handling for breakdown guide
+    if (card.id === 'breakdown-guide') {
+      // Check if we're in a web environment
+      if (Platform.OS === 'web' && window) {
+        // Open the existing breakdown guide application
+        window.open('/breakdown-guide/guide.html', '_blank');
+        return;
+      }
+    }
+    
     console.log(`[Navigation] Navigating to: ${card.route}`);
     router.push(card.route);
   };

@@ -378,6 +378,47 @@ const incidentsStyles = StyleSheet.create({
   priorityLow: {
     backgroundColor: colors.priorityLow,
   },
+  
+  // Action Bar styles
+  actionBar: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: spacing.borderRadius,
+    gap: spacing.xs,
+  },
+  
+  primaryButton: {
+    backgroundColor: colors.primary,
+    marginRight: spacing.sm,
+  },
+  
+  primaryButtonText: {
+    ...typography.button,
+    color: colors.textInverse,
+    fontWeight: '600',
+  },
+  
+  secondaryButton: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  
+  secondaryButtonText: {
+    ...typography.button,
+    color: colors.primary,
+    fontWeight: '600',
+  },
 });
 
 // Shadows for different platforms

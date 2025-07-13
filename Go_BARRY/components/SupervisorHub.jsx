@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useConvexSync } from '../hooks/useConvexSync';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
 import { useIntelligentForwarder } from '../services/IntelligentForwarder';
@@ -21,6 +22,7 @@ import SupervisorHandover from './SupervisorHandover';
 import SupervisorCoordination from './SupervisorCoordination';
 
 const SupervisorHub = () => {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showRoadworkModal, setShowRoadworkModal] = useState(false);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
@@ -41,6 +43,7 @@ const SupervisorHub = () => {
 
   // Quick actions available in floating action button
   const quickActions = [
+    { id: 'breakdown', label: 'Breakdown Guide', icon: '🔧', action: () => router.push('/(tabs)/breakdown') },
     { id: 'emergency', label: 'Emergency Broadcast', icon: '🚨', action: () => setShowTemplateSelector(true) },
     { id: 'coordination', label: 'Send Coordination', icon: '🤝', action: () => setActiveTab('coordination') },
     { id: 'analytics', label: 'Advanced Analytics', icon: '📈', action: () => setActiveTab('analytics') },

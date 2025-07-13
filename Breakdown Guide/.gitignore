@@ -1,0 +1,39 @@
+# .gitignore for Breakdown Guide App
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Build files
+dist/
+build/
+
+# Dependencies (if we add any later)
+node_modules/
+
+# Local configuration
+.env
+config.local.js
+
+# User data (should not be committed)
+user-data/
+logs/
+
+# Backup files
+*.backup
+*.bak
+
+# Test output
+test-results/
+coverage/

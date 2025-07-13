@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brake Symptoms Test - Go North East</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .critical { background-color: #fee2e2; border-color: #dc2626 !important; }
+        .btn { padding: 12px 24px; margin: 5px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; }
+        .step-container { max-width: 800px; margin: 0 auto; }
+        .checklist-container label { display: block; margin: 10px 0; padding: 12px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; }
+        .checklist-container input { margin-right: 10px; transform: scale(1.2); }
+        .alert { padding: 15px; margin: 10px 0; border-radius: 6px; }
+        .alert-critical { background-color: #fee2e2; border: 1px solid #dc2626; color: #dc2626; }
+    </style>
+</head>
+<body>
+    <h1>🛑 Brake Symptoms Test</h1>
+    <p>This page tests the brake symptoms checklist functionality.</p>
+    
+    <div id="testContainer"></div>
+    
+    <script>
+        // Simplified test data
+        const testStep = {
+            id: 'symptoms-check',
+            type: 'checklist',
+            title: 'Brake Symptoms Check',
+            content: {
+                description: 'Check if the driver is experiencing any of these symptoms:',
+                warning: {
+                    type: 'critical',
+                    text: '🚨 SAFETY CRITICAL: Brake issues require immediate attention'
+                },
+                items: [
+                    {
+                        id: 'pedal-sinks',
+                        label: 'Brake pedal sinks to the floor with little or no resistance',
+                        critical: true
+                    },
+                    {
+                        id: 'delayed-response',
+                        label: 'Braking response is delayed or ineffective',
+                        critical: true
+                    },
+                    {
+                        id: 'unusual-noises',
+                        label: 'Unusual noises (grinding or squealing) during braking',
+                        critical: true
+                    },
+                    {
+                        id: 'visible-leaks',
+                        label: 'Visible leaks in the brake system',
+                        critical: true
+                    }
+                ]
+            },
+            actions: [
+                {
+                    id: 'symptoms-present',
+                    label: 'Symptoms Present - STOP VEHICLE',
+                    type: 'danger',
+                    condition: 'anySelected',
+                    requiresConfirmation: true
+                },
+                {
+                    id: 'no-symptoms',
+                    label: 'No Symptoms Present',
+                    type: 'success',
+                    condition: 'noneSelected'
+                }
+            ]
+        };
+        
+        // Simple render function
+        function renderTestChecklist() {
+            const container = document.getElementById('testContainer');
+            
+            const html = `
+                <div class="step-container">
+                    <div class="alert alert-critical">
+                        🚨 SAFETY CRITICAL: Brake issues require immediate attention
+                    </div>
+                    
+                    <h2>${testStep.title}</h2>
+                    <p>${testStep.content.description}</p>
+                    
+                    <div class="checklist-container">
+                        ${testStep.content.items.map(item => `
+                            <label class="checkbox-item ${item.critical ? 'critical' : ''}">
+                                <input type="checkbox" 
+                                       id="check-${item.id}" 
+                                       value="${item.id}">
+                                <span style="font-weight: ${item.critical ? 'bold' : 'normal'}; color: ${item.critical ? '#dc2626' : '#374151'};">
+                                    ${item.critical ? '🚨 ' : ''}${item.label}
+                                </span>
+                            </label>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="step-actions" style="margin-top: 30px;">
+                        <button class="btn" 
+                                id="action-symptoms-present"
+                                style="background-color: #dc2626; color: white;"
+                                disabled>
+                            Symptoms Present - STOP VEHICLE
+                        </button>
+                        <button class="btn" 
+                                id="action-no-symptoms"
+                                style="background-color: #059669; color: white;">
+                            No Symptoms Present
+                        </button>
+                    </div>
+                    
+                    <div id="result" style="margin-top: 20px; padding: 15px; background: #f3f4f6; border-radius: 6px; display: none;"></div>
+                </div>
+            `;
+            
+            container.innerHTML = html;
+            
+            // Add event listeners
+            const checkboxes = document.querySelectorAll('.checklist-container input');
+            const symptomsBtn = document.getElementById('action-symptoms-present');
+            const noSymptomsBtn = document.getElementById('action-no-symptoms');
+            const resultDiv = document.getElementById('result');
+            
+            function updateButtons() {
+                const checked = document.querySelectorAll('.checklist-container input:checked');
+                
+                symptomsBtn.disabled = checked.length === 0;
+                symptomsBtn.style.backgroundColor = checked.length > 0 ? '#dc2626' : '#9ca3af';
+                symptomsBtn.style.cursor = checked.length > 0 ? 'pointer' : 'not-allowed';
+                
+                noSymptomsBtn.disabled = checked.length > 0;
+                noSymptomsBtn.style.backgroundColor = checked.length === 0 ? '#059669' : '#9ca3af';
+                noSymptomsBtn.style.cursor = checked.length === 0 ? 'pointer' : 'not-allowed';
+            }
+            
+            checkboxes.forEach(cb => {
+                cb.addEventListener('change', updateButtons);
+            });
+            
+            symptomsBtn.addEventListener('click', () => {
+                const checked = Array.from(document.querySelectorAll('.checklist-container input:checked'))
+                    .map(cb => cb.value);
+                
+                if (checked.length > 0) {
+                    if (confirm('CRITICAL SAFETY ISSUE DETECTED!\n\nBrake system symptoms require IMMEDIATE STOP.\n\nConfirm to proceed with stop procedure.')) {
+                        resultDiv.innerHTML = `
+                            <h3>🛑 VEHICLE MUST STOP IMMEDIATELY</h3>
+                            <p><strong>Symptoms detected:</strong> ${checked.length} critical brake issue(s)</p>
+                            <p><strong>Next action:</strong> Follow critical stop procedure</p>
+                            <p style="color: #dc2626; font-weight: bold;">Vehicle must not continue in service!</p>
+                        `;
+                        resultDiv.style.display = 'block';
+                        resultDiv.style.backgroundColor = '#fee2e2';
+                        resultDiv.style.borderLeft = '4px solid #dc2626';
+                    }
+                }
+            });
+            
+            noSymptomsBtn.addEventListener('click', () => {
+                resultDiv.innerHTML = `
+                    <h3>✅ No Brake Issues Detected</h3>
+                    <p><strong>Result:</strong> No immediate brake problems identified</p>
+                    <p><strong>Next action:</strong> Vehicle may continue in service with normal monitoring</p>
+                `;
+                resultDiv.style.display = 'block';
+                resultDiv.style.backgroundColor = '#ecfdf5';
+                resultDiv.style.borderLeft = '4px solid #059669';
+            });
+            
+            // Initial button state
+            updateButtons();
+        }
+        
+        // Render the test
+        renderTestChecklist();
+        
+        console.log('Brake symptoms test page loaded');
+    </script>
+</body>
+</html>

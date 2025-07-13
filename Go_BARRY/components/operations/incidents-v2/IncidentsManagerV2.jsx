@@ -3,7 +3,7 @@
  * Modern redesigned incidents management interface
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { useSupervisor } from '../../hooks/useSupervisorSession';
 import { incidentsStyles, colors, spacing } from './styles/incidents.styles';
 import StatsCard, { StatCardPresets } from './components/StatsCard';
 import IncidentCard from './components/IncidentCard';
+import CreateIncidentModal from './components/CreateIncidentModal';
 
 const IncidentsManagerV2 = ({ baseUrl }) => {
   const {
@@ -40,6 +41,7 @@ const IncidentsManagerV2 = ({ baseUrl }) => {
   const [selectedIncident, setSelectedIncident] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('online');
   const [errorMessage, setErrorMessage] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [filters, setFilters] = useState({
     status: 'all',
     priority: 'all',
@@ -209,6 +211,7 @@ const IncidentsManagerV2 = ({ baseUrl }) => {
     }
   };
 
+
   // Calculate statistics from incidents data
   const calculateStats = (manual, traffic) => {
     console.log('📊 Calculating stats for:', {
@@ -244,28 +247,56 @@ const IncidentsManagerV2 = ({ baseUrl }) => {
     setStats(newStats);
   };
 
-  // Handle refresh
-  const handleRefresh = () => {
-    setRefreshing(true);
-    fetchIncidents(false);
-  };
 
-  // Initial load
+  // Real-time update state
+  const [isRealTimeEnabled, setIsRealTimeEnabled] = useState(true);
+  const [updateFrequency, setUpdateFrequency] = useState(30000); // 30 seconds default
+
+  // Enhanced real-time updates with adaptive frequency
   useEffect(() => {
-    if (isLoggedIn && baseUrl) {
-      fetchIncidents();
-      
-      // Set up auto-refresh
-      const interval = setInterval(() => {
-        fetchIncidents(false);
-      }, 90000); // 90 seconds
-      
-      return () => clearInterval(interval);
-    }
-  }, [isLoggedIn, baseUrl, sessionId]);
+    if (!isLoggedIn || !baseUrl || !isRealTimeEnabled) return;
 
-  // Filter incidents
-  const getFilteredIncidents = () => {
+    // Initial load
+    fetchIncidents();
+    
+    // Adaptive refresh frequency based on activity
+    const getRefreshInterval = () => {
+      const activeCount = stats.active || 0;
+      const highPriorityCount = stats.high || 0;
+      
+      // More frequent updates when there are active/high priority incidents
+      if (highPriorityCount > 0) return 15000; // 15 seconds for high priority
+      if (activeCount > 3) return 20000; // 20 seconds for multiple active
+      if (activeCount > 0) return 30000; // 30 seconds for some active
+      return 60000; // 1 minute for quiet periods
+    };
+
+    let intervalId;
+    
+    const setupInterval = () => {
+      if (intervalId) clearInterval(intervalId);
+      const frequency = getRefreshInterval();
+      
+      intervalId = setInterval(() => {
+        fetchIncidents(false);
+        // Update frequency might change based on new data
+        if (getRefreshInterval() !== frequency) {
+          setupInterval(); // Reset with new frequency
+        }
+      }, frequency);
+      
+      setUpdateFrequency(frequency);
+    };
+
+    setupInterval();
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isLoggedIn, baseUrl, sessionId, stats.active, stats.high, isRealTimeEnabled]);
+
+  // Memoized filtering function for better performance
+  const filteredIncidents = useMemo(() => {
     try {
       let allIncidents = [...incidents, ...trafficIncidents];
       
@@ -332,10 +363,10 @@ const IncidentsManagerV2 = ({ baseUrl }) => {
       console.error('Error filtering incidents:', error);
       return [];
     }
-  };
+  }, [incidents, trafficIncidents, activeTab, filters]);
 
-  // Handle stat card press
-  const handleStatPress = (statType) => {
+  // Memoized callback functions for better performance
+  const handleStatPress = useCallback((statType) => {
     switch (statType) {
       case 'active':
         setActiveTab('active');
@@ -344,10 +375,10 @@ const IncidentsManagerV2 = ({ baseUrl }) => {
       default:
         setViewMode('list');
     }
-  };
+  }, []);
 
   // Handle view incident on map
-  const handleViewMap = (incident) => {
+  const handleViewMap = useCallback((incident) => {
     console.log('🗺️ View incident on map:', incident.id);
     
     if (!incident.coordinates) {
@@ -368,10 +399,10 @@ const IncidentsManagerV2 = ({ baseUrl }) => {
       // This would need to be implemented based on your navigation setup
       console.log('Navigate to map:', mapUrl);
     }
-  };
+  }, []);
 
   // Handle push to display
-  const handlePushToDisplay = async (incident) => {
+  const handlePushToDisplay = useCallback(async (incident) => {
     console.log('📺 Push incident to display:', incident.id);
     
     try {
@@ -411,7 +442,20 @@ const IncidentsManagerV2 = ({ baseUrl }) => {
       console.error('Error pushing to display:', error);
       alert('Error pushing incident to display. Please check your connection.');
     }
-  };
+  }, [baseUrl, supervisorName, sessionId]);
+
+  // Handler for when a new incident is created
+  const handleIncidentCreated = useCallback((newIncident) => {
+    console.log('🎉 New incident created:', newIncident);
+    // Refresh the incidents list to include the new one
+    fetchIncidents();
+  }, []);
+
+  // Handle refresh
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchIncidents(false);
+  }, []);
 
   // Render loading state
   if (loading && !refreshing) {
@@ -508,7 +552,7 @@ const IncidentsManagerV2 = ({ baseUrl }) => {
     );
   };
 
-  const filteredIncidents = getFilteredIncidents();
+  // filteredIncidents is now memoized above
 
   return (
     <View style={incidentsStyles.container}>
@@ -551,6 +595,54 @@ const IncidentsManagerV2 = ({ baseUrl }) => {
         </ScrollView>
       </View>
 
+      {/* Action Bar */}
+      <View style={incidentsStyles.actionBar}>
+        <View style={incidentsStyles.row}>
+          <Pressable
+            style={[incidentsStyles.actionButton, incidentsStyles.primaryButton]}
+            onPress={() => setShowCreateModal(true)}
+          >
+            <Ionicons name="add-circle" size={20} color="#fff" />
+            <Text style={incidentsStyles.primaryButtonText}>Create Incident</Text>
+          </Pressable>
+          
+          <Pressable
+            style={[incidentsStyles.actionButton, incidentsStyles.secondaryButton]}
+            onPress={() => fetchIncidents()}
+          >
+            <Ionicons name="refresh" size={20} color={colors.primary} />
+            <Text style={incidentsStyles.secondaryButtonText}>Refresh</Text>
+          </Pressable>
+
+          {/* Real-time Status Indicator */}
+          <View style={[incidentsStyles.row, { marginLeft: spacing.md }]}>
+            <Pressable
+              style={[incidentsStyles.actionButton, incidentsStyles.secondaryButton, {
+                backgroundColor: isRealTimeEnabled ? colors.successBg : colors.errorBg,
+                borderColor: isRealTimeEnabled ? colors.success : colors.error,
+              }]}
+              onPress={() => setIsRealTimeEnabled(!isRealTimeEnabled)}
+            >
+              <Ionicons 
+                name={isRealTimeEnabled ? "radio-button-on" : "radio-button-off"} 
+                size={16} 
+                color={isRealTimeEnabled ? colors.success : colors.error} 
+              />
+              <Text style={[incidentsStyles.secondaryButtonText, {
+                color: isRealTimeEnabled ? colors.success : colors.error,
+                fontSize: 12
+              }]}>
+                {isRealTimeEnabled ? `Live (${Math.round(updateFrequency/1000)}s)` : 'Manual'}
+              </Text>
+            </Pressable>
+            
+            <Text style={[incidentsStyles.textMuted, { fontSize: 11, marginLeft: spacing.xs }]}>
+              {lastUpdate ? `Updated: ${lastUpdate.toLocaleTimeString()}` : ''}
+            </Text>
+          </View>
+        </View>
+      </View>
+
       {/* Main Content */}
       <ScrollView 
         style={{ flex: 1 }}
@@ -582,6 +674,17 @@ const IncidentsManagerV2 = ({ baseUrl }) => {
           </View>
         )}
       </ScrollView>
+
+      {/* Create Incident Modal */}
+      <CreateIncidentModal
+        visible={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreateIncident={handleIncidentCreated}
+        supervisorName={supervisorName}
+        supervisorRole={supervisorRole}
+        sessionId={sessionId}
+        baseUrl={baseUrl}
+      />
     </View>
   );
 };

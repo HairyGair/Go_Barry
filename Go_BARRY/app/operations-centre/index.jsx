@@ -211,6 +211,7 @@ export default function OperationsCentre() {
       return;
     }
     
+    
     setSelectedCard(cardId);
   };
   

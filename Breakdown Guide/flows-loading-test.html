@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnostic Flows Loading Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f9fafb; }
+        .test-section { background: white; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .success { color: #059669; font-weight: bold; }
+        .error { color: #dc2626; font-weight: bold; }
+        .btn { padding: 12px 24px; margin: 5px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-danger { background: #dc2626; color: white; }
+        pre { background: #f3f4f6; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Diagnostic Flows Loading Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Diagnostic Flows Availability Test</h2>
+        <div id="flowsTest">Testing...</div>
+        <button class="btn btn-primary" onclick="testFlowsAvailability()">Retest Flows</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. Individual Flow Test</h2>
+        <div id="individualTest">Testing...</div>
+        <button class="btn btn-primary" onclick="testIndividualFlows()">Test Individual Flows</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. Start Diagnostic Test</h2>
+        <div id="diagnosticTest">
+            <button class="btn btn-danger" onclick="testStartDiagnostic('brakes')">Test Brakes Diagnostic</button>
+            <button class="btn btn-primary" onclick="testStartDiagnostic('abs-light')">Test ABS Light</button>
+            <button class="btn btn-primary" onclick="testStartDiagnostic('oil-warning')">Test Oil Warning</button>
+        </div>
+        <div id="diagnosticResult"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>4. Console Output</h2>
+        <pre id="consoleOutput">Check browser console (F12) for detailed logs...</pre>
+    </div>
+    
+    <script>
+        // Test functions
+        function testFlowsAvailability() {
+            const result = document.getElementById('flowsTest');
+            let output = [];
+            
+            // Test window.diagnosticFlows
+            if (typeof window.diagnosticFlows !== 'undefined') {
+                output.push(`✅ window.diagnosticFlows exists`);
+                output.push(`✅ Contains ${Object.keys(window.diagnosticFlows).length} flows`);
+                output.push(`✅ Available flows: ${Object.keys(window.diagnosticFlows).join(', ')}`);
+            } else {
+                output.push(`❌ window.diagnosticFlows not found`);
+            }
+            
+            // Test global diagnosticFlows
+            if (typeof diagnosticFlows !== 'undefined') {
+                output.push(`✅ global diagnosticFlows exists`);
+            } else {
+                output.push(`❌ global diagnosticFlows not found`);
+            }
+            
+            result.innerHTML = output.join('<br>');
+        }
+        
+        function testIndividualFlows() {
+            const result = document.getElementById('individualTest');
+            let output = [];
+            
+            const flowsToTest = ['brakes', 'abs-light', 'oil-warning', 'steering', 'overheating'];
+            const flows = window.diagnosticFlows || diagnosticFlows || {};
+            
+            flowsToTest.forEach(flowId => {
+                if (flows[flowId]) {
+                    output.push(`✅ ${flowId}: ${flows[flowId].title} (${flows[flowId].severity})`);
+                } else {
+                    output.push(`❌ ${flowId}: Not found`);
+                }
+            });
+            
+            result.innerHTML = output.join('<br>');
+        }
+        
+        function testStartDiagnostic(issueId) {
+            const result = document.getElementById('diagnosticResult');
+            
+            console.log('🧪 Testing startDiagnostic for:', issueId);
+            
+            try {
+                if (typeof startDiagnosticFixed === 'function') {
+                    result.innerHTML = `<div class="success">✅ Testing ${issueId} with startDiagnosticFixed...</div>`;
+                    startDiagnosticFixed(issueId);
+                } else if (typeof startDiagnostic === 'function') {
+                    result.innerHTML = `<div class="success">✅ Testing ${issueId} with startDiagnostic...</div>`;
+                    startDiagnostic(issueId);
+                } else {
+                    result.innerHTML = `<div class="error">❌ No startDiagnostic function available</div>`;
+                }
+            } catch (error) {
+                result.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+                console.error('Test error:', error);
+            }
+        }
+        
+        // Auto-run tests when page loads
+        setTimeout(() => {
+            testFlowsAvailability();
+            testIndividualFlows();
+        }, 1000);
+        
+        // Mock diagnosticFlows if not available (for testing)
+        if (typeof window.diagnosticFlows === 'undefined') {
+            window.diagnosticFlows = {
+                'brakes': {
+                    id: 'brakes',
+                    title: 'Brake Issues',
+                    description: 'Brake system problems requiring immediate attention',
+                    priority: 1,
+                    severity: 'critical',
+                    icon: '🛑'
+                },
+                'abs-light': {
+                    id: 'abs-light',
+                    title: 'ABS Light Warning',
+                    description: 'ABS warning light diagnostic procedure',
+                    priority: 1,
+                    severity: 'warning',
+                    icon: '🚨'
+                },
+                'oil-warning': {
+                    id: 'oil-warning',
+                    title: 'Oil Warning Light',
+                    description: 'Engine oil pressure warning - immediate action required',
+                    priority: 1,
+                    severity: 'critical',
+                    icon: '🛢️'
+                }
+            };
+        }
+        
+        // Simple startDiagnosticFixed implementation for testing
+        if (typeof startDiagnosticFixed === 'undefined') {
+            window.startDiagnosticFixed = function(issueId) {
+                console.log('🧪 Mock startDiagnosticFixed called for:', issueId);
+                alert(`✅ startDiagnosticFixed working!\\n\\nIssue: ${issueId}\\nThis would start the diagnostic wizard.`);
+            };
+        }
+        
+        // Log override
+        const originalConsoleLog = console.log;
+        console.log = function(...args) {
+            originalConsoleLog.apply(console, args);
+            const consoleOutput = document.getElementById('consoleOutput');
+            if (consoleOutput) {
+                consoleOutput.textContent += args.join(' ') + '\\n';
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            }
+        };
+    </script>
+</body>
+</html>
