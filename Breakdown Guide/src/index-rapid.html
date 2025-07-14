@@ -5,14 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Go North East Breakdown Guide - Rapid decision support for bus engineering diagnostics">
     <meta name="author" content="Go North East">
-    <title>Breakdown Guide - Go North East v3.0</title>
+    <title>Breakdown Guide - Go North East</title>
     
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="../assets/images/favicon.ico">
     
     <!-- CSS -->
     <link rel="stylesheet" href="styles.css?v=2.1">
-    <link rel="stylesheet" href="rapid-wizard-styles.css?v=2.0">
     
     <!-- Preconnect to font services -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,7 +26,7 @@
                 <div class="logo">
                     <span class="logo-go">Go</span><span class="logo-northeast">NorthEast</span>
                 </div>
-                <div class="tagline">Breakdown Guide v3.0 - Complete System</div>
+                <div class="tagline">Breakdown Guide v2.0 - Rapid Decision Support</div>
             </div>
             <div class="header-actions">
                 <button class="header-button" id="quickRefBtn" aria-label="Quick Reference">
@@ -63,7 +62,7 @@
                         <button class="action-card primary" id="startDiagnosisBtn">
                             <span class="card-icon">🔧</span>
                             <h3 class="card-title">Start Diagnosis</h3>
-                            <p class="card-description">Quick 30-180 second decisions</p>
+                            <p class="card-description">Quick 30-60 second decisions</p>
                         </button>
 
                         <button class="action-card" id="searchIssuesBtn">
@@ -85,12 +84,12 @@
                         </button>
                     </div>
 
-                    <!-- Phase 5 Complete Status -->
+                    <!-- Phase 1 Status -->
                     <div style="background: #ecfdf5; border: 1px solid #d1fae5; padding: 16px; border-radius: 8px; margin: 20px 0;">
-                        <h3 style="color: #059669; margin: 0 0 8px 0;">🎆 Phase 5 Complete - Full System Operational</h3>
+                        <h3 style="color: #059669; margin: 0 0 8px 0;">✅ Phase 1 Complete - Critical Safety Flows</h3>
                         <p style="margin: 0; color: #065f46;">
-                            18 comprehensive flows: 5 Critical Safety + 5 High Priority + 8 Standard Issues.
-                            Complete rebuild with 30-180 second rapid decisions. All SDC Guide compliant.
+                            5 critical safety flows optimized for rapid decision-making (30-90 seconds each).
+                            All flows are SDC Guide compliant with embedded contact extensions.
                         </p>
                     </div>
                 </div>
@@ -171,7 +170,7 @@
     <footer class="footer">
         <div class="footer-container">
             <div class="footer-info">
-                <span class="version">Version 3.0 - Phase 5 Complete</span>
+                <span class="version">Version 2.0 - Phase 1</span>
                 <span class="separator">|</span>
                 <span class="company">© 2025 Go North East</span>
                 <span class="separator">|</span>
@@ -202,27 +201,6 @@
                     <li><strong>Red ABS Light:</strong> If persists after reset</li>
                 </ul>
                 
-                <h3>High Priority Issues (Changeover Required)</h3>
-                <ul>
-                    <li><strong>Overheating:</strong> Temperature-based assessment</li>
-                    <li><strong>Battery Warning:</strong> Belt inspection required</li>
-                    <li><strong>Doors:</strong> Safety vs operational assessment</li>
-                    <li><strong>Non-Starter:</strong> Reset and rear start procedures</li>
-                    <li><strong>Low Water:</strong> Leak assessment and buzzer check</li>
-                </ul>
-
-                <h3>Standard Issues (Arrange Changeover)</h3>
-                <ul>
-                    <li><strong>Interior Lights:</strong> 50% rule + step light</li>
-                    <li><strong>Exterior Lights:</strong> Legal compliance check</li>
-                    <li><strong>Wipers/Screen Wash:</strong> Vision safety assessment</li>
-                    <li><strong>Wing Mirrors:</strong> Side-specific assessment</li>
-                    <li><strong>Vehicle Damage:</strong> Safety risk evaluation</li>
-                    <li><strong>Speedometer:</strong> Tachograph validation</li>
-                    <li><strong>Suspension:</strong> Warning lights + ride quality</li>
-                    <li><strong>Various Buzzers:</strong> Identification process</li>
-                </ul>
-                
                 <h3>Contact Extensions</h3>
                 <ul>
                     <li>Consett: 9286, 9287</li>
@@ -233,9 +211,8 @@
                 </ul>
 
                 <h3>System Info</h3>
-                <p><strong>Target Time:</strong> 30-180 seconds per issue</p>
-                <p><strong>Total Flows:</strong> 18 comprehensive diagnostic flows</p>
-                <p><strong>Documentation:</strong> All actions logged in Go-Check</p>
+                <p><strong>Target Time:</strong> 30-90 seconds per critical issue</p>
+                <p><strong>Documentation:</strong> All actions logged in Tranzaura (Go-Check)</p>
             </div>
         </div>
     </div>
@@ -286,44 +263,10 @@
     </div>
 
     <!-- Scripts -->
-    <!-- PHASE 5: Load the complete diagnostic flows system -->
-    <script src="data/diagnostic-flows.js?v=3.1"></script>
+    <!-- PHASE 1: Load ONLY the new rapid decision flows -->
+    <script src="data/diagnostic-flows.js?v=2.0"></script>
     
-    <!-- Rapid Wizard Engine -->
-    <script src="rapid-wizard-engine.js?v=3.1"></script>
-    
-    <!-- Main application -->
-    <script src="app.js?v=3.1"></script>
-    
-    <!-- Initialize complete system -->
-    <script>
-        // Initialize complete system on load
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('🎆 Rapid Decision System v3.0 - Phase 5 Complete Loaded!');
-            console.log('📊 Total flows available:', window.diagnosticFlows ? Object.keys(window.diagnosticFlows).length : 0);
-            console.log('⚡ System ready for full operation');
-            
-            // Override wizard back button to return to categories
-            const wizardBackBtn = document.getElementById('wizardBackBtn');
-            if (wizardBackBtn) {
-                wizardBackBtn.addEventListener('click', () => {
-                    showScreen('category');
-                    populateCategories();
-                });
-            }
-            
-            // Log system status
-            if (window.systemMetadata) {
-                console.log('System Metadata:', window.systemMetadata);
-                console.log('🔥 Critical flows:', window.systemMetadata.flowsByCategory?.safety_critical);
-                console.log('⚡ High priority flows:', window.systemMetadata.flowsByCategory?.high_priority);
-                console.log('✅ Standard flows:', window.systemMetadata.flowsByCategory?.standard);
-            }
-            
-            if (window.diagnosticFlows) {
-                console.log('All available flows:', Object.keys(window.diagnosticFlows));
-            }
-        });
-    </script>
+    <!-- Main application (updated for rapid flows) -->
+    <script src="app.js?v=2.0"></script>
 </body>
 </html>

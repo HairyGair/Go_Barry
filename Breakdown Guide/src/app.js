@@ -1,16 +1,19 @@
 /**
  * Go North East - Breakdown Guide
  * Main Application JavaScript
- * Version 1.3 - Complete Implementation
+ * Version 3.0 - Phase 5 Complete - Rapid Decision System
  */
 
 // ========================================
 // Constants & Configuration
 // ========================================
-const APP_VERSION = '1.3';
+const APP_VERSION = '3.0';
 const STORAGE_PREFIX = 'breakdownGuide_';
 const MAX_RECENT_ITEMS = 5;
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+
+// Global wizard instance
+let wizardEngine = null;
 
 // DOM Elements
 const elements = {};
@@ -33,113 +36,145 @@ const appState = {
 // ========================================
 // Initialization
 // ========================================
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('Breakdown Guide v' + APP_VERSION + ' initializing...');
+document.addEventListener('DOMContentLoaded', function() {
+    console.log(`🎆 Breakdown Guide v${APP_VERSION} - Phase 5 Complete`);
+    console.log('📊 Initializing rapid decision system...');
+    
     initializeElements();
-    attachEventListeners();
-    loadSavedState();
+    initializeEventListeners();
+    initializeWizardEngine();
+    
+    // Load diagnostic flows
+    if (typeof diagnosticFlows !== 'undefined') {
+        console.log('✅ Diagnostic flows loaded:', Object.keys(diagnosticFlows).length);
+        console.log('📋 Available categories:', getAvailableCategories());
+    } else {
+        console.error('❌ Diagnostic flows not loaded');
+    }
+    
+    // Initialize app state
     showScreen('welcome');
-    console.log('Breakdown Guide ready!');
+    loadUserPreferences();
+    
+    console.log('🚀 Rapid Decision System ready for operation');
 });
 
+// ========================================
+// Element Initialization
+// ========================================
 function initializeElements() {
-    // Screens
-    elements.welcomeScreen = document.getElementById('welcomeScreen');
-    elements.categoryScreen = document.getElementById('categoryScreen');
-    elements.wizardScreen = document.getElementById('wizardScreen');
-    
-    // Buttons
+    // Navigation elements
     elements.startDiagnosisBtn = document.getElementById('startDiagnosisBtn');
     elements.searchIssuesBtn = document.getElementById('searchIssuesBtn');
     elements.recentLogsBtn = document.getElementById('recentLogsBtn');
     elements.helpBtn = document.getElementById('helpBtn');
-    elements.backToWelcomeBtn = document.getElementById('backToWelcomeBtn');
-    elements.quickRefBtn = document.getElementById('quickRefBtn');
-    elements.emergencyBtn = document.getElementById('emergencyBtn');
-    elements.wizardBackBtn = document.getElementById('wizardBackBtn');
-    elements.previousStepBtn = document.getElementById('previousStepBtn');
-    elements.returnToCategoriesBtn = document.getElementById('returnToCategoriesBtn');
-    elements.saveNotesBtn = document.getElementById('saveNotesBtn');
     
-    // Category controls
-    elements.categoryGrid = document.getElementById('categoryGrid');
+    // Screen elements
+    elements.welcomeScreen = document.getElementById('welcomeScreen');
+    elements.categoryScreen = document.getElementById('categoryScreen');
+    elements.wizardScreen = document.getElementById('wizardScreen');
+    
+    // Category screen elements
+    elements.backToWelcomeBtn = document.getElementById('backToWelcomeBtn');
     elements.categorySearch = document.getElementById('categorySearch');
     elements.sortSelect = document.getElementById('sortSelect');
+    elements.categoryGrid = document.getElementById('categoryGrid');
     elements.visibleCount = document.getElementById('visibleCount');
     
-    // Wizard elements
+    // Wizard screen elements
+    elements.wizardBackBtn = document.getElementById('wizardBackBtn');
     elements.wizardTitle = document.getElementById('wizardTitle');
     elements.wizardContent = document.getElementById('wizardContent');
     elements.progressBar = document.getElementById('progressBar');
     elements.progressText = document.getElementById('progressText');
-    elements.breadcrumbTrail = document.getElementById('breadcrumbTrail');
-    elements.notesInput = document.getElementById('notesInput');
     
-    // Modals
+    // Modal elements
+    elements.quickRefBtn = document.getElementById('quickRefBtn');
+    elements.emergencyBtn = document.getElementById('emergencyBtn');
     elements.quickRefModal = document.getElementById('quickRefModal');
     elements.emergencyModal = document.getElementById('emergencyModal');
-    elements.closeQuickRefBtn = document.getElementById('closeQuickRefBtn');
-    elements.closeEmergencyBtn = document.getElementById('closeEmergencyBtn');
-    
-    // Other
-    elements.loadingOverlay = document.getElementById('loadingOverlay');
-    elements.statusIndicator = document.getElementById('statusIndicator');
-    elements.statusText = document.getElementById('statusText');
 }
 
-function attachEventListeners() {
-    // Welcome screen buttons
-    elements.startDiagnosisBtn?.addEventListener('click', () => {
-        showScreen('category');
-        populateCategories();
-    });
+// ========================================
+// Event Listeners
+// ========================================
+function initializeEventListeners() {
+    // Navigation buttons
+    if (elements.startDiagnosisBtn) {
+        elements.startDiagnosisBtn.addEventListener('click', () => {
+            showScreen('category');
+            populateCategories();
+        });
+    }
     
-    elements.searchIssuesBtn?.addEventListener('click', () => {
-        showScreen('category');
-        populateCategories();
-        elements.categorySearch?.focus();
-    });
+    if (elements.searchIssuesBtn) {
+        elements.searchIssuesBtn.addEventListener('click', () => {
+            showScreen('category');
+            populateCategories();
+            if (elements.categorySearch) {
+                elements.categorySearch.focus();
+            }
+        });
+    }
     
-    elements.recentLogsBtn?.addEventListener('click', showRecentLogs);
-    elements.helpBtn?.addEventListener('click', showHelp);
+    // Back buttons
+    if (elements.backToWelcomeBtn) {
+        elements.backToWelcomeBtn.addEventListener('click', () => showScreen('welcome'));
+    }
     
-    // Navigation
-    elements.backToWelcomeBtn?.addEventListener('click', () => showScreen('welcome'));
-    elements.wizardBackBtn?.addEventListener('click', handleWizardBack);
-    elements.returnToCategoriesBtn?.addEventListener('click', () => {
-        showScreen('category');
-        populateCategories();
-    });
+    if (elements.wizardBackBtn) {
+        elements.wizardBackBtn.addEventListener('click', () => {
+            showScreen('category');
+            populateCategories();
+        });
+    }
     
-    // Header buttons
-    elements.quickRefBtn?.addEventListener('click', showQuickReference);
-    elements.emergencyBtn?.addEventListener('click', showEmergencyStops);
+    // Search and filtering
+    if (elements.categorySearch) {
+        elements.categorySearch.addEventListener('input', filterCategories);
+    }
+    
+    if (elements.sortSelect) {
+        elements.sortSelect.addEventListener('change', populateCategories);
+    }
+    
+    // Modal triggers
+    if (elements.quickRefBtn) {
+        elements.quickRefBtn.addEventListener('click', () => showModal('quickRefModal'));
+    }
+    
+    if (elements.emergencyBtn) {
+        elements.emergencyBtn.addEventListener('click', () => showModal('emergencyModal'));
+    }
     
     // Modal close buttons
-    elements.closeQuickRefBtn?.addEventListener('click', () => closeModal('quickRefModal'));
-    elements.closeEmergencyBtn?.addEventListener('click', () => closeModal('emergencyModal'));
-    
-    // Search
-    elements.categorySearch?.addEventListener('input', (e) => {
-        appState.filters.search = e.target.value;
-        filterCategories();
+    document.querySelectorAll('.modal-close').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const modal = e.target.closest('.modal');
+            if (modal) hideModal(modal.id);
+        });
     });
     
-    // Sort
-    elements.sortSelect?.addEventListener('change', () => {
-        populateCategories();
+    // Click outside modal to close
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                hideModal(modal.id);
+            }
+        });
     });
-    
-    // Wizard controls
-    elements.previousStepBtn?.addEventListener('click', previousStep);
-    elements.saveNotesBtn?.addEventListener('click', saveNotes);
-    
-    // Close modals on outside click
-    window.addEventListener('click', (e) => {
-        if (e.target.classList.contains('modal')) {
-            e.target.style.display = 'none';
-        }
-    });
+}
+
+// ========================================
+// Wizard Engine Integration
+// ========================================
+function initializeWizardEngine() {
+    if (typeof RapidWizardEngine !== 'undefined') {
+        wizardEngine = new RapidWizardEngine();
+        console.log('✅ Rapid Wizard Engine initialized');
+    } else {
+        console.error('❌ RapidWizardEngine not found');
+    }
 }
 
 // ========================================
@@ -151,586 +186,261 @@ function showScreen(screenName) {
         screen.classList.remove('active');
     });
     
-    // Show selected screen
-    switch(screenName) {
-        case 'welcome':
-            elements.welcomeScreen?.classList.add('active');
-            break;
-        case 'category':
-            elements.categoryScreen?.classList.add('active');
-            break;
-        case 'wizard':
-            elements.wizardScreen?.classList.add('active');
-            break;
+    // Show target screen
+    const targetScreen = document.getElementById(screenName + 'Screen');
+    if (targetScreen) {
+        targetScreen.classList.add('active');
+        appState.currentScreen = screenName;
     }
-    
-    appState.currentScreen = screenName;
 }
 
 // ========================================
-// Category Management
+// Category Population
 // ========================================
 function populateCategories() {
-    if (!elements.categoryGrid) return;
-    
-    const categories = getCategoriesFromFlows();
-    let filteredCategories = searchCategories(categories);
-    
-    // Sort categories
-    const sortValue = elements.sortSelect?.value || 'priority';
-    sortCategories(filteredCategories, sortValue);
-    
-    // Update count
-    if (elements.visibleCount) {
-        elements.visibleCount.textContent = filteredCategories.length;
+    if (!elements.categoryGrid || typeof diagnosticFlows === 'undefined') {
+        console.error('Category grid or diagnostic flows not available');
+        return;
     }
     
-    // Clear grid
+    const flows = Object.values(diagnosticFlows);
+    const sortBy = elements.sortSelect ? elements.sortSelect.value : 'priority';
+    
+    // Sort flows
+    flows.sort((a, b) => {
+        switch (sortBy) {
+            case 'alphabetical':
+                return a.title.localeCompare(b.title);
+            case 'priority':
+                return a.priority - b.priority;
+            default:
+                return a.priority - b.priority;
+        }
+    });
+    
+    // Clear existing content
     elements.categoryGrid.innerHTML = '';
     
-    // Populate grid
-    filteredCategories.forEach(category => {
-        const card = createCategoryCard(category);
+    // Create category cards
+    flows.forEach(flow => {
+        const card = createCategoryCard(flow);
         elements.categoryGrid.appendChild(card);
     });
-}
-
-function getCategoriesFromFlows() {
-    const categories = [];
     
-    if (typeof diagnosticFlows !== 'undefined') {
-        Object.keys(diagnosticFlows).forEach(key => {
-            const flow = diagnosticFlows[key];
-            categories.push({
-                id: key,
-                title: flow.title,
-                description: flow.description,
-                priority: flow.priority,
-                severity: flow.severity,
-                icon: getIconForCategory(key)
-            });
-        });
+    // Update visible count
+    if (elements.visibleCount) {
+        elements.visibleCount.textContent = flows.length;
     }
     
-    return categories;
+    console.log(`📋 Populated ${flows.length} categories`);
 }
 
-function getIconForCategory(categoryId) {
-    const iconMap = {
-        // Priority 1 - Critical Issues
-        'brakes': '🛑',
-        'steering': '🎯',
-        'oil-warning': '🛢️',
-        'loose-wheel-nuts': '🔩',
-        'puncture': '🛞',
-        
-        // Priority 2 - High Priority Issues  
-        'abs-light': '🚨',
-        'battery-light': '🔋',
-        'overheating': '🌡️',
-        'low-water': '💧',
-        'doors': '🚪',
-        'non-starter': '🔑',
-        'gear-selection': '⚙️',
-        'demisters-heaters': '🌬️',
-        'cutting-out-fuel': '⛽',
-        'excessive-smoke': '💨',
-        'gearbox-temperature': '🌡️',
-        'broken-windows': '🪟',
-        'exterior-lights': '💡',
-        'wing-mirrors': '🪞',
-        'wipers-screenwash': '🌧️',
-        'ramp-stuck-out': '♿',
-        'interior-exterior-damage': '🔧',
-        'repeat-defects': '🔄',
-        'speedo-not-working': '🌐',
-        'suspension': '🔧',
-        
-        // Priority 3 - Standard Issues
-        'buzzers-sounding': '🔊',
-        'interior-lights': '💡',
-        
-        // Legacy/Alternative names
-        'abs-red': '🚨',
-        'abs-amber': '⚠️',
-        'warning-lights-general': '⚠️'
-    };
-    
-    return iconMap[categoryId] || '❓';
-}
-
-function createCategoryCard(category) {
+function createCategoryCard(flow) {
     const card = document.createElement('div');
-    card.className = 'category-card';
+    card.className = `category-card ${getCategoryClass(flow.category)}`;
+    card.setAttribute('data-category', flow.category);
+    card.setAttribute('data-priority', flow.priority);
     
-    if (category.priority === 1) {
-        card.classList.add('critical');
-    } else if (category.priority === 2) {
-        card.classList.add('high');
-    }
+    const priorityLabel = getPriorityLabel(flow.category);
+    const severityColor = getSeverityColor(flow.category);
     
     card.innerHTML = `
-        <span class="category-icon">${category.icon}</span>
-        <div class="category-info">
-            <h3 class="category-title">${category.title}</h3>
-            <p class="category-description">${category.description}</p>
-            ${category.priority === 1 ? '<span class="priority-badge critical">SAFETY CRITICAL</span>' : ''}
-            ${category.priority === 2 ? '<span class="priority-badge high">HIGH PRIORITY</span>' : ''}
+        <div class="category-header">
+            <div class="category-icon" style="background-color: ${severityColor}20;">
+                ${flow.icon || '🔧'}
+            </div>
+            <div class="category-badge ${flow.category.replace('_', '-')}">${priorityLabel}</div>
         </div>
-        <span class="chevron">→</span>
+        <div class="category-content">
+            <h3 class="category-title">${flow.title}</h3>
+            <p class="category-description">${getFlowDescription(flow)}</p>
+            <div class="category-meta">
+                <span class="category-time">${flow.estimatedTime}</span>
+                <span class="category-ref">${flow.sdcReference || ''}</span>
+            </div>
+        </div>
+        <div class="category-arrow">→</div>
     `;
     
-    card.addEventListener('click', () => startDiagnostic(category.id));
+    // Add click listener
+    card.addEventListener('click', () => {
+        startDiagnostic(flow.id);
+    });
     
     return card;
 }
 
-function searchCategories(categories) {
-    const searchTerm = appState.filters.search.toLowerCase();
-    if (!searchTerm) return categories;
-    
-    return categories.filter(cat => 
-        cat.title.toLowerCase().includes(searchTerm) ||
-        cat.description.toLowerCase().includes(searchTerm)
-    );
+function getCategoryClass(category) {
+    const classes = {
+        'safety_critical': 'critical',
+        'high_priority': 'high-priority',
+        'standard': 'standard'
+    };
+    return classes[category] || 'standard';
 }
 
-function filterCategories() {
-    populateCategories();
+function getPriorityLabel(category) {
+    const labels = {
+        'safety_critical': 'SAFETY CRITICAL',
+        'high_priority': 'HIGH PRIORITY',
+        'standard': 'STANDARD'
+    };
+    return labels[category] || 'STANDARD';
 }
 
-function sortCategories(categories, sortBy) {
-    switch(sortBy) {
-        case 'priority':
-            categories.sort((a, b) => a.priority - b.priority);
-            break;
-        case 'alphabetical':
-            categories.sort((a, b) => a.title.localeCompare(b.title));
-            break;
-        case 'recent':
-            // Sort by recent usage (if tracked)
-            const recentOrder = appState.recentCategories || [];
-            categories.sort((a, b) => {
-                const aIndex = recentOrder.indexOf(a.id);
-                const bIndex = recentOrder.indexOf(b.id);
-                if (aIndex === -1 && bIndex === -1) return 0;
-                if (aIndex === -1) return 1;
-                if (bIndex === -1) return -1;
-                return aIndex - bIndex;
-            });
-            break;
+function getSeverityColor(category) {
+    const colors = {
+        'safety_critical': '#dc2626',
+        'high_priority': '#f59e0b',
+        'standard': '#10b981'
+    };
+    return colors[category] || '#10b981';
+}
+
+function getFlowDescription(flow) {
+    // Get description from first step or use a default
+    if (flow.steps && flow.steps[0] && flow.steps[0].content) {
+        return flow.steps[0].content;
     }
+    
+    const defaultDescriptions = {
+        'brakes': 'Brake system problems requiring immediate attention',
+        'steering': 'Steering system issues and loss of control',
+        'oil-warning': 'Engine oil pressure warning requiring immediate attention',
+        'loose-wheel-nuts': 'Critical wheel assembly safety issue',
+        'abs-light': 'Anti-lock braking system warning lights',
+        'overheating': 'Engine overheating assessment and response',
+        'battery-warning': 'Electrical charging system warning',
+        'doors': 'Door operation issues and safety concerns',
+        'non-starter': 'Vehicle will not start - troubleshooting steps',
+        'low-water': 'Cooling system water level issues',
+        'interior-lights': 'Interior lighting system problems',
+        'exterior-lights': 'External lighting system issues',
+        'wipers-screenwash': 'Windscreen wiper and washer problems',
+        'wing-mirrors': 'Wing mirror damage assessment',
+        'vehicle-damage': 'Interior/exterior damage evaluation',
+        'speedo-not-working': 'Speedometer malfunction procedures',
+        'suspension-issues': 'Suspension system problems',
+        'various-buzzers': 'Unidentified warning buzzer sounds'
+    };
+    
+    return defaultDescriptions[flow.id] || 'System diagnostic and assessment';
 }
 
 // ========================================
-// Diagnostic Wizard
+// Diagnostic Flow Management
 // ========================================
-function startDiagnostic(issueId) {
-    if (typeof diagnosticFlows === 'undefined' || !diagnosticFlows[issueId]) {
-        showError('Diagnostic flow not found');
+function startDiagnostic(flowId) {
+    console.log(`🔧 Starting diagnostic: ${flowId}`);
+    
+    if (!wizardEngine) {
+        console.error('Wizard engine not initialized');
+        showError('System not ready. Please refresh the page.');
         return;
     }
     
-    appState.currentIssue = issueId;
-    appState.currentStep = 0;
+    if (!diagnosticFlows[flowId]) {
+        console.error(`Flow not found: ${flowId}`);
+        showError('Diagnostic flow not found: ' + flowId);
+        return;
+    }
+    
+    // Update state
+    appState.currentIssue = flowId;
     appState.sessionStart = new Date();
-    appState.notes = '';
     
-    // Track recent usage
-    if (!appState.recentCategories.includes(issueId)) {
-        appState.recentCategories.unshift(issueId);
-        if (appState.recentCategories.length > MAX_RECENT_ITEMS) {
-            appState.recentCategories.pop();
-        }
+    // Show wizard screen
+    showScreen('wizard');
+    
+    // Start the diagnostic flow
+    wizardEngine.startDiagnostic(flowId);
+    
+    // Update wizard title
+    const flow = diagnosticFlows[flowId];
+    if (elements.wizardTitle) {
+        elements.wizardTitle.textContent = flow.title;
     }
-    
-    // Initialize wizard
-    if (typeof initializeWizard === 'function') {
-        initializeWizard(issueId);
-    } else {
-        // Fallback implementation
-        showScreen('wizard');
-        displayStep();
-    }
-    
-    saveState();
 }
 
-function displayStep() {
-    const flow = diagnosticFlows[appState.currentIssue];
-    if (!flow) return;
+// ========================================
+// Utility Functions
+// ========================================
+function getAvailableCategories() {
+    if (typeof diagnosticFlows === 'undefined') return [];
     
-    const step = flow.steps[appState.currentStep];
-    if (!step) return;
-    
-    // Update header
-    elements.wizardTitle.textContent = flow.title;
-    elements.breadcrumbTrail.textContent = `Home > ${flow.title} > Step ${appState.currentStep + 1}`;
-    
-    // Update progress
-    const progress = ((appState.currentStep + 1) / flow.steps.length) * 100;
-    elements.progressBar.style.width = progress + '%';
-    elements.progressText.textContent = `Step ${appState.currentStep + 1} of ${flow.steps.length}`;
-    
-    // Update content
-    elements.wizardContent.innerHTML = '';
-    
-    // Add step content based on type
-    const stepContainer = document.createElement('div');
-    stepContainer.className = 'step-container';
-    
-    // Step title
-    const stepTitle = document.createElement('h2');
-    stepTitle.className = 'step-title';
-    stepTitle.textContent = step.title;
-    stepContainer.appendChild(stepTitle);
-    
-    // Warning box
-    if (step.warning) {
-        const warningBox = document.createElement('div');
-        warningBox.className = 'warning-box';
-        warningBox.innerHTML = `⚠️ ${step.warning}`;
-        stepContainer.appendChild(warningBox);
-    }
-    
-    // Step content
-    const stepContent = document.createElement('div');
-    stepContent.className = 'step-content';
-    stepContent.textContent = step.content;
-    stepContainer.appendChild(stepContent);
-    
-    // Handle different step types
-    switch(step.type) {
-        case 'question':
-            renderQuestionStep(step, stepContainer);
-            break;
-        case 'action':
-            renderActionStep(step, stepContainer);
-            break;
-        case 'final':
-            renderFinalStep(step, stepContainer);
-            break;
-        case 'info':
-            renderInfoStep(step, stepContainer);
-            break;
-    }
-    
-    elements.wizardContent.appendChild(stepContainer);
-    
-    // Update button states
-    elements.previousStepBtn.disabled = appState.currentStep === 0;
-}
-
-function renderQuestionStep(step, container) {
-    if (!step.options) return;
-    
-    const optionsContainer = document.createElement('div');
-    optionsContainer.className = 'options-container';
-    
-    step.options.forEach((option, index) => {
-        const optionBtn = document.createElement('button');
-        optionBtn.className = 'option-button';
-        if (option.severity === 'critical') {
-            optionBtn.classList.add('critical');
-        }
-        optionBtn.textContent = option.text;
-        optionBtn.addEventListener('click', () => {
-            handleOptionClick(option);
-        });
-        optionsContainer.appendChild(optionBtn);
+    const categories = new Set();
+    Object.values(diagnosticFlows).forEach(flow => {
+        categories.add(flow.category);
     });
     
-    container.appendChild(optionsContainer);
+    return Array.from(categories);
 }
 
-function renderActionStep(step, container) {
-    if (step.checklist) {
-        const checklistContainer = document.createElement('div');
-        checklistContainer.className = 'checklist-container';
+function filterCategories() {
+    const searchTerm = elements.categorySearch ? elements.categorySearch.value.toLowerCase() : '';
+    const cards = elements.categoryGrid ? elements.categoryGrid.querySelectorAll('.category-card') : [];
+    
+    let visibleCount = 0;
+    
+    cards.forEach(card => {
+        const title = card.querySelector('.category-title').textContent.toLowerCase();
+        const description = card.querySelector('.category-description').textContent.toLowerCase();
         
-        const checklistTitle = document.createElement('h3');
-        checklistTitle.textContent = 'Steps to follow:';
-        checklistContainer.appendChild(checklistTitle);
+        const matches = title.includes(searchTerm) || description.includes(searchTerm);
         
-        const checklist = document.createElement('ul');
-        checklist.className = 'checklist';
-        
-        step.checklist.forEach(item => {
-            const li = document.createElement('li');
-            li.textContent = item;
-            checklist.appendChild(li);
-        });
-        
-        checklistContainer.appendChild(checklist);
-        
-        if (step.safety) {
-            const safetyNote = document.createElement('div');
-            safetyNote.className = 'safety-note';
-            safetyNote.innerHTML = `<strong>⚠️ Safety:</strong> ${step.safety}`;
-            checklistContainer.appendChild(safetyNote);
+        if (matches) {
+            card.style.display = 'block';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
         }
-        
-        container.appendChild(checklistContainer);
-    }
+    });
     
-    // Add continue button
-    const continueBtn = document.createElement('button');
-    continueBtn.className = 'btn btn-primary';
-    continueBtn.textContent = 'Continue';
-    continueBtn.addEventListener('click', nextStep);
-    container.appendChild(continueBtn);
-}
-
-function renderFinalStep(step, container) {
-    const resultContainer = document.createElement('div');
-    resultContainer.className = 'final-result';
-    if (step.severity === 'stop') {
-        resultContainer.classList.add('stop');
-    }
-    
-    const resultText = document.createElement('p');
-    resultText.className = 'result-text';
-    resultText.textContent = step.result;
-    resultContainer.appendChild(resultText);
-    
-    if (step.severity === 'stop' && step.stopReason) {
-        const stopAlert = document.createElement('div');
-        stopAlert.className = 'stop-alert';
-        stopAlert.innerHTML = `
-            <h3>🛑 VEHICLE MUST STOP</h3>
-            <p>${step.stopReason}</p>
-        `;
-        resultContainer.appendChild(stopAlert);
-    }
-    
-    if (step.contacts) {
-        const contactsSection = document.createElement('div');
-        contactsSection.className = 'contacts-section';
-        contactsSection.innerHTML = '<h3>Required Contacts:</h3>';
-        
-        const contactsList = document.createElement('ul');
-        step.contacts.forEach(contact => {
-            const li = document.createElement('li');
-            li.textContent = contact;
-            contactsList.appendChild(li);
-        });
-        contactsSection.appendChild(contactsList);
-        resultContainer.appendChild(contactsSection);
-    }
-    
-    if (step.actions) {
-        const actionsSection = document.createElement('div');
-        actionsSection.className = 'actions-section';
-        actionsSection.innerHTML = '<h3>Required Actions:</h3>';
-        
-        const actionsList = document.createElement('ul');
-        step.actions.forEach(action => {
-            const li = document.createElement('li');
-            li.textContent = action;
-            actionsList.appendChild(li);
-        });
-        actionsSection.appendChild(actionsList);
-        resultContainer.appendChild(actionsSection);
-    }
-    
-    container.appendChild(resultContainer);
-    
-    // Add completion button
-    const completeBtn = document.createElement('button');
-    completeBtn.className = 'btn btn-primary';
-    completeBtn.textContent = 'Complete Diagnosis';
-    completeBtn.addEventListener('click', completeDiagnosis);
-    container.appendChild(completeBtn);
-}
-
-function renderInfoStep(step, container) {
-    // Add next button for info steps
-    const nextBtn = document.createElement('button');
-    nextBtn.className = 'btn btn-primary';
-    nextBtn.textContent = 'Next';
-    nextBtn.addEventListener('click', nextStep);
-    container.appendChild(nextBtn);
-}
-
-function handleOptionClick(option) {
-    if (typeof option.nextStep !== 'undefined') {
-        appState.currentStep = option.nextStep;
-        displayStep();
-    } else {
-        // End of flow
-        completeDiagnosis();
+    if (elements.visibleCount) {
+        elements.visibleCount.textContent = visibleCount;
     }
 }
 
-function nextStep() {
-    const flow = diagnosticFlows[appState.currentIssue];
-    if (appState.currentStep < flow.steps.length - 1) {
-        appState.currentStep++;
-        displayStep();
+function showModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.setAttribute('aria-hidden', 'false');
     }
 }
 
-function previousStep() {
-    if (appState.currentStep > 0) {
-        appState.currentStep--;
-        displayStep();
-    }
-}
-
-function handleWizardBack() {
-    if (appState.currentStep > 0) {
-        previousStep();
-    } else {
-        showScreen('category');
-    }
-}
-
-function completeDiagnosis() {
-    // Save to history
-    const session = {
-        id: Date.now(),
-        issueId: appState.currentIssue,
-        issueTitle: diagnosticFlows[appState.currentIssue].title,
-        startTime: appState.sessionStart,
-        endTime: new Date(),
-        notes: appState.notes,
-        completed: true
-    };
-    
-    appState.diagnosticHistory.unshift(session);
-    if (appState.diagnosticHistory.length > 50) {
-        appState.diagnosticHistory = appState.diagnosticHistory.slice(0, 50);
-    }
-    
-    saveState();
-    
-    // Show completion message
-    alert('Diagnosis completed and logged.');
-    
-    // Return to categories
-    showScreen('category');
-}
-
-// ========================================
-// Notes Management
-// ========================================
-function saveNotes() {
-    appState.notes = elements.notesInput?.value || '';
-    saveState();
-    alert('Notes saved');
-}
-
-// ========================================
-// Modals
-// ========================================
-function showQuickReference() {
-    if (elements.quickRefModal) {
-        elements.quickRefModal.style.display = 'block';
-        
-        // Populate quick reference content
-        const modalBody = elements.quickRefModal.querySelector('.modal-body');
-        if (modalBody) {
-            modalBody.innerHTML = `
-                <h3>Critical Issues - Immediate Stop Required</h3>
-                <ul>
-                    <li><strong>Brake Failure:</strong> Pedal sinks, no resistance</li>
-                    <li><strong>Steering Issues:</strong> Excessive play, unresponsive</li>
-                    <li><strong>Oil Warning Light:</strong> Stop immediately</li>
-                    <li><strong>Loose Wheel Nuts:</strong> Do not continue</li>
-                    <li><strong>Red ABS Light:</strong> If persists after reset</li>
-                </ul>
-                
-                <h3>High Priority - Changeover Required</h3>
-                <ul>
-                    <li><strong>Overheating:</strong> Above 100°C</li>
-                    <li><strong>Low Water:</strong> With buzzer sounding</li>
-                    <li><strong>Battery Light:</strong> With belt failure</li>
-                    <li><strong>Door Issues:</strong> Cannot close/retain</li>
-                    <li><strong>Amber ABS Light:</strong> After reset attempt</li>
-                </ul>
-                
-                <h3>Emergency Contacts</h3>
-                <ul>
-                    <li>Engineering: 0191 XXX XXXX</li>
-                    <li>Depot Control: 0191 XXX XXXX</li>
-                    <li>Out of Hours: 0191 XXX XXXX</li>
-                </ul>
-            `;
-        }
-    }
-}
-
-function showEmergencyStops() {
-    if (elements.emergencyModal) {
-        elements.emergencyModal.style.display = 'block';
-    }
-}
-
-function showRecentLogs() {
-    alert('Recent logs feature coming soon');
-}
-
-function showHelp() {
-    alert('Help documentation coming soon');
-}
-
-function closeModal(modalId) {
+function hideModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
     }
 }
 
-// ========================================
-// State Management
-// ========================================
-function saveState() {
-    try {
-        localStorage.setItem(STORAGE_PREFIX + 'appState', JSON.stringify(appState));
-    } catch (e) {
-        console.error('Failed to save state:', e);
-    }
-}
-
-function loadSavedState() {
-    try {
-        const saved = localStorage.getItem(STORAGE_PREFIX + 'appState');
-        if (saved) {
-            const savedState = JSON.parse(saved);
-            Object.assign(appState, savedState);
-        }
-    } catch (e) {
-        console.error('Failed to load saved state:', e);
-    }
-}
-
-// ========================================
-// Error Handling
-// ========================================
 function showError(message) {
-    alert('Error: ' + message);
+    console.error('Error:', message);
+    alert('Error: ' + message); // Simple error display - could be enhanced
 }
 
-// ========================================
-// Loading State
-// ========================================
-function showLoading() {
-    if (elements.loadingOverlay) {
-        elements.loadingOverlay.style.display = 'flex';
+function loadUserPreferences() {
+    // Load user preferences from localStorage if needed
+    try {
+        const prefs = localStorage.getItem(STORAGE_PREFIX + 'preferences');
+        if (prefs) {
+            const preferences = JSON.parse(prefs);
+            // Apply preferences
+        }
+    } catch (error) {
+        console.warn('Could not load user preferences:', error);
     }
 }
 
-function hideLoading() {
-    if (elements.loadingOverlay) {
-        elements.loadingOverlay.style.display = 'none';
-    }
-}
+// ========================================
+// Global Functions (for compatibility)
+// ========================================
+window.startDiagnostic = startDiagnostic;
+window.showScreen = showScreen;
+window.populateCategories = populateCategories;
+window.appState = appState;
 
-// Export for testing
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        appState,
-        startDiagnostic,
-        showScreen
-    };
-}
+console.log('📋 App.js v3.0 loaded - Rapid Decision System ready');
