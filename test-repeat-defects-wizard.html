@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RepeatDefectsWizard Test</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .space-y-6 > * + * { margin-top: 1.5rem; }
+        .space-y-4 > * + * { margin-top: 1rem; }
+        .space-y-3 > * + * { margin-top: 0.75rem; }
+        .space-y-2 > * + * { margin-top: 0.5rem; }
+        .space-x-4 > * + * { margin-left: 1rem; }
+        .space-x-2 > * + * { margin-left: 0.5rem; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        // Mock Lucide React icons
+        const AlertTriangle = ({ className }) => <span className={className}>⚠️</span>;
+        const FileText = ({ className }) => <span className={className}>📄</span>;
+        const CheckCircle = ({ className }) => <span className={className}>✓</span>;
+        const ArrowRight = ({ className }) => <span className={className}>→</span>;
+        const ArrowLeft = ({ className }) => <span className={className}>←</span>;
+        const AlertCircle = ({ className }) => <span className={className}>⚠</span>;
+
+        const RepeatDefectsTest = () => {
+            const [currentStep, setCurrentStep] = React.useState(1);
+            const [responses, setResponses] = React.useState({});
+
+            const updateResponse = (key, value) => {
+                setResponses(prev => ({ ...prev, [key]: value }));
+            };
+
+            const onNext = () => setCurrentStep(prev => Math.min(4, prev + 1));
+            const onPrevious = () => setCurrentStep(prev => Math.max(1, prev - 1));
+            const onComplete = (data) => {
+                alert('Wizard completed! Check console for data.');
+                console.log('Completed with data:', data);
+            };
+
+            const Step1 = () => (
+                <div className="space-y-6">
+                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-500 rounded-r-lg p-6">
+                        <div className="flex items-center mb-4">
+                            <AlertTriangle className="w-6 h-6 text-amber-600 mr-3" />
+                            <h3 className="text-lg font-semibold text-amber-800">Repeat Defects Assessment</h3>
+                        </div>
+                        <p className="text-amber-700">
+                            Repeat defects indicate potential systematic issues that require immediate escalation.
+                        </p>
+                    </div>
+
+                    <div className="bg-white rounded-lg shadow-md p-6">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                            What type of repeat defect are you dealing with?
+                        </h4>
+                        <div className="space-y-3">
+                            <label className="flex items-center p-4 bg-white rounded-lg border-2 border-gray-200 hover:border-amber-300 cursor-pointer transition-all">
+                                <input
+                                    type="radio"
+                                    name="defectType"
+                                    value="same-day"
+                                    checked={responses.defectType === 'same-day'}
+                                    onChange={(e) => updateResponse('defectType', e.target.value)}
+                                    className="w-4 h-4 text-amber-600 border-gray-300 focus:ring-amber-500"
+                                />
+                                <div className="ml-3">
+                                    <div className="text-gray-900 font-medium">Same-Day Repeat Defect</div>
+                                    <div className="text-sm text-gray-600">
+                                        Bus taken out of service due to defects, then later reallocated with same unresolved defects
+                                    </div>
+                                </div>
+                            </label>
+                            <label className="flex items-center p-4 bg-white rounded-lg border-2 border-gray-200 hover:border-amber-300 cursor-pointer transition-all">
+                                <input
+                                    type="radio"
+                                    name="defectType"
+                                    value="multi-day"
+                                    checked={responses.defectType === 'multi-day'}
+                                    onChange={(e) => updateResponse('defectType', e.target.value)}
+                                    className="w-4 h-4 text-amber-600 border-gray-300 focus:ring-amber-500"
+                                />
+                                <div className="ml-3">
+                                    <div className="text-gray-900 font-medium">Multi-Day Repeat Defect</div>
+                                    <div className="text-sm text-gray-600">
+                                        Bus continues to operate over several days with same unresolved reported defects
+                                    </div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            const canProceed = () => {
+                switch (currentStep) {
+                    case 1: return responses.defectType;
+                    default: return true;
+                }
+            };
+
+            const handleComplete = () => {
+                onComplete({
+                    wizard: 'repeat-defects',
+                    responses,
+                    timestamp: new Date().toISOString(),
+                    priority: 'warning'
+                });
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-50 p-8">
+                    <div className="max-w-4xl mx-auto">
+                        <div className="bg-white rounded-lg shadow-lg p-8">
+                            <div className="flex items-center mb-6">
+                                <AlertTriangle className="w-8 h-8 text-amber-600 mr-3" />
+                                <h1 className="text-2xl font-bold text-gray-900">Repeat Defects Wizard Test</h1>
+                            </div>
+                            
+                            <div className="mb-6">
+                                <div className="text-sm text-gray-500 mb-2">Step {currentStep} of 4</div>
+                                <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                    <div 
+                                        className="bg-amber-600 h-2.5 rounded-full transition-all duration-300" 
+                                        style={{width: `${(currentStep / 4) * 100}%`}}
+                                    />
+                                </div>
+                            </div>
+
+                            {currentStep === 1 && <Step1 />}
+                            {currentStep > 1 && (
+                                <div className="text-center py-12">
+                                    <h3 className="text-xl font-semibold text-gray-900 mb-4">
+                                        Step {currentStep} - Coming Soon
+                                    </h3>
+                                    <p className="text-gray-600">This step would contain more detailed forms.</p>
+                                </div>
+                            )}
+
+                            <div className="flex justify-between items-center mt-8">
+                                <button
+                                    onClick={onPrevious}
+                                    disabled={currentStep === 1}
+                                    className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all ${
+                                        currentStep === 1
+                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                >
+                                    <ArrowLeft />
+                                    <span>Previous</span>
+                                </button>
+
+                                {currentStep < 4 ? (
+                                    <button
+                                        onClick={onNext}
+                                        disabled={!canProceed()}
+                                        className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all ${
+                                            canProceed()
+                                                ? 'bg-amber-600 text-white hover:bg-amber-700'
+                                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        }`}
+                                    >
+                                        <span>Next</span>
+                                        <ArrowRight />
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={handleComplete}
+                                        className="flex items-center space-x-2 px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700"
+                                    >
+                                        <CheckCircle />
+                                        <span>Complete Assessment</span>
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<RepeatDefectsTest />, document.getElementById('root'));
+    </script>
+</body>
+</html>

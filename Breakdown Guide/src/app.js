@@ -317,6 +317,7 @@ function getFlowDescription(flow) {
         'interior-lights': 'Interior lighting system problems',
         'exterior-lights': 'External lighting system issues',
         'wipers-screenwash': 'Windscreen wiper and washer problems',
+        'demisters-heaters': 'Demister and heating system operation issues',
         'wing-mirrors': 'Wing mirror damage assessment',
         'vehicle-damage': 'Interior/exterior damage evaluation',
         'speedo-not-working': 'Speedometer malfunction procedures',

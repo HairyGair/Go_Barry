@@ -28,6 +28,66 @@ const diagnosticFlows = {
                     { text: '✅ NO - Brakes working normally', nextStep: 2, severity: 'continue' }
                 ]
             },
+
+    'repeat-defects': {
+        id: 'repeat-defects', title: 'Repeat Defects', category: 'high_priority', priority: 2,
+        estimatedTime: '90-120 seconds', severity: 'warning', icon: '🔄', color: '#f59e0b',
+        sdcReference: 'SDC Guide Section 24: Repeat Defects',
+        steps: [
+            {
+                type: 'question', title: 'What type of repeat defect?',
+                subtitle: 'Quality control and engineering escalation',
+                content: 'Identify the nature of the repeat defect situation:',
+                options: [
+                    { text: '🚨 Same-day repeat - Bus reallocated with same unresolved defects', nextStep: 1, severity: 'critical' },
+                    { text: '📅 Multi-day repeat - Same defects over several days', nextStep: 2, severity: 'warning' }
+                ]
+            },
+            {
+                type: 'action', title: '🚨 SAME-DAY REPEAT DEFECT PROTOCOL',
+                subtitle: 'IMMEDIATE ESCALATION REQUIRED',
+                instructions: [
+                    'Report IMMEDIATELY to Engineering Delivery Director',
+                    'Send copies to General Manager and Engineering Manager',
+                    'Document in Go-Check with photos if appropriate',
+                    'Vehicle MUST NOT return to service until defect resolved',
+                    'Investigate why defect was not addressed before reallocation'
+                ],
+                nextStep: 3
+            },
+            {
+                type: 'action', title: '📅 MULTI-DAY REPEAT DEFECT PROTOCOL',
+                subtitle: 'IMMEDIATE ESCALATION REQUIRED',
+                instructions: [
+                    'Report IMMEDIATELY to Engineering Delivery Director',
+                    'Send copies to General Manager and Engineering Manager',
+                    'Maintain accurate records of all reported defects',
+                    'Prioritize addressing defects that compromise safety',
+                    'Prevent service reliability issues through proper escalation'
+                ],
+                nextStep: 3
+            },
+            {
+                type: 'final', title: '🔄 REPEAT DEFECT ESCALATION COMPLETE',
+                subtitle: 'Engineering management notified',
+                content: 'Required actions completed for repeat defect situation',
+                result: 'Immediate escalation to Engineering Delivery Director completed',
+                severity: 'warning',
+                actions: [
+                    'Document all defect details in Go-Check system',
+                    'Follow up with engineering team for resolution timeline',
+                    'Monitor for further repeat occurrences',
+                    'Ensure safety-critical defects receive priority attention'
+                ],
+                contacts: [
+                    'Engineering Delivery Director - IMMEDIATE',
+                    'General Manager - Copy required',
+                    'Engineering Manager - Copy required'
+                ],
+                notes: 'Safety is non-negotiable - timely escalation prevents service disruption and ensures vehicle roadworthiness'
+            }
+        ]
+    },
             {
                 type: 'final', title: '🛑 STOP IMMEDIATELY', subtitle: 'Critical brake system failure',
                 content: 'VEHICLE MUST STOP - Brake system failure detected',

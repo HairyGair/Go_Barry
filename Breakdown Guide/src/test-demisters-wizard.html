@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demisters/Heaters Wizard Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        .test-button:hover {
+            background: #2563eb;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .wizard-preview {
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            background: #f9fafb;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🌡️ Demisters/Heaters Wizard Test</h1>
+        
+        <div id="status" class="status">Loading...</div>
+        
+        <h2>Test Wizard Integration</h2>
+        <button class="test-button" onclick="testDemistersWizard()">Test Demisters/Heaters Wizard</button>
+        <button class="test-button" onclick="checkModularSystem()">Check Modular System</button>
+        <button class="test-button" onclick="listAvailableFlows()">List Available Flows</button>
+        
+        <div id="wizard-preview" class="wizard-preview"></div>
+        
+        <h2>Manual Wizard Start</h2>
+        <button class="test-button" onclick="startDiagnostic('demisters-heaters')">🚀 Start Demisters/Heaters Wizard</button>
+        
+        <h2>Flow Details</h2>
+        <div id="flow-details"></div>
+    </div>
+    
+    <!-- Load the modular system -->
+    <script src="../modules/module-loader.js"></script>
+    <script src="../modules/module-integration.js"></script>
+    <script src="../rapid-wizard-engine.js"></script>
+    
+    <script>
+        let moduleIntegration;
+        
+        async function initializeTest() {
+            const statusDiv = document.getElementById('status');
+            
+            try {
+                statusDiv.textContent = 'Initializing modular system...';
+                
+                // Wait for modular system to load
+                if (window.moduleIntegration) {
+                    await window.moduleIntegration.initialize();
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = '✅ Modular system initialized successfully!';
+                    
+                    // Show available flows
+                    listAvailableFlows();
+                    showFlowDetails();
+                } else {
+                    throw new Error('Module integration not available');
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `❌ Error: ${error.message}`;
+                console.error('Test initialization failed:', error);
+            }
+        }
+        
+        function testDemistersWizard() {
+            const previewDiv = document.getElementById('wizard-preview');
+            
+            if (!window.diagnosticFlows || !window.diagnosticFlows['demisters-heaters']) {
+                previewDiv.innerHTML = `
+                    <h3>❌ Test Failed</h3>
+                    <p>Demisters/Heaters flow not found in diagnostic flows.</p>
+                    <p>Available flows: ${window.diagnosticFlows ? Object.keys(window.diagnosticFlows).join(', ') : 'None'}</p>
+                `;
+                return;
+            }
+            
+            const flow = window.diagnosticFlows['demisters-heaters'];
+            previewDiv.innerHTML = `
+                <h3>✅ Test Passed</h3>
+                <p><strong>Flow Found:</strong> ${flow.title}</p>
+                <p><strong>Category:</strong> ${flow.category}</p>
+                <p><strong>Priority:</strong> ${flow.priority}</p>
+                <p><strong>Estimated Time:</strong> ${flow.estimatedTime}</p>
+                <p><strong>Steps:</strong> ${flow.steps.length}</p>
+                <p><strong>Icon:</strong> ${flow.icon}</p>
+            `;
+        }
+        
+        function checkModularSystem() {
+            const previewDiv = document.getElementById('wizard-preview');
+            
+            if (window.moduleIntegration) {
+                const stats = window.moduleIntegration.getStats();
+                previewDiv.innerHTML = `
+                    <h3>📊 Modular System Stats</h3>
+                    <pre>${JSON.stringify(stats, null, 2)}</pre>
+                `;
+            } else {
+                previewDiv.innerHTML = `
+                    <h3>❌ Modular System Not Available</h3>
+                    <p>Module integration not loaded.</p>
+                `;
+            }
+        }
+        
+        function listAvailableFlows() {
+            const previewDiv = document.getElementById('wizard-preview');
+            
+            if (window.diagnosticFlows) {
+                const flows = Object.keys(window.diagnosticFlows);
+                const demistersExists = flows.includes('demisters-heaters');
+                
+                previewDiv.innerHTML = `
+                    <h3>📋 Available Diagnostic Flows (${flows.length})</h3>
+                    <p><strong>Demisters/Heaters:</strong> ${demistersExists ? '✅ Available' : '❌ Missing'}</p>
+                    <details>
+                        <summary>All Flows</summary>
+                        <ul>
+                            ${flows.map(flow => `<li>${flow} ${flow === 'demisters-heaters' ? '🌡️' : ''}</li>`).join('')}
+                        </ul>
+                    </details>
+                `;
+            } else {
+                previewDiv.innerHTML = `
+                    <h3>❌ No Diagnostic Flows</h3>
+                    <p>Window.diagnosticFlows is not available.</p>
+                `;
+            }
+        }
+        
+        function showFlowDetails() {
+            const detailsDiv = document.getElementById('flow-details');
+            
+            if (window.diagnosticFlows && window.diagnosticFlows['demisters-heaters']) {
+                const flow = window.diagnosticFlows['demisters-heaters'];
+                detailsDiv.innerHTML = `
+                    <h3>${flow.icon} ${flow.title}</h3>
+                    <p><strong>SDC Reference:</strong> ${flow.sdcReference}</p>
+                    <p><strong>Color:</strong> <span style="color: ${flow.color}">${flow.color}</span></p>
+                    <h4>Steps:</h4>
+                    <ol>
+                        ${flow.steps.map(step => `
+                            <li>
+                                <strong>${step.type}:</strong> ${step.title}
+                                ${step.subtitle ? `<br><em>${step.subtitle}</em>` : ''}
+                            </li>
+                        `).join('')}
+                    </ol>
+                `;
+            } else {
+                detailsDiv.innerHTML = '<p>❌ Flow details not available</p>';
+            }
+        }
+        
+        // Placeholder function for starting diagnostic (in case rapid wizard isn't loaded)
+        function startDiagnostic(flowId) {
+            if (window.rapidWizard) {
+                window.rapidWizard.startDiagnostic(flowId);
+            } else if (window.startDiagnostic) {
+                window.startDiagnostic(flowId);
+            } else {
+                alert('Wizard engine not available. This would normally start the ' + flowId + ' wizard.');
+            }
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('DOMContentLoaded', initializeTest);
+    </script>
+</body>
+</html>

@@ -63,7 +63,7 @@
                         <button class="action-card primary" id="startDiagnosisBtn">
                             <span class="card-icon">🔧</span>
                             <h3 class="card-title">Start Diagnosis</h3>
-                            <p class="card-description">Quick 30-180 second decisions</p>
+                            <p class="card-description">Quick 30-60 second decisions</p>
                         </button>
 
                         <button class="action-card" id="searchIssuesBtn">
@@ -202,27 +202,6 @@
                     <li><strong>Red ABS Light:</strong> If persists after reset</li>
                 </ul>
                 
-                <h3>High Priority Issues (Changeover Required)</h3>
-                <ul>
-                    <li><strong>Overheating:</strong> Temperature-based assessment</li>
-                    <li><strong>Battery Warning:</strong> Belt inspection required</li>
-                    <li><strong>Doors:</strong> Safety vs operational assessment</li>
-                    <li><strong>Non-Starter:</strong> Reset and rear start procedures</li>
-                    <li><strong>Low Water:</strong> Leak assessment and buzzer check</li>
-                </ul>
-
-                <h3>Standard Issues (Arrange Changeover)</h3>
-                <ul>
-                    <li><strong>Interior Lights:</strong> 50% rule + step light</li>
-                    <li><strong>Exterior Lights:</strong> Legal compliance check</li>
-                    <li><strong>Wipers/Screen Wash:</strong> Vision safety assessment</li>
-                    <li><strong>Wing Mirrors:</strong> Side-specific assessment</li>
-                    <li><strong>Vehicle Damage:</strong> Safety risk evaluation</li>
-                    <li><strong>Speedometer:</strong> Tachograph validation</li>
-                    <li><strong>Suspension:</strong> Warning lights + ride quality</li>
-                    <li><strong>Various Buzzers:</strong> Identification process</li>
-                </ul>
-                
                 <h3>Contact Extensions</h3>
                 <ul>
                     <li>Consett: 9286, 9287</li>
@@ -233,9 +212,8 @@
                 </ul>
 
                 <h3>System Info</h3>
-                <p><strong>Target Time:</strong> 30-180 seconds per issue</p>
-                <p><strong>Total Flows:</strong> 18 comprehensive diagnostic flows</p>
-                <p><strong>Documentation:</strong> All actions logged in Go-Check</p>
+                <p><strong>Target Time:</strong> 30-90 seconds per critical issue</p>
+                <p><strong>Documentation:</strong> All actions logged in Tranzaura (Go-Check)</p>
             </div>
         </div>
     </div>
@@ -286,22 +264,31 @@
     </div>
 
     <!-- Scripts -->
-    <!-- PHASE 5: Load the complete diagnostic flows system -->
-    <script src="data/diagnostic-flows.js?v=3.1"></script>
+    <!-- PHASE 1: Load ONLY the new rapid decision flows -->
+    <script src="data/diagnostic-flows.js?v=3.0"></script>
     
-    <!-- Rapid Wizard Engine -->
-    <script src="rapid-wizard-engine.js?v=3.1"></script>
+    <!-- MODULAR SYSTEM - Load modules for better maintainability -->
+    <script src="modules/module-loader.js?v=1.0"></script>
+    <script src="modules/module-integration.js?v=1.0"></script>
     
-    <!-- Main application -->
-    <script src="app.js?v=3.1"></script>
+    <!-- Rapid Wizard Engine (new) -->
+    <script src="rapid-wizard-engine.js?v=3.0"></script>
     
-    <!-- Initialize complete system -->
+    <!-- Main application (updated for rapid flows) -->
+    <script src="app.js?v=3.0"></script>
+    
+    <!-- Initialize rapid system -->
     <script>
-        // Initialize complete system on load
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('🎆 Rapid Decision System v3.0 - Phase 5 Complete Loaded!');
-            console.log('📊 Total flows available:', window.diagnosticFlows ? Object.keys(window.diagnosticFlows).length : 0);
-            console.log('⚡ System ready for full operation');
+        // Initialize rapid system on load
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('🎆 Rapid Decision System v3.0 - Phase 5 Complete + Modular System Loaded!');
+            
+            // Wait for modular system to initialize
+            if (window.moduleIntegration) {
+                console.log('⏳ Waiting for modular system initialization...');
+                await window.moduleIntegration.initialize();
+                console.log('✅ Modular system ready!');
+            }
             
             // Override wizard back button to return to categories
             const wizardBackBtn = document.getElementById('wizardBackBtn');
@@ -314,14 +301,17 @@
             
             // Log system status
             if (window.systemMetadata) {
-                console.log('System Metadata:', window.systemMetadata);
-                console.log('🔥 Critical flows:', window.systemMetadata.flowsByCategory?.safety_critical);
-                console.log('⚡ High priority flows:', window.systemMetadata.flowsByCategory?.high_priority);
-                console.log('✅ Standard flows:', window.systemMetadata.flowsByCategory?.standard);
+                console.log('System Info:', window.systemMetadata);
             }
             
             if (window.diagnosticFlows) {
-                console.log('All available flows:', Object.keys(window.diagnosticFlows));
+                console.log('Available flows:', Object.keys(window.diagnosticFlows));
+                console.log('📊 Total diagnostic flows loaded:', Object.keys(window.diagnosticFlows).length);
+            }
+            
+            // Log modular system stats
+            if (window.moduleIntegration) {
+                console.log('📊 Modular system stats:', window.moduleIntegration.getStats());
             }
         });
     </script>

@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go North East - Breakdown Guide App</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+        .safety-alert { animation: safety-pulse 1s ease-in-out infinite alternate; }
+        @keyframes safety-pulse { from { box-shadow: 0 0 10px rgba(220, 38, 38, 0.5); } to { box-shadow: 0 0 20px rgba(220, 38, 38, 0.8); } }
+        @media print { .no-print { display: none !important; } body { font-size: 12pt; } }
+    </style>
+</head>
+<body class="bg-gray-900">
+    <div id="root"></div>
+    <div id="loading" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
+        <div class="text-center">
+            <div class="text-4xl font-bold mb-4">
+                <span class="text-blue-400">Go</span><span class="text-red-400">NorthEast</span>
+            </div>
+            <div class="text-gray-300 mb-4">Loading Breakdown Guide...</div>
+            <div class="animate-pulse w-8 h-8 bg-blue-500 rounded mx-auto"></div>
+        </div>
+    </div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        // Icon components
+        const AlertTriangle = ({ className = "w-4 h-4", ...props }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 18.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+        );
+        const ArrowLeft = ({ className = "w-4 h-4", ...props }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+        );
+        const ArrowRight = ({ className = "w-4 h-4", ...props }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+        );
+        const Home = ({ className = "w-4 h-4", ...props }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+        );
+        const CheckCircle = ({ className = "w-4 h-4", ...props }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        );
+        const XCircle = ({ className = "w-4 h-4", ...props }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+        );
+        const FileText = ({ className = "w-4 h-4", ...props }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+        );
+        const Shield = ({ className = "w-4 h-4", ...props }) => (
+            <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" {...props}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.618 5.984A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+        );
+
+        // SteeringWizard Component
+        const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
+            switch (currentStep) {
+                case 1:
+                    return (
+                        <div className="bg-gray-800 rounded-lg shadow-sm p-6">
+                            <div className="space-y-6">
+                                <div className="text-center">
+                                    <div className="mx-auto w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4">
+                                        <Shield className="w-8 h-8 text-red-400" />
+                                    </div>
+                                    <h2 className="text-2xl font-bold text-white mb-2">🚗 Steering System Safety Assessment</h2>
+                                    <p className="text-gray-300">Critical safety evaluation following SDC Engineering Issues Guide - ensuring steering system control and directional stability.</p>
+                                </div>
+                                
+                                <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
+                                    <h3 className="text-lg font-semibold text-red-200 mb-4">⚠️ SAFETY-CRITICAL CONTROL SYSTEM</h3>
+                                    <p className="text-red-300/80 text-sm leading-relaxed mb-4">
+                                        Steering system defects pose immediate danger to vehicle control and directional stability. Any compromise requires immediate action.
+                                    </p>
+                                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+                                        <h4 className="font-semibold text-red-200 mb-2">SDC Critical Limit: Maximum 75mm play at steering wheel rim</h4>
+                                        <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
+                                            <li>DVSA expects no more than 75mm play for power steering vehicles</li>
+                                            <li>Any steering system failure requires immediate vehicle shutdown</li>
+                                            <li>Await engineering attendance - no exceptions</li>
+                                            <li>Document everything for safety compliance</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div className="bg-gray-700/50 backdrop-blur-sm rounded-lg p-6 border border-gray-600">
+                                    <h3 className="text-lg font-semibold text-white mb-4">Initial Steering System Assessment</h3>
+                                    <p className="text-gray-300 text-sm mb-4">What is the current steering system condition that requires assessment?</p>
+                                    <div className="space-y-3">
+                                        {[
+                                            { id: 'excessive_play', icon: '🎯', title: 'Excessive steering wheel play', desc: 'Steering wheel movement before wheels respond' },
+                                            { id: 'difficulty_steering', icon: '💪', title: 'Difficulty steering or maintaining control', desc: 'Heavy steering, hard to turn, or control issues' },
+                                            { id: 'unusual_noises', icon: '🔊', title: 'Unusual steering noises', desc: 'Knocking, grinding, or squealing when steering' },
+                                            { id: 'vehicle_pulling', icon: '↗️', title: 'Vehicle pulling to one side', desc: 'Vehicle drifts left or right during operation' },
+                                            { id: 'visible_damage', icon: '🔧', title: 'Visible damage to steering system', desc: 'Steering column, linkage, or component damage' },
+                                            { id: 'power_steering_issues', icon: '⚡', title: 'Power steering system problems', desc: 'Power assistance failure or fluid leaks' },
+                                            { id: 'warning_light', icon: '🚨', title: 'Steering warning light illuminated', desc: 'Dashboard warning related to steering system' }
+                                        ].map((option) => (
+                                            <button
+                                                key={option.id}
+                                                onClick={() => updateResponse('initial_concern', option.id)}
+                                                className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+                                                    responses.initial_concern === option.id
+                                                        ? 'border-red-400 bg-red-400/20 text-red-200'
+                                                        : 'border-gray-600 bg-gray-700/50 text-white hover:border-red-400/50'
+                                                }`}
+                                            >
+                                                <div className="flex items-center space-x-3">
+                                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                                        responses.initial_concern === option.id ? 'border-red-400 bg-red-400' : 'border-gray-500'
+                                                    }`}>
+                                                        {responses.initial_concern === option.id && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-medium">{option.icon} {option.title}</span>
+                                                        <p className="text-sm text-gray-300 mt-1">{option.desc}</p>
+                                                    </div>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                
+                                {/* Critical Safety Warnings */}
+                                {(['excessive_play', 'difficulty_steering', 'visible_damage'].includes(responses.initial_concern)) && (
+                                    <div className="border-2 border-red-500 bg-red-900/30 rounded-lg p-6">
+                                        <div className="flex items-start">
+                                            <AlertTriangle className="w-8 h-8 text-red-400 mt-1 mr-4" />
+                                            <div className="flex-1">
+                                                <h3 className="text-xl font-bold text-red-300 mb-3">🚨 CRITICAL STEERING SAFETY WARNING</h3>
+                                                <div className="text-red-200 space-y-2">
+                                                    <p className="font-semibold">This condition triggers immediate SDC safety protocol</p>
+                                                    <div className="bg-gray-800 rounded p-4 mt-4">
+                                                        <h4 className="font-semibold text-red-300 mb-2">Mandatory Actions per SDC:</h4>
+                                                        <ul className="list-disc list-inside space-y-1 text-red-200">
+                                                            <li>Switch off vehicle immediately</li>
+                                                            <li>Await engineering attendance</li>
+                                                            <li>Do not attempt to continue service</li>
+                                                            <li>Steering failure poses immediate danger to public safety</li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                <div className="flex justify-end">
+                                    <button
+                                        onClick={onNext}
+                                        disabled={!responses.initial_concern}
+                                        className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        Continue Assessment
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+
+                case 2:
+                    return (
+                        <div className="bg-gray-800 rounded-lg shadow-sm p-6">
+                            <div className="mb-6">
+                                <h2 className="text-xl font-semibold text-white mb-2">🔍 Detailed Steering System Evaluation</h2>
+                                <p className="text-gray-300">Comprehensive assessment following SDC critical safety criteria - including DVSA 75mm play limit.</p>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4">
+                                    <h3 className="font-semibold text-blue-200 mb-3">Steering Play Assessment</h3>
+                                    <p className="text-blue-300 text-sm mb-4">Evaluate steering wheel movement before wheels respond (DVSA limit: 75mm for power steering).</p>
+                                    <div className="space-y-3">
+                                        <label className="flex items-start p-4 border border-gray-600 rounded-lg hover:bg-gray-700 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="steering_play"
+                                                checked={responses.steering_play === 'minimal_play'}
+                                                onChange={() => updateResponse('steering_play', 'minimal_play')}
+                                                className="mt-1 mr-3 h-4 w-4 text-green-400"
+                                            />
+                                            <div>
+                                                <span className="font-medium text-green-400">✅ Minimal play (&lt; 75mm)</span>
+                                                <p className="text-sm text-gray-300 mt-1">Steering wheel play within DVSA acceptable limits</p>
+                                            </div>
+                                        </label>
+                                        <label className="flex items-start p-4 border border-gray-600 rounded-lg hover:bg-gray-700 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="steering_play"
+                                                checked={responses.steering_play === 'excessive_play'}
+                                                onChange={() => updateResponse('steering_play', 'excessive_play')}
+                                                className="mt-1 mr-3 h-4 w-4 text-red-400"
+                                            />
+                                            <div>
+                                                <span className="font-medium text-red-400">🚨 CRITICAL: Excessive play (&gt; 75mm)</span>
+                                                <p className="text-sm text-gray-300 mt-1">Steering play exceeds DVSA safety limits</p>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="flex justify-between pt-6 border-t border-gray-600">
+                                <button
+                                    onClick={onPrevious}
+                                    className="flex items-center px-6 py-2 text-gray-300 hover:text-white"
+                                >
+                                    <ArrowLeft className="w-4 h-4 mr-2" />Previous Step
+                                </button>
+                                <button
+                                    onClick={onNext}
+                                    className="flex items-center px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                                >
+                                    Safety Decision <ArrowRight className="w-4 h-4 ml-2" />
+                                </button>
+                            </div>
+                        </div>
+                    );
+
+                case 3:
+                    return (
+                        <div className="bg-gray-800 rounded-lg shadow-sm p-6">
+                            <div className="mb-6">
+                                <h2 className="text-xl font-semibold text-white mb-2">⚖️ Safety Decision & Action Plan</h2>
+                                <p className="text-gray-300">Determine safety-critical actions based on steering system assessment findings.</p>
+                            </div>
+                            
+                            <div className="space-y-6">
+                                {(responses.steering_play === 'excessive_play' || responses.initial_concern === 'difficulty_steering') ? (
+                                    <div className="border-2 border-red-500 bg-red-900/30 rounded-lg p-6">
+                                        <div className="flex items-start">
+                                            <XCircle className="w-8 h-8 text-red-400 mt-1 mr-4" />
+                                            <div className="flex-1">
+                                                <h3 className="text-xl font-bold text-red-300 mb-3">🛑 IMMEDIATE STOP REQUIRED</h3>
+                                                <div className="text-red-200 space-y-2">
+                                                    <p className="font-semibold">Critical steering defect identified - vehicle must not continue</p>
+                                                    <div className="bg-gray-800 rounded p-4 mt-4">
+                                                        <h4 className="font-semibold text-red-300 mb-2">Required Actions:</h4>
+                                                        <ul className="list-disc list-inside space-y-1 text-red-200">
+                                                            <li>Switch off vehicle immediately</li>
+                                                            <li>Await engineering attendance</li>
+                                                            <li>Record defects in Go-Check system</li>
+                                                            <li>Report to depot management</li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="border-2 border-green-500 bg-green-900/30 rounded-lg p-6">
+                                        <div className="flex items-start">
+                                            <CheckCircle className="w-8 h-8 text-green-400 mt-1 mr-4" />
+                                            <div className="flex-1">
+                                                <h3 className="text-xl font-bold text-green-300 mb-3">✅ Continue with Monitoring</h3>
+                                                <div className="text-green-200 space-y-2">
+                                                    <p className="font-semibold">No immediate safety concerns identified</p>
+                                                    <div className="bg-gray-800 rounded p-4 mt-4">
+                                                        <h4 className="font-semibold text-green-300 mb-2">Recommended Actions:</h4>
+                                                        <ul className="list-disc list-inside space-y-1 text-green-200">
+                                                            <li>Continue to convenient changeover point</li>
+                                                            <li>Monitor steering performance closely</li>
+                                                            <li>Record any changes in Go-Check</li>
+                                                            <li>Report persistent issues</li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            <div className="flex justify-between pt-6 border-t border-gray-600">
+                                <button
+                                    onClick={onPrevious}
+                                    className="flex items-center px-6 py-2 text-gray-300 hover:text-white"
+                                >
+                                    <ArrowLeft className="w-4 h-4 mr-2" />Previous Step
+                                </button>
+                                <button
+                                    onClick={onNext}
+                                    className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                >
+                                    Final Report <ArrowRight className="w-4 h-4 ml-2" />
+                                </button>
+                            </div>
+                        </div>
+                    );
+
+                case 4:
+                    return (
+                        <div className="bg-gray-800 rounded-lg shadow-sm p-6">
+                            <div className="mb-6">
+                                <h2 className="text-xl font-semibold text-white mb-2">📋 Steering System Safety Assessment Report</h2>
+                                <p className="text-gray-300">Complete safety-critical steering system assessment with SDC-compliant actions.</p>
+                            </div>
+                            
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">Driver Name/Number</label>
+                                    <input
+                                        type="text" 
+                                        value={responses.driver_info || ''} 
+                                        onChange={(e) => updateResponse('driver_info', e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-600 bg-gray-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder="Enter driver name or number"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">Vehicle Fleet Number</label>
+                                    <input
+                                        type="text" 
+                                        value={responses.vehicle_number || ''} 
+                                        onChange={(e) => updateResponse('vehicle_number', e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-600 bg-gray-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder="Enter vehicle fleet number"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-300 mb-2">Steering Assessment Summary</label>
+                                    <textarea
+                                        value={responses.assessment_summary || ''} 
+                                        onChange={(e) => updateResponse('assessment_summary', e.target.value)} 
+                                        rows={4}
+                                        className="w-full px-3 py-2 border border-gray-600 bg-gray-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder="Summary of steering system assessment and decision made..."
+                                    />
+                                </div>
+                                <div className="bg-blue-900/30 border border-blue-600 rounded-lg p-4">
+                                    <label className="flex items-start">
+                                        <input
+                                            type="checkbox" 
+                                            checked={responses.go_check_confirmed || false}
+                                            onChange={(e) => updateResponse('go_check_confirmed', e.target.checked)}
+                                            className="mt-1 mr-3 h-4 w-4 text-blue-400"
+                                        />
+                                        <div>
+                                            <div className="font-medium text-blue-200">Go-Check Entry Confirmed</div>
+                                            <div className="text-blue-300 text-sm mt-1">
+                                                I confirm that steering defects have been recorded in the Go-Check system when the bus was stationary and in a safe location.
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div className="flex justify-between pt-6 border-t border-gray-600">
+                                <button
+                                    onClick={onPrevious}
+                                    className="flex items-center px-6 py-2 text-gray-300 hover:text-white"
+                                >
+                                    <ArrowLeft className="w-4 h-4 mr-2" />Previous Step
+                                </button>
+                                <button
+                                    onClick={onComplete}
+                                    disabled={!responses.driver_info || !responses.vehicle_number || !responses.go_check_confirmed}
+                                    className="flex items-center px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed"
+                                >
+                                    <CheckCircle className="w-4 h-4 mr-2" />Complete Assessment
+                                </button>
+                            </div>
+                        </div>
+                    );
+
+                default:
+                    return <div className="text-white">Invalid step</div>;
+            }
+        };
+
+        // Main App Component
+        const BreakdownGuideApp = () => {
+            const [currentScreen, setCurrentScreen] = useState('home');
+            const [selectedCategory, setSelectedCategory] = useState(null);
+            const [sessionData, setSessionData] = useState({});
+
+            useEffect(() => {
+                const saved = localStorage.getItem('breakdown-guide-session');
+                if (saved) {
+                    try { setSessionData(JSON.parse(saved)); } catch (e) { console.error('Failed to load session data'); }
+                }
+                document.getElementById('loading').style.display = 'none';
+            }, []);
+
+            const saveSession = (data) => {
+                const newData = { ...sessionData, ...data };
+                setSessionData(newData);
+                localStorage.setItem('breakdown-guide-session', JSON.stringify(newData));
+            };
+
+            const goHome = () => { setCurrentScreen('home'); setSelectedCategory(null); };
+            
+            const startDiagnosis = (category) => {
+                setSelectedCategory(category);
+                setCurrentScreen('wizard');
+                saveSession({ currentCategory: category, startTime: new Date().toISOString(), sessionId: Date.now() });
+            };
+
+            return (
+                <div className="min-h-screen bg-gray-900">
+                    <header className="bg-gray-800 shadow-sm border-b-4 border-red-600">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex justify-between items-center h-16">
+                                <div className="flex items-center">
+                                    <div className="text-2xl font-bold">
+                                        <span className="text-blue-400">Go</span>
+                                        <span className="text-red-400">NorthEast</span>
+                                    </div>
+                                    <div className="ml-4 text-sm text-gray-300">
+                                        Part of <span className="font-semibold text-blue-400">GoAhead</span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center space-x-4">
+                                    {currentScreen !== 'home' && (
+                                        <button onClick={goHome} className="flex items-center px-3 py-2 text-sm font-medium text-gray-300 hover:text-white">
+                                            <Home className="w-4 h-4 mr-1" />Home
+                                        </button>
+                                    )}
+                                    <div className="text-sm text-gray-400">SDC Engineering Guide v1.3</div>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        {currentScreen === 'home' && <HomePage onStartDiagnosis={startDiagnosis} />}
+                        {currentScreen === 'wizard' && selectedCategory && (
+                            <WizardContainer category={selectedCategory} onExit={goHome} sessionData={sessionData} saveSession={saveSession} />
+                        )}
+                    </main>
+
+                    <footer className="bg-gray-800 border-t border-gray-700 mt-16">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+                            <div className="flex justify-between items-center text-sm text-gray-400">
+                                <div>© 2025 Go North East. Safety is non-negotiable.</div>
+                                <div className="flex items-center space-x-4">
+                                    <span>Emergency: 0800 123 456</span>
+                                    <span>Engineering: 0800 789 012</span>
+                                </div>
+                            </div>
+                        </div>
+                    </footer>
+                </div>
+            );
+        };
+
+        const HomePage = ({ onStartDiagnosis }) => {
+            const allCategories = [
+                { id: 'brakes', name: 'Brakes', severity: 'critical', icon: '🛑', description: 'Brake pedal issues, unusual noises, system leaks, grabbing, shuddering', implemented: true },
+                { id: 'steering', name: 'Steering', severity: 'critical', icon: '🎯', description: '75mm play limit, control difficulties, unusual noises, pulling to one side', implemented: true },
+                { id: 'oil-warning-light', name: 'Oil Warning Light', severity: 'critical', icon: '⚠️', description: 'Immediate stop, leak inspection, fire risk assessment', implemented: false },
+                { id: 'loose-wheel-nuts', name: 'Loose Wheel Nuts', severity: 'critical', icon: '⚫', description: 'Zero tolerance - immediate stop and multiple management notifications', implemented: true },
+                { id: 'abs-light', name: 'ABS Light', severity: 'critical', icon: '🔴', description: 'Red and amber ABS warning lights - reset procedures and 10mph checks', implemented: false },
+                { id: 'road-traffic-incidents', name: 'Road Traffic Incidents', severity: 'critical', icon: '🚗', description: 'Driver wellbeing, injuries, police involvement, damage assessment', implemented: false }
+            ];
+
+            const criticalIssues = allCategories.filter(c => c.severity === 'critical');
+            const implementedCount = allCategories.filter(c => c.implemented).length;
+
+            return (
+                <div className="space-y-8">
+                    <div className="text-center">
+                        <h1 className="text-3xl font-bold text-white mb-4">SDC Guide to Engineering Issues</h1>
+                        <p className="text-lg text-gray-300 max-w-3xl mx-auto mb-4">
+                            Digital wizard for Go North East supervisors to diagnose bus engineering issues systematically, ensuring safety compliance and consistent decision-making.
+                        </p>
+                        <div className="inline-flex items-center px-4 py-2 bg-blue-900/50 border border-blue-600 rounded-lg">
+                            <span className="text-blue-200 font-medium">
+                                {implementedCount} of {allCategories.length} categories implemented • {((implementedCount/allCategories.length)*100).toFixed(1)}% complete
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="bg-red-900/30 border-l-4 border-red-600 p-6">
+                        <div className="flex items-start">
+                            <AlertTriangle className="w-6 h-6 text-red-400 mt-1 mr-3" />
+                            <div>
+                                <h3 className="text-lg font-semibold text-red-300 mb-2">Safety Declaration</h3>
+                                <p className="text-red-200 mb-2">
+                                    <strong>Safety is Non-Negotiable.</strong> The safety of everyone—staff, passengers, and the public—is our highest priority.
+                                </p>
+                                <p className="text-red-200">Any action that compromises safety is unacceptable. When in doubt, seek advice from a competent engineer.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h2 className="text-xl font-semibold text-white mb-4 flex items-center">
+                            <div className="w-3 h-3 bg-red-600 rounded-full mr-2"></div>
+                            Critical Issues (Immediate Stop Required) - {criticalIssues.length} Categories
+                        </h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {criticalIssues.map(category => (
+                                <CategoryCard key={category.id} category={category} onClick={() => onStartDiagnosis(category.id)} />
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const CategoryCard = ({ category, onClick }) => {
+            const severityColors = {
+                critical: 'border-red-500 bg-red-900/20 hover:bg-red-900/30',
+                warning: 'border-yellow-500 bg-yellow-900/20 hover:bg-yellow-900/30',
+                normal: 'border-green-500 bg-green-900/20 hover:bg-green-900/30'
+            };
+
+            const isImplemented = category.implemented;
+
+            return (
+                <button
+                    onClick={() => isImplemented ? onClick() : null}
+                    disabled={!isImplemented}
+                    className={`p-4 border-2 rounded-lg text-left transition-colors relative ${
+                        severityColors[category.severity] || severityColors.normal
+                    } ${!isImplemented ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                    <div className="absolute top-2 right-2">
+                        {isImplemented ? (
+                            <div className="w-3 h-3 bg-green-500 rounded-full" title="Implemented"></div>
+                        ) : (
+                            <div className="w-3 h-3 bg-gray-400 rounded-full" title="Coming Soon"></div>
+                        )}
+                    </div>
+                    
+                    <div className="flex items-start justify-between mb-2">
+                        <div className="text-2xl">{category.icon}</div>
+                        <div className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            category.severity === 'critical' ? 'bg-red-600/30 text-red-300' :
+                            category.severity === 'warning' ? 'bg-yellow-600/30 text-yellow-300' :
+                            'bg-green-600/30 text-green-300'
+                        }`}>
+                            {category.severity.toUpperCase()}
+                        </div>
+                    </div>
+                    <div className="font-semibold text-white mb-1 pr-6">{category.name}</div>
+                    <div className="text-sm text-gray-300 mb-2">{category.description}</div>
+                    
+                    <div className="text-xs font-medium">
+                        {isImplemented ? (
+                            <span className="text-green-400">✅ Ready to Use</span>
+                        ) : (
+                            <span className="text-gray-400">⏳ Coming Soon</span>
+                        )}
+                    </div>
+                </button>
+            );
+        };
+
+        const WizardContainer = ({ category, onExit, sessionData, saveSession }) => {
+            const [currentStep, setCurrentStep] = useState(1);
+            const [responses, setResponses] = useState({});
+            const [showConfirmation, setShowConfirmation] = useState(false);
+
+            const updateResponse = (key, value) => {
+                const newResponses = { ...responses, [key]: value };
+                setResponses(newResponses);
+                saveSession({ currentStep, responses: newResponses, lastUpdated: new Date().toISOString() });
+            };
+
+            const getWizard = () => {
+                switch (category) {
+                    case 'steering':
+                        return React.createElement(SteeringWizard, {
+                            currentStep, responses, updateResponse,
+                            onNext: () => setCurrentStep(currentStep + 1),
+                            onPrevious: () => setCurrentStep(Math.max(1, currentStep - 1)),
+                            onComplete: () => setShowConfirmation(true)
+                        });
+                    default:
+                        return (
+                            <div className="text-center py-8">
+                                <p className="text-gray-300 mb-4">The wizard for <strong>{category}</strong> is coming soon...</p>
+                                <p className="text-sm text-gray-400 mb-6">This category will follow the same safety-first approach as the Steering wizard.</p>
+                                <button onClick={onExit} className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                                    Return to Categories
+                                </button>
+                            </div>
+                        );
+                }
+            };
+
+            if (showConfirmation) {
+                return (
+                    <div className="bg-gray-800 rounded-lg shadow-sm p-6">
+                        <div className="text-center mb-8">
+                            <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
+                            <h2 className="text-2xl font-bold text-white mb-2">Assessment Complete</h2>
+                            <p className="text-gray-300">{category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')} assessment completed</p>
+                        </div>
+                        <div className="flex justify-center space-x-4">
+                            <button onClick={() => window.print()} className="flex items-center px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                                <FileText className="w-4 h-4 mr-2" />Print Summary
+                            </button>
+                            <button onClick={onExit} className="flex items-center px-6 py-2 bg-gray-600 text-white rounded hover:bg-gray-500">
+                                <Home className="w-4 h-4 mr-2" />New Assessment
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div>
+                    <div className="bg-gray-800 rounded-lg shadow-sm p-6 mb-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h1 className="text-2xl font-semibold text-white capitalize">{category} Assessment</h1>
+                                <p className="text-gray-300">Step {currentStep} - Follow the prompts carefully</p>
+                            </div>
+                            <button onClick={onExit} className="flex items-center px-4 py-2 text-gray-300 hover:text-white">
+                                <ArrowLeft className="w-4 h-4 mr-1" />Exit
+                            </button>
+                        </div>
+                        <div className="w-full bg-gray-600 rounded-full h-2">
+                            <div className="bg-blue-500 h-2 rounded-full transition-all duration-300" style={{ width: `${(currentStep / 4) * 100}%` }}></div>
+                        </div>
+                    </div>
+                    {getWizard()}
+                </div>
+            );
+        };
+
+        ReactDOM.render(<BreakdownGuideApp />, document.getElementById('root'));
+    </script>
+</body>
+</html>

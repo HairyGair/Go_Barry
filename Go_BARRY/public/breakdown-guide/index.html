@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go North East - Breakdown Guide App</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="./styles/main.css">
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+    <div id="loading" class="fixed inset-0 bg-white flex items-center justify-center z-50">
+        <div class="text-center">
+            <div class="text-4xl font-bold mb-4">
+                <span class="gne-navy">Go</span><span class="gne-red">NorthEast</span>
+            </div>
+            <div class="text-gray-600 mb-4">Loading Breakdown Guide...</div>
+            <div class="animate-pulse w-8 h-8 bg-blue-600 rounded mx-auto"></div>
+        </div>
+    </div>
+
+    <!-- Load common components first -->
+    <script src="./components/common/constants.js"></script>
+    <script type="text/babel" src="./components/common/icons.js"></script>
+    
+    <!-- Load wizard components -->
+    <script type="text/babel" src="./components/wizards/SteeringWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/BrakesWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/ABSLightWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/OilWarningLightWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/InteriorLightsWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/ExteriorLightsWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/WheelchairLiftWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/DestinationDisplayWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/BatteryWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/CoolingSystemWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/DemistersHeatersWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/RepeatDefectsWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/RoadTrafficIncidentsWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/TracerItHelperWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/LooseWheelNutsWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/PunctureWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/NonStarterWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/DoorsWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/GearSelectionWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/GearboxWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/BuzzersWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/WarningLightsWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/ExcessiveSmokeWizard.js"></script>
+    <script type="text/babel" src="./components/wizards/SuspensionWizard.js"></script>
+    
+    <!-- Load main application -->
+    <script type="text/babel" src="./App.js"></script>
+
+    <script type="text/babel">
+        // Initialize the application after all components are loaded
+        function initializeApp() {
+            console.log('Initializing app...');
+            console.log('Available components:', {
+                App: window.App,
+                Icons: window.Icons,
+                InteriorLightsWizard: window.InteriorLightsWizard,
+                AppConstants: window.AppConstants
+            });
+            
+            // Check if all required components are loaded
+            if (!window.App) {
+                console.log('App not loaded yet, waiting...');
+                setTimeout(initializeApp, 1000);
+                return;
+            }
+            
+            if (!window.Icons) {
+                console.log('Icons not loaded yet, waiting...');
+                setTimeout(initializeApp, 1000);
+                return;
+            }
+            
+            // Hide loading screen
+            const loading = document.getElementById('loading');
+            if (loading) {
+                loading.style.display = 'none';
+            }
+            
+            // Render the main app using React 18 createRoot
+            const root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(React.createElement(window.App));
+            console.log('App rendered successfully');
+        }
+        
+        // Start checking for components after a brief delay
+        setTimeout(initializeApp, 2000);
+    </script>
+</body>
+</html>

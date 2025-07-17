@@ -168,74 +168,6 @@
   },
 
   {
-    id: 'gear-selection',
-    title: 'Unable to Select Gears',
-    category: 'operation',
-    severity: 'medium',
-    description: 'Troubleshooting gear selection problems.',
-    keywords: ['gears', 'transmission', 'ramp', 'suspension', 'footbrake'],
-    steps: [
-      {
-        title: 'System Reset',
-        substeps: [
-          {
-            action: 'Reset Vehicle',
-            detail: 'Instruct the driver to switch the bus off and re-set it, then attempt to start up in the usual manner.'
-          }
-        ]
-      },
-      {
-        title: 'Check Ramp Position',
-        substeps: [
-          {
-            action: 'Visual Inspection',
-            detail: 'Ask the driver to visually inspect if the ramp is correctly secured in its stowed position.'
-          },
-          {
-            action: 'Re-stow Ramp',
-            detail: 'The driver should lift the ramp and stow it again to ensure it is correctly secured.'
-          }
-        ]
-      },
-      {
-        title: 'Check Suspension Light',
-        substeps: [
-          {
-            condition: 'Suspension light applicable',
-            action: 'Reset Light',
-            detail: 'Ask the driver if the suspension light on the dashboard has been re-set before attempting to engage gear.'
-          }
-        ]
-      },
-      {
-        title: 'Proper Operation',
-        substeps: [
-          {
-            action: 'Footbrake Check',
-            detail: 'Ensure the driver is pressing firmly on the footbrake while selecting the appropriate gear.'
-          }
-        ]
-      },
-      {
-        title: 'Escalation',
-        substeps: [
-          {
-            condition: 'Problem persists after all checks',
-            action: 'Stop and Wait',
-            detail: 'Stop and await assistance from engineering.'
-          }
-        ]
-      }
-    ],
-    additionalGuidance: [
-      'Safety is priority - if driver has concerns, escalate to engineering immediately',
-      'If vehicle can safely continue, ensure changeover arranged at earliest opportunity',
-      'Record any defects immediately on Go-Check System when bus is stationary and in safe location'
-    ],
-    relatedIssues: ['ramp-stuck', 'suspension', 'gearbox-temperature']
-  },
-
-  {
     id: 'exterior-lights',
     title: 'Exterior Lights',
     category: 'electrical',
@@ -562,6 +494,91 @@
       'Ensure all management levels are notified immediately'
     ],
     relatedIssues: ['puncture', 'suspension', 'safety-declaration']
+  },
+
+  {
+    id: 'gear-selection',
+    title: 'Gear Selection Issues',
+    category: 'operation',
+    severity: 'medium',
+    description: 'Unable to select gears or gear selection problems.',
+    keywords: ['gear', 'selection', 'transmission', 'neutral', 'reset', 'ramp', 'suspension'],
+    steps: [
+      {
+        title: 'System Reset',
+        substeps: [
+          {
+            action: 'Perform System Reset',
+            detail: 'Instruct the driver to switch the bus off and re-set it, then attempt to start up in the usual manner.'
+          }
+        ]
+      },
+      {
+        title: 'Post-Reset Assessment',
+        substeps: [
+          {
+            condition: 'Gears can now be selected normally',
+            action: 'Continue in Service',
+            detail: 'Issue resolved - continue monitoring gear selection during operation and record resolution in Go-Check.'
+          },
+          {
+            condition: 'Still cannot select gears',
+            action: 'Check Ramp Position',
+            detail: 'Ask the driver to visually inspect if the ramp is correctly secured in its stowed position.'
+          }
+        ]
+      },
+      {
+        title: 'Ramp Position Check',
+        substeps: [
+          {
+            action: 'Verify Ramp Stowage',
+            detail: 'The driver should lift the ramp and stow it again to ensure it is correctly secured.'
+          }
+        ]
+      },
+      {
+        title: 'Suspension Light Check',
+        substeps: [
+          {
+            condition: 'Vehicle equipped with suspension light',
+            action: 'Reset Suspension Light',
+            detail: 'Ask the driver if the suspension light on the dashboard has been re-set before attempting to engage gear.'
+          }
+        ]
+      },
+      {
+        title: 'Proper Operation Confirmation',
+        substeps: [
+          {
+            action: 'Verify Footbrake Procedure',
+            detail: 'Ensure the driver is pressing firmly on the footbrake while selecting the appropriate gear.'
+          }
+        ]
+      },
+      {
+        title: 'Final Assessment',
+        substeps: [
+          {
+            condition: 'Gears can now be selected after all checks',
+            action: 'Continue in Service',
+            detail: 'All checks successful - ensure driver follows proper procedure and record resolution in Go-Check.'
+          },
+          {
+            condition: 'Still unable to select gears after all troubleshooting',
+            action: 'Engineering Assistance Required',
+            detail: 'Stop and await assistance from engineering. Contact using depot extensions: Consett 9286/9287, Riverside 9254/0888, Sunderland 9299, Washington 6123/6327, Percy Main 9413.'
+          }
+        ]
+      }
+    ],
+    additionalGuidance: [
+      'Safety is priority - if driver has concerns about continuing, escalate to engineering immediately',
+      'Record defects immediately in Go-Check system when stationary and safe',
+      'Ensure proper procedure: press footbrake firmly when selecting gear',
+      'Arrange changeover at earliest opportunity if Engineering clears for limited operation'
+    ],
+    relatedIssues: ['suspension', 'doors-not-working', 'non-starter']
   },
 
   {
