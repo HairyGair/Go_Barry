@@ -5,6 +5,42 @@
 
 import { StyleSheet, Platform } from 'react-native';
 
+// Add global styles for web animations and map support
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes pulse {
+      0% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.1); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    
+    .pulsing-dot {
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    .incident-marker {
+      animation: pulse 2s ease-in-out infinite;
+    }
+  `;
+  document.head.appendChild(style);
+  
+  // Add Mapbox CSS
+  if (!document.querySelector('link[href*="mapbox-gl.css"]')) {
+    const mapboxCSS = document.createElement('link');
+    mapboxCSS.rel = 'stylesheet';
+    mapboxCSS.href = 'https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css';
+    document.head.appendChild(mapboxCSS);
+  }
+  
+  // Add Mapbox JS
+  if (!window.mapboxgl && !document.querySelector('script[src*="mapbox-gl.js"]')) {
+    const mapboxJS = document.createElement('script');
+    mapboxJS.src = 'https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js';
+    document.head.appendChild(mapboxJS);
+  }
+}
+
 // Design tokens
 const colors = {
   // Primary Go Barry brand colors
@@ -49,6 +85,7 @@ const colors = {
   link: '#3B82F6',
   linkHover: '#2563EB',
   focus: '#3B82F6',
+  ai: '#9C27B0', // Purple for AI features
   
   // Incident type colors
   rtc: '#DC2626',        // Red
@@ -466,5 +503,77 @@ const shadows = {
     },
   }),
 };
+
+// Add new styles to the incidentsStyles object
+Object.assign(incidentsStyles, {
+  incidentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+
+  selectionCheckbox: {
+    paddingLeft: spacing.lg,
+    paddingRight: spacing.sm,
+    paddingVertical: spacing.lg,
+  },
+
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  checkboxSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  
+  searchContainer: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: spacing.borderRadius,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: Platform.OS === 'web' ? spacing.sm : spacing.md,
+    ...Platform.select({
+      web: {
+        minHeight: 40,
+      }
+    }),
+  },
+  
+  liveUpdateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  
+  pulsingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.success,
+    marginLeft: spacing.sm,
+    ...Platform.select({
+      web: {
+        className: 'pulsing-dot',
+      }
+    }),
+  },
+});
 
 export { incidentsStyles, colors, spacing, typography, shadows };

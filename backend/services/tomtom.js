@@ -4,6 +4,8 @@ import axios from 'axios';
 import { getEnhancedLocationWithFallbacks, getQuickLocation } from '../utils/productionLocation.js';
 import { geocodingThrottler } from '../utils/requestThrottler.js';
 import { findAffectedRoutesEnhanced, isGTFSReady } from '../utils/gtfsRouteMatching.js';
+import { enhancedRouteMatchWithConfidence } from './enhancedRouteConfidence.js';
+import { incrementTomTomUsage } from '../routes/tomtomUsageAPI.js';
 
 // Enhanced route matching using both coordinates AND geocoded location names
 function findRoutesNearCoordinatesFixed(lat, lng, radiusMeters = 250) {
@@ -332,6 +334,9 @@ async function fetchTomTomTrafficWithStreetNames() {
       }
     });
     
+    // Track API usage
+    incrementTomTomUsage('traffic');
+    
     console.log(`📡 [ENHANCED] TomTom response: ${response.status}, incidents: ${response.data?.incidents?.length || 0}`);
     console.log(`🌍 Search area: Full Go North East network (newcastle, sunderland, northTyneside, durham, consett, hexham)`);
     
@@ -436,23 +441,48 @@ async function fetchTomTomTrafficWithStreetNames() {
 }`);
         console.log(`✅ Enhanced location: ${enhancedLocation}`);
 
-        // GTFS-ENHANCED: Route matching using GTFS data + coordinates + location names
-        console.log(`🗺️ GTFS-enhanced route matching...`);
+        // Enhanced Route Matching with Confidence Scoring
+        console.log(`🎯 Enhanced route matching with confidence scoring...`);
         let affectedRoutes = [];
-        let routeMatchMethod = 'Fallback Location + Coordinate Matching';
+        let routeMatchDetails = null;
         
-        if (isGTFSReady()) {
-          try {
+        try {
+          // Use the new enhanced route matching with confidence
+          const routeResults = await enhancedRouteMatchWithConfidence(
+            lat, 
+            lng, 
+            enhancedLocation,
+            {
+              radius: 300,
+              timestamp: new Date(),
+              includeInactive: false
+            }
+          );
+          
+          // Extract high confidence routes (70%+)
+          affectedRoutes = routeResults.matches
+            .filter(m => m.confidence >= 0.7)
+            .map(m => m.route);
+          
+          routeMatchDetails = {
+            highConfidence: routeResults.matches.filter(m => m.confidence >= 0.7),
+            mediumConfidence: routeResults.matches.filter(m => m.confidence >= 0.5 && m.confidence < 0.7),
+            multiModalImpacts: routeResults.multiModalImpacts,
+            serviceContext: routeResults.serviceType
+          };
+          
+          console.log(`✅ Enhanced route matching found ${affectedRoutes.length} high-confidence routes: ${affectedRoutes.join(', ')}`);
+          if (routeResults.multiModalImpacts.hasMultiModalImpact) {
+            console.log(`🚇 Multi-modal impact detected: ${routeResults.multiModalImpacts.metro.length} metro, ${routeResults.multiModalImpacts.ferry.length} ferry`);
+          }
+        } catch (routeError) {
+          console.warn('⚠️ Enhanced route matching failed, using fallback:', routeError.message);
+          // Fallback to basic matching
+          if (isGTFSReady()) {
             affectedRoutes = await findAffectedRoutesEnhanced(lat, lng, enhancedLocation, 250);
-            routeMatchMethod = 'GTFS + Enhanced Location + Coordinate Matching';
-            console.log(`✅ GTFS route matching found ${affectedRoutes.length} routes: ${affectedRoutes.join(', ')}`);
-          } catch (gtfsError) {
-            console.warn('⚠️ GTFS route matching failed, using fallback:', gtfsError.message);
+          } else {
             affectedRoutes = enhancedRouteMatchingWithLocation(lat, lng, enhancedLocation, 250);
           }
-        } else {
-          console.warn('⚠️ GTFS not ready, using fallback route matching');
-          affectedRoutes = enhancedRouteMatchingWithLocation(lat, lng, enhancedLocation, 250);
         }
         
         // Map incident types
@@ -476,7 +506,7 @@ async function fetchTomTomTrafficWithStreetNames() {
         
         const incidentInfo = getIncidentInfo(props.iconCategory);
         
-        // Create enhanced alert with route information
+        // Create enhanced alert with route information and confidence scoring
         const alert = {
           id: `tomtom_enhanced_${Date.now()}_${index}`,
           type: incidentInfo.type,
@@ -488,12 +518,13 @@ async function fetchTomTomTrafficWithStreetNames() {
           status: 'red',
           source: 'tomtom',
           affectsRoutes: affectedRoutes,
-          routeMatchMethod: routeMatchMethod,
-          routeAccuracy: affectedRoutes.length > 0 ? (isGTFSReady() ? 'very_high' : 'high') : 'medium',
+          routeMatching: routeMatchDetails,
+          routeMatchMethod: routeMatchDetails ? 'Enhanced Confidence Scoring' : 'Fallback Matching',
+          routeAccuracy: affectedRoutes.length > 0 ? 'confidence_based' : 'low',
           iconCategory: props.iconCategory,
           lastUpdated: new Date().toISOString(),
           startDate: new Date().toISOString(), // Add startDate for display screen
-          dataSource: 'TomTom Traffic API v5 + Fixed Route Matching'
+          dataSource: 'TomTom Traffic API v5 + Enhanced Route Confidence'
         };
 
         alerts.push(alert);

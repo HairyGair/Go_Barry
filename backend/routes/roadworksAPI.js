@@ -9,6 +9,7 @@ import findGTFSRoutesNearCoordinates from '../gtfs-route-matcher.js';
 import { generateDiversionPDF, generateTicketMachineMessage } from '../services/roadworksServices.js';
 import supervisorActivityLogger from '../services/supervisorActivityLogger.js';
 import supabaseRoadworksStorage from '../services/supabaseRoadworksStorage.js';
+import historicalCollector from '../services/historicalDataCollector.js';
 
 const router = express.Router();
 
@@ -230,6 +231,11 @@ router.post('/', async (req, res) => {
         affected_routes: affectedRoutes.length
       }
     );
+    
+    // Capture roadwork for historical analysis
+    historicalCollector.captureRoadwork(savedRoadwork).catch(error => {
+      console.warn('⚠️ Historical roadwork capture failed:', error.message);
+    });
 
     res.json({
       success: true,

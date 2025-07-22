@@ -15,6 +15,10 @@ const IncidentCard = ({
   onResolve = null,
   onViewMap = null,
   onPushToDisplay = null,
+  onPromoteToIncident = null,
+  onGenerateMessages = null,
+  onUpdateStatus = null,
+  onViewSuggestions = null,
   showActions = true,
   compact = false 
 }) => {
@@ -31,7 +35,12 @@ const IncidentCard = ({
     affectsRoutes = [],
     createdAt,
     updatedAt,
-    source = 'manual'
+    source = 'manual',
+    isTrafficIncident = false,
+    delayMinutes,
+    lengthMeters,
+    intelligenceScore,
+    lastUpdated
   } = incident;
 
   // Get priority color
@@ -117,6 +126,15 @@ const IncidentCard = ({
             <Text style={[styles.status, { color: getStatusColor() }]}>
               {status.toUpperCase()}
             </Text>
+            {/* Live indicator for traffic incidents */}
+            {isTrafficIncident && (
+              <>
+                <Text style={styles.separator}>•</Text>
+                <View style={styles.liveIndicator}>
+                  <Text style={styles.liveText}>LIVE</Text>
+                </View>
+              </>
+            )}
             {/* Intelligence Score for Traffic Incidents */}
             {incident.intelligenceScore && (
               <>
@@ -141,7 +159,25 @@ const IncidentCard = ({
       
       {showActions && (
         <View style={styles.headerActions}>
-          {onViewMap && incident.coordinates && (
+          {onViewSuggestions && (
+            <Pressable 
+              style={[styles.actionButton, styles.suggestionsButton]} 
+              onPress={() => onViewSuggestions(incident)}
+              title="AI Suggestions"
+            >
+              <Ionicons name="bulb-outline" size={16} color={colors.ai} />
+            </Pressable>
+          )}
+          {onGenerateMessages && !isTrafficIncident && (
+            <Pressable 
+              style={[styles.actionButton, styles.messageButton]} 
+              onPress={() => onGenerateMessages(incident)}
+              title="Generate Messages"
+            >
+              <Ionicons name="chatbubbles-outline" size={16} color={colors.info} />
+            </Pressable>
+          )}
+          {onViewMap && (incident.coordinates || incident.location) && (
             <Pressable 
               style={[styles.actionButton, styles.mapButton]} 
               onPress={() => onViewMap(incident)}
@@ -159,15 +195,37 @@ const IncidentCard = ({
               <Ionicons name="tv-outline" size={16} color={colors.warning} />
             </Pressable>
           )}
-          {onEdit && (
-            <Pressable style={styles.actionButton} onPress={() => onEdit(incident)}>
-              <Ionicons name="create-outline" size={16} color={colors.textSecondary} />
+          {/* Show different actions for traffic vs manual incidents */}
+          {isTrafficIncident && onPromoteToIncident ? (
+            <Pressable 
+              style={[styles.actionButton, styles.promoteButton]} 
+              onPress={() => onPromoteToIncident(incident)}
+              title="Create Manual Incident"
+            >
+              <Ionicons name="add-circle-outline" size={16} color={colors.success} />
             </Pressable>
-          )}
-          {onResolve && status !== 'resolved' && (
-            <Pressable style={styles.actionButton} onPress={() => onResolve(incident)}>
-              <Ionicons name="checkmark-circle-outline" size={16} color={colors.success} />
-            </Pressable>
+          ) : (
+            <>
+              {onEdit && (
+                <Pressable style={styles.actionButton} onPress={() => onEdit(incident)}>
+                  <Ionicons name="create-outline" size={16} color={colors.textSecondary} />
+                </Pressable>
+              )}
+              {onResolve && status !== 'resolved' && (
+                <Pressable style={styles.actionButton} onPress={() => onResolve(incident)}>
+                  <Ionicons name="checkmark-circle-outline" size={16} color={colors.success} />
+                </Pressable>
+              )}
+              {onUpdateStatus && (
+                <Pressable 
+                  style={[styles.actionButton, { backgroundColor: `${getStatusColor()}15` }]} 
+                  onPress={() => onUpdateStatus(incident)}
+                  title="Update Status"
+                >
+                  <Ionicons name="flag-outline" size={16} color={getStatusColor()} />
+                </Pressable>
+              )}
+            </>
           )}
         </View>
       )}
@@ -192,16 +250,52 @@ const IncidentCard = ({
         </Text>
       )}
       
+      {/* Traffic incident specific info */}
+      {isTrafficIncident && (delayMinutes || lengthMeters) && (
+        <View style={styles.trafficInfo}>
+          {delayMinutes && (
+            <View style={styles.trafficStat}>
+              <Ionicons name="time-outline" size={14} color={colors.error} />
+              <Text style={styles.trafficStatText}>{delayMinutes} min delay</Text>
+            </View>
+          )}
+          {lengthMeters && (
+            <View style={styles.trafficStat}>
+              <Ionicons name="resize-outline" size={14} color={colors.warning} />
+              <Text style={styles.trafficStatText}>{lengthMeters}m affected</Text>
+            </View>
+          )}
+        </View>
+      )}
+      
       {affectsRoutes.length > 0 && (
         <View style={styles.routesContainer}>
           <Ionicons name="bus-outline" size={14} color={colors.textMuted} />
           <Text style={styles.routesLabel}>Routes:</Text>
           <View style={styles.routesTags}>
-            {affectsRoutes.slice(0, 5).map((route, index) => (
-              <View key={index} style={styles.routeTag}>
-                <Text style={styles.routeTagText}>{route}</Text>
-              </View>
-            ))}
+            {affectsRoutes.slice(0, 5).map((route, index) => {
+              const routeStr = String(route);
+              const isExpress = routeStr.startsWith('X');
+              const isNight = routeStr.startsWith('N');
+              
+              return (
+                <View 
+                  key={index} 
+                  style={[
+                    styles.routeTag,
+                    isExpress && styles.expressRouteTag,
+                    isNight && styles.nightRouteTag
+                  ]}
+                >
+                  <Text style={[
+                    styles.routeTagText,
+                    isExpress && styles.expressRouteText
+                  ]}>
+                    {route}
+                  </Text>
+                </View>
+              );
+            })}
             {affectsRoutes.length > 5 && (
               <Text style={styles.routesMore}>+{affectsRoutes.length - 5}</Text>
             )}
@@ -231,7 +325,12 @@ const IncidentCard = ({
     styles.card,
     compact && styles.cardCompact,
     shadows.sm,
-    onPress && styles.pressable
+    onPress && styles.pressable,
+    isTrafficIncident && styles.trafficIncidentCard,
+    priority === 'high' && styles.highPriorityCard,
+    priority === 'medium' && styles.mediumPriorityCard,
+    priority === 'low' && styles.lowPriorityCard,
+    status === 'resolved' && styles.resolvedCard
   ];
 
   const content = (
@@ -385,8 +484,16 @@ const styles = {
     backgroundColor: `${colors.primary}15`,
   },
 
+  messageButton: {
+    backgroundColor: `${colors.info}15`,
+  },
+
   displayButton: {
     backgroundColor: `${colors.warning}15`,
+  },
+
+  suggestionsButton: {
+    backgroundColor: `${colors.ai || '#9C27B0'}15`,
   },
 
   content: {
@@ -435,16 +542,25 @@ const styles = {
   },
 
   routeTag: {
-    backgroundColor: colors.primary,
+    backgroundColor: '#00B9E4', // Go North East brand blue
     borderRadius: 12,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#0088B3',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
 
   routeTagText: {
     ...typography.caption,
-    color: colors.textInverse,
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 13,
+    letterSpacing: 0.5,
   },
 
   routesMore: {
@@ -465,6 +581,84 @@ const styles = {
   timestamp: {
     ...typography.caption,
     color: colors.textMuted,
+  },
+
+  trafficIncidentCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: colors.warning,
+    backgroundColor: `${colors.warning}05`,
+  },
+
+  liveIndicator: {
+    backgroundColor: colors.error,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+
+  liveText: {
+    color: colors.textInverse,
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+
+  trafficInfo: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+  },
+
+  trafficStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+
+  trafficStatText: {
+    ...typography.caption,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+
+  promoteButton: {
+    backgroundColor: `${colors.success}15`,
+  },
+  
+  highPriorityCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: colors.error,
+    borderColor: colors.error,
+  },
+  
+  mediumPriorityCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: colors.warning,
+  },
+  
+  lowPriorityCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: colors.info,
+  },
+  
+  resolvedCard: {
+    opacity: 0.7,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.success,
+    backgroundColor: `${colors.success}05`,
+  },
+  
+  expressRouteTag: {
+    backgroundColor: '#E4B400', // Gold for express routes
+    borderColor: '#C09600',
+  },
+  
+  expressRouteText: {
+    fontWeight: '800',
+  },
+  
+  nightRouteTag: {
+    backgroundColor: '#1B1B3A', // Dark blue for night routes
+    borderColor: '#0F0F26',
   },
 };
 

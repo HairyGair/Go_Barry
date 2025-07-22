@@ -5,9 +5,15 @@
 The Go BARRY Breakdown Guide is a React-based modular troubleshooting system for bus breakdown assistance. The project provides a dark-themed, wizard-based interface for drivers to diagnose and resolve vehicle issues following strict SDC (Safety Declaration Compliance) procedures.
 
 ### Current Status
-- **Progress**: 24/31 wizards complete (77%)
+- **Progress**: 31/31 wizards complete (100%)
 - **Location**: `/Users/anthony/Go BARRY App/Go_BARRY/public/breakdown-guide/`
 - **Testing URL**: `http://localhost:8081/breakdown-guide/`
+- **Live URL**: `https://www.gobarry.co.uk/breakdown-guide/`
+
+### Recent Updates
+- **Fixed**: "Unmatched Route" error on production server
+- **Deployment Package**: Ready at `/Users/anthony/Go BARRY App/breakdown-guide-react-deploy/`
+- **Architecture**: Fully modular system with each wizard as a separate component
 
 ## Technical Architecture
 
@@ -21,32 +27,39 @@ The Go BARRY Breakdown Guide is a React-based modular troubleshooting system for
 ### File Structure
 ```
 /breakdown-guide/
-├── index.html              # Main entry point
-├── App.js                  # Main React component with routing
+├── index.html              # Main entry point (shows Go NorthEast loading, then Go BARRY app)
+├── App.js                  # Main React component with Go BARRY branding
 ├── components/
 │   ├── common/
 │   │   ├── constants.js    # Shared constants
-│   │   └── icons.js        # Icon definitions
+│   │   └── icons.js        # Icon definitions (20+ icons)
 │   └── wizards/
-│       └── [wizard].js     # Individual wizard components
-└── styles/main.css         # Custom styles and animations
+│       └── [wizard].js     # Individual wizard components (24 complete)
+└── styles/
+    └── main.css           # Custom styles and animations
 ```
+
+### Deployment Structure
+The deployment package maintains the exact same structure, ensuring seamless transition from development to production.
 
 ## UI/UX Design Specifications
 
 ### Visual Design
+- **Loading Screen**: "Go NorthEast" branding (briefly)
+- **Main App**: "Go BARRY" branding in red on dark theme
 - **Theme**: Dark gradient background (slate-900 to slate-800)
 - **Effects**: 
-  - Animated blob effects in background
+  - Animated blob effects in background (red, blue, purple)
   - Glassmorphism with backdrop blur
   - Hover animations (scale, shadow, color transitions)
-- **Layout**: Compact button grid (2-6 columns responsive)
-- **Buttons**: Icon + name only design
-- **Progress**: Visual progress bar showing completion percentage
+  - Hover glow effects on critical buttons
+- **Layout**: Compact button grid (responsive: 1 col mobile, 3 cols desktop)
+- **Buttons**: Icon + name design with category badges
+- **Progress**: All wizards implemented and operational
 
 ### Color Coding System
 - **Red**: Safety Critical - Immediate stop required
-- **Amber**: High Priority - Continue to changeover point
+- **Orange**: High Priority - Continue to changeover point  
 - **Blue**: Operational Systems - Standard procedures
 - **Gray**: Coming Soon - Placeholder for future wizards
 
@@ -56,13 +69,25 @@ Every wizard MUST follow this exact structure:
 
 ```javascript
 const WizardName = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
-  // 4-step flow implementation
-  // Step 1: Initial problem description
-  // Step 2: Diagnostic questions
-  // Step 3: Action recommendations
-  // Step 4: Summary and Go-Check reminder
-  
-  // Component logic here
+    // Get icons from global scope
+    const { AlertTriangle, ArrowLeft, ArrowRight, Home, CheckCircle, XCircle, FileText, Shield, AlertCircle } = window.Icons;
+    
+    switch (currentStep) {
+        case 1:
+            // Initial assessment
+            return (...);
+        case 2:
+            // Detailed evaluation
+            return (...);
+        case 3:
+            // Safety decision
+            return (...);
+        case 4:
+            // Final report (optional)
+            return (...);
+        default:
+            return <div className="text-white">Invalid step</div>;
+    }
 };
 
 // CRITICAL: Export to global scope
@@ -71,47 +96,107 @@ window.WizardName = WizardName;
 
 ## Implementation Status
 
-### ✅ Completed Wizards (24/31)
+### ✅ Completed Wizards (31/31)
 
-#### Safety Critical (6)
-1. `SteeringWizard` - Steering system assessment
+#### Safety Critical (9)
+1. `SteeringWizard` - Steering system assessment (75mm play limit)
 2. `BrakesWizard` - Brake system assessment
-3. `ABSLightWizard` - ABS warning light protocols
+3. `ABSLightWizard` - ABS warning light protocols (Red vs Amber)
 4. `OilWarningLightWizard` - Oil pressure warning system
-5. `LooseWheelNutsWizard` - Critical wheel safety
+5. `LooseWheelNutsWizard` - Critical wheel safety (zero tolerance)
 6. `PunctureWizard` - Tire safety procedures
+7. `BrokenWindowsWizard` - Window damage assessment (SDC Section 6)
+8. `WingMirrorsWizard` - Mirror systems (SDC Section 29)
+9. `CuttingOutFuelWizard` - Fuel system issues (SDC Section 8)
 
 #### High Priority (3)
 1. `RepeatDefectsWizard` - Quality control escalation
 2. `RoadTrafficIncidentsWizard` - Accident management protocols
-3. `TraceritHelperWizard` - Incident reporting assistance
+3. `TracerItHelperWizard` - Incident reporting assistance
 
-#### Operational Systems (15)
-1. `InteriorLightsWizard` - Interior lighting assessment
+#### Operational Systems (19)
+1. `InteriorLightsWizard` - Interior lighting assessment (50% rule)
 2. `ExteriorLightsWizard` - Exterior lighting systems
 3. `WheelchairLiftWizard` - Accessibility ramp systems
 4. `DestinationDisplayWizard` - Passenger information displays
 5. `BatteryWizard` - Battery charging system
-6. `CoolingSystemWizard` - Overheating/water management
-7. `DemistersHeatersWizard` - Climate control systems
+6. `CoolingSystemWizard` - Overheating/water management (80-100°C thresholds)
+7. `DemistersHeatersWizard` - Climate control systems (16° threshold)
 8. `DoorsWizard` - Door system troubleshooting
-9. `NonStarterWizard` - Starting system diagnostics
+9. `NonStarterWizard` - Starting system diagnostics (rear start procedures)
 10. `GearSelectionWizard` - Transmission gear issues
 11. `GearboxWizard` - Transmission temperature monitoring
 12. `BuzzersWizard` - Warning buzzer diagnostics
-13. `WarningLightsWizard` - Dashboard warning lights
+13. `WarningLightsWizard` - Dashboard warning lights (Red vs Amber)
 14. `ExcessiveSmokeWizard` - Engine/exhaust smoke assessment
 15. `SuspensionWizard` - Suspension system stability assessment
+16. `WipersScreenwashWizard` - Windscreen cleaning systems (SDC Section 30)
+17. `LowWaterWizard` - Water level management (SDC Section 18)
+18. `SpeedoWizard` - Speedometer issues (SDC Section 25)
+19. `InteriorExteriorDamageWizard` - Damage assessment (SDC Section 16)
 
-### ⏳ Remaining Wizards (7/31)
+### ✅ All Wizards Complete
 
-1. **WipersScreenwashWizard** - Windscreen cleaning systems (SDC Section 30)
-2. **LowWaterWizard** - Water level management (SDC Section 18)
-3. **BrokenWindowsWizard** - Window damage assessment (SDC Section 6)
-4. **WingMirrorsWizard** - Mirror systems (SDC Section 29)
-5. **SpeedoWizard** - Speedometer issues (SDC Section 25)
-6. **CuttingoutFuelWizard** - Fuel system issues (SDC Section 8)
-7. **InteriororExteriorDamageWizard** - Damage assessment (SDC Section 16)
+All 31 wizards have been implemented and are fully operational, providing comprehensive coverage of all SDC engineering scenarios.
+
+## App.js Structure
+
+The main App.js file handles:
+1. **Wizard Selection**: Menu system with category organization
+2. **State Management**: Current wizard, step, and responses
+3. **Navigation**: Back to menu functionality
+4. **Branding**: "Go BARRY" in header with "Breakdown Guide System" subtitle
+5. **Progress Display**: Shows completion percentage
+6. **Category Organization**: Safety Critical, High Priority, Operational Systems
+
+### Wizard Integration Pattern in App.js
+
+```javascript
+// [Wizard Display Name] Wizard - [Category Type]
+if (currentWizard === '[wizard-id]') {
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+            {/* Animated background effect */}
+            <div className="fixed inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute -top-40 -right-40 w-80 h-80 bg-red-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+                <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+                <div className="absolute top-40 left-20 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+            </div>
+
+            <div className="relative z-10">
+                <header className="bg-black/30 backdrop-blur-md border-b border-white/10">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex justify-between items-center h-16">
+                            <div className="flex items-center">
+                                <h1 className="text-2xl font-bold">
+                                    <span className="text-white">Go</span>
+                                    <span className="text-red-500">BARRY</span>
+                                </h1>
+                                <span className="ml-4 text-gray-400 text-sm">Breakdown Guide System</span>
+                            </div>
+                            <button onClick={handleBackToMenu} className="flex items-center px-4 py-2 text-gray-300 hover:text-white transition-colors">
+                                {Home && <Home className="w-4 h-4 mr-2" />}
+                                Back to Menu
+                            </button>
+                        </div>
+                    </div>
+                </header>
+
+                <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                    {window.[WizardName] && React.createElement(window.[WizardName], {
+                        currentStep,
+                        responses,
+                        updateResponse,
+                        onNext: handleNext,
+                        onPrevious: handlePrevious,
+                        onComplete: handleComplete
+                    })}
+                </main>
+            </div>
+        </div>
+    );
+}
+```
 
 ## SDC Guide Compliance Rules
 
@@ -133,369 +218,150 @@ window.WizardName = WizardName;
 - Escalation procedures to engineering
 - Driver safety reminders
 - Communication protocols
+- Specific thresholds (e.g., 75mm steering play, 100°C temperature)
 
-## Implementation Guide
+## Implementation Guide for Remaining Wizards
 
-### Step-by-Step Process for New Wizards
+### Step-by-Step Process
 
 #### 1. Create the Wizard Component
 Create file: `/components/wizards/[WizardName]Wizard.js`
 
 ```javascript
+// [Wizard Name] Wizard Component
+// Follows SDC Engineering Issues Guide - Section [X]
+
 const [WizardName]Wizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
-    // Implementation following 4-step pattern
-    // Use SDC guide for exact procedures
+    // Get icons from global scope
+    const { AlertTriangle, ArrowLeft, ArrowRight, Home, CheckCircle, XCircle, FileText, Shield, AlertCircle } = window.Icons;
+    
+    switch (currentStep) {
+        case 1:
+            // Initial assessment
+            return (
+                <div className="space-y-6">
+                    {/* Step content */}
+                </div>
+            );
+            
+        case 2:
+            // Detailed evaluation
+            return (...);
+            
+        case 3:
+            // Safety decision
+            return (...);
+            
+        default:
+            return <div className="text-white">Invalid step</div>;
+    }
 };
 
+// Export to global scope
 window.[WizardName]Wizard = [WizardName]Wizard;
 ```
 
 #### 2. Update index.html
-Add script tag before the "Load main application" comment:
+Add script tag in the wizards section:
 
 ```html
 <script type="text/babel" src="./components/wizards/[WizardName]Wizard.js"></script>
 ```
 
 #### 3. Add Wizard Route in App.js
-Add condition block before "Main Menu" section:
+Add the wizard condition before the "Main menu" return statement
 
-```javascript
-// [Wizard Display Name] Wizard
-if (currentWizard === '[wizard_id]') {
-    return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-            {/* Animated background and header - copy from existing wizards */}
-            <div className="relative max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-                <[WizardName]Wizard
-                    currentStep={currentStep}
-                    responses={responses}
-                    updateResponse={updateResponse}
-                    onNext={handleNext}
-                    onPrevious={handlePrevious}
-                    onComplete={handleComplete}
-                />
-            </div>
-        </div>
-    );
-}
-```
-
-#### 4. Update Menu Entry in App.js
-Move from 'coming_soon' to appropriate category in `defectCategories` array:
-- 'safety' for Safety Critical
-- 'high_priority' for High Priority
-- 'operational' for Operational Systems
+#### 4. Update Menu Button in App.js
+Move the button from placeholder section to appropriate category
 
 #### 5. Update Progress Counter
-Update the progress bar text and percentage to reflect new total (e.g., "22/31 wizards complete (71%)")
+Update text to reflect new total (e.g., "25 of 31 Wizards Complete (81%)")
 
-## Implementation Priorities
+## Testing & Deployment
 
-### Suggested Order (by importance)
-1. **LowWaterWizard** - Engine protection
-2. **WipersScreenwashWizard** - Driver visibility
-3. **CuttingoutFuelWizard** - Service reliability
-4. **BrokenWindowsWizard** - Passenger safety
-5. **SpeedoWizard** - Legal compliance
-6. **WingMirrorsWizard** - Driver visibility
-7. **InteriororExteriorDamageWizard** - General assessment
+### Local Testing
+1. Run local server: `python -m http.server 8081`
+2. Navigate to: `http://localhost:8081/breakdown-guide/`
+3. Test all navigation paths and safety decisions
 
-## Standard Implementation Request Template
+### Production Deployment
+1. Copy all files from source to `/breakdown-guide-react-deploy/`
+2. Upload to server maintaining directory structure
+3. Verify .htaccess is included for React routing
+4. Test at: `https://www.gobarry.co.uk/breakdown-guide/`
 
-Use this template when requesting implementation of a new wizard:
-
-```
-Please implement the [WizardName]Wizard following SDC guide section [X]. 
-
-The wizard should:
-1. Create the component file at /components/wizards/[WizardName]Wizard.js following our 4-step pattern
-2. Update index.html with the appropriate script tag
-3. Add the wizard route in App.js with wizard_id '[wizard_id]'
-4. Move the menu entry from 'coming_soon' to '[category]' category
-5. Update the progress counter to show [X]/31 wizards complete ([X]%)
-6. Strictly follow the SDC procedures from section [X]
-7. Include all required safety warnings and Go-Check reminders
-8. Maintain the dark UI theme with appropriate color coding
-
-The SDC guide section [X] specifies: [brief summary of the section's key procedures]
-```
-
-## Error Handling & Edge Cases
-
-### Standard Error Handling Patterns
-
-#### Navigation Edge Cases
-- **Skip Prevention**: Always disable navigation buttons during transitions
-- **Back Button**: Ensure previous responses are preserved when going back
-- **Direct Navigation**: Handle cases where users might bookmark a specific step
-
-```javascript
-// Example: Preventing skip to next step
-const handleNext = () => {
-    if (!responses[currentStep]) {
-        // Don't proceed without a response
-        return;
-    }
-    onNext();
-};
-```
-
-#### Common Edge Cases from Completed Wizards
-1. **Multiple Warning Lights**: Handle cases where multiple issues exist simultaneously
-2. **Incomplete Information**: Provide "Unknown/Not Sure" options where appropriate
-3. **Emergency Situations**: Always provide immediate "STOP" guidance for safety-critical issues
-4. **Communication Failures**: Include offline-capable instructions
-
-### Validation Patterns
-- Required fields must be clearly indicated
-- Provide helpful error messages, not generic ones
-- Validate responses before allowing progression
-
-## Testing Guidelines
-
-### Pre-Release Testing Checklist
-
-#### Functionality Tests
-- [ ] All 4 steps load correctly
-- [ ] Navigation works (Next/Previous/Skip to summary)
-- [ ] Responses are saved between steps
-- [ ] Complete wizard flow works end-to-end
-- [ ] "Start Over" functionality clears all data
-
-#### Safety & Compliance Tests
-- [ ] Safety warnings are prominently displayed
-- [ ] RED/AMBER color coding is correct
-- [ ] SDC procedures match the guide exactly
-- [ ] Go-Check reminders are included
-
-#### UI/UX Tests
-- [ ] Mobile responsive (test at 320px, 768px, 1024px+)
-- [ ] Touch targets are at least 44x44px
-- [ ] Text is readable on all backgrounds
-- [ ] Animations don't cause layout shift
-- [ ] Icons load correctly
-
-#### Browser Testing Requirements
-- Chrome (latest)
-- Safari (latest)
-- Firefox (latest)
-- Edge (latest)
-- Mobile Safari (iOS)
+### Browser Requirements
+- Chrome 90+
+- Safari 14+
+- Firefox 88+
+- Edge 90+
+- Mobile Safari (iOS 14+)
 - Chrome Mobile (Android)
-
-## Component Communication
-
-### State Management Pattern
-
-#### Wizard to App.js Communication
-```javascript
-// In App.js
-const [currentWizard, setCurrentWizard] = useState(null);
-const [currentStep, setCurrentStep] = useState(1);
-const [responses, setResponses] = useState({});
-
-// Passed to wizards
-const updateResponse = (step, value) => {
-    setResponses(prev => ({ ...prev, [step]: value }));
-};
-
-const handleComplete = () => {
-    // Clear state and return to menu
-    setCurrentWizard(null);
-    setCurrentStep(1);
-    setResponses({});
-};
-```
-
-#### Shared Utilities
-- Response formatting helpers
-- Safety level determination
-- Common UI components (buttons, cards)
-- Icon mappings
-
-### Common Patterns Between Wizards
-1. **Step Headers**: Consistent step indicator UI
-2. **Button Styles**: Shared button component styles
-3. **Safety Warnings**: Reusable warning alert components
-4. **Response Cards**: Consistent selection card design
-
-## SDC Guide Integration Mapping
-
-### Quick Reference Table
-
-| Wizard Name | SDC Section | Page | Safety Level |
-|-------------|-------------|------|-------------|
-| SteeringWizard | Section 26 | 8 | Safety Critical |
-| BrakesWizard | Section 5 | 7 | Safety Critical |
-| ABSLightWizard | Section 3 | 14 | Safety Critical |
-| OilWarningLightWizard | Section 20 | 22 | Safety Critical |
-| LooseWheelNutsWizard | Section 17 | 28 | Safety Critical |
-| PunctureWizard | Section 22 | 32 | Safety Critical |
-| RepeatDefectsWizard | Section 24 | 23 | High Priority |
-| RoadTrafficIncidentsWizard | Section 2 | 4-5 | High Priority |
-| InteriorLightsWizard | Section 15 | 33 | Operational |
-| ExteriorLightsWizard | Section 11 | 35 | Operational |
-| WheelchairLiftWizard | Section 23 | 20 | Operational |
-| BatteryWizard | Section 4 | 13 | Operational |
-| CoolingSystemWizard | Section 21 | 11 | Operational |
-| DemistersHeatersWizard | Section 9 | 15 | Operational |
-| DoorsWizard | Section 10 | 17 | Operational |
-| NonStarterWizard | Section 19 | 9 | Operational |
-| GearSelectionWizard | Section 13 | 24 | Operational |
-| GearboxWizard | Section 14 | 21 | Operational |
-| BuzzersWizard | Section 7 | 26 | Operational |
-| WarningLightsWizard | Section 28 | 25 | Operational |
-| ExcessiveSmokeWizard | Section 12 | 10 | Operational |
-| SuspensionWizard | Section 27 | 34 | Operational |
-
-### Remaining Wizards Mapping
-| Wizard Name | SDC Section | Page |
-|-------------|-------------|------|
-| WipersScreenwashWizard | Section 30 | 12 |
-| LowWaterWizard | Section 18 | 16 |
-| BrokenWindowsWizard | Section 6 | 6 |
-| WingMirrorsWizard | Section 29 | 27 |
-| SpeedoWizard | Section 25 | 31 |
-| CuttingoutFuelWizard | Section 8 | 18-19 |
-| InteriororExteriorDamageWizard | Section 16 | 29-30 |
-
-### Translating SDC Procedures to Wizard Steps
-
-#### Example Pattern:
-**SDC Procedure**: "If red ABS light remains illuminated, driver should stop and wait for engineering."
-
-**Wizard Implementation**:
-```javascript
-// Step 2: Diagnostic Question
-{
-    question: "Is the ABS light still illuminated?",
-    options: [
-        { value: 'yes_red', label: 'Yes - RED light' },
-        { value: 'yes_amber', label: 'Yes - AMBER light' },
-        { value: 'no', label: 'No - Light is off' }
-    ]
-}
-
-// Step 3: Action Based on Response
-if (responses[2] === 'yes_red') {
-    return (
-        <Alert severity="danger">
-            <AlertTitle>⚠️ STOP IMMEDIATELY</AlertTitle>
-            <AlertDescription>
-                RED ABS light indicates a critical brake system fault.
-                1. Stop the vehicle safely
-                2. Turn off the engine
-                3. Contact engineering immediately
-                4. Do NOT continue driving
-            </AlertDescription>
-        </Alert>
-    );
-}
-```
-
-## Visual Assets & Styling
-
-### Icon Naming Conventions
-
-The `window.Icons` object uses the following pattern:
-- Format: `IconCategoryName` (e.g., `AlertTriangle`, `Settings`, `CheckCircle`)
-- Safety icons: `AlertTriangle`, `ShieldAlert`, `AlertCircle`
-- System icons: `Settings`, `Wrench`, `Car`, `Gauge`
-- Status icons: `CheckCircle`, `XCircle`, `Info`
-
-### Available CSS Classes & Animations
-
-#### From styles/main.css:
-```css
-/* Blob animations */
-.blob-blue, .blob-purple, .blob-pink
-
-/* Gradient text */
-.gradient-text
-
-/* Glassmorphism card */
-.glass-card {
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-/* Hover effects */
-.hover-scale {
-    transition: transform 0.2s;
-}
-.hover-scale:hover {
-    transform: scale(1.05);
-}
-
-/* Safety level colors */
-.safety-critical { /* red theme */ }
-.high-priority { /* amber theme */ }
-.operational { /* blue theme */ }
-```
-
-### Animation Patterns
-- Entry animations: Fade in with slight upward movement
-- Button hover: Scale + shadow increase
-- Page transitions: Smooth opacity changes
-- Loading states: Pulse animation on buttons
 
 ## Key Implementation Notes
 
 ### Do's
 - ✅ Follow SDC guide procedures exactly
 - ✅ Use established UI patterns from completed wizards
-- ✅ Include clear safety warnings
-- ✅ Add Go-Check recording reminders
-- ✅ Test all navigation paths
-- ✅ Maintain consistent dark theme
+- ✅ Include clear safety warnings with proper icons
+- ✅ Add Go-Check recording reminders in final steps
+- ✅ Test all navigation paths thoroughly
+- ✅ Maintain consistent dark theme with animated backgrounds
 - ✅ Use proper color coding for urgency levels
+- ✅ Include specific thresholds from SDC guide
 
 ### Don'ts
-- ❌ Use localStorage or sessionStorage
-- ❌ Deviate from the 4-step wizard pattern
+- ❌ Use localStorage or sessionStorage (will cause failures)
+- ❌ Deviate from the established wizard pattern
 - ❌ Skip safety warnings or procedures
 - ❌ Create overly complex question flows
 - ❌ Forget to export to global scope
-- ❌ Miss updating all required files
+- ❌ Miss updating all required files (index.html, App.js)
+- ❌ Use external dependencies not already included
 
-## Resources
+## Standard Implementation Request Template
 
-### Available References
-- **SDC PDF Guide**: Source document for all wizard logic and procedures
-- **Completed wizards**: Reference implementations for consistent patterns
-- **Original HTML**: Fallback reference for any missing functionality
+Use this template when requesting implementation of a new wizard:
 
-### Development Tips
-- Each wizard implementation takes approximately 15-20 minutes
-- Focus on clarity and safety in user instructions
-- Test navigation flow thoroughly
-- Ensure mobile responsiveness
-- Keep language clear and action-oriented
+```
+Please implement the [WizardName]Wizard following SDC guide section [X] (page [Y]). 
 
-## Quality Standards
+The wizard should:
+1. Create the component file at /components/wizards/[WizardName]Wizard.js
+2. Follow our established 3-4 step pattern with dark UI theme
+3. Update index.html with the script tag
+4. Add the wizard route in App.js with currentWizard === '[wizard-id]'
+5. Move the menu button to the [category] section
+6. Update progress to show [X]/31 wizards complete ([X]%)
+7. Include all SDC thresholds and procedures from the guide
+8. Add proper safety warnings with icon usage
+9. Include Go-Check reminder in final step
 
-### Client Expectations
-- Professional dark UI (highly praised by client)
-- Clear, actionable guidance for drivers
-- Strict adherence to safety protocols
-- Modular, maintainable code structure
-- Responsive design for various devices
+Key SDC procedures for this wizard:
+- [List specific thresholds or critical procedures]
+- [Any special safety considerations]
+```
 
-### Code Quality
-- Consistent component structure
-- Clear variable and function names
-- Proper error handling
-- Comprehensive user guidance
-- Accessibility considerations
+## Resources & References
 
-## Next Steps
+### Project Files
+- **Source**: `/Users/anthony/Go BARRY App/Go_BARRY/public/breakdown-guide/`
+- **Deployment**: `/Users/anthony/Go BARRY App/breakdown-guide-react-deploy/`
+- **SDC Guide**: Original PDF with all procedures and thresholds
+- **Completed Wizards**: Reference implementations for patterns
 
-1. Begin implementing remaining wizards in priority order
-2. Test each wizard thoroughly before moving to next
-3. Update progress counter after each completion
-4. Ensure all wizards follow exact SDC procedures
-5. Maintain high quality standards throughout
+### Visual Consistency
+- Always use dark gradient backgrounds
+- Include animated blob effects
+- Use glassmorphism for cards
+- Maintain red "BARRY" branding
+- Follow established button and form patterns
 
-Remember: **Safety is paramount** - when in doubt, always err on the side of caution and follow SDC guide procedures exactly.
+## Current Priorities
+
+1. **System Maintenance**: Ongoing monitoring and refinements
+2. **User Training**: Staff training on the complete system
+3. **Performance Optimization**: Continue improving response times and user experience
+4. **Documentation**: Keep this guide updated with any changes and enhancements
+
+Remember: This is a safety-critical system. Every decision and implementation must prioritize driver and passenger safety above all else.

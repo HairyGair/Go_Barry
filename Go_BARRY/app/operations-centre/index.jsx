@@ -265,6 +265,14 @@ export default function OperationsCentre() {
       stats: cardStats.liveMap,
     },
     {
+      id: 'traffic-flow',
+      title: 'Traffic Flow',
+      subtitle: 'Real-time speed monitoring',
+      icon: 'speedometer',
+      color: ['#3b82f6', '#1d4ed8'],
+      stats: { value: 'Live', label: 'Monitoring' },
+    },
+    {
       id: 'horizon-vix',
       title: 'Horizon VIX-ITS',
       subtitle: 'Traffic Management System • Opens a new tab',
@@ -309,6 +317,16 @@ export default function OperationsCentre() {
         Component = () => {
           const LiveMapContainer = require('../../components/operations/live-map/LiveMapContainer.jsx').default;
           return <LiveMapContainer onClose={() => setSelectedCard(null)} />;
+        };
+        break;
+      case 'traffic-flow':
+        Component = () => {
+          const TrafficFlowDashboard = require('../../components/TrafficFlowDashboard.jsx').default;
+          return (
+            <View style={{ flex: 1, backgroundColor: '#f9fafb' }}>
+              <TrafficFlowDashboard />
+            </View>
+          );
         };
         break;
       default:

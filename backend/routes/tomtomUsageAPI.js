@@ -1,165 +1,137 @@
-// backend/routes/tomtomUsageAPI.js
-// TomTom tile usage monitoring API
-
+// routes/tomtomUsageAPI.js
+// TomTom API Usage Tracking and Monitoring
 import express from 'express';
+import { supervisorAuth } from '../middleware/supervisorAuth.js';
 
 const router = express.Router();
 
-// In-memory usage tracking (in production, use database)
-const usageStats = {
-  daily: {
-    date: new Date().toISOString().split('T')[0],
-    totalRequests: 0,
-    cachedRequests: 0,
-    networkRequests: 0,
-    uniqueTiles: new Set(),
-    estimatedCost: 0,
-    quotaLimit: 75000, // TomTom daily tile limit
-    resetTime: new Date().setHours(0, 0, 0, 0) + 24 * 60 * 60 * 1000
-  },
-  hourly: {},
-  byEndpoint: {}
+// In-memory usage tracking (resets daily)
+const usageTracker = {
+  traffic: { used: 0, limit: 2500, resetsAt: null },
+  search: { used: 0, limit: 2500, resetsAt: null },
+  routing: { used: 0, limit: 2500, resetsAt: null },
+  reverseGeocode: { used: 0, limit: 2500, resetsAt: null },
+  lastReset: null
 };
 
-// Reset daily stats
-setInterval(() => {
-  const now = Date.now();
-  if (now >= usageStats.daily.resetTime) {
-    console.log('🔄 Resetting TomTom daily usage stats');
-    usageStats.daily = {
-      date: new Date().toISOString().split('T')[0],
-      totalRequests: 0,
-      cachedRequests: 0,
-      networkRequests: 0,
-      uniqueTiles: new Set(),
-      estimatedCost: 0,
-      quotaLimit: 75000,
-      resetTime: new Date().setHours(0, 0, 0, 0) + 24 * 60 * 60 * 1000
-    };
+// Reset daily at midnight
+function checkAndResetDaily() {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
+  if (!usageTracker.lastReset || usageTracker.lastReset < today) {
+    // Reset all counters
+    Object.keys(usageTracker).forEach(key => {
+      if (key !== 'lastReset' && usageTracker[key].limit) {
+        usageTracker[key].used = 0;
+        usageTracker[key].resetsAt = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+      }
+    });
+    usageTracker.lastReset = today;
+    console.log('✅ TomTom usage counters reset for new day');
   }
-}, 60000); // Check every minute
+}
 
-// Get usage statistics
-router.get('/stats', (req, res) => {
-  const remaining = usageStats.daily.quotaLimit - usageStats.daily.networkRequests;
-  const percentUsed = (usageStats.daily.networkRequests / usageStats.daily.quotaLimit) * 100;
+// Increment usage counter
+export function incrementTomTomUsage(apiType, count = 1) {
+  checkAndResetDaily();
   
-  res.json({
-    success: true,
-    daily: {
-      date: usageStats.daily.date,
-      totalRequests: usageStats.daily.totalRequests,
-      cachedRequests: usageStats.daily.cachedRequests,
-      networkRequests: usageStats.daily.networkRequests,
-      uniqueTiles: usageStats.daily.uniqueTiles.size,
-      cacheHitRate: usageStats.daily.totalRequests > 0 
-        ? Math.round((usageStats.daily.cachedRequests / usageStats.daily.totalRequests) * 100) 
-        : 0,
-      quotaUsed: percentUsed.toFixed(2) + '%',
-      quotaRemaining: remaining,
-      estimatedCost: `$${(usageStats.daily.networkRequests * 0.0004).toFixed(2)}`, // Estimate
-      hoursUntilReset: Math.ceil((usageStats.daily.resetTime - Date.now()) / (60 * 60 * 1000))
-    },
-    recommendations: generateRecommendations(percentUsed, remaining)
-  });
-});
-
-// Track tile request
-router.post('/track', (req, res) => {
-  const { type, tileUrl, cached } = req.body;
-  
-  usageStats.daily.totalRequests++;
-  
-  if (cached) {
-    usageStats.daily.cachedRequests++;
-  } else {
-    usageStats.daily.networkRequests++;
-  }
-  
-  if (tileUrl) {
-    // Extract tile coordinates from URL
-    const match = tileUrl.match(/\/(\d+)\/(\d+)\/(\d+)\./);
-    if (match) {
-      const tileKey = `${match[1]}-${match[2]}-${match[3]}`;
-      usageStats.daily.uniqueTiles.add(tileKey);
+  if (usageTracker[apiType]) {
+    usageTracker[apiType].used += count;
+    
+    // Log warning if approaching limit
+    const percentage = (usageTracker[apiType].used / usageTracker[apiType].limit) * 100;
+    if (percentage >= 90) {
+      console.error(`🚨 TomTom ${apiType} API: CRITICAL - ${percentage.toFixed(1)}% of daily limit used!`);
+    } else if (percentage >= 75) {
+      console.warn(`⚠️ TomTom ${apiType} API: WARNING - ${percentage.toFixed(1)}% of daily limit used`);
     }
   }
-  
-  // Track hourly
-  const hour = new Date().getHours();
-  if (!usageStats.hourly[hour]) {
-    usageStats.hourly[hour] = { total: 0, cached: 0, network: 0 };
-  }
-  usageStats.hourly[hour].total++;
-  if (cached) {
-    usageStats.hourly[hour].cached++;
-  } else {
-    usageStats.hourly[hour].network++;
-  }
-  
-  res.json({ success: true });
-});
-
-// Get hourly breakdown
-router.get('/hourly', (req, res) => {
-  const hourlyData = Object.entries(usageStats.hourly)
-    .map(([hour, stats]) => ({
-      hour: parseInt(hour),
-      ...stats,
-      cacheHitRate: stats.total > 0 ? Math.round((stats.cached / stats.total) * 100) : 0
-    }))
-    .sort((a, b) => a.hour - b.hour);
-  
-  res.json({
-    success: true,
-    hourly: hourlyData,
-    peakHour: hourlyData.reduce((peak, current) => 
-      current.network > (peak?.network || 0) ? current : peak, null
-    ),
-    timestamp: new Date().toISOString()
-  });
-});
-
-// Generate recommendations based on usage
-function generateRecommendations(percentUsed, remaining) {
-  const recommendations = [];
-  
-  if (percentUsed > 80) {
-    recommendations.push({
-      level: 'critical',
-      message: 'Over 80% of daily quota used. Consider reducing map refresh rates.'
-    });
-  } else if (percentUsed > 60) {
-    recommendations.push({
-      level: 'warning',
-      message: 'Over 60% of daily quota used. Monitor usage closely.'
-    });
-  }
-  
-  if (remaining < 10000) {
-    recommendations.push({
-      level: 'warning',
-      message: 'Less than 10,000 tile requests remaining today.'
-    });
-  }
-  
-  const cacheHitRate = usageStats.daily.totalRequests > 0 
-    ? (usageStats.daily.cachedRequests / usageStats.daily.totalRequests) * 100 
-    : 0;
-    
-  if (cacheHitRate < 50) {
-    recommendations.push({
-      level: 'info',
-      message: `Cache hit rate is ${cacheHitRate.toFixed(0)}%. Consider increasing cache duration.`
-    });
-  } else if (cacheHitRate > 80) {
-    recommendations.push({
-      level: 'success',
-      message: `Excellent cache hit rate of ${cacheHitRate.toFixed(0)}%!`
-    });
-  }
-  
-  return recommendations;
 }
+
+// Get current usage status
+router.get('/usage', supervisorAuth(['admin']), (req, res) => {
+  try {
+    checkAndResetDaily();
+    
+    const recommendations = [];
+    const criticalAPIs = [];
+    const warningAPIs = [];
+    
+    // Analyze usage and generate recommendations
+    Object.entries(usageTracker).forEach(([api, data]) => {
+      if (api === 'lastReset' || !data.limit) return;
+      
+      const percentage = (data.used / data.limit) * 100;
+      
+      if (percentage >= 90) {
+        criticalAPIs.push(api);
+        recommendations.push(`${api} API is critically low. Consider reducing frequency or implementing fallbacks.`);
+      } else if (percentage >= 75) {
+        warningAPIs.push(api);
+        recommendations.push(`${api} API usage is high. Monitor closely.`);
+      }
+    });
+    
+    // General recommendations
+    if (criticalAPIs.length > 0) {
+      recommendations.push('Enable aggressive caching to reduce API calls');
+      recommendations.push('Consider implementing request queuing for non-urgent operations');
+    }
+    
+    res.json({
+      success: true,
+      apis: usageTracker,
+      summary: {
+        critical: criticalAPIs,
+        warning: warningAPIs,
+        healthy: Object.keys(usageTracker)
+          .filter(api => api !== 'lastReset' && usageTracker[api].limit)
+          .filter(api => !criticalAPIs.includes(api) && !warningAPIs.includes(api))
+      },
+      recommendations,
+      lastReset: usageTracker.lastReset
+    });
+  } catch (error) {
+    console.error('❌ Error fetching TomTom usage:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get usage history (if we implement persistent storage)
+router.get('/usage/history', supervisorAuth(['admin']), async (req, res) => {
+  try {
+    // TODO: Implement Supabase storage for historical data
+    res.json({
+      success: true,
+      message: 'Historical data not yet implemented',
+      data: []
+    });
+  } catch (error) {
+    console.error('❌ Error fetching usage history:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Manual reset (admin only)
+router.post('/usage/reset', supervisorAuth(['admin']), (req, res) => {
+  try {
+    Object.keys(usageTracker).forEach(key => {
+      if (key !== 'lastReset' && usageTracker[key].limit) {
+        usageTracker[key].used = 0;
+      }
+    });
+    
+    console.log('🔄 TomTom usage counters manually reset by admin');
+    
+    res.json({
+      success: true,
+      message: 'Usage counters reset successfully'
+    });
+  } catch (error) {
+    console.error('❌ Error resetting usage:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 export default router;

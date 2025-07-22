@@ -74,8 +74,8 @@ export default function IncidentsPage() {
     );
   }
 
-  // Force localhost for development - override production settings
-  const baseUrl = 'http://localhost:3001';
+  // Use production URL from API config
+  const baseUrl = 'https://go-barry.onrender.com';
 
   return (
     <IncidentsErrorBoundary>

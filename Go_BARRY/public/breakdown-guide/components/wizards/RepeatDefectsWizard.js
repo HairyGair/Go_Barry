@@ -383,7 +383,7 @@ const RepeatDefectsWizard = ({ currentStep, responses, updateResponse, onNext, o
                                 </div>
                                 <div className="space-y-2">
                                     <p className="text-green-300/90">✅ Complete defect documentation</p>
-                                    <p className="text-green-300/90">✅ Go-Check audit trail established</p>
+                                    <p className="text-green-300/90">✅ Tranzaura audit trail established</p>
                                     <p className="text-green-300/90">✅ Management accountability activated</p>
                                 </div>
                             </div>
@@ -422,9 +422,9 @@ const RepeatDefectsWizard = ({ currentStep, responses, updateResponse, onNext, o
                         <div className="flex items-start space-x-4">
                             <FileText className="w-6 h-6 text-purple-400 mt-1" />
                             <div>
-                                <h4 className="font-semibold text-purple-200 mb-2">📱 Go-Check Documentation Complete</h4>
+                                <h4 className="font-semibold text-purple-200 mb-2">📱 Tranzaura Documentation Complete</h4>
                                 <p className="text-purple-300/80 text-sm">
-                                    This escalation has created a complete audit trail in Go-Check for management review, 
+                                    This escalation has created a complete audit trail in Tranzaura for management review, 
                                     engineering accountability, and process improvement initiatives.
                                 </p>
                             </div>

@@ -1133,11 +1133,11 @@ const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, on
                                 </div>
                             )}
                             
-                            {/* Go-Check Recording */}
+                            {/* Tranzaura Recording */}
                             {responses.go_check_recorded === 'needs_recording' && (
                                 <div className="bg-white/10 backdrop-blur-sm rounded p-4">
-                                    <h4 className="font-semibold text-blue-200 mb-2">📝 Go-Check Recording</h4>
-                                    <p className="text-blue-300/90 text-sm">Record all defects and incident details in Go-Check system when safe to do so</p>
+                                    <h4 className="font-semibold text-blue-200 mb-2">📝 Tranzaura Recording</h4>
+                                    <p className="text-blue-300/90 text-sm">Record all defects and incident details in Tranzaura system when safe to do so</p>
                                 </div>
                             )}
                             

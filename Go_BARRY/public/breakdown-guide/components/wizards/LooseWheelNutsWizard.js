@@ -672,9 +672,9 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                         <div className="flex items-start space-x-4">
                             <FileText className="w-6 h-6 text-blue-400 mt-1" />
                             <div>
-                                <h4 className="font-semibold text-blue-200 mb-2">📱 Go-Check Critical Incident Documentation</h4>
+                                <h4 className="font-semibold text-blue-200 mb-2">📱 Tranzaura Critical Incident Documentation</h4>
                                 <p className="text-blue-300/80 text-sm">
-                                    This incident has been classified as a CRITICAL SAFETY EMERGENCY and must be recorded in Go-Check with full details, 
+                                    This incident has been classified as a CRITICAL SAFETY EMERGENCY and must be recorded in Tranzaura with full details, 
                                     photographs, and all actions taken. This will form part of the safety audit trail.
                                 </p>
                             </div>

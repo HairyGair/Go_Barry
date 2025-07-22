@@ -1,0 +1,26 @@
+{
+  "name": "breakdown-guide-react-system",
+  "version": "4.0.0",
+  "description": "Go North East React-based Breakdown Guide - 24/31 Wizards Complete",
+  "main": "index.html",
+  "scripts": {
+    "start": "echo 'React-based static site - no build required'",
+    "build": "echo 'No build step needed - using CDN React'"
+  },
+  "keywords": [
+    "breakdown-guide",
+    "go-north-east",
+    "react-wizards",
+    "modular-system",
+    "sdc-compliance"
+  ],
+  "author": "Go North East",
+  "license": "ISC",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "dependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  }
+}

@@ -8,15 +8,10 @@
 // Main home page with login functionality
 
 import React from 'react';
-import { SupervisorProvider } from '../components/hooks/useSupervisorSession';
 import HomePageWithLogin from '../components/HomePageWithLogin';
 
 const IndexApp = () => {
-  return (
-    <SupervisorProvider>
-      <HomePageWithLogin />
-    </SupervisorProvider>
-  );
+  return <HomePageWithLogin />;
 };
 
 export default IndexApp;

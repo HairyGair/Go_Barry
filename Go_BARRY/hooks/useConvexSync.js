@@ -510,6 +510,11 @@ export function useConvexSync() {
     updateVixData,
     clearVixData,
     
+    // Display incidents
+    displayIncidents: ensureArray(useSafeQuery(api?.displayIncidents?.getDisplayIncidents)),
+    displayMessages: ensureArray(useSafeQuery(api?.displayIncidents?.getDisplayMessages)),
+    markMessageDisplayed: useSafeMutation(api?.displayIncidents?.markMessageDisplayed),
+    
     // Email communications
     emailTemplates: ensureArray(emailTemplates),
     distributionLists: ensureArray(distributionLists),

@@ -6,6 +6,8 @@ import axios from 'axios';
 import { isAlertDismissed, getAlertDismissalInfo } from './supervisorManager.js';
 import { enhancedFindRoutesNearCoordinates, enhancedLocationWithRoutes } from '../enhanced-gtfs-route-matcher.js';
 import { trafficIntelligence } from './unifiedTrafficIntelligence.js';
+import coordinateEnhancer from './geocoding/coordinateEnhancer.js';
+import historicalCollector from './historicalDataCollector.js';
 
 // Enhanced geocoding with multiple fallbacks
 export async function getEnhancedLocation(lat, lng, fallbackDescription = '') {
@@ -324,6 +326,10 @@ export function calculateAlertSeverity(alert) {
 export async function processEnhancedAlerts(rawAlerts) {
   console.log(`🔄 Processing ${rawAlerts.length} alerts with enhanced route matching...`);
   
+  // FIRST: Enhance all alerts with guaranteed coordinates
+  console.log('🌐 Enhancing coordinates for all alerts...');
+  const alertsWithCoordinates = await coordinateEnhancer.enhanceMultipleAlerts(rawAlerts);
+  
   const enhancedAlerts = [];
   let enhancedCount = 0;
   let routeMatchingStats = {
@@ -333,7 +339,7 @@ export async function processEnhancedAlerts(rawAlerts) {
     none: 0
   };
   
-  for (const alert of rawAlerts) {
+  for (const alert of alertsWithCoordinates) {
     try {
       // Skip dismissed alerts
       if (isAlertDismissed(alert.id)) {
@@ -342,23 +348,14 @@ export async function processEnhancedAlerts(rawAlerts) {
       
       let enhancedAlert = { ...alert };
       
-      // Enhance location if coordinates available
-      if (alert.coordinates?.lat && alert.coordinates?.lng) {
-        const enhancedLocation = await getEnhancedLocation(
-          alert.coordinates.lat,
-          alert.coordinates.lng,
-          alert.location
-        );
-        enhancedAlert.location = enhancedLocation;
-        enhancedAlert.locationAccuracy = 'high';
-      } else if (alert.coordinates && Array.isArray(alert.coordinates) && alert.coordinates.length >= 2) {
-        const [lat, lng] = alert.coordinates;
-        const enhancedLocation = await getEnhancedLocation(lat, lng, alert.location);
-        enhancedAlert.location = enhancedLocation;
-        enhancedAlert.locationAccuracy = 'high';
-      } else {
-        enhancedAlert.locationAccuracy = 'low';
-      }
+      // Enhance location using guaranteed coordinates
+      const enhancedLocation = await getEnhancedLocation(
+        alert.coordinates.lat,
+        alert.coordinates.lng,
+        alert.enhancedLocation || alert.location
+      );
+      enhancedAlert.location = enhancedLocation;
+      enhancedAlert.locationAccuracy = alert.coordinateAccuracy || 'medium';
       
       // Enhanced route matching using the new system
       const routeResult = await getEnhancedRouteMatching(
@@ -420,6 +417,11 @@ export async function processEnhancedAlerts(rawAlerts) {
       };
       
       enhancedAlerts.push(enhancedAlert);
+      
+      // Capture alert for historical analysis
+      historicalCollector.captureAlerts([enhancedAlert]).catch(error => {
+        console.warn('⚠️ Historical data capture failed:', error.message);
+      });
       
     } catch (error) {
       console.error('❌ Failed to enhance alert:', alert.id, error.message);

@@ -85,7 +85,8 @@ const APP_CARDS = [
     ],
     buttonText: 'Manage Disruptions',
     requiresLogin: true,
-    route: '/disruptions'
+    route: '/disruptions',
+    isNew: true
   },
   {
     id: 'breakdown-guide',
@@ -128,26 +129,39 @@ const APP_CARDS = [
 
 const HomePageWithLogin = () => {
   const router = useRouter();
-  const { isLoggedIn, supervisorName, isAdmin } = useSupervisor();
+  const supervisorContext = useSupervisor();
+  const { isLoggedIn, supervisorName, isAdmin } = supervisorContext;
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   
-  // Force re-render when login state changes
+  // Log the complete context state
   useEffect(() => {
-    console.log('Login state changed:', { isLoggedIn, supervisorName, isAdmin });
-  }, [isLoggedIn, supervisorName, isAdmin]);
+    console.log('[HomePageWithLogin] Full context:', supervisorContext);
+    console.log('[HomePageWithLogin] isLoggedIn:', isLoggedIn);
+    console.log('[HomePageWithLogin] supervisorName:', supervisorName);
+    console.log('[HomePageWithLogin] isAdmin:', isAdmin);
+  }, [supervisorContext, isLoggedIn, supervisorName, isAdmin]);
+
+  // Force refresh when login state changes
+  useEffect(() => {
+    setRefreshTrigger(prev => prev + 1);
+  }, [isLoggedIn]);
 
   const navigateToApp = (card) => {
+    console.log('[Navigation] Card clicked:', card.id);
+    console.log('[Navigation] Current auth state:', { isLoggedIn, isAdmin });
+    
     if (card.requiresLogin && !isLoggedIn) {
-      return; // Login handled by header
+      alert('Please log in to access this feature');
+      return;
     }
     if (card.adminOnly && !isAdmin) {
-      return; // Admin only
+      alert('Admin access required');
+      return;
     }
     
     // Special handling for breakdown guide
     if (card.id === 'breakdown-guide') {
-      // Check if we're in a web environment
       if (Platform.OS === 'web' && window) {
-        // Open the existing breakdown guide application
         window.open('/breakdown-guide/guide.html', '_blank');
         return;
       }
@@ -169,17 +183,22 @@ const HomePageWithLogin = () => {
 
   const isCardDisabled = (card) => {
     if (card.requiresLogin && !isLoggedIn) {
-      return false; // Show as actionable but login required
+      return true;
     }
     if (card.adminOnly && !isAdmin) {
-      return true; // Actually disabled for non-admins
+      return true;
     }
     return false;
   };
 
+  const handleLoginSuccess = () => {
+    console.log('[HomePageWithLogin] Login success callback triggered');
+    setRefreshTrigger(prev => prev + 1);
+  };
+
   return (
-    <View style={styles.container}>
-      <AppHeader />
+    <View style={styles.container} key={`home-${refreshTrigger}`}>
+      <AppHeader onLoginSuccess={handleLoginSuccess} />
       
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Welcome Section */}
@@ -219,56 +238,65 @@ const HomePageWithLogin = () => {
         <View style={styles.appsSection}>
           <Text style={styles.sectionTitle}>Applications</Text>
           <View style={styles.cardsGrid}>
-            {APP_CARDS.map((card) => (
-              <TouchableOpacity
-                key={card.id}
-                style={[
-                  styles.card,
-                  { borderTopColor: card.color },
-                  isCardDisabled(card) && styles.disabledCard
-                ]}
-                onPress={() => navigateToApp(card)}
-                activeOpacity={0.8}
-                disabled={isCardDisabled(card)}
-              >
-                <View style={[styles.cardHeader, { backgroundColor: card.color + '15' }]}>
-                  <View style={[styles.cardIconContainer, { backgroundColor: card.color }]}>
-                    <Ionicons name={card.icon} size={32} color="#fff" />
-                  </View>
-                  <View style={styles.cardInfo}>
-                    <Text style={styles.cardTitle}>{card.title}</Text>
-                    <Text style={styles.cardSubtitle}>{card.subtitle}</Text>
-                  </View>
-                </View>
-                
-                <View style={styles.cardContent}>
-                  <Text style={styles.cardDescription}>{card.description}</Text>
-                  
-                  <View style={styles.cardFeatures}>
-                    {card.features.map((feature, index) => (
-                      <View key={index} style={styles.featureItem}>
-                        <Ionicons name="checkmark" size={14} color={card.color} />
-                        <Text style={styles.featureText}>{feature}</Text>
+            {APP_CARDS.map((card) => {
+              const disabled = isCardDisabled(card);
+              return (
+                <TouchableOpacity
+                  key={card.id}
+                  style={[
+                    styles.card,
+                    { borderTopColor: card.color },
+                    disabled && styles.disabledCard
+                  ]}
+                  onPress={() => navigateToApp(card)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.cardHeader, { backgroundColor: card.color + '15' }]}>
+                    <View style={[styles.cardIconContainer, { backgroundColor: card.color }]}>
+                      <Ionicons name={card.icon} size={32} color="#fff" />
+                    </View>
+                    <View style={styles.cardInfo}>
+                      <View style={styles.cardTitleRow}>
+                        <Text style={styles.cardTitle}>{card.title}</Text>
+                        {card.isNew && (
+                          <View style={styles.newBadge}>
+                            <Text style={styles.newBadgeText}>NEW</Text>
+                          </View>
+                        )}
                       </View>
-                    ))}
+                      <Text style={styles.cardSubtitle}>{card.subtitle}</Text>
+                    </View>
                   </View>
                   
-                  <View style={[
-                    styles.cardAction, 
-                    { backgroundColor: isCardDisabled(card) ? '#9CA3AF' : card.color }
-                  ]}>
-                    <Text style={styles.cardActionText}>
-                      {getCardButtonText(card)}
-                    </Text>
-                    <Ionicons 
-                      name={isCardDisabled(card) ? "lock-closed" : "arrow-forward"} 
-                      size={18} 
-                      color="#fff" 
-                    />
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardDescription}>{card.description}</Text>
+                    
+                    <View style={styles.cardFeatures}>
+                      {card.features.map((feature, index) => (
+                        <View key={index} style={styles.featureItem}>
+                          <Ionicons name="checkmark" size={14} color={card.color} />
+                          <Text style={styles.featureText}>{feature}</Text>
+                        </View>
+                      ))}
+                    </View>
+                    
+                    <View style={[
+                      styles.cardAction, 
+                      { backgroundColor: disabled ? '#9CA3AF' : card.color }
+                    ]}>
+                      <Text style={styles.cardActionText}>
+                        {getCardButtonText(card)}
+                      </Text>
+                      <Ionicons 
+                        name={disabled ? "lock-closed" : "arrow-forward"} 
+                        size={18} 
+                        color="#fff" 
+                      />
+                    </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
@@ -376,7 +404,7 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   
-  // Card Styles (matching Communications Hub)
+  // Card Styles
   card: {
     width: Platform.OS === 'web' ? 'calc(50% - 10px)' : '100%',
     backgroundColor: '#fff',
@@ -413,16 +441,32 @@ const styles = StyleSheet.create({
   cardInfo: {
     flex: 1,
   },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   cardTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 4,
+  },
+  newBadge: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  newBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   cardSubtitle: {
     fontSize: 14,
     color: '#6B7280',
     fontWeight: '500',
+    marginTop: 4,
   },
   cardContent: {
     padding: 20,

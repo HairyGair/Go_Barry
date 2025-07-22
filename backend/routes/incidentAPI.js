@@ -14,20 +14,100 @@ import {
 } from '../services/enhancedIncidentManager.js';
 import { autoIncidentCreator } from '../services/autoIncidentCreator.js';
 import { trafficIntelligence } from '../services/unifiedTrafficIntelligence.js';
+import historicalCollector from '../services/historicalDataCollector.js';
 
 const router = express.Router();
 
 // Counter for incident IDs
 let incidentCounter = 1;
 
+// Temporary in-memory storage for development
+const inMemoryIncidents = [];
+
+// Debug function to log storage state
+function logStorageState() {
+  console.log('📦 In-Memory Storage State:', {
+    count: inMemoryIncidents.length,
+    incidents: inMemoryIncidents.map(i => ({ id: i.id, location: i.location, status: i.status }))
+  });
+}
+
 // GET /api/incidents - Get all incidents
 router.get('/', async (req, res) => {
+  console.log('🔍 GET /api/incidents called');
+  logStorageState();
+  
   try {
-    // Get all incidents from Supabase storage
-    const allIncidents = await supabaseStorage.getAllIncidents();
+    // Try Supabase first
+    let allIncidents = [];
+    let storageType = 'unknown';
+    
+    try {
+      const supabaseIncidents = await supabaseStorage.getAllIncidents();
+      console.log(`📡 Supabase returned ${supabaseIncidents.length} incidents`);
+      
+      // Convert database format to API format
+      allIncidents = supabaseIncidents.map(incident => ({
+        id: incident.id,
+        type: incident.type,
+        subtype: incident.subtype,
+        location: incident.location,
+        coordinates: incident.coordinates,
+        description: incident.description,
+        startTime: incident.start_time || incident.startTime,
+        endTime: incident.end_time || incident.endTime,
+        severity: incident.severity,
+        notes: incident.notes,
+        affectsRoutes: incident.affected_routes || incident.affectsRoutes || [],
+        status: incident.status,
+        createdBy: incident.created_by || incident.createdBy,
+        createdByName: incident.created_by_name || incident.createdByName,
+        createdByRole: incident.created_by_role || incident.createdByRole,
+        createdAt: incident.created_at || incident.createdAt,
+        lastUpdated: incident.last_updated || incident.lastUpdated,
+        source: incident.source || 'manual'
+      }));
+      storageType = 'supabase';
+    } catch (supabaseError) {
+      console.warn('⚠️ Supabase fetch failed, using in-memory storage:', supabaseError.message);
+      allIncidents = [...inMemoryIncidents]; // Make a copy to avoid reference issues
+      storageType = 'memory';
+    }
+    
+    // If no incidents from Supabase, use in-memory
+    if (allIncidents.length === 0 && inMemoryIncidents.length > 0) {
+      console.log('🔄 Supabase empty, switching to in-memory storage');
+      allIncidents = [...inMemoryIncidents];
+      storageType = 'memory';
+    }
+    
+    console.log(`📤 Returning ${allIncidents.length} total incidents from ${storageType}`);
     
     // Filter active incidents
     const activeIncidents = allIncidents.filter(incident => 
+      incident.status === 'active' || incident.status === 'monitoring'
+    );
+    
+    console.log(`✅ Filtered to ${activeIncidents.length} active incidents`);
+    
+    res.json({
+      success: true,
+      incidents: activeIncidents,
+      count: activeIncidents.length,
+      lastUpdated: new Date().toISOString(),
+      storage: storageType,
+      debug: {
+        totalInMemory: inMemoryIncidents.length,
+        totalFromStorage: allIncidents.length,
+        activeCount: activeIncidents.length
+      }
+    });
+  } catch (error) {
+    console.error('Failed to fetch incidents:', error);
+    
+    // Provide fallback with in-memory incidents
+    console.log('📋 Providing in-memory incidents');
+    const activeIncidents = inMemoryIncidents.filter(incident => 
       incident.status === 'active' || incident.status === 'monitoring'
     );
     
@@ -35,20 +115,10 @@ router.get('/', async (req, res) => {
       success: true,
       incidents: activeIncidents,
       count: activeIncidents.length,
-      lastUpdated: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Failed to fetch incidents:', error);
-    
-    // Provide fallback empty response for development
-    console.log('📋 Providing fallback empty incidents response');
-    res.json({
-      success: true,
-      incidents: [],
-      count: 0,
       lastUpdated: new Date().toISOString(),
       fallback: true,
-      note: 'Manual incidents table not available - showing empty results'
+      storage: 'memory',
+      note: 'Using in-memory storage'
     });
   }
 });
@@ -129,8 +199,23 @@ router.post('/', async (req, res) => {
       source: 'manual'
     };
 
-    // Save to Supabase storage
-    const savedIncident = await supabaseStorage.addIncident(incident);
+    // Save to Supabase storage (with fallback)
+    let savedIncident;
+    try {
+      savedIncident = await supabaseStorage.addIncident(incident);
+      console.log('✅ Saved to Supabase');
+    } catch (supabaseError) {
+      console.warn('⚠️ Supabase storage failed, using in-memory:', supabaseError.message);
+      // Fallback to in-memory storage for development
+      savedIncident = incident;
+      savedIncident.id = incident.id;
+      savedIncident.fallback = true;
+      
+      // Add to in-memory storage
+      inMemoryIncidents.unshift(savedIncident);
+      console.log('💾 Saved to in-memory storage, total incidents:', inMemoryIncidents.length);
+      logStorageState();
+    }
 
     // Try to enhance with TomTom features (non-blocking)
     try {
@@ -150,11 +235,26 @@ router.post('/', async (req, res) => {
       // Continue with non-enhanced incident
     }
 
-    console.log(`✅ Created Supabase incident: ${savedIncident.id} at ${location} affecting ${affectedRoutes.length} routes`);
+    console.log(`✅ Created incident: ${savedIncident.id} at ${location} affecting ${affectedRoutes.length} routes`);
+    console.log('🔍 Incident details:', {
+      id: savedIncident.id,
+      location: savedIncident.location,
+      status: savedIncident.status,
+      storage: savedIncident.fallback ? 'memory' : 'supabase'
+    });
+    
+    // Capture incident for historical analysis
+    historicalCollector.captureIncident(savedIncident).catch(error => {
+      console.warn('⚠️ Historical incident capture failed:', error.message);
+    });
     
     // Get current stats
-    const stats = await supabaseStorage.getIncidentStats();
-    console.log(`📊 Total incidents in system: ${stats.total} (${stats.active} active)`);;
+    try {
+      const stats = await supabaseStorage.getIncidentStats();
+      console.log(`📊 Total incidents in Supabase: ${stats.total} (${stats.active} active)`);
+    } catch (e) {
+      console.log(`📊 Total incidents in memory: ${inMemoryIncidents.length}`);
+    }
 
     res.json({
       success: true,

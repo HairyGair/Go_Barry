@@ -125,10 +125,76 @@ import sharePointExcelAPI from './routes/sharePointExcelAPI.js';
 console.log('✅ sharePointExcelAPI imported');
 import memoryAPI from './routes/memoryAPI.js';
 console.log('✅ memoryAPI imported');
+import trafficIntelligenceAPI from './routes/trafficIntelligenceAPI.js';
+console.log('✅ trafficIntelligenceAPI imported');
+import enhancedRouteAPI from './routes/enhancedRouteAPI.js';
+console.log('✅ enhancedRouteAPI imported successfully');
+import flowMonitoringAPI from './routes/flowMonitoringAPI.js';
+console.log('✅ flowMonitoringAPI imported successfully');
+import coordinateAPI from './routes/geocoding/coordinateAPI.js';
+console.log('✅ coordinateAPI imported successfully');
+import geocodingAPI from './routes/geocodingAPI.js';
+console.log('✅ geocodingAPI imported successfully');
+import historicalAPI from './routes/historicalAPI.js';
+console.log('✅ historicalAPI imported successfully');
+import suggestionsAPI from './routes/suggestionsAPI.js';
+console.log('✅ suggestionsAPI imported successfully');
 
 // Communications API Route
 app.use('/api/communications', communicationsAPI);
 console.log('✅ Communications API registered at /api/communications');
+
+// Traffic Intelligence API routes
+console.log('🚦 Registering traffic intelligence routes at /api/traffic-intelligence...');
+app.use('/api/traffic-intelligence', trafficIntelligenceAPI);
+console.log('✅ Traffic intelligence routes registered successfully');
+console.log(`   🚦 Traffic Intelligence: /api/traffic-intelligence/live-congestion`);
+console.log(`   🚧 Roadworks Feed: /api/traffic-intelligence/roadworks`);
+console.log(`   🤖 Auto-create: /api/traffic-intelligence/auto-create-incidents`);
+console.log(`   📊 Traffic Stats: /api/traffic-intelligence/stats`);
+
+// TomTom Usage Monitoring API
+console.log('📊 Registering TomTom usage monitoring at /api/tomtom...');
+app.use('/api/tomtom', tomtomUsageAPI);
+console.log('✅ TomTom usage monitoring registered successfully');
+console.log(`   📊 Usage Stats: /api/tomtom/usage`);
+console.log(`   🔄 Manual Reset: /api/tomtom/usage/reset`);
+console.log(`   📈 Usage History: /api/tomtom/usage/history`);
+
+// Enhanced Route Matching API
+console.log('🎯 Registering enhanced route matching at /api/routes...');
+app.use('/api/routes', enhancedRouteAPI);
+console.log('✅ Enhanced route matching registered successfully');
+console.log(`   🎯 Route Matching: /api/routes/match-enhanced`);
+console.log(`   🚇 Multi-Modal: /api/routes/multi-modal-impacts`);
+console.log(`   ⏰ Active Routes: /api/routes/active`);
+console.log(`   🧪 Test Endpoint: /api/routes/test-confidence`);
+
+// Flow Monitoring API
+console.log('🌊 Registering flow monitoring at /api/flow...');
+app.use('/api/flow', flowMonitoringAPI);
+console.log('✅ Flow monitoring registered successfully');
+console.log(`   📊 Overview: /api/flow/overview`);
+console.log(`   🚗 Incident Flow: /api/flow/incident/:id`);
+console.log(`   🗺️ Check Flow: /api/flow/check-flow`);
+console.log(`   🎮 Control: /api/flow/control`);
+
+// Coordinate Enhancement API
+console.log('🌐 Registering coordinate enhancement at /api/coordinates...');
+app.use('/api/coordinates', coordinateAPI);
+console.log('✅ Coordinate enhancement registered successfully');
+console.log(`   🌐 Enhance Single: /api/coordinates/enhance-single`);
+console.log(`   📦 Enhance Batch: /api/coordinates/enhance-batch`);
+console.log(`   🔍 Geocode Test: /api/coordinates/geocode-test`);
+console.log(`   📊 Stats: /api/coordinates/stats`);
+
+// Geocoding API
+console.log('🗺️ Registering geocoding at /api...');
+app.use('/api', geocodingAPI);
+console.log('✅ Geocoding registered successfully');
+console.log(`   🗺️ Geocode: /api/geocode`);
+console.log(`   🔄 Reverse Geocode: /api/reverse-geocode`);
+
 console.log('✅ unifiedRoadworksAPI imported');
 // REMOVED: import { createServer } from 'http'; - Using server from render-startup.js
 import { deduplicateAlerts, cleanupExpiredDismissals, generateAlertHash } from './utils/alertDeduplication.js';
@@ -140,6 +206,8 @@ import busLocationService from './services/busLocationService.js';
 import busUpdateLoop from './services/busUpdateLoop.js';
 import { gtfsRouteShapesService } from './services/gtfsRouteShapesService.js';
 import busLocationsAPI from './routes/busLocationsAPI.js';
+import flowMonitor from './services/flowMonitor.js';
+console.log('✅ flowMonitor service imported successfully');
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -548,6 +616,24 @@ console.log('🔄 Registering roadworks V2 routes at /api/roadworks-v2...');
 app.use('/api/roadworks-v2', roadworksV2API);
 console.log('✅ Roadworks V2 routes registered successfully');
 
+// Historical Analysis API routes
+console.log('📊 Registering historical analysis routes at /api/historical...');
+app.use('/api/historical', historicalAPI);
+console.log('✅ Historical analysis routes registered successfully');
+console.log(`   📅 Current Period: /api/historical/current-period`);
+console.log(`   📊 Period Report: /api/historical/period-report/:year/:period`);
+console.log(`   🔄 Comparison Report: /api/historical/comparison-report`);
+console.log(`   🚌 Route Report: /api/historical/route-report/:route`);
+console.log(`   🚨 Major Disruptions: /api/historical/major-disruptions/:year/:period`);
+console.log(`   ⚡ Quick Stats: /api/historical/quick-stats`);
+
+// AI Action Suggestions API routes
+console.log('🤖 Registering AI action suggestions routes...');
+app.use(suggestionsAPI);
+console.log('✅ AI action suggestions routes registered successfully');
+console.log(`   🤖 Get Suggestions: POST /api/suggestions/actions`);
+console.log(`   📋 Alert Suggestions: GET /api/suggestions/alert/:alertId`);
+
 // GTFS routes for route matching and testing
 console.log('🚌 Registering GTFS routes at /api/gtfs...');
 app.use('/api/gtfs', gtfsAPI);
@@ -717,8 +803,14 @@ console.log('✅ Advanced intelligence analytics routes registered at /api/intel
 
 // Enhanced GTFS analysis routes (duplicate removed)
 
-// Incident management routes
+// Incident management routes - includes /api/incidents/traffic-incidents
+console.log('🚑 Registering incident routes at /api/incidents...');
 app.use('/api/incidents', incidentAPI);
+console.log('✅ Incident routes registered successfully');
+console.log('   🚑 Manual Incidents: /api/incidents');
+console.log('   🚦 Traffic Incidents: /api/incidents/traffic-incidents');
+console.log('   🆕 Create: POST /api/incidents');
+console.log('   📤 Push to Display: /api/incidents/:id/push-to-display');
 
 // Traffic incidents endpoint for the incidents page (direct access)
 app.get('/api/traffic-incidents', async (req, res) => {
@@ -943,6 +1035,17 @@ console.log('✅ Bus location routes registered successfully');
     }
   } catch (err) {
     console.warn('⚠️ Bus location service initialization error:', err.message);
+  }
+})();
+
+// Initialize traffic flow monitoring service
+(async () => {
+  try {
+    console.log('🌊 Starting traffic flow monitoring service...');
+    flowMonitor.start();
+    console.log('✅ Traffic flow monitor started - checking active incidents every 5 minutes');
+  } catch (err) {
+    console.warn('⚠️ Flow monitor initialization error:', err.message);
   }
 })();
 
@@ -2081,6 +2184,50 @@ app.get('/api/incident-alerts', async (req, res) => {
   }
 });
 
+// Traffic flow monitoring endpoints
+app.get('/api/flow/monitoring-stats', (req, res) => {
+  try {
+    const stats = flowMonitor.getStats();
+    res.json({
+      success: true,
+      stats,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error getting flow monitoring stats:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+app.get('/api/flow/incident/:incidentId', (req, res) => {
+  try {
+    const { incidentId } = req.params;
+    const flowInfo = flowMonitor.getIncidentFlowInfo(incidentId);
+    
+    if (!flowInfo) {
+      return res.status(404).json({
+        success: false,
+        error: 'Incident not found in flow monitoring'
+      });
+    }
+    
+    res.json({
+      success: true,
+      flowInfo,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error getting incident flow info:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // TomTom API key endpoint for frontend
 app.get('/api/config/tomtom-key', (req, res) => {
   try {
@@ -2584,6 +2731,11 @@ async function processAlertsOptimized(alerts) {
       // Ensure start date for Display Screen
       if (!alert.startDate) {
         alert.startDate = alert.lastUpdated || new Date().toISOString();
+      }
+      
+      // Add to flow monitoring if it's a traffic incident with coordinates
+      if (alert.type === 'incident' && alert.coordinates && alert.severity !== 'Low') {
+        flowMonitor.addIncident(alert);
       }
       
       processed.push(alert);
@@ -3220,12 +3372,19 @@ app.get('/api/alerts', async (req, res) => {
       sources.tomtom = { success: false, error: error.message };
     }
     
+    // Apply deduplication to prevent duplicate alerts
+    console.log(`🔍 [MAIN-${requestId}] Deduplicating ${allAlerts.length} alerts...`);
+    const deduplicatedAlerts = deduplicateAlerts(allAlerts, requestId);
+    console.log(`✅ [MAIN-${requestId}] After deduplication: ${deduplicatedAlerts.length} unique alerts`);
+    
     const response = {
       success: true,
-      alerts: allAlerts,
+      alerts: deduplicatedAlerts,
       metadata: {
         requestId,
-        totalAlerts: allAlerts.length,
+        totalAlerts: deduplicatedAlerts.length,
+        originalCount: allAlerts.length,
+        duplicatesRemoved: allAlerts.length - deduplicatedAlerts.length,
         sources: sources,
         lastUpdated: new Date().toISOString(),
         cached: false,
@@ -5191,6 +5350,14 @@ process.on('SIGTERM', () => {
     console.log('✅ Auto-incident creator stopped');
   } catch (error) {
     console.warn('⚠️ Error stopping auto-incident creator:', error.message);
+  }
+  
+  // Stop flow monitoring
+  try {
+    flowMonitor.stop();
+    console.log('✅ Flow monitor stopped');
+  } catch (error) {
+    console.warn('⚠️ Error stopping flow monitor:', error.message);
   }
   
   // Stop memory monitoring

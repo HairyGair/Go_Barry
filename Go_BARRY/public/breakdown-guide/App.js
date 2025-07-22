@@ -11,7 +11,9 @@ const App = function() {
 
     const updateResponse = (key, value) => {
         setResponses(prev => ({ ...prev, [key]: value }));
-    };
+    }
+
+
 
     const handleNext = () => {
         setCurrentStep(prev => prev + 1);
@@ -58,8 +60,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - SAFETY CRITICAL</span>
@@ -110,8 +111,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - SAFETY CRITICAL</span>
@@ -162,11 +162,10 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
-                                    <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - ABS System</span>
+                                    <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - ABS/EBS System</span>
                                 </div>
                             </div>
                             <div className="flex items-center space-x-4">
@@ -214,8 +213,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - CRITICAL ENGINE SYSTEM</span>
@@ -266,8 +264,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - CRITICAL INCIDENT</span>
@@ -319,8 +316,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - TRACERIT DATA COLLECTION</span>
@@ -372,8 +368,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - HIGH PRIORITY</span>
@@ -424,8 +419,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - Operational System</span>
@@ -476,8 +470,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - Operational System</span>
@@ -510,8 +503,8 @@ const App = function() {
         );
     }
 
-    // Wheelchair Lift Wizard
-    if (currentWizard === 'wheelchair_lift') {
+    // Wheelchair Ramp Wizard
+    if (currentWizard === 'wheelchair_ramp') {
         return (
             <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
                 {/* Animated background effect */}
@@ -528,8 +521,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - Accessibility System</span>
@@ -549,7 +541,7 @@ const App = function() {
                 
                 {/* Main Content */}
                 <div className="relative max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-                    <WheelchairLiftWizard
+                    <WheelchairRampWizard
                         currentStep={currentStep}
                         responses={responses}
                         updateResponse={updateResponse}
@@ -580,8 +572,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - Operational System</span>
@@ -632,8 +623,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - Operational System</span>
@@ -684,8 +674,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - Cooling System</span>
@@ -736,8 +725,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - Climate Control</span>
@@ -788,8 +776,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - Door System</span>
@@ -840,8 +827,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - Starting System</span>
@@ -892,8 +878,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - Transmission System</span>
@@ -944,8 +929,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - CRITICAL WHEEL SAFETY</span>
@@ -996,8 +980,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - TIRE SAFETY CRITICAL</span>
@@ -1048,8 +1031,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - Gearbox Temperature</span>
@@ -1100,8 +1082,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - Warning Buzzer System</span>
@@ -1152,8 +1133,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - Dashboard Warning System</span>
@@ -1204,8 +1184,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - Excessive Smoke Assessment</span>
@@ -1256,8 +1235,7 @@ const App = function() {
                             <div className="flex items-center">
                                 <div className="flex items-center space-x-4">
                                     <div className="flex items-center">
-                                        <span className="text-3xl font-black text-white">Go</span>
-                                        <span className="text-3xl font-black text-red-500">BARRY</span>
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                     </div>
                                     <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                     <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - Suspension System Assessment</span>
@@ -1290,15 +1268,366 @@ const App = function() {
         );
     }
 
+    // Wipers/Screenwash Wizard
+    if (currentWizard === 'wipers_screenwash') {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+                {/* Animated background effect */}
+                <div className="fixed inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+                    <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+                    <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+                </div>
+                
+                {/* Header */}
+                <div className="relative backdrop-blur-sm bg-black/20 border-b border-white/10">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex justify-between h-20">
+                            <div className="flex items-center">
+                                <div className="flex items-center space-x-4">
+                                    <div className="flex items-center">
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
+                                    </div>
+                                    <div className="hidden sm:block h-8 w-px bg-white/20"></div>
+                                    <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - Wipers/Screenwash System</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                                <button
+                                    onClick={handleBackToMenu}
+                                    className="flex items-center px-4 py-2 text-white/70 hover:text-white transition-colors"
+                                >
+                                    <Home className="w-4 h-4 mr-2" />Back to Menu
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {/* Main Content */}
+                <div className="relative max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+                    <WipersScreenwashWizard
+                        currentStep={currentStep}
+                        responses={responses}
+                        updateResponse={updateResponse}
+                        onNext={handleNext}
+                        onPrevious={handlePrevious}
+                        onComplete={handleComplete}
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    // Low Water Wizard - Operational System
+    if (currentWizard === 'low_water') {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+                {/* Animated background effect */}
+                <div className="fixed inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+                    <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-cyan-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+                    <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+                </div>
+                
+                {/* Header */}
+                <div className="relative backdrop-blur-sm bg-black/20 border-b border-white/10">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex justify-between h-20">
+                            <div className="flex items-center">
+                                <div className="flex items-center space-x-4">
+                                    <div className="flex items-center">
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
+                                    </div>
+                                    <div className="hidden sm:block h-8 w-px bg-white/20"></div>
+                                    <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - Water Management System</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                                <button
+                                    onClick={handleBackToMenu}
+                                    className="flex items-center px-4 py-2 text-white/70 hover:text-white transition-colors"
+                                >
+                                    <Home className="w-4 h-4 mr-2" />Back to Menu
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {/* Main Content */}
+                <div className="relative max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+                    <LowWaterWizard
+                        currentStep={currentStep}
+                        responses={responses}
+                        updateResponse={updateResponse}
+                        onNext={handleNext}
+                        onPrevious={handlePrevious}
+                        onComplete={handleComplete}
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    // Broken Windows Wizard - Safety Critical
+    if (currentWizard === 'broken_windows') {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+                {/* Animated background effect */}
+                <div className="fixed inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute -top-40 -right-40 w-80 h-80 bg-red-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+                    <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-orange-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+                    <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+                </div>
+                
+                {/* Header */}
+                <div className="relative backdrop-blur-sm bg-black/20 border-b border-white/10">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex justify-between h-20">
+                            <div className="flex items-center">
+                                <div className="flex items-center space-x-4">
+                                    <div className="flex items-center">
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
+                                    </div>
+                                    <div className="hidden sm:block h-8 w-px bg-white/20"></div>
+                                    <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - SAFETY CRITICAL</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                                <button
+                                    onClick={handleBackToMenu}
+                                    className="flex items-center px-4 py-2 text-white/70 hover:text-white transition-colors"
+                                >
+                                    <Home className="w-4 h-4 mr-2" />Back to Menu
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {/* Main Content */}
+                <div className="relative max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+                    <BrokenWindowsWizard
+                        currentStep={currentStep}
+                        responses={responses}
+                        updateResponse={updateResponse}
+                        onNext={handleNext}
+                        onPrevious={handlePrevious}
+                        onComplete={handleComplete}
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    // Wing Mirrors Wizard - Safety Critical
+    if (currentWizard === 'wing_mirrors') {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+                {/* Animated background effect */}
+                <div className="fixed inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute -top-40 -right-40 w-80 h-80 bg-red-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+                    <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-orange-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+                    <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+                </div>
+                
+                {/* Header */}
+                <div className="relative backdrop-blur-sm bg-black/20 border-b border-white/10">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex justify-between h-20">
+                            <div className="flex items-center">
+                                <div className="flex items-center space-x-4">
+                                    <div className="flex items-center">
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
+                                    </div>
+                                    <div className="hidden sm:block h-8 w-px bg-white/20"></div>
+                                    <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - SAFETY CRITICAL</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                                <button
+                                    onClick={handleBackToMenu}
+                                    className="flex items-center px-4 py-2 text-white/70 hover:text-white transition-colors"
+                                >
+                                    <Home className="w-4 h-4 mr-2" />Back to Menu
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {/* Main Content */}
+                <div className="relative max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+                    <WingMirrorsWizard
+                        currentStep={currentStep}
+                        responses={responses}
+                        updateResponse={updateResponse}
+                        onNext={handleNext}
+                        onPrevious={handlePrevious}
+                        onComplete={handleComplete}
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    // Cutting Out/Fuel Wizard - Safety Critical
+    if (currentWizard === 'cutting_out_fuel') {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+                {/* Animated background effect */}
+                <div className="fixed inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute -top-40 -right-40 w-80 h-80 bg-red-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+                    <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-orange-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+                    <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-amber-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+                </div>
+                
+                {/* Header */}
+                <div className="relative backdrop-blur-sm bg-black/20 border-b border-white/10">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex justify-between h-20">
+                            <div className="flex items-center">
+                                <div className="flex items-center space-x-4">
+                                    <div className="flex items-center">
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
+                                    </div>
+                                    <div className="hidden sm:block h-8 w-px bg-white/20"></div>
+                                    <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - SAFETY CRITICAL</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                                <button
+                                    onClick={handleBackToMenu}
+                                    className="flex items-center px-4 py-2 text-white/70 hover:text-white transition-colors"
+                                >
+                                    <Home className="w-4 h-4 mr-2" />Back to Menu
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {/* Main Content */}
+                <div className="relative max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+                    <CuttingOutFuelWizard
+                        currentStep={currentStep}
+                        responses={responses}
+                        updateResponse={updateResponse}
+                        onNext={handleNext}
+                        onPrevious={handlePrevious}
+                        onComplete={handleComplete}
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    // Speedometer Wizard - Operational System
+    if (currentWizard === 'speedo') {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+                {/* Animated background effect */}
+                <div className="fixed inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+                    <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-green-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+                    <div className="absolute top-1/2 left-1/2 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+                </div>
+                
+                {/* Header */}
+                <div className="relative backdrop-blur-sm bg-black/20 border-b border-white/10">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex justify-between h-20">
+                            <div className="flex items-center">
+                                <div className="flex items-center space-x-4">
+                                    <div className="flex items-center">
+                                        <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
+                                    </div>
+                                    <div className="hidden sm:block h-8 w-px bg-white/20"></div>
+                                    <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide - Speedometer System</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                                <button
+                                    onClick={handleBackToMenu}
+                                    className="flex items-center px-4 py-2 text-white/70 hover:text-white transition-colors"
+                                >
+                                    <Home className="w-4 h-4 mr-2" />Back to Menu
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {/* Main Content */}
+                <div className="relative max-w-4xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+                    <SpeedoWizard
+                        currentStep={currentStep}
+                        responses={responses}
+                        updateResponse={updateResponse}
+                        onNext={handleNext}
+                        onPrevious={handlePrevious}
+                        onComplete={handleComplete}
+                    />
+                </div>
+            </div>
+        );
+    }
+
     // Main Menu - Default view when no wizard is selected
+    // Interior/Exterior Damage Wizard - Operational
+    if (currentWizard === 'interior_exterior_damage') {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+                {/* Animated background effect */}
+                <div className="fixed inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute -top-40 -right-40 w-80 h-80 bg-red-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+                    <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+                    <div className="absolute top-40 left-20 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+                </div>
+
+                <div className="relative z-10">
+                    <header className="bg-black/30 backdrop-blur-md border-b border-white/10">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex justify-between items-center h-16">
+                                <div className="flex items-center">
+                                    <img src="./gobarry-logo.png" alt="Go BARRY" className="h-8 w-auto" />
+                                    <span className="ml-4 text-gray-400 text-sm">Breakdown Guide System</span>
+                                </div>
+                                <button onClick={handleBackToMenu} className="flex items-center px-4 py-2 text-gray-300 hover:text-white transition-colors">
+                                    {Home && <Home className="w-4 h-4 mr-2" />}
+                                    Back to Menu
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        {window.InteriorExteriorDamageWizard && React.createElement(window.InteriorExteriorDamageWizard, {
+                            currentStep,
+                            responses,
+                            updateResponse,
+                            onNext: handleNext,
+                            onPrevious: handlePrevious,
+                            onComplete: handleComplete
+                        })}
+                    </main>
+                </div>
+            </div>
+        );
+    }
+
     const defectCategories = [
         // Safety Critical - Red
         { id: 'steering', name: 'Steering', icon: '🚗', category: 'safety' },
         { id: 'brakes', name: 'Brakes', icon: '🛑', category: 'safety' },
-        { id: 'abs_light', name: 'ABS Light', icon: '⚠️', category: 'safety' },
+        { id: 'abs_light', name: 'ABS/EBS Light', icon: '⚠️', category: 'safety' },
         { id: 'oil_warning', name: 'Oil Warning', icon: '🛢️', category: 'safety' },
         { id: 'loose_wheel_nuts', name: 'Loose Wheel Nuts', icon: '🔧', category: 'safety' },
         { id: 'puncture', name: 'Puncture', icon: '🛞', category: 'safety' },
+        { id: 'broken_windows', name: 'Broken Windows', icon: '🪟', category: 'safety' },
+        { id: 'wing_mirrors', name: 'Wing Mirrors', icon: '🪞', category: 'safety' },
+        { id: 'cutting_out_fuel', name: 'Cutting Out/Fuel', icon: '⛽', category: 'safety' },
         
         // High Priority - Amber
         { id: 'repeat_defects', name: 'Repeat Defects', icon: '🔄', category: 'high_priority' },
@@ -1308,7 +1637,7 @@ const App = function() {
         // Operational Systems - Blue
         { id: 'interior_lights', name: 'Interior Lights', icon: '💡', category: 'operational' },
         { id: 'exterior_lights', name: 'Exterior Lights', icon: '🔆', category: 'operational' },
-        { id: 'wheelchair_lift', name: 'Wheelchair Lift', icon: '♿', category: 'operational' },
+        { id: 'wheelchair_ramp', name: 'Wheelchair Ramp', icon: '♿', category: 'operational' },
         { id: 'destination_display', name: 'Destination Display', icon: '📺', category: 'operational' },
         { id: 'battery', name: 'Battery', icon: '🔋', category: 'operational' },
         { id: 'cooling_system', name: 'Cooling System', icon: '🌡️', category: 'operational' },
@@ -1321,17 +1650,15 @@ const App = function() {
         { id: 'warning_lights', name: 'Warning Lights', icon: '⚠️', category: 'operational' },
         { id: 'excessive_smoke', name: 'Excessive Smoke', icon: '💨', category: 'operational' },
         { id: 'suspension', name: 'Suspension', icon: '🏗️', category: 'operational' },
+        { id: 'wipers_screenwash', name: 'Wipers/Screenwash', icon: '🧽', category: 'operational' },
+        { id: 'low_water', name: 'Low Water', icon: '💧', category: 'operational' },
+        { id: 'speedo', name: 'Speedometer', icon: '📊', category: 'operational' },
         
 
 
 
-        { id: 'wipers_screenwash', name: 'Wipers/Screenwash', icon: '🧽', category: 'coming_soon' },
-        { id: 'low_water', name: 'Low Water', icon: '💧', category: 'coming_soon' },
-        { id: 'broken_windows', name: 'Broken Windows', icon: '🪟', category: 'coming_soon' },
-        { id: 'wing_mirrors', name: 'Wing Mirrors', icon: '🪞', category: 'coming_soon' },
-        { id: 'speedo', name: 'Speedometer', icon: '📊', category: 'coming_soon' },
-        { id: 'cutting_out_fuel', name: 'Cutting Out/Fuel', icon: '⛽', category: 'coming_soon' },
-        { id: 'interior_exterior_damage', name: 'Interior/Exterior Damage', icon: '🔨', category: 'coming_soon' }
+
+        { id: 'interior_exterior_damage', name: 'Interior/Exterior Damage', icon: '🔨', category: 'operational' }
     ];
     
     return (
@@ -1350,14 +1677,24 @@ const App = function() {
                         <div className="flex items-center">
                             <div className="flex items-center space-x-4">
                                 <div className="flex items-center">
-                                    <span className="text-3xl font-black text-white">Go</span>
-                                    <span className="text-3xl font-black text-red-500">BARRY</span>
+                                    <img src="./gobarry-logo.png" alt="Go BARRY" className="h-10 w-auto" />
                                 </div>
                                 <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                 <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide System</span>
                             </div>
                         </div>
                         <div className="flex items-center space-x-4">
+                            <a
+                                href="https://goahead.tranzaura.com/Login/UserLogin"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl"
+                            >
+                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Open Tranzaura
+                            </a>
                             <span className="text-xs text-white/50">Select a defect type to begin assessment</span>
                         </div>
                     </div>
@@ -1470,18 +1807,7 @@ const App = function() {
                     </div>
                 </div>
                 
-                {/* Progress Bar */}
-                <div className="mt-12 bg-slate-800/50 backdrop-blur-sm rounded-full p-1 border border-slate-700/50">
-                    <div className="relative h-6 bg-slate-900/50 rounded-full overflow-hidden">
-                        <div className="absolute inset-0 flex items-center justify-center z-10">
-                            <span className="text-xs font-bold text-white/80">24 of 31 Wizards Complete (77%)</span>
-                        </div>
-                        <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-1000 ease-out" style={{width: '77%'}}>
-                            <div className="h-full bg-white/20 animate-pulse"></div>
-                        </div>
-                    </div>
-                </div>
-                
+
                 {/* Safety Notice */}
                 <div className="mt-8 bg-red-900/20 backdrop-blur-sm border border-red-500/30 rounded-2xl p-6">
                     <div className="flex items-start gap-4">

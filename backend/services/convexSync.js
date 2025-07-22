@@ -451,6 +451,46 @@ class ConvexSyncService {
     }
   }
 
+  // Sync display messages to Convex
+  async syncDisplayMessages(messages) {
+    if (!this.isEnabled) {
+      return { success: false, reason: 'Convex not configured' };
+    }
+
+    try {
+      const result = await this.callConvexFunction('sync:updateDisplayMessages', {
+        messages: messages || [],
+        timestamp: new Date().toISOString()
+      });
+      
+      console.log(`✅ Synced ${messages.length} display messages to Convex`);
+      return { success: true, count: messages.length, result };
+    } catch (error) {
+      console.error('❌ Display messages sync error:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Sync display incidents to Convex
+  async syncDisplayIncidents(incidents) {
+    if (!this.isEnabled) {
+      return { success: false, reason: 'Convex not configured' };
+    }
+
+    try {
+      const result = await this.callConvexFunction('sync:updateDisplayIncidents', {
+        incidents: incidents || [],
+        timestamp: new Date().toISOString()
+      });
+      
+      console.log(`✅ Synced ${incidents.length} display incidents to Convex`);
+      return { success: true, count: incidents.length, result };
+    } catch (error) {
+      console.error('❌ Display incidents sync error:', error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
   // Main sync method that calls all sync operations
   async sync() {
     console.log('🔄 Starting Convex sync...');

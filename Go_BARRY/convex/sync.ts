@@ -9,7 +9,7 @@ export const getSyncState = query({
   handler: async (ctx) => {
     const state = await ctx.db
       .query("syncState")
-      .withIndex("by_key", q => q.eq("key", "global"))
+      .filter(q => q.eq(q.field("key"), "global"))
       .first();
 
     if (!state) {

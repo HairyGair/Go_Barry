@@ -13,6 +13,7 @@ import { darkTheme } from './styles/darkTheme';
 import MetricCard from './components/MetricCard';
 import SectionHeader from './components/SectionHeader';
 import ProgressBar from './components/ProgressBar';
+import TomTomUsageMonitor from '../../components/admin/monitoring/TomTomUsageMonitor';
 
 const API_BASE = 'https://go-barry.onrender.com';
 
@@ -264,6 +265,12 @@ export default function APIUsage() {
             })}
           </View>
 
+          {/* TomTom Usage Monitor */}
+          <SectionHeader title="TomTom API Detailed Usage" />
+          <View style={styles.tomtomMonitorContainer}>
+            <TomTomUsageMonitor />
+          </View>
+
           {/* Performance Metrics */}
           <SectionHeader title="Performance Metrics" />
           <View style={styles.performanceGrid}>
@@ -425,6 +432,9 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   apiBreakdownContainer: {
+    marginBottom: 24,
+  },
+  tomtomMonitorContainer: {
     marginBottom: 24,
   },
   apiCard: {

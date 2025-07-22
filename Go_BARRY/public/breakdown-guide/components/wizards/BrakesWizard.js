@@ -292,9 +292,30 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                     <li>Vehicle must remain stationary</li>
                     <li>Contact engineering immediately</li>
                     <li>Arrange passenger transfer if needed</li>
-                    <li>Complete incident report in Go-Check</li>
+                    <li>Complete incident report in Tranzaura</li>
                   </ol>
                 </div>
+                
+                {(responses.brakeToFloor || responses.delayedBraking) && (
+                  <div className="bg-red-600/30 backdrop-blur-sm rounded-lg p-6 border-2 border-red-500/50 animate-pulse">
+                    <h3 className="text-lg font-bold text-red-100 mb-4 flex items-center">
+                      <span className="mr-2">🚨</span>
+                      CRITICAL: Total Brake Failure Protocol
+                    </h3>
+                    <div className="space-y-3 text-red-200">
+                      <p className="font-semibold">
+                        If driver reports COMPLETE LOSS OF BRAKES:
+                      </p>
+                      <div className="bg-red-800/50 rounded p-4 border border-red-400">
+                        <p className="font-bold mb-2">EP Morris Notification:</p>
+                        <ol className="list-decimal ml-6 space-y-1 text-sm">
+                          <li>Send immediately as: <span className="font-mono bg-red-900/50 px-2 py-1 rounded">"URGENT PLEASE READ"</span></li>
+                          <li>When complete, change to code: <span className="font-mono bg-red-900/50 px-2 py-1 rounded">BDBR - Brake Issue</span></li>
+                        </ol>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 <div className="bg-amber-500/20 backdrop-blur-sm rounded-lg p-6 border border-amber-400/30">
                   <h3 className="text-lg font-semibold text-amber-200 mb-4">Engineering Contact</h3>
@@ -305,6 +326,11 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                     <li>Specific brake symptoms</li>
                     <li>Number of passengers on board</li>
                   </ul>
+                  <div className="mt-4 bg-amber-600/20 rounded p-3 border border-amber-400/40">
+                    <p className="text-amber-200 text-sm font-semibold">
+                      📋 EP Morris: Record as code <span className="font-mono bg-amber-900/50 px-2 py-1 rounded">BDBR - Brake Issue</span>
+                    </p>
+                  </div>
                 </div>
               </div>
             ) : responses.otherBrakeConcerns === 'yes' ? (
@@ -320,9 +346,15 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                     <ul className="list-disc ml-6 space-y-2 text-amber-300/90 text-sm">
                       <li>Vehicle can continue to next changeover point</li>
                       <li>Driver should remain vigilant and stop if conditions worsen</li>
-                      <li>Log the concern in Go-Check</li>
+                      <li>Log the concern in Tranzaura</li>
                       <li>Arrange engineering inspection at depot</li>
                     </ul>
+                  </div>
+                  
+                  <div className="mt-4 bg-amber-600/20 rounded p-3 border border-amber-400/40">
+                    <p className="text-amber-200 text-sm font-semibold">
+                      📋 EP Morris: Record as code <span className="font-mono bg-amber-900/50 px-2 py-1 rounded">BDBR - Brake Issue</span>
+                    </p>
                   </div>
                 </div>
               </div>
@@ -395,6 +427,14 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                       : "✅ Vehicle continuing in service"}
                   </p>
                 </div>
+                
+                {(responses.brakeToFloor || responses.delayedBraking) && (
+                  <div className="bg-red-600/20 rounded p-3 border border-red-400/50 mt-3">
+                    <p className="font-semibold text-red-200 text-sm">
+                      🚨 EP Morris: Sent as "URGENT PLEASE READ" → Code: BDBR
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -404,10 +444,11 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                 <div>
                   <h4 className="font-semibold text-blue-200">Important Reminders</h4>
                   <ul className="list-disc ml-6 space-y-1 text-blue-300/90 text-sm mt-2">
-                    <li>Log all defects in Go-Check immediately</li>
+                    <li>Log all defects in Tranzaura immediately</li>
+                    <li>Record ALL brake issues in EP Morris as: <span className="font-mono bg-blue-900/50 px-1 rounded">BDBR</span></li>
                     <li>Ensure driver safety briefing is complete</li>
                     <li>Monitor for any repeat brake issues</li>
-                    <li>Report persistent issues to depot management</li>
+                    <li>Report persistent brake issues to depot management</li>
                   </ul>
                 </div>
               </div>
@@ -416,6 +457,9 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
             <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-600/30">
               <p className="text-sm text-gray-300">
                 <strong className="text-white">Remember:</strong> Safety is non-negotiable. When in doubt about brake system integrity, always err on the side of caution and seek engineering advice.
+              </p>
+              <p className="text-sm text-gray-300 mt-2">
+                <strong className="text-white">Note:</strong> Report to depot management if a driver persistently reports brake problems that, when investigated by engineering, reveal no fault.
               </p>
             </div>
 

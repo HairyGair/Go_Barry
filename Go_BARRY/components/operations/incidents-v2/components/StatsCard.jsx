@@ -86,7 +86,7 @@ const StatsCard = ({
           fontSize: valueSize[size],
           color: loading ? colors.textMuted : color 
         }]}>
-          {loading ? '...' : (value || 0)}
+          {loading ? '...' : String(value || 0)}
         </Text>
         <Text style={styles.title} numberOfLines={2}>
           {title}
@@ -240,12 +240,12 @@ const styles = {
   trendContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
   },
 
   trendText: {
     ...typography.caption,
     fontWeight: '500',
+    marginLeft: spacing.xs,
   },
 };
 

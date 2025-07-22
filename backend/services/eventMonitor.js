@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { convexSync } from './convexSync.js';
+import historicalCollector from './historicalDataCollector.js';
 
 // Load .env from backend root directory
 const __filename = fileURLToPath(import.meta.url);
@@ -140,6 +141,11 @@ class EventMonitor {
       
       convexSync.syncEvents([convexEvent]).catch(err => {
         console.error('❌ Failed to sync new event to Convex:', err);
+      });
+      
+      // Capture event for historical analysis
+      historicalCollector.captureEvent(data).catch(error => {
+        console.warn('⚠️ Historical event capture failed:', error.message);
       });
       
       return data;

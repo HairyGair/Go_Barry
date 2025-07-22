@@ -127,6 +127,19 @@ export default defineSchema({
     })),
     displayMode: v.string(), // normal, emergency, maintenance
     lastUpdated: v.number(),
+    // Flow monitoring statistics
+    flowMonitoringStats: v.optional(v.object({
+      activeIncidents: v.number(),
+      checksPerformed: v.number(),
+      severityUpdates: v.number(),
+      autoCleared: v.number(),
+      lastCheck: v.union(v.string(), v.null()),
+      isRunning: v.boolean()
+    })),
+    // Additional sync counters
+    alertCount: v.optional(v.number()),
+    supervisorCount: v.optional(v.number()),
+    dismissedCount: v.optional(v.number()),
   })
     .index("by_key", ["key"]),
 
@@ -748,4 +761,106 @@ export default defineSchema({
     .index("by_disruption", ["disruptionId"])
     .index("by_supervisor", ["supervisorBadge"])
     .index("by_timestamp", ["timestamp"]),
+    
+  // Traffic flow monitoring data
+  trafficFlowData: defineTable({
+    alertId: v.string(),
+    currentSpeed: v.number(),
+    freeFlowSpeed: v.number(),
+    speedRatio: v.number(),
+    trend: v.string(),
+    trendArrow: v.string(),
+    severity: v.string(),
+    lastChecked: v.number(),
+    roadClosure: v.boolean(),
+    shouldAutoClear: v.boolean(),
+    history: v.array(v.object({
+      timestamp: v.number(),
+      speed: v.number(),
+      severity: v.string()
+    }))
+  })
+    .index("by_alert", ["alertId"])
+    .index("by_severity", ["severity"])
+    .index("by_last_checked", ["lastChecked"]),
+    
+  // Display screen incidents
+  displayIncidents: defineTable({
+    incidentId: v.string(),
+    type: v.string(),
+    title: v.optional(v.string()),
+    description: v.string(),
+    location: v.string(),
+    coordinates: v.optional(v.object({
+      lat: v.number(),
+      lng: v.number()
+    })),
+    severity: v.optional(v.string()),
+    priority: v.optional(v.string()),
+    affectsRoutes: v.array(v.string()),
+    status: v.string(),
+    source: v.optional(v.string()),
+    
+    // Display metadata
+    displayedAt: v.number(),
+    displayedBy: v.optional(v.string()),
+    displayMessage: v.optional(v.object({
+      id: v.string(),
+      priority: v.number(),
+      expiresAt: v.number(),
+      autoZoom: v.boolean(),
+      zoomLevel: v.number(),
+      highlightIncident: v.boolean(),
+      showRoutes: v.boolean(),
+      pulseAnimation: v.boolean(),
+      duration: v.number()
+    })),
+    
+    // Timestamps
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    expiresAt: v.optional(v.number())
+  })
+    .index("by_incident_id", ["incidentId"])
+    .index("by_displayed_at", ["displayedAt"])
+    .index("by_expires_at", ["expiresAt"])
+    .index("by_status", ["status"]),
+    
+  // Display messages queue
+  displayMessages: defineTable({
+    messageId: v.string(),
+    type: v.optional(v.string()),
+    content: v.string(),
+    priority: v.number(),
+    supervisorName: v.string(),
+    supervisorBadge: v.string(),
+    
+    // Related data
+    incidentId: v.optional(v.string()),
+    alertId: v.optional(v.string()),
+    
+    // Display options
+    autoZoom: v.optional(v.boolean()),
+    zoomLevel: v.optional(v.number()),
+    coordinates: v.optional(v.object({
+      lat: v.number(),
+      lng: v.number()
+    })),
+    affectsRoutes: v.optional(v.array(v.string())),
+    
+    // Timestamps
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    displayedAt: v.optional(v.number()),
+    displayed: v.boolean(),
+    
+    // Metadata
+    pushedBy: v.optional(v.string()),
+    pushedAt: v.optional(v.number()),
+    rotationInterval: v.optional(v.number())
+  })
+    .index("by_message_id", ["messageId"])
+    .index("by_priority_created", ["priority", "createdAt"])
+    .index("by_expires_at", ["expiresAt"])
+    .index("by_displayed", ["displayed"]),
 });

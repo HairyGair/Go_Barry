@@ -201,15 +201,49 @@ export function setupAPIRoutes(app, globalState) {
           (enhancedAlerts.reduce((sum, a) => sum + (a.affectsRoutes?.length || 0), 0) / enhancedAlerts.length).toFixed(1) : 0
       };
       
-      // 7. ALWAYS return a valid response
+      // 7. FINAL VALIDATION: Ensure all alerts have coordinates
+      console.log('🔍 Final validation: checking all alerts have coordinates...');
+      const alertsWithoutCoords = enhancedAlerts.filter(alert => 
+        !alert.coordinates || 
+        !alert.coordinates.lat || 
+        !alert.coordinates.lng ||
+        isNaN(alert.coordinates.lat) ||
+        isNaN(alert.coordinates.lng)
+      );
+      
+      if (alertsWithoutCoords.length > 0) {
+        console.warn(`⚠️ Found ${alertsWithoutCoords.length} alerts without valid coordinates!`);
+        alertsWithoutCoords.forEach(alert => {
+          console.warn(`  - ${alert.id}: ${alert.title || alert.location}`);
+        });
+      }
+      
+      // Filter out any alerts without valid coordinates to prevent frontend errors
+      const validAlerts = enhancedAlerts.filter(alert => 
+        alert.coordinates && 
+        alert.coordinates.lat && 
+        alert.coordinates.lng &&
+        !isNaN(alert.coordinates.lat) &&
+        !isNaN(alert.coordinates.lng)
+      );
+      
+      console.log(`✅ Validated alerts: ${validAlerts.length}/${enhancedAlerts.length} have valid coordinates`);
+      
+      // 8. ALWAYS return a valid response
       let responseMetadata = {
-        totalAlerts: enhancedAlerts.length,
+        totalAlerts: validAlerts.length,
         sources,
         statistics: stats,
         lastUpdated: new Date().toISOString(),
-        enhancement: 'GTFS location accuracy enabled',
+        enhancement: 'GTFS location accuracy enabled with coordinate guarantee',
         mode: 'live_data_only',
         sampleData: 'removed',
+        coordinateValidation: {
+          enabled: true,
+          alertsValidated: enhancedAlerts.length,
+          alertsWithCoordinates: validAlerts.length,
+          alertsFiltered: enhancedAlerts.length - validAlerts.length
+        },
         supervisor: {
           dismissalEnabled: true,
           accountabilityActive: true
@@ -218,7 +252,7 @@ export function setupAPIRoutes(app, globalState) {
           rawAlertsCollected: allAlerts.length,
           filteredAlerts: filteredAlerts.length,
           sampleAlertsRemoved: allAlerts.length - filteredAlerts.length,
-          enhancedAlertsReturned: enhancedAlerts.length,
+          enhancedAlertsReturned: validAlerts.length,
           sourcesWorking: Object.values(sources).filter(s => s.success).length,
           timestamp: new Date().toISOString()
         }
@@ -229,11 +263,11 @@ export function setupAPIRoutes(app, globalState) {
       
       const response = {
         success: true,
-        alerts: enhancedAlerts,
+        alerts: validAlerts,
         metadata: responseMetadata
       };
       
-      console.log(`🎯 [FIXED] Returning ${enhancedAlerts.length} alerts to frontend`);
+      console.log(`🎯 [FIXED] Returning ${validAlerts.length} alerts to frontend (all with valid coordinates)`);
       res.json(response);
       
     } catch (error) {

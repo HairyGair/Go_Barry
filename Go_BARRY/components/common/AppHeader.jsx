@@ -4,7 +4,7 @@ import { useRouter, usePathname } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSupervisor } from '../hooks/useSupervisorSession';
 
-const AppHeader = () => {
+const AppHeader = ({ onLoginSuccess }) => {
   const router = useRouter();
   const pathname = usePathname();
   const { supervisorName, logout, login, isLoading, isLoggedIn } = useSupervisor();
@@ -66,12 +66,13 @@ const AppHeader = () => {
       setShowLoginForm(false);
       setLoginError('');
       
-      // Small delay to ensure state has updated before any navigation
-      setTimeout(() => {
-        console.log('Login completed, state should be updated');
-        // Force React to re-render by causing a state change
-        setLoginError(''); // This will trigger a re-render
-      }, 200);
+      // Login successful - the context should update automatically
+      console.log('✅ Login successful, context should update');
+      
+      // Call callback if provided
+      if (onLoginSuccess) {
+        onLoginSuccess();
+      }
     }
   };
   

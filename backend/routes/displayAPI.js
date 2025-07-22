@@ -468,6 +468,152 @@ router.post('/update-priority', async (req, res) => {
   }
 });
 
+// Push incident to display screen
+router.post('/push-incident', async (req, res) => {
+  try {
+    const { 
+      incident,
+      displayOptions = {},
+      supervisorData
+    } = req.body;
+    
+    // Validate incident data
+    if (!incident || !incident.id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid incident data'
+      });
+    }
+    
+    // Create display message from incident
+    const displayMessage = {
+      id: `incident_${incident.id}_${Date.now()}`,
+      type: 'incident',
+      incidentId: incident.id,
+      content: incident.description || incident.title || 'Incident Alert',
+      priority: incident.priority === 'high' ? 1 : incident.priority === 'medium' ? 2 : 3,
+      supervisorName: supervisorData?.supervisorName || 'System',
+      supervisorBadge: supervisorData?.badge || 'SYSTEM',
+      createdAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + (displayOptions.duration || 30000)).toISOString(),
+      
+      // Incident-specific data
+      incidentType: incident.type,
+      incidentSeverity: incident.severity,
+      location: incident.location,
+      coordinates: incident.coordinates,
+      affectsRoutes: incident.affectsRoutes || incident.affectedRoutes || [],
+      source: incident.source || 'manual',
+      
+      // Display options
+      autoZoom: displayOptions.autoZoom !== false,
+      zoomLevel: displayOptions.zoomLevel || 15,
+      highlightIncident: displayOptions.highlightIncident !== false,
+      showRoutes: displayOptions.showRoutes !== false,
+      pulseAnimation: true,
+      
+      // Metadata
+      pushedToDisplay: true,
+      pushedBy: supervisorData?.supervisorName || 'System',
+      pushedAt: new Date().toISOString(),
+      displayDuration: displayOptions.duration || 30000,
+      rotationInterval: 30000
+    };
+    
+    // Store in global display messages
+    if (!global.displayMessages) {
+      global.displayMessages = [];
+    }
+    
+    // Store incidents separately for map display
+    if (!global.displayIncidents) {
+      global.displayIncidents = [];
+    }
+    
+    // Add to display messages queue
+    global.displayMessages.push(displayMessage);
+    
+    // Add to incidents for map display
+    const displayIncident = {
+      ...incident,
+      displayMessage: displayMessage,
+      displayedAt: new Date().toISOString(),
+      displayedBy: supervisorData?.supervisorName
+    };
+    
+    // Remove any existing display of this incident
+    global.displayIncidents = global.displayIncidents.filter(di => di.id !== incident.id);
+    global.displayIncidents.push(displayIncident);
+    
+    // Keep only last 20 incidents on display
+    global.displayIncidents = global.displayIncidents.slice(-20);
+    
+    // Log the action if supervisor session provided
+    if (supervisorData?.sessionId) {
+      await supervisorManager.logSupervisorAction(supervisorData.sessionId, 'push_incident_to_display', {
+        incidentId: incident.id,
+        incidentType: incident.type,
+        location: incident.location,
+        affectedRoutes: incident.affectsRoutes?.length || 0,
+        displayDuration: displayOptions.duration || 30000
+      });
+    }
+    
+    // Sync to Convex for real-time update
+    if (convexSync.isEnabled) {
+      await convexSync.syncDisplayMessages(global.displayMessages);
+      await convexSync.syncDisplayIncidents(global.displayIncidents);
+    }
+    
+    console.log(`📺 Incident ${incident.id} pushed to display by ${supervisorData?.supervisorName || 'System'}`);
+    
+    res.json({
+      success: true,
+      message: 'Incident pushed to control room display',
+      displayMessage,
+      incidentOnDisplay: displayIncident
+    });
+    
+  } catch (error) {
+    console.error('❌ Error pushing incident to display:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get incidents currently on display
+router.get('/display-incidents', async (req, res) => {
+  try {
+    const incidents = global.displayIncidents || [];
+    
+    // Filter out expired incidents
+    const activeIncidents = incidents.filter(incident => {
+      if (incident.displayMessage?.expiresAt) {
+        return new Date(incident.displayMessage.expiresAt) > new Date();
+      }
+      // Keep incidents without expiry for 1 hour
+      const displayedAt = new Date(incident.displayedAt);
+      return (Date.now() - displayedAt.getTime()) < 3600000; // 1 hour
+    });
+    
+    res.json({
+      success: true,
+      incidents: activeIncidents,
+      count: activeIncidents.length,
+      lastUpdated: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Error getting display incidents:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Send emergency message to display
 router.post('/emergency-message', async (req, res) => {
   try {

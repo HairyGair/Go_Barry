@@ -1,6 +1,6 @@
-// ABS Light Wizard Component - Safety-Critical ABS System Assessment
+// ABS/EBS Light Wizard Component - Safety-Critical ABS/EBS System Assessment
 // Uses icons and constants from common components
-// Follows SDC Engineering Issues Guide - ABS Light Section (Page 14)
+// Follows SDC Engineering Issues Guide - ABS/EBS Light Section (Page 14)
 
 const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
     // Get icons from global scope
@@ -14,29 +14,30 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                         <div className="mx-auto w-16 h-16 bg-amber-500/20 rounded-full flex items-center justify-center mb-4">
                             <AlertTriangle className="w-8 h-8 text-amber-400" />
                         </div>
-                        <h2 className="text-2xl font-bold text-white mb-2">⚠️ ABS Light System Assessment</h2>
-                        <p className="text-gray-300">Critical safety evaluation following SDC Engineering Issues Guide - Anti-lock Braking System diagnostics.</p>
+                        <h2 className="text-2xl font-bold text-white mb-2">⚠️ ABS/EBS Light System Assessment</h2>
+                        <p className="text-gray-300">Critical safety evaluation following SDC Engineering Issues Guide - Anti-lock Braking System (ABS) and Electronic Braking System (EBS) diagnostics.</p>
                     </div>
                     
                     <div className="bg-amber-500/20 backdrop-blur-sm rounded-lg p-6 border border-amber-400/30">
-                        <h3 className="text-lg font-semibold text-amber-200 mb-4">🚨 ANTI-LOCK BRAKING SYSTEM ALERT</h3>
+                        <h3 className="text-lg font-semibold text-amber-200 mb-4">🚨 ANTI-LOCK/ELECTRONIC BRAKING SYSTEM ALERT</h3>
                         <p className="text-amber-300/80 text-sm leading-relaxed mb-4">
-                            ABS lights indicate issues with the anti-lock braking system. The color and behavior of the light determines the severity and required response.
+                            ABS/EBS lights indicate issues with the anti-lock braking system or electronic braking system. The color and behavior of the light determines the severity and required response.
                         </p>
                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                            <h4 className="font-semibold text-amber-200 mb-2">SDC ABS Light Protocol:</h4>
+                            <h4 className="font-semibold text-amber-200 mb-2">SDC ABS/EBS Light Protocol:</h4>
                             <ul className="list-disc list-inside space-y-1 text-amber-300/90 text-sm">
-                                <li>RED ABS: Critical system failure - immediate stop required</li>
-                                <li>AMBER ABS: System warning - reduced functionality</li>
-                                <li>Both require reset procedure and assessment</li>
-                                <li>Engineering inspection mandatory for all ABS faults</li>
+                                <li>RED ABS/EBS: Critical system failure - immediate stop required</li>
+                                <li>AMBER ABS/EBS: System warning - reduced functionality</li>
+                                <li>Both ABS and EBS lights follow identical procedures</li>
+                                <li>EBS is found on newer vehicles with electronic braking</li>
+                                <li>Engineering inspection mandatory for all ABS/EBS faults</li>
                             </ul>
                         </div>
                     </div>
 
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
-                        <h3 className="text-lg font-semibold text-white mb-4">ABS Light Color Assessment</h3>
-                        <p className="text-gray-300 text-sm mb-4">What color is the ABS warning light that is illuminated?</p>
+                        <h3 className="text-lg font-semibold text-white mb-4">ABS/EBS Light Color Assessment</h3>
+                        <p className="text-gray-300 text-sm mb-4">What color is the ABS or EBS warning light that is illuminated?</p>
                         <div className="space-y-3">
                             <button
                                 onClick={() => updateResponse('absColor', 'amber')}
@@ -53,8 +54,8 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                         {responses.absColor === 'amber' && <div className="w-2 h-2 bg-white rounded-full"></div>}
                                     </div>
                                     <div>
-                                        <span className="font-medium">🟡 AMBER ABS Light</span>
-                                        <p className="text-sm text-gray-300 mt-1">Standard ABS warning - system may have reduced functionality</p>
+                                        <span className="font-medium">🟡 AMBER ABS/EBS Light</span>
+                                        <p className="text-sm text-gray-300 mt-1">Standard ABS/EBS warning - system may have reduced functionality</p>
                                     </div>
                                 </div>
                             </button>
@@ -73,7 +74,7 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                         {responses.absColor === 'red' && <div className="w-2 h-2 bg-white rounded-full"></div>}
                                     </div>
                                     <div>
-                                        <span className="font-medium">🔴 RED ABS Light</span>
+                                        <span className="font-medium">🔴 RED ABS/EBS Light</span>
                                         <p className="text-sm text-gray-300 mt-1">Critical ABS/EBS failure - immediate attention required</p>
                                     </div>
                                 </div>
@@ -83,7 +84,7 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                         
                     <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-6 border border-blue-400/30">
                         <h3 className="font-semibold text-blue-200 mb-3">Light Behavior Pattern</h3>
-                        <p className="text-blue-300/80 text-sm mb-4">How is the ABS light behaving on the dashboard?</p>
+                        <p className="text-blue-300/80 text-sm mb-4">How is the ABS/EBS light behaving on the dashboard?</p>
                         <div className="space-y-3">
                             <button
                                 onClick={() => updateResponse('lightBehavior', 'constant')}
@@ -128,15 +129,24 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                         </div>
                     </div>
                     
+                    {/* Educational Note about EBS */}
+                    <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-4">
+                        <p className="text-blue-300/80 text-sm">
+                            <strong>Note:</strong> EBS (Electronic Braking System) is an advanced braking system found on newer vehicles. 
+                            It provides electronic control of the braking system. Both ABS and EBS warning lights follow the same 
+                            diagnostic and safety procedures according to SDC guidelines.
+                        </p>
+                    </div>
+                    
                     {/* Critical Safety Warning for Red ABS */}
                     {responses.absColor === 'red' && (
                         <div className="bg-red-500/30 backdrop-blur-sm rounded-lg p-6 border border-red-400/50">
                             <div className="flex items-start space-x-4">
                                 <AlertTriangle className="w-8 h-8 text-red-400 mt-1" />
                                 <div className="flex-1">
-                                    <h3 className="text-xl font-bold text-red-200 mb-3">🚨 CRITICAL ABS SYSTEM ALERT</h3>
+                                    <h3 className="text-xl font-bold text-red-200 mb-3">🚨 CRITICAL ABS/EBS SYSTEM ALERT</h3>
                                     <div className="text-red-300/90 space-y-2">
-                                        <p className="font-semibold">Red ABS light indicates serious braking system fault</p>
+                                        <p className="font-semibold">Red ABS/EBS light indicates serious braking system fault</p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded p-4 mt-4">
                                             <h4 className="font-semibold text-red-200 mb-2">Immediate SDC Requirements:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
@@ -171,7 +181,7 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                 <div className="space-y-6">
                     <div className="text-center">
                         <h2 className="text-2xl font-bold text-white mb-2">🔄 SDC Reset Procedure</h2>
-                        <p className="text-gray-300">Mandatory reset procedure for {isRedABS ? 'RED' : 'AMBER'} ABS light following SDC protocol.</p>
+                        <p className="text-gray-300">Mandatory reset procedure for {isRedABS ? 'RED' : 'AMBER'} ABS/EBS light following SDC protocol.</p>
                     </div>
 
                     {/* Color-specific warning */}
@@ -180,18 +190,18 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                             <div className="flex items-start space-x-4">
                                 <AlertTriangle className="w-8 h-8 text-red-400 mt-1" />
                                 <div>
-                                    <h3 className="text-xl font-bold text-red-200 mb-3">🔴 RED ABS Light - Critical System Alert</h3>
+                                    <h3 className="text-xl font-bold text-red-200 mb-3">🔴 RED ABS/EBS Light - Critical System Alert</h3>
                                     <p className="text-red-300/90">
-                                        A red ABS light indicates a serious braking system fault. The reset procedure must be completed immediately to determine if the fault persists.
+                                        A red ABS/EBS light indicates a serious braking system fault. The reset procedure must be completed immediately to determine if the fault persists.
                                     </p>
                                 </div>
                             </div>
                         </div>
                     ) : (
                         <div className="bg-amber-500/20 backdrop-blur-sm rounded-lg p-6 border border-amber-400/30">
-                            <h3 className="text-lg font-bold text-amber-200 mb-3">🟡 AMBER ABS Light - System Warning</h3>
+                            <h3 className="text-lg font-bold text-amber-200 mb-3">🟡 AMBER ABS/EBS Light - System Warning</h3>
                             <p className="text-amber-300/80">
-                                An amber ABS light indicates the ABS system may not be fully functional. The vehicle can brake normally but without ABS assistance during emergency stops.
+                                An amber ABS/EBS light indicates the ABS/EBS system may not be fully functional. The vehicle can brake normally but without ABS/EBS assistance during emergency stops.
                             </p>
                         </div>
                     )}
@@ -209,7 +219,7 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                         </ol>
                         <div className="bg-white/10 backdrop-blur-sm rounded p-4 mt-4">
                             <p className="text-blue-300/80 text-sm">
-                                <strong>Note:</strong> The ABS system performs self-diagnostics once the vehicle reaches 10mph. This is when you can assess if the reset was successful.
+                                <strong>Note:</strong> The ABS/EBS system performs self-diagnostics once the vehicle reaches 10mph. This is when you can assess if the reset was successful.
                             </p>
                         </div>
                     </div>
@@ -287,20 +297,20 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                 <div className="space-y-6">
                     <div className="text-center">
                         <h2 className="text-2xl font-bold text-white mb-2">🔍 Post-Reset Assessment</h2>
-                        <p className="text-gray-300">Evaluate ABS light status after reset procedure to determine next actions.</p>
+                        <p className="text-gray-300">Evaluate ABS/EBS light status after reset procedure to determine next actions.</p>
                     </div>
                     
                     {resetDone ? (
                         <div className="space-y-6">
                             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
                                 <p className="text-gray-300 mb-4">
-                                    After completing the reset procedure and reaching 10mph, the ABS system has performed its self-diagnostic check.
+                                    After completing the reset procedure and reaching 10mph, the ABS/EBS system has performed its self-diagnostic check.
                                 </p>
                             </div>
                             
                             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
-                                <h3 className="font-semibold text-white mb-4">ABS Light Status After Reset</h3>
-                                <p className="text-gray-300 text-sm mb-4">Is the {isRed ? 'RED' : 'AMBER'} ABS light still illuminated after the reset procedure?</p>
+                                <h3 className="font-semibold text-white mb-4">ABS/EBS Light Status After Reset</h3>
+                                <p className="text-gray-300 text-sm mb-4">Is the {isRed ? 'RED' : 'AMBER'} ABS/EBS light still illuminated after the reset procedure?</p>
                                 <div className="space-y-3">
                                     <button
                                         onClick={() => updateResponse('lightStillOn', 'no')}
@@ -318,7 +328,7 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                             </div>
                                             <div>
                                                 <span className="font-medium">✅ Light is OFF - Reset Successful</span>
-                                                <p className="text-sm text-gray-300 mt-1">ABS system has cleared the fault successfully</p>
+                                                <p className="text-sm text-gray-300 mt-1">ABS/EBS system has cleared the fault successfully</p>
                                             </div>
                                         </div>
                                     </button>
@@ -338,7 +348,7 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                             </div>
                                             <div>
                                                 <span className="font-medium">🚨 Light remains ON - Fault Persists</span>
-                                                <p className="text-sm text-gray-300 mt-1">ABS system fault continues after reset</p>
+                                                <p className="text-sm text-gray-300 mt-1">ABS/EBS system fault continues after reset</p>
                                             </div>
                                         </div>
                                     </button>
@@ -353,7 +363,7 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                         <div>
                                             <h3 className="text-xl font-bold text-red-200 mb-3">🛑 Critical Fault Persists</h3>
                                             <p className="text-red-300/90">
-                                                Red ABS light remaining on after reset indicates a serious braking system fault that requires immediate engineering attention.
+                                                Red ABS/EBS light remaining on after reset indicates a serious braking system fault that requires immediate engineering attention.
                                             </p>
                                         </div>
                                     </div>
@@ -364,7 +374,7 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                         <div className="bg-amber-500/20 backdrop-blur-sm rounded-lg p-6 border border-amber-400/30">
                             <h3 className="text-lg font-bold text-amber-200 mb-3">⚠️ Unable to Complete Reset</h3>
                             <p className="text-amber-300/80">
-                                If the reset procedure cannot be completed safely, immediate engineering assistance is required to assess the ABS system.
+                                If the reset procedure cannot be completed safely, immediate engineering assistance is required to assess the ABS/EBS system.
                             </p>
                         </div>
                     )}
@@ -437,8 +447,8 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
             return (
                 <div className="space-y-6">
                     <div className="text-center">
-                        <h2 className="text-2xl font-bold text-white mb-2">📋 ABS System Assessment Report</h2>
-                        <p className="text-gray-300">Complete ABS light assessment with SDC-compliant safety decision.</p>
+                        <h2 className="text-2xl font-bold text-white mb-2">📋 ABS/EBS System Assessment Report</h2>
+                        <p className="text-gray-300">Complete ABS/EBS light assessment with SDC-compliant safety decision.</p>
                     </div>
                     
                     {/* Assessment Summary */}
@@ -446,7 +456,7 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                         <h3 className="text-lg font-semibold text-white mb-4">Assessment Summary</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                             <div>
-                                <span className="text-gray-400">ABS Light Color:</span>
+                                <span className="text-gray-400">ABS/EBS Light Color:</span>
                                 <span className="text-white ml-2">{redLight ? '🔴 Red' : '🟡 Amber'}</span>
                             </div>
                             <div>
@@ -483,6 +493,7 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                         <li>Await engineering inspection before moving vehicle</li>
                                         <li>Log defect in Go-Check with "CRITICAL" priority status</li>
                                         <li>Arrange passenger transfer if vehicle was in service</li>
+                                        <li>Braking system compromised - no emergency braking assistance</li>
                                     </ol>
                                 </div>
                             )}
@@ -495,8 +506,9 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                         <li>Arrange replacement vehicle at earliest opportunity</li>
                                         <li>Monitor brake performance continuously</li>
                                         <li>Log defect in Go-Check system immediately</li>
-                                        <li>Inform engineering of ABS system fault</li>
+                                        <li>Inform engineering of ABS/EBS system fault</li>
                                         <li>If any brake performance issues occur, stop immediately</li>
+                                        <li>Driver should exercise extra caution - no ABS/EBS assistance</li>
                                     </ol>
                                 </div>
                             )}
@@ -506,11 +518,11 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                     <h4 className="font-semibold text-green-200 mb-3">Monitoring Actions:</h4>
                                     <ol className="list-decimal ml-6 space-y-2 text-green-300/90 text-sm">
                                         <li>Vehicle may remain in service safely</li>
-                                        <li>Log the ABS incident in Go-Check system</li>
-                                        <li>Monitor for ABS light reoccurrence</li>
+                                        <li>Log the ABS/EBS incident in Go-Check system</li>
+                                        <li>Monitor for ABS/EBS light reoccurrence</li>
                                         <li>If light returns, arrange changeover immediately</li>
-                                        <li>Include ABS check in next routine maintenance</li>
-                                        <li>Normal braking available (without ABS assistance)</li>
+                                        <li>Include ABS/EBS check in next routine maintenance</li>
+                                        <li>Normal braking available (without ABS/EBS assistance)</li>
                                     </ol>
                                 </div>
                             )}
@@ -521,10 +533,11 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                     <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-6 border border-blue-400/30">
                         <h3 className="font-bold text-blue-200 mb-3">🔔 Important Safety Reminders</h3>
                         <ul className="list-disc ml-6 space-y-1 text-blue-300/90 text-sm">
-                            <li>ABS faults must always be checked by a qualified engineer</li>
-                            <li>Regular brakes still function without ABS, but stopping distances may increase</li>
+                            <li>ABS/EBS faults must always be checked by a qualified engineer</li>
+                            <li>Regular brakes still function without ABS/EBS, but stopping distances may increase</li>
                             <li>Safety is the priority - any doubts about brake performance, stop immediately</li>
-                            <li>Document all ABS warnings in Go-Check for maintenance tracking</li>
+                            <li>Document all ABS/EBS warnings in Tranzaura for maintenance tracking</li>
+                            <li>EBS systems are critical for electronic brake control and stability</li>
                         </ul>
                     </div>
                     
@@ -533,10 +546,10 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                         <div className="flex items-start space-x-4">
                             <FileText className="w-6 h-6 text-purple-400 mt-1" />
                             <div>
-                                <h4 className="font-semibold text-purple-200 mb-2">📱 Go-Check Documentation Required</h4>
+                                <h4 className="font-semibold text-purple-200 mb-2">📱 Tranzaura Documentation Required</h4>
                                 <p className="text-purple-300/80 text-sm">
-                                    Record this ABS assessment in the Go-Check system immediately when vehicle is stationary and in a safe location. 
-                                    Include ABS light color, reset attempt results, and final safety decision.
+                                    Record this ABS/EBS assessment in the Tranzaura system immediately when vehicle is stationary and in a safe location. 
+                                    Include ABS/EBS light color, reset attempt results, and final safety decision.
                                 </p>
                             </div>
                         </div>

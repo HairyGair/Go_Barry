@@ -522,7 +522,7 @@ const OilWarningLightWizard = ({ currentStep, responses, updateResponse, onNext,
                                         <li>Arrange passenger transfer if vehicle was in service</li>
                                         <li>Contact engineering team for immediate assistance</li>
                                         <li>Await engineering attendance before any further action</li>
-                                        <li>Log as CRITICAL priority in Go-Check system</li>
+                                        <li>Log as CRITICAL priority in Tranzaura system</li>
                                     </ol>
                                 </div>
                                 
@@ -560,7 +560,7 @@ const OilWarningLightWizard = ({ currentStep, responses, updateResponse, onNext,
                                         <li>Arrange engineering inspection at earliest opportunity</li>
                                         <li>Monitor closely for any changes in light behavior</li>
                                         <li>Stop immediately if any symptoms worsen</li>
-                                        <li>Log as HIGH PRIORITY in Go-Check system</li>
+                                        <li>Log as HIGH PRIORITY in Tranzaura system</li>
                                     </ol>
                                 </div>
                             </div>
@@ -572,9 +572,9 @@ const OilWarningLightWizard = ({ currentStep, responses, updateResponse, onNext,
                         <div className="flex items-start space-x-4">
                             <FileText className="w-6 h-6 text-blue-400 mt-1" />
                             <div>
-                                <h4 className="font-semibold text-blue-200 mb-2">📱 Go-Check Documentation Required</h4>
+                                <h4 className="font-semibold text-blue-200 mb-2">📱 Tranzaura Documentation Required</h4>
                                 <ul className="list-disc ml-6 space-y-1 text-blue-300/80 text-sm">
-                                    <li>Log in Go-Check immediately as {mustStop ? 'CRITICAL' : 'HIGH PRIORITY'}</li>
+                                    <li>Log in Tranzaura immediately as {mustStop ? 'CRITICAL' : 'HIGH PRIORITY'}</li>
                                     <li>Include all symptoms and observations noted</li>
                                     <li>Record exact time oil light first appeared</li>
                                     <li>Document any unusual engine noises reported</li>

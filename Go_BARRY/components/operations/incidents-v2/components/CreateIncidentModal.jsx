@@ -18,6 +18,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import { colors, spacing } from '../styles/incidents.styles';
+import IncidentMapPicker from './maps/IncidentMapPicker';
+import RouteSelector from './RouteSelector';
+import IncidentTemplates from './IncidentTemplates';
+import LocationSearch from './LocationSearch';
 
 const CreateIncidentModal = ({ 
   visible, 
@@ -26,27 +30,41 @@ const CreateIncidentModal = ({
   supervisorName,
   supervisorRole,
   sessionId,
-  baseUrl
+  baseUrl,
+  initialData = null,
+  onShowActionReminders
 }) => {
   const [loading, setLoading] = useState(false);
+  const [activeView, setActiveView] = useState('form'); // 'form', 'templates', 'map', 'routes'
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [selectedRoutes, setSelectedRoutes] = useState([]);
+  const [detectedRoutes, setDetectedRoutes] = useState([]);
+  const [routeConfidence, setRouteConfidence] = useState({});
+  
   const [formData, setFormData] = useState({
-    type: 'Traffic Incident',
-    subtype: '',
-    location: '',
-    description: '',
-    severity: 'Medium',
-    notes: '',
-    affectsRoutes: ''
+    type: initialData?.type || 'Traffic Incident',
+    subtype: initialData?.subtype || '',
+    location: initialData?.location || '',
+    description: initialData?.description || '',
+    severity: initialData?.severity || 'Medium',
+    notes: initialData?.notes || '',
+    affectsRoutes: initialData?.affectsRoutes ? initialData.affectsRoutes.join(', ') : ''
   });
 
   const incidentTypes = [
     'Traffic Incident',
     'Road Closure',
-    'Accident',
-    'Breakdown',
-    'Congestion',
-    'Event',
-    'Weather',
+    'Road Traffic Collision',
+    'Emergency Services Blocking',
+    'Obstruction',
+    'Utilities',
+    'Traffic Light Failure',
+    'Power Lines Down',
+    'Flooding',
+    'Weather Conditions',
+    'Vehicle Breakdown',
+    'Unplanned Roadworks',
+    'Event Traffic',
     'Other'
   ];
 
@@ -59,6 +77,16 @@ const CreateIncidentModal = ({
         alert('Please fill in location and description');
       } else {
         Alert.alert('Required Fields', 'Please fill in location and description');
+      }
+      return;
+    }
+
+    // Validate type is selected
+    if (!formData.type) {
+      if (Platform.OS === 'web') {
+        alert('Please select an incident type');
+      } else {
+        Alert.alert('Required Field', 'Please select an incident type');
       }
       return;
     }
@@ -78,11 +106,17 @@ const CreateIncidentModal = ({
         description: formData.description,
         severity: formData.severity,
         notes: formData.notes,
-        affectsRoutes: routesArray,
+        affectsRoutes: selectedRoutes.length > 0 ? selectedRoutes : routesArray,
         createdBy: supervisorName,
         createdByRole: supervisorRole,
         startTime: new Date().toISOString(),
-        status: 'active'
+        status: 'active',
+        coordinates: selectedLocation ? {
+          latitude: selectedLocation.lat,
+          longitude: selectedLocation.lng
+        } : null,
+        detectedRoutes: detectedRoutes,
+        routeConfidence: routeConfidence
       };
 
       // Add retry logic for 429 errors
@@ -126,6 +160,11 @@ const CreateIncidentModal = ({
           notes: '',
           affectsRoutes: ''
         });
+        setSelectedLocation(null);
+        setSelectedRoutes([]);
+        setDetectedRoutes([]);
+        setRouteConfidence({});
+        setActiveView('form');
         
         // Notify parent component
         if (onCreateIncident) {
@@ -135,10 +174,27 @@ const CreateIncidentModal = ({
         // Close modal
         onClose();
         
+        // Show action reminders if callback provided
+        if (onShowActionReminders) {
+          // Generate messages for the reminders
+          const messages = {
+            ticketer: `${incidentData.actionTaken?.includes('divert') ? 'DIVERSION' : 'CAUTION'} - ${incidentData.location}\n\nRoutes ${incidentData.affectsRoutes.join(', ')}\n\n${incidentData.description}\n\n${incidentData.notes || 'Proceed with caution'}`,
+            passengerCloud: `Due to ${incidentData.type.toLowerCase()} at ${incidentData.location}, services ${incidentData.affectsRoutes.join(', ')} ${incidentData.notes?.includes('divert') ? 'are currently on diversion' : 'may experience delays'}. We apologise for any inconvenience.`,
+            email: `INCIDENT ALERT: ${incidentData.type} at ${incidentData.location}\n\nAffected Routes: ${incidentData.affectsRoutes.join(', ')}\n\nDescription: ${incidentData.description}\n\nAction Taken: ${incidentData.notes || 'Monitoring situation'}\n\nPlease inform drivers on affected routes.`
+          };
+          
+          onShowActionReminders(result.incident, messages);
+        }
+        
         if (Platform.OS === 'web') {
-          alert('Incident created successfully');
+          // Don't show success alert if action reminders will be shown
+          if (!onShowActionReminders) {
+            alert('Incident created successfully');
+          }
         } else {
-          Alert.alert('Success', 'Incident created successfully');
+          if (!onShowActionReminders) {
+            Alert.alert('Success', 'Incident created successfully');
+          }
         }
       } else {
         throw new Error(result.error || 'Failed to create incident');
@@ -152,6 +208,44 @@ const CreateIncidentModal = ({
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLocationSelect = (location) => {
+    setSelectedLocation(location);
+    setFormData({
+      ...formData,
+      location: location.description
+    });
+  };
+
+  const handleRoutesDetected = (routes, confidence) => {
+    setDetectedRoutes(routes);
+    setRouteConfidence(confidence);
+    // Pre-select high confidence routes
+    const highConfidenceRoutes = routes.filter(route => 
+      confidence[route] && confidence[route] >= 70
+    );
+    if (highConfidenceRoutes.length > 0) {
+      setSelectedRoutes(highConfidenceRoutes);
+    }
+  };
+
+  const handleTemplateSelect = (templateData) => {
+    // Update form with template data
+    setFormData({
+      ...formData,
+      type: templateData.type,
+      description: templateData.description,
+      notes: templateData.actionTaken || formData.notes
+    });
+    
+    // Switch back to form view
+    setActiveView('form');
+    
+    // Show a quick notification
+    if (Platform.OS === 'web') {
+      // Could add a toast notification here
     }
   };
 
@@ -262,6 +356,90 @@ const CreateIncidentModal = ({
     },
     required: {
       color: colors.danger
+    },
+    tabs: {
+      flexDirection: 'row',
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      marginBottom: spacing.lg
+    },
+    tab: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: spacing.md,
+      gap: spacing.xs,
+      position: 'relative'
+    },
+    tabActive: {
+      borderBottomWidth: 2,
+      borderBottomColor: colors.primary
+    },
+    tabText: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.textSecondary
+    },
+    tabTextActive: {
+      color: colors.primary
+    },
+    tabBadge: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      backgroundColor: colors.primary,
+      borderRadius: 10,
+      minWidth: 20,
+      height: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 4
+    },
+    tabBadgeText: {
+      fontSize: 10,
+      fontWeight: 'bold',
+      color: '#fff'
+    },
+    mapContainer: {
+      flex: 1,
+      minHeight: 400
+    },
+    routesContainer: {
+      flex: 1,
+      minHeight: 400
+    },
+    quickAction: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.background,
+      padding: spacing.md,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: spacing.sm
+    },
+    quickActionText: {
+      flex: 1,
+      fontSize: 14,
+      color: colors.text
+    },
+    quickActionButton: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      backgroundColor: colors.primary,
+      borderRadius: 6
+    },
+    quickActionButtonText: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#fff'
+    },
+    detectedText: {
+      fontSize: 12,
+      color: colors.warning,
+      marginTop: spacing.xs,
+      marginLeft: spacing.md + 20 + spacing.sm
     }
   };
 
@@ -285,7 +463,77 @@ const CreateIncidentModal = ({
             </Pressable>
           </View>
 
-          <ScrollView style={modalStyles.form} showsVerticalScrollIndicator={false}>
+          {/* View Tabs */}
+          <View style={modalStyles.tabs}>
+            <Pressable
+              style={[modalStyles.tab, activeView === 'form' && modalStyles.tabActive]}
+              onPress={() => setActiveView('form')}
+            >
+              <Ionicons 
+                name="document-text" 
+                size={16} 
+                color={activeView === 'form' ? colors.primary : colors.textSecondary} 
+              />
+              <Text style={[modalStyles.tabText, activeView === 'form' && modalStyles.tabTextActive]}>
+                Details
+              </Text>
+            </Pressable>
+            
+            <Pressable
+              style={[modalStyles.tab, activeView === 'templates' && modalStyles.tabActive]}
+              onPress={() => setActiveView('templates')}
+            >
+              <Ionicons 
+                name="flash" 
+                size={16} 
+                color={activeView === 'templates' ? colors.primary : colors.textSecondary} 
+              />
+              <Text style={[modalStyles.tabText, activeView === 'templates' && modalStyles.tabTextActive]}>
+                Templates
+              </Text>
+            </Pressable>
+            
+            <Pressable
+              style={[modalStyles.tab, activeView === 'map' && modalStyles.tabActive]}
+              onPress={() => setActiveView('map')}
+            >
+              <Ionicons 
+                name="map" 
+                size={16} 
+                color={activeView === 'map' ? colors.primary : colors.textSecondary} 
+              />
+              <Text style={[modalStyles.tabText, activeView === 'map' && modalStyles.tabTextActive]}>
+                Map Location
+              </Text>
+              {selectedLocation && (
+                <View style={modalStyles.tabBadge}>
+                  <Ionicons name="checkmark" size={12} color="#fff" />
+                </View>
+              )}
+            </Pressable>
+            
+            <Pressable
+              style={[modalStyles.tab, activeView === 'routes' && modalStyles.tabActive]}
+              onPress={() => setActiveView('routes')}
+            >
+              <Ionicons 
+                name="bus" 
+                size={16} 
+                color={activeView === 'routes' ? colors.primary : colors.textSecondary} 
+              />
+              <Text style={[modalStyles.tabText, activeView === 'routes' && modalStyles.tabTextActive]}>
+                Routes
+              </Text>
+              {selectedRoutes.length > 0 && (
+                <View style={modalStyles.tabBadge}>
+                  <Text style={modalStyles.tabBadgeText}>{selectedRoutes.length}</Text>
+                </View>
+              )}
+            </Pressable>
+          </View>
+
+          {activeView === 'form' && (
+            <ScrollView style={modalStyles.form} showsVerticalScrollIndicator={false}>
             {/* Type */}
             <View style={modalStyles.inputGroup}>
               <Text style={modalStyles.label}>Type</Text>
@@ -320,13 +568,20 @@ const CreateIncidentModal = ({
               <Text style={modalStyles.label}>
                 Location <Text style={modalStyles.required}>*</Text>
               </Text>
-              <TextInput
-                style={modalStyles.input}
+              <LocationSearch
                 value={formData.location}
-                onChangeText={(text) => setFormData({...formData, location: text})}
-                placeholder="e.g., A1 Northbound at Junction 65"
-                placeholderTextColor={colors.textTertiary}
-                editable={!loading}
+                onLocationSelect={(location) => {
+                  setFormData({...formData, location: location.description});
+                  if (location.coordinates) {
+                    setSelectedLocation({
+                      lat: location.coordinates.lat,
+                      lng: location.coordinates.lng,
+                      description: location.description
+                    });
+                  }
+                }}
+                placeholder="Search for a location..."
+                baseUrl={baseUrl}
               />
             </View>
 
@@ -363,17 +618,47 @@ const CreateIncidentModal = ({
               </View>
             </View>
 
-            {/* Affected Routes */}
+            {/* Location Quick Action */}
             <View style={modalStyles.inputGroup}>
-              <Text style={modalStyles.label}>Affected Routes</Text>
-              <TextInput
-                style={modalStyles.input}
-                value={formData.affectsRoutes}
-                onChangeText={(text) => setFormData({...formData, affectsRoutes: text})}
-                placeholder="e.g., 21, X21, 56 (comma separated)"
-                placeholderTextColor={colors.textTertiary}
-                editable={!loading}
-              />
+              <View style={modalStyles.quickAction}>
+                <Ionicons name="map" size={20} color={colors.primary} />
+                <Text style={modalStyles.quickActionText}>
+                  {selectedLocation ? 'Location set via map' : 'Set location on map'}
+                </Text>
+                <Pressable
+                  style={modalStyles.quickActionButton}
+                  onPress={() => setActiveView('map')}
+                >
+                  <Text style={modalStyles.quickActionButtonText}>
+                    {selectedLocation ? 'Change' : 'Set'}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+
+            {/* Routes Quick Action */}
+            <View style={modalStyles.inputGroup}>
+              <View style={modalStyles.quickAction}>
+                <Ionicons name="bus" size={20} color={colors.primary} />
+                <Text style={modalStyles.quickActionText}>
+                  {selectedRoutes.length > 0 
+                    ? `${selectedRoutes.length} routes selected` 
+                    : 'Select affected routes'}
+                </Text>
+                <Pressable
+                  style={modalStyles.quickActionButton}
+                  onPress={() => setActiveView('routes')}
+                >
+                  <Text style={modalStyles.quickActionButtonText}>
+                    {selectedRoutes.length > 0 ? 'Edit' : 'Select'}
+                  </Text>
+                </Pressable>
+              </View>
+              {detectedRoutes.length > 0 && (
+                <Text style={modalStyles.detectedText}>
+                  {detectedRoutes.length} routes auto-detected
+                </Text>
+              )}
             </View>
 
             {/* Notes */}
@@ -390,7 +675,41 @@ const CreateIncidentModal = ({
                 editable={!loading}
               />
             </View>
-          </ScrollView>
+            </ScrollView>
+          )}
+
+          {activeView === 'templates' && (
+            <View style={modalStyles.form}>
+              <IncidentTemplates
+                onSelectTemplate={handleTemplateSelect}
+                selectedRoutes={selectedRoutes}
+                location={formData.location || (selectedLocation ? selectedLocation.description : '')}
+              />
+            </View>
+          )}
+
+          {activeView === 'map' && (
+            <View style={modalStyles.mapContainer}>
+              <IncidentMapPicker
+                onLocationSelect={handleLocationSelect}
+                onRoutesDetected={handleRoutesDetected}
+                baseUrl={baseUrl}
+                initialLocation={selectedLocation}
+              />
+            </View>
+          )}
+
+          {activeView === 'routes' && (
+            <View style={modalStyles.routesContainer}>
+              <RouteSelector
+                selectedRoutes={selectedRoutes}
+                detectedRoutes={detectedRoutes}
+                routeConfidence={routeConfidence}
+                onRoutesChange={setSelectedRoutes}
+                baseUrl={baseUrl}
+              />
+            </View>
+          )}
 
           <View style={modalStyles.footer}>
             <Pressable 

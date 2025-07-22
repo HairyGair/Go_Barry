@@ -1,115 +1,77 @@
-// Go_BARRY/utils/apiConfig.js
-// Centralized API configuration and utilities
+// utils/apiConfig.js
+// Centralized API configuration to ensure production URLs are always used
 
-// Force production URL - prevent any localhost usage
 const PRODUCTION_API_URL = 'https://go-barry.onrender.com';
 
-// Debug function to check current configuration
-export const debugApiConfig = () => {
-  console.log('🔍 API Configuration Debug:');
-  console.log('- PRODUCTION_API_URL:', PRODUCTION_API_URL);
-  console.log('- Current location:', typeof window !== 'undefined' ? window.location.href : 'N/A');
-  console.log('- Environment:', process.env.NODE_ENV || 'unknown');
-  console.log('- Expo public API URL:', process.env.EXPO_PUBLIC_API_BASE_URL || 'not set');
-  
-  // Check for any localhost references
-  const possibleLocalUrls = [
-    'localhost:3001',
-    'localhost:3000', 
-    '127.0.0.1:3001',
-    'http://localhost'
-  ];
-  
-  console.log('🚨 Checking for localhost references...');
-  possibleLocalUrls.forEach(url => {
-    if (typeof window !== 'undefined') {
-      const scripts = Array.from(document.scripts);
-      const hasLocalhost = scripts.some(script => script.src && script.src.includes(url));
-      if (hasLocalhost) {
-        console.warn(`⚠️ Found localhost reference: ${url}`);
-      }
-    }
-  });
+// Global API base URL - ALWAYS use production
+export const API_BASE_URL = PRODUCTION_API_URL;
+
+// Helper function to ensure URLs are absolute and use production
+export const getApiUrl = (endpoint) => {
+  // Remove any leading slash to avoid double slashes
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  return `${API_BASE_URL}${cleanEndpoint}`;
 };
 
-// Enhanced fetch wrapper that ALWAYS uses production URL
-export const safeFetch = async (endpoint, options = {}) => {
-  // Ensure endpoint starts with /
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  const url = `${PRODUCTION_API_URL}${cleanEndpoint}`;
-  
-  console.log(`🌐 Safe API call: ${url}`);
+// Enhanced fetch wrapper that ensures production URL
+export const apiFetch = async (endpoint, options = {}) => {
+  const url = getApiUrl(endpoint);
   
   try {
     const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
-        ...options.headers
-      }
+        ...options.headers,
+      },
     });
     
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      throw new Error(`API Error: ${response.status} ${response.statusText}`);
     }
     
     return await response.json();
   } catch (error) {
-    console.error(`❌ Safe API call failed for ${endpoint}:`, error.message);
+    console.error(`API fetch error for ${endpoint}:`, error);
     throw error;
   }
 };
 
-// Get the production API URL
-export const getApiUrl = (endpoint = '') => {
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  return `${PRODUCTION_API_URL}${cleanEndpoint}`;
+// Export commonly used endpoints
+export const API_ENDPOINTS = {
+  // Flow monitoring
+  flowOverview: '/api/flow/overview',
+  flowIncident: (id) => `/api/flow/incident/${id}`,
+  flowCheckFlow: '/api/flow/check-flow',
+  flowControl: '/api/flow/control',
+  
+  // Alerts
+  alerts: '/api/alerts',
+  alertsEnhanced: '/api/alerts-enhanced',
+  
+  // Incidents
+  incidents: '/api/incidents',
+  trafficIncidents: '/api/traffic-incidents',
+  
+  // Traffic intelligence
+  liveTrafficCongestion: '/api/traffic-intelligence/live-congestion',
+  roadworks: '/api/traffic-intelligence/roadworks',
+  
+  // Other endpoints
+  supervisor: '/api/supervisor',
+  events: '/api/events/active',
 };
 
-// Validate that no localhost URLs are being used
-export const validateApiUrls = () => {
-  const warnings = [];
-  
-  // Check common patterns that might use localhost
-  const dangerousPatterns = [
-    'localhost:3001',
-    'localhost:3000',
-    '127.0.0.1:3001',
-    'http://localhost'
-  ];
-  
-  if (typeof window !== 'undefined') {
-    // Check if any fetch calls are going to localhost
-    const originalFetch = window.fetch;
-    window.fetch = function(url, options) {
-      if (typeof url === 'string') {
-        dangerousPatterns.forEach(pattern => {
-          if (url.includes(pattern)) {
-            console.error(`🚨 LOCALHOST DETECTED: ${url}`);
-            warnings.push(`Localhost call detected: ${url}`);
-          }
-        });
-      }
-      return originalFetch.call(this, url, options);
-    };
-  }
-  
-  return warnings;
-};
-
-// Initialize debugging
-if (typeof window !== 'undefined') {
-  // Run debug on page load
-  window.addEventListener('load', () => {
-    debugApiConfig();
-    validateApiUrls();
-  });
-}
+// Log the configuration for debugging
+console.log('🌐 API Configuration:', {
+  baseUrl: API_BASE_URL,
+  environment: 'production',
+  timestamp: new Date().toISOString()
+});
 
 export default {
-  PRODUCTION_API_URL,
-  debugApiConfig,
-  safeFetch,
+  API_BASE_URL,
   getApiUrl,
-  validateApiUrls
+  apiFetch,
+  API_ENDPOINTS
 };

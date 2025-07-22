@@ -7,26 +7,63 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  ActivityIndicator
+  ActivityIndicator,
+  Pressable
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { getGeocodeStats, clearGeocodeCache } from '../operations/incidents-v2/services/geocodingService';
 
 const API_BASE = 'https://go-barry.onrender.com';
 
 const ApiUsageStats = () => {
   const [apiStats, setApiStats] = useState({
     tomtom: { calls: 0, limit: 2500, cost: 0 },
-    here: { calls: 0, limit: 1000, cost: 0 },
     nationalHighways: { calls: 0, limit: 5000, cost: 0 },
     total: { calls: 0, errors: 0, avgResponseTime: 0 }
   });
   const [loading, setLoading] = useState(true);
+  const [mapboxUsage, setMapboxUsage] = useState({
+    daily: 0,
+    limit: 100000,
+    cacheStats: null
+  });
 
   useEffect(() => {
     loadApiStats();
-    const interval = setInterval(loadApiStats, 30000);
+    loadMapboxStats();
+    const interval = setInterval(() => {
+      loadApiStats();
+      loadMapboxStats();
+    }, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  const loadMapboxStats = () => {
+    // Load from localStorage
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const stored = localStorage.getItem('mapbox_usage');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Reset if it's a new day
+        if (parsed.date !== new Date().toDateString()) {
+          const newUsage = { geocoding: 0, date: new Date().toDateString() };
+          localStorage.setItem('mapbox_usage', JSON.stringify(newUsage));
+          setMapboxUsage(prev => ({ ...prev, daily: 0 }));
+        } else {
+          setMapboxUsage(prev => ({ ...prev, daily: parsed.geocoding || 0 }));
+        }
+      }
+    }
+    
+    // Get cache stats
+    const stats = getGeocodeStats();
+    setMapboxUsage(prev => ({ ...prev, cacheStats: stats }));
+  };
+
+  const handleClearMapboxCache = () => {
+    clearGeocodeCache();
+    loadMapboxStats();
+  };
 
   const loadApiStats = async () => {
     try {
@@ -40,11 +77,6 @@ const ApiUsageStats = () => {
             calls: data.services?.tomtom?.requestsToday || 0,
             limit: 2500,
             cost: ((data.services?.tomtom?.requestsToday || 0) * 0.002).toFixed(2)
-          },
-          here: {
-            calls: data.services?.here?.requestsToday || 0,
-            limit: 1000,
-            cost: ((data.services?.here?.requestsToday || 0) * 0.003).toFixed(2)
           },
           nationalHighways: {
             calls: data.services?.nationalHighways?.requestsToday || 0,
@@ -137,35 +169,6 @@ const ApiUsageStats = () => {
         </View>
       </View>
 
-      {/* HERE API */}
-      <View style={styles.serviceCard}>
-        <View style={styles.serviceHeader}>
-          <View style={styles.serviceInfo}>
-            <Text style={styles.serviceName}>HERE Maps API</Text>
-            <Text style={styles.serviceDescription}>Backup traffic provider</Text>
-          </View>
-          <Text style={styles.serviceCost}>£{apiStats.here.cost}/day</Text>
-        </View>
-        
-        <View style={styles.usageContainer}>
-          <View style={styles.usageBar}>
-            <View 
-              style={[
-                styles.usageFill,
-                { 
-                  width: `${getUsagePercentage(apiStats.here.calls, apiStats.here.limit)}%`,
-                  backgroundColor: getUsageColor(getUsagePercentage(apiStats.here.calls, apiStats.here.limit))
-                }
-              ]}
-            />
-          </View>
-          <Text style={styles.usageText}>
-            {apiStats.here.calls} / {apiStats.here.limit} calls 
-            ({getUsagePercentage(apiStats.here.calls, apiStats.here.limit).toFixed(1)}%)
-          </Text>
-        </View>
-      </View>
-
       {/* National Highways API */}
       <View style={styles.serviceCard}>
         <View style={styles.serviceHeader}>
@@ -195,25 +198,80 @@ const ApiUsageStats = () => {
         </View>
       </View>
 
+      {/* Mapbox Geocoding API */}
+      <View style={styles.serviceCard}>
+        <View style={styles.serviceHeader}>
+          <View style={styles.serviceInfo}>
+            <Text style={styles.serviceName}>Mapbox Geocoding API</Text>
+            <Text style={styles.serviceDescription}>Location search & geocoding</Text>
+          </View>
+          <Text style={[styles.serviceCost, { color: '#10B981' }]}>FREE TIER</Text>
+        </View>
+        
+        <View style={styles.usageContainer}>
+          <View style={styles.usageBar}>
+            <View 
+              style={[
+                styles.usageFill,
+                { 
+                  width: `${getUsagePercentage(mapboxUsage.daily, mapboxUsage.limit)}%`,
+                  backgroundColor: getUsageColor(getUsagePercentage(mapboxUsage.daily, mapboxUsage.limit))
+                }
+              ]}
+            />
+          </View>
+          <Text style={styles.usageText}>
+            {mapboxUsage.daily.toLocaleString()} / {mapboxUsage.limit.toLocaleString()} requests today
+            ({getUsagePercentage(mapboxUsage.daily, mapboxUsage.limit).toFixed(3)}%)
+          </Text>
+        </View>
+        
+        {mapboxUsage.cacheStats && (
+          <View style={styles.cacheInfo}>
+            <View style={styles.cacheRow}>
+              <Text style={styles.cacheLabel}>Cache Size:</Text>
+              <Text style={styles.cacheValue}>{mapboxUsage.cacheStats.cacheSize} entries</Text>
+            </View>
+            <View style={styles.cacheRow}>
+              <Text style={styles.cacheLabel}>Common Locations:</Text>
+              <Text style={styles.cacheValue}>{mapboxUsage.cacheStats.commonLocationsCount} presets</Text>
+            </View>
+            <Pressable style={styles.clearCacheButton} onPress={handleClearMapboxCache}>
+              <Ionicons name="trash-outline" size={16} color="#3B82F6" />
+              <Text style={styles.clearCacheText}>Clear Cache</Text>
+            </Pressable>
+          </View>
+        )}
+        
+        {getUsagePercentage(mapboxUsage.daily, mapboxUsage.limit) > 80 && (
+          <View style={styles.warningBanner}>
+            <Ionicons name="warning" size={20} color="#F59E0B" />
+            <Text style={styles.warningText}>
+              High usage detected! Consider waiting until tomorrow or using cached results.
+            </Text>
+          </View>
+        )}
+      </View>
+
       <Text style={styles.sectionTitle}>Cost Summary</Text>
       
       <View style={styles.costCard}>
         <View style={styles.costRow}>
           <Text style={styles.costLabel}>Daily API Costs</Text>
           <Text style={styles.costValue}>
-            £{(parseFloat(apiStats.tomtom.cost) + parseFloat(apiStats.here.cost)).toFixed(2)}
+            £{parseFloat(apiStats.tomtom.cost).toFixed(2)}
           </Text>
         </View>
         <View style={styles.costRow}>
           <Text style={styles.costLabel}>Monthly Projection</Text>
           <Text style={styles.costValue}>
-            £{((parseFloat(apiStats.tomtom.cost) + parseFloat(apiStats.here.cost)) * 30).toFixed(2)}
+            £{(parseFloat(apiStats.tomtom.cost) * 30).toFixed(2)}
           </Text>
         </View>
         <View style={[styles.costRow, { marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#E5E7EB' }]}>
           <Text style={styles.costLabel}>Annual Projection</Text>
           <Text style={[styles.costValue, { fontSize: 20, fontWeight: '700' }]}>
-            £{((parseFloat(apiStats.tomtom.cost) + parseFloat(apiStats.here.cost)) * 365).toFixed(2)}
+            £{(parseFloat(apiStats.tomtom.cost) * 365).toFixed(2)}
           </Text>
         </View>
       </View>
@@ -358,6 +416,57 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#3B82F6',
     lineHeight: 20,
+  },
+  cacheInfo: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  cacheRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  cacheLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  cacheValue: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#1F2937',
+  },
+  clearCacheButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginTop: 8,
+  },
+  clearCacheText: {
+    fontSize: 12,
+    color: '#3B82F6',
+    fontWeight: '500',
+  },
+  warningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FEF3C7',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#92400E',
+    lineHeight: 18,
   },
 });
 

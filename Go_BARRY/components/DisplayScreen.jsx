@@ -36,6 +36,10 @@ const DisplayScreen = () => {
   // Get recent handovers from Convex
   const recentHandovers = convexData?.recentHandovers || [];
   
+  // Get display incidents from Convex
+  const displayIncidents = convexData?.displayIncidents || [];
+  const displayMessageQueue = convexData?.displayMessages || [];
+  
   // Extract VIX data from Convex (with safe fallback)
   const lateRunners = vixData?.lateRunners || [];
 
@@ -256,24 +260,47 @@ const DisplayScreen = () => {
           )}
         </div>
 
-        {/* Message Queue Status */}
-        {queueStatus && (queueStatus.totalMessages > 0) && (
-          <div style={{
-            backgroundColor: '#1a1a1a',
-            padding: '10px 15px',
-            borderRadius: '8px',
-            fontSize: '18px',
-            border: '2px solid #333'
-          }}>
-            <div style={{ color: '#999', fontSize: '14px' }}>MESSAGE QUEUE</div>
-            <div style={{ display: 'flex', gap: '10px', marginTop: '2px' }}>
-              <span style={{ color: '#DC2626' }}>P0: {queueStatus.byPriority?.P0 || 0}</span>
-              <span style={{ color: '#F59E0B' }}>P1: {queueStatus.byPriority?.P1 || 0}</span>
-              <span style={{ color: '#3B82F6' }}>P2: {queueStatus.byPriority?.P2 || 0}</span>
-              <span style={{ color: '#10B981' }}>P3: {queueStatus.byPriority?.P3 || 0}</span>
+        {/* Message Queue Status and Incidents */}
+        <div style={{ display: 'flex', gap: '15px' }}>
+          {queueStatus && (queueStatus.totalMessages > 0) && (
+            <div style={{
+              backgroundColor: '#1a1a1a',
+              padding: '10px 15px',
+              borderRadius: '8px',
+              fontSize: '18px',
+              border: '2px solid #333'
+            }}>
+              <div style={{ color: '#999', fontSize: '14px' }}>MESSAGE QUEUE</div>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '2px' }}>
+                <span style={{ color: '#DC2626' }}>P0: {queueStatus.byPriority?.P0 || 0}</span>
+                <span style={{ color: '#F59E0B' }}>P1: {queueStatus.byPriority?.P1 || 0}</span>
+                <span style={{ color: '#3B82F6' }}>P2: {queueStatus.byPriority?.P2 || 0}</span>
+                <span style={{ color: '#10B981' }}>P3: {queueStatus.byPriority?.P3 || 0}</span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+          
+          {/* Incident Status */}
+          {displayIncidents && displayIncidents.length > 0 && (
+            <div style={{
+              backgroundColor: '#1a1a1a',
+              padding: '10px 15px',
+              borderRadius: '8px',
+              fontSize: '18px',
+              border: '2px solid #DC2626'
+            }}>
+              <div style={{ color: '#DC2626', fontSize: '14px', fontWeight: 'bold' }}>ACTIVE INCIDENTS</div>
+              <div style={{ display: 'flex', gap: '15px', alignItems: 'center', marginTop: '2px' }}>
+                <span style={{ color: '#DC2626', fontSize: '24px', fontWeight: 'bold' }}>
+                  🚨 {displayIncidents.length}
+                </span>
+                <span style={{ color: '#999', fontSize: '14px' }}>
+                  {displayIncidents.filter(i => i.affectedRoutes?.length > 0).reduce((sum, i) => sum + (i.affectedRoutes?.length || 0), 0)} routes affected
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Major Event Alert */}
         {mostSevereEvent && (
@@ -431,7 +458,20 @@ const DisplayScreen = () => {
             minHeight: '300px'
           }}>
             <OptimizedTomTomMap 
-              alerts={activeMessages}
+              alerts={[
+                ...activeMessages,
+                ...(displayIncidents || []).filter(inc => inc.coordinates).map(incident => ({
+                  id: `incident-${incident.id}`,
+                  location: {
+                    lat: incident.coordinates.lat,
+                    lng: incident.coordinates.lng
+                  },
+                  description: `🚨 ${incident.incidentType?.toUpperCase() || 'INCIDENT'}: ${incident.description}`,
+                  severity: incident.severity || 'medium',
+                  type: 'incident',
+                  affectedRoutes: incident.affectedRoutes
+                }))
+              ]}
               currentAlert={currentMessage}
               alertIndex={currentMessageIndex}
               mapId="display-screen-60m"

@@ -3,6 +3,7 @@
 // Uses TomTom's other free tier APIs (2,500 req/day each)
 
 import axios from 'axios';
+import { incrementTomTomUsage } from '../routes/tomtomUsageAPI.js';
 
 const TOMTOM_KEY = process.env.TOMTOM_API_KEY;
 const CACHE = new Map(); // Simple in-memory cache to reduce API calls
@@ -39,6 +40,15 @@ async function enhanceLocation(location, nearLat = 54.978, nearLon = -1.618) {
         timeout: 5000
       }
     );
+    
+    // Track API usage for POI search
+    incrementTomTomUsage('search');
+    
+    // Track API usage for POI search
+    incrementTomTomUsage('search');
+    
+    // Track API usage
+    incrementTomTomUsage('search');
     
     if (response.data.results && response.data.results.length > 0) {
       const result = response.data.results[0];
@@ -91,6 +101,9 @@ async function reverseGeocodeWithLandmarks(lat, lon) {
         timeout: 5000
       }
     );
+    
+    // Track API usage
+    incrementTomTomUsage('reverseGeocode');
     
     // Get nearby POIs for context
     const poiResponse = await axios.get(
