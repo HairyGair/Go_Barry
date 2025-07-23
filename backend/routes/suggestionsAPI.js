@@ -1,6 +1,6 @@
 import express from 'express';
 import { actionSuggestions } from '../services/actionSuggestions.js';
-import { supervisorManager } from '../services/supervisorManager.js';
+import supervisorManager from '../services/supervisorManager.js';
 
 const router = express.Router();
 

@@ -21,7 +21,8 @@ import path from 'path';
  */
 export class BODSService {
   constructor() {
-    this.baseUrl = 'https://data.bus-data.dft.gov.uk/api/v1';
+    this.baseUrl = process.env.BODS_API_URL || 'https://data.bus-data.dft.gov.uk/api/v1';
+    this.apiKey = process.env.BODS_API_KEY;
     this.operatorCode = 'GONE'; // Go North East
     this.operatorNocs = ['GNEBUS', 'GONE', 'GNE']; // All possible NOC codes
     
@@ -73,6 +74,16 @@ export class BODSService {
    */
   async initialize() {
     console.log('[BODS] Initializing Bus Open Data Service...');
+    
+    // Check for API key
+    if (!this.apiKey) {
+      console.warn('⚠️ BODS API key not configured - service will be disabled');
+      return {
+        success: false,
+        error: 'BODS_API_KEY not configured',
+        message: 'BODS service disabled - no API key'
+      };
+    }
     
     try {
       // Test API connectivity
@@ -661,6 +672,7 @@ export class BODSService {
         headers: {
           'User-Agent': 'Go-BARRY-Traffic-Intelligence/1.0',
           'Accept': 'application/json,application/xml',
+          'X-API-KEY': this.apiKey,
           ...options.headers
         },
         ...options

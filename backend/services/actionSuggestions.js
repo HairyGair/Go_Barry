@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { enhancedGTFSMatcher } from './enhancedGTFSMatcher.js';
+import enhancedGTFSMatcher from './enhancedGTFSMatcher.js';
 
 const supabase = createClient(
   process.env.SUPABASE_URL,

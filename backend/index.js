@@ -598,6 +598,14 @@ app.use('/api/supervisor', supervisorAPI);
 // Roadworks management routes  
 app.use('/api/roadworks', roadworksAPI);
 
+// Add actions endpoint handler for roadworks (redirect to roadwork-alerts)
+app.get('/api/roadworks/:id/actions', async (req, res) => {
+  console.log(`🔄 Redirecting /api/roadworks/${req.params.id}/actions to /api/roadwork-alerts/${req.params.id}/actions`);
+  // Instead of redirect, we'll proxy the request to maintain the same behavior
+  req.url = `/api/roadwork-alerts/${req.params.id}/actions`;
+  roadworkAlertsAPI(req, res);
+});
+
 // Unified roadworks management API (additional routes under /api/roadworks)
 app.use('/api/roadworks', unifiedRoadworksAPI);
 console.log('✅ unified roadworks API routes registered under /api/roadworks');

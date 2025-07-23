@@ -171,6 +171,39 @@ router.get('/email-groups', async (req, res) => {
   }
 });
 
+// GET /api/roadwork-alerts/:id/actions - Get suggested actions for a roadwork
+router.get('/:id/actions', async (req, res) => {
+  try {
+    console.log(`📋 GET /api/roadwork-alerts/${req.params.id}/actions called`);
+    const { id } = req.params;
+    
+    // Get the roadwork details
+    const { data: roadwork, error } = await supabase
+      .from('roadworks')
+      .select('*')
+      .eq('id', id)
+      .single();
+      
+    if (error || !roadwork) {
+      console.error('❌ Roadwork not found:', error);
+      return res.status(404).json({ success: false, error: 'Roadwork not found' });
+    }
+    
+    // Generate actions based on roadwork status and type
+    const actions = generateRoadworkActions(roadwork);
+    
+    console.log(`✅ Returning ${actions.length} actions for roadwork ${id}`);
+    res.json({ 
+      success: true, 
+      data: actions 
+    });
+    
+  } catch (error) {
+    console.error('❌ Get roadwork actions error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Test endpoint
 router.get('/test', (req, res) => {
   res.json({
@@ -203,6 +236,109 @@ function getSeverityColor(severity) {
     high: '#ef4444'     // red
   };
   return colors[severity] || '#6b7280';
+}
+
+function generateRoadworkActions(roadwork) {
+  const actions = [];
+  
+  // Common actions for all roadworks
+  actions.push({
+    id: 'view-details',
+    label: 'View Full Details',
+    icon: 'info-circle',
+    color: '#3b82f6',
+    description: 'View complete roadwork information'
+  });
+  
+  // Status-based actions
+  switch (roadwork.status) {
+    case 'pending':
+      actions.push({
+        id: 'activate',
+        label: 'Activate Roadwork',
+        icon: 'play-circle',
+        color: '#10b981',
+        description: 'Mark this roadwork as active'
+      });
+      actions.push({
+        id: 'edit',
+        label: 'Edit Details',
+        icon: 'edit',
+        color: '#6366f1',
+        description: 'Modify roadwork information'
+      });
+      break;
+      
+    case 'active':
+      actions.push({
+        id: 'update-status',
+        label: 'Update Progress',
+        icon: 'refresh',
+        color: '#f59e0b',
+        description: 'Update the current status or add notes'
+      });
+      actions.push({
+        id: 'complete',
+        label: 'Mark as Complete',
+        icon: 'check-circle',
+        color: '#10b981',
+        description: 'Mark this roadwork as finished'
+      });
+      break;
+      
+    case 'finished':
+      actions.push({
+        id: 'archive',
+        label: 'Archive',
+        icon: 'archive',
+        color: '#6b7280',
+        description: 'Move to archived roadworks'
+      });
+      break;
+  }
+  
+  // Communication actions
+  if (roadwork.status !== 'finished') {
+    actions.push({
+      id: 'send-update',
+      label: 'Send Update',
+      icon: 'mail',
+      color: '#8b5cf6',
+      description: 'Send update to affected routes and supervisors'
+    });
+  }
+  
+  // Route-specific actions if routes are affected
+  if (roadwork.routes_affected && roadwork.routes_affected.length > 0) {
+    actions.push({
+      id: 'notify-drivers',
+      label: 'Notify Drivers',
+      icon: 'users',
+      color: '#ec4899',
+      description: `Alert drivers on routes: ${roadwork.routes_affected.join(', ')}`
+    });
+    
+    actions.push({
+      id: 'create-diversion',
+      label: 'Create Diversion',
+      icon: 'route',
+      color: '#14b8a6',
+      description: 'Plan alternative routes for affected services'
+    });
+  }
+  
+  // High severity actions
+  if (roadwork.severity === 'high') {
+    actions.push({
+      id: 'escalate',
+      label: 'Escalate to Control',
+      icon: 'warning',
+      color: '#ef4444',
+      description: 'Escalate to control room for immediate attention'
+    });
+  }
+  
+  return actions;
 }
 
 export default router;
