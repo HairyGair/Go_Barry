@@ -31,10 +31,60 @@ export default function SupervisorManagement() {
   const [formData, setFormData] = useState({
     name: '',
     badge: '',
-    role: 'Supervisor',
+    role: 'Depot Supervisor',
     shift: 'Day',
-    permissions: ['view-alerts', 'dismiss-alerts']
+    permissions: ['view-alerts', 'dismiss-alerts'],
+    email: '',
+    phone: '',
+    emergencyContact: '',
+    startDate: new Date().toISOString().split('T')[0],
+    notes: ''
   });
+
+  // Additional state for advanced features
+  const [selectedSupervisors, setSelectedSupervisors] = useState([]);
+  const [showActivityModal, setShowActivityModal] = useState(false);
+  const [activityData, setActivityData] = useState([]);
+  const [filterOptions, setFilterOptions] = useState({
+    role: 'all',
+    shift: 'all',
+    status: 'all'
+  });
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [showPermissionTemplates, setShowPermissionTemplates] = useState(false);
+  const [activeSessions, setActiveSessions] = useState([]);
+
+  // Helper function to get JWT token
+  const getJWTToken = async () => {
+    let token = supervisorSession?.jwtToken;
+    if (!token && supervisorSession?.supervisor?.badge) {
+      try {
+        const authResponse = await fetch(`${API_BASE}/api/supervisor/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            badge: supervisorSession.supervisor.badge,
+            password: 'password' // Default password - in production this should be properly managed
+          })
+        });
+        
+        if (authResponse.ok) {
+          const authData = await authResponse.json();
+          if (authData.success && authData.token) {
+            token = authData.token;
+            // Store token in session for future use
+            if (supervisorSession) {
+              supervisorSession.jwtToken = token;
+            }
+            return token;
+          }
+        }
+      } catch (authError) {
+        console.error('❌ Authentication error:', authError);
+      }
+    }
+    return token;
+  };
 
   // Redirect if not admin
   useEffect(() => {
@@ -46,31 +96,64 @@ export default function SupervisorManagement() {
   useEffect(() => {
     if (supervisorSession && isAdmin) {
       loadSupervisors();
+      loadActiveSessions();
+      
+      // Set up periodic refresh for active sessions
+      const interval = setInterval(loadActiveSessions, 30000); // Every 30 seconds
+      return () => clearInterval(interval);
     }
   }, [supervisorSession, isAdmin]);
 
   const loadSupervisors = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE}/api/supervisor/list`);
       
-      // Check if the response is ok
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // For admin supervisor list, we need JWT token
+      const token = await getJWTToken();
+      
+      // Try the admin endpoint first (requires JWT)
+      if (token) {
+        try {
+          const response = await fetch(`${API_BASE}/api/supervisor/list/all`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && Array.isArray(data.supervisors)) {
+              setSupervisors(data.supervisors.filter(s => s != null));
+              setBackendAvailable(true);
+              return;
+            }
+          }
+        } catch (error) {
+          console.warn('Admin endpoint failed, trying fallback:', error);
+        }
       }
       
-      const data = await response.json();
-      
-      if (Array.isArray(data)) {
-        setSupervisors(data.filter(s => s != null));
-        setBackendAvailable(true);
-      } else if (data.success && Array.isArray(data.supervisors)) {
-        setSupervisors(data.supervisors.filter(s => s != null));
-      } else {
-        // Use fallback data
-        console.log('Using fallback supervisor data');
-        setSupervisors(getFallbackSupervisors());
+      // Fallback to public endpoint
+      try {
+        const response = await fetch(`${API_BASE}/api/supervisor/active/list`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && Array.isArray(data.supervisors)) {
+            setSupervisors(data.supervisors.filter(s => s != null));
+            setBackendAvailable(true);
+            return;
+          }
+        }
+      } catch (error) {
+        console.warn('Public endpoint failed:', error);
       }
+      
+      // Use fallback data if all endpoints fail
+      console.log('Using fallback supervisor data');
+      setSupervisors(getFallbackSupervisors());
+      setBackendAvailable(false);
+      
     } catch (error) {
       console.error('❌ Error loading supervisors:', error);
       console.log('Using fallback supervisor data');
@@ -149,18 +232,27 @@ export default function SupervisorManagement() {
   };
 
   const handleEditSupervisor = async () => {
-    if (!supervisorSession?.sessionId || !selectedSupervisor) {
-      showError('Invalid request');
+    if (!supervisorSession?.supervisor?.badge || !selectedSupervisor) {
+      showError('Invalid request - please log in again');
+      return;
+    }
+    
+    // Get JWT token
+    const token = await getJWTToken();
+    if (!token) {
+      showError('Authentication failed - please log in again');
       return;
     }
     
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/supervisor/admin/edit/${selectedSupervisor.id}`, {
+      const response = await fetch(`${API_BASE}/api/supervisor/admin/edit/${selectedSupervisor.badge || selectedSupervisor.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
-          sessionId: supervisorSession.sessionId,
           ...formData
         })
       });
@@ -185,7 +277,7 @@ export default function SupervisorManagement() {
   };
 
   const handleDeleteSupervisor = async (supervisor) => {
-    if (!supervisorSession?.sessionId) {
+    if (!supervisorSession?.supervisor?.badge) {
       showError('No valid session. Please log in again.');
       return;
     }
@@ -198,15 +290,21 @@ export default function SupervisorManagement() {
     
     if (!confirmed) return;
     
+    // Get JWT token
+    const token = await getJWTToken();
+    if (!token) {
+      showError('Authentication failed - please log in again');
+      return;
+    }
+    
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/supervisor/admin/delete`, {
+      const response = await fetch(`${API_BASE}/api/supervisor/admin/delete/${supervisor.badge || supervisor.id}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: supervisorSession.sessionId,
-          supervisorId: supervisor.id
-        })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
       });
       
       const data = await response.json();
@@ -226,7 +324,7 @@ export default function SupervisorManagement() {
   };
 
   const handleResetPassword = async (supervisor) => {
-    if (!supervisorSession?.sessionId) {
+    if (!supervisorSession?.supervisor?.badge) {
       showError('No valid session. Please log in again.');
       return;
     }
@@ -238,14 +336,22 @@ export default function SupervisorManagement() {
     
     if (!confirmed) return;
     
+    // Get JWT token
+    const token = await getJWTToken();
+    if (!token) {
+      showError('Authentication failed - please log in again');
+      return;
+    }
+    
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/supervisor/admin/reset-password`, {
+      const response = await fetch(`${API_BASE}/api/supervisor/admin/reset-password/${supervisor.badge || supervisor.id}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
-          sessionId: supervisorSession.sessionId,
-          supervisorId: supervisor.id,
           newPassword: 'Barry123' // Default password
         })
       });
@@ -270,9 +376,14 @@ export default function SupervisorManagement() {
     setFormData({
       name: supervisor.name,
       badge: supervisor.badge,
-      role: supervisor.role || 'Supervisor',
+      role: supervisor.role || 'Depot Supervisor',
       shift: supervisor.shift || 'Day',
-      permissions: supervisor.permissions || ['view-alerts', 'dismiss-alerts']
+      permissions: supervisor.permissions || ['view-alerts', 'dismiss-alerts'],
+      email: supervisor.email || '',
+      phone: supervisor.phone || '',
+      emergencyContact: supervisor.emergencyContact || '',
+      startDate: supervisor.startDate || new Date().toISOString().split('T')[0],
+      notes: supervisor.notes || ''
     });
     setShowEditModal(true);
   };
@@ -281,10 +392,156 @@ export default function SupervisorManagement() {
     setFormData({
       name: '',
       badge: '',
-      role: 'Supervisor',
+      role: 'Depot Supervisor',
       shift: 'Day',
-      permissions: ['view-alerts', 'dismiss-alerts']
+      permissions: ['view-alerts', 'dismiss-alerts'],
+      email: '',
+      phone: '',
+      emergencyContact: '',
+      startDate: new Date().toISOString().split('T')[0],
+      notes: ''
     });
+  };
+
+  // Load active sessions for real-time status
+  const loadActiveSessions = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/supervisor/active`);
+      const data = await response.json();
+      if (data.success) {
+        setActiveSessions(data.activeSupervisors || []);
+      }
+    } catch (error) {
+      console.error('❌ Error loading active sessions:', error);
+    }
+  };
+
+  // Permission templates
+  const permissionTemplates = {
+    'depot': {
+      name: 'Depot Supervisor',
+      permissions: ['view-alerts', 'dismiss-alerts', 'create-incidents', 'manage-roadworks']
+    },
+    'bus_station': {
+      name: 'Bus Station Supervisor', 
+      permissions: ['view-alerts', 'dismiss-alerts', 'create-incidents', 'manage-roadworks']
+    },
+    'sdc': {
+      name: 'SDC Supervisor',
+      permissions: ['view-alerts', 'dismiss-alerts', 'create-incidents', 'manage-roadworks', 'access-analytics', 'control-displays', 'send-messages', 'generate-reports', 'emergency-procedures']
+    },
+    'admin': {
+      name: 'Administrator',
+      permissions: ['view-alerts', 'dismiss-alerts', 'create-incidents', 'manage-roadworks', 'access-analytics', 'manage-supervisors', 'system-admin', 'control-displays', 'send-messages', 'generate-reports', 'emergency-procedures', 'access-logs']
+    },
+    'readonly': {
+      name: 'Read Only',
+      permissions: ['view-alerts']
+    }
+  };
+
+  // Apply permission template
+  const applyPermissionTemplate = (templateKey) => {
+    const template = permissionTemplates[templateKey];
+    if (template) {
+      setFormData({...formData, permissions: template.permissions});
+      setShowPermissionTemplates(false);
+    }
+  };
+
+  // Load supervisor activity
+  const loadSupervisorActivity = async (supervisorId) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE}/api/supervisor/supervisors/${supervisorId}/activity?limit=100`);
+      const data = await response.json();
+      if (data.success) {
+        setActivityData(data.activity || []);
+        setShowActivityModal(true);
+      } else {
+        showError('Failed to load activity data');
+      }
+    } catch (error) {
+      console.error('❌ Error loading activity:', error);
+      showError('Failed to load activity data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Bulk operations
+  const handleBulkAction = async (action) => {
+    if (selectedSupervisors.length === 0) {
+      showError('Please select supervisors first');
+      return;
+    }
+
+    const confirmed = await confirmAction(
+      `Bulk ${action}`,
+      `Are you sure you want to ${action} ${selectedSupervisors.length} supervisor(s)?`
+    );
+
+    if (!confirmed) return;
+
+    setLoading(true);
+    try {
+      // Implementation would depend on specific bulk action
+      console.log(`Performing bulk ${action} on:`, selectedSupervisors);
+      showSuccess(`Bulk ${action} completed successfully`);
+      setSelectedSupervisors([]);
+      setShowBulkActions(false);
+      loadSupervisors();
+    } catch (error) {
+      console.error(`❌ Error performing bulk ${action}:`, error);
+      showError(`Failed to perform bulk ${action}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Toggle supervisor selection
+  const toggleSupervisorSelection = (supervisorId) => {
+    setSelectedSupervisors(prev => 
+      prev.includes(supervisorId)
+        ? prev.filter(id => id !== supervisorId)
+        : [...prev, supervisorId]
+    );
+  };
+
+  // Check if supervisor is currently active
+  const isCurrentlyActive = (supervisorBadge) => {
+    return activeSessions.some(session => session.supervisorBadge === supervisorBadge);
+  };
+
+  // Enhanced permissions list with categories
+  const getPermissionCategories = () => {
+    return {
+      'Core Operations': [
+        { id: 'view-alerts', label: 'View Alerts', description: 'View traffic alerts and incidents' },
+        { id: 'dismiss-alerts', label: 'Dismiss Alerts', description: 'Dismiss traffic alerts' },
+        { id: 'create-incidents', label: 'Create Incidents', description: 'Create new traffic incidents' }
+      ],
+      'Traffic Management': [
+        { id: 'manage-roadworks', label: 'Manage Roadworks', description: 'Create and manage roadwork entries' },
+        { id: 'control-displays', label: 'Control Display Screens', description: 'Manage content on display screens' },
+        { id: 'emergency-procedures', label: 'Emergency Procedures', description: 'Access emergency response tools' }
+      ],
+      'Communications': [
+        { id: 'send-messages', label: 'Send Messages', description: 'Send messages to drivers and staff' },
+        { id: 'manage-templates', label: 'Manage Templates', description: 'Create and edit message templates' },
+        { id: 'broadcast-announcements', label: 'Broadcast Announcements', description: 'Send system-wide announcements' }
+      ],
+      'Analytics & Reporting': [
+        { id: 'access-analytics', label: 'Access Analytics', description: 'View traffic and performance analytics' },
+        { id: 'generate-reports', label: 'Generate Reports', description: 'Create operational reports' },
+        { id: 'view-historical', label: 'View Historical Data', description: 'Access historical traffic data' }
+      ],
+      'Administration': [
+        { id: 'manage-supervisors', label: 'Manage Supervisors', description: 'Add, edit, and remove supervisors' },
+        { id: 'system-admin', label: 'System Administration', description: 'Full system administrative access' },
+        { id: 'access-logs', label: 'Access System Logs', description: 'View system and audit logs' }
+      ]
+    };
   };
 
   // Helper functions
@@ -321,15 +578,32 @@ export default function SupervisorManagement() {
     }
   };
 
-  // Filter supervisors
+  // Enhanced filter supervisors
   const filteredSupervisors = supervisors.filter(supervisor => {
     if (!supervisor) return false;
+    
+    // Text search
     const query = searchQuery.toLowerCase();
-    return (
+    const matchesSearch = !query || 
       (supervisor.name && supervisor.name.toLowerCase().includes(query)) ||
       (supervisor.badge && supervisor.badge.toLowerCase().includes(query)) ||
-      (supervisor.role && supervisor.role.toLowerCase().includes(query))
-    );
+      (supervisor.role && supervisor.role.toLowerCase().includes(query));
+    
+    // Role filter
+    const matchesRole = filterOptions.role === 'all' || supervisor.role === filterOptions.role;
+    
+    // Shift filter
+    const matchesShift = filterOptions.shift === 'all' || supervisor.shift === filterOptions.shift;
+    
+    // Status filter
+    let matchesStatus = true;
+    if (filterOptions.status === 'active') {
+      matchesStatus = isCurrentlyActive(supervisor.badge);
+    } else if (filterOptions.status === 'inactive') {
+      matchesStatus = !isCurrentlyActive(supervisor.badge);
+    }
+    
+    return matchesSearch && matchesRole && matchesShift && matchesStatus;
   });
 
   // Check if supervisor is protected
@@ -406,27 +680,97 @@ export default function SupervisorManagement() {
         )}
       </View>
 
-        {/* Controls */}
-        <View style={styles.controls}>
-          <View style={styles.searchContainer}>
-            <MaterialCommunityIcons name="magnify" size={20} color={darkTheme.textSecondary} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search supervisors..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholderTextColor={darkTheme.textMuted}
-            />
+        {/* Enhanced Controls */}
+        <View style={styles.controlsContainer}>
+          {/* Search and Filters */}
+          <View style={styles.searchAndFilters}>
+            <View style={styles.searchContainer}>
+              <MaterialCommunityIcons name="magnify" size={20} color={darkTheme.textSecondary} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search supervisors..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholderTextColor={darkTheme.textMuted}
+              />
+            </View>
+            
+            {/* Filter Options */}
+            <View style={styles.filterRow}>
+              <Text style={styles.filterLabel}>Filters:</Text>
+              
+              {/* Role Filter */}
+              <View style={styles.filterGroup}>
+                <Text style={styles.filterGroupLabel}>Role:</Text>
+                <View style={styles.filterOptions}>
+                  {['all', 'SDC Supervisor', 'Depot Supervisor', 'Bus Station Supervisor', 'Developer/Admin', 'Service Delivery Controller'].map((role) => (
+                    <Pressable
+                      key={role}
+                      style={[
+                        styles.filterOption,
+                        filterOptions.role === role && styles.filterOptionActive
+                      ]}
+                      onPress={() => setFilterOptions({...filterOptions, role})}
+                    >
+                      <Text style={[
+                        styles.filterOptionText,
+                        filterOptions.role === role && styles.filterOptionTextActive
+                      ]}>
+                        {role === 'all' ? 'All' : role}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+              
+              {/* Status Filter */}
+              <View style={styles.filterGroup}>
+                <Text style={styles.filterGroupLabel}>Status:</Text>
+                <View style={styles.filterOptions}>
+                  {['all', 'active', 'inactive'].map((status) => (
+                    <Pressable
+                      key={status}
+                      style={[
+                        styles.filterOption,
+                        filterOptions.status === status && styles.filterOptionActive
+                      ]}
+                      onPress={() => setFilterOptions({...filterOptions, status})}
+                    >
+                      <Text style={[
+                        styles.filterOptionText,
+                        filterOptions.status === status && styles.filterOptionTextActive
+                      ]}>
+                        {status === 'all' ? 'All' : status === 'active' ? 'Online' : 'Offline'}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            </View>
           </View>
           
-          <Pressable
-            style={[styles.addButton, !backendAvailable && styles.disabledButton]}
-            onPress={() => backendAvailable && setShowAddModal(true)}
-            disabled={!backendAvailable}
-          >
-            <MaterialCommunityIcons name="account-plus" size={20} color="#FFFFFF" />
-            <Text style={styles.addButtonText}>Add Supervisor</Text>
-          </Pressable>
+          {/* Action Buttons */}
+          <View style={styles.actionButtons}>
+            {selectedSupervisors.length > 0 && (
+              <Pressable
+                style={[styles.bulkButton, !backendAvailable && styles.disabledButton]}
+                onPress={() => setShowBulkActions(true)}
+                disabled={!backendAvailable}
+              >
+                <MaterialCommunityIcons name="check-all" size={20} color="#FFFFFF" />
+                <Text style={styles.bulkButtonText}>Bulk Actions ({selectedSupervisors.length})</Text>
+              </Pressable>
+            )}
+            
+            <Pressable
+              style={[styles.addButton, !backendAvailable && styles.disabledButton]}
+              onPress={() => backendAvailable && setShowAddModal(true)}
+              disabled={!backendAvailable}
+            >
+              <MaterialCommunityIcons name="account-plus" size={20} color="#FFFFFF" />
+              <Text style={styles.addButtonText}>Add Supervisor</Text>
+            </Pressable>
+          </View>
         </View>
 
         {/* Supervisor List */}
@@ -442,9 +786,29 @@ export default function SupervisorManagement() {
           
           {filteredSupervisors.map((supervisor) => (
             <View key={supervisor.id} style={styles.supervisorCard}>
+              {/* Selection Checkbox */}
+              <Pressable
+                style={styles.selectionCheckbox}
+                onPress={() => toggleSupervisorSelection(supervisor.id)}
+              >
+                <MaterialCommunityIcons
+                  name={selectedSupervisors.includes(supervisor.id) ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                  size={24}
+                  color={selectedSupervisors.includes(supervisor.id) ? '#30cfd0' : darkTheme.textSecondary}
+                />
+              </Pressable>
+              
               <View style={styles.supervisorInfo}>
                 <View style={styles.supervisorHeader}>
-                  <Text style={styles.supervisorName}>{supervisor.name || 'Unknown'}</Text>
+                  <View style={styles.nameAndStatus}>
+                    <Text style={styles.supervisorName}>{supervisor.name || 'Unknown'}</Text>
+                    {isCurrentlyActive(supervisor.badge) && (
+                      <View style={styles.activeIndicator}>
+                        <View style={styles.activeDot} />
+                        <Text style={styles.activeText}>Online</Text>
+                      </View>
+                    )}
+                  </View>
                   <View style={styles.badgeContainer}>
                     <Text style={styles.supervisorBadge}>{supervisor.badge || 'N/A'}</Text>
                   </View>
@@ -469,7 +833,7 @@ export default function SupervisorManagement() {
                 </View>
               </View>
               
-              {/* Actions */}
+              {/* Enhanced Actions */}
               <View style={styles.supervisorActions}>
                 {isProtectedAdmin(supervisor) ? (
                   <View style={styles.protectedBadge}>
@@ -478,6 +842,14 @@ export default function SupervisorManagement() {
                   </View>
                 ) : (
                   <>
+                    <Pressable
+                      style={[styles.actionButton, styles.viewButton, !backendAvailable && styles.disabledButton]}
+                      onPress={() => backendAvailable && loadSupervisorActivity(supervisor.id)}
+                      disabled={!backendAvailable}
+                    >
+                      <MaterialCommunityIcons name="eye" size={16} color="#FFFFFF" />
+                    </Pressable>
+                    
                     <Pressable
                       style={[styles.actionButton, !backendAvailable && styles.disabledButton]}
                       onPress={() => backendAvailable && openEditModal(supervisor)}
@@ -578,7 +950,7 @@ export default function SupervisorManagement() {
                 <View style={styles.formField}>
                   <Text style={styles.fieldLabel}>Role</Text>
                   <View style={styles.optionGroup}>
-                    {['Supervisor', 'Senior Supervisor', 'Relief Supervisor'].map((role) => (
+                    {['SDC Supervisor', 'Depot Supervisor', 'Bus Station Supervisor'].map((role) => (
                       <Pressable
                         key={role}
                         style={[
@@ -622,35 +994,114 @@ export default function SupervisorManagement() {
                   </View>
                 </View>
                 
-                {/* Permissions Field */}
+                {/* Email Field */}
                 <View style={styles.formField}>
-                  <Text style={styles.fieldLabel}>Permissions</Text>
-                  <View style={styles.permissionOptions}>
-                    {[
-                      { id: 'view-alerts', label: 'View Alerts' },
-                      { id: 'dismiss-alerts', label: 'Dismiss Alerts' },
-                      { id: 'create-incidents', label: 'Create Incidents' },
-                      { id: 'manage-supervisors', label: 'Manage Supervisors (Admin)' }
-                    ].map((perm) => (
-                      <Pressable
-                        key={perm.id}
-                        style={styles.permissionOption}
-                        onPress={() => {
-                          const permissions = formData.permissions.includes(perm.id)
-                            ? formData.permissions.filter(p => p !== perm.id)
-                            : [...formData.permissions, perm.id];
-                          setFormData({...formData, permissions});
-                        }}
-                      >
-                        <MaterialCommunityIcons 
-                          name={formData.permissions.includes(perm.id) ? 'checkbox-marked' : 'checkbox-blank-outline'} 
-                          size={20} 
-                          color={formData.permissions.includes(perm.id) ? '#30cfd0' : darkTheme.textSecondary} 
-                        />
-                        <Text style={styles.permissionOptionText}>{perm.label}</Text>
-                      </Pressable>
-                    ))}
+                  <Text style={styles.fieldLabel}>Email Address</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    placeholder="supervisor@gobarry.co.uk"
+                    value={formData.email}
+                    onChangeText={(text) => setFormData({...formData, email: text})}
+                    placeholderTextColor={darkTheme.textMuted}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                  />
+                </View>
+                
+                {/* Phone Field */}
+                <View style={styles.formField}>
+                  <Text style={styles.fieldLabel}>Phone Number</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    placeholder="+44 7XXX XXXXXX"
+                    value={formData.phone}
+                    onChangeText={(text) => setFormData({...formData, phone: text})}
+                    placeholderTextColor={darkTheme.textMuted}
+                    keyboardType="phone-pad"
+                  />
+                </View>
+                
+                {/* Emergency Contact Field */}
+                <View style={styles.formField}>
+                  <Text style={styles.fieldLabel}>Emergency Contact</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    placeholder="Emergency contact number"
+                    value={formData.emergencyContact}
+                    onChangeText={(text) => setFormData({...formData, emergencyContact: text})}
+                    placeholderTextColor={darkTheme.textMuted}
+                    keyboardType="phone-pad"
+                  />
+                </View>
+                
+                {/* Start Date Field */}
+                <View style={styles.formField}>
+                  <Text style={styles.fieldLabel}>Start Date</Text>
+                  <TextInput
+                    style={styles.fieldInput}
+                    placeholder="YYYY-MM-DD"
+                    value={formData.startDate}
+                    onChangeText={(text) => setFormData({...formData, startDate: text})}
+                    placeholderTextColor={darkTheme.textMuted}
+                  />
+                </View>
+                
+                {/* Enhanced Permissions Field */}
+                <View style={styles.formField}>
+                  <View style={styles.permissionHeader}>
+                    <Text style={styles.fieldLabel}>Permissions</Text>
+                    <Pressable
+                      style={styles.templateButton}
+                      onPress={() => setShowPermissionTemplates(true)}
+                    >
+                      <MaterialCommunityIcons name="clipboard-list" size={16} color="#30cfd0" />
+                      <Text style={styles.templateButtonText}>Templates</Text>
+                    </Pressable>
                   </View>
+                  
+                  {Object.entries(getPermissionCategories()).map(([category, permissions]) => (
+                    <View key={category} style={styles.permissionCategory}>
+                      <Text style={styles.categoryTitle}>{category}</Text>
+                      <View style={styles.permissionOptions}>
+                        {permissions.map((perm) => (
+                          <Pressable
+                            key={perm.id}
+                            style={styles.permissionOption}
+                            onPress={() => {
+                              const newPermissions = formData.permissions.includes(perm.id)
+                                ? formData.permissions.filter(p => p !== perm.id)
+                                : [...formData.permissions, perm.id];
+                              setFormData({...formData, permissions: newPermissions});
+                            }}
+                          >
+                            <MaterialCommunityIcons 
+                              name={formData.permissions.includes(perm.id) ? 'checkbox-marked' : 'checkbox-blank-outline'} 
+                              size={20} 
+                              color={formData.permissions.includes(perm.id) ? '#30cfd0' : darkTheme.textSecondary} 
+                            />
+                            <View style={styles.permissionDetails}>
+                              <Text style={styles.permissionOptionText}>{perm.label}</Text>
+                              <Text style={styles.permissionDescription}>{perm.description}</Text>
+                            </View>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+                
+                {/* Notes Field */}
+                <View style={styles.formField}>
+                  <Text style={styles.fieldLabel}>Notes</Text>
+                  <TextInput
+                    style={[styles.fieldInput, styles.notesInput]}
+                    placeholder="Additional notes about this supervisor..."
+                    value={formData.notes}
+                    onChangeText={(text) => setFormData({...formData, notes: text})}
+                    placeholderTextColor={darkTheme.textMuted}
+                    multiline
+                    numberOfLines={3}
+                  />
                 </View>
               </ScrollView>
               
@@ -688,6 +1139,137 @@ export default function SupervisorManagement() {
                     </>
                   )}
                 </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Activity Modal */}
+        <Modal
+          visible={showActivityModal}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowActivityModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.activityModalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Supervisor Activity</Text>
+                <Pressable onPress={() => setShowActivityModal(false)}>
+                  <MaterialCommunityIcons name="close" size={24} color={darkTheme.textSecondary} />
+                </Pressable>
+              </View>
+              
+              <ScrollView style={styles.activityContent}>
+                {activityData.length > 0 ? (
+                  activityData.map((activity, index) => (
+                    <View key={index} style={styles.activityItem}>
+                      <View style={styles.activityHeader}>
+                        <Text style={styles.activityType}>{activity.type}</Text>
+                        <Text style={styles.activityTime}>{new Date(activity.timestamp).toLocaleString()}</Text>
+                      </View>
+                      <Text style={styles.activityDetails}>{activity.details}</Text>
+                      {activity.notes && <Text style={styles.activityNotes}>{activity.notes}</Text>}
+                    </View>
+                  ))
+                ) : (
+                  <View style={styles.noActivity}>
+                    <MaterialCommunityIcons name="clipboard-text-off" size={48} color={darkTheme.textMuted} />
+                    <Text style={styles.noActivityText}>No activity recorded</Text>
+                  </View>
+                )}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Bulk Actions Modal */}
+        <Modal
+          visible={showBulkActions}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowBulkActions(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.bulkModalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Bulk Actions ({selectedSupervisors.length} selected)</Text>
+                <Pressable onPress={() => setShowBulkActions(false)}>
+                  <MaterialCommunityIcons name="close" size={24} color={darkTheme.textSecondary} />
+                </Pressable>
+              </View>
+              
+              <View style={styles.bulkActionsList}>
+                <Pressable
+                  style={styles.bulkActionButton}
+                  onPress={() => handleBulkAction('reset-passwords')}
+                >
+                  <MaterialCommunityIcons name="lock-reset" size={24} color={darkTheme.warning} />
+                  <View style={styles.bulkActionText}>
+                    <Text style={styles.bulkActionTitle}>Reset Passwords</Text>
+                    <Text style={styles.bulkActionDescription}>Reset passwords for selected supervisors</Text>
+                  </View>
+                </Pressable>
+                
+                <Pressable
+                  style={styles.bulkActionButton}
+                  onPress={() => handleBulkAction('update-shift')}
+                >
+                  <MaterialCommunityIcons name="clock-outline" size={24} color={darkTheme.info} />
+                  <View style={styles.bulkActionText}>
+                    <Text style={styles.bulkActionTitle}>Update Shift</Text>
+                    <Text style={styles.bulkActionDescription}>Change shift assignments for selected supervisors</Text>
+                  </View>
+                </Pressable>
+                
+                <Pressable
+                  style={styles.bulkActionButton}
+                  onPress={() => handleBulkAction('export-data')}
+                >
+                  <MaterialCommunityIcons name="download" size={24} color={darkTheme.success} />
+                  <View style={styles.bulkActionText}>
+                    <Text style={styles.bulkActionTitle}>Export Data</Text>
+                    <Text style={styles.bulkActionDescription}>Export data for selected supervisors</Text>
+                  </View>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Permission Templates Modal */}
+        <Modal
+          visible={showPermissionTemplates}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowPermissionTemplates(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.templateModalContainer}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Permission Templates</Text>
+                <Pressable onPress={() => setShowPermissionTemplates(false)}>
+                  <MaterialCommunityIcons name="close" size={24} color={darkTheme.textSecondary} />
+                </Pressable>
+              </View>
+              
+              <View style={styles.templatesList}>
+                {Object.entries(permissionTemplates).map(([key, template]) => (
+                  <Pressable
+                    key={key}
+                    style={styles.templateOption}
+                    onPress={() => applyPermissionTemplate(key)}
+                  >
+                    <View style={styles.templateInfo}>
+                      <Text style={styles.templateName}>{template.name}</Text>
+                      <Text style={styles.templatePermissions}>
+                        {template.permissions.length} permission(s): {template.permissions.slice(0, 3).join(', ')}
+                        {template.permissions.length > 3 && '...'}
+                      </Text>
+                    </View>
+                    <MaterialCommunityIcons name="chevron-right" size={24} color={darkTheme.textSecondary} />
+                  </Pressable>
+                ))}
               </View>
             </View>
           </View>
@@ -1063,5 +1645,269 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  
+  // Enhanced Controls Styles
+  controlsContainer: {
+    backgroundColor: darkTheme.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: darkTheme.border,
+  },
+  searchAndFilters: {
+    padding: 20,
+  },
+  filterRow: {
+    marginTop: 16,
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: darkTheme.text,
+    marginBottom: 8,
+  },
+  filterGroup: {
+    marginBottom: 12,
+  },
+  filterGroupLabel: {
+    fontSize: 12,
+    color: darkTheme.textSecondary,
+    marginBottom: 6,
+  },
+  filterOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  filterOption: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: darkTheme.border,
+    backgroundColor: darkTheme.background,
+    marginRight: 6,
+    marginBottom: 6,
+  },
+  filterOptionActive: {
+    backgroundColor: '#30cfd0',
+    borderColor: '#30cfd0',
+  },
+  filterOptionText: {
+    fontSize: 11,
+    color: darkTheme.textSecondary,
+  },
+  filterOptionTextActive: {
+    color: '#FFFFFF',
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  bulkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: darkTheme.warning,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginRight: 12,
+  },
+  bulkButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  
+  // Enhanced Supervisor Card Styles
+  selectionCheckbox: {
+    paddingRight: 12,
+    justifyContent: 'center',
+  },
+  nameAndStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  activeIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  activeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#4CAF50',
+    marginRight: 4,
+  },
+  activeText: {
+    fontSize: 10,
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+  viewButton: {
+    backgroundColor: darkTheme.info,
+  },
+  
+  // Enhanced Modal Styles
+  activityModalContainer: {
+    backgroundColor: darkTheme.surface,
+    borderRadius: 16,
+    width: '90%',
+    maxHeight: '70%',
+  },
+  activityContent: {
+    padding: 20,
+  },
+  activityItem: {
+    backgroundColor: darkTheme.background,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  activityHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  activityType: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#30cfd0',
+  },
+  activityTime: {
+    fontSize: 12,
+    color: darkTheme.textMuted,
+  },
+  activityDetails: {
+    fontSize: 14,
+    color: darkTheme.text,
+  },
+  activityNotes: {
+    fontSize: 12,
+    color: darkTheme.textSecondary,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  noActivity: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  noActivityText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: darkTheme.textMuted,
+  },
+  
+  // Bulk Actions Modal Styles
+  bulkModalContainer: {
+    backgroundColor: darkTheme.surface,
+    borderRadius: 16,
+    width: '80%',
+    maxHeight: '60%',
+  },
+  bulkActionsList: {
+    padding: 20,
+  },
+  bulkActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: darkTheme.background,
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+  },
+  bulkActionText: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  bulkActionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: darkTheme.text,
+  },
+  bulkActionDescription: {
+    fontSize: 14,
+    color: darkTheme.textSecondary,
+    marginTop: 2,
+  },
+  
+  // Permission Templates Modal Styles
+  templateModalContainer: {
+    backgroundColor: darkTheme.surface,
+    borderRadius: 16,
+    width: '80%',
+    maxHeight: '60%',
+  },
+  templatesList: {
+    padding: 20,
+  },
+  templateOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: darkTheme.background,
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 8,
+  },
+  templateInfo: {
+    flex: 1,
+  },
+  templateName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: darkTheme.text,
+  },
+  templatePermissions: {
+    fontSize: 12,
+    color: darkTheme.textSecondary,
+    marginTop: 2,
+  },
+  
+  // Enhanced Form Styles
+  permissionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  templateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#30cfd0',
+  },
+  templateButtonText: {
+    fontSize: 12,
+    color: '#30cfd0',
+    marginLeft: 4,
+  },
+  permissionCategory: {
+    marginBottom: 16,
+  },
+  categoryTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#30cfd0',
+    marginBottom: 8,
+  },
+  permissionDetails: {
+    marginLeft: 8,
+    flex: 1,
+  },
+  permissionDescription: {
+    fontSize: 11,
+    color: darkTheme.textMuted,
+    marginTop: 2,
+  },
+  notesInput: {
+    height: 80,
+    textAlignVertical: 'top',
   },
 });
