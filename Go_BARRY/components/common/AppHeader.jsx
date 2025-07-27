@@ -32,11 +32,14 @@ const AppHeader = ({ onLoginSuccess }) => {
   const isHomePage = pathname === '/' || pathname === '/index';
   const isCommunicationsHub = pathname === '/communications-hub';
   const isVoIPPage = pathname === '/voip';
-  const isDisruptionsPage = pathname === '/disruptions' || pathname.startsWith('/disruptions/');
+  const isDisruptionsPage = pathname === '/disruptions' || pathname.startsWith('/disruptions/') || pathname === '/disruption-centre' || pathname.startsWith('/disruption-centre/');
   
   const handleLogout = async () => {
     await logout();
-    router.replace('/');
+    // Use setTimeout to ensure navigation happens after logout state update
+    setTimeout(() => {
+      router.replace('/');
+    }, 0);
   };
 
   const handleLogin = async () => {
@@ -105,11 +108,8 @@ const AppHeader = ({ onLoginSuccess }) => {
   return (
     <View style={[
       styles.header, 
-      isOperationsCentre && styles.operationsHeader,
-      isHomePage && styles.homeHeader,
-      isCommunicationsHub && styles.communicationsHeader,
-      isVoIPPage && styles.voipHeader,
-      isDisruptionsPage && styles.disruptionsHeader
+      (isOperationsCentre || isCommunicationsHub || isVoIPPage || isDisruptionsPage) && styles.appHeader,
+      isHomePage && styles.homeHeader
     ]}>
       <View style={styles.leftSection}>
         <Image 
@@ -117,100 +117,19 @@ const AppHeader = ({ onLoginSuccess }) => {
           style={styles.logo}
           resizeMode="contain"
         />
-        {isOperationsCentre && (
-          <View style={styles.operationsInfo}>
-            <Text style={styles.operationsTitle}>Operations Centre</Text>
-            <Text style={styles.operationsSubtitle}>Daily Operational Tools</Text>
-          </View>
-        )}
         {isHomePage && (
           <View style={styles.homeInfo}>
             <Text style={styles.homeTitle}>Go BARRY</Text>
             <Text style={styles.homeSubtitle}>Bus Alerts & Roadworks Reporting for You</Text>
           </View>
         )}
-        {isCommunicationsHub && (
-          <View style={styles.communicationsInfo}>
-            <Text style={styles.communicationsTitle}>Communications Hub</Text>
-            <Text style={styles.communicationsSubtitle}>Unified messaging and communication center</Text>
-          </View>
-        )}
-        {isVoIPPage && (
-          <View style={styles.voipInfo}>
-            <Text style={styles.voipTitle}>8x8 VoIP System</Text>
-            <Text style={styles.voipSubtitle}>Phone system with quick dial</Text>
-          </View>
-        )}
-        {isDisruptionsPage && (
-          <View style={styles.disruptionsInfo}>
-            <Text style={styles.disruptionsTitle}>Disruptions Centre</Text>
-            <Text style={styles.disruptionsSubtitle}>Daily Operational Tools</Text>
-          </View>
-        )}
       </View>
       
-      {isOperationsCentre && (
+      {(isOperationsCentre || isCommunicationsHub || isDisruptionsPage || isVoIPPage) && supervisorName && (
         <View style={styles.rightSection}>
-          <Pressable onPress={() => router.replace('/')} style={styles.backButton}>
+          <Pressable onPress={() => setTimeout(() => router.replace(isVoIPPage ? '/communications-hub' : '/'), 0)} style={styles.backButton}>
             <MaterialCommunityIcons name="arrow-left" size={20} color="#fff" />
-            <Text style={styles.backText}>Home</Text>
-          </Pressable>
-          
-          <View style={styles.userInfo}>
-            <MaterialCommunityIcons name="account-circle" size={24} color="#fff" />
-            <Text style={styles.userName}>{supervisorName}</Text>
-          </View>
-          
-          <Pressable onPress={handleLogout} style={styles.logoutButton}>
-            <MaterialCommunityIcons name="logout" size={20} color="#ff6b6b" />
-            <Text style={styles.logoutText}>Logout</Text>
-          </Pressable>
-        </View>
-      )}
-      
-      {isCommunicationsHub && (
-        <View style={styles.rightSection}>
-          <Pressable onPress={() => router.replace('/')} style={styles.backButton}>
-            <MaterialCommunityIcons name="arrow-left" size={20} color="#fff" />
-            <Text style={styles.backText}>Home</Text>
-          </Pressable>
-          
-          <View style={styles.userInfo}>
-            <MaterialCommunityIcons name="account-circle" size={24} color="#fff" />
-            <Text style={styles.userName}>{supervisorName}</Text>
-          </View>
-          
-          <Pressable onPress={handleLogout} style={styles.logoutButton}>
-            <MaterialCommunityIcons name="logout" size={20} color="#ff6b6b" />
-            <Text style={styles.logoutText}>Logout</Text>
-          </Pressable>
-        </View>
-      )}
-      
-      {isVoIPPage && (
-        <View style={styles.rightSection}>
-          <Pressable onPress={() => router.replace('/communications-hub')} style={styles.backButton}>
-            <MaterialCommunityIcons name="arrow-left" size={20} color="#fff" />
-            <Text style={styles.backText}>Communications</Text>
-          </Pressable>
-          
-          <View style={styles.userInfo}>
-            <MaterialCommunityIcons name="account-circle" size={24} color="#fff" />
-            <Text style={styles.userName}>{supervisorName}</Text>
-          </View>
-          
-          <Pressable onPress={handleLogout} style={styles.logoutButton}>
-            <MaterialCommunityIcons name="logout" size={20} color="#ff6b6b" />
-            <Text style={styles.logoutText}>Logout</Text>
-          </Pressable>
-        </View>
-      )}
-      
-      {isDisruptionsPage && (
-        <View style={styles.rightSection}>
-          <Pressable onPress={() => router.replace('/')} style={styles.backButton}>
-            <MaterialCommunityIcons name="arrow-left" size={20} color="#fff" />
-            <Text style={styles.backText}>Home</Text>
+            <Text style={styles.backText}>{isVoIPPage ? 'Communications' : 'Home'}</Text>
           </Pressable>
           
           <View style={styles.userInfo}>
@@ -381,15 +300,15 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  operationsHeader: {
+  appHeader: {
     backgroundColor: '#1a1a2e',
     borderBottomColor: '#333',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: Platform.OS === 'web' ? 10 : 10,
-    paddingBottom: 10,
-    height: 70,
+    paddingTop: Platform.OS === 'web' ? 8 : 8,
+    paddingBottom: 8,
+    height: 50,
   },
   homeHeader: {
     backgroundColor: '#1a1a2e',
@@ -400,36 +319,6 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'web' ? 10 : 10,
     paddingBottom: 10,
     height: 80,
-  },
-  communicationsHeader: {
-    backgroundColor: '#1a1a2e',
-    borderBottomColor: '#333',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: Platform.OS === 'web' ? 10 : 10,
-    paddingBottom: 10,
-    height: 70,
-  },
-  voipHeader: {
-    backgroundColor: '#1a1a2e',
-    borderBottomColor: '#333',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: Platform.OS === 'web' ? 10 : 10,
-    paddingBottom: 10,
-    height: 70,
-  },
-  disruptionsHeader: {
-    backgroundColor: '#1a1a2e',
-    borderBottomColor: '#333',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: Platform.OS === 'web' ? 10 : 10,
-    paddingBottom: 10,
-    height: 70,
   },
   leftSection: {
     flexDirection: 'row',
@@ -442,21 +331,8 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   logo: {
-    height: 40,
-    width: 120,
-  },
-  operationsInfo: {
-    marginLeft: 16,
-  },
-  operationsTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  operationsSubtitle: {
-    fontSize: 12,
-    color: '#94a3b8',
-    marginTop: 2,
+    height: 32,
+    width: 100,
   },
   backButton: {
     flexDirection: 'row',
@@ -661,45 +537,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.3)',
-  },
-  communicationsInfo: {
-    marginLeft: 16,
-  },
-  communicationsTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  communicationsSubtitle: {
-    fontSize: 13,
-    color: '#94a3b8',
-    marginTop: 2,
-  },
-  voipInfo: {
-    marginLeft: 16,
-  },
-  voipTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  voipSubtitle: {
-    fontSize: 13,
-    color: '#94a3b8',
-    marginTop: 2,
-  },
-  disruptionsInfo: {
-    marginLeft: 16,
-  },
-  disruptionsTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: 'white',
-  },
-  disruptionsSubtitle: {
-    fontSize: 13,
-    color: '#94a3b8',
-    marginTop: 2,
   },
 });
 

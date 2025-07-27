@@ -1681,6 +1681,130 @@ export async function syncStreetManagerToSystems() {
   }
 }
 
+// Convert Street Manager data to alert format for supervisor management
+export function convertToAlerts(streetManagerData) {
+  if (!streetManagerData || !Array.isArray(streetManagerData)) {
+    return [];
+  }
+
+  const now = new Date();
+  
+  return streetManagerData
+    .filter(item => {
+      // Filter out expired/cancelled works
+      if (item.status === 'cancelled' || item.status === 'revoked') {
+        return false;
+      }
+      
+      // Filter out works that have ended
+      if (item.proposed_end_date_time) {
+        const endDate = new Date(item.proposed_end_date_time);
+        if (endDate < now) {
+          return false;
+        }
+      }
+      
+      return true;
+    })
+    .map(item => ({
+      id: `streetmanager_${item.permit_reference_number || item.notification_id || generateRandomId()}`,
+      type: 'roadworks',
+      title: item.title || item.activity_type || 'Road Works',
+      description: item.works_description || item.activity_type || 'Street works activity',
+      location: item.location_description || 'Location not specified',
+      coordinates: extractCoordinatesFromItem(item),
+      severity: calculateAlertSeverity(item),
+      status: 'active',
+      source: 'Street Manager',
+      sourceId: item.permit_reference_number || item.notification_id,
+      timestamp: item.actual_start_date_time || item.webhook_received_at || new Date().toISOString(),
+      lastUpdated: new Date().toISOString(),
+      
+      // Alert-specific fields for supervisor management
+      acknowledged: false,
+      acknowledgedBy: null,
+      acknowledgedAt: null,
+      dismissed: false,
+      dismissedBy: null,
+      dismissedAt: null,
+      escalated: false,
+      escalatedBy: null,
+      escalatedAt: null,
+      
+      // Roadworks-specific metadata
+      metadata: {
+        workType: item.activity_type || 'General',
+        authority: item.authority || 'Unknown',
+        reference: item.permit_reference_number || item.notification_id,
+        startDate: item.actual_start_date_time,
+        endDate: item.proposed_end_date_time,
+        originalStatus: item.status,
+        trafficManagement: item.traffic_management,
+        worksCategory: item.works_category,
+        contactDetails: item.contact_details,
+        diversionRoute: item.diversion_route,
+        expectedImpact: item.expected_impact,
+        geometry: item.activity_location_coordinates
+      }
+    }));
+}
+
+function calculateAlertSeverity(item) {
+  // High severity for emergency works or major impact
+  if (item.works_category === 'Emergency works' || 
+      item.activity_type?.includes('Emergency') ||
+      item.severity === 'High') {
+    return 'high';
+  }
+  
+  // High severity for major traffic management
+  if (item.traffic_management && 
+      (item.traffic_management.includes('closure') || 
+       item.traffic_management.includes('convoy'))) {
+    return 'high';
+  }
+  
+  // Medium severity for planned works or moderate impact
+  if (item.severity === 'Medium' || 
+      item.works_category === 'Standard' ||
+      item.expected_impact?.includes('Delays')) {
+    return 'medium';
+  }
+  
+  return 'low';
+}
+
+function extractCoordinatesFromItem(item) {
+  try {
+    if (item.activity_location_coordinates) {
+      const coordStr = item.activity_location_coordinates;
+      
+      // Handle "POINT(-1.6178 54.9783)" format
+      const pointMatch = coordStr.match(/POINT\(([^)]+)\)/);
+      if (pointMatch) {
+        const coords = pointMatch[1].trim().split(/\s+/);
+        if (coords.length === 2) {
+          const lng = parseFloat(coords[0]);
+          const lat = parseFloat(coords[1]);
+          if (!isNaN(lng) && !isNaN(lat)) {
+            return [lat, lng];
+          }
+        }
+      }
+    }
+    
+    // Default to Newcastle city center if no coordinates
+    return [54.9783, -1.6178];
+  } catch (error) {
+    console.warn('⚠️ Error extracting coordinates from Street Manager item:', error);
+    return [54.9783, -1.6178]; // Newcastle default
+  }
+}
+
+function generateRandomId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
 export default {
   fetchStreetManagerActivities,
   fetchStreetManagerPermits,
@@ -1693,5 +1817,6 @@ export default {
   parseLineStringCoordinates,
   findAffectedBusRoutes,
   processStreetManagerWebhook,
-  syncStreetManagerToSystems
+  syncStreetManagerToSystems,
+  convertToAlerts
 };

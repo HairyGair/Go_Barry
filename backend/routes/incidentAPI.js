@@ -6,6 +6,14 @@ import geocodingService, { geocodeLocation } from '../services/geocoding.js';
 import findGTFSRoutesNearCoordinates from '../gtfs-route-matcher.js';
 import supabaseStorage from '../services/supabaseIncidentStorage.js';
 import { enhanceIncidentWithTomTom } from '../services/tomtomEnhancementService.js';
+import { convertToAlerts } from '../services/streetManager.js';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = join(fileURLToPath(import.meta.url), '../..');
+
 import { 
   enhancedIncidentManager, 
   createIncidentFromAlert, 
@@ -45,6 +53,93 @@ function logStorageState() {
     count: inMemoryIncidents.length,
     incidents: inMemoryIncidents.map(i => ({ id: i.id, location: i.location, status: i.status }))
   });
+}
+
+// Function to load Street Manager data and convert to alerts
+async function getStreetManagerAlerts() {
+  try {
+    // Try to get real data from Street Manager service first
+    console.log('🔍 Attempting to fetch real Street Manager data...');
+    
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+      
+      console.log('📋 Querying streetworks table directly...');
+      const { data: streetworksData, error } = await supabase
+        .from('streetworks')
+        .select('*')
+        .limit(50);
+        
+      if (error) {
+        console.warn('⚠️ Supabase streetworks query failed:', error.message);
+        throw error;
+      }
+      
+      if (streetworksData && streetworksData.length > 0) {
+        console.log(`✅ Found ${streetworksData.length} real Street Manager records from Supabase`);
+        
+        // Transform Supabase data to the format expected by convertToAlerts
+        const transformedData = streetworksData.map(item => ({
+          notification_id: item.notification_id,
+          title: item.title,
+          location_description: item.location_description,
+          activity_type: item.activity_type,
+          actual_start_date_time: item.actual_start_date_time,
+          proposed_end_date_time: item.proposed_end_date_time,
+          permit_reference_number: item.permit_reference_number,
+          activity_location_coordinates: item.activity_location_coordinates,
+          severity: item.severity,
+          webhook_received_at: item.webhook_received_at,
+          status: item.status,
+          authority: item.authority,
+          works_description: item.works_description
+        }));
+        
+        const allAlerts = convertToAlerts(transformedData);
+        const now = new Date();
+        const sevenDaysFromNow = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000));
+        
+        // Filter to show only current and near-term alerts (today + next 7 days)
+        const currentAlerts = allAlerts.filter(alert => {
+          const startDate = new Date(alert.timestamp);
+          return startDate <= sevenDaysFromNow;
+        });
+        
+        console.log(`✅ Converted ${allAlerts.length} real Street Manager records to ${currentAlerts.length} current alerts (next 7 days)`);
+        return currentAlerts;
+      } else {
+        console.log('📭 No Street Manager records found in Supabase');
+      }
+    } catch (supabaseError) {
+      console.warn('⚠️ Could not fetch real Street Manager data:', supabaseError.message);
+    }
+    
+    // Fallback to local data
+    console.log('📋 Using fallback Street Manager data...');
+    const fallbackPath = join(__dirname, 'data/streetmanager_fallback.json');
+    const fallbackData = JSON.parse(readFileSync(fallbackPath, 'utf8'));
+    const streetManagerData = fallbackData.data || [];
+    
+    console.log(`📋 Loading ${streetManagerData.length} fallback Street Manager records for alert conversion`);
+    
+    const allAlerts = convertToAlerts(streetManagerData);
+    const now = new Date();
+    const sevenDaysFromNow = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000));
+    
+    // Filter to show only current and near-term alerts (today + next 7 days)
+    const currentAlerts = allAlerts.filter(alert => {
+      const startDate = new Date(alert.timestamp);
+      return startDate <= sevenDaysFromNow;
+    });
+    
+    console.log(`✅ Converted ${allAlerts.length} fallback Street Manager records to ${currentAlerts.length} current alerts (next 7 days)`);
+    
+    return currentAlerts;
+  } catch (error) {
+    console.error('❌ Error loading Street Manager alerts:', error.message);
+    return [];
+  }
 }
 
 // GET /api/incidents - Get all incidents
@@ -96,6 +191,14 @@ router.get('/', async (req, res) => {
       storageType = 'memory';
     }
     
+    // Add Street Manager alerts as incidents
+    const streetManagerAlerts = await getStreetManagerAlerts();
+    if (streetManagerAlerts.length > 0) {
+      console.log(`🚧 Adding ${streetManagerAlerts.length} Street Manager roadworks as alerts`);
+      allIncidents = [...allIncidents, ...streetManagerAlerts];
+      storageType = storageType === 'memory' ? 'memory+streetmanager' : 'supabase+streetmanager';
+    }
+    
     console.log(`📤 Returning ${allIncidents.length} total incidents from ${storageType}`);
     
     // Filter active incidents
@@ -113,16 +216,30 @@ router.get('/', async (req, res) => {
       storage: storageType,
       debug: {
         totalInMemory: inMemoryIncidents.length,
-        totalFromStorage: allIncidents.length,
+        totalFromStorage: allIncidents.length - streetManagerAlerts.length,
+        streetManagerAlerts: streetManagerAlerts.length,
         activeCount: activeIncidents.length
       }
     });
   } catch (error) {
     console.error('Failed to fetch incidents:', error);
     
-    // Provide fallback with in-memory incidents
-    console.log('📋 Providing in-memory incidents');
-    const activeIncidents = inMemoryIncidents.filter(incident => 
+    // Provide fallback with in-memory incidents + Street Manager
+    console.log('📋 Providing fallback incidents (in-memory + Street Manager)');
+    let fallbackIncidents = [...inMemoryIncidents];
+    
+    // Try to add Street Manager alerts even in fallback
+    try {
+      const streetManagerAlerts = await getStreetManagerAlerts();
+      if (streetManagerAlerts.length > 0) {
+        console.log(`🚧 Adding ${streetManagerAlerts.length} Street Manager alerts to fallback`);
+        fallbackIncidents = [...fallbackIncidents, ...streetManagerAlerts];
+      }
+    } catch (fallbackError) {
+      console.warn('⚠️ Street Manager fallback also failed:', fallbackError.message);
+    }
+    
+    const activeIncidents = fallbackIncidents.filter(incident => 
       incident.status === 'active' || incident.status === 'monitoring'
     );
     
@@ -137,6 +254,109 @@ router.get('/', async (req, res) => {
     });
   }
 });
+
+// GET /api/incidents/advance-planning - Get future incidents for advance planning (7+ days)
+router.get('/advance-planning', async (req, res) => {
+  console.log('🔍 GET /api/incidents/advance-planning called');
+  
+  try {
+    // Get all Street Manager alerts without filtering
+    const allStreetManagerAlerts = await getUnfilteredStreetManagerAlerts();
+    
+    const now = new Date();
+    const sevenDaysFromNow = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000));
+    
+    // Filter to show only future planning alerts (7+ days out)
+    const futureAlerts = allStreetManagerAlerts.filter(alert => {
+      const startDate = new Date(alert.timestamp);
+      return startDate > sevenDaysFromNow;
+    });
+    
+    console.log(`📅 Filtered ${allStreetManagerAlerts.length} total alerts to ${futureAlerts.length} advance planning alerts (7+ days)`);
+    
+    res.json({
+      success: true,
+      incidents: futureAlerts,
+      count: futureAlerts.length,
+      lastUpdated: new Date().toISOString(),
+      planningHorizon: '7+ days',
+      debug: {
+        totalStreetManagerAlerts: allStreetManagerAlerts.length,
+        advancePlanningCount: futureAlerts.length,
+        filterDate: sevenDaysFromNow.toISOString()
+      }
+    });
+  } catch (error) {
+    console.error('Failed to fetch advance planning incidents:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch advance planning incidents'
+    });
+  }
+});
+
+// Function to get all Street Manager alerts without date filtering
+async function getUnfilteredStreetManagerAlerts() {
+  try {
+    // Try to get real data from Street Manager service first
+    console.log('🔍 Fetching unfiltered Street Manager data for advance planning...');
+    
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+      
+      const { data: streetworksData, error } = await supabase
+        .from('streetworks')
+        .select('*')
+        .limit(50);
+        
+      if (error) {
+        console.warn('⚠️ Supabase streetworks query failed:', error.message);
+        throw error;
+      }
+      
+      if (streetworksData && streetworksData.length > 0) {
+        console.log(`✅ Found ${streetworksData.length} real Street Manager records from Supabase (unfiltered)`);
+        
+        const transformedData = streetworksData.map(item => ({
+          notification_id: item.notification_id,
+          title: item.title,
+          location_description: item.location_description,
+          activity_type: item.activity_type,
+          actual_start_date_time: item.actual_start_date_time,
+          proposed_end_date_time: item.proposed_end_date_time,
+          permit_reference_number: item.permit_reference_number,
+          activity_location_coordinates: item.activity_location_coordinates,
+          severity: item.severity,
+          webhook_received_at: item.webhook_received_at,
+          status: item.status,
+          authority: item.authority,
+          works_description: item.works_description
+        }));
+        
+        const allAlerts = convertToAlerts(transformedData);
+        console.log(`✅ Converted ${allAlerts.length} real Street Manager records to alerts (unfiltered)`);
+        return allAlerts;
+      }
+    } catch (supabaseError) {
+      console.warn('⚠️ Could not fetch real Street Manager data:', supabaseError.message);
+    }
+    
+    // Fallback to local data
+    console.log('📋 Using fallback Street Manager data for advance planning...');
+    const fallbackPath = join(__dirname, 'data/streetmanager_fallback.json');
+    const fallbackData = JSON.parse(readFileSync(fallbackPath, 'utf8'));
+    const streetManagerData = fallbackData.data || [];
+    
+    const allAlerts = convertToAlerts(streetManagerData);
+    console.log(`✅ Converted ${allAlerts.length} fallback Street Manager records to alerts (unfiltered)`);
+    
+    return allAlerts;
+  } catch (error) {
+    console.error('❌ Error loading unfiltered Street Manager alerts:', error.message);
+    return [];
+  }
+}
 
 // POST /api/incidents - Create new incident
 router.post('/', async (req, res) => {

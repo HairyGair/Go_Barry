@@ -1,0 +1,1169 @@
+// ENHANCED supervisorAPI.js - Version 2025-07-27-ENHANCED
+// Features: Supabase integration, bcrypt auth, JWT tokens, activity logging
+import express from 'express';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Enhanced supervisor logging imports
+import {
+  enhancedSupervisorAuth,
+  enhancedSupervisorLogout,
+  enhancedAlertDismissal,
+  enhancedRoadworkAction,
+  enhancedIncidentCreation,
+  enhancedCommunicationLogging,
+  enhancedAdminAction,
+  logScreenNavigation,
+  logSettingsUpdate,
+  logDataAccess,
+  getSupervisorFromSession
+} from '../patches/supervisorLoggingIntegration.js';
+
+const router = express.Router();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Configuration
+const JWT_SECRET = process.env.JWT_SECRET || 'go-barry-supervisor-secret-2025';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const SALT_ROUNDS = 12;
+
+// Import Supabase client
+let supabase = null;
+let supabaseConnected = false;
+
+// Initialize Supabase connection
+async function initializeSupabase() {
+  try {
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    if (supabaseUrl && supabaseKey) {
+      supabase = createClient(supabaseUrl, supabaseKey);
+      supabaseConnected = true;
+      console.log('✅ Supabase connected for enhanced supervisor management');
+    } else {
+      console.warn('⚠️ Supabase credentials not found, using local fallback');
+    }
+  } catch (error) {
+    console.warn('⚠️ Supabase connection failed, using local fallback:', error.message);
+  }
+}
+
+// Initialize on module load
+initializeSupabase();
+
+// Helper function to get supervisor data file path (fallback)
+const getSupervisorDataPath = () => {
+  return path.join(__dirname, '../data/supervisor_sessions.json');
+};
+
+// Helper function to read local supervisor data (fallback)
+const readLocalSupervisorData = () => {
+  try {
+    const dataPath = getSupervisorDataPath();
+    if (!fs.existsSync(dataPath)) {
+      return {};
+    }
+    const data = fs.readFileSync(dataPath, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error reading local supervisor data:', error);
+    return {};
+  }
+};
+
+// Helper function to write local supervisor data (fallback)
+const writeLocalSupervisorData = (data) => {
+  try {
+    const dataPath = getSupervisorDataPath();
+    fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error writing local supervisor data:', error);
+    return false;
+  }
+};
+
+// Enhanced activity logging function
+const logSupervisorActivity = async (badge, action, details = {}, req = null, severity = 'info') => {
+  const timestamp = new Date().toISOString();
+  const logEntry = {
+    badge,
+    action,
+    details,
+    severity,
+    timestamp,
+    ip_address: req ? req.ip || req.connection?.remoteAddress : null,
+    user_agent: req ? req.get('User-Agent') : null,
+    session_id: details.sessionId || null
+  };
+
+  // Console logging
+  console.log(`[SUPERVISOR-ENHANCED] ${timestamp} - ${badge}: ${action}`, details);
+
+  // Database logging
+  if (supabaseConnected && supabase) {
+    try {
+      await supabase
+        .from('supervisor_activity_log')
+        .insert([logEntry]);
+    } catch (error) {
+      console.warn('Failed to log activity to database:', error.message);
+    }
+  }
+
+  return logEntry;
+};
+
+// JWT Helper functions
+const generateToken = (supervisorData) => {
+  const payload = {
+    badge: supervisorData.badge,
+    name: supervisorData.name,
+    admin: supervisorData.admin || false,
+    iat: Math.floor(Date.now() / 1000)
+  };
+  
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+};
+
+const verifyToken = (token) => {
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch (error) {
+    return null;
+  }
+};
+
+// Middleware for JWT authentication
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      message: 'Access token required'
+    });
+  }
+
+  const decoded = verifyToken(token);
+  if (!decoded) {
+    return res.status(403).json({
+      success: false,
+      message: 'Invalid or expired token'
+    });
+  }
+
+  req.supervisor = decoded;
+  next();
+};
+
+// Middleware for admin-only routes
+const requireAdmin = (req, res, next) => {
+  if (!req.supervisor?.admin) {
+    return res.status(403).json({
+      success: false,
+      message: 'Admin privileges required'
+    });
+  }
+  next();
+};
+
+// Password hashing utilities
+const hashPassword = async (password) => {
+  return await bcrypt.hash(password, SALT_ROUNDS);
+};
+
+const comparePassword = async (password, hash) => {
+  return await bcrypt.compare(password, hash);
+};
+
+// Get supervisor from Supabase or fallback
+async function getSupervisorFromDB(badge) {
+  if (supabaseConnected && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('supervisors')
+        .select('*')
+        .eq('badge', badge)
+        .single();
+      
+      if (!error && data) {
+        return data;
+      }
+    } catch (error) {
+      console.warn('Supabase query failed:', error.message);
+    }
+  }
+  
+  // Fallback to local data
+  const localData = readLocalSupervisorData();
+  return localData[badge];
+}
+
+// Get all supervisors from Supabase or fallback
+async function getAllSupervisorsFromDB() {
+  if (supabaseConnected && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('supervisors')
+        .select('*')
+        .order('name');
+      
+      if (!error && data) {
+        return data;
+      }
+    } catch (error) {
+      console.warn('Supabase query failed:', error.message);
+    }
+  }
+  
+  // Fallback to local data
+  const localData = readLocalSupervisorData();
+  return Object.values(localData);
+}
+
+// Update supervisor session in Supabase
+async function updateSupervisorSession(badge, sessionData) {
+  if (supabaseConnected && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('supervisors')
+        .upsert({
+          badge,
+          ...sessionData,
+          last_activity: new Date().toISOString()
+        })
+        .select()
+        .single();
+      
+      if (!error && data) {
+        return data;
+      }
+    } catch (error) {
+      console.warn('Supabase update failed:', error.message);
+    }
+  }
+  
+  // Fallback to local storage
+  const localData = readLocalSupervisorData();
+  localData[badge] = { badge, ...sessionData };
+  writeLocalSupervisorData(localData);
+  return localData[badge];
+}
+
+// POST /api/supervisor/register - Register new supervisor (admin only)
+router.post('/register', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { badge, name, email, password, admin = false, shift_pattern = 'day' } = req.body;
+
+    if (!badge || !name || !password) {
+      await logSupervisorActivity(req.supervisor.badge, 'REGISTER_ATTEMPT_FAILED', 
+        { reason: 'missing_fields', targetBadge: badge }, req, 'warning');
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Badge, name, and password are required'
+      });
+    }
+
+    // Check if supervisor already exists
+    const existingSupervisor = await getSupervisorFromDB(badge);
+    if (existingSupervisor) {
+      await logSupervisorActivity(req.supervisor.badge, 'REGISTER_ATTEMPT_FAILED', 
+        { reason: 'badge_exists', targetBadge: badge }, req, 'warning');
+      
+      return res.status(409).json({
+        success: false,
+        message: 'Supervisor with this badge already exists'
+      });
+    }
+
+    // Hash password
+    const passwordHash = await hashPassword(password);
+
+    const newSupervisor = {
+      badge,
+      name,
+      email,
+      password_hash: passwordHash,
+      admin,
+      shift_pattern,
+      active: true,
+      created_at: new Date().toISOString(),
+      created_by: req.supervisor.badge
+    };
+
+    // Save to database
+    if (supabaseConnected && supabase) {
+      const { data, error } = await supabase
+        .from('supervisors')
+        .insert([newSupervisor])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      await logSupervisorActivity(req.supervisor.badge, 'SUPERVISOR_REGISTERED', 
+        { targetBadge: badge, targetName: name, admin }, req, 'info');
+      
+      res.json({
+        success: true,
+        message: 'Supervisor registered successfully',
+        supervisor: {
+          badge: data.badge,
+          name: data.name,
+          email: data.email,
+          admin: data.admin,
+          shift_pattern: data.shift_pattern
+        }
+      });
+    } else {
+      // Fallback to local storage
+      const localData = readLocalSupervisorData();
+      localData[badge] = newSupervisor;
+      writeLocalSupervisorData(localData);
+      
+      await logSupervisorActivity(req.supervisor.badge, 'SUPERVISOR_REGISTERED', 
+        { targetBadge: badge, targetName: name, admin }, req, 'info');
+      
+      res.json({
+        success: true,
+        message: 'Supervisor registered successfully (local)',
+        supervisor: {
+          badge: newSupervisor.badge,
+          name: newSupervisor.name,
+          email: newSupervisor.email,
+          admin: newSupervisor.admin,
+          shift_pattern: newSupervisor.shift_pattern
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error registering supervisor:', error);
+    await logSupervisorActivity(req.supervisor?.badge || 'SYSTEM', 'REGISTER_ERROR', 
+      { error: error.message }, req, 'error');
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to register supervisor'
+    });
+  }
+});
+
+// POST /api/supervisor/login - Enhanced login with JWT
+router.post('/login', async (req, res) => {
+  try {
+    const { badge, password } = req.body;
+
+    if (!badge || !password) {
+      await logSupervisorActivity(badge || 'UNKNOWN', 'LOGIN_ATTEMPT_FAILED', 
+        { reason: 'missing_credentials' }, req, 'warning');
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Badge and password are required'
+      });
+    }
+
+    // Get supervisor from database
+    const supervisor = await getSupervisorFromDB(badge);
+    
+    if (!supervisor) {
+      await logSupervisorActivity(badge, 'LOGIN_ATTEMPT_FAILED', 
+        { reason: 'invalid_badge' }, req, 'warning');
+      
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid badge or password'
+      });
+    }
+
+    if (!supervisor.active) {
+      await logSupervisorActivity(badge, 'LOGIN_ATTEMPT_FAILED', 
+        { reason: 'account_inactive' }, req, 'warning');
+      
+      return res.status(401).json({
+        success: false,
+        message: 'Account is inactive'
+      });
+    }
+
+    // Verify password
+    if (supervisor.password_hash) {
+      const isValidPassword = await comparePassword(password, supervisor.password_hash);
+      if (!isValidPassword) {
+        await logSupervisorActivity(badge, 'LOGIN_ATTEMPT_FAILED', 
+          { reason: 'invalid_password' }, req, 'warning');
+        
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid badge or password'
+        });
+      }
+    } else {
+      // Fallback for supervisors without hashed passwords (development)
+      if (password !== 'password' && password !== badge) {
+        await logSupervisorActivity(badge, 'LOGIN_ATTEMPT_FAILED', 
+          { reason: 'invalid_password_fallback' }, req, 'warning');
+        
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid badge or password'
+        });
+      }
+    }
+
+    // Generate JWT token
+    const token = generateToken(supervisor);
+    const sessionId = `session_${badge}_${Date.now()}`;
+    
+    const sessionData = {
+      session_id: sessionId,
+      login_time: new Date().toISOString(),
+      is_active: true,
+      last_activity: new Date().toISOString(),
+      last_login_ip: req.ip || req.connection?.remoteAddress
+    };
+
+    await updateSupervisorSession(badge, sessionData);
+    
+    await logSupervisorActivity(badge, 'LOGIN_SUCCESS', 
+      { sessionId, userAgent: req.get('User-Agent') }, req, 'info');
+    
+    res.json({
+      success: true,
+      message: 'Login successful',
+      supervisor: {
+        badge: supervisor.badge,
+        name: supervisor.name,
+        admin: supervisor.admin || false,
+        shift_pattern: supervisor.shift_pattern,
+        email: supervisor.email
+      },
+      token,
+      sessionId,
+      expiresIn: JWT_EXPIRES_IN
+    });
+  } catch (error) {
+    console.error('Error during login:', error);
+    await logSupervisorActivity(badge || 'SYSTEM', 'LOGIN_ERROR', 
+      { error: error.message }, req, 'error');
+    
+    res.status(500).json({
+      success: false,
+      message: 'Login failed'
+    });
+  }
+});
+
+// POST /api/supervisor/logout - Enhanced logout
+router.post('/logout', authenticateToken, async (req, res) => {
+  try {
+    const badge = req.supervisor.badge;
+    const { sessionId } = req.body;
+
+    const logoutData = {
+      is_active: false,
+      logout_time: new Date().toISOString(),
+      last_activity: new Date().toISOString()
+    };
+
+    await updateSupervisorSession(badge, logoutData);
+    
+    await logSupervisorActivity(badge, 'LOGOUT_SUCCESS', 
+      { sessionId }, req, 'info');
+    
+    res.json({
+      success: true,
+      message: 'Logout successful'
+    });
+  } catch (error) {
+    console.error('Error during logout:', error);
+    await logSupervisorActivity(req.supervisor?.badge || 'SYSTEM', 'LOGOUT_ERROR', 
+      { error: error.message }, req, 'error');
+    
+    res.status(500).json({
+      success: false,
+      message: 'Logout failed'
+    });
+  }
+});
+
+// POST /api/supervisor/password/change - Change password
+router.post('/password/change', authenticateToken, async (req, res) => {
+  try {
+    const badge = req.supervisor.badge;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      await logSupervisorActivity(badge, 'PASSWORD_CHANGE_FAILED', 
+        { reason: 'missing_passwords' }, req, 'warning');
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      await logSupervisorActivity(badge, 'PASSWORD_CHANGE_FAILED', 
+        { reason: 'password_too_short' }, req, 'warning');
+      
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters long'
+      });
+    }
+
+    // Get current supervisor data
+    const supervisor = await getSupervisorFromDB(badge);
+    
+    if (supervisor.password_hash) {
+      const isValidCurrentPassword = await comparePassword(currentPassword, supervisor.password_hash);
+      if (!isValidCurrentPassword) {
+        await logSupervisorActivity(badge, 'PASSWORD_CHANGE_FAILED', 
+          { reason: 'invalid_current_password' }, req, 'warning');
+        
+        return res.status(401).json({
+          success: false,
+          message: 'Current password is incorrect'
+        });
+      }
+    }
+
+    // Hash new password
+    const newPasswordHash = await hashPassword(newPassword);
+
+    // Update password in database
+    if (supabaseConnected && supabase) {
+      const { error } = await supabase
+        .from('supervisors')
+        .update({ 
+          password_hash: newPasswordHash,
+          password_changed_at: new Date().toISOString()
+        })
+        .eq('badge', badge);
+      
+      if (error) throw error;
+    } else {
+      // Fallback to local storage
+      const localData = readLocalSupervisorData();
+      if (localData[badge]) {
+        localData[badge].password_hash = newPasswordHash;
+        localData[badge].password_changed_at = new Date().toISOString();
+        writeLocalSupervisorData(localData);
+      }
+    }
+
+    await logSupervisorActivity(badge, 'PASSWORD_CHANGED', {}, req, 'info');
+    
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    await logSupervisorActivity(req.supervisor?.badge || 'SYSTEM', 'PASSWORD_CHANGE_ERROR', 
+      { error: error.message }, req, 'error');
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to change password'
+    });
+  }
+});
+
+// GET /api/supervisor/profile - Get current supervisor profile
+router.get('/profile', authenticateToken, async (req, res) => {
+  try {
+    const badge = req.supervisor.badge;
+    const supervisor = await getSupervisorFromDB(badge);
+
+    if (!supervisor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Supervisor not found'
+      });
+    }
+
+    await logSupervisorActivity(badge, 'PROFILE_VIEWED', {}, req, 'info');
+
+    res.json({
+      success: true,
+      supervisor: {
+        badge: supervisor.badge,
+        name: supervisor.name,
+        email: supervisor.email,
+        admin: supervisor.admin || false,
+        shift_pattern: supervisor.shift_pattern,
+        active: supervisor.active,
+        last_activity: supervisor.last_activity,
+        login_time: supervisor.login_time
+      }
+    });
+  } catch (error) {
+    console.error('Error getting profile:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get profile'
+    });
+  }
+});
+
+// GET /api/supervisor/activity/recent - Get recent activity (admin only)
+router.get('/activity/recent', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 100;
+    const badge = req.query.badge; // Optional filter by badge
+    
+    if (supabaseConnected && supabase) {
+      let query = supabase
+        .from('supervisor_activity_log')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .limit(limit);
+      
+      if (badge) {
+        query = query.eq('badge', badge);
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      
+      await logSupervisorActivity(req.supervisor.badge, 'ACTIVITY_LOG_VIEWED', 
+        { limit, filterBadge: badge }, req, 'info');
+      
+      res.json({
+        success: true,
+        activities: data,
+        count: data.length
+      });
+    
+    // Log screen navigation
+    const supervisorInfo = await getSupervisorFromSession(req.query?.sessionId);
+    if (supervisorInfo) {
+      await logScreenNavigation(supervisorInfo, '/api/supervisor/activity/recent', {}, req);
+    }
+    
+    // Log screen navigation
+    const supervisorInfo = await getSupervisorFromSession(req.query?.sessionId);
+    if (supervisorInfo) {
+      await logScreenNavigation(supervisorInfo, '/api/supervisor/active', {}, req);
+    }
+    } else {
+      res.json({
+        success: true,
+        activities: [],
+        count: 0,
+        message: 'Activity logging requires Supabase connection'
+      });
+    
+    // Log screen navigation
+    const supervisorInfo = await getSupervisorFromSession(req.query?.sessionId);
+    if (supervisorInfo) {
+      await logScreenNavigation(supervisorInfo, '/api/supervisor/activity/recent', {}, req);
+    }
+    
+    // Log screen navigation
+    const supervisorInfo = await getSupervisorFromSession(req.query?.sessionId);
+    if (supervisorInfo) {
+      await logScreenNavigation(supervisorInfo, '/api/supervisor/active', {}, req);
+    }
+    }
+  } catch (error) {
+    console.error('Error getting activity log:', error);
+    await logSupervisorActivity(req.supervisor?.badge || 'SYSTEM', 'ACTIVITY_LOG_ERROR', 
+      { error: error.message }, req, 'error');
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get activity log'
+    });
+  }
+});
+
+// GET /api/supervisor/active/list - Get active supervisors
+router.get('/active/list', authenticateToken, async (req, res) => {
+  try {
+    const allSupervisors = await getAllSupervisorsFromDB();
+    const activeSupervisors = allSupervisors
+      .filter(supervisor => supervisor.is_active)
+      .map(supervisor => ({
+        badge: supervisor.badge,
+        name: supervisor.name,
+        loginTime: supervisor.login_time,
+        lastActivity: supervisor.last_activity,
+        shift: supervisor.shift_pattern,
+        admin: supervisor.admin || false
+      }));
+
+    await logSupervisorActivity(req.supervisor.badge, 'ACTIVE_LIST_VIEWED', 
+      { count: activeSupervisors.length }, req, 'info');
+    
+    res.json({
+      success: true,
+      supervisors: activeSupervisors,
+      count: activeSupervisors.length
+    });
+    
+    // Log screen navigation
+    const supervisorInfo = await getSupervisorFromSession(req.query?.sessionId);
+    if (supervisorInfo) {
+      await logScreenNavigation(supervisorInfo, '/api/supervisor/activity/recent', {}, req);
+    }
+    
+    // Log screen navigation
+    const supervisorInfo = await getSupervisorFromSession(req.query?.sessionId);
+    if (supervisorInfo) {
+      await logScreenNavigation(supervisorInfo, '/api/supervisor/active', {}, req);
+    }
+  } catch (error) {
+    console.error('Error getting active supervisors:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get active supervisors'
+    });
+  }
+});
+
+// GET /api/supervisor/list/all - Get all supervisors (admin only)
+router.get('/list/all', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const allSupervisors = await getAllSupervisorsFromDB();
+    const supervisorList = allSupervisors.map(supervisor => ({
+      badge: supervisor.badge,
+      name: supervisor.name,
+      email: supervisor.email,
+      active: supervisor.active !== false,
+      admin: supervisor.admin || false,
+      shift: supervisor.shift_pattern,
+      lastActivity: supervisor.last_activity,
+      loginTime: supervisor.login_time
+    }));
+
+    await logSupervisorActivity(req.supervisor.badge, 'ALL_SUPERVISORS_VIEWED', 
+      { count: supervisorList.length }, req, 'info');
+
+    res.json({
+      success: true,
+      supervisors: supervisorList,
+      count: supervisorList.length
+    });
+    
+    // Log screen navigation
+    const supervisorInfo = await getSupervisorFromSession(req.query?.sessionId);
+    if (supervisorInfo) {
+      await logScreenNavigation(supervisorInfo, '/api/supervisor/activity/recent', {}, req);
+    }
+    
+    // Log screen navigation
+    const supervisorInfo = await getSupervisorFromSession(req.query?.sessionId);
+    if (supervisorInfo) {
+      await logScreenNavigation(supervisorInfo, '/api/supervisor/active', {}, req);
+    }
+  } catch (error) {
+    console.error('Error getting supervisors list:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get supervisors list'
+    });
+  }
+});
+
+// POST /api/supervisor/heartbeat - Update activity
+router.post('/heartbeat', authenticateToken, async (req, res) => {
+  try {
+    const badge = req.supervisor.badge;
+    const heartbeatData = {
+      last_activity: new Date().toISOString()
+    };
+
+    const updatedSupervisor = await updateSupervisorSession(badge, heartbeatData);
+    
+    res.json({
+      success: true,
+      supervisor: {
+        badge: updatedSupervisor.badge,
+        lastActivity: updatedSupervisor.last_activity
+      }
+    });
+  } catch (error) {
+    console.error('Error updating heartbeat:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Heartbeat update failed'
+    });
+  }
+});
+
+// PUT /api/supervisor/admin/edit/:badge - Edit supervisor (admin only)
+router.put('/admin/edit/:badge', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { badge } = req.params;
+    const { name, email, admin, active, shift_pattern, locations } = req.body;
+
+    if (!badge) {
+      await logSupervisorActivity(req.supervisor.badge, 'EDIT_SUPERVISOR_FAILED', 
+        { reason: 'missing_badge' }, req, 'warning');
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Badge is required'
+      });
+    }
+
+    // Check if supervisor exists
+    const existingSupervisor = await getSupervisorFromDB(badge);
+    if (!existingSupervisor) {
+      await logSupervisorActivity(req.supervisor.badge, 'EDIT_SUPERVISOR_FAILED', 
+        { reason: 'supervisor_not_found', targetBadge: badge }, req, 'warning');
+      
+      return res.status(404).json({
+        success: false,
+        message: 'Supervisor not found'
+      });
+    }
+
+    // Prepare update data
+    const updateData = {
+      ...(name && { name }),
+      ...(email && { email }),
+      ...(admin !== undefined && { admin }),
+      ...(active !== undefined && { active }),
+      ...(shift_pattern && { shift_pattern }),
+      ...(locations && { locations }),
+      updated_at: new Date().toISOString(),
+      updated_by: req.supervisor.badge
+    };
+
+    // Update in database
+    if (supabaseConnected && supabase) {
+      const { data, error } = await supabase
+        .from('supervisors')
+        .update(updateData)
+        .eq('badge', badge)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      await logSupervisorActivity(req.supervisor.badge, 'SUPERVISOR_EDITED', 
+        { targetBadge: badge, changes: updateData }, req, 'info');
+      
+      res.json({
+        success: true,
+        message: 'Supervisor updated successfully',
+        supervisor: {
+          badge: data.badge,
+          name: data.name,
+          email: data.email,
+          admin: data.admin,
+          active: data.active,
+          shift_pattern: data.shift_pattern,
+          locations: data.locations
+        }
+      });
+    } else {
+      // Fallback to local storage
+      const localData = readLocalSupervisorData();
+      if (localData[badge]) {
+        localData[badge] = { ...localData[badge], ...updateData };
+        writeLocalSupervisorData(localData);
+        
+        await logSupervisorActivity(req.supervisor.badge, 'SUPERVISOR_EDITED', 
+          { targetBadge: badge, changes: updateData }, req, 'info');
+        
+        res.json({
+          success: true,
+          message: 'Supervisor updated successfully (local)',
+          supervisor: localData[badge]
+        });
+      } else {
+        return res.status(404).json({
+          success: false,
+          message: 'Supervisor not found in local storage'
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error editing supervisor:', error);
+    await logSupervisorActivity(req.supervisor?.badge || 'SYSTEM', 'EDIT_SUPERVISOR_ERROR', 
+      { targetBadge: req.params.badge, error: error.message }, req, 'error');
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update supervisor'
+    });
+  }
+});
+
+// DELETE /api/supervisor/admin/delete/:badge - Delete supervisor (admin only)
+router.delete('/admin/delete/:badge', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { badge } = req.params;
+
+    if (!badge) {
+      await logSupervisorActivity(req.supervisor.badge, 'DELETE_SUPERVISOR_FAILED', 
+        { reason: 'missing_badge' }, req, 'warning');
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Badge is required'
+      });
+    }
+
+    // Prevent self-deletion
+    if (badge === req.supervisor.badge) {
+      await logSupervisorActivity(req.supervisor.badge, 'DELETE_SUPERVISOR_FAILED', 
+        { reason: 'self_deletion_attempt', targetBadge: badge }, req, 'warning');
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete your own account'
+      });
+    }
+
+    // Check if supervisor exists
+    const existingSupervisor = await getSupervisorFromDB(badge);
+    if (!existingSupervisor) {
+      await logSupervisorActivity(req.supervisor.badge, 'DELETE_SUPERVISOR_FAILED', 
+        { reason: 'supervisor_not_found', targetBadge: badge }, req, 'warning');
+      
+      return res.status(404).json({
+        success: false,
+        message: 'Supervisor not found'
+      });
+    }
+
+    // Delete from database
+    if (supabaseConnected && supabase) {
+      const { error } = await supabase
+        .from('supervisors')
+        .delete()
+        .eq('badge', badge);
+      
+      if (error) throw error;
+      
+      await logSupervisorActivity(req.supervisor.badge, 'SUPERVISOR_DELETED', 
+        { targetBadge: badge, targetName: existingSupervisor.name }, req, 'warning');
+      
+      res.json({
+        success: true,
+        message: 'Supervisor deleted successfully'
+      });
+    } else {
+      // Fallback to local storage
+      const localData = readLocalSupervisorData();
+      if (localData[badge]) {
+        delete localData[badge];
+        writeLocalSupervisorData(localData);
+        
+        await logSupervisorActivity(req.supervisor.badge, 'SUPERVISOR_DELETED', 
+          { targetBadge: badge, targetName: existingSupervisor.name }, req, 'warning');
+        
+        res.json({
+          success: true,
+          message: 'Supervisor deleted successfully (local)'
+        });
+      } else {
+        return res.status(404).json({
+          success: false,
+          message: 'Supervisor not found in local storage'
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Error deleting supervisor:', error);
+    await logSupervisorActivity(req.supervisor?.badge || 'SYSTEM', 'DELETE_SUPERVISOR_ERROR', 
+      { targetBadge: req.params.badge, error: error.message }, req, 'error');
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete supervisor'
+    });
+  }
+});
+
+// GET /api/supervisor/admin/:badge - Get supervisor details (admin only)
+router.get('/admin/:badge', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { badge } = req.params;
+    const supervisorRecord = await getSupervisorFromDB(badge);
+
+    if (!supervisorRecord) {
+      await logSupervisorActivity(req.supervisor.badge, 'ADMIN_SUPERVISOR_VIEW_FAILED', 
+        { reason: 'supervisor_not_found', targetBadge: badge }, req, 'warning');
+      
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Supervisor not found' 
+      });
+    }
+
+    await logSupervisorActivity(req.supervisor.badge, 'ADMIN_SUPERVISOR_VIEWED', 
+      { targetBadge: badge }, req, 'info');
+
+    res.json({
+      success: true,
+      supervisor: {
+        badge: supervisorRecord.badge,
+        name: supervisorRecord.name,
+        email: supervisorRecord.email,
+        admin: supervisorRecord.admin || false,
+        active: supervisorRecord.active !== false,
+        shift_pattern: supervisorRecord.shift_pattern,
+        locations: supervisorRecord.locations,
+        last_activity: supervisorRecord.last_activity,
+        login_time: supervisorRecord.login_time,
+        created_at: supervisorRecord.created_at,
+        updated_at: supervisorRecord.updated_at
+      }
+    });
+  } catch (error) {
+    console.error('Error getting supervisor details:', error);
+    await logSupervisorActivity(req.supervisor?.badge || 'SYSTEM', 'ADMIN_SUPERVISOR_VIEW_ERROR', 
+      { targetBadge: req.params.badge, error: error.message }, req, 'error');
+    
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error' 
+    });
+  }
+});
+
+// POST /api/supervisor/admin/reset-password/:badge - Reset supervisor password (admin only)
+router.post('/admin/reset-password/:badge', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { badge } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword) {
+      await logSupervisorActivity(req.supervisor.badge, 'PASSWORD_RESET_FAILED', 
+        { reason: 'missing_password', targetBadge: badge }, req, 'warning');
+      
+      return res.status(400).json({
+        success: false,
+        message: 'New password is required'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      await logSupervisorActivity(req.supervisor.badge, 'PASSWORD_RESET_FAILED', 
+        { reason: 'password_too_short', targetBadge: badge }, req, 'warning');
+      
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters long'
+      });
+    }
+
+    // Check if supervisor exists
+    const existingSupervisor = await getSupervisorFromDB(badge);
+    if (!existingSupervisor) {
+      await logSupervisorActivity(req.supervisor.badge, 'PASSWORD_RESET_FAILED', 
+        { reason: 'supervisor_not_found', targetBadge: badge }, req, 'warning');
+      
+      return res.status(404).json({
+        success: false,
+        message: 'Supervisor not found'
+      });
+    }
+
+    // Hash new password
+    const newPasswordHash = await hashPassword(newPassword);
+
+    // Update password in database
+    if (supabaseConnected && supabase) {
+      const { error } = await supabase
+        .from('supervisors')
+        .update({ 
+          password_hash: newPasswordHash,
+          password_changed_at: new Date().toISOString(),
+          password_reset_by: req.supervisor.badge
+        })
+        .eq('badge', badge);
+      
+      if (error) throw error;
+    } else {
+      // Fallback to local storage
+      const localData = readLocalSupervisorData();
+      if (localData[badge]) {
+        localData[badge].password_hash = newPasswordHash;
+        localData[badge].password_changed_at = new Date().toISOString();
+        localData[badge].password_reset_by = req.supervisor.badge;
+        writeLocalSupervisorData(localData);
+      }
+    }
+
+    await logSupervisorActivity(req.supervisor.badge, 'PASSWORD_RESET_BY_ADMIN', 
+      { targetBadge: badge, targetName: existingSupervisor.name }, req, 'warning');
+    
+    res.json({
+      success: true,
+      message: 'Password reset successfully'
+    });
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    await logSupervisorActivity(req.supervisor?.badge || 'SYSTEM', 'PASSWORD_RESET_ERROR', 
+      { targetBadge: req.params.badge, error: error.message }, req, 'error');
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to reset password'
+    });
+  }
+});
+
+// GET /api/supervisor/health/status - Health check
+router.get('/health/status', async (req, res) => {
+  try {
+    const allSupervisors = await getAllSupervisorsFromDB();
+    const totalSupervisors = allSupervisors.length;
+    const activeSupervisors = allSupervisors.filter(s => s.is_active).length;
+
+    res.json({
+      success: true,
+      status: 'healthy',
+      version: 'ENHANCED-AUTH-LOGGING-2025-07-27',
+      database: supabaseConnected ? 'supabase' : 'local',
+      features: {
+        authentication: 'bcrypt + JWT',
+        activityLogging: supabaseConnected,
+        roleBasedAccess: true
+      },
+      stats: {
+        totalSupervisors,
+        activeSupervisors,
+        supabaseConnected
+      }
+    });
+    
+    // Log screen navigation
+    const supervisorInfo = await getSupervisorFromSession(req.query?.sessionId);
+    if (supervisorInfo) {
+      await logScreenNavigation(supervisorInfo, '/api/supervisor/activity/recent', {}, req);
+    }
+    
+    // Log screen navigation
+    const supervisorInfo = await getSupervisorFromSession(req.query?.sessionId);
+    if (supervisorInfo) {
+      await logScreenNavigation(supervisorInfo, '/api/supervisor/active', {}, req);
+    }
+  } catch (error) {
+    console.error('Error getting health status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Health check failed'
+    });
+  }
+});
+
+export default router;

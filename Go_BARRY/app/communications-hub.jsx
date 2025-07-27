@@ -20,10 +20,11 @@ import AppHeader from '../components/common/AppHeader';
 
 // Import only communications-related components
 import MessageDistributionEnhanced from '../components/communications/MessageDistributionEnhanced';
-import SharePointIntegration from '../components/communications/sharepoint/SharePointIntegration';
+import LocalFileManager from '../components/communications/LocalFileManager';
 import AutomatedReportingSystem from '../components/AutomatedReportingSystem';
 
 import { useSupervisor } from '../components/hooks/useSupervisorSession';
+import { useNavigationGuard } from '../hooks/useNavigationGuard';
 import { API_CONFIG } from '../config/api';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -79,18 +80,18 @@ const COMMUNICATIONS_CARDS = [
     stats: { label: 'Status', value: 'Ready' }
   },
   {
-    id: 'sharepoint',
-    title: 'SharePoint Access',
-    subtitle: 'Team documents & files',
-    description: 'Access team documents and shared resources',
-    icon: 'folder-open',
-    color: '#059669',
-    gradient: ['#16A085', '#138D75'],
+    id: 'filemanager',
+    title: 'Document Manager',
+    subtitle: 'Team document management',
+    description: 'Upload, organize and manage team documents and files',
+    icon: 'cloud-upload',
+    color: '#7C3AED',
+    gradient: ['#8B5CF6', '#7C3AED'],
     features: [
-      'Document library',
-      'Team folders',
-      'Quick access',
-      'File sharing'
+      'File upload/download',
+      'Search & categorize',
+      'Document templates',
+      'Quick access'
     ],
     stats: { label: 'Status', value: 'Ready' }
   }
@@ -99,23 +100,23 @@ const COMMUNICATIONS_CARDS = [
 const CommunicationsHub = () => {
   const router = useRouter();
   const {
-    isLoggedIn,
     supervisorName,
     supervisorRole,
     supervisorId,
     logout
   } = useSupervisor();
 
+  // Use navigation guard hook
+  const { 
+    canRender, 
+    shouldShowLoading, 
+    safeLogout, 
+    safeNavigate 
+  } = useNavigationGuard('/');
+
   const [activeComponent, setActiveComponent] = useState(null);
   const [loading, setLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-
-  // Check if user is logged in
-  useEffect(() => {
-    if (!isLoggedIn) {
-      router.replace('/');
-    }
-  }, [isLoggedIn, router]);
 
   // Update time every minute
   useEffect(() => {
@@ -126,8 +127,7 @@ const CommunicationsHub = () => {
   }, []);
 
   const handleLogout = async () => {
-    await logout();
-    router.replace('/');
+    await safeLogout(logout);
   };
 
   const handleCardPress = (cardId) => {
@@ -159,12 +159,29 @@ const CommunicationsHub = () => {
         return <MessageDistributionEnhanced {...componentProps} />;
       case 'reports':
         return <AutomatedReportingSystem {...componentProps} />;
-      case 'sharepoint':
-        return <SharePointIntegration {...componentProps} />;
+      case 'filemanager':
+        return <LocalFileManager visible={true} onClose={handleBack} />;
       default:
         return null;
     }
   };
+
+  // Show loading state while navigation guard is working
+  if (shouldShowLoading()) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#8B5CF6" />
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  // Don't render content if not ready
+  if (!canRender()) {
+    return null;
+  }
 
   // If a component is active, show it full screen
   if (activeComponent) {
@@ -267,7 +284,7 @@ const CommunicationsHub = () => {
         <View style={styles.footerNav}>
           <TouchableOpacity 
             style={styles.footerButton}
-            onPress={() => router.push('/display')}
+            onPress={() => safeNavigate('/display', { replace: false })}
           >
             <Ionicons name="tv" size={24} color="#3B82F6" />
             <Text style={styles.footerButtonText}>Control Room Display</Text>
@@ -275,7 +292,7 @@ const CommunicationsHub = () => {
           
           <TouchableOpacity 
             style={styles.footerButton}
-            onPress={() => router.push('/operations-centre')}
+            onPress={() => safeNavigate('/operations-centre', { replace: false })}
           >
             <Ionicons name="construct" size={24} color="#059669" />
             <Text style={styles.footerButtonText}>Operations Centre</Text>

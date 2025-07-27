@@ -86,7 +86,7 @@ const APP_CARDS = [
     ],
     buttonText: 'Manage Disruptions',
     requiresLogin: true,
-    route: '/disruptions',
+    route: '/disruption-centre',
     isNew: true
   },
   {

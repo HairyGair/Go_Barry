@@ -35,7 +35,9 @@ export default function SystemOverview() {
   // Redirect if not admin
   useEffect(() => {
     if (supervisorSession && !isAdmin) {
-      router.replace('/');
+      setTimeout(() => {
+        router.replace('/');
+      }, 0);
     }
   }, [supervisorSession, isAdmin, router]);
 
@@ -153,22 +155,7 @@ export default function SystemOverview() {
     <>
       <Stack.Screen
         options={{
-          title: 'System Overview',
-          headerStyle: {
-            backgroundColor: '#1a1a2e',
-          },
-          headerTintColor: '#fff',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
-          headerLeft: () => (
-            <Pressable
-              onPress={() => router.back()}
-              style={{ marginLeft: 15 }}
-            >
-              <MaterialCommunityIcons name="arrow-left" size={24} color="#fff" />
-            </Pressable>
-          ),
+          headerShown: false,
         }}
       />
       

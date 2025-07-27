@@ -22,14 +22,16 @@ export default function AdminDashboard() {
       Alert.alert(
         'Access Denied',
         'This page is restricted to administrators only.',
-        [{ text: 'OK', onPress: () => router.replace('/') }]
+        [{ text: 'OK', onPress: () => setTimeout(() => router.replace('/'), 0) }]
       );
     }
   }, [supervisorSession, isAdmin, router]);
 
   const handleLogout = async () => {
     await logout();
-    router.replace('/');
+    setTimeout(() => {
+      router.replace('/');
+    }, 0);
   };
 
   // Navigation handler for dashboard cards
@@ -165,7 +167,7 @@ export default function AdminDashboard() {
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <View style={styles.titleSection}>
-            <Pressable onPress={() => router.replace('/')} style={styles.backButton}>
+            <Pressable onPress={() => setTimeout(() => router.replace('/'), 0)} style={styles.backButton}>
               <MaterialCommunityIcons name="arrow-left" size={20} color="#fff" />
               <Text style={styles.backText}>Home</Text>
             </Pressable>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, Platform, Pressable, ActivityIndicator, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSupervisor } from '../../components/hooks/useSupervisorSession';
+import { useNavigationGuard } from '../../hooks/useNavigationGuard';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AppHeader from '../../components/common/AppHeader';
 
@@ -28,7 +29,16 @@ const disruptionTheme = {
 
 export default function DisruptionCentre() {
   const router = useRouter();
-  const { isLoggedIn, supervisorName, logout, supervisor, isLoading } = useSupervisor();
+  const { supervisorName, logout, supervisor } = useSupervisor();
+
+  // Use navigation guard hook
+  const { 
+    canRender, 
+    shouldShowLoading, 
+    safeLogout, 
+    safeNavigate,
+    isReady 
+  } = useNavigationGuard('/');
 
   // Determine base URL based on environment
   const getBaseUrl = () => {
@@ -50,24 +60,18 @@ export default function DisruptionCentre() {
     incidentsManager: { value: '0', label: 'Active' },
   });
   
-  // Security check with loading state
+  // Initialize disruption centre when ready
   useEffect(() => {
-    console.log('[DisruptionCentre] Checking authentication status...');
+    console.log('[DisruptionCentre] Checking readiness status...');
     
-    if (isLoading) {
-      console.log('[DisruptionCentre] Auth still loading, waiting...');
+    if (!isReady) {
+      console.log('[DisruptionCentre] Still initializing, waiting...');
       return;
     }
     
-    if (!isLoggedIn) {
-      console.log('[DisruptionCentre] Not logged in, redirecting to home...');
-      router.replace('/');
-      return;
-    }
-    
-    console.log('[DisruptionCentre] Authentication successful, showing content');
+    console.log('[DisruptionCentre] Ready, showing content');
     setIsInitializing(false);
-  }, [isLoggedIn, isLoading, supervisorName]);
+  }, [isReady]);
   
   // Fetch disruption statistics with reduced frequency to prevent component re-renders
   useEffect(() => {
@@ -211,14 +215,19 @@ export default function DisruptionCentre() {
     );
   };
   
-  // Show loading state while checking authentication
-  if (isLoading || isInitializing) {
+  // Show loading state while navigation guard is working or initializing
+  if (shouldShowLoading() || isInitializing) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#3b82f6" />
         <Text style={styles.loadingText}>Loading Disruption Centre...</Text>
       </View>
     );
+  }
+
+  // Don't render content if not ready
+  if (!canRender()) {
+    return null;
   }
   
   return (
@@ -227,11 +236,6 @@ export default function DisruptionCentre() {
       
       {/* Main Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Disruption Centre</Text>
-          <Text style={styles.headerSubtitle}>Manage all traffic disruptions in one place</Text>
-        </View>
         
         {/* Cards Grid */}
         <View style={styles.cardsSection}>
@@ -333,21 +337,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 10,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#6b7280',
   },
   cardsSection: {
     paddingHorizontal: 20,

@@ -7,6 +7,7 @@
 import React from 'react';
 import { Pressable, View, Text, StyleSheet, Platform, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { operationsTheme } from '../../../lib/_styles-index.js';
 
 export default function OperationsCard({ 
@@ -18,7 +19,8 @@ export default function OperationsCard({
   stats,
   onPress,
   isLoading = false,
-  textColor = "white" // Default to white text for backward compatibility
+  textColor = "white", // Default to white text for backward compatibility
+  timestamp = null
 }) {
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
   
@@ -35,6 +37,44 @@ export default function OperationsCard({
       useNativeDriver: true,
     }).start();
   };
+
+  const renderCardContent = () => (
+    <>
+      <View style={styles.cardContent}>
+        {/* Horizontal layout with icon on left, content in center, stats on right */}
+        <View style={styles.cardLayout}>
+          <View style={styles.iconSection}>
+            <MaterialCommunityIcons 
+              name={icon} 
+              size={48} 
+              color={textColor} 
+            />
+          </View>
+          
+          <View style={styles.contentSection}>
+            <Text style={[styles.cardTitle, { color: textColor }]}>{title}</Text>
+            <Text style={[styles.cardSubtitle, { color: textColor }]}>{subtitle}</Text>
+            {timestamp && (
+              <Text style={[styles.timestamp, { color: textColor }]}>Updated {timestamp}</Text>
+            )}
+          </View>
+          
+          {stats && (
+            <View style={styles.statsSection}>
+              <Text style={[styles.statValue, { color: textColor }]}>{stats.value}</Text>
+              <Text style={[styles.statLabel, { color: textColor }]}>{stats.label}</Text>
+            </View>
+          )}
+        </View>
+      </View>
+      
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <MaterialCommunityIcons name="loading" size={32} color="white" />
+        </View>
+      )}
+    </>
+  );
   
   return (
     <Animated.View
@@ -52,33 +92,20 @@ export default function OperationsCard({
           pressed && styles.cardPressed
         ]}
       >
-        <View style={[styles.card, { backgroundColor: color }]}>
-          <View style={styles.cardContent}>
-            <View style={styles.cardHeader}>
-              <MaterialCommunityIcons 
-                name={icon} 
-                size={32} 
-                color={textColor} 
-              />
-              {stats && (
-                <View style={styles.cardStat}>
-                  <Text style={[styles.statValue, { color: textColor }]}>{stats.value}</Text>
-                  <Text style={[styles.statLabel, { color: textColor }]}>{stats.label}</Text>
-                </View>
-              )}
-            </View>
-            <View style={styles.cardInfo}>
-              <Text style={[styles.cardTitle, { color: textColor }]}>{title}</Text>
-              <Text style={[styles.cardSubtitle, { color: textColor }]}>{subtitle}</Text>
-            </View>
+        {Array.isArray(color) ? (
+          <LinearGradient
+            colors={color}
+            style={styles.card}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            {renderCardContent()}
+          </LinearGradient>
+        ) : (
+          <View style={[styles.card, { backgroundColor: color }]}>
+            {renderCardContent()}
           </View>
-          
-          {isLoading && (
-            <View style={styles.loadingOverlay}>
-              <MaterialCommunityIcons name="loading" size={24} color="white" />
-            </View>
-          )}
-        </View>
+        )}
       </Pressable>
     </Animated.View>
   );
@@ -86,61 +113,122 @@ export default function OperationsCard({
 
 const styles = StyleSheet.create({
   cardContainer: {
-    width: Platform.OS === 'web' ? '31%' : '48%',
-    height: 180,
-    marginBottom: 16,
+    flex: 1,
+    height: 220,
+    marginBottom: 20,
   },
   pressable: {
     flex: 1,
   },
   cardPressed: {
-    opacity: 0.9,
+    opacity: 0.95,
+    transform: [{ scale: 0.98 }],
   },
   card: {
     flex: 1,
-    borderRadius: operationsTheme.borderRadius.lg,
-    padding: 20,
-    ...operationsTheme.shadows.md,
+    borderRadius: 16,
+    padding: 28,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 12,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   cardContent: {
     flex: 1,
-    justifyContent: 'space-between',
+    justifyContent: 'center',
   },
-  cardHeader: {
+  
+  // New horizontal layout
+  cardLayout: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    height: '100%',
   },
-  cardStat: {
-    alignItems: 'flex-end',
+  
+  iconSection: {
+    width: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    height: 80,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
+  
+  contentSection: {
+    flex: 1,
+    paddingHorizontal: 20,
+    justifyContent: 'center',
+  },
+  
+  statsSection: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    minWidth: 80,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  
   statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '800',
     color: 'white',
+    textAlign: 'center',
+    letterSpacing: -0.5,
   },
   statLabel: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  cardInfo: {
-    marginTop: 'auto',
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: 4,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '700',
     color: 'white',
-    marginBottom: 4,
+    marginBottom: 6,
+    letterSpacing: -0.3,
+    lineHeight: 24,
   },
   cardSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.85)',
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  timestamp: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: 8,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 16,
   },
 });

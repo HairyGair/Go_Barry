@@ -1,0 +1,342 @@
+// CLEAN supervisorAPI.js - Version 2025-07-27-FINAL
+// This file has NO duplicate declarations - if you see duplicates, the wrong file is being loaded!
+import express from 'express';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Enhanced supervisor logging imports
+import {
+  enhancedSupervisorAuth,
+  enhancedSupervisorLogout,
+  enhancedAlertDismissal,
+  enhancedRoadworkAction,
+  enhancedIncidentCreation,
+  enhancedCommunicationLogging,
+  enhancedAdminAction,
+  logScreenNavigation,
+  logSettingsUpdate,
+  logDataAccess,
+  getSupervisorFromSession
+} from '../patches/supervisorLoggingIntegration.js';
+
+const router = express.Router();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Helper function to get supervisor data file path
+const getSupervisorDataPath = () => {
+  return path.join(__dirname, '../data/supervisor_sessions.json');
+};
+
+// Helper function to read supervisor data
+const readSupervisorData = () => {
+  try {
+    const dataPath = getSupervisorDataPath();
+    if (!fs.existsSync(dataPath)) {
+      return {};
+    }
+    const data = fs.readFileSync(dataPath, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error reading supervisor data:', error);
+    return {};
+  }
+};
+
+// Helper function to write supervisor data
+const writeSupervisorData = (data) => {
+  try {
+    const dataPath = getSupervisorDataPath();
+    fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error writing supervisor data:', error);
+    return false;
+  }
+};
+
+// Helper function to log supervisor activity
+const logSupervisorActivity = (badge, action, details = {}) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[SUPERVISOR-CLEAN] ${timestamp} - ${badge}: ${action}`, details);
+};
+
+// GET /api/supervisor/:badge - Get supervisor information
+router.get('/:badge', (req, res) => {
+  try {
+    const { badge } = req.params;
+    const supervisorData = readSupervisorData();
+    const supervisorRecord = supervisorData[badge]; // Using different variable name to avoid conflicts
+
+    if (!supervisorRecord) {
+      logSupervisorActivity(badge, 'INFO_REQUEST_NOT_FOUND');
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Supervisor not found' 
+      });
+    }
+
+    logSupervisorActivity(badge, 'INFO_REQUEST_SUCCESS');
+    res.json({
+      success: true,
+      supervisor: supervisorRecord
+    });
+  } catch (error) {
+    console.error('Error getting supervisor info:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error' 
+    });
+  }
+});
+
+// POST /api/supervisor/login - Supervisor login
+router.post('/login', (req, res) => {
+  try {
+    const { badge } = req.body;
+
+    if (!badge) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Badge number is required' 
+      });
+    }
+
+    const supervisorData = readSupervisorData();
+    const sessionId = `session_${badge}_${Date.now()}`;
+    const newSupervisorRecord = {
+      badge,
+      sessionId,
+      loginTime: new Date().toISOString(),
+      isActive: true,
+      lastActivity: new Date().toISOString()
+    };
+
+    supervisorData[badge] = newSupervisorRecord;
+    
+    if (writeSupervisorData(supervisorData)) {
+      logSupervisorActivity(badge, 'LOGIN_SUCCESS');
+      res.json({
+        success: true,
+        message: 'Login successful',
+        supervisor: newSupervisorRecord,
+        sessionId
+      });
+    } else {
+      throw new Error('Failed to save supervisor data');
+    }
+  } catch (error) {
+    console.error('Error during supervisor login:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Login failed' 
+    });
+  }
+});
+
+// POST /api/supervisor/logout - Supervisor logout
+router.post('/logout', (req, res) => {
+  try {
+    const { badge } = req.body;
+
+    if (!badge) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Badge number is required' 
+      });
+    }
+
+    const supervisorData = readSupervisorData();
+    const supervisorRecord = supervisorData[badge];
+
+    if (supervisorRecord) {
+      supervisorRecord.isActive = false;
+      supervisorRecord.logoutTime = new Date().toISOString();
+      supervisorRecord.lastActivity = new Date().toISOString();
+
+      supervisorData[badge] = supervisorRecord;
+      
+      if (writeSupervisorData(supervisorData)) {
+        logSupervisorActivity(badge, 'LOGOUT_SUCCESS');
+        res.json({
+          success: true,
+          message: 'Logout successful'
+        });
+      } else {
+        throw new Error('Failed to save supervisor data');
+      }
+    } else {
+      logSupervisorActivity(badge, 'LOGOUT_NOT_FOUND');
+      res.status(404).json({ 
+        success: false, 
+        message: 'Supervisor session not found' 
+      });
+    }
+  } catch (error) {
+    console.error('Error during supervisor logout:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Logout failed' 
+    });
+  }
+});
+
+// POST /api/supervisor/heartbeat - Update supervisor activity
+router.post('/heartbeat', (req, res) => {
+  try {
+    const { badge } = req.body;
+
+    if (!badge) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Badge number is required' 
+      });
+    }
+
+    const supervisorData = readSupervisorData();
+    const supervisorRecord = supervisorData[badge];
+
+    if (supervisorRecord && supervisorRecord.isActive) {
+      supervisorRecord.lastActivity = new Date().toISOString();
+      supervisorData[badge] = supervisorRecord;
+      
+      if (writeSupervisorData(supervisorData)) {
+        res.json({
+          success: true,
+          supervisor: supervisorRecord
+        });
+      } else {
+        throw new Error('Failed to save supervisor data');
+      }
+    } else {
+      logSupervisorActivity(badge, 'HEARTBEAT_INACTIVE_SESSION');
+      res.status(401).json({ 
+        success: false, 
+        message: 'Supervisor session not active' 
+      });
+    }
+  } catch (error) {
+    console.error('Error updating supervisor heartbeat:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Heartbeat update failed' 
+    });
+  }
+});
+
+// GET /api/supervisor/active - Get all active supervisors
+router.get('/active/list', async (req, res) => {
+  try {
+    const supervisorData = readSupervisorData();
+    const activeSupervisors = Object.values(supervisorData)
+      .filter(supervisor => supervisor.isActive)
+      .map(supervisor => ({
+        badge: supervisor.badge,
+        loginTime: supervisor.loginTime,
+        lastActivity: supervisor.lastActivity
+      }));
+
+    logSupervisorActivity('SYSTEM', 'ACTIVE_LIST_REQUEST', { count: activeSupervisors.length });
+    res.json({
+      success: true,
+      supervisors: activeSupervisors,
+      count: activeSupervisors.length
+    });
+    
+    // Log screen navigation
+    const supervisorInfo = await getSupervisorFromSession(req.query?.sessionId);
+    if (supervisorInfo) {
+      await logScreenNavigation(supervisorInfo, '/api/supervisor/active', {}, req);
+    }
+    
+    
+  } catch (error) {
+    console.error('Error getting active supervisors:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to get active supervisors' 
+    });
+  }
+});
+
+// POST /api/supervisor/state - Update supervisor state
+router.post('/state', (req, res) => {
+  try {
+    const { badge, state } = req.body;
+
+    if (!badge) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Badge number is required' 
+      });
+    }
+
+    const supervisorData = readSupervisorData();
+    const supervisorRecord = supervisorData[badge];
+
+    if (supervisorRecord && supervisorRecord.isActive) {
+      supervisorRecord.state = state;
+      supervisorRecord.lastActivity = new Date().toISOString();
+      supervisorData[badge] = supervisorRecord;
+      
+      if (writeSupervisorData(supervisorData)) {
+        logSupervisorActivity(badge, 'STATE_UPDATE', { state });
+        res.json({
+          success: true,
+          supervisor: supervisorRecord
+        });
+      } else {
+        throw new Error('Failed to save supervisor data');
+      }
+    } else {
+      logSupervisorActivity(badge, 'STATE_UPDATE_INACTIVE_SESSION');
+      res.status(401).json({ 
+        success: false, 
+        message: 'Supervisor session not active' 
+      });
+    }
+  } catch (error) {
+    console.error('Error updating supervisor state:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'State update failed' 
+    });
+  }
+});
+
+// GET /api/supervisor/health - Health check endpoint
+router.get('/health/status', async (req, res) => {
+  try {
+    const supervisorData = readSupervisorData();
+    const totalSupervisors = Object.keys(supervisorData).length;
+    const activeSupervisors = Object.values(supervisorData)
+      .filter(supervisor => supervisor.isActive).length;
+
+    res.json({
+      success: true,
+      status: 'healthy',
+      version: 'CLEAN-2025-07-27-FINAL', // Unique identifier
+      stats: {
+        totalSupervisors,
+        activeSupervisors
+      }
+    });
+    
+    // Log screen navigation
+    const supervisorInfo = await getSupervisorFromSession(req.query?.sessionId);
+    if (supervisorInfo) {
+      await logScreenNavigation(supervisorInfo, '/api/supervisor/active', {}, req);
+    }
+    
+    
+  } catch (error) {
+    console.error('Error getting supervisor health status:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Health check failed' 
+    });
+  }
+});
+
+export default router;

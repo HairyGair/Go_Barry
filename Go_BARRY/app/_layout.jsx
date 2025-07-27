@@ -8,7 +8,11 @@ export default function RootLayout() {
   return (
     <ConvexProvider client={convex}>
       <SupervisorProvider>
-        <Stack />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+          }}
+        />
       </SupervisorProvider>
     </ConvexProvider>
   );

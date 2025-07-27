@@ -4,7 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import TomTomTrafficMap from './TomTomTrafficMap';
-import { useConvexSync } from '../hooks/useConvexSync';
+import { useConvexSyncSimple } from '../hooks/useConvexSyncSimple';
 import { formatTime24WithSeconds, formatDateWithWeekday } from '../utils/dateTime';
 // LateRunnersWidget removed during cleanup
 import WeatherWidget from './display/WeatherWidget';
@@ -20,8 +20,8 @@ const DisplayScreen = () => {
   const [weatherAlerts, setWeatherAlerts] = useState([]);
   const weatherLocations = ['Newcastle', 'Gateshead', 'Sunderland', 'Durham', 'Consett', 'Stanley'];
 
-  // Use Convex for real-time sync
-  const convexData = useConvexSync();
+  // Use enhanced Convex for real-time sync
+  const convexData = useConvexSyncSimple();
   
   // Get display messages from Convex
   const displayMessages = convexData?.customMessages || [];
@@ -240,7 +240,7 @@ const DisplayScreen = () => {
           display: 'flex',
           alignItems: 'center',
           gap: '20px',
-          fontSize: '32px',
+          fontSize: '36px',
           fontWeight: 'bold'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -265,12 +265,12 @@ const DisplayScreen = () => {
           {queueStatus && (queueStatus.totalMessages > 0) && (
             <div style={{
               backgroundColor: '#1a1a1a',
-              padding: '10px 15px',
+              padding: '12px 18px',
               borderRadius: '8px',
-              fontSize: '18px',
+              fontSize: '20px',
               border: '2px solid #333'
             }}>
-              <div style={{ color: '#999', fontSize: '14px' }}>MESSAGE QUEUE</div>
+              <div style={{ color: '#999', fontSize: '16px' }}>MESSAGE QUEUE</div>
               <div style={{ display: 'flex', gap: '10px', marginTop: '2px' }}>
                 <span style={{ color: '#DC2626' }}>P0: {queueStatus.byPriority?.P0 || 0}</span>
                 <span style={{ color: '#F59E0B' }}>P1: {queueStatus.byPriority?.P1 || 0}</span>
@@ -284,12 +284,12 @@ const DisplayScreen = () => {
           {displayIncidents && displayIncidents.length > 0 && (
             <div style={{
               backgroundColor: '#1a1a1a',
-              padding: '10px 15px',
+              padding: '12px 18px',
               borderRadius: '8px',
-              fontSize: '18px',
+              fontSize: '20px',
               border: '2px solid #DC2626'
             }}>
-              <div style={{ color: '#DC2626', fontSize: '14px', fontWeight: 'bold' }}>ACTIVE INCIDENTS</div>
+              <div style={{ color: '#DC2626', fontSize: '16px', fontWeight: 'bold' }}>ACTIVE INCIDENTS</div>
               <div style={{ display: 'flex', gap: '15px', alignItems: 'center', marginTop: '2px' }}>
                 <span style={{ color: '#DC2626', fontSize: '24px', fontWeight: 'bold' }}>
                   🚨 {displayIncidents.length}
@@ -302,32 +302,26 @@ const DisplayScreen = () => {
           )}
         </div>
 
-        {/* Major Event Alert */}
-        {mostSevereEvent && (
-          <div style={{
-            backgroundColor: mostSevereEvent.severity === 'CRITICAL' ? '#DC2626' : '#F59E0B',
-            padding: '10px 20px',
-            borderRadius: '8px',
-            animation: 'pulse 2s infinite',
-            fontSize: '24px',
-            fontWeight: 'bold'
-          }}>
-            🏟️ {mostSevereEvent.venue}: {mostSevereEvent.event} - {mostSevereEvent.time}
-          </div>
-        )}
+        {/* Emergency Alerts Section */}
+        <EmergencyAlertsSection 
+          alerts={activeMessages.filter(msg => msg.priority === 0)} // P0 Emergency
+          incidents={displayIncidents.filter(inc => inc.severity === 'critical')}
+          mostSevereEvent={mostSevereEvent}
+        />
 
         {/* Time Display */}
         <div style={{ textAlign: 'center' }}>
           <div style={{
-            fontSize: '48px',
+            fontSize: '56px',
             fontWeight: '300',
             fontFamily: 'monospace',
-            letterSpacing: '-1px'
+            letterSpacing: '-1px',
+            textShadow: '1px 1px 2px rgba(0,0,0,0.3)'
           }}>
             {formatTime24WithSeconds(currentTime)}
           </div>
           <div style={{
-            fontSize: '18px',
+            fontSize: '20px',
             color: '#999999',
             marginTop: '-5px'
           }}>
@@ -389,11 +383,12 @@ const DisplayScreen = () => {
               </div>
 
               <h1 style={{
-                fontSize: '60px',
+                fontSize: '72px',
                 fontWeight: 'bold',
-                margin: '0 0 15px 0',
+                margin: '0 0 20px 0',
                 lineHeight: '1.1',
-                color: '#ffffff'
+                color: '#ffffff',
+                textShadow: '2px 2px 4px rgba(0,0,0,0.5)'
               }}>
                 {currentMessage.content}
               </h1>
@@ -439,10 +434,10 @@ const DisplayScreen = () => {
               boxShadow: '0 0 20px rgba(16, 185, 129, 0.3)'
             }}>
               <div style={{ fontSize: '60px', marginBottom: '20px' }}>✅</div>
-              <h1 style={{ fontSize: '48px', color: '#10b981', margin: 0 }}>
+              <h1 style={{ fontSize: '64px', color: '#10b981', margin: 0, textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>
                 ALL CLEAR
               </h1>
-              <p style={{ fontSize: '28px', color: '#666666', marginTop: '15px' }}>
+              <p style={{ fontSize: '32px', color: '#666666', marginTop: '20px' }}>
                 No priority messages in queue
               </p>
             </div>
@@ -486,6 +481,19 @@ const DisplayScreen = () => {
           flexDirection: 'column',
           gap: '15px'
         }}>
+          {/* Service Status Overview */}
+          <ServiceStatusPanel 
+            operationalStats={convexData.operationalStats}
+            servicePerformance={convexData.servicePerformance}
+            isConnected={convexData.isConnected}
+          />
+
+          {/* Regional Status Panel */}
+          <RegionalStatusPanel 
+            regionalStatus={convexData.regionalStatus}
+            activeSupervisors={activeSupervisors}
+          />
+
           {/* Handover Status (if recent handovers) */}
           {hasRecentHandovers && (
             <HandoverStatusWidget recentHandovers={recentHandovers} />
@@ -864,6 +872,400 @@ const HandoverStatusWidget = ({ recentHandovers }) => {
           textAlign: 'center'
         }}>
           Handover {handoverIndex + 1} of {recentHandovers.length}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Service Status Panel Component
+const ServiceStatusPanel = ({ operationalStats, servicePerformance, isConnected }) => {
+  const getStatusColor = (performance) => {
+    if (performance >= 95) return '#10B981'; // Green
+    if (performance >= 90) return '#F59E0B'; // Orange
+    return '#DC2626'; // Red
+  };
+
+  const getStatusText = (performance) => {
+    if (performance >= 95) return 'EXCELLENT';
+    if (performance >= 90) return 'GOOD';
+    if (performance >= 85) return 'FAIR';
+    return 'POOR';
+  };
+
+  return (
+    <div style={{
+      backgroundColor: '#1a1a1a',
+      borderRadius: '12px',
+      border: `3px solid ${isConnected ? '#10B981' : '#DC2626'}`,
+      overflow: 'hidden'
+    }}>
+      {/* Header */}
+      <div style={{
+        backgroundColor: '#2a2a2a',
+        padding: '15px 20px',
+        borderBottom: '2px solid #333'
+      }}>
+        <h3 style={{
+          margin: 0,
+          fontSize: '24px',
+          color: '#ffffff',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px'
+        }}>
+          🚌 SERVICE STATUS
+          <span style={{
+            fontSize: '12px',
+            color: isConnected ? '#10B981' : '#DC2626',
+            backgroundColor: isConnected ? '#1a2e1a' : '#2e1a1a',
+            padding: '4px 8px',
+            borderRadius: '8px'
+          }}>
+            {isConnected ? 'LIVE' : 'OFFLINE'}
+          </span>
+        </h3>
+      </div>
+
+      {/* Stats Grid */}
+      <div style={{
+        padding: '15px 20px',
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '15px'
+      }}>
+        {/* Operating Routes */}
+        <div style={{
+          textAlign: 'center',
+          padding: '10px',
+          backgroundColor: '#2a2a2a',
+          borderRadius: '8px'
+        }}>
+          <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#10B981' }}>
+            {operationalStats.operatingRoutes}
+          </div>
+          <div style={{ fontSize: '14px', color: '#999' }}>
+            / {operationalStats.totalRoutes} ROUTES
+          </div>
+        </div>
+
+        {/* On-Time Performance */}
+        <div style={{
+          textAlign: 'center',
+          padding: '10px',
+          backgroundColor: '#2a2a2a',
+          borderRadius: '8px'
+        }}>
+          <div style={{ 
+            fontSize: '32px', 
+            fontWeight: 'bold', 
+            color: getStatusColor(operationalStats.onTimePerformance) 
+          }}>
+            {operationalStats.onTimePerformance}%
+          </div>
+          <div style={{ fontSize: '14px', color: '#999' }}>
+            ON TIME
+          </div>
+        </div>
+
+        {/* Average Delay */}
+        <div style={{
+          textAlign: 'center',
+          padding: '10px',
+          backgroundColor: '#2a2a2a',
+          borderRadius: '8px'
+        }}>
+          <div style={{ 
+            fontSize: '32px', 
+            fontWeight: 'bold', 
+            color: operationalStats.averageDelay > 5 ? '#DC2626' : '#10B981' 
+          }}>
+            {operationalStats.averageDelay}m
+          </div>
+          <div style={{ fontSize: '14px', color: '#999' }}>
+            AVG DELAY
+          </div>
+        </div>
+
+        {/* Active Incidents */}
+        <div style={{
+          textAlign: 'center',
+          padding: '10px',
+          backgroundColor: '#2a2a2a',
+          borderRadius: '8px'
+        }}>
+          <div style={{ 
+            fontSize: '32px', 
+            fontWeight: 'bold', 
+            color: operationalStats.activeIncidents > 5 ? '#DC2626' : '#10B981' 
+          }}>
+            {operationalStats.activeIncidents}
+          </div>
+          <div style={{ fontSize: '14px', color: '#999' }}>
+            INCIDENTS
+          </div>
+        </div>
+      </div>
+
+      {/* Performance Status */}
+      <div style={{
+        padding: '15px 20px',
+        borderTop: '1px solid #333',
+        textAlign: 'center'
+      }}>
+        <div style={{
+          fontSize: '16px',
+          fontWeight: 'bold',
+          color: getStatusColor(operationalStats.onTimePerformance),
+          backgroundColor: `${getStatusColor(operationalStats.onTimePerformance)}20`,
+          padding: '8px 16px',
+          borderRadius: '20px',
+          display: 'inline-block'
+        }}>
+          NETWORK STATUS: {getStatusText(operationalStats.onTimePerformance)}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Regional Status Panel Component
+const RegionalStatusPanel = ({ regionalStatus, activeSupervisors }) => {
+  const getRegionStatusColor = (status) => {
+    switch (status) {
+      case 'good': return '#10B981';
+      case 'warning': return '#F59E0B';
+      case 'critical': return '#DC2626';
+      default: return '#6B7280';
+    }
+  };
+
+  const getRegionIcon = (regionKey) => {
+    const icons = {
+      newcastle: '🏰',
+      gateshead: '🌉',
+      sunderland: '⚽',
+      durham: '🏛️',
+      northTyneside: '🚢',
+      northumberland: '🏔️'
+    };
+    return icons[regionKey] || '📍';
+  };
+
+  const getRegionName = (regionKey) => {
+    const names = {
+      newcastle: 'Newcastle',
+      gateshead: 'Gateshead',
+      sunderland: 'Sunderland',
+      durham: 'Durham',
+      northTyneside: 'N. Tyneside',
+      northumberland: 'Northumberland'
+    };
+    return names[regionKey] || regionKey;
+  };
+
+  return (
+    <div style={{
+      backgroundColor: '#1a1a1a',
+      borderRadius: '12px',
+      border: '3px solid #333333',
+      overflow: 'hidden'
+    }}>
+      {/* Header */}
+      <div style={{
+        backgroundColor: '#2a2a2a',
+        padding: '15px 20px',
+        borderBottom: '2px solid #333'
+      }}>
+        <h3 style={{
+          margin: 0,
+          fontSize: '20px',
+          color: '#ffffff',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px'
+        }}>
+          🗺️ REGIONAL STATUS
+          <span style={{
+            fontSize: '12px',
+            color: '#10B981',
+            backgroundColor: '#1a2e1a',
+            padding: '4px 8px',
+            borderRadius: '8px'
+          }}>
+            6 REGIONS
+          </span>
+        </h3>
+      </div>
+
+      {/* Regional Grid */}
+      <div style={{
+        padding: '15px 20px',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(2, 1fr)',
+        gap: '12px'
+      }}>
+        {Object.entries(regionalStatus).map(([regionKey, region]) => (
+          <div key={regionKey} style={{
+            backgroundColor: '#2a2a2a',
+            borderRadius: '8px',
+            padding: '12px',
+            border: `2px solid ${getRegionStatusColor(region.status)}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span style={{ fontSize: '20px' }}>
+              {getRegionIcon(regionKey)}
+            </span>
+            <div style={{ flex: 1 }}>
+              <div style={{
+                fontSize: '14px',
+                fontWeight: 'bold',
+                color: '#ffffff'
+              }}>
+                {getRegionName(regionKey)}
+              </div>
+              <div style={{
+                fontSize: '12px',
+                color: getRegionStatusColor(region.status),
+                display: 'flex',
+                justifyContent: 'space-between'
+              }}>
+                <span>{region.performance}%</span>
+                <span>{region.incidents} inc</span>
+              </div>
+            </div>
+            <div style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              backgroundColor: getRegionStatusColor(region.status)
+            }} />
+          </div>
+        ))}
+      </div>
+
+      {/* Overall Summary */}
+      <div style={{
+        padding: '15px 20px',
+        borderTop: '1px solid #333',
+        fontSize: '14px',
+        color: '#999',
+        textAlign: 'center'
+      }}>
+        {activeSupervisors.length} supervisors monitoring • Last updated: {new Date().toLocaleTimeString()}
+      </div>
+    </div>
+  );
+};
+
+// Emergency Alerts Section Component
+const EmergencyAlertsSection = ({ alerts = [], incidents = [], mostSevereEvent }) => {
+  const [currentAlertIndex, setCurrentAlertIndex] = useState(0);
+
+  // Combine all emergency items
+  const emergencyItems = [
+    ...alerts.map(alert => ({ type: 'message', data: alert })),
+    ...incidents.map(incident => ({ type: 'incident', data: incident })),
+    ...(mostSevereEvent ? [{ type: 'event', data: mostSevereEvent }] : [])
+  ];
+
+  // Rotate through emergency items
+  useEffect(() => {
+    if (emergencyItems.length <= 1) return;
+    
+    const interval = setInterval(() => {
+      setCurrentAlertIndex((prev) => (prev + 1) % emergencyItems.length);
+    }, 8000); // Change every 8 seconds
+    
+    return () => clearInterval(interval);
+  }, [emergencyItems.length]);
+
+  if (emergencyItems.length === 0) return null;
+
+  const currentItem = emergencyItems[currentAlertIndex];
+  
+  const getEmergencyColor = (item) => {
+    switch (item.type) {
+      case 'message': return '#DC2626'; // Red for P0 messages
+      case 'incident': return '#DC2626'; // Red for critical incidents
+      case 'event': return item.data.severity === 'CRITICAL' ? '#DC2626' : '#F59E0B'; // Red/Orange for events
+      default: return '#DC2626';
+    }
+  };
+
+  const getEmergencyIcon = (item) => {
+    switch (item.type) {
+      case 'message': return '🚨';
+      case 'incident': return '⚠️';
+      case 'event': return '🏟️';
+      default: return '🚨';
+    }
+  };
+
+  const getEmergencyText = (item) => {
+    switch (item.type) {
+      case 'message':
+        return `${item.data.content}`;
+      case 'incident':
+        return `${item.data.incidentType?.toUpperCase() || 'INCIDENT'}: ${item.data.description}`;
+      case 'event':
+        return `${item.data.venue}: ${item.data.event} - ${item.data.time}`;
+      default:
+        return 'Emergency Alert';
+    }
+  };
+
+  const getEmergencyLabel = (item) => {
+    switch (item.type) {
+      case 'message': return 'EMERGENCY MESSAGE';
+      case 'incident': return 'CRITICAL INCIDENT';
+      case 'event': return 'MAJOR EVENT';
+      default: return 'EMERGENCY';
+    }
+  };
+
+  return (
+    <div style={{
+      backgroundColor: getEmergencyColor(currentItem),
+      padding: '12px 20px',
+      borderRadius: '8px',
+      animation: 'pulse 2s infinite',
+      fontSize: '20px',
+      fontWeight: 'bold',
+      color: '#ffffff',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px',
+      maxWidth: '600px',
+      boxShadow: '0 4px 12px rgba(220, 38, 38, 0.4)'
+    }}>
+      <span style={{ fontSize: '28px' }}>
+        {getEmergencyIcon(currentItem)}
+      </span>
+      <div style={{ flex: 1 }}>
+        <div style={{
+          fontSize: '12px',
+          opacity: 0.9,
+          marginBottom: '2px',
+          letterSpacing: '1px'
+        }}>
+          {getEmergencyLabel(currentItem)}
+        </div>
+        <div style={{ fontSize: '18px' }}>
+          {getEmergencyText(currentItem)}
+        </div>
+      </div>
+      {emergencyItems.length > 1 && (
+        <div style={{
+          fontSize: '12px',
+          opacity: 0.8,
+          backgroundColor: 'rgba(255,255,255,0.2)',
+          padding: '4px 8px',
+          borderRadius: '12px'
+        }}>
+          {currentAlertIndex + 1}/{emergencyItems.length}
         </div>
       )}
     </div>

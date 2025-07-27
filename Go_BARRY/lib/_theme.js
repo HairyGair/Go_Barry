@@ -12,16 +12,16 @@ export const operationsTheme = {
     headerBg: '#1a1a2e',          // Dark header
     cardBg: 'white',              // White cards
     
-    // Brand colors for gradient cards
+    // Brand colors for gradient cards - Modern, friendly palette
     gradients: {
-      dutyBoards: '#667eea',      // Purple
-      onTimeRequest: '#0ea5e9',   // Sky blue for SharePoint integration
-      dailyLostMileage: '#dc2626', // Red for lost mileage reports
-      incidents: '#fa709a',       // Pink
-      roadworks: '#f093fb',       // Light purple
-      disruptions: '#30cfd0',     // Cyan
-      statistics: '#3b82f6', // Blue
-      liveMap: '#ff9a9e',         // Light red
+      dutyBoards: ['#6366f1', '#8b5cf6'],      // Indigo to purple - friendly professional
+      onTimeRequest: ['#0ea5e9', '#06b6d4'],   // Sky blue to cyan - calm efficiency
+      dailyLostMileage: ['#f59e0b', '#f97316'], // Amber to orange - warm attention
+      incidents: ['#ec4899', '#f472b6'],       // Pink to lighter pink - soft urgency
+      roadworks: ['#8b5cf6', '#a855f7'],       // Purple gradient - calm authority
+      disruptions: ['#10b981', '#34d399'],     // Emerald gradient - positive action
+      statistics: ['#3b82f6', '#6366f1'],      // Blue to indigo - trustworthy data
+      liveMap: ['#06b6d4', '#0891b2'],         // Cyan gradient - fresh activity
     },
     
     // Status colors

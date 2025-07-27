@@ -3,7 +3,7 @@
 // Production-ready automatic supervisor logging activation for Go BARRY
 
 import enhancedSupervisorActivityService from '../services/enhancedSupervisorActivityService.js';
-import { integrateSupervisorLogging } from '../scripts/integrateSupervisorLogging.js';
+// import { integrateSupervisorLogging } from '../scripts/integrateSupervisorLogging.js'; // Disabled to prevent duplicates
 import supervisorLoggingFallback from './supervisorLoggingFallback.js';
 import supervisorLoggingPerformanceMonitor from './supervisorLoggingPerformance.js';
 
@@ -134,17 +134,9 @@ class ProductionSupervisorLoggingManager {
           console.log(`⚙️ Updated batch timeout to ${this.config.batchTimeout}ms`);
         }
 
-        // Step 3: Run integration script (with error handling)
-        try {
-          await integrateSupervisorLogging();
-          console.log('✅ Supervisor logging integration completed successfully');
-        } catch (integrationError) {
-          if (this.config.gracefulDegradation) {
-            console.warn('⚠️ Integration script failed, continuing with basic logging:', integrationError.message);
-          } else {
-            throw integrationError;
-          }
-        }
+        // Step 3: Skip integration script to prevent duplicates
+        console.log('ℹ️ Skipping supervisor logging integration to prevent duplicate code injection');
+        console.log('🔧 Manual integration has been applied to prevent SyntaxError from duplicate declarations');
 
         // Step 4: Initialize performance monitoring
         if (this.config.performanceMonitoring) {

@@ -155,9 +155,9 @@ const DisruptionDatabase = ({ baseUrl, onBack }) => {
       // Fetch ONLY control room-created disruptions (NOT StreetManager webhook data)
       // StreetManager webhook data is handled separately in the Roadworks Manager for proactive planning
       const [roadworksResponse] = await Promise.all([
-        fetch(`${apiBaseUrl}/api/roadworks/control-room-only`).catch(() => 
-          // Fallback to regular roadworks but filter out StreetManager sources
-          fetch(`${apiBaseUrl}/api/roadworks`).catch(() => ({ json: () => ({ success: false, roadworks: [] }) }))
+        fetch(`${apiBaseUrl}/api/roadworks/unified?source=manual&limit=1000`).catch(() => 
+          // Fallback to all roadworks but we'll filter out StreetManager sources below
+          fetch(`${apiBaseUrl}/api/roadworks/unified?limit=1000`).catch(() => ({ json: () => ({ success: false, roadworks: [] }) }))
         )
       ]);
 

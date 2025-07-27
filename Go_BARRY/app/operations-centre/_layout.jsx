@@ -25,7 +25,7 @@ export default function OperationsCentreLayout() {
         <Stack.Screen 
           name="index" 
           options={{ 
-            title: 'Operations Centre',
+            headerShown: false,
             animation: 'slide_from_right',
           }} 
         />

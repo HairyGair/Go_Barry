@@ -168,14 +168,7 @@ export default function SharePointTest() {
     <>
       <Stack.Screen
         options={{
-          title: 'SharePoint Integration Test',
-          headerStyle: {
-            backgroundColor: '#1a1a2e',
-          },
-          headerTintColor: '#fff',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
+          headerShown: false,
         }}
       />
       

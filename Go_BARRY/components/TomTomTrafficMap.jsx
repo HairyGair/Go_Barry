@@ -27,17 +27,18 @@ const TomTomTrafficMap = ({
   alerts.forEach((alert, i) => {
     console.log(`🗺️ Alert ${i}: ${alert.id}, coords: ${alert.coordinates}`);
   });
-  // Use callback ref to ensure we get the container element
+  // Simplified state management
   const [containerElement, setContainerElement] = useState(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [mapError, setMapError] = useState(null);
-  const [debugInfo, setDebugInfo] = useState('Starting initialization...');
+  const [debugInfo, setDebugInfo] = useState('Initializing map...');
+  const [mapInstance, setMapInstance] = useState(null);
 
   const mapContainerCallback = (element) => {
-    console.log('🔗 Callback ref called with element:', element);
-    if (element) {
+    console.log('🔗 Map container ref called with element:', element);
+    if (element && !containerElement) {
       setContainerElement(element);
-      setDebugInfo('Container element captured!');
+      setDebugInfo('Container ready, loading map...');
     }
   };
 
@@ -181,7 +182,8 @@ const TomTomTrafficMap = ({
         map.on('load', () => {
           console.log('✅ TomTom map loaded successfully');
           setMapLoaded(true);
-          setDebugInfo('Adding TomTom traffic layer...');
+          setMapInstance(map);
+          setDebugInfo('TomTom map loaded with traffic!');
           
           // Add TomTom traffic layer directly
           try {
@@ -201,23 +203,33 @@ const TomTomTrafficMap = ({
             });
             
             console.log('✅ TomTom traffic layer added');
-            setDebugInfo('TomTom map with live traffic loaded!');
           } catch (trafficError) {
-            console.warn('⚠️ Traffic layer failed:', trafficError);
-            setDebugInfo('TomTom map loaded (base tiles only)');
+            console.warn('⚠️ Traffic layer failed, continuing with base map:', trafficError);
           }
           
           // Add alerts as markers
-          addAlerts(map, maplibregl);
+          try {
+            addAlerts(map, maplibregl);
+          } catch (alertError) {
+            console.warn('⚠️ Alert markers failed:', alertError);
+          }
           
           // Add roadworks zones if enabled
           if (showRoadworks) {
-            addRoadworkZones(map, maplibregl);
+            try {
+              addRoadworkZones(map, maplibregl);
+            } catch (roadworkError) {
+              console.warn('⚠️ Roadwork zones failed:', roadworkError);
+            }
           }
           
           // Add route overlays if enabled
           if (showRouteOverlays && overlayRoutes.length > 0) {
-            addRouteOverlays(map, maplibregl);
+            try {
+              addRouteOverlays(map, maplibregl);
+            } catch (routeError) {
+              console.warn('⚠️ Route overlays failed:', routeError);
+            }
           }
         });
 
@@ -228,7 +240,7 @@ const TomTomTrafficMap = ({
         });
 
         // Store map reference for cleanup
-        containerElement.mapInstance = map;
+        setMapInstance(map);
 
       } catch (error) {
         console.error('❌ Failed to initialize map:', error);
@@ -240,13 +252,26 @@ const TomTomTrafficMap = ({
     // Small delay to ensure DOM is ready
     const timer = setTimeout(initializeMap, 100);
     
+    // Timeout to show error if map doesn't load
+    const loadTimeout = setTimeout(() => {
+      if (!mapLoaded && !mapError) {
+        setMapError('Map loading timeout - check TomTom API key and connection');
+        setDebugInfo('Loading timeout - map initialization failed');
+      }
+    }, 15000); // 15 second timeout
+    
     return () => {
       clearTimeout(timer);
-      if (containerElement?.mapInstance) {
-        containerElement.mapInstance.remove();
+      clearTimeout(loadTimeout);
+      if (mapInstance) {
+        try {
+          mapInstance.remove();
+        } catch (cleanupError) {
+          console.warn('Map cleanup error:', cleanupError);
+        }
       }
     };
-  }, [containerElement]);
+  }, [containerElement, mapLoaded, mapError]);
 
   const addAlerts = (map, maplibregl) => {
     if (!alerts || alerts.length === 0) return;

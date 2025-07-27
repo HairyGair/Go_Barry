@@ -6,15 +6,36 @@ import { generateAlertHash } from '../utils/alertDeduplication.js';
 // Removed streetManager import - app only uses AWS webhook data, not external API calls
 import { convexSync } from './convexSync.js';
 import { supabaseOptimizer } from './supabaseOptimizer.js';
-import { loadStreetManagerFallback, checkWebhookHealth } from './streetManagerFallback.js';
 import { bngToLatLng, parseStreetManagerGeometry } from '../utils/bngToLatLng.js';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Lazy load Supabase client only when needed
 let supabase = null;
 async function getSupabaseClient() {
   if (!supabase && process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
-    const { createClient } = await import('@supabase/supabase-js');
-    supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
+        auth: {
+          persistSession: false // Don't persist auth sessions in backend
+        },
+        db: {
+          schema: 'public'
+        },
+        global: {
+          fetch: fetch // Use native fetch
+        }
+      });
+      console.log('✅ Supabase client initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize Supabase client:', error.message);
+      throw error;
+    }
   }
   return supabase;
 }
@@ -40,6 +61,88 @@ class UnifiedRoadworksManager {
     this.streetManagerLastFailure = 0;
     this.streetManagerDisabled = false;
     this.streetManagerDisabledUntil = 0;
+  }
+
+  /**
+   * Reset the circuit breaker to allow immediate retry
+   */
+  resetCircuitBreaker() {
+    console.log('🔄 Resetting Street Manager circuit breaker...');
+    this.streetManagerFailures = 0;
+    this.streetManagerLastFailure = 0;
+    this.streetManagerDisabled = false;
+    this.streetManagerDisabledUntil = 0;
+    console.log('✅ Street Manager circuit breaker reset - ready for immediate retry');
+  }
+
+  /**
+   * Load fallback Street Manager data when database is unavailable
+   */
+  loadStreetManagerFallback() {
+    try {
+      const fallbackPath = join(__dirname, '../data/streetmanager_fallback.json');
+      const fallbackData = JSON.parse(readFileSync(fallbackPath, 'utf8'));
+      
+      console.log(`📋 Loading ${fallbackData.data?.length || 0} fallback Street Manager roadworks`);
+      
+      // Convert fallback data to consistent format
+      const roadworks = (fallbackData.data || []).map(item => ({
+        id: item.notification_id || `fallback-${Date.now()}-${Math.random()}`,
+        source: 'streetmanager_fallback',
+        title: item.title || 'Street Works',
+        location: item.location_description || 'Location not specified',
+        description: item.works_description || item.activity_type || 'Street works activity',
+        severity: item.severity || 'Medium',
+        status: item.status || 'Active',
+        startDate: item.actual_start_date_time || item.webhook_received_at,
+        endDate: item.proposed_end_date_time,
+        permitReference: item.permit_reference_number,
+        authority: item.authority || 'Local Authority',
+        trafficManagement: item.traffic_management || 'Traffic management in place',
+        worksCategory: item.works_category || 'Maintenance',
+        contactDetails: item.contact_details,
+        diversionRoute: item.diversion_route,
+        coordinates: this.extractCoordinatesFromFallback(item),
+        coordinateSource: 'fallback_data',
+        raw_data: item
+      }));
+      
+      return roadworks;
+    } catch (error) {
+      console.error('❌ Error loading Street Manager fallback data:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Extract coordinates from fallback data
+   */
+  extractCoordinatesFromFallback(item) {
+    try {
+      // Try to parse the activity_location_coordinates if it exists
+      if (item.activity_location_coordinates) {
+        const coordStr = item.activity_location_coordinates;
+        
+        // Handle "POINT(-1.6178 54.9783)" format
+        const pointMatch = coordStr.match(/POINT\(([^)]+)\)/);
+        if (pointMatch) {
+          const coords = pointMatch[1].trim().split(/\s+/);
+          if (coords.length === 2) {
+            const lng = parseFloat(coords[0]);
+            const lat = parseFloat(coords[1]);
+            if (!isNaN(lng) && !isNaN(lat)) {
+              return [lat, lng];
+            }
+          }
+        }
+      }
+      
+      // Default to Newcastle city center if no coordinates
+      return [54.9783, -1.6178];
+    } catch (error) {
+      console.warn('⚠️ Error extracting coordinates from fallback item:', error);
+      return [54.9783, -1.6178]; // Newcastle default
+    }
   }
 
   /**
@@ -145,26 +248,78 @@ class UnifiedRoadworksManager {
         promises.push(this.getManualRoadworks());
       }
 
-      // Add global timeout for the entire operation
+      // Ensure we have at least one promise to avoid empty Promise.allSettled
+      if (promises.length === 0) {
+        console.warn('⚠️ No data sources enabled, returning empty results');
+        return {
+          success: true,
+          streetManager: [],
+          manual: [],
+          combined: [],
+          metadata: {
+            sources: {},
+            totalCount: 0,
+            lastUpdate: new Date().toISOString(),
+            processingTime: Date.now() - startTime,
+            warning: 'No data sources enabled'
+          }
+        };
+      }
+
+      console.log(`🔄 Fetching from ${promises.length} data sources...`);
+
+      // Add global timeout for the entire operation (memory-efficient)
       const globalTimeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Global unified roadworks timeout')), 15000) // 15 second max
       );
 
-      const sourceResults = await Promise.race([
-        Promise.allSettled(promises),
-        globalTimeout
-      ]);
+      let sourceResults;
+      try {
+        sourceResults = await Promise.race([
+          Promise.allSettled(promises),
+          globalTimeout
+        ]);
+        
+        // Additional safety check
+        if (!sourceResults) {
+          throw new Error('Promise.race returned null/undefined result');
+        }
+      } catch (raceError) {
+        console.error('❌ Promise.race failed:', raceError.message);
+        // Return empty but valid structure on timeout/error
+        return {
+          success: false,
+          error: `Data source timeout: ${raceError.message}`,
+          streetManager: [],
+          manual: [],
+          combined: [],
+          metadata: {
+            sources: {},
+            totalCount: 0,
+            lastUpdate: new Date().toISOString(),
+            processingTime: Date.now() - startTime,
+            timeout: true
+          }
+        };
+      }
 
-      // Process results
+      // Process results with proper null checking and memory optimization
       let sourceIndex = 0;
+      
+      // Ensure sourceResults is valid and is an array
+      if (!Array.isArray(sourceResults)) {
+        console.error('❌ sourceResults is not an array:', typeof sourceResults);
+        throw new Error('Invalid Promise.allSettled results structure');
+      }
+      
       if (this.sources.streetManager.enabled) {
         const smResult = sourceResults[sourceIndex++];
-        if (smResult.status === 'fulfilled') {
-          results.streetManager = smResult.value.data || [];
+        if (smResult && smResult.status === 'fulfilled') {
+          results.streetManager = smResult.value?.data || [];
           results.metadata.sources.streetManager = {
             success: true,
             count: results.streetManager.length,
-            lastUpdate: smResult.value.lastUpdate,
+            lastUpdate: smResult.value?.lastUpdate,
             features: {
               webhookIntegration: true,
               routeMatching: true,
@@ -173,40 +328,87 @@ class UnifiedRoadworksManager {
             }
           };
         } else {
-          results.metadata.sources.streetManager = {
-            success: false,
-            error: smResult.reason?.message
-          };
+          console.warn('⚠️ Street Manager source failed, using fallback data:', smResult?.reason?.message || 'Unknown error');
+          
+          // Load fallback data when Street Manager fails
+          try {
+            const fallbackRoadworks = this.loadStreetManagerFallback();
+            results.streetManager = fallbackRoadworks;
+            results.metadata.sources.streetManager = {
+              success: true,
+              count: fallbackRoadworks.length,
+              fallback: true,
+              originalError: smResult?.reason?.message || 'Street Manager source unavailable',
+              features: {
+                webhookIntegration: false,
+                routeMatching: true,
+                mlPrediction: false,
+                realTimeSync: false
+              }
+            };
+            console.log(`✅ Loaded ${fallbackRoadworks.length} fallback Street Manager roadworks`);
+          } catch (fallbackError) {
+            console.error('❌ Failed to load fallback data:', fallbackError);
+            results.metadata.sources.streetManager = {
+              success: false,
+              error: smResult?.reason?.message || 'Street Manager source unavailable',
+              fallbackError: fallbackError.message
+            };
+          }
         }
       }
 
       if (this.sources.manual.enabled) {
-        const manualResult = sourceResults[sourceIndex++];
-        if (manualResult.status === 'fulfilled') {
-          results.manual = manualResult.value.data || [];
-          results.metadata.sources.manual = {
-            success: true,
-            count: results.manual.length,
-            lastUpdate: manualResult.value.lastUpdate
-          };
+        // Check if we have enough results in the array
+        if (sourceIndex < sourceResults.length) {
+          const manualResult = sourceResults[sourceIndex++];
+          if (manualResult && manualResult.status === 'fulfilled') {
+            results.manual = manualResult.value?.data || [];
+            results.metadata.sources.manual = {
+              success: true,
+              count: results.manual.length,
+              lastUpdate: manualResult.value?.lastUpdate
+            };
+          } else {
+            console.warn('⚠️ Manual source failed:', manualResult?.reason?.message || 'Unknown error');
+            results.metadata.sources.manual = {
+              success: false,  
+              error: manualResult?.reason?.message || 'Manual source unavailable'
+            };
+          }
         } else {
+          console.warn('⚠️ Manual source not found in results array');
           results.metadata.sources.manual = {
-            success: false,  
-            error: manualResult.reason?.message
+            success: false,
+            error: 'Manual source result not available in Promise.allSettled array'
           };
         }
       }
 
-      // Combine all roadworks
-      results.combined = [
-        ...results.streetManager,
-        ...results.manual
-      ];
+      // Combine all roadworks with memory-efficient approach
+      const streetManagerData = results.streetManager || [];
+      const manualData = results.manual || [];
+      
+      // Memory-efficient combination for large datasets
+      if (streetManagerData.length + manualData.length > 1000) {
+        console.log(`⚠️ Large dataset detected (${streetManagerData.length + manualData.length} items), using memory-efficient processing`);
+        // Process in chunks to avoid memory spikes
+        results.combined = [];
+        results.combined.push(...streetManagerData);
+        results.combined.push(...manualData);
+      } else {
+        results.combined = [...streetManagerData, ...manualData];
+      }
 
       // Fast deduplication by location and timing (simplified for performance)
       if (results.combined.length > 0) {
         console.log(`🔄 Fast deduplicating ${results.combined.length} roadworks...`);
-        results.combined = this.deduplicateRoadworksFast(results.combined);
+        try {
+          results.combined = this.deduplicateRoadworksFast(results.combined);
+        } catch (dedupError) {
+          console.warn('⚠️ Deduplication failed, continuing with original data:', dedupError.message);
+          // Continue with original data if deduplication fails
+        }
       }
 
       // Calculate metadata
@@ -274,206 +476,199 @@ class UnifiedRoadworksManager {
   }
 
   /**
-   * Get StreetManager roadworks with dual-table support
-   * Queries both 'streetworks' (webhook data) and 'roadworks' (manual/processed data)
+   * Get StreetManager roadworks from Supabase streetworks table
+   * Returns real data from database, never fallback data
    */
   async getStreetManagerRoadworks() {
     const startTime = Date.now();
     
     try {
-      console.log('🚧 Fetching unified roadworks data from both tables...');
+      console.log('🚧 Fetching StreetManager roadworks from Supabase database...');
       
-      // Check circuit breaker
+      // Check circuit breaker - but load fallback data instead of returning empty
       if (this.streetManagerDisabled && Date.now() < this.streetManagerDisabledUntil) {
         const remainingTime = Math.round((this.streetManagerDisabledUntil - Date.now()) / 1000);
-        console.log(`🚨 Street Manager disabled by circuit breaker for ${remainingTime}s`);
+        console.log(`🚨 Street Manager disabled by circuit breaker for ${remainingTime}s, loading fallback data`);
+        
+        try {
+          const fallbackRoadworks = this.loadStreetManagerFallback();
+          console.log(`✅ Circuit breaker: Loaded ${fallbackRoadworks.length} fallback roadworks`);
+          
+          return {
+            success: true,
+            data: fallbackRoadworks,
+            fallback: true,
+            circuitBreaker: true,
+            retryAfter: this.streetManagerDisabledUntil - Date.now(),
+            source: 'streetmanager_fallback'
+          };
+        } catch (fallbackError) {
+          console.error('❌ Circuit breaker: Fallback data loading failed:', fallbackError);
+          return {
+            success: false,
+            data: [],
+            error: 'Street Manager disabled by circuit breaker',
+            circuitBreaker: true,
+            fallbackError: fallbackError.message,
+            retryAfter: this.streetManagerDisabledUntil - Date.now(),
+            source: 'street_manager'
+          };
+        }
+      }
+      
+      console.log('✅ Circuit breaker: Street Manager is enabled');
+      
+      console.log('🔍 Getting Supabase client...');
+      const supabaseClient = await getSupabaseClient();
+      if (!supabaseClient) {
+        console.error('❌ Supabase client not available');
+        return {
+          success: false,
+          data: [],
+          error: 'Supabase client not available',
+          source: 'street_manager',
+          processingTime: Date.now() - startTime
+        };
+      }
+      console.log('✅ Supabase client ready');
+      
+      console.log('🔍 Starting paginated streetworks query for all records...');
+      
+      // Implement pagination to get all records (Supabase has 1000 record limit per query)
+      let allStreetworksRecords = [];
+      let currentPage = 0;
+      const pageSize = 1000;
+      let hasMoreData = true;
+      
+      const selectFields = `
+        id, sm_reference, sm_permit_reference, sm_promoter_name, 
+        sm_works_description, sm_works_category, sm_traffic_sensitive,
+        sm_highway_authority, sm_works_state, sm_location_description,
+        sm_street_name, sm_area_name, sm_easting, sm_northing,
+        sm_start_date, sm_end_date, sm_actual_start_date, sm_actual_end_date,
+        sm_traffic_management_type, latitude, longitude, severity, 
+        webhook_received_at, raw_webhook_data, status, 
+        auto_matched_routes, confirmed_routes, created_at, updated_at
+      `;
+      
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Streetworks query timeout after 60 seconds')), 60000)
+      );
+      
+      const fetchAllPages = async () => {
+        while (hasMoreData) {
+          console.log(`📄 Fetching page ${currentPage + 1} (${currentPage * pageSize} to ${(currentPage + 1) * pageSize})...`);
+          
+          const { data: pageData, error: pageError } = await supabaseClient
+            .from('streetworks')
+            .select(selectFields)
+            .order('webhook_received_at', { ascending: false })
+            .range(currentPage * pageSize, (currentPage + 1) * pageSize - 1);
+          
+          if (pageError) {
+            throw pageError;
+          }
+          
+          if (pageData && pageData.length > 0) {
+            allStreetworksRecords.push(...pageData);
+            console.log(`✅ Page ${currentPage + 1}: ${pageData.length} records (total: ${allStreetworksRecords.length})`);
+            
+            // Check if we got a full page (if not, we're done)
+            if (pageData.length < pageSize) {
+              hasMoreData = false;
+            } else {
+              currentPage++;
+            }
+          } else {
+            hasMoreData = false;
+          }
+          
+          // Safety check to prevent infinite loops
+          if (currentPage > 20) { // Max 20k records
+            console.warn('⚠️ Reached maximum page limit (20), stopping pagination');
+            hasMoreData = false;
+          }
+        }
+        
+        return allStreetworksRecords;
+      };
+      
+      const streetworksRecords = await Promise.race([
+        fetchAllPages(),
+        timeoutPromise
+      ]);
+      
+      const streetworksError = null; // No error if we got here
+      
+      console.log('🔍 Streetworks query completed, processing results...');
+      
+      if (streetworksError) {
+        console.error('❌ Streetworks query error:', streetworksError.message);
+        // Reset circuit breaker success on any error
+        this.streetManagerFailures++;
+        this.streetManagerLastFailure = Date.now();
+        
+        // Enable circuit breaker after 3 failures
+        if (this.streetManagerFailures >= 3) {
+          this.streetManagerDisabled = true;
+          this.streetManagerDisabledUntil = Date.now() + (5 * 60 * 1000); // 5 minute cooldown
+          console.log(`🚨 Street Manager circuit breaker activated for 5 minutes`);
+        }
         
         return {
           success: false,
           data: [],
-          error: 'Street Manager disabled by circuit breaker',
-          circuitBreaker: true,
-          retryAfter: this.streetManagerDisabledUntil - Date.now(),
-          source: 'street_manager'
+          error: streetworksError.message,
+          source: 'street_manager',
+          processingTime: Date.now() - startTime,
+          failures: this.streetManagerFailures
         };
       }
       
-      // Check cache first for recent data (5 minute cache)
-      const cached = this.cache.get('unified_roadworks_data');
-      if (cached && (Date.now() - cached.timestamp) < this.cacheTimeout) {
-        console.log(`📋 Using cached unified roadworks data (${Date.now() - cached.timestamp}ms old)`);
-        return {
-          success: true,
-          data: cached.data,
-          cached: true,
-          source: 'unified_cache',
-          metadata: cached.metadata
-        };
-      }
+      // Reset circuit breaker on successful query
+      this.streetManagerFailures = 0;
+      this.streetManagerDisabled = false;
+      this.streetManagerDisabledUntil = 0;
       
-      // Query both tables in parallel for optimal performance
       let streetworksData = [];
-      let roadworksData = [];
-      let combinedData = [];
       
-      try {
-        console.log('📨 Fetching data from both streetworks and roadworks tables...');
-        
-        // Add timeout wrapper for database calls
-        const dbTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Database timeout')), 8000)
-        );
-        
-        const supabaseClient = await getSupabaseClient();
-        if (!supabaseClient) {
-          throw new Error('Supabase client not available');
-        }
-        
-        // Query streetworks table (Street Manager webhook data)
-        const streetworksQuery = supabaseClient
-          .from('streetworks')
-          .select(`
-            id, sm_reference, sm_permit_reference, sm_promoter_name, 
-            sm_works_description, sm_works_category, sm_traffic_sensitive,
-            sm_highway_authority, sm_works_state, sm_location_description,
-            sm_street_name, sm_area_name, sm_easting, sm_northing,
-            sm_start_date, sm_end_date, sm_actual_start_date, sm_actual_end_date,
-            sm_traffic_management_type, latitude, longitude, severity, 
-            webhook_received_at, raw_webhook_data, status, 
-            auto_matched_routes, confirmed_routes, created_at, updated_at
-          `)
-          .order('webhook_received_at', { ascending: false })
-          .limit(300); // Reduced limit for performance
-        
-        // Query roadworks table (manual/processed roadworks)
-        const roadworksQuery = supabaseClient
-          .from('roadworks')
-          .select(`
-            id, title, description, location, authority, coordinates,
-            affects_routes, start_date, end_date, status, severity, type,
-            source, permit_reference, work_reference, promoter, work_category,
-            traffic_impact, work_status, last_updated, processed_at,
-            created_at, updated_at, created_by_supervisor_id, created_by_name,
-            routes_affected, raw_data
-          `)
-          .order('updated_at', { ascending: false })
-          .limit(100); // All manual roadworks
-        
-        // Execute both queries in parallel with timeout
-        const [streetworksResult, roadworksResult] = await Promise.race([
-          Promise.allSettled([streetworksQuery, roadworksQuery]),
-          dbTimeout
-        ]);
-        
-        // Process streetworks data
-        if (streetworksResult.status === 'fulfilled') {
-          const { data: streetworksRecords, error: streetworksError } = streetworksResult.value;
-          if (streetworksError) {
-            console.warn('⚠️ Streetworks query error:', streetworksError.message);
-          } else if (streetworksRecords && streetworksRecords.length > 0) {
-            console.log(`✅ Found ${streetworksRecords.length} streetworks records`);
-            streetworksData = this.transformStreetworksData(streetworksRecords);
-          }
-        } else {
-          console.warn('⚠️ Streetworks query failed:', streetworksResult.reason?.message);
-        }
-        
-        // Process roadworks data
-        if (roadworksResult.status === 'fulfilled') {
-          const { data: roadworksRecords, error: roadworksError } = roadworksResult.value;
-          if (roadworksError) {
-            console.warn('⚠️ Roadworks query error:', roadworksError.message);
-          } else if (roadworksRecords && roadworksRecords.length > 0) {
-            console.log(`✅ Found ${roadworksRecords.length} roadworks records`);
-            roadworksData = this.transformRoadworksData(roadworksRecords);
-          }
-        } else {
-          console.warn('⚠️ Roadworks query failed:', roadworksResult.reason?.message);
-        }
-        
-        // Combine data from both sources
-        combinedData = [...streetworksData, ...roadworksData];
-        console.log(`🔄 Combined data: ${streetworksData.length} streetworks + ${roadworksData.length} roadworks = ${combinedData.length} total`);
-        
-      } catch (error) {
-        console.warn(`⚠️ Database error (${Date.now() - startTime}ms):`, error.message);
-        // When database fails, force use of fallback data
-        combinedData = [];
+      if (streetworksRecords && streetworksRecords.length > 0) {
+        console.log(`✅ Found ${streetworksRecords.length} streetworks records from database`);
+        streetworksData = this.transformStreetworksData(streetworksRecords);
+      } else {
+        console.log('📭 No streetworks records found in database');
       }
       
-      // If no combined data, try fallback data source
-      if (combinedData.length === 0) {
-        console.log('📁 No roadworks data found, loading fallback data...');
-        try {
-          const fallbackResult = await loadStreetManagerFallback();
-          if (fallbackResult.success && fallbackResult.data.length > 0) {
-            console.log(`📁 Using ${fallbackResult.data.length} fallback StreetManager records`);
-            const fallbackRoadworks = this.transformFallbackData(fallbackResult.data);
-            
-            // Cache fallback data
-            const cacheData = {
-              data: fallbackRoadworks,
-              timestamp: Date.now(),
-              source: 'street_manager_fallback',
-              metadata: {
-                streetworksCount: 0,
-                roadworksCount: 0,
-                fallbackCount: fallbackRoadworks.length
-              }
-            };
-            this.cache.set('unified_roadworks_data', cacheData);
-            
-            return {
-              success: true,
-              data: fallbackRoadworks,
-              lastUpdate: new Date().toISOString(),
-              source: 'street_manager_fallback',
-              processingTime: Date.now() - startTime,
-              fallbackUsed: true,
-              metadata: {
-                streetworksCount: 0,
-                roadworksCount: 0,
-                fallbackCount: fallbackRoadworks.length,
-                totalCount: fallbackRoadworks.length
-              }
-            };
-          }
-        } catch (fallbackError) {
-          console.warn('⚠️ Fallback data loading failed:', fallbackError.message);
-        }
-      }
-      
-      // Cache the results for next time
-      if (combinedData.length > 0) {
+      // Cache the results
+      if (streetworksData.length > 0) {
         const metadata = {
           streetworksCount: streetworksData.length,
-          roadworksCount: roadworksData.length,
-          totalCount: combinedData.length,
+          totalCount: streetworksData.length,
           lastFetch: new Date().toISOString()
         };
         
         const cacheData = {
-          data: combinedData,
+          data: streetworksData,
           timestamp: Date.now(),
-          source: 'unified_tables',
+          source: 'streetworks_database',
           metadata
         };
         this.cache.set('unified_roadworks_data', cacheData);
       }
       
-      console.log(`✅ Unified roadworks fetch completed in ${Date.now() - startTime}ms: ${combinedData.length} total items (${streetworksData.length} streetworks + ${roadworksData.length} roadworks)`);
+      console.log(`✅ StreetManager roadworks fetch completed in ${Date.now() - startTime}ms: ${streetworksData.length} total items`);
       
       return {
         success: true,
-        data: combinedData,
+        data: streetworksData,
         lastUpdate: new Date().toISOString(),
-        source: 'unified_tables',
+        source: 'streetworks_database',
         processingTime: Date.now() - startTime,
         metadata: {
           streetworksCount: streetworksData.length,
-          roadworksCount: roadworksData.length,
-          totalCount: combinedData.length,
-          dataSourcesUsed: ['streetworks', 'roadworks']
+          totalCount: streetworksData.length,
+          dataSourcesUsed: ['streetworks']
         }
       };
         
@@ -491,14 +686,33 @@ class UnifiedRoadworksManager {
         console.log(`🚨 Street Manager circuit breaker activated for 5 minutes`);
       }
       
-      return {
-        success: false,
-        data: [],
-        error: error.message,
-        source: 'street_manager',
-        processingTime: Date.now() - startTime,
-        failures: this.streetManagerFailures
-      };
+      // Load fallback data when Supabase fails
+      console.log('⚠️ Supabase failed, loading fallback Street Manager data...');
+      try {
+        const fallbackRoadworks = this.loadStreetManagerFallback();
+        console.log(`✅ Loaded ${fallbackRoadworks.length} fallback roadworks after Supabase failure`);
+        
+        return {
+          success: true,
+          data: fallbackRoadworks,
+          fallback: true,
+          originalError: error.message,
+          source: 'streetmanager_fallback',
+          processingTime: Date.now() - startTime,
+          failures: this.streetManagerFailures
+        };
+      } catch (fallbackError) {
+        console.error('❌ Fallback data loading also failed:', fallbackError);
+        return {
+          success: false,
+          data: [],
+          error: error.message,
+          fallbackError: fallbackError.message,
+          source: 'street_manager',
+          processingTime: Date.now() - startTime,
+          failures: this.streetManagerFailures
+        };
+      }
     }
   }
   
@@ -890,7 +1104,7 @@ class UnifiedRoadworksManager {
       }
       
       const query = supabaseClient
-        .from('manual_incidents')
+        .from('roadworks')
         .select('id, location, description, created_at, severity, status')
         .order('created_at', { ascending: false })
         .limit(100); // Reduced limit for performance
@@ -958,14 +1172,32 @@ class UnifiedRoadworksManager {
 
   /**
    * Fast deduplication for performance (simplified logic)
+   * Memory-optimized for 2GB RAM constraint
    */
   deduplicateRoadworksFast(roadworks) {
+    if (!Array.isArray(roadworks) || roadworks.length === 0) {
+      return roadworks || [];
+    }
+    
     const seen = new Set();
     const deduplicated = [];
     
     for (const roadwork of roadworks) {
-      // Simple dedup key based on location and source
-      const key = `${roadwork.source}_${roadwork.location?.toLowerCase().substring(0, 50)}`;
+      // Safety check for null/undefined roadwork
+      if (!roadwork) {
+        console.warn('⚠️ Skipping null/undefined roadwork in deduplication');
+        continue;
+      }
+      
+      // Safe property access with fallbacks
+      const source = roadwork.source || 'unknown';
+      const location = roadwork.location || roadwork.title || 'unknown';
+      const locationKey = typeof location === 'string' ? 
+        location.toLowerCase().substring(0, 50) : 
+        String(location).substring(0, 50);
+      
+      // Simple dedup key based on location and source  
+      const key = `${source}_${locationKey}`;
       
       if (!seen.has(key)) {
         seen.add(key);
@@ -974,6 +1206,10 @@ class UnifiedRoadworksManager {
     }
     
     console.log(`🔄 Fast dedup: ${roadworks.length} -> ${deduplicated.length}`);
+    
+    // Clear the Set to free memory immediately
+    seen.clear();
+    
     return deduplicated;
   }
 

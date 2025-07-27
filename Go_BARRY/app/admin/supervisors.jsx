@@ -54,10 +54,45 @@ export default function SupervisorManagement() {
   const [showPermissionTemplates, setShowPermissionTemplates] = useState(false);
   const [activeSessions, setActiveSessions] = useState([]);
 
+  // Helper function to get JWT token
+  const getJWTToken = async () => {
+    let token = supervisorSession?.jwtToken;
+    if (!token && supervisorSession?.supervisor?.badge) {
+      try {
+        const authResponse = await fetch(`${API_BASE}/api/supervisor/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            badge: supervisorSession.supervisor.badge,
+            password: 'password' // Default password - in production this should be properly managed
+          })
+        });
+        
+        if (authResponse.ok) {
+          const authData = await authResponse.json();
+          if (authData.success && authData.token) {
+            token = authData.token;
+            // Store token in session for future use
+            if (supervisorSession) {
+              supervisorSession.jwtToken = token;
+            }
+            return token;
+          }
+        }
+      } catch (authError) {
+        console.error('❌ Authentication error:', authError);
+      }
+    }
+    return token;
+  };
+
   // Redirect if not admin
   useEffect(() => {
     if (supervisorSession && !isAdmin) {
-      router.replace('/');
+      // Use setTimeout to ensure navigation happens after current render cycle
+      setTimeout(() => {
+        router.replace('/');
+      }, 0);
     }
   }, [supervisorSession, isAdmin, router]);
 
@@ -75,25 +110,53 @@ export default function SupervisorManagement() {
   const loadSupervisors = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE}/api/supervisor/list`);
       
-      // Check if the response is ok
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      // For admin supervisor list, we need JWT token
+      const token = await getJWTToken();
+      
+      // Try the admin endpoint first (requires JWT)
+      if (token) {
+        try {
+          const response = await fetch(`${API_BASE}/api/supervisor/list/all`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && Array.isArray(data.supervisors)) {
+              setSupervisors(data.supervisors.filter(s => s != null));
+              setBackendAvailable(true);
+              return;
+            }
+          }
+        } catch (error) {
+          console.warn('Admin endpoint failed, trying fallback:', error);
+        }
       }
       
-      const data = await response.json();
-      
-      if (Array.isArray(data)) {
-        setSupervisors(data.filter(s => s != null));
-        setBackendAvailable(true);
-      } else if (data.success && Array.isArray(data.supervisors)) {
-        setSupervisors(data.supervisors.filter(s => s != null));
-      } else {
-        // Use fallback data
-        console.log('Using fallback supervisor data');
-        setSupervisors(getFallbackSupervisors());
+      // Fallback to public endpoint
+      try {
+        const response = await fetch(`${API_BASE}/api/supervisor/active/list`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && Array.isArray(data.supervisors)) {
+            setSupervisors(data.supervisors.filter(s => s != null));
+            setBackendAvailable(true);
+            return;
+          }
+        }
+      } catch (error) {
+        console.warn('Public endpoint failed:', error);
       }
+      
+      // Use fallback data if all endpoints fail
+      console.log('Using fallback supervisor data');
+      setSupervisors(getFallbackSupervisors());
+      setBackendAvailable(false);
+      
     } catch (error) {
       console.error('❌ Error loading supervisors:', error);
       console.log('Using fallback supervisor data');
@@ -172,18 +235,27 @@ export default function SupervisorManagement() {
   };
 
   const handleEditSupervisor = async () => {
-    if (!supervisorSession?.sessionId || !selectedSupervisor) {
-      showError('Invalid request');
+    if (!supervisorSession?.supervisor?.badge || !selectedSupervisor) {
+      showError('Invalid request - please log in again');
+      return;
+    }
+    
+    // Get JWT token
+    const token = await getJWTToken();
+    if (!token) {
+      showError('Authentication failed - please log in again');
       return;
     }
     
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/supervisor/admin/edit/${selectedSupervisor.id}`, {
+      const response = await fetch(`${API_BASE}/api/supervisor/admin/edit/${selectedSupervisor.badge || selectedSupervisor.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
-          sessionId: supervisorSession.sessionId,
           ...formData
         })
       });
@@ -208,7 +280,7 @@ export default function SupervisorManagement() {
   };
 
   const handleDeleteSupervisor = async (supervisor) => {
-    if (!supervisorSession?.sessionId) {
+    if (!supervisorSession?.supervisor?.badge) {
       showError('No valid session. Please log in again.');
       return;
     }
@@ -221,15 +293,21 @@ export default function SupervisorManagement() {
     
     if (!confirmed) return;
     
+    // Get JWT token
+    const token = await getJWTToken();
+    if (!token) {
+      showError('Authentication failed - please log in again');
+      return;
+    }
+    
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/supervisor/admin/delete`, {
+      const response = await fetch(`${API_BASE}/api/supervisor/admin/delete/${supervisor.badge || supervisor.id}`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionId: supervisorSession.sessionId,
-          supervisorId: supervisor.id
-        })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
       });
       
       const data = await response.json();
@@ -249,7 +327,7 @@ export default function SupervisorManagement() {
   };
 
   const handleResetPassword = async (supervisor) => {
-    if (!supervisorSession?.sessionId) {
+    if (!supervisorSession?.supervisor?.badge) {
       showError('No valid session. Please log in again.');
       return;
     }
@@ -261,14 +339,22 @@ export default function SupervisorManagement() {
     
     if (!confirmed) return;
     
+    // Get JWT token
+    const token = await getJWTToken();
+    if (!token) {
+      showError('Authentication failed - please log in again');
+      return;
+    }
+    
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/supervisor/admin/reset-password`, {
+      const response = await fetch(`${API_BASE}/api/supervisor/admin/reset-password/${supervisor.badge || supervisor.id}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
-          sessionId: supervisorSession.sessionId,
-          supervisorId: supervisor.id,
           newPassword: 'Barry123' // Default password
         })
       });
@@ -546,22 +632,7 @@ export default function SupervisorManagement() {
     <>
       <Stack.Screen
         options={{
-          title: 'Supervisor Management',
-          headerStyle: {
-            backgroundColor: '#1a1a2e',
-          },
-          headerTintColor: '#fff',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
-          headerLeft: () => (
-            <Pressable
-              onPress={() => router.back()}
-              style={{ marginLeft: 15 }}
-            >
-              <MaterialCommunityIcons name="arrow-left" size={24} color="#fff" />
-            </Pressable>
-          ),
+          headerShown: false,
         }}
       />
       

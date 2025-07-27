@@ -263,6 +263,19 @@ export const forceLogout = mutation({
   },
 });
 
+// Get recent supervisor actions (for display screen)
+export const getRecentActions = query({
+  handler: async (ctx) => {
+    const recentActions = await ctx.db
+      .query("supervisorActions")
+      .withIndex("by_timestamp", q => q.gte("timestamp", Date.now() - (2 * 60 * 60 * 1000))) // Last 2 hours
+      .order("desc")
+      .take(20);
+
+    return recentActions;
+  },
+});
+
 // Helper function to update sync state
 async function updateSyncState(ctx: any) {
   const activeSessions = await ctx.db

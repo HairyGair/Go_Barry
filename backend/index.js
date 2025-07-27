@@ -88,6 +88,8 @@ import analyticsAPI from './routes/analyticsAPI.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import communicationsAPI from './routes/communications/index.js';
 console.log('✅ communicationsAPI imported successfully');
+import fileManagementAPI from './routes/fileManagementAPI.js';
+console.log('✅ fileManagementAPI imported successfully');
 import startOfServiceAPI from './routes/startOfServiceAPI.js';
 console.log('✅ startOfServiceAPI imported successfully');
 import locationCorrectionAPI from './routes/locationCorrectionAPI.js';
@@ -117,6 +119,7 @@ console.log('✅ enhancedStreetManagerAPI imported');
 import enhancedStreetManagerWebhook from './routes/enhancedStreetManagerWebhook.js';
 console.log('✅ enhancedStreetManagerWebhook imported');
 import unifiedRoadworksAPI from './routes/unifiedRoadworksAPI.js';
+console.log('✅ unifiedRoadworksAPI imported');
 import messageAPI from './routes/messageAPI.js';
 console.log('✅ messageAPI imported');
 import enhancedWorkflowAPI from './routes/enhancedWorkflowAPI.js';
@@ -151,6 +154,10 @@ console.log('✅ suggestionsAPI imported successfully');
 // Communications API Route
 app.use('/api/communications', communicationsAPI);
 console.log('✅ Communications API registered at /api/communications');
+
+// File Management API Route
+app.use('/api/file-management', fileManagementAPI);
+console.log('✅ File Management API registered at /api/file-management');
 
 // Traffic Intelligence API routes
 console.log('🚦 Registering traffic intelligence routes at /api/traffic-intelligence...');
@@ -5072,6 +5079,171 @@ app.get('/api/streetmanager/summary', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message
+    });
+  }
+});
+
+// GET Sample future works for development/testing
+app.get('/api/streetmanager/sample-future-works', (req, res) => {
+  const sampleFutureWorks = [
+    {
+      id: 'sample-future-1',
+      title: 'A1 Highway Maintenance',
+      location: 'A1 between J65 and J66',
+      description: 'Planned resurfacing works on A1 northbound carriageway',
+      startDate: '2025-08-15T09:00:00.000Z',
+      endDate: '2025-08-17T17:00:00.000Z',
+      source: 'StreetManager',
+      authority: 'National Highways',
+      impact: 'High',
+      status: 'planned',
+      severity: 'high',
+      coordinates: [54.9783, -1.6178],
+      affectsRoutes: ['21', '56', 'X21'],
+      permitReference: 'SAMPLE-2025-001'
+    },
+    {
+      id: 'sample-future-2', 
+      title: 'B6318 Street Lighting Upgrade',
+      location: 'B6318 Military Road, Hexham',
+      description: 'LED street lighting installation with temporary traffic signals',
+      startDate: '2025-09-02T08:00:00.000Z',
+      endDate: '2025-09-04T18:00:00.000Z',
+      source: 'StreetManager',
+      authority: 'Northumberland County Council',
+      impact: 'Medium',
+      status: 'planned',
+      severity: 'medium',
+      coordinates: [54.9721, -2.1011],
+      affectsRoutes: ['74', '685'],
+      permitReference: 'SAMPLE-2025-002'
+    },
+    {
+      id: 'sample-future-3',
+      title: 'Quayside Bridge Inspection',
+      location: 'Tyne Bridge approach roads',
+      description: 'Annual structural inspection requiring lane closures',
+      startDate: '2025-08-28T06:00:00.000Z',
+      endDate: '2025-08-28T16:00:00.000Z',
+      source: 'StreetManager',
+      authority: 'Newcastle City Council',
+      impact: 'Critical',
+      status: 'planned',
+      severity: 'critical',
+      coordinates: [54.9692, -1.6007],
+      affectsRoutes: ['Quayside', '1', '39', '40'],
+      permitReference: 'SAMPLE-2025-003'
+    }
+  ];
+
+  console.log(`📊 Serving ${sampleFutureWorks.length} sample future works for development`);
+  
+  res.json({
+    success: true,
+    roadworks: sampleFutureWorks,
+    metadata: {
+      totalCount: sampleFutureWorks.length,
+      source: 'sample',
+      note: 'Sample data for testing and development',
+      generatedAt: new Date().toISOString()
+    }
+  });
+});
+
+// POST Reset Street Manager circuit breaker
+app.post('/api/streetmanager/reset-circuit-breaker', (req, res) => {
+  try {
+    // Import the unified roadworks manager to reset its circuit breaker
+    import('./services/unifiedRoadworksManager.js').then(module => {
+      const manager = module.default || module.unifiedRoadworksManager;
+      if (manager && typeof manager.resetCircuitBreaker === 'function') {
+        manager.resetCircuitBreaker();
+        console.log('🔄 Street Manager circuit breaker reset manually');
+        res.json({
+          success: true,
+          message: 'Circuit breaker reset successfully',
+          timestamp: new Date().toISOString()
+        });
+      } else {
+        res.json({
+          success: false,
+          message: 'Circuit breaker reset method not available',
+          timestamp: new Date().toISOString()
+        });
+      }
+    }).catch(error => {
+      console.error('❌ Failed to reset circuit breaker:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+    });
+  } catch (error) {
+    console.error('❌ Failed to reset circuit breaker:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// GET Direct streetworks table query for debugging
+app.get('/api/streetmanager/direct-query', async (req, res) => {
+  try {
+    console.log('🔍 Direct streetworks table query...');
+    
+    const { createClient } = await import('@supabase/supabase-js');
+    
+    console.log('📊 Environment check:');
+    console.log('  SUPABASE_URL:', process.env.SUPABASE_URL ? 'Set' : 'Missing');
+    console.log('  SUPABASE_ANON_KEY:', process.env.SUPABASE_ANON_KEY ? `Set (${process.env.SUPABASE_ANON_KEY.length} chars)` : 'Missing');
+    
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
+      auth: { persistSession: false },
+      global: { 
+        headers: {
+          'User-Agent': 'Go-BARRY-Backend/1.0',
+          'X-Client-Info': 'supabase-js-node'
+        }
+      }
+    });
+    
+    console.log('📋 Querying streetworks table...');
+    
+    const { data, error, count } = await supabase
+      .from('streetworks')
+      .select('*', { count: 'exact' })
+      .limit(10);
+      
+    if (error) {
+      console.error('❌ Supabase query error:', error);
+      return res.json({
+        success: false,
+        error: error.message,
+        details: error,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    console.log(`✅ Successfully queried streetworks: ${data?.length || 0} records`);
+    
+    res.json({
+      success: true,
+      count: count,
+      recordsReturned: data?.length || 0,
+      data: data || [],
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Direct query failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
     });
   }
 });

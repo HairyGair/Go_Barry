@@ -11,7 +11,7 @@ export default function DisruptionCentreLayout() {
       <Stack.Screen
         name="index"
         options={{
-          title: 'Disruption Centre',
+          headerShown: false,
         }}
       />
     </Stack>
