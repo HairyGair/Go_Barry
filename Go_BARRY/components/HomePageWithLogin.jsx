@@ -8,6 +8,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform, ScrollView, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSupervisor } from './hooks/useSupervisorSession';
+import { useConvexSync } from '../hooks/useConvexSync';
 import { Ionicons } from '@expo/vector-icons';
 import AppHeader from './common/AppHeader';
 
@@ -131,7 +132,11 @@ const HomePageWithLogin = () => {
   const router = useRouter();
   const supervisorContext = useSupervisor();
   const { isLoggedIn, supervisorName, isAdmin } = supervisorContext;
+  const { trainingProgress } = useConvexSync();
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  
+  // Check if training is complete
+  const isTrainingComplete = trainingProgress?.completedModules?.length === 5;
   
   // Log the complete context state
   useEffect(() => {
@@ -297,6 +302,7 @@ const HomePageWithLogin = () => {
                 </TouchableOpacity>
               );
             })}
+            
           </View>
         </View>
 

@@ -1,246 +1,128 @@
-/*
- * Go Barry - Traffic Intelligence Platform
- * Incidents Management Page
- * © 2024-2025 Anthony Gair. All rights reserved.
- */
-
 import React from 'react';
-import { View, Text, StyleSheet, Platform, Pressable, ActivityIndicator, SafeAreaView } from 'react-native';
-import { router } from 'expo-router';
+import { View, Text, StyleSheet, Pressable, SafeAreaView, Platform } from 'react-native';
+import { useRouter } from 'expo-router';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import IncidentManager from '../../components/operations/IncidentManagerLegacy';
 import { useSupervisor } from '../../components/hooks/useSupervisorSession';
-import Icon from 'react-native-vector-icons/FontAwesome5';
-import IncidentsManagerV2 from '../../components/operations/incidents-v2/IncidentsManagerV2';
 
-// Error Boundary Component
-class IncidentsErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error, errorInfo) {
-    console.error('Incidents page error:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <View style={styles.errorContainer}>
-          <Icon name="exclamation-triangle" size={48} color="#ef4444" />
-          <Text style={styles.errorTitle}>Something went wrong</Text>
-          <Text style={styles.errorMessage}>
-            {this.state.error?.message || 'An unexpected error occurred in the incidents manager'}
-          </Text>
-          <Pressable 
-            style={styles.errorButton}
-            onPress={() => router.push('/')}
-          >
-            <Icon name="arrow-left" size={16} color="#fff" />
-            <Text style={styles.errorButtonText}>Go Back</Text>
-          </Pressable>
-        </View>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-// Main Incidents Page Component
 export default function IncidentsPage() {
-  const { isLoggedIn, supervisorName, isLoading } = useSupervisor();
+  const router = useRouter();
+  const { isLoggedIn, supervisorName } = useSupervisor();
 
-  // Redirect if not logged in
-  React.useEffect(() => {
-    if (!isLoading && !isLoggedIn) {
-      router.replace('/');
+  // Determine base URL based on environment
+  const getBaseUrl = () => {
+    if (Platform.OS === 'web') {
+      if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+        return 'http://localhost:3001';
+      }
     }
-  }, [isLoggedIn, isLoading]);
-
-  const handleBack = () => {
-    router.push('/');
+    return process.env.EXPO_PUBLIC_API_URL || 'https://go-barry.onrender.com';
   };
 
-  // Show loading if authentication is still being determined
-  if (isLoading) {
+  const baseUrl = getBaseUrl();
+
+  if (!isLoggedIn) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#DC2626" />
-        <Text style={styles.loadingText}>Loading Incidents Manager...</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loginPrompt}>
+          <MaterialCommunityIcons name="shield-lock" size={64} color="#dc2626" />
+          <Text style={styles.loginTitle}>Authentication Required</Text>
+          <Text style={styles.loginMessage}>Please log in to access incident management</Text>
+          <Pressable style={styles.loginButton} onPress={() => router.push('/')}>
+            <Text style={styles.loginButtonText}>Go to Login</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
     );
   }
 
-  // Use production URL from API config
-  const baseUrl = 'https://go-barry.onrender.com';
-
   return (
-    <IncidentsErrorBoundary>
-      <SafeAreaView style={styles.container}>
-        {/* Header Section */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Pressable 
-              style={styles.backButton}
-              onPress={handleBack}
-              accessibilityRole="button"
-              accessibilityLabel="Go back to disruptions"
-            >
-              <Icon name="arrow-left" size={20} color="#fff" />
-            </Pressable>
-            <View style={styles.headerContent}>
-              <Text style={styles.headerTitle}>Incidents Management</Text>
-              <Text style={styles.headerSubtitle}>Create and track network incidents</Text>
-            </View>
-          </View>
-          
-          {supervisorName && (
-            <View style={styles.sessionInfo}>
-              <Icon name="user-circle" size={16} color="#fff" />
-              <Text style={styles.sessionText}>{supervisorName}</Text>
-            </View>
-          )}
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Pressable style={styles.backButton} onPress={() => router.back()}>
+          <MaterialCommunityIcons name="arrow-left" size={24} color="#1a202c" />
+          <Text style={styles.backText}>Back</Text>
+        </Pressable>
+        <View style={styles.headerInfo}>
+          <Text style={styles.breadcrumb}>Disruptions / Incidents</Text>
+          <Text style={styles.supervisor}>{supervisorName}</Text>
         </View>
-
-        {/* Breadcrumb Navigation */}
-        <View style={styles.breadcrumb}>
-          <Text style={styles.breadcrumbText}>Home</Text>
-          <Icon name="chevron-right" size={12} color="#9ca3af" />
-          <Text style={styles.breadcrumbText}>Disruptions</Text>
-          <Icon name="chevron-right" size={12} color="#9ca3af" />
-          <Text style={[styles.breadcrumbText, styles.breadcrumbActive]}>Incidents</Text>
-        </View>
-
-        {/* Main Content - IncidentsManagerV2 */}
-        <View style={styles.contentContainer}>
-          <IncidentsManagerV2 baseUrl={baseUrl} />
-        </View>
-      </SafeAreaView>
-    </IncidentsErrorBoundary>
+      </View>
+      
+      <View style={styles.content}>
+        <IncidentManager baseUrl={baseUrl} />
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0e16',
-  },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: '#0a0e16',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 20,
-    fontSize: 18,
-    color: '#6b7280',
-  },
-  errorContainer: {
-    flex: 1,
-    backgroundColor: '#0a0e16',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#fff',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  errorMessage: {
-    fontSize: 16,
-    color: '#d1d5db',
-    textAlign: 'center',
-    marginBottom: 30,
-  },
-  errorButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#3b82f6',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  errorButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    backgroundColor: '#f8f9fa',
   },
   header: {
-    backgroundColor: '#DC2626',
-    paddingTop: Platform.OS === 'web' ? 20 : 10,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: 2,
-    borderBottomColor: '#B91C1C',
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 15,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerContent: {
-    flexDirection: 'column',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#fca5a5',
-    marginTop: 2,
-  },
-  sessionInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
   },
-  sessionText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
+  backText: {
+    fontSize: 16,
+    color: '#1a202c',
+  },
+  headerInfo: {
+    alignItems: 'flex-end',
   },
   breadcrumb: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-  },
-  breadcrumbText: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: '#6b7280',
   },
-  breadcrumbActive: {
-    color: '#DC2626',
-    fontWeight: '600',
+  supervisor: {
+    fontSize: 12,
+    color: '#dc2626',
+    marginTop: 2,
   },
-  contentContainer: {
+  content: {
     flex: 1,
+  },
+  loginPrompt: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  loginTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1a202c',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  loginMessage: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  loginButton: {
+    backgroundColor: '#dc2626',
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  loginButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

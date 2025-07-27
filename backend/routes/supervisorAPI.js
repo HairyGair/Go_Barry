@@ -1,1945 +1,1092 @@
-// backend/routes/supervisorAPI.js
-// Enhanced API Routes for Supervisor Management and Alert Dismissal
-
+// ENHANCED supervisorAPI.js - Version 2025-07-27-ENHANCED
+// Features: Supabase integration, bcrypt auth, JWT tokens, activity logging
 import express from 'express';
-import supervisorManager from '../services/supervisorManager.js';
-import messageTemplateManager from '../services/messageTemplateManager.js';
-import { processEnhancedAlerts } from '../services/enhancedAlertProcessor.js';
-import supervisorActivityLogger from '../services/supervisorActivityLogger.js';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const router = express.Router();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// Middleware to update session activity on API calls
-router.use((req, res, next) => {
-  // Update activity for requests with sessionId in body or query
-  const sessionId = req.body?.sessionId || req.query?.sessionId;
-  if (sessionId) {
-    const updated = supervisorManager.updateSessionActivity(sessionId);
-    if (updated) {
-      console.log(`🔄 Activity updated for session: ${sessionId}`);
-    }
-  }
-  next();
-});
+// Configuration
+const JWT_SECRET = process.env.JWT_SECRET || 'go-barry-supervisor-secret-2025';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const SALT_ROUNDS = 12;
 
-// Supervisor authentication (both paths for compatibility)
-router.post('/login', async (req, res) => {
+// Import Supabase client
+let supabase = null;
+let supabaseConnected = false;
+
+// Initialize Supabase connection
+async function initializeSupabase() {
   try {
-    const { supervisorId, badge } = req.body;
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
     
-    if (!supervisorId || !badge) {
-      return res.status(400).json({
-        success: false,
-        error: 'Supervisor ID and badge are required'
-      });
-    }
-    
-    console.log(`🔐 Auth attempt: ${supervisorId} with badge ${badge}`);
-    
-    const result = await supervisorManager.authenticateSupervisor(supervisorId, badge);
-    
-    if (result.success) {
-      // Force session into polling state for immediate sync
-      const sessionInfo = {
-        supervisorId: result.supervisor.id,
-        supervisorName: result.supervisor.name,
-        startTime: new Date().toISOString(),
-        lastActivity: new Date().toISOString(),
-        active: true
-      };
-      
-      // Add to polling state for display sync
-      console.log(`✅ Adding supervisor to active list: ${result.supervisor.name}`);
-      console.log(`📤 Sending response:`, {
-        success: true,
-        sessionId: result.sessionId,
-        supervisorName: result.supervisor?.name,
-        supervisorRole: result.supervisor?.role
-      });
-      
-      // Log supervisor login activity
-      await supervisorActivityLogger.logLogin(result.supervisor.badge, result.supervisor.name);
-      
-      res.json({
-        success: true,
-        message: 'Authentication successful',
-        sessionId: result.sessionId,
-        supervisor: result.supervisor
-      });
+    if (supabaseUrl && supabaseKey) {
+      supabase = createClient(supabaseUrl, supabaseKey);
+      supabaseConnected = true;
+      console.log('✅ Supabase connected for enhanced supervisor management');
     } else {
-      console.log(`❌ Auth failed: ${result.error}`);
-      res.status(401).json({
-        success: false,
-        error: result.error
-      });
+      console.warn('⚠️ Supabase credentials not found, using local fallback');
     }
   } catch (error) {
-    console.error('❌ Supervisor auth error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Authentication failed'
-    });
+    console.warn('⚠️ Supabase connection failed, using local fallback:', error.message);
   }
-});
+}
 
-// Supervisor authentication
-router.post('/auth/login', async (req, res) => {
-  try {
-    const { supervisorId, badge } = req.body;
-    
-    if (!supervisorId || !badge) {
-      return res.status(400).json({
-        success: false,
-        error: 'Supervisor ID and badge are required'
-      });
-    }
-    
-    console.log(`🔐 Auth attempt: ${supervisorId} with badge ${badge}`);
-    
-    const result = await supervisorManager.authenticateSupervisor(supervisorId, badge);
-    
-    if (result.success) {
-      // Force session into polling state for immediate sync
-      const sessionInfo = {
-        supervisorId: result.supervisor.id,
-        supervisorName: result.supervisor.name,
-        startTime: new Date().toISOString(),
-        lastActivity: new Date().toISOString(),
-        active: true
-      };
-      
-      // Add to polling state for display sync
-      console.log(`✅ Adding supervisor to active list: ${result.supervisor.name}`);
-      
-      // Log supervisor login activity
-      await supervisorActivityLogger.logLogin(result.supervisor.badge, result.supervisor.name);
-      
-      res.json({
-        success: true,
-        message: 'Authentication successful',
-        sessionId: result.sessionId,
-        supervisor: result.supervisor
-      });
-    } else {
-      console.log(`❌ Auth failed: ${result.error}`);
-      res.status(401).json({
-        success: false,
-        error: result.error
-      });
-    }
-  } catch (error) {
-    console.error('❌ Supervisor auth error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Authentication failed'
-    });
-  }
-});
+// Initialize on module load
+initializeSupabase();
 
-// Validate supervisor session
-router.post('/auth/validate', async (req, res) => {
-  try {
-    const { sessionId } = req.body;
-    
-    if (!sessionId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Session ID is required'
-      });
-    }
-    
-    const result = await supervisorManager.validateSupervisorSession(sessionId);
-    
-    if (result.success) {
-      res.json({
-        success: true,
-        supervisor: result.supervisor
-      });
-    } else {
-      res.status(401).json({
-        success: false,
-        error: result.error
-      });
-    }
-  } catch (error) {
-    console.error('❌ Session validation error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Session validation failed'
-    });
-  }
-});
-
-// Get available supervisors (for login UI)
-router.get('/list', async (req, res) => {
-  try {
-    const supervisors = await supervisorManager.getAllSupervisors();
-    res.json({
-      success: true,
-      supervisors: supervisors.map(s => ({
-        id: s.id,
-        name: s.name,
-        badge: s.badge,
-        role: s.role,
-        isActive: s.active || s.isActive
-      }))
-    });
-  } catch (error) {
-    console.error('❌ Error getting supervisors:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get supervisors'
-    });
-  }
-});
-
-// Simple badge + password authentication (for mobile app)
-router.post('/auth/simple', async (req, res) => {
-  try {
-    const { badge, password } = req.body;
-    
-    if (!badge || !password) {
-      return res.status(400).json({
-        success: false,
-        error: 'Badge and password are required'
-      });
-    }
-    
-    console.log(`🔐 Simple auth attempt with badge: ${badge}`);
-    
-    // Find supervisor by badge
-    const supervisors = await supervisorManager.getAllSupervisors();
-    const supervisor = supervisors.find(s => s.badge === badge);
-    
-    if (!supervisor) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid badge number'
-      });
-    }
-    
-    const clientIP = req.ip || req.connection.remoteAddress;
-    const userAgent = req.headers['user-agent'];
-    
-    const result = await supervisorManager.authenticateSupervisorSecure(
-      supervisor.id, 
-      badge, 
-      password, 
-      clientIP, 
-      userAgent
-    );
-    
-    if (result.success) {
-      console.log(`✅ Simple auth successful: ${result.supervisor.name}`);
-      
-      // Log supervisor login activity
-      await supervisorActivityLogger.logLogin(result.supervisor.badge, result.supervisor.name);
-      
-      res.json({
-        success: true,
-        message: 'Authentication successful',
-        sessionId: result.sessionId,
-        supervisor: result.supervisor,
-        authMethod: 'simple'
-      });
-    } else {
-      console.log(`❌ Simple auth failed: ${result.error}`);
-      res.status(401).json({
-        success: false,
-        error: result.error || 'Invalid credentials'
-      });
-    }
-  } catch (error) {
-    console.error('❌ Simple supervisor auth error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Authentication failed'
-    });
-  }
-});
-
-// Secure password-based authentication
-router.post('/login/secure', async (req, res) => {
-  try {
-    const { supervisorId, badge, password } = req.body;
-    
-    if (!supervisorId || !badge || !password) {
-      return res.status(400).json({
-        success: false,
-        error: 'Supervisor ID, badge, and password are required'
-      });
-    }
-    
-    console.log(`🔐 Secure auth attempt: ${supervisorId} with badge ${badge}`);
-    
-    const clientIP = req.ip || req.connection.remoteAddress;
-    const userAgent = req.headers['user-agent'];
-    
-    const result = await supervisorManager.authenticateSupervisorSecure(
-      supervisorId, 
-      badge, 
-      password, 
-      clientIP, 
-      userAgent
-    );
-    
-    if (result.success) {
-      console.log(`✅ Secure auth successful: ${result.supervisor.name}`);
-      
-      // Log supervisor login activity
-      await supervisorActivityLogger.logLogin(result.supervisor.badge, result.supervisor.name);
-      
-      res.json({
-        success: true,
-        message: 'Secure authentication successful',
-        sessionId: result.sessionId,
-        supervisor: result.supervisor,
-        secureSession: true
-      });
-    } else {
-      console.log(`❌ Secure auth failed: ${result.error}`);
-      res.status(401).json({
-        success: false,
-        error: result.error || 'Invalid supervisor credentials'
-      });
-    }
-  } catch (error) {
-    console.error('❌ Secure supervisor auth error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Authentication failed'
-    });
-  }
-});
-
-// Supervisor logout
-router.post('/auth/logout', async (req, res) => {
-  try {
-    const { sessionId } = req.body;
-    
-    if (!sessionId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Session ID is required'
-      });
-    }
-    
-    const result = await supervisorManager.signOutSupervisor(sessionId);
-    
-    // Log supervisor logout activity if successful
-    if (result.success && result.supervisor) {
-      await supervisorActivityLogger.logLogout(result.supervisor.badge, result.supervisor.name);
-    }
-    
-    res.json({
-      success: result.success,
-      message: result.success ? 'Logged out successfully' : 'Logout failed'
-    });
-  } catch (error) {
-    console.error('❌ Supervisor logout error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Logout failed'
-    });
-  }
-});
-
-// Dismiss alert
-router.post('/alerts/dismiss', async (req, res) => {
-  try {
-    const { alertId, sessionId, reason, notes } = req.body;
-    
-    if (!alertId || !sessionId || !reason) {
-      return res.status(400).json({
-        success: false,
-        error: 'Alert ID, session ID, and reason are required'
-      });
-    }
-    
-    const result = await supervisorManager.dismissAlert(alertId, sessionId, reason, notes);
-    
-    if (result.success) {
-      // Log alert dismissal activity
-      const sessionValidation = await supervisorManager.validateSupervisorSession(sessionId);
-      if (sessionValidation.success) {
-        await supervisorActivityLogger.logAlertDismissal(
-          sessionValidation.supervisor.badge,
-          sessionValidation.supervisor.name,
-          alertId,
-          reason,
-          result.dismissal?.location
-        );
-      }
-      
-      res.json({
-        success: true,
-        message: 'Alert dismissed successfully',
-        dismissal: result.dismissal
-      });
-    } else {
-      res.status(400).json({
-        success: false,
-        error: result.error
-      });
-    }
-  } catch (error) {
-    console.error('❌ Alert dismissal error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to dismiss alert'
-    });
-  }
-});
-
-// Restore dismissed alert
-router.post('/alerts/restore', async (req, res) => {
-  try {
-    const { alertId, sessionId, reason } = req.body;
-    
-    if (!alertId || !sessionId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Alert ID and session ID are required'
-      });
-    }
-    
-    const result = await supervisorManager.restoreAlert(alertId, sessionId, reason);
-    
-    if (result.success) {
-      res.json({
-        success: true,
-        message: 'Alert restored successfully',
-        restoration: result.restoration
-      });
-    } else {
-      res.status(400).json({
-        success: false,
-        error: result.error
-      });
-    }
-  } catch (error) {
-    console.error('❌ Alert restoration error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to restore alert'
-    });
-  }
-});
-
-// Get all supervisors (for admin)
-router.get('/supervisors', async (req, res) => {
-  try {
-    const supervisors = await supervisorManager.getAllSupervisors();
-    res.json({
-      success: true,
-      supervisors
-    });
-  } catch (error) {
-    console.error('❌ Get supervisors error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch supervisors'
-    });
-  }
-});
-
-// Get active supervisors (for display screen)
-router.get('/active', async (req, res) => {
-  try {
-    console.log('🔍 Active supervisors endpoint called');
-    
-    // Now async - await the result
-    const activeSupervisors = await supervisorManager.getActiveSupervisors();
-    
-    res.json({
-      success: true,
-      activeSupervisors,
-      count: activeSupervisors.length,
-      lastUpdated: new Date().toISOString(),
-      source: 'supabase-backed'
-    });
-  } catch (error) {
-    console.error('❌ Get active supervisors error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch active supervisors',
-      activeSupervisors: [],
-      count: 0
-    });
-  }
-});
-
-// Get supervisor activity log
-router.get('/supervisors/:supervisorId/activity', async (req, res) => {
-  try {
-    const { supervisorId } = req.params;
-    const { limit = 50 } = req.query;
-    
-    const activity = await supervisorManager.getSupervisorActivity(supervisorId, parseInt(limit));
-    
-    res.json({
-      success: true,
-      supervisorId,
-      activity
-    });
-  } catch (error) {
-    console.error('❌ Get supervisor activity error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch supervisor activity'
-    });
-  }
-});
-
-// Get dismissal statistics
-router.get('/statistics/dismissals', async (req, res) => {
-  try {
-    const { timeRange = 'today' } = req.query;
-    
-    const stats = await supervisorManager.getDismissalStatistics(timeRange);
-    
-    res.json({
-      success: true,
-      timeRange,
-      statistics: stats
-    });
-  } catch (error) {
-    console.error('❌ Get dismissal statistics error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch dismissal statistics'
-    });
-  }
-});
-
-// Test endpoint to verify session storage
-router.get('/test/session-storage', async (req, res) => {
-  try {
-    console.log('🧪 Testing session storage...');
-    
-    // Create a test session directly
-    const testSessionId = `test_session_${Date.now()}`;
-    supervisorManager.supervisorSessions[testSessionId] = {
-      supervisorId: 'test_supervisor',
-      supervisorName: 'Test Supervisor',
-      supervisorBadge: 'TEST001',
-      startTime: new Date().toISOString(),
-      lastActivity: new Date().toISOString(),
-      active: true
-    };
-    
-    console.log('💾 After adding test session:');
-    console.log('- Session keys:', Object.keys(supervisorManager.supervisorSessions));
-    console.log('- Test session exists?', testSessionId in supervisorManager.supervisorSessions);
-    
-    // Now check active supervisors
-    const active = supervisorManager.getActiveSupervisors();
-    console.log('👥 Active supervisors:', active);
-    
-    res.json({
-      success: true,
-      testSessionId,
-      sessionExists: testSessionId in supervisorManager.supervisorSessions,
-      totalSessions: Object.keys(supervisorManager.supervisorSessions).length,
-      sessionKeys: Object.keys(supervisorManager.supervisorSessions),
-      activeSupervisors: active,
-      testSession: supervisorManager.supervisorSessions[testSessionId]
-    });
-  } catch (error) {
-    console.error('❌ Test error:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
-// ===== SUPERVISOR ACTIVITY LOGGING =====
-
-// Get recent supervisor activities (for Display Screen)
-router.get('/activity/recent', async (req, res) => {
-  try {
-    const { limit = 50 } = req.query;
-    
-    const activities = await supervisorActivityLogger.getRecentActivities(parseInt(limit));
-    
-    res.json({
-      success: true,
-      activities,
-      count: activities.length,
-      lastUpdated: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('❌ Get recent activities error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch recent activities',
-      activities: []
-    });
-  }
-});
-
-// Log supervisor activity (internal use)
-router.post('/activity/log', async (req, res) => {
-  try {
-    const { supervisorBadge, action, details } = req.body;
-    
-    if (!supervisorBadge || !action) {
-      return res.status(400).json({
-        success: false,
-        error: 'Supervisor badge and action are required'
-      });
-    }
-    
-    const result = await supervisorActivityLogger.logActivity(supervisorBadge, action, details);
-    
-    res.json({
-      success: result.success,
-      message: result.success ? 'Activity logged successfully' : 'Failed to log activity',
-      activity: result.activity || null,
-      error: result.error || null
-    });
-  } catch (error) {
-    console.error('❌ Log activity error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to log activity'
-    });
-  }
-});
-
-// ===== ADMIN ENDPOINTS =====
-
-// Log out all supervisors (admin only)
-router.post('/admin/logout-all', async (req, res) => {
-  try {
-    const { sessionId } = req.body;
-    
-    if (!sessionId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Session ID is required'
-      });
-    }
-    
-    const result = await supervisorManager.logoutAllSupervisors(sessionId);
-    
-    if (result.success) {
-      res.json({
-        success: true,
-        message: result.message,
-        loggedOutCount: result.loggedOutCount,
-        adminSupervisor: result.adminSupervisor,
-        timestamp: new Date().toISOString()
-      });
-    } else {
-      res.status(403).json({
-        success: false,
-        error: result.error
-      });
-    }
-  } catch (error) {
-    console.error('❌ Admin logout all error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to logout all supervisors'
-    });
-  }
-});
-
-// Add new supervisor (admin only)
-router.post('/admin/add-supervisor', async (req, res) => {
-  try {
-    const { sessionId, name, role, badge, shift, permissions } = req.body;
-    
-    if (!sessionId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Session ID is required'
-      });
-    }
-    
-    if (!name || !role || !badge) {
-      return res.status(400).json({
-        success: false,
-        error: 'Name, role, and badge are required'
-      });
-    }
-    
-    const supervisorData = {
-      name,
-      role,
-      badge,
-      shift: shift || 'Day',
-      permissions: permissions || ['view-alerts', 'dismiss-alerts']
-    };
-    
-    const result = await supervisorManager.addSupervisor(sessionId, supervisorData);
-    
-    if (result.success) {
-      res.json({
-        success: true,
-        message: result.message,
-        supervisor: result.supervisor,
-        adminSupervisor: result.adminSupervisor,
-        timestamp: new Date().toISOString()
-      });
-    } else {
-      res.status(400).json({
-        success: false,
-        error: result.error
-      });
-    }
-  } catch (error) {
-    console.error('❌ Add supervisor error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to add supervisor'
-    });
-  }
-});
-
-// Delete supervisor (admin only)
-router.delete('/admin/delete-supervisor/:supervisorId', async (req, res) => {
-  try {
-    const { supervisorId: supervisorIdToDelete } = req.params;
-    const { sessionId } = req.body;
-    
-    if (!sessionId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Session ID is required'
-      });
-    }
-    
-    if (!supervisorIdToDelete) {
-      return res.status(400).json({
-        success: false,
-        error: 'Supervisor ID is required'
-      });
-    }
-    
-    const result = await supervisorManager.deleteSupervisor(sessionId, supervisorIdToDelete);
-    
-    if (result.success) {
-      res.json({
-        success: true,
-        message: result.message,
-        deletedSupervisor: result.deletedSupervisor,
-        adminSupervisor: result.adminSupervisor,
-        timestamp: new Date().toISOString()
-      });
-    } else {
-      res.status(400).json({
-        success: false,
-        error: result.error
-      });
-    }
-  } catch (error) {
-    console.error('❌ Delete supervisor error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to delete supervisor'
-    });
-  }
-});
-
-// Reset supervisor password (admin only)
-router.post('/admin/reset-password', async (req, res) => {
-  try {
-    const { sessionId, supervisorId, newPassword } = req.body;
-    
-    if (!sessionId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Session ID is required'
-      });
-    }
-    
-    if (!supervisorId || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        error: 'Supervisor ID and new password are required'
-      });
-    }
-    
-    // Validate password requirements
-    if (newPassword.length < 6) {
-      return res.status(400).json({
-        success: false,
-        error: 'Password must be at least 6 characters long'
-      });
-    }
-    
-    const result = await supervisorManager.resetSupervisorPassword(sessionId, supervisorId, newPassword);
-    
-    if (result.success) {
-      res.json({
-        success: true,
-        message: result.message,
-        resetSupervisor: result.resetSupervisor,
-        adminSupervisor: result.adminSupervisor,
-        timestamp: new Date().toISOString()
-      });
-    } else {
-      res.status(400).json({
-        success: false,
-        error: result.error
-      });
-    }
-  } catch (error) {
-    console.error('❌ Reset password error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to reset password'
-    });
-  }
-});
-
-// Check admin permissions (for frontend to show/hide admin features)
-router.get('/admin/check-permissions', async (req, res) => {
-  try {
-    const { sessionId } = req.query;
-    
-    if (!sessionId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Session ID is required'
-      });
-    }
-    
-    // Validate session
-    const sessionValidation = await supervisorManager.validateSupervisorSession(sessionId);
-    if (!sessionValidation.success) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid session'
-      });
-    }
-    
-    const hasAdmin = await supervisorManager.hasAdminPermissions(sessionValidation.supervisor.id);
-    
-    res.json({
-      success: true,
-      hasAdminPermissions: hasAdmin,
-      supervisor: sessionValidation.supervisor,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('❌ Check admin permissions error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to check permissions'
-    });
-  }
-});
-
-// Get session timeout configuration and status
-router.get('/timeout-info', async (req, res) => {
-  try {
-    const timeoutInfo = supervisorManager.getSessionTimeoutInfo();
-    
-    res.json({
-      success: true,
-      ...timeoutInfo,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('❌ Get timeout info error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get timeout info'
-    });
-  }
-});
-
-// Manual cleanup trigger (for testing)
-router.post('/cleanup-sessions', async (req, res) => {
-  try {
-    const beforeCount = Object.values(supervisorManager.supervisorSessions).filter(s => s.active).length;
-    
-    supervisorManager.cleanupInactiveSessions();
-    
-    const afterCount = Object.values(supervisorManager.supervisorSessions).filter(s => s.active).length;
-    const cleanedCount = beforeCount - afterCount;
-    
-    res.json({
-      success: true,
-      message: 'Session cleanup completed',
-      sessionsBeforeCleanup: beforeCount,
-      sessionsAfterCleanup: afterCount,
-      sessionsCleaned: cleanedCount,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('❌ Manual cleanup error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to perform cleanup'
-    });
-  }
-});
-
-// Debug endpoint to check active sessions
-router.get('/debug/sessions', async (req, res) => {
-  try {
-    // Get all session IDs and their status
-    const sessions = Object.entries(supervisorManager.supervisorSessions || {}).map(([id, session]) => {
-      const now = Date.now();
-      const lastActivity = new Date(session.lastActivity).getTime();
-      const timeSinceActivity = now - lastActivity;
-      
-      return {
-        sessionId: id,
-        supervisorId: session.supervisorId,
-        supervisorName: session.supervisorName,
-        active: session.active,
-        startTime: session.startTime,
-        lastActivity: session.lastActivity,
-        minutesSinceActivity: Math.round(timeSinceActivity / 1000 / 60),
-        willTimeoutAt: new Date(lastActivity + supervisorManager.getSessionTimeoutInfo().timeoutMs).toISOString(),
-        endTime: session.endTime,
-        timeoutReason: session.timeoutReason,
-        signoutReason: session.signoutReason
-      };
-    });
-    
-    res.json({
-      success: true,
-      totalSessions: sessions.length,
-      activeSessions: sessions.filter(s => s.active).length,
-      sessions: sessions,
-      timeoutConfig: supervisorManager.getSessionTimeoutInfo(),
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('❌ Debug sessions error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get sessions debug info'
-    });
-  }
-});
-
-// Test endpoint to create a test session
-router.post('/debug/test-session', async (req, res) => {
-  try {
-    // Create a test session for Alex Woodcock
-    const result = await supervisorManager.authenticateSupervisor('supervisor001', 'AW001');
-    
-    if (result.success) {
-      // Validate the session immediately
-      const validation = await supervisorManager.validateSupervisorSession(result.sessionId);
-      
-      res.json({
-        success: true,
-        message: 'Test session created and validated',
-        sessionId: result.sessionId,
-        supervisor: result.supervisor,
-        validationResult: validation,
-        activeSessions: Object.keys(supervisorManager.supervisorSessions).length
-      });
-    } else {
-      res.status(400).json(result);
-    }
-  } catch (error) {
-    console.error('❌ Test session error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create test session'
-    });
-  }
-});
-
-// Get enhanced alerts (filtered by dismissed alerts)
-router.get('/alerts/enhanced', async (req, res) => {
-  try {
-    // This would integrate with your existing alert fetching logic
-    // For now, return a placeholder response
-    const sampleAlerts = [
-      {
-        id: 'enhanced_001',
-        type: 'incident',
-        title: 'Vehicle Breakdown - A1 Northbound',
-        description: 'Lane 1 blocked due to vehicle breakdown between J65 and J66',
-        location: 'A1 Northbound, Birtley Junction 65',
-        coordinates: { lat: 54.9158, lng: -1.5721 },
-        severity: 'High',
-        status: 'red',
-        affectsRoutes: ['21', 'X21', '25', '28'],
-        source: 'national_highways',
-        lastUpdated: new Date().toISOString()
-      }
-    ];
-    
-    const enhancedAlerts = await processEnhancedAlerts(sampleAlerts);
-    
-    res.json({
-      success: true,
-      alerts: enhancedAlerts,
-      metadata: {
-        totalAlerts: enhancedAlerts.length,
-        enhancedCount: enhancedAlerts.filter(a => a.processed?.locationEnhanced).length,
-        lastUpdated: new Date().toISOString()
-      }
-    });
-  } catch (error) {
-    console.error('❌ Enhanced alerts error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch enhanced alerts'
-    });
-  }
-});
-
-// ===== MESSAGE TEMPLATE ROUTES =====
-
-// Get all message templates
-router.get('/templates', async (req, res) => {
-  try {
-    const { category, priority, autoTrigger } = req.query;
-    
-    const filters = {};
-    if (category) filters.category = category;
-    if (priority) filters.priority = priority;
-    if (autoTrigger !== undefined) filters.autoTrigger = autoTrigger === 'true';
-    
-    const result = messageTemplateManager.getTemplates(filters);
-    
-    res.json({
-      success: true,
-      ...result
-    });
-  } catch (error) {
-    console.error('❌ Get templates error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch templates'
-    });
-  }
-});
-
-// Send message using template
-router.post('/templates/:templateId/send', async (req, res) => {
-  try {
-    const { templateId } = req.params;
-    const { variables, sessionId, channels, recipients } = req.body;
-    
-    if (!sessionId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Session ID is required'
-      });
-    }
-    
-    // Validate supervisor session
-    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
-    if (!sessionResult.success) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid session'
-      });
-    }
-    
-    const supervisorInfo = {
-      supervisorId: sessionResult.supervisor.id,
-      supervisorName: sessionResult.supervisor.name,
-      sessionId
-    };
-    
-    const options = {
-      channels: channels || ['display', 'web'],
-      recipients: recipients || 'all_displays',
-      autoGenerated: false
-    };
-    
-    const result = await messageTemplateManager.sendTemplateMessage(
-      templateId,
-      variables,
-      supervisorInfo,
-      options
-    );
-    
-    if (result.success) {
-      res.json({
-        success: true,
-        message: 'Template message sent successfully',
-        messageId: result.messageId,
-        content: result.processedContent
-      });
-    } else {
-      res.status(400).json(result);
-    }
-  } catch (error) {
-    console.error('❌ Send template message error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to send template message'
-    });
-  }
-});
-
-// Get template suggestions for alert
-router.post('/templates/suggest', async (req, res) => {
-  try {
-    const { alertData } = req.body;
-    
-    const result = messageTemplateManager.suggestTemplates(alertData);
-    
-    res.json({
-      success: true,
-      ...result
-    });
-  } catch (error) {
-    console.error('❌ Get template suggestions error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get template suggestions'
-    });
-  }
-});
-
-// ===== POLLING-BASED SYNC ENDPOINTS =====
-
-// In-memory storage for polling-based supervisor sync
-let pollingState = {
-  acknowledgedAlerts: new Set(),
-  priorityOverrides: new Map(),
-  supervisorNotes: new Map(),
-  customMessages: [],
-  dismissedFromDisplay: new Set(),
-  lockedOnDisplay: new Set(),
-  lastUpdated: Date.now()
+// Helper function to get supervisor data file path (fallback)
+const getSupervisorDataPath = () => {
+  return path.join(__dirname, '../data/supervisor_sessions.json');
 };
 
-// Get current sync status for polling
-router.get('/sync-status', async (req, res) => {
+// Helper function to read local supervisor data (fallback)
+const readLocalSupervisorData = () => {
   try {
-    const activeSupervisors = await supervisorManager.getActiveSupervisors();
-    
-    // Debug logging
-    console.log('🔍 Sync Status Debug:');
-    console.log('📊 Active supervisors from manager:', activeSupervisors.length);
-    console.log('👥 Supervisor details:', activeSupervisors.map(s => ({ name: s.name, sessionStart: s.sessionStart })));
-    
-    res.json({
-      success: true,
-      acknowledgedAlerts: Array.from(pollingState.acknowledgedAlerts),
-      priorityOverrides: Object.fromEntries(pollingState.priorityOverrides),
-      supervisorNotes: Object.fromEntries(pollingState.supervisorNotes),
-      customMessages: pollingState.customMessages,
-      dismissedFromDisplay: Array.from(pollingState.dismissedFromDisplay),
-      lockedOnDisplay: Array.from(pollingState.lockedOnDisplay),
-      connectedSupervisors: activeSupervisors.length,
-      activeSupervisors: activeSupervisors,
-      lastUpdated: pollingState.lastUpdated
-    });
+    const dataPath = getSupervisorDataPath();
+    if (!fs.existsSync(dataPath)) {
+      return {};
+    }
+    const data = fs.readFileSync(dataPath, 'utf8');
+    return JSON.parse(data);
   } catch (error) {
-    console.error('❌ Sync status error:', error);
-    res.status(500).json({
+    console.error('Error reading local supervisor data:', error);
+    return {};
+  }
+};
+
+// Helper function to write local supervisor data (fallback)
+const writeLocalSupervisorData = (data) => {
+  try {
+    const dataPath = getSupervisorDataPath();
+    fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error writing local supervisor data:', error);
+    return false;
+  }
+};
+
+// Enhanced activity logging function
+const logSupervisorActivity = async (badge, action, details = {}, req = null, severity = 'info') => {
+  const timestamp = new Date().toISOString();
+  const logEntry = {
+    badge,
+    action,
+    details,
+    severity,
+    timestamp,
+    ip_address: req ? req.ip || req.connection?.remoteAddress : null,
+    user_agent: req ? req.get('User-Agent') : null,
+    session_id: details.sessionId || null
+  };
+
+  // Console logging
+  console.log(`[SUPERVISOR-ENHANCED] ${timestamp} - ${badge}: ${action}`, details);
+
+  // Database logging
+  if (supabaseConnected && supabase) {
+    try {
+      await supabase
+        .from('supervisor_activity_log')
+        .insert([logEntry]);
+    } catch (error) {
+      console.warn('Failed to log activity to database:', error.message);
+    }
+  }
+
+  return logEntry;
+};
+
+// JWT Helper functions
+const generateToken = (supervisorData) => {
+  const payload = {
+    badge: supervisorData.badge,
+    name: supervisorData.name,
+    admin: supervisorData.admin || false,
+    iat: Math.floor(Date.now() / 1000)
+  };
+  
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+};
+
+const verifyToken = (token) => {
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch (error) {
+    return null;
+  }
+};
+
+// Middleware for JWT authentication
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+  if (!token) {
+    return res.status(401).json({
       success: false,
-      error: 'Failed to get sync status'
+      message: 'Access token required'
     });
   }
-});
 
-// Acknowledge alert
-router.post('/acknowledge-alert', async (req, res) => {
-  try {
-    const { alertId, sessionId, reason, notes, timestamp } = req.body;
+  const decoded = verifyToken(token);
+  if (!decoded) {
+    return res.status(403).json({
+      success: false,
+      message: 'Invalid or expired token'
+    });
+  }
 
-    if (!alertId || !sessionId || !reason) {
-      return res.status(400).json({
-        success: false,
-        error: 'Alert ID, session ID, and reason are required'
-      });
-    }
+  req.supervisor = decoded;
+  next();
+};
 
-    // Validate supervisor session
-    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
-    if (!sessionResult.success) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid session'
-      });
-    }
+// Middleware for admin-only routes
+const requireAdmin = (req, res, next) => {
+  if (!req.supervisor?.admin) {
+    return res.status(403).json({
+      success: false,
+      message: 'Admin privileges required'
+    });
+  }
+  next();
+};
 
-    // Add to acknowledged alerts
-    pollingState.acknowledgedAlerts.add(alertId);
-    pollingState.lastUpdated = Date.now();
+// Password hashing utilities
+const hashPassword = async (password) => {
+  return await bcrypt.hash(password, SALT_ROUNDS);
+};
 
-    // Log system action
-    await supervisorActivityLogger.logSystemAction(
-      sessionResult.supervisor.badge,
-      sessionResult.supervisor.name,
-      'acknowledge-alert',
-      {
-        alert_id: alertId,
-        reason,
-        notes,
-        timestamp: timestamp || pollingState.lastUpdated
+const comparePassword = async (password, hash) => {
+  return await bcrypt.compare(password, hash);
+};
+
+// Get supervisor from Supabase or fallback
+async function getSupervisorFromDB(badge) {
+  if (supabaseConnected && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('supervisors')
+        .select('*')
+        .eq('badge', badge)
+        .single();
+      
+      if (!error && data) {
+        return data;
       }
-    );
-
-    console.log(`✅ Alert ${alertId} acknowledged: ${reason}`);
-
-    res.json({
-      success: true,
-      message: 'Alert acknowledged successfully',
-      alertId,
-      timestamp: pollingState.lastUpdated
-    });
-  } catch (error) {
-    console.error('❌ Acknowledge alert error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to acknowledge alert'
-    });
+    } catch (error) {
+      console.warn('Supabase query failed:', error.message);
+    }
   }
-});
+  
+  // Fallback to local data
+  const localData = readLocalSupervisorData();
+  return localData[badge];
+}
 
-// Update alert priority
-router.post('/update-priority', async (req, res) => {
-  try {
-    const { alertId, sessionId, priority, reason, timestamp } = req.body;
-
-    if (!alertId || !sessionId || !priority || !reason) {
-      return res.status(400).json({
-        success: false,
-        error: 'Alert ID, session ID, priority, and reason are required'
-      });
-    }
-
-    // Validate supervisor session
-    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
-    if (!sessionResult.success) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid session'
-      });
-    }
-
-    // Update priority override
-    pollingState.priorityOverrides.set(alertId, {
-      priority: priority.toUpperCase(),
-      reason,
-      timestamp: timestamp || Date.now()
-    });
-    pollingState.lastUpdated = Date.now();
-
-    // Log system action
-    await supervisorActivityLogger.logSystemAction(
-      sessionResult.supervisor.badge,
-      sessionResult.supervisor.name,
-      'update-priority',
-      {
-        alert_id: alertId,
-        priority: priority,
-        reason,
-        timestamp: timestamp || pollingState.lastUpdated
+// Get all supervisors from Supabase or fallback
+async function getAllSupervisorsFromDB() {
+  if (supabaseConnected && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('supervisors')
+        .select('*')
+        .order('name');
+      
+      if (!error && data) {
+        return data;
       }
-    );
-
-    console.log(`🎯 Alert ${alertId} priority updated to ${priority}: ${reason}`);
-
-    res.json({
-      success: true,
-      message: 'Priority updated successfully',
-      alertId,
-      priority,
-      timestamp: pollingState.lastUpdated
-    });
-  } catch (error) {
-    console.error('❌ Update priority error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update priority'
-    });
+    } catch (error) {
+      console.warn('Supabase query failed:', error.message);
+    }
   }
-});
+  
+  // Fallback to local data
+  const localData = readLocalSupervisorData();
+  return Object.values(localData);
+}
 
-// Add note to alert
-router.post('/add-note', async (req, res) => {
-  try {
-    const { alertId, sessionId, note, timestamp } = req.body;
-
-    if (!alertId || !sessionId || !note) {
-      return res.status(400).json({
-        success: false,
-        error: 'Alert ID, session ID, and note are required'
-      });
-    }
-
-    // Validate supervisor session
-    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
-    if (!sessionResult.success) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid session'
-      });
-    }
-
-    // Add supervisor note
-    pollingState.supervisorNotes.set(alertId, {
-      note,
-      timestamp: timestamp || Date.now()
-    });
-    pollingState.lastUpdated = Date.now();
-
-    // Log system action
-    await supervisorActivityLogger.logSystemAction(
-      sessionResult.supervisor.badge,
-      sessionResult.supervisor.name,
-      'add-note',
-      {
-        alert_id: alertId,
-        note,
-        timestamp: timestamp || pollingState.lastUpdated
+// Update supervisor session in Supabase
+async function updateSupervisorSession(badge, sessionData) {
+  if (supabaseConnected && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('supervisors')
+        .upsert({
+          badge,
+          ...sessionData,
+          last_activity: new Date().toISOString()
+        })
+        .select()
+        .single();
+      
+      if (!error && data) {
+        return data;
       }
-    );
-
-    console.log(`📝 Note added to alert ${alertId}: ${note}`);
-
-    res.json({
-      success: true,
-      message: 'Note added successfully',
-      alertId,
-      note,
-      timestamp: pollingState.lastUpdated
-    });
-  } catch (error) {
-    console.error('❌ Add note error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to add note'
-    });
+    } catch (error) {
+      console.warn('Supabase update failed:', error.message);
+    }
   }
-});
+  
+  // Fallback to local storage
+  const localData = readLocalSupervisorData();
+  localData[badge] = { badge, ...sessionData };
+  writeLocalSupervisorData(localData);
+  return localData[badge];
+}
 
-// Broadcast message
-router.post('/broadcast-message', async (req, res) => {
+// POST /api/supervisor/register - Register new supervisor (admin only)
+router.post('/register', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { message, sessionId, priority, duration, timestamp } = req.body;
+    const { badge, name, email, password, admin = false, shift_pattern = 'day' } = req.body;
 
-    if (!message || !sessionId) {
+    if (!badge || !name || !password) {
+      await logSupervisorActivity(req.supervisor.badge, 'REGISTER_ATTEMPT_FAILED', 
+        { reason: 'missing_fields', targetBadge: badge }, req, 'warning');
+      
       return res.status(400).json({
         success: false,
-        error: 'Message and session ID are required'
+        message: 'Badge, name, and password are required'
       });
     }
 
-    // Validate supervisor session
-    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
-    if (!sessionResult.success) {
-      return res.status(401).json({
+    // Check if supervisor already exists
+    const existingSupervisor = await getSupervisorFromDB(badge);
+    if (existingSupervisor) {
+      await logSupervisorActivity(req.supervisor.badge, 'REGISTER_ATTEMPT_FAILED', 
+        { reason: 'badge_exists', targetBadge: badge }, req, 'warning');
+      
+      return res.status(409).json({
         success: false,
-        error: 'Invalid session'
+        message: 'Supervisor with this badge already exists'
       });
     }
 
-    // Add custom message
-    const messageObj = {
-      id: `msg_${Date.now()}`,
-      message,
-      priority: priority || 'info',
-      duration: duration || 30000,
-      timestamp: timestamp || Date.now()
+    // Hash password
+    const passwordHash = await hashPassword(password);
+
+    const newSupervisor = {
+      badge,
+      name,
+      email,
+      password_hash: passwordHash,
+      admin,
+      shift_pattern,
+      active: true,
+      created_at: new Date().toISOString(),
+      created_by: req.supervisor.badge
     };
 
-    pollingState.customMessages.push(messageObj);
-    pollingState.lastUpdated = Date.now();
-
-    // Log system action
-    await supervisorActivityLogger.logSystemAction(
-      sessionResult.supervisor.badge,
-      sessionResult.supervisor.name,
-      'broadcast-message',
-      {
-        message,
-        priority: priority || 'info',
-        duration: duration || 30000,
-        timestamp: timestamp || pollingState.lastUpdated
-      }
-    );
-
-    // Auto-remove message after duration
-    setTimeout(() => {
-      pollingState.customMessages = pollingState.customMessages.filter(m => m.id !== messageObj.id);
-      pollingState.lastUpdated = Date.now();
-    }, messageObj.duration);
-
-    console.log(`📢 Message broadcast: ${message} (${priority})`);
-
-    res.json({
-      success: true,
-      message: 'Message broadcast successfully',
-      messageId: messageObj.id,
-      timestamp: pollingState.lastUpdated
-    });
+    // Save to database
+    if (supabaseConnected && supabase) {
+      const { data, error } = await supabase
+        .from('supervisors')
+        .insert([newSupervisor])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      await logSupervisorActivity(req.supervisor.badge, 'SUPERVISOR_REGISTERED', 
+        { targetBadge: badge, targetName: name, admin }, req, 'info');
+      
+      res.json({
+        success: true,
+        message: 'Supervisor registered successfully',
+        supervisor: {
+          badge: data.badge,
+          name: data.name,
+          email: data.email,
+          admin: data.admin,
+          shift_pattern: data.shift_pattern
+        }
+      });
+    } else {
+      // Fallback to local storage
+      const localData = readLocalSupervisorData();
+      localData[badge] = newSupervisor;
+      writeLocalSupervisorData(localData);
+      
+      await logSupervisorActivity(req.supervisor.badge, 'SUPERVISOR_REGISTERED', 
+        { targetBadge: badge, targetName: name, admin }, req, 'info');
+      
+      res.json({
+        success: true,
+        message: 'Supervisor registered successfully (local)',
+        supervisor: {
+          badge: newSupervisor.badge,
+          name: newSupervisor.name,
+          email: newSupervisor.email,
+          admin: newSupervisor.admin,
+          shift_pattern: newSupervisor.shift_pattern
+        }
+      });
+    }
   } catch (error) {
-    console.error('❌ Broadcast message error:', error);
+    console.error('Error registering supervisor:', error);
+    await logSupervisorActivity(req.supervisor?.badge || 'SYSTEM', 'REGISTER_ERROR', 
+      { error: error.message }, req, 'error');
+    
     res.status(500).json({
       success: false,
-      error: 'Failed to broadcast message'
+      message: 'Failed to register supervisor'
     });
   }
 });
 
-// Dismiss alert from display
-router.post('/dismiss-from-display', async (req, res) => {
+// POST /api/supervisor/login - Enhanced login with JWT
+router.post('/login', async (req, res) => {
   try {
-    const { alertId, sessionId, reason, timestamp } = req.body;
+    const { badge, password } = req.body;
 
-    if (!alertId || !sessionId || !reason) {
+    if (!badge || !password) {
+      await logSupervisorActivity(badge || 'UNKNOWN', 'LOGIN_ATTEMPT_FAILED', 
+        { reason: 'missing_credentials' }, req, 'warning');
+      
       return res.status(400).json({
         success: false,
-        error: 'Alert ID, session ID, and reason are required'
+        message: 'Badge and password are required'
       });
     }
 
-    // Validate supervisor session
-    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
-    if (!sessionResult.success) {
+    // Get supervisor from database
+    const supervisor = await getSupervisorFromDB(badge);
+    
+    if (!supervisor) {
+      await logSupervisorActivity(badge, 'LOGIN_ATTEMPT_FAILED', 
+        { reason: 'invalid_badge' }, req, 'warning');
+      
       return res.status(401).json({
         success: false,
-        error: 'Invalid session'
+        message: 'Invalid badge or password'
       });
     }
 
-    // Add to dismissed from display
-    pollingState.dismissedFromDisplay.add(alertId);
-    pollingState.lastUpdated = Date.now();
-
-    // Log system action
-    await supervisorActivityLogger.logSystemAction(
-      sessionResult.supervisor.badge,
-      sessionResult.supervisor.name,
-      'dismiss-from-display',
-      {
-        alert_id: alertId,
-        reason,
-        timestamp: timestamp || pollingState.lastUpdated
-      }
-    );
-
-    console.log(`👁️‍🗨️ Alert ${alertId} dismissed from display: ${reason}`);
-
-    res.json({
-      success: true,
-      message: 'Alert dismissed from display successfully',
-      alertId,
-      timestamp: pollingState.lastUpdated
-    });
-  } catch (error) {
-    console.error('❌ Dismiss from display error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to dismiss from display'
-    });
-  }
-});
-
-// Lock alert on display
-router.post('/lock-on-display', async (req, res) => {
-  try {
-    const { alertId, sessionId, reason, timestamp } = req.body;
-
-    if (!alertId || !sessionId || !reason) {
-      return res.status(400).json({
-        success: false,
-        error: 'Alert ID, session ID, and reason are required'
-      });
-    }
-
-    // Validate supervisor session
-    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
-    if (!sessionResult.success) {
+    if (!supervisor.active) {
+      await logSupervisorActivity(badge, 'LOGIN_ATTEMPT_FAILED', 
+        { reason: 'account_inactive' }, req, 'warning');
+      
       return res.status(401).json({
         success: false,
-        error: 'Invalid session'
+        message: 'Account is inactive'
       });
     }
 
-    // Add to locked on display
-    pollingState.lockedOnDisplay.add(alertId);
-    pollingState.lastUpdated = Date.now();
-
-    // Log system action
-    await supervisorActivityLogger.logSystemAction(
-      sessionResult.supervisor.badge,
-      sessionResult.supervisor.name,
-      'lock-on-display',
-      {
-        alert_id: alertId,
-        reason,
-        timestamp: timestamp || pollingState.lastUpdated
-      }
-    );
-
-    console.log(`🔒 Alert ${alertId} locked on display: ${reason}`);
-
-    res.json({
-      success: true,
-      message: 'Alert locked on display successfully',
-      alertId,
-      timestamp: pollingState.lastUpdated
-    });
-  } catch (error) {
-    console.error('❌ Lock on display error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to lock on display'
-    });
-  }
-});
-
-// Unlock alert from display
-router.post('/unlock-from-display', async (req, res) => {
-  try {
-    const { alertId, sessionId, reason, timestamp } = req.body;
-
-    if (!alertId || !sessionId || !reason) {
-      return res.status(400).json({
-        success: false,
-        error: 'Alert ID, session ID, and reason are required'
-      });
-    }
-
-    // Validate supervisor session
-    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
-    if (!sessionResult.success) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid session'
-      });
-    }
-
-    // Remove from locked on display
-    pollingState.lockedOnDisplay.delete(alertId);
-    pollingState.lastUpdated = Date.now();
-
-    // Log system action
-    await supervisorActivityLogger.logSystemAction(
-      sessionResult.supervisor.badge,
-      sessionResult.supervisor.name,
-      'unlock-from-display',
-      {
-        alert_id: alertId,
-        reason,
-        timestamp: timestamp || pollingState.lastUpdated
-      }
-    );
-
-    console.log(`🔓 Alert ${alertId} unlocked from display: ${reason}`);
-
-    res.json({
-      success: true,
-      message: 'Alert unlocked from display successfully',
-      alertId,
-      timestamp: pollingState.lastUpdated
-    });
-  } catch (error) {
-    console.error('❌ Unlock from display error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to unlock from display'
-    });
-  }
-});
-
-// Clear all polling state (for testing)
-router.post('/clear-state', async (req, res) => {
-  try {
-    pollingState = {
-      acknowledgedAlerts: new Set(),
-      priorityOverrides: new Map(),
-      supervisorNotes: new Map(),
-      customMessages: [],
-      dismissedFromDisplay: new Set(),
-      lockedOnDisplay: new Set(),
-      lastUpdated: Date.now()
-    };
-    
-    console.log('🧹 Polling state cleared');
-    
-    res.json({
-      success: true,
-      message: 'Polling state cleared successfully',
-      timestamp: pollingState.lastUpdated
-    });
-  } catch (error) {
-    console.error('❌ Clear state error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to clear state'
-    });
-  }
-});
-
-// ===== SUPERVISOR COORDINATION ENDPOINTS =====
-
-// Coordinate with other supervisors
-router.post('/coordinate', async (req, res) => {
-  try {
-    const { sessionId, message, targetSupervisor, priority = 'medium' } = req.body;
-    
-    if (!sessionId || !message) {
-      return res.status(400).json({
-        success: false,
-        error: 'Session ID and message are required'
-      });
-    }
-    
-    // Validate supervisor session
-    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
-    if (!sessionResult.success) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid session'
-      });
-    }
-    
-    const coordination = {
-      id: `coord_${Date.now()}`,
-      fromSupervisor: sessionResult.supervisor.name,
-      fromBadge: sessionResult.supervisor.badge,
-      targetSupervisor: targetSupervisor || 'all',
-      message,
-      priority,
-      timestamp: new Date().toISOString(),
-      read: false
-    };
-    
-    // Store coordination message (in production, use Convex)
-    if (!global.coordinationMessages) {
-      global.coordinationMessages = [];
-    }
-    global.coordinationMessages.push(coordination);
-    
-    // Log system action
-    await supervisorActivityLogger.logSystemAction(
-      sessionResult.supervisor.badge,
-      sessionResult.supervisor.name,
-      'supervisor-coordination',
-      {
-        target: targetSupervisor,
-        message,
-        priority
-      }
-    );
-    
-    console.log(`🤝 Coordination message from ${sessionResult.supervisor.name} to ${targetSupervisor}: ${message}`);
-    
-    res.json({
-      success: true,
-      message: 'Coordination message sent',
-      coordination
-    });
-  } catch (error) {
-    console.error('❌ Supervisor coordination error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to send coordination message'
-    });
-  }
-});
-
-// Get active sessions for coordination
-router.get('/active-sessions', async (req, res) => {
-  try {
-    const activeSupervisors = await supervisorManager.getActiveSupervisors();
-    
-    const sessions = activeSupervisors.map(supervisor => ({
-      supervisorId: supervisor.id,
-      supervisorName: supervisor.name,
-      badge: supervisor.badge,
-      role: supervisor.role,
-      sessionStart: supervisor.sessionStart,
-      lastActivity: supervisor.lastActivity,
-      isOnline: true
-    }));
-    
-    res.json({
-      success: true,
-      activeSessions: sessions,
-      count: sessions.length,
-      lastUpdated: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('❌ Active sessions error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get active sessions'
-    });
-  }
-});
-
-// Create handover notes
-router.post('/handover', async (req, res) => {
-  try {
-    const { sessionId, shiftSummary, incidents, unresolved, notes, nextSupervisor } = req.body;
-    
-    if (!sessionId || !shiftSummary) {
-      return res.status(400).json({
-        success: false,
-        error: 'Session ID and shift summary are required'
-      });
-    }
-    
-    // Validate supervisor session
-    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
-    if (!sessionResult.success) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid session'
-      });
-    }
-    
-    const handover = {
-      id: `handover_${Date.now()}`,
-      fromSupervisor: sessionResult.supervisor.name,
-      fromBadge: sessionResult.supervisor.badge,
-      nextSupervisor: nextSupervisor || null,
-      shiftDate: new Date().toISOString().split('T')[0],
-      shiftSummary,
-      incidents: incidents || [],
-      unresolved: unresolved || [],
-      notes: notes || '',
-      createdAt: new Date().toISOString(),
-      acknowledged: false
-    };
-    
-    // Store handover (in production, use Convex)
-    if (!global.handoverNotes) {
-      global.handoverNotes = [];
-    }
-    global.handoverNotes.push(handover);
-    
-    // Log system action
-    await supervisorActivityLogger.logSystemAction(
-      sessionResult.supervisor.badge,
-      sessionResult.supervisor.name,
-      'shift-handover',
-      {
-        nextSupervisor,
-        incidentCount: incidents?.length || 0,
-        unresolvedCount: unresolved?.length || 0
-      }
-    );
-    
-    console.log(`📋 Handover created by ${sessionResult.supervisor.name} for ${nextSupervisor || 'next shift'}`);
-    
-    res.json({
-      success: true,
-      message: 'Handover created successfully',
-      handover
-    });
-  } catch (error) {
-    console.error('❌ Handover creation error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create handover'
-    });
-  }
-});
-
-// Get recent handovers
-router.get('/handovers', async (req, res) => {
-  try {
-    const { limit = 10 } = req.query;
-    
-    const handovers = (global.handoverNotes || [])
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .slice(0, parseInt(limit));
-    
-    res.json({
-      success: true,
-      handovers,
-      count: handovers.length
-    });
-  } catch (error) {
-    console.error('❌ Get handovers error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get handovers'
-    });
-  }
-});
-
-// Acknowledge handover
-router.post('/handover/:handoverId/acknowledge', async (req, res) => {
-  try {
-    const { handoverId } = req.params;
-    const { sessionId } = req.body;
-    
-    if (!sessionId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Session ID is required'
-      });
-    }
-    
-    // Validate supervisor session
-    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
-    if (!sessionResult.success) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid session'
-      });
-    }
-    
-    // Find and acknowledge handover
-    if (global.handoverNotes) {
-      const handover = global.handoverNotes.find(h => h.id === handoverId);
-      if (handover) {
-        handover.acknowledged = true;
-        handover.acknowledgedBy = sessionResult.supervisor.name;
-        handover.acknowledgedAt = new Date().toISOString();
+    // Verify password
+    if (supervisor.password_hash) {
+      const isValidPassword = await comparePassword(password, supervisor.password_hash);
+      if (!isValidPassword) {
+        await logSupervisorActivity(badge, 'LOGIN_ATTEMPT_FAILED', 
+          { reason: 'invalid_password' }, req, 'warning');
         
-        console.log(`✅ Handover ${handoverId} acknowledged by ${sessionResult.supervisor.name}`);
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid badge or password'
+        });
+      }
+    } else {
+      // Fallback for supervisors without hashed passwords (development)
+      if (password !== 'password' && password !== badge) {
+        await logSupervisorActivity(badge, 'LOGIN_ATTEMPT_FAILED', 
+          { reason: 'invalid_password_fallback' }, req, 'warning');
+        
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid badge or password'
+        });
+      }
+    }
+
+    // Generate JWT token
+    const token = generateToken(supervisor);
+    const sessionId = `session_${badge}_${Date.now()}`;
+    
+    const sessionData = {
+      session_id: sessionId,
+      login_time: new Date().toISOString(),
+      is_active: true,
+      last_activity: new Date().toISOString(),
+      last_login_ip: req.ip || req.connection?.remoteAddress
+    };
+
+    await updateSupervisorSession(badge, sessionData);
+    
+    await logSupervisorActivity(badge, 'LOGIN_SUCCESS', 
+      { sessionId, userAgent: req.get('User-Agent') }, req, 'info');
+    
+    res.json({
+      success: true,
+      message: 'Login successful',
+      supervisor: {
+        badge: supervisor.badge,
+        name: supervisor.name,
+        admin: supervisor.admin || false,
+        shift_pattern: supervisor.shift_pattern,
+        email: supervisor.email
+      },
+      token,
+      sessionId,
+      expiresIn: JWT_EXPIRES_IN
+    });
+  } catch (error) {
+    console.error('Error during login:', error);
+    await logSupervisorActivity(badge || 'SYSTEM', 'LOGIN_ERROR', 
+      { error: error.message }, req, 'error');
+    
+    res.status(500).json({
+      success: false,
+      message: 'Login failed'
+    });
+  }
+});
+
+// POST /api/supervisor/logout - Enhanced logout
+router.post('/logout', authenticateToken, async (req, res) => {
+  try {
+    const badge = req.supervisor.badge;
+    const { sessionId } = req.body;
+
+    const logoutData = {
+      is_active: false,
+      logout_time: new Date().toISOString(),
+      last_activity: new Date().toISOString()
+    };
+
+    await updateSupervisorSession(badge, logoutData);
+    
+    await logSupervisorActivity(badge, 'LOGOUT_SUCCESS', 
+      { sessionId }, req, 'info');
+    
+    res.json({
+      success: true,
+      message: 'Logout successful'
+    });
+  } catch (error) {
+    console.error('Error during logout:', error);
+    await logSupervisorActivity(req.supervisor?.badge || 'SYSTEM', 'LOGOUT_ERROR', 
+      { error: error.message }, req, 'error');
+    
+    res.status(500).json({
+      success: false,
+      message: 'Logout failed'
+    });
+  }
+});
+
+// POST /api/supervisor/password/change - Change password
+router.post('/password/change', authenticateToken, async (req, res) => {
+  try {
+    const badge = req.supervisor.badge;
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      await logSupervisorActivity(badge, 'PASSWORD_CHANGE_FAILED', 
+        { reason: 'missing_passwords' }, req, 'warning');
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      await logSupervisorActivity(badge, 'PASSWORD_CHANGE_FAILED', 
+        { reason: 'password_too_short' }, req, 'warning');
+      
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 6 characters long'
+      });
+    }
+
+    // Get current supervisor data
+    const supervisor = await getSupervisorFromDB(badge);
+    
+    if (supervisor.password_hash) {
+      const isValidCurrentPassword = await comparePassword(currentPassword, supervisor.password_hash);
+      if (!isValidCurrentPassword) {
+        await logSupervisorActivity(badge, 'PASSWORD_CHANGE_FAILED', 
+          { reason: 'invalid_current_password' }, req, 'warning');
+        
+        return res.status(401).json({
+          success: false,
+          message: 'Current password is incorrect'
+        });
+      }
+    }
+
+    // Hash new password
+    const newPasswordHash = await hashPassword(newPassword);
+
+    // Update password in database
+    if (supabaseConnected && supabase) {
+      const { error } = await supabase
+        .from('supervisors')
+        .update({ 
+          password_hash: newPasswordHash,
+          password_changed_at: new Date().toISOString()
+        })
+        .eq('badge', badge);
+      
+      if (error) throw error;
+    } else {
+      // Fallback to local storage
+      const localData = readLocalSupervisorData();
+      if (localData[badge]) {
+        localData[badge].password_hash = newPasswordHash;
+        localData[badge].password_changed_at = new Date().toISOString();
+        writeLocalSupervisorData(localData);
+      }
+    }
+
+    await logSupervisorActivity(badge, 'PASSWORD_CHANGED', {}, req, 'info');
+    
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    await logSupervisorActivity(req.supervisor?.badge || 'SYSTEM', 'PASSWORD_CHANGE_ERROR', 
+      { error: error.message }, req, 'error');
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to change password'
+    });
+  }
+});
+
+// GET /api/supervisor/profile - Get current supervisor profile
+router.get('/profile', authenticateToken, async (req, res) => {
+  try {
+    const badge = req.supervisor.badge;
+    const supervisor = await getSupervisorFromDB(badge);
+
+    if (!supervisor) {
+      return res.status(404).json({
+        success: false,
+        message: 'Supervisor not found'
+      });
+    }
+
+    await logSupervisorActivity(badge, 'PROFILE_VIEWED', {}, req, 'info');
+
+    res.json({
+      success: true,
+      supervisor: {
+        badge: supervisor.badge,
+        name: supervisor.name,
+        email: supervisor.email,
+        admin: supervisor.admin || false,
+        shift_pattern: supervisor.shift_pattern,
+        active: supervisor.active,
+        last_activity: supervisor.last_activity,
+        login_time: supervisor.login_time
+      }
+    });
+  } catch (error) {
+    console.error('Error getting profile:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get profile'
+    });
+  }
+});
+
+// GET /api/supervisor/activity/recent - Get recent activity (admin only)
+router.get('/activity/recent', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 100;
+    const badge = req.query.badge; // Optional filter by badge
+    
+    if (supabaseConnected && supabase) {
+      let query = supabase
+        .from('supervisor_activity_log')
+        .select('*')
+        .order('timestamp', { ascending: false })
+        .limit(limit);
+      
+      if (badge) {
+        query = query.eq('badge', badge);
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      
+      await logSupervisorActivity(req.supervisor.badge, 'ACTIVITY_LOG_VIEWED', 
+        { limit, filterBadge: badge }, req, 'info');
+      
+      res.json({
+        success: true,
+        activities: data,
+        count: data.length
+      });
+    } else {
+      res.json({
+        success: true,
+        activities: [],
+        count: 0,
+        message: 'Activity logging requires Supabase connection'
+      });
+    }
+  } catch (error) {
+    console.error('Error getting activity log:', error);
+    await logSupervisorActivity(req.supervisor?.badge || 'SYSTEM', 'ACTIVITY_LOG_ERROR', 
+      { error: error.message }, req, 'error');
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get activity log'
+    });
+  }
+});
+
+// GET /api/supervisor/active/list - Get active supervisors
+router.get('/active/list', authenticateToken, async (req, res) => {
+  try {
+    const allSupervisors = await getAllSupervisorsFromDB();
+    const activeSupervisors = allSupervisors
+      .filter(supervisor => supervisor.is_active)
+      .map(supervisor => ({
+        badge: supervisor.badge,
+        name: supervisor.name,
+        loginTime: supervisor.login_time,
+        lastActivity: supervisor.last_activity,
+        shift: supervisor.shift_pattern,
+        admin: supervisor.admin || false
+      }));
+
+    await logSupervisorActivity(req.supervisor.badge, 'ACTIVE_LIST_VIEWED', 
+      { count: activeSupervisors.length }, req, 'info');
+    
+    res.json({
+      success: true,
+      supervisors: activeSupervisors,
+      count: activeSupervisors.length
+    });
+  } catch (error) {
+    console.error('Error getting active supervisors:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get active supervisors'
+    });
+  }
+});
+
+// GET /api/supervisor/list/all - Get all supervisors (admin only)
+router.get('/list/all', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const allSupervisors = await getAllSupervisorsFromDB();
+    const supervisorList = allSupervisors.map(supervisor => ({
+      badge: supervisor.badge,
+      name: supervisor.name,
+      email: supervisor.email,
+      active: supervisor.active !== false,
+      admin: supervisor.admin || false,
+      shift: supervisor.shift_pattern,
+      lastActivity: supervisor.last_activity,
+      loginTime: supervisor.login_time
+    }));
+
+    await logSupervisorActivity(req.supervisor.badge, 'ALL_SUPERVISORS_VIEWED', 
+      { count: supervisorList.length }, req, 'info');
+
+    res.json({
+      success: true,
+      supervisors: supervisorList,
+      count: supervisorList.length
+    });
+  } catch (error) {
+    console.error('Error getting supervisors list:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get supervisors list'
+    });
+  }
+});
+
+// POST /api/supervisor/heartbeat - Update activity
+router.post('/heartbeat', authenticateToken, async (req, res) => {
+  try {
+    const badge = req.supervisor.badge;
+    const heartbeatData = {
+      last_activity: new Date().toISOString()
+    };
+
+    const updatedSupervisor = await updateSupervisorSession(badge, heartbeatData);
+    
+    res.json({
+      success: true,
+      supervisor: {
+        badge: updatedSupervisor.badge,
+        lastActivity: updatedSupervisor.last_activity
+      }
+    });
+  } catch (error) {
+    console.error('Error updating heartbeat:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Heartbeat update failed'
+    });
+  }
+});
+
+// PUT /api/supervisor/admin/edit/:badge - Edit supervisor (admin only)
+router.put('/admin/edit/:badge', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { badge } = req.params;
+    const { name, email, admin, active, shift_pattern, locations } = req.body;
+
+    if (!badge) {
+      await logSupervisorActivity(req.supervisor.badge, 'EDIT_SUPERVISOR_FAILED', 
+        { reason: 'missing_badge' }, req, 'warning');
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Badge is required'
+      });
+    }
+
+    // Check if supervisor exists
+    const existingSupervisor = await getSupervisorFromDB(badge);
+    if (!existingSupervisor) {
+      await logSupervisorActivity(req.supervisor.badge, 'EDIT_SUPERVISOR_FAILED', 
+        { reason: 'supervisor_not_found', targetBadge: badge }, req, 'warning');
+      
+      return res.status(404).json({
+        success: false,
+        message: 'Supervisor not found'
+      });
+    }
+
+    // Prepare update data
+    const updateData = {
+      ...(name && { name }),
+      ...(email && { email }),
+      ...(admin !== undefined && { admin }),
+      ...(active !== undefined && { active }),
+      ...(shift_pattern && { shift_pattern }),
+      ...(locations && { locations }),
+      updated_at: new Date().toISOString(),
+      updated_by: req.supervisor.badge
+    };
+
+    // Update in database
+    if (supabaseConnected && supabase) {
+      const { data, error } = await supabase
+        .from('supervisors')
+        .update(updateData)
+        .eq('badge', badge)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      await logSupervisorActivity(req.supervisor.badge, 'SUPERVISOR_EDITED', 
+        { targetBadge: badge, changes: updateData }, req, 'info');
+      
+      res.json({
+        success: true,
+        message: 'Supervisor updated successfully',
+        supervisor: {
+          badge: data.badge,
+          name: data.name,
+          email: data.email,
+          admin: data.admin,
+          active: data.active,
+          shift_pattern: data.shift_pattern,
+          locations: data.locations
+        }
+      });
+    } else {
+      // Fallback to local storage
+      const localData = readLocalSupervisorData();
+      if (localData[badge]) {
+        localData[badge] = { ...localData[badge], ...updateData };
+        writeLocalSupervisorData(localData);
+        
+        await logSupervisorActivity(req.supervisor.badge, 'SUPERVISOR_EDITED', 
+          { targetBadge: badge, changes: updateData }, req, 'info');
         
         res.json({
           success: true,
-          message: 'Handover acknowledged',
-          handover
+          message: 'Supervisor updated successfully (local)',
+          supervisor: localData[badge]
         });
       } else {
-        res.status(404).json({
+        return res.status(404).json({
           success: false,
-          error: 'Handover not found'
+          message: 'Supervisor not found in local storage'
         });
       }
-    } else {
-      res.status(404).json({
-        success: false,
-        error: 'No handovers found'
-      });
     }
   } catch (error) {
-    console.error('❌ Acknowledge handover error:', error);
+    console.error('Error editing supervisor:', error);
+    await logSupervisorActivity(req.supervisor?.badge || 'SYSTEM', 'EDIT_SUPERVISOR_ERROR', 
+      { targetBadge: req.params.badge, error: error.message }, req, 'error');
+    
     res.status(500).json({
       success: false,
-      error: 'Failed to acknowledge handover'
+      message: 'Failed to update supervisor'
     });
   }
 });
 
-// Validate supervisor by ID (for roadwork creation)
-router.post('/validate', async (req, res) => {
+// DELETE /api/supervisor/admin/delete/:badge - Delete supervisor (admin only)
+router.delete('/admin/delete/:badge', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { id } = req.body;
-    
-    if (!id) {
+    const { badge } = req.params;
+
+    if (!badge) {
+      await logSupervisorActivity(req.supervisor.badge, 'DELETE_SUPERVISOR_FAILED', 
+        { reason: 'missing_badge' }, req, 'warning');
+      
       return res.status(400).json({
         success: false,
-        error: 'Supervisor ID is required'
+        message: 'Badge is required'
       });
     }
-    
-    const result = await supervisorManager.validateSupervisorById(id);
-    
-    if (result.success) {
+
+    // Prevent self-deletion
+    if (badge === req.supervisor.badge) {
+      await logSupervisorActivity(req.supervisor.badge, 'DELETE_SUPERVISOR_FAILED', 
+        { reason: 'self_deletion_attempt', targetBadge: badge }, req, 'warning');
+      
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete your own account'
+      });
+    }
+
+    // Check if supervisor exists
+    const existingSupervisor = await getSupervisorFromDB(badge);
+    if (!existingSupervisor) {
+      await logSupervisorActivity(req.supervisor.badge, 'DELETE_SUPERVISOR_FAILED', 
+        { reason: 'supervisor_not_found', targetBadge: badge }, req, 'warning');
+      
+      return res.status(404).json({
+        success: false,
+        message: 'Supervisor not found'
+      });
+    }
+
+    // Delete from database
+    if (supabaseConnected && supabase) {
+      const { error } = await supabase
+        .from('supervisors')
+        .delete()
+        .eq('badge', badge);
+      
+      if (error) throw error;
+      
+      await logSupervisorActivity(req.supervisor.badge, 'SUPERVISOR_DELETED', 
+        { targetBadge: badge, targetName: existingSupervisor.name }, req, 'warning');
+      
       res.json({
         success: true,
-        supervisor: result.supervisor
+        message: 'Supervisor deleted successfully'
       });
     } else {
-      res.status(404).json({
-        success: false,
-        error: result.error
-      });
+      // Fallback to local storage
+      const localData = readLocalSupervisorData();
+      if (localData[badge]) {
+        delete localData[badge];
+        writeLocalSupervisorData(localData);
+        
+        await logSupervisorActivity(req.supervisor.badge, 'SUPERVISOR_DELETED', 
+          { targetBadge: badge, targetName: existingSupervisor.name }, req, 'warning');
+        
+        res.json({
+          success: true,
+          message: 'Supervisor deleted successfully (local)'
+        });
+      } else {
+        return res.status(404).json({
+          success: false,
+          message: 'Supervisor not found in local storage'
+        });
+      }
     }
   } catch (error) {
-    console.error('❌ Supervisor validation error:', error);
+    console.error('Error deleting supervisor:', error);
+    await logSupervisorActivity(req.supervisor?.badge || 'SYSTEM', 'DELETE_SUPERVISOR_ERROR', 
+      { targetBadge: req.params.badge, error: error.message }, req, 'error');
+    
     res.status(500).json({
       success: false,
-      error: 'Validation failed'
+      message: 'Failed to delete supervisor'
     });
   }
 });
 
-// Log duty start
-router.post('/log-duty', async (req, res) => {
+// GET /api/supervisor/admin/:badge - Get supervisor details (admin only)
+router.get('/admin/:badge', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { sessionId, dutyNumber, dutyName } = req.body;
-    
-    if (!sessionId || !dutyNumber) {
-      return res.status(400).json({
-        success: false,
-        error: 'Session ID and duty number are required'
+    const { badge } = req.params;
+    const supervisorRecord = await getSupervisorFromDB(badge);
+
+    if (!supervisorRecord) {
+      await logSupervisorActivity(req.supervisor.badge, 'ADMIN_SUPERVISOR_VIEW_FAILED', 
+        { reason: 'supervisor_not_found', targetBadge: badge }, req, 'warning');
+      
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Supervisor not found' 
       });
     }
-    
-    // Validate supervisor session
-    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
-    if (!sessionResult.success) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid session'
-      });
-    }
-    
-    // Log duty start activity
-    await supervisorActivityLogger.logDutyStart(
-      sessionResult.supervisor.badge,
-      sessionResult.supervisor.name,
-      dutyNumber
-    );
-    
-    console.log(`🚀 Duty ${dutyNumber} started by ${sessionResult.supervisor.name}`);
-    
+
+    await logSupervisorActivity(req.supervisor.badge, 'ADMIN_SUPERVISOR_VIEWED', 
+      { targetBadge: badge }, req, 'info');
+
     res.json({
       success: true,
-      message: 'Duty logged successfully',
-      supervisor: sessionResult.supervisor.name,
-      duty: dutyName || dutyNumber
+      supervisor: {
+        badge: supervisorRecord.badge,
+        name: supervisorRecord.name,
+        email: supervisorRecord.email,
+        admin: supervisorRecord.admin || false,
+        active: supervisorRecord.active !== false,
+        shift_pattern: supervisorRecord.shift_pattern,
+        locations: supervisorRecord.locations,
+        last_activity: supervisorRecord.last_activity,
+        login_time: supervisorRecord.login_time,
+        created_at: supervisorRecord.created_at,
+        updated_at: supervisorRecord.updated_at
+      }
     });
   } catch (error) {
-    console.error('❌ Log duty error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to log duty'
+    console.error('Error getting supervisor details:', error);
+    await logSupervisorActivity(req.supervisor?.badge || 'SYSTEM', 'ADMIN_SUPERVISOR_VIEW_ERROR', 
+      { targetBadge: req.params.badge, error: error.message }, req, 'error');
+    
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error' 
     });
   }
 });
 
-// Get coordination messages for supervisor
-router.get('/coordination/messages', async (req, res) => {
+// POST /api/supervisor/admin/reset-password/:badge - Reset supervisor password (admin only)
+router.post('/admin/reset-password/:badge', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { sessionId, limit = 50 } = req.query;
-    
-    if (!sessionId) {
+    const { badge } = req.params;
+    const { newPassword } = req.body;
+
+    if (!newPassword) {
+      await logSupervisorActivity(req.supervisor.badge, 'PASSWORD_RESET_FAILED', 
+        { reason: 'missing_password', targetBadge: badge }, req, 'warning');
+      
       return res.status(400).json({
         success: false,
-        error: 'Session ID is required'
+        message: 'New password is required'
       });
     }
-    
-    // Validate supervisor session
-    const sessionResult = await supervisorManager.validateSupervisorSession(sessionId);
-    if (!sessionResult.success) {
-      return res.status(401).json({
+
+    if (newPassword.length < 6) {
+      await logSupervisorActivity(req.supervisor.badge, 'PASSWORD_RESET_FAILED', 
+        { reason: 'password_too_short', targetBadge: badge }, req, 'warning');
+      
+      return res.status(400).json({
         success: false,
-        error: 'Invalid session'
+        message: 'New password must be at least 6 characters long'
       });
     }
-    
-    const messages = (global.coordinationMessages || [])
-      .filter(msg => 
-        msg.targetSupervisor === 'all' || 
-        msg.targetSupervisor === sessionResult.supervisor.name
-      )
-      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-      .slice(0, parseInt(limit));
+
+    // Check if supervisor exists
+    const existingSupervisor = await getSupervisorFromDB(badge);
+    if (!existingSupervisor) {
+      await logSupervisorActivity(req.supervisor.badge, 'PASSWORD_RESET_FAILED', 
+        { reason: 'supervisor_not_found', targetBadge: badge }, req, 'warning');
+      
+      return res.status(404).json({
+        success: false,
+        message: 'Supervisor not found'
+      });
+    }
+
+    // Hash new password
+    const newPasswordHash = await hashPassword(newPassword);
+
+    // Update password in database
+    if (supabaseConnected && supabase) {
+      const { error } = await supabase
+        .from('supervisors')
+        .update({ 
+          password_hash: newPasswordHash,
+          password_changed_at: new Date().toISOString(),
+          password_reset_by: req.supervisor.badge
+        })
+        .eq('badge', badge);
+      
+      if (error) throw error;
+    } else {
+      // Fallback to local storage
+      const localData = readLocalSupervisorData();
+      if (localData[badge]) {
+        localData[badge].password_hash = newPasswordHash;
+        localData[badge].password_changed_at = new Date().toISOString();
+        localData[badge].password_reset_by = req.supervisor.badge;
+        writeLocalSupervisorData(localData);
+      }
+    }
+
+    await logSupervisorActivity(req.supervisor.badge, 'PASSWORD_RESET_BY_ADMIN', 
+      { targetBadge: badge, targetName: existingSupervisor.name }, req, 'warning');
     
     res.json({
       success: true,
-      messages,
-      count: messages.length,
-      unreadCount: messages.filter(m => !m.read).length
+      message: 'Password reset successfully'
     });
   } catch (error) {
-    console.error('❌ Get coordination messages error:', error);
+    console.error('Error resetting password:', error);
+    await logSupervisorActivity(req.supervisor?.badge || 'SYSTEM', 'PASSWORD_RESET_ERROR', 
+      { targetBadge: req.params.badge, error: error.message }, req, 'error');
+    
     res.status(500).json({
       success: false,
-      error: 'Failed to get coordination messages'
+      message: 'Failed to reset password'
+    });
+  }
+});
+
+// GET /api/supervisor/health/status - Health check
+router.get('/health/status', async (req, res) => {
+  try {
+    const allSupervisors = await getAllSupervisorsFromDB();
+    const totalSupervisors = allSupervisors.length;
+    const activeSupervisors = allSupervisors.filter(s => s.is_active).length;
+
+    res.json({
+      success: true,
+      status: 'healthy',
+      version: 'ENHANCED-AUTH-LOGGING-2025-07-27',
+      database: supabaseConnected ? 'supabase' : 'local',
+      features: {
+        authentication: 'bcrypt + JWT',
+        activityLogging: supabaseConnected,
+        roleBasedAccess: true
+      },
+      stats: {
+        totalSupervisors,
+        activeSupervisors,
+        supabaseConnected
+      }
+    });
+  } catch (error) {
+    console.error('Error getting health status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Health check failed'
     });
   }
 });

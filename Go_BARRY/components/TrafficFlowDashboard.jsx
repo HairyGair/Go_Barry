@@ -3,7 +3,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useActiveFlows, useCriticalFlows } from '../hooks/useTrafficFlow';
-import TrafficFlowIndicator from './TrafficFlowIndicator';
+// TrafficFlowIndicator removed during cleanup
 
 const TrafficFlowDashboard = () => {
   const { activeFlows, count: activeCount, isLoading: loadingActive } = useActiveFlows();
@@ -142,10 +142,16 @@ const TrafficFlowDashboard = () => {
                 </Text>
               </View>
               
-              <TrafficFlowIndicator 
-                alertId={flow.alertId} 
-                showDetails={false}
-              />
+              <View style={styles.flowIndicator}>
+                <View style={[styles.flowBar, { 
+                  backgroundColor: getStatusColor(flow.severity),
+                  width: '100%',
+                  height: 4
+                }]} />
+                <Text style={styles.flowSpeed}>
+                  {flow.speed || '--'} mph
+                </Text>
+              </View>
               
               {flow.shouldAutoClear && (
                 <View style={styles.autoClearBanner}>
@@ -391,6 +397,19 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#6b7280',
     marginTop: 4,
+  },
+  flowIndicator: {
+    marginTop: 8,
+    alignItems: 'center',
+  },
+  flowBar: {
+    borderRadius: 2,
+    marginBottom: 4,
+  },
+  flowSpeed: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '600',
   },
 });
 

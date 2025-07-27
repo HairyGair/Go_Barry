@@ -660,7 +660,7 @@ const RoadworkQueue = ({ baseUrl, sessionId, supervisorName, supervisorRole, isL
           fetchStats();
         }}
         sessionId={currentSession?.sessionId}
-        baseUrl="https://go-barry.onrender.com"
+        baseUrl={baseUrl}
       />
 
       {/* Sort Controls */}

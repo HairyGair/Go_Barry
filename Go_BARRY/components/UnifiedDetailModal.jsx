@@ -1,373 +1,133 @@
-// components/UnifiedDetailModal.jsx
-// Unified detail modal for both traffic alerts and roadworks with intelligent adaptation
-import React, { useState, useEffect, useMemo } from 'react';
+// Go_BARRY/components/UnifiedDetailModal.jsx
+// Modal for viewing and managing roadwork details with comprehensive functionality
+
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
-  TextInput,
+  StyleSheet,
+  Modal,
   ScrollView,
   Alert,
-  Platform,
-  Modal
+  Switch,
+  TextInput,
+  Linking,
+  Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import TomTomTrafficMap from './TomTomTrafficMap';
-import { useConvexSync } from '../hooks/useConvexSync';
-import { useSupervisorSession } from './hooks/useSupervisorSession';
-import { API_CONFIG } from '../config/api';
-
-// Message templates for rule-based diversions (shared between alerts and roadworks)
-const MESSAGE_TEMPLATES = {
-  road_closure: {
-    pattern: "Service {routes} diverted via {diversion_route} due to road closure at {location}",
-    defaultDiversion: "alternative route"
-  },
-  roadworks: {
-    pattern: "Service {routes} diverted via {diversion_route} due to roadworks on {location}",
-    defaultDiversion: "A690 and city centre"
-  },
-  utility_works: {
-    pattern: "Service {routes} may be delayed due to utility works at {location}. Allow extra journey time",
-    defaultDiversion: "delays expected"
-  },
-  highway_maintenance: {
-    pattern: "Service {routes} diverted via {diversion_route} due to highway maintenance on {location}",
-    defaultDiversion: "maintenance diversion route"
-  },
-  accident: {
-    pattern: "Service {routes} delayed due to incident at {location}. Allow extra journey time",
-    defaultDiversion: "delays expected"
-  },
-  planned_event: {
-    pattern: "Service {routes} diverted via {diversion_route} due to event at {location}",
-    defaultDiversion: "event diversion route"
-  }
-};
-
-// Common diversion patterns
-const DIVERSION_PATTERNS = {
-  "A1": {
-    routes: ["21", "X21"],
-    diversions: ["A690", "A19", "Local roads via Birtley"]
-  },
-  "A19": {
-    routes: ["1", "2", "307"],
-    diversions: ["A1", "A690", "Sunderland Road"]
-  },
-  "City Centre": {
-    routes: ["Q3", "1", "2", "21"],
-    diversions: ["Bypass via A167", "Central Station route", "Byker Bridge"]
-  },
-  "Gateshead": {
-    routes: ["Q3", "57", "58"],
-    diversions: ["High Level Bridge", "Swing Bridge", "A167"]
-  }
-};
 
 const UnifiedDetailModal = ({ 
   visible, 
-  onClose, 
-  data, // Can be alert or roadwork
-  onUpdate,
+  data,
+  onClose,
+  onUpdateStatus,
   onDismiss,
-  onPushToDisplay 
+  onPushToDisplay,
+  onEditRoadwork,
+  supervisorData 
 }) => {
-  const { supervisorSession } = useSupervisorSession();
-  const { pushToDisplay, dismissFromDisplay } = useConvexSync();
-  
-  // Detect data type
-  const dataType = useMemo(() => {
-    if (!data) return 'unknown';
-    
-    // Check for roadwork indicators
-    if (data.source === 'StreetManager' || 
-        data.permitReference || 
-        data.workCategory ||
-        data.authority ||
-        data.dataSource === 'StreetManager Webhook Database') {
-      return 'roadwork';
-    }
-    
-    // Check for manual incident indicators
-    if (data.source === 'manual_incident' || data.incidentData) {
-      return 'incident';
-    }
-    
-    // Default to traffic alert
-    return 'alert';
-  }, [data]);
-
-  // Local state
-  const [editedTitle, setEditedTitle] = useState('');
-  const [selectedRoutes, setSelectedRoutes] = useState([]);
-  const [diversionText, setDiversionText] = useState('');
-  const [driverMessage, setDriverMessage] = useState('');
-  const [suggestedRoutes, setSuggestedRoutes] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [saveStatus, setSaveStatus] = useState('');
-  const [showStatusModal, setShowStatusModal] = useState(false);
-  const [newStatus, setNewStatus] = useState('');
+  const [activeTab, setActiveTab] = useState('details');
   const [statusNotes, setStatusNotes] = useState('');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [displayStatus, setDisplayStatus] = useState(false);
+  const [dismissReason, setDismissReason] = useState('');
 
-  // Initialize state when data changes
+  const statusOptions = [
+    { value: 'reported', label: 'Reported', icon: 'information-circle', color: '#6B7280' },
+    { value: 'assessing', label: 'Assessing Impact', icon: 'search', color: '#F59E0B' },
+    { value: 'planning', label: 'Planning Response', icon: 'document-text', color: '#3B82F6' },
+    { value: 'approved', label: 'Plans Approved', icon: 'checkmark-circle', color: '#10B981' },
+    { value: 'active', label: 'Monitoring Active', icon: 'eye', color: '#DC2626' },
+    { value: 'monitoring', label: 'Ongoing Monitoring', icon: 'pulse', color: '#7C3AED' },
+    { value: 'resolved', label: 'Resolved', icon: 'checkmark-done', color: '#059669' }
+  ];
+
+  const dismissReasons = [
+    'Duplicate entry',
+    'Incorrect information',
+    'Outside operational area',
+    'No impact on bus routes',
+    'Resolved/Completed',
+    'Planning cancelled',
+    'Other'
+  ];
+
   useEffect(() => {
-    if (data) {
-      setEditedTitle(data.title || '');
-      setSelectedRoutes(data.affectsRoutes || data.routes_affected || []);
-      setDiversionText('');
-      setDriverMessage('');
-      setSaveStatus('');
-      
-      // Get suggested routes from GTFS matcher
-      if (data.coordinates) {
-        fetchSuggestedRoutes();
-      }
-      
-      // Generate initial diversion message
-      generateInitialMessages();
+    if (visible && data) {
+      setStatusNotes('');
+      setDisplayStatus(data.promotedToDisplay || false);
+      setDismissReason('');
+      setActiveTab('details');
     }
-  }, [data]);
+  }, [visible, data]);
 
-  // Enhanced GTFS route matching
-  const fetchSuggestedRoutes = async () => {
-    try {
-      if (!data.coordinates || data.coordinates.length < 2) return;
-      
-      const [lat, lng] = data.coordinates;
-      const response = await fetch(
-        `${API_CONFIG.baseURL}/api/gtfs/match/enhanced?` +
-        `lat=${lat}&lng=${lng}&radius=1000&includeDirections=true`
-      );
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('📍 Enhanced GTFS match results:', result);
-        
-        if (result.success && result.matches) {
-          // Sort by confidence
-          const sortedRoutes = result.matches
-            .sort((a, b) => (b.confidence || 0) - (a.confidence || 0))
-            .map(match => ({
-              routeId: match.routeId,
-              routeName: match.routeName,
-              confidence: match.confidence,
-              distance: match.distance,
-              direction: match.direction
-            }));
-            
-          setSuggestedRoutes(sortedRoutes);
-          
-          // Auto-select high confidence routes
-          const highConfidenceRoutes = sortedRoutes
-            .filter(route => route.confidence > 0.7)
-            .map(route => route.routeName);
-            
-          if (highConfidenceRoutes.length > 0) {
-            setSelectedRoutes(prev => [...new Set([...prev, ...highConfidenceRoutes])]);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('❌ GTFS matching failed:', error);
+  if (!data) return null;
+
+  const currentStatus = statusOptions.find(s => s.value === data.status) || statusOptions[0];
+  const severityColor = getSeverityColor(data.severity || data.priority);
+  const isManualEntry = data.source === 'manual';
+  const hasCoordinates = data.coordinates && data.coordinates.length === 2;
+
+  function getSeverityColor(severity) {
+    const sev = (severity || 'medium').toLowerCase();
+    switch (sev) {
+      case 'critical': return '#DC2626';
+      case 'high': return '#EA580C';
+      case 'medium': return '#F59E0B';
+      case 'low': return '#10B981';
+      default: return '#6B7280';
     }
-  };
+  }
 
-  // Generate initial messages based on data type and content
-  const generateInitialMessages = () => {
-    if (!data) return;
-    
-    // Determine type from data
-    const alertType = detectDataType(data);
-    const template = MESSAGE_TEMPLATES[alertType] || MESSAGE_TEMPLATES.road_closure;
-    
-    // Extract location context
-    const location = data.location || data.displayLocation || data.street_name || 'location';
-    const locationContext = extractLocationContext(location);
-    const suggestedDiversion = getSuggestedDiversion(locationContext, alertType);
-    
-    // Generate driver message
-    const routes = (data.affectsRoutes || data.routes_affected || []).join(', ') || 'affected services';
-    const message = template.pattern
-      .replace('{routes}', routes)
-      .replace('{location}', location)
-      .replace('{diversion_route}', suggestedDiversion);
-      
-    setDriverMessage(message);
-    setDiversionText(suggestedDiversion);
-  };
-
-  // Detect data type from content
-  const detectDataType = (data) => {
-    const text = `${data.title} ${data.description}`.toLowerCase();
-    
-    if (dataType === 'roadwork') {
-      if (text.includes('utility') || data.workCategory?.includes('utility')) return 'utility_works';
-      if (text.includes('highway') || text.includes('maintenance')) return 'highway_maintenance';
-      return 'roadworks';
-    }
-    
-    if (text.includes('closure') || text.includes('closed')) return 'road_closure';
-    if (text.includes('accident') || text.includes('incident')) return 'accident';
-    if (text.includes('event') || text.includes('match') || text.includes('concert')) return 'planned_event';
-    
-    return 'road_closure'; // default
-  };
-
-  // Extract location context for better diversion suggestions
-  const extractLocationContext = (location) => {
-    if (!location) return 'unknown';
-    
-    const loc = location.toLowerCase();
-    if (loc.includes('a1')) return 'A1';
-    if (loc.includes('a19')) return 'A19';
-    if (loc.includes('city centre') || loc.includes('newcastle')) return 'City Centre';
-    if (loc.includes('gateshead')) return 'Gateshead';
-    
-    return 'general';
-  };
-
-  // Get suggested diversion based on location and type
-  const getSuggestedDiversion = (locationContext, alertType) => {
-    const pattern = DIVERSION_PATTERNS[locationContext];
-    if (pattern && pattern.diversions.length > 0) {
-      if (alertType === 'roadworks' || alertType === 'utility_works') {
-        return pattern.diversions[0]; // First option for roadworks
-      }
-      return pattern.diversions[Math.floor(Math.random() * pattern.diversions.length)];
-    }
-    
-    return MESSAGE_TEMPLATES[alertType]?.defaultDiversion || 'alternative route';
-  };
-
-  // Handle route selection
-  const toggleRouteSelection = (routeName) => {
-    setSelectedRoutes(prev => {
-      if (prev.includes(routeName)) {
-        return prev.filter(r => r !== routeName);
-      } else {
-        return [...prev, routeName];
-      }
-    });
-  };
-
-  // Update messages when routes change
-  useEffect(() => {
-    if (selectedRoutes.length > 0 && data) {
-      const alertType = detectDataType(data);
-      const template = MESSAGE_TEMPLATES[alertType];
-      
-      const location = data.location || data.displayLocation || data.street_name || 'location';
-      const updatedMessage = template.pattern
-        .replace('{routes}', selectedRoutes.join(', '))
-        .replace('{location}', location)
-        .replace('{diversion_route}', diversionText || template.defaultDiversion);
-        
-      setDriverMessage(updatedMessage);
-    }
-  }, [selectedRoutes, diversionText, data]);
-
-  // Save changes
-  const handleSaveChanges = async () => {
-    if (!supervisorSession) {
-      Alert.alert('Error', 'Please log in to save changes');
+  const handleStatusUpdate = async (newStatus) => {
+    if (!statusNotes.trim()) {
+      Alert.alert('Note Required', 'Please add a note explaining this status change.');
       return;
     }
-    
-    setLoading(true);
-    setSaveStatus('Saving...');
-    
+
+    setIsUpdatingStatus(true);
     try {
-      // Different save endpoints based on data type
-      let endpoint = '';
-      let updateData = {};
-      
-      if (dataType === 'roadwork') {
-        endpoint = `/api/roadworks/${data.id || data.notification_id}`;
-        updateData = {
-          title: editedTitle,
-          routes_affected: selectedRoutes,
-          updatedBy: supervisorSession.supervisor.badge,
-          timestamp: Date.now()
-        };
+      const result = await onUpdateStatus(data.id, newStatus, statusNotes.trim());
+      if (result?.success) {
+        Alert.alert('Success', 'Status updated successfully.');
+        setStatusNotes('');
       } else {
-        endpoint = `/api/alerts/${data.id}/update`;
-        updateData = {
-          title: editedTitle,
-          affectsRoutes: selectedRoutes,
-          updatedBy: supervisorSession.supervisor.badge,
-          timestamp: Date.now()
-        };
+        Alert.alert('Error', result?.error || 'Failed to update status');
       }
-      
-      const response = await fetch(`${API_CONFIG.baseURL}${endpoint}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData)
-      });
-      
-      if (!response.ok) throw new Error('Failed to update');
-      
-      setSaveStatus('✅ Saved successfully');
-      
-      if (onUpdate) {
-        onUpdate({
-          ...data,
-          title: editedTitle,
-          affectsRoutes: selectedRoutes,
-          routes_affected: selectedRoutes
-        });
-      }
-      
-      setTimeout(() => setSaveStatus(''), 2000);
-      
     } catch (error) {
-      console.error('❌ Save failed:', error);
-      setSaveStatus('❌ Save failed');
-      Alert.alert('Error', 'Failed to save changes: ' + error.message);
+      Alert.alert('Error', 'An error occurred while updating status');
     } finally {
-      setLoading(false);
+      setIsUpdatingStatus(false);
     }
   };
 
-  // Handle dismiss
   const handleDismiss = async () => {
-    if (!supervisorSession) {
-      Alert.alert('Error', 'Please log in to dismiss');
+    if (!dismissReason) {
+      Alert.alert('Reason Required', 'Please select a reason for dismissing this roadwork.');
       return;
     }
-    
-    const itemType = dataType === 'roadwork' ? 'roadwork' : 'alert';
-    
+
     Alert.alert(
-      `Dismiss ${itemType}`,
-      `Are you sure you want to dismiss this ${itemType}? It will be removed from all displays.`,
+      'Confirm Dismissal',
+      `Are you sure you want to dismiss this roadwork?\n\nReason: ${dismissReason}`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Dismiss', 
+        {
+          text: 'Dismiss',
           style: 'destructive',
           onPress: async () => {
             try {
-              // If onDismiss callback provided, use it (for roadworks)
-              if (onDismiss) {
-                onDismiss(data);
-                onClose();
+              const result = await onDismiss(data.id, dismissReason);
+              if (result?.success) {
+                Alert.alert('Success', 'Roadwork dismissed successfully.', [
+                  { text: 'OK', onPress: onClose }
+                ]);
               } else {
-                // Otherwise use Convex dismiss (for alerts)
-                const result = await dismissFromDisplay({
-                  alertId: data.id || data.notification_id,
-                  sessionId: supervisorSession.sessionId,
-                  reason: 'Not relevant/resolved'
-                });
-                
-                if (result.success) {
-                  onClose();
-                }
+                Alert.alert('Error', result?.error || 'Failed to dismiss roadwork');
               }
             } catch (error) {
-              Alert.alert('Error', `Failed to dismiss ${itemType}`);
+              Alert.alert('Error', 'An error occurred while dismissing roadwork');
             }
           }
         }
@@ -375,1007 +135,713 @@ const UnifiedDetailModal = ({
     );
   };
 
-  // Handle push to display
-  const handlePushToDisplay = async () => {
-    if (!supervisorSession) {
-      Alert.alert('Error', 'Please log in to push to display');
+  const handleDisplayToggle = async (enabled) => {
+    try {
+      const result = await onPushToDisplay(data.id, enabled);
+      if (result?.success) {
+        setDisplayStatus(enabled);
+        Alert.alert(
+          'Success', 
+          enabled ? 'Roadwork pushed to display screens' : 'Roadwork removed from display screens'
+        );
+      } else {
+        Alert.alert('Error', result?.error || 'Failed to update display status');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'An error occurred while updating display status');
+    }
+  };
+
+  const openInMaps = () => {
+    if (!hasCoordinates) {
+      Alert.alert('No Location', 'GPS coordinates not available for this roadwork');
       return;
     }
+
+    const [lat, lng] = data.coordinates;
+    const label = encodeURIComponent(data.title || 'Roadwork');
     
-    try {
-      // If onPushToDisplay callback provided, use it (for roadworks)
-      if (onPushToDisplay) {
-        onPushToDisplay(data);
-      } else {
-        // Otherwise use Convex push (for alerts)
-        const result = await pushToDisplay({
-          alertId: data.id || data.notification_id,
-          sessionId: supervisorSession.sessionId,
-          notes: `${editedTitle} - ${diversionText || 'Major disruption'}`
-        });
+    if (Platform.OS === 'ios') {
+      const url = `maps://0,0?q=${lat},${lng}`;
+      Linking.openURL(url);
+    } else {
+      const url = `geo:${lat},${lng}?q=${lat},${lng}(${label})`;
+      Linking.openURL(url);
+    }
+  };
+
+  const renderDetailsTab = () => (
+    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+      {/* Status and Severity */}
+      <View style={styles.statusRow}>
+        <View style={[styles.statusBadge, { backgroundColor: currentStatus.color + '20' }]}>
+          <Ionicons name={currentStatus.icon} size={16} color={currentStatus.color} />
+          <Text style={[styles.statusText, { color: currentStatus.color }]}>
+            {currentStatus.label}
+          </Text>
+        </View>
+        <View style={[styles.severityBadge, { backgroundColor: severityColor + '20' }]}>
+          <Text style={[styles.severityText, { color: severityColor }]}>
+            {(data.severity || data.priority || 'Medium').toUpperCase()}
+          </Text>
+        </View>
+      </View>
+
+      {/* Title and Location */}
+      <Text style={styles.roadworkTitle}>{data.title}</Text>
+      <View style={styles.locationRow}>
+        <Ionicons name="location" size={16} color="#6B7280" />
+        <Text style={styles.locationText}>{data.location}</Text>
+        {hasCoordinates && (
+          <TouchableOpacity style={styles.mapButton} onPress={openInMaps}>
+            <Ionicons name="map" size={14} color="#3B82F6" />
+            <Text style={styles.mapButtonText}>Open</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Description */}
+      {data.description && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Description</Text>
+          <Text style={styles.descriptionText}>{data.description}</Text>
+        </View>
+      )}
+
+      {/* Affected Routes */}
+      {(data.affectedRoutes?.length > 0 || data.affectsRoutes?.length > 0) && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Affected Bus Routes</Text>
+          <View style={styles.routesContainer}>
+            {(data.affectedRoutes || data.affectsRoutes || []).map((route) => (
+              <View key={route} style={styles.routeChip}>
+                <Text style={styles.routeChipText}>{route}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* Traffic Management */}
+      {data.trafficManagement && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Traffic Management</Text>
+          <Text style={styles.infoText}>{data.trafficManagement}</Text>
+        </View>
+      )}
+
+      {/* Duration */}
+      {data.expectedDuration && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Expected Duration</Text>
+          <Text style={styles.infoText}>{data.expectedDuration}</Text>
+        </View>
+      )}
+
+      {/* Promoter */}
+      {data.promoter && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Promoter/Contractor</Text>
+          <Text style={styles.infoText}>{data.promoter}</Text>
+        </View>
+      )}
+
+      {/* Source and Dates */}
+      <View style={styles.metadataSection}>
+        <View style={styles.metadataRow}>
+          <Text style={styles.metadataLabel}>Source:</Text>
+          <Text style={styles.metadataValue}>
+            {isManualEntry ? 'Manual Entry' : data.source || 'Street Manager'}
+          </Text>
+        </View>
+        {data.createdAt && (
+          <View style={styles.metadataRow}>
+            <Text style={styles.metadataLabel}>Reported:</Text>
+            <Text style={styles.metadataValue}>
+              {new Date(data.createdAt).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </Text>
+          </View>
+        )}
+        {data.startDate && (
+          <View style={styles.metadataRow}>
+            <Text style={styles.metadataLabel}>Start Date:</Text>
+            <Text style={styles.metadataValue}>
+              {new Date(data.startDate).toLocaleDateString('en-GB')}
+            </Text>
+          </View>
+        )}
+      </View>
+    </ScrollView>
+  );
+
+  const renderStatusTab = () => (
+    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+      <Text style={styles.sectionTitle}>Update Status</Text>
+      <Text style={styles.sectionDescription}>
+        Change the status of this roadwork and add notes for other supervisors.
+      </Text>
+
+      {/* Current Status */}
+      <View style={styles.currentStatusContainer}>
+        <Text style={styles.currentStatusLabel}>Current Status:</Text>
+        <View style={[styles.statusBadge, { backgroundColor: currentStatus.color + '20' }]}>
+          <Ionicons name={currentStatus.icon} size={16} color={currentStatus.color} />
+          <Text style={[styles.statusText, { color: currentStatus.color }]}>
+            {currentStatus.label}
+          </Text>
+        </View>
+      </View>
+
+      {/* Status Options */}
+      <View style={styles.statusOptionsContainer}>
+        {statusOptions.map((option) => (
+          <TouchableOpacity
+            key={option.value}
+            style={[
+              styles.statusOption,
+              data.status === option.value && styles.statusOptionCurrent
+            ]}
+            onPress={() => {
+              if (data.status === option.value) return;
+              Alert.alert(
+                'Confirm Status Change',
+                `Change status to "${option.label}"?`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Change', onPress: () => handleStatusUpdate(option.value) }
+                ]
+              );
+            }}
+            disabled={data.status === option.value || isUpdatingStatus}
+          >
+            <View style={styles.statusOptionContent}>
+              <Ionicons name={option.icon} size={20} color={option.color} />
+              <Text style={[styles.statusOptionText, { color: option.color }]}>
+                {option.label}
+              </Text>
+            </View>
+            {data.status === option.value && (
+              <Ionicons name="checkmark" size={20} color={option.color} />
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Status Notes */}
+      <View style={styles.notesContainer}>
+        <Text style={styles.notesLabel}>Status Update Notes</Text>
+        <TextInput
+          style={styles.notesInput}
+          placeholder="Add notes about this status change..."
+          placeholderTextColor="#9CA3AF"
+          value={statusNotes}
+          onChangeText={setStatusNotes}
+          multiline
+          numberOfLines={3}
+        />
+      </View>
+    </ScrollView>
+  );
+
+  const renderActionsTab = () => (
+    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+      {/* Display Toggle */}
+      <View style={styles.actionSection}>
+        <View style={styles.actionHeader}>
+          <Ionicons name="tv" size={20} color="#3B82F6" />
+          <Text style={styles.actionTitle}>Passenger Displays</Text>
+        </View>
+        <Text style={styles.actionDescription}>
+          Control whether this roadwork appears on passenger information displays
+        </Text>
+        <View style={styles.switchContainer}>
+          <Text style={styles.switchLabel}>Push to Display Screens</Text>
+          <Switch
+            value={displayStatus}
+            onValueChange={handleDisplayToggle}
+            trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}
+            thumbColor={displayStatus ? '#FFFFFF' : '#9CA3AF'}
+          />
+        </View>
+      </View>
+
+      {/* Edit Roadwork */}
+      {isManualEntry && onEditRoadwork && (
+        <View style={styles.actionSection}>
+          <View style={styles.actionHeader}>
+            <Ionicons name="create" size={20} color="#F59E0B" />
+            <Text style={styles.actionTitle}>Edit Details</Text>
+          </View>
+          <Text style={styles.actionDescription}>
+            Modify the details of this manual roadwork entry
+          </Text>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => onEditRoadwork(data)}
+          >
+            <Ionicons name="create" size={16} color="#F59E0B" />
+            <Text style={[styles.actionButtonText, { color: '#F59E0B' }]}>
+              Edit Roadwork
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Dismiss Roadwork */}
+      <View style={styles.actionSection}>
+        <View style={styles.actionHeader}>
+          <Ionicons name="close-circle" size={20} color="#EF4444" />
+          <Text style={styles.actionTitle}>Dismiss Roadwork</Text>
+        </View>
+        <Text style={styles.actionDescription}>
+          Remove this roadwork from active monitoring
+        </Text>
         
-        if (result.success) {
-          Alert.alert('Success', 'Item pushed to control room display');
-        }
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to push to display');
-    }
-  };
+        <Text style={styles.dismissReasonLabel}>Dismissal Reason:</Text>
+        <View style={styles.dismissReasonsContainer}>
+          {dismissReasons.map((reason) => (
+            <TouchableOpacity
+              key={reason}
+              style={[
+                styles.dismissReasonChip,
+                dismissReason === reason && styles.dismissReasonChipSelected
+              ]}
+              onPress={() => setDismissReason(reason)}
+            >
+              <Text style={[
+                styles.dismissReasonText,
+                dismissReason === reason && styles.dismissReasonTextSelected
+              ]}>
+                {reason}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-  // Handle status update for roadworks
-  const handleUpdateStatus = async () => {
-    if (!supervisorSession) {
-      Alert.alert('Error', 'Please log in to update status');
-      return;
-    }
-    
-    if (!newStatus || !statusNotes.trim()) {
-      Alert.alert('Error', 'Please select a status and provide notes');
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      
-      const response = await fetch(`${API_CONFIG.baseURL}/api/roadworks/${data.id || data.notification_id}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: newStatus,
-          notes: statusNotes,
-          sessionId: supervisorSession.sessionId,
-          updatedBy: supervisorSession.supervisor.badge
-        })
-      });
-      
-      if (response.ok) {
-        Alert.alert('Success', 'Status updated successfully');
-        setShowStatusModal(false);
-        setNewStatus('');
-        setStatusNotes('');
-        
-        if (onUpdate) {
-          onUpdate({
-            ...data,
-            status: newStatus,
-            lastUpdated: Date.now()
-          });
-        }
-      } else {
-        throw new Error('Failed to update status');
-      }
-    } catch (error) {
-      console.error('❌ Status update failed:', error);
-      Alert.alert('Error', 'Failed to update status: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Store diversion for future use
-  const handleStoreDiversion = async () => {
-    if (!diversionText || selectedRoutes.length === 0) {
-      Alert.alert('Error', 'Please select routes and enter diversion details');
-      return;
-    }
-    
-    try {
-      const location = data.location || data.displayLocation || data.street_name || 'Unknown location';
-      const diversionData = {
-        location: location,
-        routes: selectedRoutes,
-        diversion: diversionText,
-        message: driverMessage,
-        alertType: detectDataType(data),
-        dataType: dataType,
-        createdBy: supervisorSession?.supervisor?.badge,
-        timestamp: Date.now()
-      };
-      
-      const response = await fetch(`${API_CONFIG.baseURL}/api/diversions/store`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(diversionData)
-      });
-      
-      if (response.ok) {
-        Alert.alert('Success', 'Diversion pattern saved for future use');
-      } else {
-        throw new Error('Failed to store diversion');
-      }
-    } catch (error) {
-      console.error('❌ Failed to store diversion:', error);
-      Alert.alert('Error', 'Failed to store diversion pattern');
-    }
-  };
-
-  // Get header information based on data type
-  const getHeaderInfo = () => {
-    switch (dataType) {
-      case 'roadwork':
-        return {
-          title: 'Roadwork Details',
-          subtitle: `${data.source || 'StreetManager'} • ${data.severity || 'Medium'} • ${data.workCategory || 'Roadwork'}`
-        };
-      case 'incident':
-        return {
-          title: 'Incident Details',
-          subtitle: `Manual Incident • ${data.severity || 'Medium'} • ${data.type || 'Incident'}`
-        };
-      default:
-        return {
-          title: 'Alert Details',
-          subtitle: `${data.source || 'Traffic Alert'} • ${data.severity?.toUpperCase() || 'MEDIUM'}`
-        };
-    }
-  };
-
-  if (!visible || !data) return null;
-
-  const headerInfo = getHeaderInfo();
+        <TouchableOpacity
+          style={[
+            styles.actionButton,
+            styles.dismissButton,
+            !dismissReason && styles.actionButtonDisabled
+          ]}
+          onPress={handleDismiss}
+          disabled={!dismissReason}
+        >
+          <Ionicons name="close-circle" size={16} color="#FFFFFF" />
+          <Text style={styles.dismissButtonText}>Dismiss Roadwork</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
 
   return (
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle="pageSheet"
+      transparent={true}
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.headerTitle}>{headerInfo.title}</Text>
-            <Text style={styles.headerSubtitle}>{headerInfo.subtitle}</Text>
-          </View>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={24} color="#6B7280" />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Editable Title */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Title</Text>
-            <TextInput
-              style={styles.titleInput}
-              value={editedTitle}
-              onChangeText={setEditedTitle}
-              placeholder="Enter title..."
-              multiline
-              editable={!!supervisorSession}
-            />
-            {editedTitle !== data.title && (
-              <Text style={styles.changeIndicator}>• Modified</Text>
-            )}
+      <View style={styles.modalContainer}>
+        <View style={styles.modalContent}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerInfo}>
+              <Text style={styles.headerTitle}>Roadwork Details</Text>
+              <Text style={styles.headerSubtitle}>
+                {isManualEntry ? 'Manual Entry' : 'Street Manager'}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color="#6B7280" />
+            </TouchableOpacity>
           </View>
 
-          {/* Roadwork-specific information */}
-          {dataType === 'roadwork' && (
-            <>
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Work Details</Text>
-                
-                {data.permitReference && (
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Permit Reference:</Text>
-                    <Text style={styles.infoValue}>{data.permitReference}</Text>
-                  </View>
-                )}
-                
-                {data.authority && (
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Authority:</Text>
-                    <Text style={styles.infoValue}>{data.authority}</Text>
-                  </View>
-                )}
-                
-                {data.workCategory && (
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Work Category:</Text>
-                    <Text style={styles.infoValue}>{data.workCategory}</Text>
-                  </View>
-                )}
-                
-                {data.work_type && (
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Work Type:</Text>
-                    <Text style={styles.infoValue}>{data.work_type}</Text>
-                  </View>
-                )}
-                
-                {data.status && (
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Status:</Text>
-                    <Text style={[styles.infoValue, styles.statusValue]}>{data.status}</Text>
-                  </View>
-                )}
-                
-                {data.startDate && (
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Start Date:</Text>
-                    <Text style={styles.infoValue}>{new Date(data.startDate).toLocaleDateString()}</Text>
-                  </View>
-                )}
-                
-                {data.endDate && (
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>End Date:</Text>
-                    <Text style={styles.infoValue}>{new Date(data.endDate).toLocaleDateString()}</Text>
-                  </View>
-                )}
-                
-                {data.reason && (
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Reason:</Text>
-                    <Text style={styles.infoValue}>{data.reason}</Text>
-                  </View>
-                )}
-                
-                {data.description && (
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>Description:</Text>
-                    <Text style={styles.infoValue}>{data.description}</Text>
-                  </View>
-                )}
-              </View>
-              
-              {/* Contact Information */}
-              {(data.promoter || data.contact_details || data.authority_contact) && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Contact Information</Text>
-                  
-                  {data.promoter && (
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Promoter:</Text>
-                      <Text style={styles.infoValue}>{data.promoter}</Text>
-                    </View>
-                  )}
-                  
-                  {data.contact_details && (
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Contact Details:</Text>
-                      <Text style={styles.infoValue}>{data.contact_details}</Text>
-                    </View>
-                  )}
-                  
-                  {data.authority_contact && (
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Authority Contact:</Text>
-                      <Text style={styles.infoValue}>{data.authority_contact}</Text>
-                    </View>
-                  )}
-                  
-                  {data.highway_authority && (
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Highway Authority:</Text>
-                      <Text style={styles.infoValue}>{data.highway_authority}</Text>
-                    </View>
-                  )}
-                </View>
-              )}
-              
-              {/* Traffic Management & Impact */}
-              {(data.traffic_management || data.lane_rental || data.collaboration_type) && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Traffic Management</Text>
-                  
-                  {data.traffic_management && (
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Traffic Management:</Text>
-                      <Text style={styles.infoValue}>{data.traffic_management}</Text>
-                    </View>
-                  )}
-                  
-                  {data.lane_rental && (
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Lane Rental:</Text>
-                      <Text style={styles.infoValue}>{data.lane_rental ? 'Yes' : 'No'}</Text>
-                    </View>
-                  )}
-                  
-                  {data.collaboration_type && (
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Collaboration Type:</Text>
-                      <Text style={styles.infoValue}>{data.collaboration_type}</Text>
-                    </View>
-                  )}
-                  
-                  {data.area_name && (
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Area:</Text>
-                      <Text style={styles.infoValue}>{data.area_name}</Text>
-                    </View>
-                  )}
-                </View>
-              )}
-            </>
-          )}
-
-          {/* Location & Map */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Location & Map</Text>
-            <Text style={styles.locationText}>
-              📍 {data.location || data.displayLocation || data.street_name || 'Location not specified'}
-            </Text>
-            {data.coordinates && data.coordinates.length >= 2 && (
-              <View style={styles.mapContainer}>
-                <TomTomTrafficMap
-                  alerts={[data]}
-                  currentAlert={data}
-                  alertIndex={0}
-                  showRoadworks={true}
-                  showAffectedRoutes={true}
+          {/* Tabs */}
+          <View style={styles.tabsContainer}>
+            {[
+              { id: 'details', label: 'Details', icon: 'information-circle' },
+              { id: 'status', label: 'Status', icon: 'settings' },
+              { id: 'actions', label: 'Actions', icon: 'options' }
+            ].map((tab) => (
+              <TouchableOpacity
+                key={tab.id}
+                style={[
+                  styles.tab,
+                  activeTab === tab.id && styles.tabActive
+                ]}
+                onPress={() => setActiveTab(tab.id)}
+              >
+                <Ionicons 
+                  name={tab.icon} 
+                  size={16} 
+                  color={activeTab === tab.id ? '#3B82F6' : '#6B7280'} 
                 />
-              </View>
-            )}
-            {(!data.coordinates || data.coordinates.length < 2) && (
-              <View style={styles.noMapContainer}>
-                <Text style={styles.noMapText}>No coordinates available for map display</Text>
-              </View>
-            )}
-          </View>
-
-          {/* Route Selection */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Possibly Affected Routes</Text>
-            
-            {/* Current Selection */}
-            <View style={styles.routeSelectionContainer}>
-              <Text style={styles.routeSelectionTitle}>Selected Routes:</Text>
-              <View style={styles.routeChips}>
-                {selectedRoutes.map(route => (
-                  <TouchableOpacity
-                    key={route}
-                    style={styles.routeChipSelected}
-                    onPress={() => toggleRouteSelection(route)}
-                  >
-                    <Text style={styles.routeChipSelectedText}>{route}</Text>
-                    <Ionicons name="close" size={14} color="#FFFFFF" />
-                  </TouchableOpacity>
-                ))}
-                {selectedRoutes.length === 0 && (
-                  <Text style={styles.noRoutesText}>No routes selected</Text>
-                )}
-              </View>
-            </View>
-
-            {/* GTFS Suggested Routes */}
-            {suggestedRoutes.length > 0 && (
-              <View style={styles.suggestedRoutesContainer}>
-                <Text style={styles.suggestedRoutesTitle}>Suggested by location:</Text>
-                <View style={styles.routeChips}>
-                  {suggestedRoutes.slice(0, 10).map(route => (
-                    <TouchableOpacity
-                      key={route.routeName}
-                      style={[
-                        styles.routeChip,
-                        selectedRoutes.includes(route.routeName) && styles.routeChipSelected
-                      ]}
-                      onPress={() => toggleRouteSelection(route.routeName)}
-                    >
-                      <Text style={[
-                        styles.routeChipText,
-                        selectedRoutes.includes(route.routeName) && styles.routeChipSelectedText
-                      ]}>
-                        {route.routeName}
-                      </Text>
-                      <Text style={styles.routeConfidence}>
-                        {Math.round(route.confidence * 100)}%
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            )}
-          </View>
-
-          {/* Diversion Information */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Diversion Details</Text>
-            <TextInput
-              style={styles.diversionInput}
-              value={diversionText}
-              onChangeText={setDiversionText}
-              placeholder="Enter diversion route (e.g., A690, city centre, bypass)"
-              multiline
-            />
-            
-            {/* Driver Message */}
-            <Text style={styles.messageTitle}>Driver Message Preview:</Text>
-            <View style={styles.messagePreview}>
-              <Text style={styles.messageText}>{driverMessage}</Text>
-            </View>
-            
-            <TextInput
-              style={styles.messageInput}
-              value={driverMessage}
-              onChangeText={setDriverMessage}
-              placeholder="Edit driver message..."
-              multiline
-            />
-          </View>
-
-          {/* Actions */}
-          <View style={styles.actionsSection}>
-            {supervisorSession && (
-              <>
-                <TouchableOpacity
-                  style={styles.saveButton}
-                  onPress={handleSaveChanges}
-                  disabled={loading}
-                >
-                  <Ionicons name="save" size={20} color="#FFFFFF" />
-                  <Text style={styles.saveButtonText}>
-                    {loading ? 'Saving...' : 'Save Changes'}
-                  </Text>
-                </TouchableOpacity>
-                
-                {saveStatus && (
-                  <Text style={styles.saveStatus}>{saveStatus}</Text>
-                )}
-
-                <View style={styles.actionButtons}>
-                  {dataType === 'roadwork' && (
-                    <TouchableOpacity
-                      style={styles.updateStatusButton}
-                      onPress={() => setShowStatusModal(true)}
-                    >
-                      <Ionicons name="create" size={20} color="#FFFFFF" />
-                      <Text style={styles.updateStatusButtonText}>Update Status</Text>
-                    </TouchableOpacity>
-                  )}
-                  
-                  <TouchableOpacity
-                    style={styles.dismissButton}
-                    onPress={handleDismiss}
-                  >
-                    <Ionicons name="close-circle" size={20} color="#FFFFFF" />
-                    <Text style={styles.dismissButtonText}>
-                      Dismiss {dataType === 'roadwork' ? 'Roadwork' : 'Alert'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.displayButton, data?.promotedToDisplay && styles.removeDisplayButton]}
-                    onPress={handlePushToDisplay}
-                  >
-                    <Ionicons name={data?.promotedToDisplay ? "tv-outline" : "tv"} size={20} color="#FFFFFF" />
-                    <Text style={styles.displayButtonText}>
-                      {data?.promotedToDisplay ? "Remove from Display" : "Show on Display"}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.storeButton}
-                    onPress={handleStoreDiversion}
-                    disabled={!diversionText || selectedRoutes.length === 0}
-                  >
-                    <Ionicons name="bookmark" size={20} color="#FFFFFF" />
-                    <Text style={styles.storeButtonText}>Store Diversion</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-            
-            {!supervisorSession && (
-              <View style={styles.loginPrompt}>
-                <Text style={styles.loginPromptText}>
-                  Please log in as a supervisor to manage this {dataType}
+                <Text style={[
+                  styles.tabText,
+                  activeTab === tab.id && styles.tabTextActive
+                ]}>
+                  {tab.label}
                 </Text>
-              </View>
-            )}
+              </TouchableOpacity>
+            ))}
           </View>
 
-          {/* Spacing for scroll */}
-          <View style={{ height: 50 }} />
-        </ScrollView>
-        
-        {/* Status Update Modal */}
-        {showStatusModal && (
-          <Modal
-            visible={showStatusModal}
-            transparent={true}
-            animationType="fade"
-            onRequestClose={() => setShowStatusModal(false)}
-          >
-            <View style={styles.statusModalOverlay}>
-              <View style={styles.statusModalContainer}>
-                <View style={styles.statusModalHeader}>
-                  <Text style={styles.statusModalTitle}>Update Status</Text>
-                  <TouchableOpacity onPress={() => setShowStatusModal(false)}>
-                    <Ionicons name="close" size={24} color="#6B7280" />
-                  </TouchableOpacity>
-                </View>
-                
-                <View style={styles.statusModalContent}>
-                  <Text style={styles.statusModalLabel}>Select New Status:</Text>
-                  <View style={styles.statusOptions}>
-                    {['reported', 'assessing', 'planning', 'approved', 'active', 'monitoring', 'completed'].map(status => (
-                      <TouchableOpacity
-                        key={status}
-                        style={[
-                          styles.statusOption,
-                          newStatus === status && styles.statusOptionSelected
-                        ]}
-                        onPress={() => setNewStatus(status)}
-                      >
-                        <Text style={[
-                          styles.statusOptionText,
-                          newStatus === status && styles.statusOptionTextSelected
-                        ]}>
-                          {status.charAt(0).toUpperCase() + status.slice(1)}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                  
-                  <Text style={styles.statusModalLabel}>Update Notes:</Text>
-                  <TextInput
-                    style={styles.statusNotesInput}
-                    value={statusNotes}
-                    onChangeText={setStatusNotes}
-                    placeholder="Describe the action taken or reason for status change..."
-                    multiline
-                    numberOfLines={4}
-                  />
-                  
-                  <View style={styles.statusModalActions}>
-                    <TouchableOpacity
-                      style={styles.statusCancelButton}
-                      onPress={() => setShowStatusModal(false)}
-                    >
-                      <Text style={styles.statusCancelButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-                    
-                    <TouchableOpacity
-                      style={[
-                        styles.statusConfirmButton,
-                        (!newStatus || !statusNotes.trim()) && styles.statusConfirmButtonDisabled
-                      ]}
-                      onPress={handleUpdateStatus}
-                      disabled={!newStatus || !statusNotes.trim() || loading}
-                    >
-                      <Text style={styles.statusConfirmButtonText}>
-                        {loading ? 'Updating...' : 'Update Status'}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            </View>
-          </Modal>
-        )}
+          {/* Tab Content */}
+          <View style={styles.contentContainer}>
+            {activeTab === 'details' && renderDetailsTab()}
+            {activeTab === 'status' && renderStatusTab()}
+            {activeTab === 'actions' && renderActionsTab()}
+          </View>
+        </View>
       </View>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  modalContainer: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    width: '95%',
+    maxWidth: 600,
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    paddingTop: Platform.OS === 'ios' ? 60 : 20,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    alignItems: 'flex-start',
+    padding: 24,
+    paddingBottom: 16,
   },
-  headerLeft: {
+  headerInfo: {
     flex: 1,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#1F2937',
+    marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 14,
     color: '#6B7280',
-    marginTop: 2,
   },
   closeButton: {
-    padding: 8,
+    padding: 4,
   },
-  content: {
+  tabsContainer: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    paddingHorizontal: 24,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 6,
+  },
+  tabActive: {
+    borderBottomWidth: 2,
+    borderBottomColor: '#3B82F6',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  tabTextActive: {
+    color: '#3B82F6',
+  },
+  contentContainer: {
     flex: 1,
   },
-  section: {
-    backgroundColor: '#FFFFFF',
-    margin: 16,
-    padding: 16,
+  tabContent: {
+    flex: 1,
+    padding: 24,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    gap: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  severityBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  severityText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  roadworkTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 6,
+  },
+  locationText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  mapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 12,
+  },
+  mapButtonText: {
+    fontSize: 12,
+    color: '#3B82F6',
+    fontWeight: '600',
+  },
+  section: {
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
-    marginBottom: 12,
-  },
-  titleInput: {
-    fontSize: 16,
-    color: '#1F2937',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
-    minHeight: 48,
-    textAlignVertical: 'top',
-  },
-  changeIndicator: {
-    fontSize: 12,
-    color: '#F59E0B',
-    marginTop: 4,
-    fontWeight: '500',
-  },
-  infoRow: {
-    flexDirection: 'row',
     marginBottom: 8,
   },
-  infoLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280',
-    width: 120,
-  },
-  infoValue: {
-    fontSize: 14,
-    color: '#1F2937',
-    flex: 1,
-  },
-  locationText: {
-    fontSize: 14,
-    color: '#374151',
-    marginBottom: 12,
-  },
-  mapContainer: {
-    height: 250,
-    borderRadius: 8,
-    overflow: 'hidden',
-    backgroundColor: '#F3F4F6',
-  },
-  noMapContainer: {
-    height: 100,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderStyle: 'dashed',
-  },
-  noMapText: {
+  sectionDescription: {
     fontSize: 14,
     color: '#6B7280',
-    fontStyle: 'italic',
-  },
-  routeSelectionContainer: {
     marginBottom: 16,
   },
-  routeSelectionTitle: {
+  descriptionText: {
     fontSize: 14,
-    fontWeight: '500',
     color: '#374151',
-    marginBottom: 8,
+    lineHeight: 20,
   },
-  routeChips: {
+  routesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
   routeChip: {
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  routeChipSelected: {
     backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   routeChipText: {
-    fontSize: 14,
-    color: '#374151',
-    fontWeight: '500',
-  },
-  routeChipSelectedText: {
     color: '#FFFFFF',
-  },
-  routeConfidence: {
-    fontSize: 10,
-    color: '#6B7280',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 8,
-  },
-  noRoutesText: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontStyle: 'italic',
-  },
-  suggestedRoutesContainer: {
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    paddingTop: 16,
-  },
-  suggestedRoutesTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  diversionInput: {
-    fontSize: 14,
-    color: '#1F2937',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
-    minHeight: 48,
-    textAlignVertical: 'top',
-    marginBottom: 16,
-  },
-  messageTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  messagePreview: {
-    backgroundColor: '#F0FDF4',
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
-  },
-  messageText: {
-    fontSize: 14,
-    color: '#166534',
-    lineHeight: 20,
-  },
-  messageInput: {
-    fontSize: 14,
-    color: '#1F2937',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
-    minHeight: 64,
-    textAlignVertical: 'top',
-  },
-  actionsSection: {
-    backgroundColor: '#FFFFFF',
-    margin: 16,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  saveButton: {
-    backgroundColor: '#10B981',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 8,
-    gap: 8,
-  },
-  saveButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '600',
   },
-  saveStatus: {
-    textAlign: 'center',
+  infoText: {
     fontSize: 14,
-    marginBottom: 16,
     color: '#374151',
   },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  dismissButton: {
-    flex: 1,
-    backgroundColor: '#EF4444',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+  metadataSection: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
     padding: 12,
-    borderRadius: 8,
-    gap: 4,
+    marginTop: 16,
   },
-  dismissButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  displayButton: {
-    flex: 1,
-    backgroundColor: '#3B82F6',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-    gap: 4,
-  },
-  removeDisplayButton: {
-    backgroundColor: '#F59E0B',
-  },
-  displayButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  storeButton: {
-    flex: 1,
-    backgroundColor: '#7C3AED',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-    gap: 4,
-  },
-  storeButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  loginPrompt: {
-    backgroundColor: '#FEF3C7',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  loginPromptText: {
-    fontSize: 14,
-    color: '#92400E',
-    textAlign: 'center',
-  },
-  statusValue: {
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  updateStatusButton: {
-    flex: 1,
-    backgroundColor: '#F59E0B',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-    gap: 4,
-  },
-  updateStatusButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  statusModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statusModalContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    width: '90%',
-    maxWidth: 500,
-    maxHeight: '80%',
-  },
-  statusModalHeader: {
+  metadataRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    marginBottom: 4,
   },
-  statusModalTitle: {
-    fontSize: 18,
+  metadataLabel: {
+    fontSize: 12,
+    color: '#6B7280',
     fontWeight: '600',
-    color: '#1F2937',
   },
-  statusModalContent: {
-    padding: 20,
-  },
-  statusModalLabel: {
-    fontSize: 14,
-    fontWeight: '500',
+  metadataValue: {
+    fontSize: 12,
     color: '#374151',
-    marginBottom: 12,
   },
-  statusOptions: {
+  currentStatusContainer: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 12,
+  },
+  currentStatusLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  statusOptionsContainer: {
     gap: 8,
     marginBottom: 20,
   },
   statusOption: {
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 8,
     borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  statusOptionCurrent: {
+    backgroundColor: '#F9FAFB',
     borderColor: '#D1D5DB',
   },
-  statusOptionSelected: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
+  statusOptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   statusOptionText: {
     fontSize: 14,
+    fontWeight: '600',
+  },
+  notesContainer: {
+    marginTop: 8,
+  },
+  notesLabel: {
+    fontSize: 14,
+    fontWeight: '600',
     color: '#374151',
-    fontWeight: '500',
+    marginBottom: 8,
   },
-  statusOptionTextSelected: {
-    color: '#FFFFFF',
-  },
-  statusNotesInput: {
+  notesInput: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
+    borderColor: '#E5E7EB',
     padding: 12,
     fontSize: 14,
-    textAlignVertical: 'top',
-    marginBottom: 20,
+    color: '#1F2937',
     minHeight: 80,
+    textAlignVertical: 'top',
   },
-  statusModalActions: {
+  actionSection: {
+    marginBottom: 24,
+    paddingBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  actionHeader: {
     flexDirection: 'row',
-    gap: 12,
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
   },
-  statusCancelButton: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
-    padding: 12,
-    borderRadius: 8,
+  actionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  actionDescription: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 16,
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  statusCancelButtonText: {
+  switchLabel: {
     fontSize: 14,
+    fontWeight: '600',
     color: '#374151',
-    fontWeight: '500',
   },
-  statusConfirmButton: {
-    flex: 1,
-    backgroundColor: '#10B981',
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     padding: 12,
     borderRadius: 8,
-    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
   },
-  statusConfirmButtonDisabled: {
-    backgroundColor: '#D1D5DB',
+  actionButtonDisabled: {
+    opacity: 0.5,
   },
-  statusConfirmButtonText: {
+  actionButtonText: {
     fontSize: 14,
+    fontWeight: '600',
+  },
+  dismissReasonLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+  },
+  dismissReasonsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 16,
+  },
+  dismissReasonChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  dismissReasonChipSelected: {
+    backgroundColor: '#EF4444',
+    borderColor: '#EF4444',
+  },
+  dismissReasonText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  dismissReasonTextSelected: {
     color: '#FFFFFF',
-    fontWeight: '500',
+  },
+  dismissButton: {
+    backgroundColor: '#EF4444',
+    borderColor: '#EF4444',
+  },
+  dismissButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

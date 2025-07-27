@@ -160,15 +160,53 @@ app.use('/public', express.static(join(__dirname, 'public')));
 console.log('📂 Static file serving enabled at /public');
 
 // Basic health endpoint
-app.get('/api/health', (req, res) => {
-  res.json({
-    success: true,
-    status: 'operational',
-    timestamp: new Date().toISOString(),
-    service: 'Go BARRY Backend',
-    port: PORT,
-    renderOptimized: true
-  });
+app.get('/api/health', async (req, res) => {
+  try {
+    // Basic health response
+    const healthResponse = {
+      success: true,
+      status: 'operational',
+      timestamp: new Date().toISOString(),
+      service: 'Go BARRY Backend',
+      port: PORT,
+      renderOptimized: true,
+      uptime: Math.round(process.uptime()),
+      memory: {
+        heapUsed: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+        heapTotal: Math.round(process.memoryUsage().heapTotal / 1024 / 1024)
+      }
+    };
+
+    // Try to add supervisor logging status (non-blocking)
+    try {
+      const { getSupervisorLoggingHealth } = await import('./scripts/productionStartupLogging.js');
+      const loggingHealth = getSupervisorLoggingHealth();
+      
+      healthResponse.supervisorLogging = {
+        enabled: loggingHealth.manager.initialized,
+        status: loggingHealth.manager.activationStatus,
+        healthy: loggingHealth.manager.health?.status === 'healthy'
+      };
+    } catch (loggingError) {
+      // Don't fail health check if logging status unavailable
+      healthResponse.supervisorLogging = {
+        enabled: false,
+        status: 'unknown',
+        healthy: false,
+        note: 'Logging status unavailable during startup'
+      };
+    }
+
+    res.json(healthResponse);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      service: 'Go BARRY Backend',
+      error: error.message
+    });
+  }
 });
 
 // Supervisor activity endpoint
@@ -286,6 +324,23 @@ server.listen(PORT, '0.0.0.0', () => {
     console.log(`🔄 Route count before import - GET: ${routeCount.get}, POST: ${routeCount.post}, USE: ${routeCount.use}`);
     
     try {
+      // PRODUCTION SUPERVISOR LOGGING: Activate before loading main backend
+      console.log('📝 Initializing production supervisor logging...');
+      try {
+        const { activateSupervisorLoggingForProduction } = await import('./scripts/productionStartupLogging.js');
+        const loggingResult = await activateSupervisorLoggingForProduction();
+        
+        if (loggingResult.success) {
+          console.log('✅ Supervisor logging activated successfully');
+          console.log(`📊 Logging status: ${loggingResult.status}`);
+        } else {
+          console.warn('⚠️ Supervisor logging activation had issues:', loggingResult);
+        }
+      } catch (loggingError) {
+        console.error('❌ Supervisor logging activation failed:', loggingError.message);
+        console.log('⚠️ Continuing without enhanced supervisor logging...');
+      }
+
       await import('./index.js');
       console.log('✅ Full backend loaded - ALL ROUTES NOW ACTIVE');
       console.log(`🎆 Route count after import - GET: ${routeCount.get}, POST: ${routeCount.post}, USE: ${routeCount.use}`);

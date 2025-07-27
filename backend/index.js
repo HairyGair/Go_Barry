@@ -62,9 +62,11 @@ import healthExtendedRouter from './routes/healthExtended.js';
 import supervisorAPI from './routes/supervisorAPI.js';
 import roadworksAPI from './routes/roadworksAPI.js';
 import roadworkAlertsAPI from './routes/roadworkAlertsAPI-simple.js';
+import streetworksAPI from './routes/streetworksAPI.js';
 import gtfsAPI from './routes/gtfsAPI.js';
 import gtfsService from './services/gtfsService.js';
 console.log('✅ roadworkAlertsAPI-simple imported successfully');
+console.log('✅ streetworksAPI imported successfully');
 console.log('✅ gtfsAPI imported successfully');
 console.log('✅ gtfsService imported successfully');
 import microsoftAuthAPI from './routes/microsoftAuthAPI.js';
@@ -108,6 +110,12 @@ import streetManagerScheduler from './services/streetManagerScheduler.js';
 console.log('✅ streetManagerScheduler imported for automated cleanup');
 import streetManagerActionsAPI from './routes/streetManagerActionsAPI.js';
 console.log('✅ streetManagerActionsAPI imported');
+import streetManagerDiagnostics from './routes/streetManagerDiagnostics.js';
+console.log('✅ streetManagerDiagnostics imported');
+import enhancedStreetManagerAPI from './routes/enhancedStreetManagerAPI.js';
+console.log('✅ enhancedStreetManagerAPI imported');
+import enhancedStreetManagerWebhook from './routes/enhancedStreetManagerWebhook.js';
+console.log('✅ enhancedStreetManagerWebhook imported');
 import unifiedRoadworksAPI from './routes/unifiedRoadworksAPI.js';
 import messageAPI from './routes/messageAPI.js';
 console.log('✅ messageAPI imported');
@@ -190,6 +198,13 @@ console.log(`   📊 Stats: /api/coordinates/stats`);
 
 // Geocoding API
 console.log('🗺️ Registering geocoding at /api...');
+// Enhanced supervisor action logging middleware - commented out until middleware is properly imported
+// app.use(supervisorLoggingMiddleware({
+//   enablePerformanceTracking: true,
+//   skipPaths: ['/health', '/metrics', '/api/health'],
+//   maxLogLevel: 'info'
+// }));
+
 app.use('/api', geocodingAPI);
 console.log('✅ Geocoding registered successfully');
 console.log(`   🗺️ Geocode: /api/geocode`);
@@ -412,11 +427,11 @@ async function initializeApplication() {
 
 // ✅ FIXED: API polling disabled - using webhooks only
 // Street Manager webhooks are configured and working at /api/streetmanager/webhook
-// Webhook data is saved to streetmanager_notifications table in Supabase
+// Webhook data is saved to streetworks table in Supabase
 // No API key needed since webhooks push data to us!
 console.log('📨 StreetManager: Using webhook-only mode (no polling)');
 console.log('🔗 Webhook endpoint: https://go-barry.onrender.com/api/streetmanager/webhook');
-console.log('📊 Webhook data stored in: streetmanager_notifications table');
+console.log('📊 Webhook data stored in: streetworks table');
 
 // Removed periodic polling - webhooks provide real-time data
 
@@ -595,8 +610,17 @@ app.use('/api/cleanup', cleanupAPI);
 // Supervisor management routes
 app.use('/api/supervisor', supervisorAPI);
 
+// Supervisor logging health check routes
+import supervisorLoggingHealthRoutes from './routes/supervisorLoggingHealth.js';
+app.use('/api/supervisor-logging', supervisorLoggingHealthRoutes);
+console.log('✅ Supervisor logging health routes registered at /api/supervisor-logging');
+
 // Roadworks management routes  
 app.use('/api/roadworks', roadworksAPI);
+
+// Direct streetworks table API
+app.use('/api/streetworks', streetworksAPI);
+console.log('✅ Streetworks API routes registered at /api/streetworks');
 
 // Add actions endpoint handler for roadworks (redirect to roadwork-alerts)
 app.get('/api/roadworks/:id/actions', async (req, res) => {
@@ -679,6 +703,33 @@ console.log('✅ Roadwork alerts routes registered successfully');
 console.log('🙧 Registering StreetManager actions routes at /api/streetmanager/actions...');
 app.use('/api/streetmanager/actions', streetManagerActionsAPI);
 console.log('✅ StreetManager actions routes registered successfully');
+
+// StreetManager diagnostics routes
+console.log('🔧 Registering StreetManager diagnostics routes at /api/streetmanager/diagnostics...');
+app.use('/api/streetmanager/diagnostics', streetManagerDiagnostics);
+console.log('✅ StreetManager diagnostics routes registered successfully');
+console.log('   🔧 Health check: /api/streetmanager/diagnostics/health');
+console.log('   🧪 Test webhook: /api/streetmanager/diagnostics/test-webhook');
+console.log('   📊 Summary: /api/streetmanager/diagnostics/summary');
+
+// Enhanced StreetManager API with route impact analysis
+console.log('🚀 Registering Enhanced StreetManager API routes at /api/streetmanager/enhanced...');
+app.use('/api/streetmanager/enhanced', enhancedStreetManagerAPI);
+console.log('✅ Enhanced StreetManager API routes registered successfully');
+console.log('   📊 System status: /api/streetmanager/enhanced/status');
+console.log('   🚨 Active critical works: /api/streetmanager/enhanced/active-critical');
+console.log('   🚌 Route disruptions: /api/streetmanager/enhanced/route-disruptions/:routeNumber');
+console.log('   📈 Performance analytics: /api/streetmanager/enhanced/analytics/performance');
+console.log('   📍 Location analysis: /api/streetmanager/enhanced/analyze-location');
+console.log('   🔍 Search streetworks: /api/streetmanager/enhanced/search');
+
+// Enhanced StreetManager webhook with comprehensive processing
+console.log('🎯 Registering Enhanced StreetManager webhook at /api/streetmanager/enhanced/webhook...');
+app.use('/api/streetmanager/enhanced/webhook', express.text(), enhancedStreetManagerWebhook);
+console.log('✅ Enhanced StreetManager webhook registered successfully');
+console.log('   📨 Webhook endpoint: POST /api/streetmanager/enhanced/webhook');
+console.log('   ⚡ Features: Route impact analysis, severity classification, supervisor notifications');
+console.log('   🧠 Intelligence: 231+ route analysis, geographic filtering, automated escalation');
 
 // Message API routes for Message Distribution Centre
 console.log('💬 Registering message API routes at /api/messages...');
@@ -1428,9 +1479,9 @@ app.get('/api/roadworks-alerts', async (req, res) => {
     try {
       const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
       
-      // Get active roadworks from the view
+      // Get active roadworks from the streetworks table
       const { data: streetManagerNotifications, error: notifError } = await supabase
-        .from('active_streetmanager_roadworks')
+        .from('streetworks')
         .select('*')
         .order('severity', { ascending: false });
       
@@ -1575,7 +1626,7 @@ app.get('/api/street-manager-roadworks', async (req, res) => {
     
     // Get recent Street Manager notifications (active roadworks)
     const { data: roadworks, error } = await supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .select('*')
       .not('raw_webhook_data', 'is', null)
       .in('webhook_event_type', ['WORK_START', 'PERMIT_GRANTED', 'PERMIT_SUBMITTED', 'WORK_STOP'])
@@ -1860,7 +1911,7 @@ app.get('/api/test-streetmanager', async (req, res) => {
     const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
     
     const { data, error } = await supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .select('id, webhook_event_type, webhook_received_at')
       .order('webhook_received_at', { ascending: false })
       .limit(10);
@@ -1904,7 +1955,7 @@ app.get('/api/roadworks-v2/status', async (req, res) => {
     
     // Test Street Manager notifications
     const { data: notifications, error: notifError } = await supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .select('webhook_event_type')
       .gte('webhook_received_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
       .limit(100);
@@ -1964,15 +2015,15 @@ app.get('/api/debug/roadworks-data', async (req, res) => {
       .select('*', { count: 'exact' })
       .limit(5);
     
-    // Check active_streetmanager_roadworks view
+    // Check streetworks table for active entries
     const { data: activeView, error: viewError } = await supabase
-      .from('active_streetmanager_roadworks')
+      .from('streetworks')
       .select('*')
       .limit(5);
     
-    // Check streetmanager_notifications table
+    // Check streetworks table
     const { data: notifications, error: notifError, count: notifCount } = await supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .select('*', { count: 'exact' })
       .limit(5);
     
@@ -1991,13 +2042,13 @@ app.get('/api/debug/roadworks-data', async (req, res) => {
           sampleData: roadworks || [],
           hasData: (roadworks?.length || 0) > 0
         },
-        active_streetmanager_roadworks: {
+        active_streetworks: {
           error: viewError?.message,
           sampleData: activeView || [],
           hasData: (activeView?.length || 0) > 0,
           note: 'This is a view, not a table'
         },
-        streetmanager_notifications: {
+        streetworks: {
           totalCount: notifCount || 0,
           error: notifError?.message,
           sampleData: notifications || [],
@@ -3154,7 +3205,7 @@ app.get('/api/operations/stats', async (req, res) => {
       
       // Also check streetmanager notifications for active roadworks
       const { data: streetManagerActive, error: smError } = await supabase
-        .from('active_streetmanager_roadworks')
+        .from('streetworks')
         .select('notification_id');
       
       if (!smError && streetManagerActive) {
@@ -3739,7 +3790,7 @@ app.get('/api/streetmanager/test-supabase', async (req, res) => {
     
     // Try to fetch columns info
     const { data: tableInfo, error: infoError } = await supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .select('*')
       .limit(0);
     
@@ -3753,7 +3804,7 @@ app.get('/api/streetmanager/test-supabase', async (req, res) => {
     };
     
     const { data: insertData, error: insertError } = await supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .insert(testRecord)
       .select()
       .single();
@@ -3761,7 +3812,7 @@ app.get('/api/streetmanager/test-supabase', async (req, res) => {
     // Clean up test record if insert succeeded
     if (insertData) {
       await supabase
-        .from('streetmanager_notifications')
+        .from('streetworks')
         .delete()
         .eq('notification_id', testRecord.notification_id);
     }
@@ -3796,7 +3847,7 @@ app.get('/api/streetmanager/debug-table', async (req, res) => {
     
     // First, try to get the table structure using a query that returns column info
     const { data: sampleRow, error: sampleError } = await supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .select('*')
       .limit(1)
       .single();
@@ -3814,14 +3865,14 @@ app.get('/api/streetmanager/debug-table', async (req, res) => {
     };
     
     const { data: minimalInsert, error: minimalError } = await supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .insert(minimalRecord)
       .select();
     
     // Clean up if successful
     if (minimalInsert) {
       await supabase
-        .from('streetmanager_notifications')
+        .from('streetworks')
         .delete()
         .eq('notification_id', minimalRecord.notification_id);
     }
@@ -3841,7 +3892,7 @@ app.get('/api/streetmanager/debug-table', async (req, res) => {
         'webhook_received_at',
         'raw_webhook_data'
       ],
-      suggestedFix: 'Run the SQL script in /docs/streetmanager_notifications_table.sql to create/update the table',
+      suggestedFix: 'Run the SQL script in /docs/streetworks_table.sql to create/update the table',
       timestamp: new Date().toISOString()
     });
     
@@ -4142,7 +4193,7 @@ app.post('/api/streetmanager/webhook', async (req, res) => {
         
         // First try minimal insert
         const { data: minimalData, error: minimalError } = await supabase
-          .from('streetmanager_notifications')
+          .from('streetworks')
           .insert(minimalRecord)
           .select()
           .single();
@@ -4154,7 +4205,7 @@ app.post('/api/streetmanager/webhook', async (req, res) => {
           // Create table suggestion
           console.log('💡 Run this SQL in Supabase to fix:');
           console.log(`
-CREATE TABLE IF NOT EXISTS streetmanager_notifications (
+CREATE TABLE IF NOT EXISTS streetworks (
   notification_id TEXT PRIMARY KEY,
   webhook_received_at TIMESTAMPTZ NOT NULL,
   raw_webhook_data JSONB
@@ -4165,7 +4216,7 @@ CREATE TABLE IF NOT EXISTS streetmanager_notifications (
           
           // Update with full data
           const { data, error } = await supabase
-            .from('streetmanager_notifications')
+            .from('streetworks')
             .update(webhookRecord)
             .eq('notification_id', webhookRecord.notification_id)
             .select()
@@ -4180,11 +4231,11 @@ CREATE TABLE IF NOT EXISTS streetmanager_notifications (
           }
         }
         
-        // Process in background (don't wait)
+        // ENHANCED PROCESSING: Run route impact analysis and severity classification
         if (minimalData || (!minimalError && !error)) {
           setTimeout(async () => {
             try {
-              // If it's a PERMIT or ACTIVITY reference, fetch full details
+              // Traditional processing: Fetch full details if needed
               if (notificationData.object_reference) {
                 console.log(`🔍 Fetching full details for ${notificationData.object_type} ${notificationData.object_reference}`);
                 
@@ -4196,7 +4247,7 @@ CREATE TABLE IF NOT EXISTS streetmanager_notifications (
                   if (permitDetails.success && permitDetails.data) {
                     // Update with full details
                     await supabase
-                      .from('streetmanager_notifications')
+                      .from('streetworks')
                       .update({
                         title: permitDetails.data.title,
                         description: permitDetails.data.description,
@@ -4226,7 +4277,7 @@ CREATE TABLE IF NOT EXISTS streetmanager_notifications (
                   if (activityDetails.success && activityDetails.data) {
                     // Update with full details
                     await supabase
-                      .from('streetmanager_notifications')
+                      .from('streetworks')
                       .update({
                         title: activityDetails.data.title,
                         description: activityDetails.data.description,
@@ -4254,11 +4305,98 @@ CREATE TABLE IF NOT EXISTS streetmanager_notifications (
                   }
                 }
               }
+
+              // ENHANCED PROCESSING: Run intelligent route impact analysis
+              console.log(`🚀 [${notificationId}] Starting enhanced StreetManager processing...`);
+              
+              try {
+                // Import enhanced processor
+                const { default: enhancedProcessor } = await import('./services/enhancedStreetManagerProcessor.js');
+                
+                // Process with enhanced pipeline
+                const enhancedResult = await enhancedProcessor.processWebhookNotification(notificationData, {
+                  source: 'legacy_webhook',
+                  legacy_notification_id: notificationId
+                });
+                
+                console.log(`📊 [${notificationId}] Enhanced processing result: ${enhancedResult.status}`);
+                
+                if (enhancedResult.status === 'success') {
+                  console.log(`✅ [${notificationId}] Enhanced processing completed:`);
+                  console.log(`   - Severity: ${enhancedResult.severity || 'N/A'}`);
+                  console.log(`   - Affected routes: ${enhancedResult.affected_routes || 0}`);
+                  console.log(`   - Processing time: ${enhancedResult.processing_time_ms}ms`);
+                  
+                  // Update legacy record with enhanced analysis results
+                  if (enhancedResult.streetwork_id) {
+                    await supabase
+                      .from('streetworks')
+                      .update({
+                        enhanced_processing_status: 'completed',
+                        enhanced_processing_result: enhancedResult,
+                        affected_route_count: enhancedResult.affected_routes || 0,
+                        enhanced_severity: enhancedResult.severity,
+                        enhanced_processed_at: new Date().toISOString()
+                      })
+                      .eq('notification_id', notificationId);
+                    
+                    console.log(`🔗 [${notificationId}] Legacy record updated with enhanced analysis`);
+                  }
+                  
+                  // Handle supervisor notifications if required
+                  if (enhancedResult.requires_notification) {
+                    try {
+                      const { default: notificationSystem } = await import('./services/supervisorNotificationSystem.js');
+                      
+                      const notificationResult = await notificationSystem.createNotification(
+                        enhancedResult.metadata,
+                        { 
+                          source: 'legacy_webhook_enhanced',
+                          legacy_notification_id: notificationId
+                        }
+                      );
+                      
+                      if (notificationResult.success) {
+                        console.log(`📢 [${notificationId}] Supervisor notification created: ${notificationResult.notification_id}`);
+                      } else {
+                        console.warn(`⚠️ [${notificationId}] Failed to create supervisor notification: ${notificationResult.error}`);
+                      }
+                    } catch (notificationError) {
+                      console.error(`❌ [${notificationId}] Notification creation failed:`, notificationError.message);
+                    }
+                  }
+                } else {
+                  console.log(`⚠️ [${notificationId}] Enhanced processing: ${enhancedResult.status} - ${enhancedResult.message}`);
+                  
+                  // Update legacy record with enhanced processing status
+                  await supabase
+                    .from('streetworks')
+                    .update({
+                      enhanced_processing_status: enhancedResult.status,
+                      enhanced_processing_error: enhancedResult.message,
+                      enhanced_processed_at: new Date().toISOString()
+                    })
+                    .eq('notification_id', notificationId);
+                }
+              } catch (enhancedError) {
+                console.error(`❌ [${notificationId}] Enhanced processing failed:`, enhancedError.message);
+                
+                // Update legacy record with error status
+                await supabase
+                  .from('streetworks')
+                  .update({
+                    enhanced_processing_status: 'error',
+                    enhanced_processing_error: enhancedError.message,
+                    enhanced_processed_at: new Date().toISOString()
+                  })
+                  .eq('notification_id', notificationId);
+              }
+              
             } catch (fetchError) {
               console.error('⚠️ Failed to fetch full details:', fetchError.message);
               // Mark as processed anyway
               await supabase
-                .from('streetmanager_notifications')
+                .from('streetworks')
                 .update({
                   processing_status: 'failed',
                   processing_error: fetchError.message,
@@ -4302,6 +4440,53 @@ CREATE TABLE IF NOT EXISTS streetmanager_notifications (
   }
 });
 
+// Simple endpoint to get actual webhook data from streetworks table
+app.get('/api/streetworks/list', async (req, res) => {
+  try {
+    const { limit = 20 } = req.query;
+    
+    // Use the same Supabase configuration that's working internally
+    const supabaseUrl = process.env.SUPABASE_URL || 'https://haountnghecfrsoniubq.supabase.co';
+    const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhb3VudG5naGVjZnJzb25pdWJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc2NzgxNDksImV4cCI6MjA2MzI1NDE0OX0.xtjxeGkxG3cx67IvpI4XxEpWewLG9Bh6bfyQenfTILs';
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Query the streetworks table like the internal service does
+    const { data: streetworks, error } = await supabase
+      .from('streetworks')
+      .select('*')
+      .order('webhook_received_at', { ascending: false })
+      .limit(limit);
+    
+    if (error) {
+      console.error('Supabase error:', error);
+      return res.status(500).json({
+        success: false,
+        error: error.message,
+        table: 'streetworks',
+        hint: 'Database connection issue'
+      });
+    }
+    
+    console.log(`✅ Successfully queried streetworks table: ${streetworks?.length || 0} records`);
+    
+    return res.json({
+      success: true,
+      streetworks: streetworks || [],
+      count: streetworks?.length || 0,
+      source: 'webhook_database'
+    });
+    
+  } catch (error) {
+    console.error('Error fetching streetworks:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message,
+      hint: 'Server error accessing webhook data'
+    });
+  }
+});
+
 // GET endpoint to retrieve StreetManager notifications from Supabase with enhanced filtering
 app.get('/api/streetmanager/notifications', async (req, res) => {
   try {
@@ -4320,7 +4505,7 @@ app.get('/api/streetmanager/notifications', async (req, res) => {
     
     // Build query
     let query = supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .select('*');
     
     // Add filters
@@ -4572,7 +4757,7 @@ app.get('/api/streetmanager/active-roadworks', async (req, res) => {
     const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
     
     let query = supabase
-      .from('active_streetmanager_roadworks')
+      .from('streetworks')
       .select('*', { count: 'exact' });
     
     // Apply filters
@@ -4704,13 +4889,13 @@ app.get('/api/streetmanager/config-status', async (req, res) => {
     
     // Check webhook data in database
     const { data: recentWebhooks, error: webhookError } = await supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .select('webhook_received_at, webhook_event_type')
       .order('webhook_received_at', { ascending: false })
       .limit(5);
     
     const { count: totalNotifications } = await supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .select('*', { count: 'exact', head: true });
     
     const apiStatus = getApiStatus();
@@ -4755,7 +4940,7 @@ app.get('/api/streetmanager/active-today', async (req, res) => {
     tomorrow.setDate(tomorrow.getDate() + 1);
     
     const { data: todaysRoadworks, error } = await supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .select('*')
       .eq('processing_status', 'processed')
       .or(`proposed_start_date.lte.${tomorrow.toISOString()},actual_start_date.lte.${tomorrow.toISOString()}`)
@@ -4843,12 +5028,12 @@ app.get('/api/streetmanager/summary', async (req, res) => {
     
     // Get counts by status
     const { data: statusCounts, error: statusError } = await supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .select('activity_status', { count: 'exact', head: true });
     
     // Get counts by severity  
     const { data: severityCounts, error: severityError } = await supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .select('severity', { count: 'exact', head: true });
     
     // Get recent notifications (last 24 hours)
@@ -4856,13 +5041,13 @@ app.get('/api/streetmanager/summary', async (req, res) => {
     yesterday.setDate(yesterday.getDate() - 1);
     
     const { count: recentCount } = await supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .select('*', { count: 'exact', head: true })
       .gte('webhook_received_at', yesterday.toISOString());
     
     // Get total count
     const { count: totalCount } = await supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .select('*', { count: 'exact', head: true });
     
     res.json({
@@ -4909,7 +5094,7 @@ app.get('/api/streetmanager/diagnostics', async (req, res) => {
     
     // Check database status
     const { count: totalCount } = await supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .select('*', { count: 'exact', head: true });
     
     diagnostics.database.total_notifications = totalCount || 0;
@@ -4920,7 +5105,7 @@ app.get('/api/streetmanager/diagnostics', async (req, res) => {
     yesterday.setDate(yesterday.getDate() - 1);
     
     const { count: last24h } = await supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .select('*', { count: 'exact', head: true })
       .gte('webhook_received_at', yesterday.toISOString());
     
@@ -4928,7 +5113,7 @@ app.get('/api/streetmanager/diagnostics', async (req, res) => {
     
     // Get last notification
     const { data: lastNotification } = await supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .select('notification_id, webhook_received_at, title, webhook_event_type')
       .order('webhook_received_at', { ascending: false })
       .limit(1)
@@ -4947,7 +5132,7 @@ app.get('/api/streetmanager/diagnostics', async (req, res) => {
     
     // Get processing stats
     const { data: processingStats } = await supabase
-      .from('streetmanager_notifications')
+      .from('streetworks')
       .select('processing_status');
     
     const statusCounts = {};
@@ -5391,6 +5576,46 @@ process.on('SIGTERM', () => {
     process.exit(0);
   }
 });
+
+// =====================================
+// ENHANCED STREETMANAGER INTEGRATION SUMMARY
+// =====================================
+console.log('\n🎯 ENHANCED STREETMANAGER SYSTEM INTEGRATION COMPLETE');
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('🚀 WEBHOOK PROCESSING:');
+console.log('   • Legacy webhook: /api/streetmanager/webhook (ENHANCED)');
+console.log('   • Enhanced webhook: /api/streetmanager/enhanced/webhook');
+console.log('   • Auto route impact analysis for ALL incoming notifications');
+console.log('   • Intelligent severity classification system');
+console.log('   • Supervisor notifications for critical alerts');
+console.log('');
+console.log('🧠 INTELLIGENT ANALYSIS:');
+console.log('   • 231+ Go North East route impact analysis');
+console.log('   • Geographic filtering for North East England');
+console.log('   • Multi-factor severity classification');
+console.log('   • Memory-optimized processing pipeline');
+console.log('');
+console.log('📊 API ENDPOINTS:');
+console.log('   • GET /api/streetmanager/enhanced/status');
+console.log('   • GET /api/streetmanager/enhanced/active-critical');
+console.log('   • GET /api/streetmanager/enhanced/route-disruptions/:routeNumber');
+console.log('   • GET /api/streetmanager/enhanced/analytics/performance');
+console.log('   • POST /api/streetmanager/enhanced/analyze-location');
+console.log('   • GET /api/streetmanager/enhanced/search');
+console.log('');
+console.log('💾 DATA STORAGE:');
+console.log('   • Legacy streetworks table (BACKWARD COMPATIBLE)');
+console.log('   • Enhanced streetworks_enhanced table');
+console.log('   • Route impacts tracking table');
+console.log('   • Supervisor notifications system');
+console.log('');
+console.log('⚡ FEATURES:');
+console.log('   • Real-time route impact analysis');
+console.log('   • Automated supervisor escalation');
+console.log('   • Geographic boundary filtering');
+console.log('   • Performance analytics and monitoring');
+console.log('   • Memory-optimized for 2GB Render.com limit');
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
 export default app;// Deployment timestamp: Sat 21 Jun 2025 22:45:00 BST
 // Force redeploy: CONVEX_URL added Sat 21 Jun 2025 23:52:56 BST

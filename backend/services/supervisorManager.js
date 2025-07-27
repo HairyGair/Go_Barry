@@ -202,6 +202,66 @@ export async function acknowledgeRoadwork(roadworkId, supervisorSessionId, ackno
   }
 }
 
+// Dismiss a roadwork alert
+export async function dismissRoadwork(roadworkId, supervisorSessionId, dismissedBy = 'Supervisor', reason = 'Dismissed by supervisor', req = null) {
+  try {
+    // Validate supervisor session
+    const sessionValidation = await validateSupervisorSession(supervisorSessionId);
+    if (!sessionValidation.success) {
+      return { success: false, error: 'Invalid supervisor session' };
+    }
+    
+    const supervisor = sessionValidation.supervisor;
+    
+    // Create dismissal record
+    const dismissalRecord = {
+      id: `dismiss_${roadworkId}_${Date.now()}`,
+      roadwork_id: roadworkId,
+      supervisor_id: supervisor.id,
+      supervisor_name: supervisor.name,
+      supervisor_badge: supervisor.badge,
+      dismissed_by: dismissedBy,
+      dismissal_reason: reason,
+      dismissed_at: new Date().toISOString(),
+      session_id: supervisorSessionId
+    };
+    
+    // Save to database
+    const { error } = await supabase
+      .from('roadwork_dismissals')
+      .insert(dismissalRecord);
+
+    if (error) {
+      // If table doesn't exist, create it
+      if (error.code === '42P01') {
+        console.log('🔄 Creating roadwork_dismissals table...');
+        // Table creation would be handled by Supabase migrations
+      }
+      console.error('❌ Failed to save dismissal:', error);
+      return { success: false, error: 'Failed to save dismissal' };
+    }
+    
+    console.log(`✅ Roadwork ${roadworkId} dismissed by ${supervisor.name}: ${reason}`);
+    
+    // Log the activity
+    await logActivity('roadwork_dismissed', {
+      roadworkId,
+      dismissalReason: reason,
+      dismissedBy,
+      sessionId: supervisorSessionId
+    }, { id: supervisor.id, name: supervisor.name }, req);
+    
+    return {
+      success: true,
+      dismissal: dismissalRecord
+    };
+    
+  } catch (error) {
+    console.error('❌ Failed to dismiss roadwork:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 // Create a diversion plan for a roadwork
 export async function createDiversionPlan(roadworkId, supervisorSessionId, diversionData, req = null) {
   try {
@@ -1023,6 +1083,55 @@ export async function dismissAlert(alertId, supervisorSessionId, reason, notes =
   } catch (error) {
     console.error('❌ Failed to dismiss alert:', error);
     return { success: false, error: error.message };
+  }
+}
+
+// Restore dismissed alert
+export async function restoreAlert(alertId, sessionId, reason) {
+  try {
+    // Validate session
+    const validation = await validateSupervisorSession(sessionId);
+    if (!validation.success) {
+      return { success: false, error: 'Invalid session' };
+    }
+
+    // Remove from dismissed alerts in Supabase
+    const { error: deleteError } = await supabase
+      .from('dismissed_alerts')
+      .delete()
+      .eq('alert_hash', alertId);
+
+    if (deleteError) {
+      console.error('❌ Error restoring alert:', deleteError);
+      return { success: false, error: 'Failed to restore alert' };
+    }
+
+    // Remove from memory cache
+    if (global.dismissedIncidents) {
+      global.dismissedIncidents.delete(alertId);
+    }
+
+    // Log the restoration
+    await logActivity('restore_alert', {
+      alert_id: alertId,
+      reason: reason || 'Alert restored',
+      restored_by: validation.supervisor.name
+    }, validation.supervisor);
+
+    console.log(`♻️ Alert ${alertId} restored by ${validation.supervisor.name}`);
+
+    return {
+      success: true,
+      restoration: {
+        alertId,
+        restoredBy: validation.supervisor.name,
+        timestamp: new Date().toISOString(),
+        reason
+      }
+    };
+  } catch (error) {
+    console.error('❌ Error in restoreAlert:', error);
+    return { success: false, error: 'Failed to restore alert' };
   }
 }
 
@@ -1883,6 +1992,112 @@ export async function resetSupervisorPassword(adminSessionId, supervisorIdToRese
 // Initialize on module load
 initializeSupervisorData();
 
+// Update supervisor data (admin only)
+export async function updateSupervisorData(adminSessionId, supervisorIdToUpdate, updateData) {
+  try {
+    // Validate admin session
+    const sessionValidation = await validateSupervisorSession(adminSessionId);
+    if (!sessionValidation.success) {
+      return { success: false, error: 'Invalid admin session' };
+    }
+    
+    const adminSupervisor = sessionValidation.supervisor;
+    
+    // Check admin permissions
+    if (!(await hasAdminPermissions(adminSupervisor.id))) {
+      return { success: false, error: 'Insufficient permissions - admin access required' };
+    }
+    
+    // Get supervisor details before update
+    const { data: supervisorToUpdate, error: fetchError } = await supabase
+      .from('supervisors')
+      .select('*')
+      .eq('id', supervisorIdToUpdate)
+      .single();
+    
+    if (fetchError || !supervisorToUpdate) {
+      return { success: false, error: 'Supervisor not found' };
+    }
+    
+    // Prepare update object (only include provided fields)
+    const updateObject = {};
+    const allowedFields = ['name', 'role', 'shift', 'permissions', 'email', 'phone', 'emergencyContact', 'startDate', 'notes'];
+    
+    allowedFields.forEach(field => {
+      if (updateData[field] !== undefined) {
+        // Map field names to database column names if needed
+        switch (field) {
+          case 'emergencyContact':
+            updateObject.emergency_contact = updateData[field];
+            break;
+          case 'startDate':
+            updateObject.start_date = updateData[field];
+            break;
+          default:
+            updateObject[field] = updateData[field];
+        }
+      }
+    });
+    
+    updateObject.updated_at = new Date().toISOString();
+    updateObject.updated_by = adminSupervisor.id;
+    
+    // Update in Supabase
+    const { data, error } = await supabase
+      .from('supervisors')
+      .update(updateObject)
+      .eq('id', supervisorIdToUpdate)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('❌ Failed to update supervisor:', error);
+      return { success: false, error: 'Failed to update supervisor in database' };
+    }
+    
+    // Update local JSON file as backup
+    try {
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const __dirname = dirname(fileURLToPath(import.meta.url));
+      const supervisorsPath = path.join(__dirname, '..', 'data', 'supervisors.json');
+      
+      const supervisorsData = JSON.parse(await fs.readFile(supervisorsPath, 'utf8'));
+      if (supervisorsData[supervisorIdToUpdate]) {
+        Object.assign(supervisorsData[supervisorIdToUpdate], updateObject);
+        await fs.writeFile(supervisorsPath, JSON.stringify(supervisorsData, null, 2));
+      }
+    } catch (fileError) {
+      console.warn('⚠️ Failed to update local supervisors.json:', fileError);
+    }
+    
+    // Log the action
+    await logActivity('supervisor_updated', {
+      updatedSupervisorId: supervisorIdToUpdate,
+      updatedSupervisorName: supervisorToUpdate.name,
+      updatedSupervisorBadge: supervisorToUpdate.badge,
+      updatedFields: Object.keys(updateObject),
+      updatedBy: adminSupervisor.name
+    }, { id: adminSupervisor.id, name: adminSupervisor.name });
+    
+    console.log(`✅ Supervisor updated: ${supervisorToUpdate.name} (${supervisorToUpdate.badge}) by ${adminSupervisor.name}`);
+    
+    return {
+      success: true,
+      message: `Successfully updated supervisor ${supervisorToUpdate.name}`,
+      supervisor: data,
+      adminSupervisor: {
+        id: adminSupervisor.id,
+        name: adminSupervisor.name,
+        badge: adminSupervisor.badge
+      }
+    };
+  } catch (error) {
+    console.error('❌ Failed to update supervisor:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 // Export logActivity for other modules
 export { logActivity };
 
@@ -1892,6 +2107,7 @@ export default {
   validateSupervisorSession,
   validateSupervisorById,
   dismissAlert,
+  restoreAlert,
   isAlertDismissed,
   getAlertDismissalInfo,
   getAllSupervisors,
@@ -1914,8 +2130,10 @@ export default {
   addSupervisor,
   deleteSupervisor,
   resetSupervisorPassword,  // NEW: Password reset
+  updateSupervisorData,  // NEW: Update supervisor data
   // NEW: StreetManager roadwork actions
   acknowledgeRoadwork,
+  dismissRoadwork,
   createDiversionPlan,
   notifyDriversAboutRoadwork,
   getRoadworkActionHistory,

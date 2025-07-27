@@ -5,7 +5,7 @@
  */
 
 import { useSupervisor } from '../../../../components/hooks/useSupervisorSession';
-import { useConvexSync } from '../../../../hooks/useConvexSyncFixed';
+import { useConvexSync } from '../../../../hooks/useConvexSync';
 
 /**
  * Alert state management utility

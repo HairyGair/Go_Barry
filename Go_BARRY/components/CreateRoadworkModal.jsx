@@ -1,768 +1,720 @@
+// Go_BARRY/components/CreateRoadworkModal.jsx
+// Modal for supervisors to manually create roadwork entries
+
 import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  Modal,
-  ScrollView,
   TextInput,
   TouchableOpacity,
+  StyleSheet,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   Alert,
-  Switch,
-  Platform
+  Switch
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import { Ionicons } from '@expo/vector-icons';
 
-const CreateRoadworkModal = ({ visible, onClose, supervisorData, onRoadworkCreated }) => {
-  // Helper to ensure string values
-  const ensureString = (value) => {
-    return (value !== null && value !== undefined) ? String(value) : '';
-  };
-  
+const CreateRoadworkModal = ({ 
+  visible, 
+  onClose,
+  onCreateRoadwork,
+  supervisorData 
+}) => {
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
     location: '',
-    areas: '',
-    status: 'pending',
-    startDate: new Date().toISOString().split('T')[0],
-    startTime: '09:00',
-    endDate: '',
-    endTime: '17:00',
-    allDay: false,
-    routesAffected: '',
+    description: '',
     severity: 'medium',
-    contactInfo: ensureString(supervisorData?.email),
-    webLink: '',
-    emailGroups: ['Traffic Control'] // Default selected groups
+    expectedDuration: '',
+    affectedRoutes: [],
+    trafficManagement: 'lane_restriction',
+    startDate: '',
+    endDate: '',
+    promoter: '',
+    contactDetails: '',
+    pushToDisplay: false
   });
+  
+  const [availableRoutes, setAvailableRoutes] = useState([]);
+  const [selectedRoutes, setSelectedRoutes] = useState(new Set());
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showRouteSelector, setShowRouteSelector] = useState(false);
 
-  const [availableEmailGroups, setAvailableEmailGroups] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [microsoftLoginStatus, setMicrosoftLoginStatus] = useState({
-    loggedIn: false,
-    checking: true,
-    userInfo: null
-  });
-
-  // Severity options with colors
-  const severityOptions = [
-    { value: 'low', label: 'Low Impact', color: '#22c55e' },
-    { value: 'medium', label: 'Medium Impact', color: '#f59e0b' },
-    { value: 'high', label: 'High Impact', color: '#ef4444' }
+  // Common Go North East routes
+  const commonRoutes = [
+    '1', '2', '4', '6', '8', '8A', '9', '10', '10A', '10B', '12', '16', '16A', '16B',
+    '20', '20A', '21', '22', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33',
+    '34', '35', '36', '37', '38', '39', '40', '41', '42', '43', '44', '45', '46', '47',
+    '49', '50', '51', '52', '53', '54', '55', '56', '57', '58', '60', '61', '62', '63',
+    '64', '65', '67', '68', '69', '71', '72', '73', '74', '75', '76', '77', '78', '79',
+    '80', '81', '82', '83', '84', '85', '86', '87', '88', '89', '90', '91', '92', '93',
+    '94', '95', '96', '97', '98', '99', 'X1', 'X9', 'X10', 'X11', 'X12', 'X15', 'X18', 
+    'X20', 'X21', 'X22', 'X24', 'X25', 'X30', 'X31', 'X45', 'X46', 'X47', 'X66', 'X70', 
+    'X71', 'X72', 'X77', 'X78', 'X79', 'X80', 'X82', 'X84', 'X85', 'X88', 'Q1', 'Q2', 'Q3'
   ];
 
-  // Load email groups and check Microsoft login status on mount
+  const severityOptions = [
+    { value: 'low', label: 'Low', description: 'Minor impact on traffic flow' },
+    { value: 'medium', label: 'Medium', description: 'Moderate impact, some delays expected' },
+    { value: 'high', label: 'High', description: 'Significant impact, major delays' },
+    { value: 'critical', label: 'Critical', description: 'Severe impact, route diversions needed' }
+  ];
+
+  const trafficManagementOptions = [
+    { value: 'lane_restriction', label: 'Lane Restriction' },
+    { value: 'road_closure', label: 'Road Closure' },
+    { value: 'temporary_signals', label: 'Temporary Traffic Signals' },
+    { value: 'contraflow', label: 'Contraflow System' },
+    { value: 'diversion', label: 'Traffic Diversion' },
+    { value: 'parking_suspension', label: 'Parking Suspension' }
+  ];
+
   useEffect(() => {
     if (visible) {
-      loadEmailGroups();
-      checkMicrosoftLoginStatus();
+      resetForm();
+      setAvailableRoutes(commonRoutes);
     }
   }, [visible]);
 
-  const loadEmailGroups = async () => {
-    try {
-      const response = await fetch('https://go-barry.onrender.com/api/roadwork-alerts/email-groups');
-      const result = await response.json();
-      if (result.success && Array.isArray(result.data)) {
-        setAvailableEmailGroups(result.data);
-      }
-    } catch (error) {
-      console.error('Failed to load email groups:', error);
-    }
-  };
-
-  const checkMicrosoftLoginStatus = async () => {
-    try {
-      setMicrosoftLoginStatus(prev => ({ ...prev, checking: true }));
-      
-      const response = await fetch(`https://go-barry.onrender.com/api/auth/microsoft/status/${supervisorData?.id}`);
-      const result = await response.json();
-      
-      if (result.success) {
-        setMicrosoftLoginStatus({
-          loggedIn: result.loggedIn,
-          checking: false,
-          userInfo: result.userInfo,
-          expiresInMinutes: result.expiresInMinutes
-        });
-      } else {
-        setMicrosoftLoginStatus({
-          loggedIn: false,
-          checking: false,
-          userInfo: null
-        });
-      }
-    } catch (error) {
-      console.error('Failed to check Microsoft login status:', error);
-      setMicrosoftLoginStatus({
-        loggedIn: false,
-        checking: false,
-        userInfo: null
-      });
-    }
-  };
-
-  const handleMicrosoftLogin = async () => {
-    try {
-      const response = await fetch(`https://go-barry.onrender.com/api/auth/microsoft/login-url/${supervisorData?.id}`);
-      const result = await response.json();
-      
-      if (result.success) {
-        // In a web environment, open in new window
-        if (Platform.OS === 'web') {
-          const popup = window.open(result.loginUrl, 'microsoft-login', 'width=500,height=600');
-          
-          // Poll for completion
-          const checkClosed = setInterval(() => {
-            if (popup.closed) {
-              clearInterval(checkClosed);
-              // Recheck login status after popup closes
-              setTimeout(checkMicrosoftLoginStatus, 1000);
-            }
-          }, 1000);
-        } else {
-          // In mobile, you'd use a WebView or linking
-          Alert.alert('Microsoft Login', 'Please use the web version for Microsoft authentication');
-        }
-      }
-    } catch (error) {
-      console.error('Failed to get Microsoft login URL:', error);
-      Alert.alert('Error', 'Failed to initiate Microsoft login');
-    }
-  };
-
-  const handleSubmit = async () => {
-    // Validation
-    if (!formData.title.trim()) {
-      Alert.alert('Error', 'Title is required');
-      return;
-    }
-    if (!formData.location.trim()) {
-      Alert.alert('Error', 'Location is required');
-      return;
-    }
-    if (!formData.startDate) {
-      Alert.alert('Error', 'Start date is required');
-      return;
-    }
-
-    // Validate supervisor data
-    if (!supervisorData || !supervisorData.id || !supervisorData.name) {
-      Alert.alert('Error', 'Supervisor session is invalid. Please log in again.');
-      return;
-    }
-
-    setLoading(true);
-    
-    try {
-      const startDateTime = formData.allDay 
-        ? formData.startDate 
-        : `${formData.startDate}T${formData.startTime}:00`;
-      
-      const endDateTime = formData.endDate 
-        ? (formData.allDay ? formData.endDate : `${formData.endDate}T${formData.endTime}:00`)
-        : null;
-
-      const roadworkData = {
-        title: formData.title.trim(),
-        description: formData.description.trim(),
-        location: formData.location.trim(),
-        areas: formData.areas.split(',').map(a => a.trim()).filter(a => a),
-        status: formData.status,
-        start_date: startDateTime,
-        end_date: endDateTime,
-        all_day: formData.allDay,
-        routes_affected: formData.routesAffected.split(',').map(r => r.trim()).filter(r => r),
-        severity: formData.severity,
-        contact_info: formData.contactInfo.trim(),
-        web_link: formData.webLink.trim(),
-        created_by_supervisor_id: supervisorData.id,
-        created_by_name: supervisorData.name,
-        email_groups: formData.emailGroups
-      };
-
-      console.log('📤 Sending roadwork data:', roadworkData);
-
-      const response = await fetch('https://go-barry.onrender.com/api/roadwork-alerts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(roadworkData)
-      });
-
-      console.log('📥 Response status:', response.status);
-      console.log('📥 Response headers:', response.headers.get('content-type'));
-
-      const responseText = await response.text();
-      console.log('📥 Raw response:', responseText.substring(0, 200) + '...');
-
-      let result;
-      try {
-        result = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('❌ JSON parse error:', parseError);
-        console.error('❌ Response was:', responseText);
-        Alert.alert('Error', 'Server returned invalid response. Please try again.');
-        return;
-      }
-      
-      if (result.success) {
-        Alert.alert('Success', 'Roadwork created and notifications sent!');
-        onRoadworkCreated?.(result.data);
-        resetForm();
-        onClose();
-      } else {
-        Alert.alert('Error', result.error || 'Failed to create roadwork');
-      }
-    } catch (error) {
-      console.error('Create roadwork error:', error);
-      Alert.alert('Error', 'Network error. Please check your connection and try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const resetForm = () => {
     setFormData({
-      title: '',
-      description: '',
       location: '',
-      areas: '',
-      status: 'pending',
-      startDate: new Date().toISOString().split('T')[0],
-      startTime: '09:00',
-      endDate: '',
-      endTime: '17:00',
-      allDay: false,
-      routesAffected: '',
+      description: '',
       severity: 'medium',
-      contactInfo: ensureString(supervisorData?.email),
-      webLink: '',
-      emailGroups: ['Traffic Control']
+      expectedDuration: '',
+      affectedRoutes: [],
+      trafficManagement: 'lane_restriction',
+      startDate: '',
+      endDate: '',
+      promoter: '',
+      contactDetails: '',
+      pushToDisplay: false
+    });
+    setSelectedRoutes(new Set());
+    setError('');
+    setShowRouteSelector(false);
+  };
+
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
+  const validateForm = () => {
+    setError('');
+
+    if (!formData.location.trim()) {
+      setError('Location is required');
+      return false;
+    }
+
+    if (!formData.description.trim()) {
+      setError('Description is required');
+      return false;
+    }
+
+    if (formData.location.length < 10) {
+      setError('Please provide a more detailed location (minimum 10 characters)');
+      return false;
+    }
+
+    if (formData.description.length < 20) {
+      setError('Please provide a more detailed description (minimum 20 characters)');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleRouteToggle = (route) => {
+    const newSelectedRoutes = new Set(selectedRoutes);
+    if (newSelectedRoutes.has(route)) {
+      newSelectedRoutes.delete(route);
+    } else {
+      newSelectedRoutes.add(route);
+    }
+    setSelectedRoutes(newSelectedRoutes);
+    setFormData({
+      ...formData,
+      affectedRoutes: Array.from(newSelectedRoutes)
     });
   };
 
-  const toggleEmailGroup = (groupName) => {
-    setFormData(prev => ({
-      ...prev,
-      emailGroups: prev.emailGroups.includes(groupName)
-        ? prev.emailGroups.filter(g => g !== groupName)
-        : [...prev.emailGroups, groupName]
-    }));
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      const roadworkData = {
+        ...formData,
+        id: `manual_${Date.now()}`,
+        source: 'manual',
+        createdBy: supervisorData?.id || 'unknown',
+        createdAt: new Date().toISOString(),
+        status: 'reported',
+        priority: formData.severity,
+        affectedRoutes: Array.from(selectedRoutes),
+        coordinates: null, // Will be geocoded on the backend
+        workType: 'Manual Entry'
+      };
+
+      const result = await onCreateRoadwork(roadworkData);
+      if (result?.success) {
+        Alert.alert(
+          'Success', 
+          'Roadwork entry created successfully.',
+          [{ text: 'OK', onPress: handleClose }]
+        );
+      } else {
+        setError(result?.error || 'Failed to create roadwork entry');
+      }
+    } catch (err) {
+      console.error('Error creating roadwork:', err);
+      setError('An error occurred. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const renderRouteSelector = () => {
+    if (!showRouteSelector) return null;
+
+    return (
+      <View style={styles.routeSelectorContainer}>
+        <Text style={styles.routeSelectorTitle}>Select Affected Routes</Text>
+        <ScrollView style={styles.routesList} nestedScrollEnabled>
+          <View style={styles.routesGrid}>
+            {availableRoutes.map((route) => (
+              <TouchableOpacity
+                key={route}
+                style={[
+                  styles.routeChip,
+                  selectedRoutes.has(route) && styles.routeChipSelected
+                ]}
+                onPress={() => handleRouteToggle(route)}
+              >
+                <Text style={[
+                  styles.routeChipText,
+                  selectedRoutes.has(route) && styles.routeChipTextSelected
+                ]}>
+                  {route}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+        <TouchableOpacity
+          style={styles.routeSelectorCloseButton}
+          onPress={() => setShowRouteSelector(false)}
+        >
+          <Text style={styles.routeSelectorCloseText}>Done</Text>
+        </TouchableOpacity>
+      </View>
+    );
   };
 
   return (
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      transparent={true}
+      onRequestClose={handleClose}
     >
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Create Roadwork</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Text style={styles.closeText}>✕</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
-          {/* Basic Information */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Basic Information</Text>
-            
-            <Text style={styles.label}>Title *</Text>
-            <TextInput
-              style={styles.input}
-              value={ensureString(formData.title)}
-              onChangeText={(text) => setFormData({...formData, title: ensureString(text)})}
-              placeholder="e.g., A1 Bridge Maintenance"
-              placeholderTextColor="#999"
-            />
-
-            <Text style={styles.label}>Description</Text>
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              value={ensureString(formData.description)}
-              onChangeText={(text) => setFormData({...formData, description: ensureString(text)})}
-              placeholder="Detailed description of the roadwork..."
-              placeholderTextColor="#999"
-              multiline
-              numberOfLines={3}
-            />
-
-            <Text style={styles.label}>Location *</Text>
-            <TextInput
-              style={styles.input}
-              value={ensureString(formData.location)}
-              onChangeText={(text) => setFormData({...formData, location: ensureString(text)})}
-              placeholder="e.g., A1 Western Bypass, Junction 75"
-              placeholderTextColor="#999"
-            />
-
-            <Text style={styles.label}>Areas Affected (comma separated)</Text>
-            <TextInput
-              style={styles.input}
-              value={ensureString(formData.areas)}
-              onChangeText={(text) => setFormData({...formData, areas: ensureString(text)})}
-              placeholder="e.g., Newcastle, Gateshead, Durham"
-              placeholderTextColor="#999"
-            />
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.modalContainer}
+      >
+        <View style={styles.modalContent}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View>
+              <Text style={styles.title}>Create Roadwork Entry</Text>
+              <Text style={styles.subtitle}>Manual roadwork notification</Text>
+            </View>
+            <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color="#6B7280" />
+            </TouchableOpacity>
           </View>
 
-          {/* Timing */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Timing</Text>
-            
-            <View style={styles.switchRow}>
-              <Text style={styles.label}>All Day Event</Text>
-              <Switch
-                value={formData.allDay}
-                onValueChange={(value) => setFormData({...formData, allDay: value})}
-                trackColor={{ false: '#ccc', true: '#2196F3' }}
+          {/* Error Message */}
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={16} color="#EF4444" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          <ScrollView style={styles.formScrollView} showsVerticalScrollIndicator={false}>
+            {/* Location */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Location *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., A167 Durham Road, Gateshead"
+                placeholderTextColor="#9CA3AF"
+                value={formData.location}
+                onChangeText={(text) => {
+                  setFormData({...formData, location: text});
+                  setError('');
+                }}
+                multiline
               />
             </View>
 
-            <View style={styles.dateRow}>
-              <View style={styles.dateColumn}>
-                <Text style={styles.label}>Start Date *</Text>
-                <TextInput
-                  style={styles.input}
-                  value={ensureString(formData.startDate)}
-                  onChangeText={(text) => setFormData({...formData, startDate: ensureString(text)})}
-                  placeholder="YYYY-MM-DD"
-                />
-              </View>
-              {!formData.allDay && (
-                <View style={styles.dateColumn}>
-                  <Text style={styles.label}>Start Time</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={ensureString(formData.startTime)}
-                    onChangeText={(text) => setFormData({...formData, startTime: ensureString(text)})}
-                    placeholder="HH:MM"
-                  />
-                </View>
-              )}
+            {/* Description */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Description *</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="e.g., Emergency gas leak repair requiring lane closure. Expected duration 4-6 hours."
+                placeholderTextColor="#9CA3AF"
+                value={formData.description}
+                onChangeText={(text) => {
+                  setFormData({...formData, description: text});
+                  setError('');
+                }}
+                multiline
+                numberOfLines={3}
+              />
             </View>
 
-            <View style={styles.dateRow}>
-              <View style={styles.dateColumn}>
-                <Text style={styles.label}>End Date</Text>
-                <TextInput
-                  style={styles.input}
-                  value={ensureString(formData.endDate)}
-                  onChangeText={(text) => setFormData({...formData, endDate: ensureString(text)})}
-                  placeholder="YYYY-MM-DD (optional)"
-                />
-              </View>
-              {!formData.allDay && (
-                <View style={styles.dateColumn}>
-                  <Text style={styles.label}>End Time</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={ensureString(formData.endTime)}
-                    onChangeText={(text) => setFormData({...formData, endTime: ensureString(text)})}
-                    placeholder="HH:MM"
-                  />
-                </View>
-              )}
-            </View>
-          </View>
-
-          {/* Impact & Routes */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Impact & Routes</Text>
-
-            <Text style={styles.label}>Severity</Text>
-            <View style={styles.severityButtons}>
-              {severityOptions.map((option) => (
-                <TouchableOpacity
-                  key={option.value}
-                  style={[
-                    styles.severityButton,
-                    { backgroundColor: formData.severity === option.value ? option.color : '#f0f0f0' }
-                  ]}
-                  onPress={() => setFormData({...formData, severity: option.value})}
-                >
-                  <Text style={[
-                    styles.severityText,
-                    { color: formData.severity === option.value ? 'white' : '#333' }
-                  ]}>
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.label}>Routes Affected (comma separated)</Text>
-            <TextInput
-              style={styles.input}
-              value={ensureString(formData.routesAffected)}
-              onChangeText={(text) => setFormData({...formData, routesAffected: ensureString(text)})}
-              placeholder="e.g., 21, X21, 1, 307"
-              placeholderTextColor="#999"
-            />
-
-            <Text style={styles.label}>Status</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={formData.status}
-                onValueChange={(value) => setFormData({...formData, status: value})}
-                style={styles.picker}
-              >
-                <Picker.Item label="Pending" value="pending" />
-                <Picker.Item label="Active" value="active" />
-                <Picker.Item label="Finished" value="finished" />
-              </Picker>
-            </View>
-          </View>
-
-          {/* Contact & Links */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Contact & Links</Text>
-            
-            <Text style={styles.label}>Contact Information</Text>
-            <TextInput
-              style={styles.input}
-              value={ensureString(formData.contactInfo)}
-              onChangeText={(text) => setFormData({...formData, contactInfo: ensureString(text)})}
-              placeholder="Email or phone number"
-              placeholderTextColor="#999"
-            />
-
-            <Text style={styles.label}>Web Link</Text>
-            <TextInput
-              style={styles.input}
-              value={ensureString(formData.webLink)}
-              onChangeText={(text) => setFormData({...formData, webLink: ensureString(text)})}
-              placeholder="https://..."
-              placeholderTextColor="#999"
-            />
-          </View>
-
-          {/* Microsoft Login Status */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Microsoft 365 Email</Text>
-            
-            {microsoftLoginStatus.checking ? (
-              <View style={styles.loginStatusItem}>
-                <Text style={styles.loginStatusText}>Checking Microsoft login status...</Text>
-              </View>
-            ) : microsoftLoginStatus.loggedIn ? (
-              <View style={styles.loginStatusItem}>
-                <View style={styles.loginSuccess}>
-                  <Text style={styles.loginSuccessText}>✓ Logged in as {microsoftLoginStatus.userInfo?.displayName}</Text>
-                  <Text style={styles.loginEmail}>{microsoftLoginStatus.userInfo?.mail}</Text>
-                  {microsoftLoginStatus.expiresInMinutes && (
-                    <Text style={styles.loginExpiry}>Expires in {microsoftLoginStatus.expiresInMinutes} minutes</Text>
-                  )}
-                </View>
-              </View>
-            ) : (
-              <View style={styles.loginStatusItem}>
-                <View style={styles.loginRequired}>
-                  <Text style={styles.loginRequiredText}>⚠️ Microsoft login required to send emails</Text>
-                  <TouchableOpacity style={styles.loginButton} onPress={handleMicrosoftLogin}>
-                    <Text style={styles.loginButtonText}>Login with Microsoft</Text>
+            {/* Severity */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Severity Level</Text>
+              <View style={styles.severityContainer}>
+                {severityOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.severityOption,
+                      formData.severity === option.value && styles.severityOptionSelected
+                    ]}
+                    onPress={() => setFormData({...formData, severity: option.value})}
+                  >
+                    <View style={styles.severityHeader}>
+                      <Text style={[
+                        styles.severityLabel,
+                        formData.severity === option.value && styles.severityLabelSelected
+                      ]}>
+                        {option.label}
+                      </Text>
+                      <View style={[
+                        styles.severityIndicator,
+                        { backgroundColor: 
+                          option.value === 'critical' ? '#DC2626' :
+                          option.value === 'high' ? '#EA580C' :
+                          option.value === 'medium' ? '#F59E0B' : '#10B981'
+                        }
+                      ]} />
+                    </View>
+                    <Text style={styles.severityDescription}>{option.description}</Text>
                   </TouchableOpacity>
-                </View>
+                ))}
               </View>
-            )}
-          </View>
+            </View>
 
-          {/* Email Groups */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Notify Email Groups</Text>
-            {(availableEmailGroups || []).map((group) => (
+            {/* Traffic Management Type */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Traffic Management</Text>
               <TouchableOpacity
-                key={group.id}
-                style={styles.emailGroupItem}
-                onPress={() => toggleEmailGroup(group.name)}
+                style={styles.selectButton}
+                onPress={() => {
+                  Alert.alert('Traffic Management Type', 'Select the type of traffic management', 
+                    trafficManagementOptions.map(option => ({
+                      text: option.label,
+                      onPress: () => setFormData({...formData, trafficManagement: option.value})
+                    })).concat([{ text: 'Cancel', style: 'cancel' }])
+                  );
+                }}
               >
-                <View style={[
-                  styles.checkbox,
-                  { backgroundColor: formData.emailGroups.includes(group.name) ? '#2196F3' : 'transparent' }
-                ]}>
-                  {formData.emailGroups.includes(group.name) && (
-                    <Text style={styles.checkmark}>✓</Text>
-                  )}
-                </View>
-                <View style={styles.groupInfo}>
-                  <Text style={styles.groupName}>{group.name}</Text>
-                  <Text style={styles.groupDescription}>{group.description}</Text>
-                </View>
+                <Text style={styles.selectButtonText}>
+                  {trafficManagementOptions.find(opt => opt.value === formData.trafficManagement)?.label}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color="#6B7280" />
               </TouchableOpacity>
-            ))}
-          </View>
+            </View>
 
-          {/* Creator Info */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Created By</Text>
-            <Text style={styles.creatorInfo}>
-              {supervisorData?.name} ({supervisorData?.id})
-            </Text>
-          </View>
-        </ScrollView>
+            {/* Expected Duration */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Expected Duration</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., 2-4 hours, 3 days, 2 weeks"
+                placeholderTextColor="#9CA3AF"
+                value={formData.expectedDuration}
+                onChangeText={(text) => setFormData({...formData, expectedDuration: text})}
+              />
+            </View>
 
-        <View style={styles.footer}>
-          <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-            <Text style={styles.cancelText}>Cancel</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.submitButton, loading && styles.disabledButton]} 
-            onPress={handleSubmit}
-            disabled={loading}
-          >
-            <Text style={styles.submitText}>
-              {loading ? 'Creating...' : 'Create Roadwork'}
-            </Text>
-          </TouchableOpacity>
+            {/* Affected Routes */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Affected Bus Routes</Text>
+              <TouchableOpacity
+                style={styles.selectButton}
+                onPress={() => setShowRouteSelector(true)}
+              >
+                <Text style={styles.selectButtonText}>
+                  {selectedRoutes.size === 0 
+                    ? 'Select routes...' 
+                    : `${selectedRoutes.size} route${selectedRoutes.size === 1 ? '' : 's'} selected`}
+                </Text>
+                <Ionicons name="chevron-down" size={16} color="#6B7280" />
+              </TouchableOpacity>
+              {selectedRoutes.size > 0 && (
+                <View style={styles.selectedRoutesContainer}>
+                  {Array.from(selectedRoutes).map((route) => (
+                    <View key={route} style={styles.selectedRouteChip}>
+                      <Text style={styles.selectedRouteText}>{route}</Text>
+                      <TouchableOpacity
+                        onPress={() => handleRouteToggle(route)}
+                        style={styles.removeRouteButton}
+                      >
+                        <Ionicons name="close" size={14} color="#6B7280" />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+
+            {/* Promoter */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Promoter/Contractor</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., Northern Gas Networks, Northumbrian Water"
+                placeholderTextColor="#9CA3AF"
+                value={formData.promoter}
+                onChangeText={(text) => setFormData({...formData, promoter: text})}
+              />
+            </View>
+
+            {/* Push to Display */}
+            <View style={styles.switchContainer}>
+              <View style={styles.switchLabelContainer}>
+                <Text style={styles.switchLabel}>Push to Display Screens</Text>
+                <Text style={styles.switchDescription}>
+                  Immediately show this roadwork on passenger information displays
+                </Text>
+              </View>
+              <Switch
+                value={formData.pushToDisplay}
+                onValueChange={(value) => setFormData({...formData, pushToDisplay: value})}
+                trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}
+                thumbColor={formData.pushToDisplay ? '#FFFFFF' : '#9CA3AF'}
+              />
+            </View>
+          </ScrollView>
+
+          {/* Actions */}
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={[styles.button, styles.cancelButton]}
+              onPress={handleClose}
+              disabled={isSubmitting}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.button, 
+                styles.submitButton,
+                isSubmitting && styles.submitButtonDisabled
+              ]}
+              onPress={handleSubmit}
+              disabled={isSubmitting || !formData.location || !formData.description}
+            >
+              {isSubmitting ? (
+                <Text style={styles.submitButtonText}>Creating...</Text>
+              ) : (
+                <Text style={styles.submitButtonText}>Create Roadwork</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+
+        {/* Route Selector Overlay */}
+        {renderRouteSelector()}
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
 
-const styles = {
-  container: {
+const styles = StyleSheet.create({
+  modalContainer: {
     flex: 1,
-    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    width: '95%',
+    maxWidth: 500,
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    backgroundColor: '#f8f9fa',
+    alignItems: 'flex-start',
+    marginBottom: 20,
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#6B7280',
   },
   closeButton: {
-    padding: 5,
+    padding: 4,
   },
-  closeText: {
-    fontSize: 24,
-    color: '#666',
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEE2E2',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
   },
-  form: {
+  errorText: {
     flex: 1,
-    padding: 20,
+    color: '#DC2626',
+    fontSize: 12,
   },
-  section: {
-    marginBottom: 24,
+  formScrollView: {
+    maxHeight: 400,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    paddingBottom: 4,
+  inputContainer: {
+    marginBottom: 16,
   },
-  label: {
+  inputLabel: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#555',
+    fontWeight: '600',
+    color: '#374151',
     marginBottom: 6,
-    marginTop: 8,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
+    backgroundColor: '#F9FAFB',
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     padding: 12,
-    fontSize: 16,
-    backgroundColor: '#fff',
+    fontSize: 14,
+    color: '#1F2937',
   },
   textArea: {
-    height: 80,
+    minHeight: 80,
     textAlignVertical: 'top',
   },
-  switchRow: {
+  selectButton: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: 12,
   },
-  dateRow: {
-    flexDirection: 'row',
-    gap: 12,
+  selectButtonText: {
+    fontSize: 14,
+    color: '#1F2937',
   },
-  dateColumn: {
-    flex: 1,
-  },
-  severityButtons: {
-    flexDirection: 'row',
+  severityContainer: {
     gap: 8,
-    marginBottom: 12,
   },
-  severityButton: {
-    flex: 1,
+  severityOption: {
     padding: 12,
     borderRadius: 8,
-    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
   },
-  severityText: {
-    fontSize: 14,
-    fontWeight: '500',
+  severityOptionSelected: {
+    borderColor: '#3B82F6',
+    backgroundColor: '#EFF6FF',
   },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    backgroundColor: '#fff',
-  },
-  picker: {
-    height: 50,
-  },
-  emailGroupItem: {
+  severityHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    marginBottom: 8,
+    marginBottom: 4,
   },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderWidth: 2,
-    borderColor: '#2196F3',
-    borderRadius: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  checkmark: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  groupInfo: {
-    flex: 1,
-  },
-  groupName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-  },
-  groupDescription: {
+  severityLabel: {
     fontSize: 14,
-    color: '#666',
-    marginTop: 2,
-  },
-  creatorInfo: {
-    fontSize: 16,
-    color: '#2196F3',
-    fontWeight: '500',
-    padding: 12,
-    backgroundColor: '#f0f8ff',
-    borderRadius: 8,
-  },
-  footer: {
-    flexDirection: 'row',
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
-    backgroundColor: '#f8f9fa',
-    gap: 12,
-  },
-  cancelButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    alignItems: 'center',
-  },
-  cancelText: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: '500',
-  },
-  submitButton: {
-    flex: 2,
-    padding: 16,
-    borderRadius: 8,
-    backgroundColor: '#2196F3',
-    alignItems: 'center',
-  },
-  submitText: {
-    fontSize: 16,
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  disabledButton: {
-    backgroundColor: '#ccc',
-  },
-  // Microsoft Login Styles
-  loginStatusItem: {
-    marginBottom: 12,
-  },
-  loginStatusText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    padding: 12,
-  },
-  loginSuccess: {
-    backgroundColor: '#f0f8ff',
-    padding: 15,
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#22c55e',
-  },
-  loginSuccessText: {
-    fontSize: 16,
-    color: '#22c55e',
     fontWeight: '600',
-    marginBottom: 4,
+    color: '#374151',
   },
-  loginEmail: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
+  severityLabelSelected: {
+    color: '#3B82F6',
   },
-  loginExpiry: {
-    fontSize: 12,
-    color: '#999',
-    fontStyle: 'italic',
-  },
-  loginRequired: {
-    backgroundColor: '#fff3cd',
-    padding: 15,
-    borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#f59e0b',
-    alignItems: 'center',
-  },
-  loginRequiredText: {
-    fontSize: 14,
-    color: '#856404',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  loginButton: {
-    backgroundColor: '#0078d4',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+  severityIndicator: {
+    width: 12,
+    height: 12,
     borderRadius: 6,
   },
-  loginButtonText: {
-    color: 'white',
-    fontSize: 14,
+  severityDescription: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  selectedRoutesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  selectedRouteChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3B82F6',
+    borderRadius: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  selectedRouteText: {
+    color: '#FFFFFF',
+    fontSize: 12,
     fontWeight: '600',
   },
-};
+  removeRouteButton: {
+    padding: 2,
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  switchLabelContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
+  switchLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 2,
+  },
+  switchDescription: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 16,
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#F3F4F6',
+  },
+  cancelButtonText: {
+    color: '#6B7280',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  submitButton: {
+    backgroundColor: '#3B82F6',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
+  submitButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // Route Selector Styles
+  routeSelectorContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  routeSelectorTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  routesList: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    maxHeight: 400,
+    width: '100%',
+  },
+  routesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  routeChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  routeChipSelected: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  routeChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  routeChipTextSelected: {
+    color: '#FFFFFF',
+  },
+  routeSelectorCloseButton: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    marginTop: 16,
+  },
+  routeSelectorCloseText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+});
 
 export default CreateRoadworkModal;

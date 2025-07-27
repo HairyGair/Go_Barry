@@ -3,10 +3,10 @@
 // Optimized for 60 metre viewing distance
 
 import React, { useState, useEffect } from 'react';
-import OptimizedTomTomMap from './OptimizedTomTomMap';
-import { useConvexSync } from '../hooks/useConvexSyncFixed';
+import TomTomTrafficMap from './TomTomTrafficMap';
+import { useConvexSync } from '../hooks/useConvexSync';
 import { formatTime24WithSeconds, formatDateWithWeekday } from '../utils/dateTime';
-import LateRunnersWidget from './LateRunnersWidget';
+// LateRunnersWidget removed during cleanup
 import WeatherWidget from './display/WeatherWidget';
 import WeatherImpactAlert from './display/WeatherImpactAlert';
 
@@ -457,7 +457,7 @@ const DisplayScreen = () => {
             border: '3px solid #333333',
             minHeight: '300px'
           }}>
-            <OptimizedTomTomMap 
+            <TomTomTrafficMap 
               alerts={[
                 ...activeMessages,
                 ...(displayIncidents || []).filter(inc => inc.coordinates).map(incident => ({
@@ -504,10 +504,21 @@ const DisplayScreen = () => {
             />
           ) : (
             lateRunners?.length > 0 && (
-              <LateRunnersWidget 
-                lateRunners={lateRunners}
-                limit={5}
-              />
+              <div style={{
+                padding: '20px',
+                backgroundColor: '#1a1a1a',
+                borderRadius: '12px',
+                border: '2px solid #ff6b6b'
+              }}>
+                <h3 style={{ color: '#ff6b6b', marginBottom: '15px' }}>⚠️ Late Runners</h3>
+                <div style={{ fontSize: '16px' }}>
+                  {lateRunners.slice(0, 5).map((runner, index) => (
+                    <div key={index} style={{ marginBottom: '8px' }}>
+                      {runner.route} - {runner.delay} mins late
+                    </div>
+                  ))}
+                </div>
+              </div>
             )
           )}
         </div>

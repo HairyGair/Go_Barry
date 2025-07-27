@@ -16,6 +16,17 @@ const TomTomTrafficMap = ({
   onMarkerClick = null,
   style = {}
 }) => {
+  
+  // Debug coordinate data on component render
+  console.log('🗺️ TomTomTrafficMap rendering with:', {
+    alertsCount: alerts.length,
+    currentAlert: currentAlert?.id,
+    currentAlertCoords: currentAlert?.coordinates
+  });
+  
+  alerts.forEach((alert, i) => {
+    console.log(`🗺️ Alert ${i}: ${alert.id}, coords: ${alert.coordinates}`);
+  });
   // Use callback ref to ensure we get the container element
   const [containerElement, setContainerElement] = useState(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -255,6 +266,8 @@ const TomTomTrafficMap = ({
       const [lat, lng] = alert.coordinates;
       const isCurrentAlert = currentAlert && alert.id === currentAlert.id;
       
+      console.log(`🗺️ Processing alert ${alert.id}: coordinates [${lat}, ${lng}], isCurrentAlert: ${isCurrentAlert}`);
+      
       // Create marker element with severity-based styling
       const markerElement = document.createElement('div');
       const severityColor = alert.color || getSeverityColor(alert.severity);
@@ -329,6 +342,7 @@ const TomTomTrafficMap = ({
 
       // Auto-focus on current alert
       if (isCurrentAlert) {
+        console.log(`🎯 Auto-zooming to current alert: ${alert.id} at [${lng}, ${lat}]`);
         map.flyTo({
           center: [lng, lat],
           zoom: 14,
@@ -341,6 +355,26 @@ const TomTomTrafficMap = ({
         }, 1600);
       }
     });
+    
+    // Fallback auto-zoom: If no current alert was found but we have alerts with coordinates, zoom to first one
+    const hasCurrentAlert = alerts.some(alert => currentAlert && alert.id === currentAlert.id);
+    if (!hasCurrentAlert && alerts.length > 0) {
+      const firstAlertWithCoords = alerts.find(alert => 
+        alert.coordinates && Array.isArray(alert.coordinates) && 
+        alert.coordinates.length >= 2 &&
+        !isNaN(alert.coordinates[0]) && !isNaN(alert.coordinates[1])
+      );
+      
+      if (firstAlertWithCoords) {
+        const [lat, lng] = firstAlertWithCoords.coordinates;
+        console.log(`🎯 Auto-zooming to first alert with coordinates: ${firstAlertWithCoords.id} at [${lng}, ${lat}]`);
+        map.flyTo({
+          center: [lng, lat],
+          zoom: 12,
+          duration: 2000
+        });
+      }
+    }
   };
 
   const addClusteredAlerts = (map, maplibregl) => {

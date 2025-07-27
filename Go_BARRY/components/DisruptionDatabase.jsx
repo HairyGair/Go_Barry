@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSupervisor } from './hooks/useSupervisorSession';
-import { useConvexSync } from '../hooks/useConvexSync';
+import useConvexSync from '../hooks/useConvexSync';
 import { formatDateUK, formatTime24, formatDateTimeUK } from '../utils/dateTime';
 import { exportDisruptions, EXPORT_FORMATS, generateExportSummary } from '../utils/exportUtils';
 import { 
@@ -29,7 +29,7 @@ import {
   shareOnFacebook,
   shareOnTeams
 } from '../utils/communicationUtils';
-import { generateTestDisruptions, getTestSummary } from '../utils/testData';
+// Test data utilities removed during cleanup
 
 const DisruptionDatabase = ({ baseUrl, onBack }) => {
   const {
@@ -122,22 +122,105 @@ const DisruptionDatabase = ({ baseUrl, onBack }) => {
   // Initialize test data
   useEffect(() => {
     if (testMode) {
-      setTestDisruptions(generateTestDisruptions());
+      // Generate simple test disruptions inline
+      const mockDisruptions = [
+        {
+          id: 'test-1',
+          location: 'Test Location 1',
+          description: 'Test roadwork 1',
+          impact: 'MODERATE',
+          status: 'ACTIVE',
+          startDate: new Date().toISOString(),
+          endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          permitReference: 'TEST-001'
+        },
+        {
+          id: 'test-2',
+          location: 'Test Location 2',
+          description: 'Test roadwork 2',
+          impact: 'SEVERE',
+          status: 'ACTIVE',
+          startDate: new Date().toISOString(),
+          endDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+          permitReference: 'TEST-002'
+        }
+      ];
+      setTestDisruptions(mockDisruptions);
     }
   }, [testMode]);
 
   const loadRoadworks = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${apiBaseUrl}/api/roadworks`);
-      const data = await response.json();
-      
-      if (data.success) {
-        setRoadworks(data.roadworks || []);
-      } else {
-        Alert.alert('Error', 'Failed to load roadworks data');
-        setRoadworks([]);
+      // Fetch ONLY control room-created disruptions (NOT StreetManager webhook data)
+      // StreetManager webhook data is handled separately in the Roadworks Manager for proactive planning
+      const [roadworksResponse] = await Promise.all([
+        fetch(`${apiBaseUrl}/api/roadworks/control-room-only`).catch(() => 
+          // Fallback to regular roadworks but filter out StreetManager sources
+          fetch(`${apiBaseUrl}/api/roadworks`).catch(() => ({ json: () => ({ success: false, roadworks: [] }) }))
+        )
+      ]);
+
+      const roadworksData = await roadworksResponse.json();
+
+      let allRoadworks = [];
+
+      // Add ONLY control room-created roadworks/disruptions
+      if (roadworksData.success && roadworksData.roadworks) {
+        // Filter out StreetManager webhook data - that goes to Roadworks Manager for proactive planning
+        const controlRoomOnly = roadworksData.roadworks.filter(item => 
+          !item.source || 
+          (item.source !== 'street_manager' && 
+           item.source !== 'streetmanager' && 
+           item.type !== 'streetmanager' &&
+           !item.webhook_received_at &&
+           !item.permit_reference_number)
+        );
+        
+        allRoadworks = [...controlRoomOnly];
+        console.log(`Disruption Database: Loaded ${controlRoomOnly.length} control room disruptions, filtered out ${roadworksData.roadworks.length - controlRoomOnly.length} StreetManager webhook items`);
       }
+
+      // StreetManager webhook data is NO LONGER loaded here - it goes to Roadworks Manager for proactive planning
+      // This separation ensures:
+      // - Disruption Database = Control room's official record of handled disruptions
+      // - Roadworks Manager = StreetManager webhook data for advance planning
+
+      // Try unified endpoint as fallback but STILL filter out StreetManager webhook data
+      if (allRoadworks.length === 0) {
+        try {
+          const unifiedResponse = await fetch(`${apiBaseUrl}/api/roadworks/unified`);
+          const unifiedData = await unifiedResponse.json();
+          if (unifiedData.success && unifiedData.roadworks) {
+            // Filter out StreetManager webhook data even from unified endpoint
+            const controlRoomOnlyUnified = unifiedData.roadworks.filter(item => 
+              item.source !== 'StreetManager' &&
+              item.source !== 'street_manager' && 
+              item.source !== 'streetmanager' && 
+              !item.webhook_received_at &&
+              !item.permit_reference_number
+            );
+            
+            allRoadworks = controlRoomOnlyUnified.map(item => ({
+              ...item,
+              type: 'control_room_disruption'
+            }));
+            
+            console.log(`Disruption Database (unified fallback): Loaded ${controlRoomOnlyUnified.length} control room items, filtered out ${unifiedData.roadworks.length - controlRoomOnlyUnified.length} StreetManager items`);
+          }
+        } catch (unifiedError) {
+          console.log('Unified endpoint also failed:', unifiedError.message);
+        }
+      }
+
+      setRoadworks(allRoadworks);
+      
+      if (allRoadworks.length === 0) {
+        console.log('No roadworks data found from any source');
+      } else {
+        console.log(`Loaded ${allRoadworks.length} roadworks from multiple sources`);
+      }
+      
     } catch (error) {
       Alert.alert('Error', `Failed to connect to server: ${error.message}`);
       setRoadworks([]);
@@ -674,7 +757,7 @@ const DisruptionDatabase = ({ baseUrl, onBack }) => {
   const getFormattedRoadworks = () => {
     return roadworks.map(roadwork => ({
       id: roadwork.id,
-      type: 'roadwork',
+      type: roadwork.type || 'roadwork', // Preserve original type (including 'streetmanager')
       title: roadwork.title,
       location: roadwork.location,
       description: roadwork.description,
@@ -684,7 +767,7 @@ const DisruptionDatabase = ({ baseUrl, onBack }) => {
       createdAt: roadwork.createdAt,
       createdBy: roadwork.createdBy,
       lastUpdated: roadwork.lastUpdated,
-      source: 'roadwork',
+      source: roadwork.source || 'roadwork', // Preserve source information
       authority: roadwork.authority,
       startDate: roadwork.startDate,
       endDate: roadwork.endDate
@@ -818,10 +901,11 @@ const DisruptionDatabase = ({ baseUrl, onBack }) => {
 
   const filteredDisruptions = getFilteredDisruptions();
   const allDisruptions = getAllDisruptions();
-  // Remove the traffic and streetmanager tabs from the stats
+  // Calculate counts for all disruption types including StreetManager
   const activeCount = allDisruptions.filter(item => ['active', 'monitoring'].includes(item.status)).length;
   const incidentCount = allDisruptions.filter(item => item.type === 'incident').length;
   const roadworkCount = allDisruptions.filter(item => item.type === 'roadwork').length;
+  const streetManagerCount = allDisruptions.filter(item => item.type === 'streetmanager').length;
   const actionNeededCount = allDisruptions.filter(item => ['reported', 'assessing'].includes(item.status)).length;
 
   return (
@@ -978,6 +1062,14 @@ const DisruptionDatabase = ({ baseUrl, onBack }) => {
           >
             <Text style={[styles.tabText, activeTab === 'roadworks' && styles.activeTabText]}>
               Roadworks ({roadworkCount})
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'streetmanager' && styles.activeTab]}
+            onPress={() => setActiveTab('streetmanager')}
+          >
+            <Text style={[styles.tabText, activeTab === 'streetmanager' && styles.activeTabText]}>
+              StreetManager ({streetManagerCount})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity

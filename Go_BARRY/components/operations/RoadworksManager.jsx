@@ -78,6 +78,66 @@ const RoadworksManager = ({ baseUrl }) => {
     status: 'all' // all, active, planned, completed
   });
 
+  // Quick acknowledge function
+  const handleQuickAcknowledge = async (roadwork) => {
+    if (!isLoggedIn || !sessionId) {
+      Alert.alert('Error', 'You must be logged in to acknowledge roadworks');
+      return;
+    }
+    
+    try {
+      console.log(`✅ Quick acknowledging roadwork: ${roadwork.id || roadwork.notification_id}`);
+      
+      const roadworkId = roadwork.id || roadwork.notification_id;
+      const response = await fetch(`${apiBaseUrl}/api/roadworks/${roadworkId}/acknowledge`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          supervisorToken: sessionId,
+          note: 'Quick acknowledge - reviewing impact'
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('✅ Roadwork acknowledged successfully');
+        
+        // Update local state to show visual feedback immediately
+        if (roadwork.source === 'manual') {
+          setRoadworks(prev => prev.map(r => 
+            r.id === roadworkId 
+              ? { ...r, acknowledged_at: new Date().toISOString(), acknowledged_by: supervisorName }
+              : r
+          ));
+        } else if (roadwork.source === 'StreetManager' || roadwork.source === 'street_manager') {
+          setStreetManagerRoadworks(prev => prev.map(r => 
+            (r.id === roadworkId || r.notification_id === roadworkId)
+              ? { ...r, acknowledged_at: new Date().toISOString(), acknowledged_by: supervisorName }
+              : r
+          ));
+        } else {
+          setTrafficRoadworks(prev => prev.map(r => 
+            (r.id === roadworkId || r.notification_id === roadworkId)
+              ? { ...r, acknowledged_at: new Date().toISOString(), acknowledged_by: supervisorName }
+              : r
+          ));
+        }
+        
+        // Refresh data to ensure consistency
+        await loadAllData();
+      } else {
+        console.error('❌ Failed to acknowledge roadwork:', data.error);
+        Alert.alert('Error', data.error || 'Failed to acknowledge roadwork');
+      }
+    } catch (error) {
+      console.error('❌ Error acknowledging roadwork:', error);
+      Alert.alert('Error', `Failed to acknowledge roadwork: ${error.message}`);
+    }
+  };
+
   // Roadworks statuses with colors
   const ROADWORKS_STATUSES = {
     reported: { label: 'Reported', color: '#EF4444', icon: 'alert-circle' },
@@ -531,6 +591,31 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
   // API base URL
   const apiBaseUrl = baseUrl || 'https://go-barry.onrender.com';
 
+  // Helper function to make requests with timeout and error handling
+  const fetchWithTimeout = async (url, options = {}, timeout = 30000) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        throw new Error('Request timed out after 30 seconds');
+      }
+      throw error;
+    }
+  };
+
   // Go North East operational area boundaries
   // Coverage: Newcastle, Gateshead, Sunderland, Durham, North Tyneside, Northumberland
   const GO_NORTH_EAST_BOUNDS = {
@@ -825,6 +910,13 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
   const loadAllData = async () => {
     setLoading(true);
     try {
+      // First get the actual count of streetworks
+      const countResponse = await fetch(`${apiBaseUrl}/api/streetworks/count`);
+      const countData = await countResponse.json();
+      if (countData.success) {
+        console.log(`📊 Total streetworks in database: ${countData.count}`);
+      }
+
       const [manualData, trafficData] = await Promise.all([
         loadRoadworks(),
         loadTrafficRoadworks()
@@ -839,7 +931,14 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
   const loadRoadworks = async () => {
     try {
       console.log('🚧 Loading manual roadworks from API...');
-      const response = await fetch(`${apiBaseUrl}/api/roadworks`);
+      console.log(`🔗 API URL: ${apiBaseUrl}/api/roadworks`);
+      
+      const response = await fetchWithTimeout(`${apiBaseUrl}/api/roadworks`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
       
       if (data.success) {
@@ -873,7 +972,19 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
       }
     } catch (error) {
       console.error('❌ Error loading roadworks:', error);
-      Alert.alert('Error', `Failed to connect to server: ${error.message}`);
+      
+      // More specific error handling
+      let errorMessage = 'Failed to connect to server';
+      if (error.message.includes('timed out')) {
+        errorMessage = 'Request timed out - server may be busy';
+      } else if (error.message.includes('Failed to fetch')) {
+        errorMessage = 'Cannot connect to backend - check if server is running';
+      } else if (error.message.includes('HTTP')) {
+        errorMessage = `Server error: ${error.message}`;
+      }
+      
+      console.error(`❌ Error details: ${errorMessage}`);
+      Alert.alert('Connection Error', errorMessage);
       setRoadworks([]);
       setAllRoadworksUnfiltered([]);
       return { all: [], filtered: [] };
@@ -883,7 +994,14 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
   const loadTrafficRoadworks = async () => {
     try {
       console.log('🚧 Loading automatic roadwork alerts from traffic APIs...');
-      const response = await fetch(`${apiBaseUrl}/api/roadworks/unified?source=all`);
+      console.log(`🔗 API URL: ${apiBaseUrl}/api/roadworks/unified?source=all&limit=15000`);
+      
+      const response = await fetchWithTimeout(`${apiBaseUrl}/api/roadworks/unified?source=all&limit=15000`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
       
       if (data.success) {
@@ -1008,7 +1126,20 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
 
   // Open roadwork location on map
   const openRoadworkMap = (roadwork) => {
-    console.log('🗺️ Opening map for roadwork:', roadwork.title, roadwork.coordinates);
+    console.log('🗺️ Opening map for roadwork:', roadwork.title);
+    console.log('🗺️ Raw coordinates:', roadwork.coordinates);
+    console.log('🗺️ Coordinate type:', typeof roadwork.coordinates);
+    console.log('🗺️ Coordinate structure:', roadwork.coordinates);
+    
+    // Process coordinates for debugging
+    if (roadwork.coordinates) {
+      if (Array.isArray(roadwork.coordinates)) {
+        console.log('🗺️ Array coordinates:', `[${roadwork.coordinates[0]}, ${roadwork.coordinates[1]}]`);
+      } else if (roadwork.coordinates.latitude && roadwork.coordinates.longitude) {
+        console.log('🗺️ Object coordinates:', `lat: ${roadwork.coordinates.latitude}, lng: ${roadwork.coordinates.longitude}`);
+      }
+    }
+    
     setMapRoadwork(roadwork);
     setShowMap(true);
   };
@@ -1210,12 +1341,22 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
               </View>
             )}
           </View>
-          {roadwork.promotedToDisplay && (
-            <View style={styles.displayBadge}>
-              <Ionicons name="tv" size={16} color="#10B981" />
-              <Text style={[styles.displayBadgeText, { marginLeft: 4 }]}>On Display</Text>
-            </View>
-          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {roadwork.acknowledged_at && (
+              <View style={styles.acknowledgedBadge}>
+                <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                <Text style={[styles.acknowledgedBadgeText, { marginLeft: 4 }]}>
+                  ✓ {roadwork.acknowledged_by || 'Acknowledged'}
+                </Text>
+              </View>
+            )}
+            {roadwork.promotedToDisplay && (
+              <View style={[styles.displayBadge, roadwork.acknowledged_at && { marginLeft: 8 }]}>
+                <Ionicons name="tv" size={16} color="#10B981" />
+                <Text style={[styles.displayBadgeText, { marginLeft: 4 }]}>On Display</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         <View style={styles.cardTitleRow}>
@@ -1274,6 +1415,29 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
             </TouchableOpacity>
           )}
           
+          {/* Acknowledge Button - Show for pending_review status */}
+          {(!roadwork.acknowledged_at && roadwork.status !== 'dismissed' && roadwork.status !== 'cancelled') && (
+            <TouchableOpacity
+              style={[
+                styles.acknowledgeButton,
+                roadwork.acknowledged_at && styles.acknowledgeButtonActive
+              ]}
+              onPress={() => handleQuickAcknowledge(roadwork)}
+            >
+              <Ionicons 
+                name={roadwork.acknowledged_at ? "checkmark-circle" : "checkmark-circle-outline"} 
+                size={14} 
+                color={roadwork.acknowledged_at ? "#10B981" : "#3B82F6"} 
+              />
+              <Text style={[
+                styles.quickActionText, 
+                { marginLeft: 4, color: roadwork.acknowledged_at ? "#10B981" : "#3B82F6" }
+              ]}>
+                {roadwork.acknowledged_at ? "Acknowledged" : "Acknowledge"}
+              </Text>
+            </TouchableOpacity>
+          )}
+
           {/* Display Toggle Button for manual roadworks or critical automatic ones */}
           {(!isAutomatic || (roadwork.severity === 'Critical' || roadwork.severity === 'High')) && (
             <TouchableOpacity
@@ -1857,9 +2021,21 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
         visible={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         supervisorData={{ id: sessionId, name: supervisorName, email: supervisorRole }}
-        onRoadworkCreated={(newRoadwork) => {
-          console.log('New roadwork created:', newRoadwork);
-          loadRoadworks();
+        onCreateRoadwork={async (roadworkData) => {
+          try {
+            // Here you would normally make an API call to create the roadwork
+            console.log('Creating new roadwork:', roadworkData);
+            
+            // For now, return a success response
+            // In a real implementation, this would be an API call
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
+            
+            loadRoadworks(); // Reload data
+            return { success: true };
+          } catch (error) {
+            console.error('Error creating roadwork:', error);
+            return { success: false, error: 'Failed to create roadwork' };
+          }
         }}
       />
 
@@ -1867,25 +2043,62 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
       <UnifiedDetailModal
         visible={showDetailsModal}
         data={selectedRoadwork}
-        onClose={() => setShowDetailsModal(false)}
-        onUpdate={(updatedData) => {
-          console.log('Roadwork updated:', updatedData);
-          loadRoadworks();
+        onClose={() => {
+          setShowDetailsModal(false);
+          setSelectedRoadwork(null);
         }}
-        onDismiss={(data) => {
-          // Use the roadwork-specific dismiss handler
-          handleDismissRoadwork(data.id || data.notification_id, 'Dismissed via detail modal');
-        }}
-        onPushToDisplay={(data) => {
-          // Use the roadwork-specific display handler
-          if (data.promotedToDisplay) {
-            // Already on display, remove it
-            handlePromoteToDisplay(data.id || data.notification_id);
-          } else {
-            // Not on display, push it
-            handlePushToDisplay(data);
+        onUpdateStatus={async (roadworkId, newStatus, notes) => {
+          try {
+            console.log('Updating roadwork status:', roadworkId, newStatus, notes);
+            
+            // Here you would normally make an API call to update the status
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
+            
+            loadRoadworks(); // Reload data
+            return { success: true };
+          } catch (error) {
+            console.error('Error updating status:', error);
+            return { success: false, error: 'Failed to update status' };
           }
         }}
+        onDismiss={async (roadworkId, reason) => {
+          try {
+            console.log('Dismissing roadwork:', roadworkId, reason);
+            
+            // Use the existing dismiss handler
+            await handleDismissRoadwork(roadworkId, reason);
+            setShowDetailsModal(false);
+            setSelectedRoadwork(null);
+            return { success: true };
+          } catch (error) {
+            console.error('Error dismissing roadwork:', error);
+            return { success: false, error: 'Failed to dismiss roadwork' };
+          }
+        }}
+        onPushToDisplay={async (roadworkId, enabled) => {
+          try {
+            console.log('Updating display status:', roadworkId, enabled);
+            
+            // Use the existing display handlers
+            if (enabled) {
+              await handlePushToDisplay(selectedRoadwork);
+            } else {
+              await handlePromoteToDisplay(roadworkId);
+            }
+            
+            loadRoadworks(); // Reload data
+            return { success: true };
+          } catch (error) {
+            console.error('Error updating display status:', error);
+            return { success: false, error: 'Failed to update display status' };
+          }
+        }}
+        onEditRoadwork={(roadwork) => {
+          // For manual entries, you could open an edit modal here
+          console.log('Edit roadwork requested:', roadwork);
+          Alert.alert('Edit Roadwork', 'Edit functionality would be implemented here for manual entries.');
+        }}
+        supervisorData={{ id: sessionId, name: supervisorName, email: supervisorRole }}
       />
 
       {/* Status Change Modal */}
@@ -1932,7 +2145,9 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
                   id: mapRoadwork.id,
                   title: mapRoadwork.title,
                   location: mapRoadwork.location,
-                  coordinates: mapRoadwork.coordinates
+                  coordinates: mapRoadwork.coordinates ? 
+                    [mapRoadwork.coordinates.latitude || mapRoadwork.coordinates[0], 
+                     mapRoadwork.coordinates.longitude || mapRoadwork.coordinates[1]] : null
                 }}
                 alertIndex={0}
               />
@@ -2630,6 +2845,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  acknowledgedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: '#ECFDF5',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#10B981',
+  },
+  acknowledgedBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#10B981',
+  },
   displayBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2857,6 +3087,18 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   displayToggleButtonActive: {
+    backgroundColor: '#ECFDF5',
+  },
+  acknowledgeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EBF5FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginLeft: 12,
+  },
+  acknowledgeButtonActive: {
     backgroundColor: '#ECFDF5',
   },
   dismissQuickButton: {

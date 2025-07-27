@@ -863,4 +863,59 @@ export default defineSchema({
     .index("by_priority_created", ["priority", "createdAt"])
     .index("by_expires_at", ["expiresAt"])
     .index("by_displayed", ["displayed"]),
+    
+  // Training progress tracking
+  trainingProgress: defineTable({
+    supervisorId: v.string(),
+    supervisorBadge: v.string(),
+    completedModules: v.array(v.string()),
+    currentModule: v.optional(v.string()),
+    currentStep: v.optional(v.number()),
+    totalScore: v.number(),
+    startedAt: v.number(),
+    lastActivityAt: v.number(),
+    completedAt: v.optional(v.number()),
+    certificateIssued: v.boolean(),
+  })
+    .index("by_supervisor", ["supervisorId"])
+    .index("by_badge", ["supervisorBadge"]),
+
+  // Training module attempts and scores
+  trainingAttempts: defineTable({
+    supervisorId: v.string(),
+    supervisorBadge: v.string(),
+    moduleId: v.string(),
+    attempt: v.number(),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+    score: v.optional(v.number()),
+    passed: v.boolean(),
+    stepsCompleted: v.array(v.object({
+      stepId: v.string(),
+      completedAt: v.number(),
+      timeSpent: v.number(),
+    })),
+    quizResults: v.optional(v.array(v.object({
+      questionId: v.string(),
+      answer: v.string(),
+      correct: v.boolean(),
+      timeSpent: v.number(),
+    }))),
+  })
+    .index("by_supervisor", ["supervisorId"])
+    .index("by_module", ["moduleId"])
+    .index("by_supervisor_module", ["supervisorId", "moduleId"]),
+
+  // Training feedback and notes
+  trainingFeedback: defineTable({
+    supervisorId: v.string(),
+    moduleId: v.string(),
+    rating: v.number(), // 1-5 stars
+    feedback: v.optional(v.string()),
+    difficulty: v.string(), // easy, medium, hard
+    helpfulnessScore: v.number(), // 1-10
+    createdAt: v.number(),
+  })
+    .index("by_module", ["moduleId"])
+    .index("by_supervisor", ["supervisorId"]),
 });

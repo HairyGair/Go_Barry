@@ -9,6 +9,7 @@ import { analyzeServiceFrequency } from './serviceFrequencyService.js';
 import { convexSync } from './convexSync.js';
 import intelligenceEngine from './intelligenceEngine.js';
 import { isNorthEastLocation, isInNorthEastBounds } from './locationValidation.js';
+import { mapStreetManagerToRoadworks } from '../utils/streetManagerToRoadworksMapper.js';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -804,11 +805,12 @@ export async function pollAndSaveToSupabase() {
           continue;
         }
         
-        // Upsert to Supabase
+        // Map to roadworks table format and upsert to Supabase
+        const roadworkData = mapStreetManagerToRoadworks(notification);
         const { error } = await supabase
-          .from('streetmanager_notifications')
-          .upsert(notification, {
-            onConflict: 'notification_id',
+          .from('roadworks')
+          .upsert(roadworkData, {
+            onConflict: 'id',
             ignoreDuplicates: false
           });
         
@@ -859,11 +861,12 @@ export async function pollAndSaveToSupabase() {
           continue;
         }
         
-        // Upsert to Supabase
+        // Map to roadworks table format and upsert to Supabase  
+        const roadworkData = mapStreetManagerToRoadworks(notification);
         const { error } = await supabase
-          .from('streetmanager_notifications')
-          .upsert(notification, {
-            onConflict: 'notification_id',
+          .from('roadworks')
+          .upsert(roadworkData, {
+            onConflict: 'id',
             ignoreDuplicates: false
           });
         
@@ -1563,10 +1566,12 @@ export async function processStreetManagerWebhook(notification, saveToSupabase =
         // Apply filtering logic
         const shouldSave = await shouldSaveNotification(webhookNotification, coordinates);
         if (shouldSave) {
+          // Map to roadworks table format and upsert to Supabase
+          const roadworkData = mapStreetManagerToRoadworks(webhookNotification);
           const { error } = await supabase
-            .from('streetmanager_notifications')
-            .upsert(webhookNotification, {
-              onConflict: 'notification_id',
+            .from('roadworks')
+            .upsert(roadworkData, {
+              onConflict: 'id',
               ignoreDuplicates: false
             });
             

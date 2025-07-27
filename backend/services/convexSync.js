@@ -187,6 +187,14 @@ class ConvexSyncService {
     }
   }
 
+  /**
+   * Sync a single alert/roadwork (alias for syncSingleAlert)
+   * Used by unifiedRoadworksManager for acknowledgment updates
+   */
+  async syncAlert(alert) {
+    return await this.syncSingleAlert(alert);
+  }
+
   async syncSupervisorAction(action) {
     if (!this.isEnabled) {
       return { success: false, reason: 'Convex not configured' };

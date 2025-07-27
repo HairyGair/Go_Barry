@@ -5,6 +5,11 @@
  * © 2024-2025 Anthony Gair. All rights reserved.
  */
 
+// DEBUG: Log if this script is being processed by Metro
+if (typeof __METRO_GLOBAL_PREFIX__ !== 'undefined') {
+  console.error('🚨 WARNING: check-uk-spelling.js is being processed by Metro bundler!');
+}
+
 const fs = require('fs');
 const path = require('path');
 const glob = require('glob');
@@ -110,12 +115,15 @@ if (totalIssues === 0) {
   console.log(`⚠️  Found ${totalIssues} US spelling issues:\n`);
   
   Object.entries(issuesByFile).forEach(([file, issues]) => {
-    const relPath = path.relative(process.cwd(), file);
-    console.log(`\n📄 ${relPath}:`);
-    issues.forEach(issue => {
-      console.log(`   Line ${issue.line}: "${issue.us}" → "${issue.uk}"`);
-      console.log(`   ${issue.content}`);
-    });
+    if (file && typeof file === 'string') {
+      const basePath = process.cwd() || __dirname || '/';
+      const relPath = path.relative(basePath, file);
+      console.log(`\n📄 ${relPath}:`);
+      issues.forEach(issue => {
+        console.log(`   Line ${issue.line}: "${issue.us}" → "${issue.uk}"`);
+        console.log(`   ${issue.content}`);
+      });
+    }
   });
   
   console.log(`\n💡 Run the automated fix script to update these automatically.`);

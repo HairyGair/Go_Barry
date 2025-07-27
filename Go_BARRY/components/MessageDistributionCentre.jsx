@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSupervisorSession } from './hooks/useSupervisorSession';
-// import { LinearGradient } from 'expo-linear-gradient'; // Not needed
+import { LinearGradient } from './ui/LinearGradient';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';

@@ -75,65 +75,120 @@ export function bngToLatLng(easting, northing) {
 }
 
 /**
- * Parse and convert LINESTRING coordinates from BNG to lat/lng
- * @param {string} lineString - LINESTRING format from StreetManager
- * @returns {Array<{lat: number, lng: number}>} Array of lat/lng coordinates
+ * Parse StreetManager works_location_coordinates and extract representative point
+ * @param {string} geometryString - POINT/POLYGON/LINESTRING from StreetManager
+ * @returns {{lat: number, lng: number, source: string}} Representative coordinate
  */
-export function parseLineStringToBNG(lineString) {
+export function parseStreetManagerGeometry(geometryString) {
+  if (!geometryString || typeof geometryString !== 'string') {
+    return null;
+  }
+
+  const geomUpper = geometryString.trim().toUpperCase();
+  
   try {
-    if (!lineString || typeof lineString !== 'string') return [];
-    
-    // Remove LINESTRING() wrapper
-    const coordsString = lineString.replace(/^LINESTRING\s*\(/i, '').replace(/\)$/, '');
-    
-    // Split into coordinate pairs and convert
-    const coordinates = coordsString.split(',').map(coord => {
-      const [easting, northing] = coord.trim().split(/\s+/).map(Number);
-      
-      if (isNaN(easting) || isNaN(northing)) {
-        return null;
-      }
-      
-      // Convert BNG to lat/lng
-      return bngToLatLng(easting, northing);
-    }).filter(coord => coord !== null);
-    
-    console.log(`📍 Converted ${coordinates.length} BNG coordinates to lat/lng`);
-    return coordinates;
+    if (geomUpper.startsWith('POINT(')) {
+      return parsePointToBNG(geometryString);
+    } else if (geomUpper.startsWith('POLYGON(')) {
+      return parsePolygonToBNG(geometryString);
+    } else if (geomUpper.startsWith('LINESTRING(')) {
+      return parseLineStringToBNG(geometryString);
+    } else {
+      console.warn(`Unknown geometry type: ${geometryString.substring(0, 50)}...`);
+      return null;
+    }
   } catch (error) {
-    console.error('❌ Error parsing LINESTRING:', error);
-    return [];
+    console.error(`Failed to parse geometry: ${error.message}`);
+    return null;
   }
 }
 
 /**
- * Parse POINT coordinates from BNG to lat/lng
- * @param {string} pointString - POINT format from StreetManager
- * @returns {{lat: number, lng: number}|null} Lat/lng coordinate or null
+ * Parse POINT geometry from StreetManager
+ * @param {string} pointString - POINT(easting northing)
+ * @returns {{lat: number, lng: number, source: string}}
  */
 export function parsePointToBNG(pointString) {
-  try {
-    if (!pointString || typeof pointString !== 'string') return null;
-    
-    const match = pointString.match(/POINT\s*\(([\d.-]+)\s+([\d.-]+)\)/i);
-    if (match) {
-      const easting = parseFloat(match[1]);
-      const northing = parseFloat(match[2]);
-      
-      if (!isNaN(easting) && !isNaN(northing)) {
-        return bngToLatLng(easting, northing);
-      }
-    }
-    
-    return null;
-  } catch (error) {
-    console.error('❌ Error parsing POINT:', error);
-    return null;
+  const coordsString = pointString.replace(/^POINT\s*\(/i, '').replace(/\)$/, '');
+  const [easting, northing] = coordsString.trim().split(/\s+/).map(Number);
+  
+  if (isNaN(easting) || isNaN(northing)) {
+    throw new Error(`Invalid POINT coordinates: ${pointString}`);
   }
+  
+  const wgs84 = bngToLatLng(easting, northing);
+  return {
+    ...wgs84,
+    source: 'streetmanager_point_bng'
+  };
 }
 
-export default {
-  bngToLatLng,
-  parseLineStringToBNG,
-  parsePointToBNG
-};
+/**
+ * Parse POLYGON geometry from StreetManager and return centroid
+ * @param {string} polygonString - POLYGON((coords))
+ * @returns {{lat: number, lng: number, source: string}}
+ */
+export function parsePolygonToBNG(polygonString) {
+  // Extract coordinates from POLYGON((x y,x y,x y,x y))
+  const coordsString = polygonString.replace(/^POLYGON\s*\(\(/i, '').replace(/\)\)$/, '');
+  
+  const coordinates = coordsString.split(',').map(coord => {
+    const [easting, northing] = coord.trim().split(/\s+/).map(Number);
+    return { easting, northing };
+  }).filter(coord => !isNaN(coord.easting) && !isNaN(coord.northing));
+  
+  if (coordinates.length === 0) {
+    throw new Error(`No valid coordinates in POLYGON: ${polygonString}`);
+  }
+  
+  // Calculate centroid (simple average for small polygons)
+  const centroidEasting = coordinates.reduce((sum, coord) => sum + coord.easting, 0) / coordinates.length;
+  const centroidNorthing = coordinates.reduce((sum, coord) => sum + coord.northing, 0) / coordinates.length;
+  
+  const wgs84 = bngToLatLng(centroidEasting, centroidNorthing);
+  return {
+    ...wgs84,
+    source: 'streetmanager_polygon_centroid_bng'
+  };
+}
+
+/**
+ * Parse and convert LINESTRING coordinates from BNG to lat/lng
+ * @param {string} lineString - LINESTRING format from StreetManager
+ * @returns {{lat: number, lng: number, source: string}} Midpoint of line
+ */
+export function parseLineStringToBNG(lineString) {
+  // Remove LINESTRING() wrapper
+  const coordsString = lineString.replace(/^LINESTRING\s*\(/i, '').replace(/\)$/, '');
+  
+  // Split into coordinate pairs
+  const coordinates = coordsString.split(',').map(coord => {
+    const [easting, northing] = coord.trim().split(/\s+/).map(Number);
+    return { easting, northing };
+  }).filter(coord => !isNaN(coord.easting) && !isNaN(coord.northing));
+  
+  if (coordinates.length === 0) {
+    throw new Error(`No valid coordinates in LINESTRING: ${lineString}`);
+  }
+  
+  // Calculate midpoint for representative location
+  let midpointEasting, midpointNorthing;
+  
+  if (coordinates.length === 1) {
+    // Single point
+    midpointEasting = coordinates[0].easting;
+    midpointNorthing = coordinates[0].northing;
+  } else {
+    // Multiple points - use middle point or interpolate
+    const midIndex = Math.floor(coordinates.length / 2);
+    midpointEasting = coordinates[midIndex].easting;
+    midpointNorthing = coordinates[midIndex].northing;
+  }
+  
+  // Convert BNG to lat/lng
+  const wgs84 = bngToLatLng(midpointEasting, midpointNorthing);
+  return {
+    ...wgs84,
+    source: 'streetmanager_linestring_midpoint_bng'
+  };
+}

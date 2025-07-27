@@ -207,6 +207,41 @@ router.post('/sync', async (req, res) => {
 });
 
 /**
+ * POST /api/streetmanager/actions/:id/dismiss
+ * Dismiss a StreetManager roadwork alert
+ */
+router.post('/:id/dismiss', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { sessionId, dismissedBy, reason, timestamp } = req.body;
+
+    if (!sessionId) {
+      return res.status(401).json({
+        success: false,
+        error: 'Session ID required'
+      });
+    }
+
+    const result = await supervisorManager.dismissRoadwork(
+      id,
+      sessionId,
+      dismissedBy || 'Unknown Supervisor',
+      reason || 'Dismissed by supervisor',
+      req
+    );
+
+    res.json(result);
+
+  } catch (error) {
+    console.error('❌ API Error dismissing roadwork:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * GET /api/streetmanager/actions/templates
  * Get templates for driver notifications and diversion plans
  */

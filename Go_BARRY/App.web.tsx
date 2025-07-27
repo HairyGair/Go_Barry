@@ -5,7 +5,7 @@ import React from 'react';
 import { Platform } from 'react-native';
 import { SupervisorProvider } from './components/hooks/useSupervisorSession';
 import { ThemeProvider } from './components/theme/ThemeContext';
-import BrowserMainApp from './app/browser-main';
+import BrowserMainApp from './app/browser-main-optimized';
 
 // Ensure we're optimized for web
 const App = () => {
