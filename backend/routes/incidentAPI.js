@@ -2,6 +2,7 @@
 // Phase 2: GTFS-Powered Incident Management API Routes with Shared Storage
 
 import express from 'express';
+import axios from 'axios';
 import geocodingService, { geocodeLocation } from '../services/geocoding.js';
 import findGTFSRoutesNearCoordinates from '../gtfs-route-matcher.js';
 import supabaseStorage from '../services/supabaseIncidentStorage.js';
@@ -58,42 +59,67 @@ function logStorageState() {
 // Function to load Street Manager data and convert to alerts
 async function getStreetManagerAlerts() {
   try {
-    // Try to get real data from Street Manager service first
-    console.log('🔍 Attempting to fetch real Street Manager data...');
+    // Try to get real data from Street Manager service using axios instead of fetch
+    console.log('🔍 Attempting to fetch real Street Manager data with axios...');
     
     try {
-      const { createClient } = await import('@supabase/supabase-js');
-      const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
+      const supabaseUrl = process.env.SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_ANON_KEY;
       
-      console.log('📋 Querying streetworks table directly...');
-      const { data: streetworksData, error } = await supabase
-        .from('streetworks')
-        .select('*')
-        .limit(50);
-        
-      if (error) {
-        console.warn('⚠️ Supabase streetworks query failed:', error.message);
-        throw error;
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error('Missing Supabase environment variables');
       }
       
+      console.log('📋 Querying streetworks table directly with axios...');
+      
+      // Use axios to directly query Supabase REST API
+      const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json'
+        },
+        params: {
+          limit: 50
+        },
+        timeout: 10000 // 10 second timeout
+      });
+      
+      const streetworksData = response.data;
+      
       if (streetworksData && streetworksData.length > 0) {
-        console.log(`✅ Found ${streetworksData.length} real Street Manager records from Supabase`);
+        console.log(`✅ Found ${streetworksData.length} real Street Manager records from Supabase via axios`);
+        
+        // Filter out completed/cancelled works
+        const activeStreetworks = streetworksData.filter(item => {
+          const isCompleted = item.sm_works_state === 'Works completed' || 
+                            item.sm_works_state === 'completed' ||
+                            item.sm_cancelled === true;
+          const isExpired = item.sm_actual_end_date && new Date(item.sm_actual_end_date) < new Date();
+          
+          return !isCompleted && !isExpired;
+        });
+        
+        console.log(`📋 Filtered to ${activeStreetworks.length} active roadworks (removed completed/expired)`);
         
         // Transform Supabase data to the format expected by convertToAlerts
-        const transformedData = streetworksData.map(item => ({
-          notification_id: item.notification_id,
-          title: item.title,
-          location_description: item.location_description,
-          activity_type: item.activity_type,
-          actual_start_date_time: item.actual_start_date_time,
-          proposed_end_date_time: item.proposed_end_date_time,
-          permit_reference_number: item.permit_reference_number,
-          activity_location_coordinates: item.activity_location_coordinates,
-          severity: item.severity,
-          webhook_received_at: item.webhook_received_at,
-          status: item.status,
-          authority: item.authority,
-          works_description: item.works_description
+        const transformedData = activeStreetworks.map(item => ({
+          notification_id: item.sm_reference || item.id,
+          title: item.sm_works_description || `${item.sm_works_category} works on ${item.sm_street_name}`,
+          location_description: item.sm_location_description || `${item.sm_street_name}, ${item.sm_area_name}`,
+          activity_type: item.sm_works_description || item.sm_works_category,
+          actual_start_date_time: item.sm_actual_start_date || item.sm_start_date,
+          proposed_end_date_time: item.sm_actual_end_date || item.sm_end_date,
+          permit_reference_number: item.sm_permit_reference || item.sm_reference,
+          activity_location_coordinates: item.works_location_coordinates || 'POINT(0 0)', // Will be enhanced later
+          severity: item.severity || 'medium',
+          webhook_received_at: item.webhook_received_at || item.created_at,
+          status: item.sm_works_state || item.status || 'active',
+          authority: item.sm_highway_authority || item.sm_promoter_name,
+          works_description: item.sm_works_description,
+          works_category: item.sm_works_category,
+          street_name: item.sm_street_name,
+          traffic_management: item.sm_traffic_management_type
         }));
         
         const allAlerts = convertToAlerts(transformedData);
@@ -112,7 +138,8 @@ async function getStreetManagerAlerts() {
         console.log('📭 No Street Manager records found in Supabase');
       }
     } catch (supabaseError) {
-      console.warn('⚠️ Could not fetch real Street Manager data:', supabaseError.message);
+      console.warn('⚠️ Could not fetch real Street Manager data via axios:', supabaseError.message);
+      console.warn('⚠️ Error details:', supabaseError.response?.data || supabaseError);
     }
     
     // Fallback to local data

@@ -1,210 +1,208 @@
-/**
- * Supabase Query Optimizer
- * Reduces egress usage through caching and query optimization
- */
+// backend/services/supabaseOptimizer.js
+// Optimized Supabase operations for memory-constrained environment
 
-import NodeCache from 'node-cache';
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+import { getFetch } from '../utils/fetchHelper.js';
 
-// Cache for 5 minutes by default, longer for static data
-const queryCache = new NodeCache({ 
-  stdTTL: 300, // 5 minutes
-  checkperiod: 60, // Check for expired keys every minute
-  maxKeys: 1000 // Limit cache size
-});
+// Load environment variables
+dotenv.config();
 
-export class SupabaseOptimizer {
-  constructor() {
-    this.cacheHits = 0;
-    this.cacheMisses = 0;
-    this.totalQueries = 0;
-  }
+console.log('✅ Initializing Supabase client...');
 
-  /**
-   * Wrap Supabase queries with caching
-   */
-  async cachedQuery(cacheKey, queryFn, cacheTTL = 300) {
-    this.totalQueries++;
-    
-    // Check cache first
-    const cached = queryCache.get(cacheKey);
-    if (cached) {
-      this.cacheHits++;
-      console.log(`🎯 Cache HIT: ${cacheKey} (${this.getCacheHitRate()}% hit rate)`);
-      return cached;
-    }
+// Custom fetch implementation for Supabase
+const customFetch = async (url, options = {}) => {
+  const fetch = await getFetch();
+  return fetch(url, options);
+};
 
-    // Execute query
-    this.cacheMisses++;
-    console.log(`🔍 Cache MISS: ${cacheKey} - executing query`);
-    
-    try {
-      const result = await queryFn();
-      
-      // Cache successful results
-      if (result && !result.error) {
-        queryCache.set(cacheKey, result, cacheTTL);
-        console.log(`💾 Cached: ${cacheKey} for ${cacheTTL}s`);
-      }
-      
-      return result;
-    } catch (error) {
-      console.error(`❌ Query failed for ${cacheKey}:`, error);
-      throw error;
-    }
-  }
+// Initialize Supabase client with auth disabled for reliability
+let supabaseClient = null;
 
-  /**
-   * Optimized queries with LIMIT and caching
-   */
-  async optimizedSelect(supabase, table, options = {}) {
-    const {
-      select = '*',
-      limit = 100, // Default limit to prevent large downloads
-      orderBy = null,
-      filters = {},
-      cacheTTL = 300,
-      cacheKey = null
-    } = options;
-
-    // Generate cache key if not provided
-    const key = cacheKey || `${table}_${JSON.stringify({ select, limit, orderBy, filters })}`;
-
-    return this.cachedQuery(key, async () => {
-      let query = supabase.from(table).select(select);
-
-      // Apply filters
-      Object.entries(filters).forEach(([column, value]) => {
-        if (Array.isArray(value)) {
-          query = query.in(column, value);
-        } else if (typeof value === 'object' && value.operator) {
-          // Support for operators like { operator: 'gte', value: '2024-01-01' }
-          query = query[value.operator](column, value.value);
-        } else {
-          query = query.eq(column, value);
-        }
-      });
-
-      // Apply ordering
-      if (orderBy) {
-        const { column, ascending = false } = orderBy;
-        query = query.order(column, { ascending });
-      }
-
-      // Apply limit
-      query = query.limit(limit);
-
-      console.log(`📊 Executing optimized query: ${table} (limit: ${limit})`);
-      return await query;
-    }, cacheTTL);
-  }
-
-  /**
-   * Get frequently used data with long caching
-   */
-  async getStaticData(supabase, table, cacheTTL = 3600) { // 1 hour cache
-    return this.optimizedSelect(supabase, table, {
-      limit: 50, // Small limit for static data
-      cacheTTL,
-      cacheKey: `static_${table}`
-    });
-  }
-
-  /**
-   * Get recent data with shorter caching
-   */
-  async getRecentData(supabase, table, dateColumn = 'created_at', hours = 24) {
-    const cutoffDate = new Date();
-    cutoffDate.setHours(cutoffDate.getHours() - hours);
-
-    return this.optimizedSelect(supabase, table, {
-      filters: {
-        [dateColumn]: { operator: 'gte', value: cutoffDate.toISOString() }
+try {
+  supabaseClient = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_ANON_KEY,
+    {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false
       },
-      orderBy: { column: dateColumn, ascending: false },
-      limit: 50,
-      cacheTTL: 180, // 3 minutes for recent data
-      cacheKey: `recent_${table}_${hours}h`
-    });
+      global: {
+        fetch: customFetch,
+        headers: {
+          'X-Client-Info': 'go-barry-backend'
+        }
+      }
+    }
+  );
+  console.log('✅ Supabase client initialized successfully');
+} catch (error) {
+  console.error('❌ Supabase init error:', error);
+}
+
+// Optimized batch operations to reduce memory usage
+class SupabaseOptimizer {
+  constructor() {
+    this.batchQueue = [];
+    this.batchTimer = null;
+    this.BATCH_SIZE = 50;
+    this.BATCH_DELAY = 1000; // 1 second
   }
 
-  /**
-   * Count rows without downloading data
-   */
-  async getCount(supabase, table, filters = {}, cacheTTL = 600) {
-    const cacheKey = `count_${table}_${JSON.stringify(filters)}`;
-    
-    return this.cachedQuery(cacheKey, async () => {
-      let query = supabase.from(table).select('*', { count: 'exact', head: true });
-      
-      Object.entries(filters).forEach(([column, value]) => {
-        query = query.eq(column, value);
-      });
-
-      console.log(`🔢 Executing count query: ${table}`);
-      return await query;
-    }, cacheTTL);
+  // Get Supabase client
+  getClient() {
+    if (!supabaseClient) {
+      throw new Error('Supabase client not initialized');
+    }
+    return supabaseClient;
   }
 
-  /**
-   * Clear cache for specific table or pattern
-   */
-  clearCache(pattern = null) {
-    if (pattern) {
-      const keys = queryCache.keys().filter(key => key.includes(pattern));
-      keys.forEach(key => queryCache.del(key));
-      console.log(`🧹 Cleared ${keys.length} cache entries matching: ${pattern}`);
-    } else {
-      queryCache.flushAll();
-      console.log('🧹 Cleared all cache entries');
+  // Store alerts in batches to reduce memory
+  async storeAlerts(alerts) {
+    if (!supabaseClient) {
+      console.log('⚠️ Supabase not available, skipping alert storage');
+      return { success: false, error: 'Supabase not initialized' };
+    }
+
+    try {
+      // Process in chunks to avoid memory issues
+      const chunks = [];
+      for (let i = 0; i < alerts.length; i += this.BATCH_SIZE) {
+        chunks.push(alerts.slice(i, i + this.BATCH_SIZE));
+      }
+
+      let stored = 0;
+      for (const chunk of chunks) {
+        const { data, error } = await supabaseClient
+          .from('traffic_alerts')
+          .upsert(chunk, {
+            onConflict: 'alert_hash',
+            ignoreDuplicates: true
+          });
+
+        if (error) {
+          console.error('❌ Supabase batch error:', error);
+        } else {
+          stored += chunk.length;
+        }
+      }
+
+      console.log(`✅ Stored ${stored} alerts to Supabase`);
+      return { success: true, stored };
+    } catch (error) {
+      console.error('❌ Supabase store error:', error);
+      return { success: false, error: error.message };
     }
   }
 
-  /**
-   * Get cache statistics
-   */
-  getCacheStats() {
-    return {
-      hits: this.cacheHits,
-      misses: this.cacheMisses,
-      hitRate: this.getCacheHitRate(),
-      totalQueries: this.totalQueries,
-      cacheSize: queryCache.getStats().keys,
-      memory: queryCache.getStats()
-    };
-  }
+  // Retrieve recent alerts with pagination
+  async getRecentAlerts(limit = 100, offset = 0) {
+    if (!supabaseClient) {
+      return { success: false, error: 'Supabase not initialized', data: [] };
+    }
 
-  getCacheHitRate() {
-    if (this.totalQueries === 0) return 0;
-    return Math.round((this.cacheHits / this.totalQueries) * 100);
-  }
+    try {
+      const { data, error } = await supabaseClient
+        .from('traffic_alerts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
 
-  /**
-   * Batch operations to reduce individual API calls
-   */
-  async batchSelect(supabase, queries) {
-    const results = {};
-    const promises = [];
-
-    queries.forEach(({ key, table, options }) => {
-      promises.push(
-        this.optimizedSelect(supabase, table, options)
-          .then(result => ({ key, result }))
-          .catch(error => ({ key, error }))
-      );
-    });
-
-    const batchResults = await Promise.allSettled(promises);
-    
-    batchResults.forEach(({ value }) => {
-      if (value) {
-        results[value.key] = value.result || value.error;
+      if (error) {
+        console.error('❌ Supabase fetch error:', error);
+        return { success: false, error: error.message, data: [] };
       }
-    });
 
-    console.log(`📦 Executed batch of ${queries.length} queries`);
-    return results;
+      return { success: true, data: data || [] };
+    } catch (error) {
+      console.error('❌ Supabase retrieve error:', error);
+      return { success: false, error: error.message, data: [] };
+    }
+  }
+
+  // Store supervisor actions
+  async logSupervisorAction(action) {
+    if (!supabaseClient) {
+      console.log('⚠️ Supabase not available, action not logged');
+      return { success: false };
+    }
+
+    try {
+      const { error } = await supabaseClient
+        .from('supervisor_actions')
+        .insert([action]);
+
+      if (error) {
+        console.error('❌ Supabase action log error:', error);
+        return { success: false, error: error.message };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Supabase log error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // Get supervisor activity
+  async getSupervisorActivity(supervisorId, limit = 50) {
+    if (!supabaseClient) {
+      return { success: false, data: [] };
+    }
+
+    try {
+      const { data, error } = await supabaseClient
+        .from('supervisor_actions')
+        .select('*')
+        .eq('supervisor_id', supervisorId)
+        .order('timestamp', { ascending: false })
+        .limit(limit);
+
+      if (error) {
+        console.error('❌ Supabase activity error:', error);
+        return { success: false, error: error.message, data: [] };
+      }
+
+      return { success: true, data: data || [] };
+    } catch (error) {
+      console.error('❌ Supabase activity retrieve error:', error);
+      return { success: false, error: error.message, data: [] };
+    }
+  }
+
+  // Clean up old alerts to save space
+  async cleanupOldAlerts(daysToKeep = 7) {
+    if (!supabaseClient) {
+      return { success: false };
+    }
+
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+
+      const { error } = await supabaseClient
+        .from('traffic_alerts')
+        .delete()
+        .lt('created_at', cutoffDate.toISOString());
+
+      if (error) {
+        console.error('❌ Supabase cleanup error:', error);
+        return { success: false, error: error.message };
+      }
+
+      console.log(`✅ Cleaned up alerts older than ${daysToKeep} days`);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Supabase cleanup error:', error);
+      return { success: false, error: error.message };
+    }
   }
 }
 
 // Export singleton instance
 export const supabaseOptimizer = new SupabaseOptimizer();
+
+// Export for direct access if needed
+export { supabaseClient };

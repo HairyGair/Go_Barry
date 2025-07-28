@@ -256,7 +256,7 @@ export async function streamProcessRoutes() {
 
 // Memory-safe shapes processing for coordinate matching
 export async function streamProcessShapesForCoordinate(targetLat, targetLng, maxDistanceMeters = 250) {
-  console.log(`🗺️ Streaming shapes for coordinate ${targetLat}, ${targetLng} (MEMORY SAFE)`);
+  console.log(`🗺️ Streaming shapes for coordinate ${targetLat}, ${targetLng} (ULTRA MEMORY SAFE)`);
   const memBefore = getMemoryUsage();
   
   try {
@@ -264,13 +264,21 @@ export async function streamProcessShapesForCoordinate(targetLat, targetLng, max
     const nearbyShapes = new Set();
     let processedPoints = 0;
     let matchedPoints = 0;
-    const maxPointsToProcess = 20000; // Limit to prevent memory overflow
+    let skippedForMemory = 0;
+    const maxPointsToProcess = streamingCache.memoryPressureMode ? 5000 : STREAMING_CONFIG.MAX_SHAPES_TO_PROCESS || 10000;
     
     const processor = new StreamingCSVProcessor({
-      memoryCheckInterval: 500, // More frequent memory checks for large file
+      memoryCheckInterval: 200, // Very frequent memory checks for 34MB file
       onRecord: (shapePoint) => {
+        // Aggressive limits to prevent memory overflow
         if (processedPoints >= maxPointsToProcess) {
           return; // Stop processing if limit reached
+        }
+        
+        // Skip processing if memory pressure is high
+        if (streamingCache.memoryPressureMode && Math.random() > 0.3) {
+          skippedForMemory++;
+          return;
         }
         
         if (shapePoint.shape_id && shapePoint.shape_pt_lat && shapePoint.shape_pt_lng) {
@@ -281,8 +289,11 @@ export async function streamProcessShapesForCoordinate(targetLat, targetLng, max
             const distance = calculateDistance(targetLat, targetLng, lat, lng);
             
             if (distance <= maxDistanceMeters) {
-              nearbyShapes.add(shapePoint.shape_id);
-              matchedPoints++;
+              // Limit shapes set size
+              if (nearbyShapes.size < 100) {
+                nearbyShapes.add(shapePoint.shape_id);
+                matchedPoints++;
+              }
             }
           }
           
@@ -297,12 +308,20 @@ export async function streamProcessShapesForCoordinate(targetLat, targetLng, max
     );
     
     const memAfter = getMemoryUsage();
-    console.log(`✅ Shapes streaming complete:`);
-    console.log(`   📊 Processed: ${processedPoints} shape points (limited to ${maxPointsToProcess})`);
+    console.log(`✅ Ultra-safe shapes streaming complete:`);
+    console.log(`   📊 Processed: ${processedPoints} shape points (limit: ${maxPointsToProcess})`);
     console.log(`   🎯 Found: ${matchedPoints} nearby points in ${nearbyShapes.size} shapes`);
+    console.log(`   ⚠️ Skipped for memory: ${skippedForMemory} points`);
     console.log(`   💾 Memory impact: ${memAfter.heapUsed - memBefore.heapUsed}MB`);
     
-    return { success: true, nearbyShapes: Array.from(nearbyShapes), processedPoints, matchedPoints };
+    return { 
+      success: true, 
+      nearbyShapes: Array.from(nearbyShapes), 
+      processedPoints, 
+      matchedPoints,
+      skippedForMemory,
+      memoryPressureMode: streamingCache.memoryPressureMode
+    };
     
   } catch (error) {
     console.error('❌ Error streaming shapes:', error.message);

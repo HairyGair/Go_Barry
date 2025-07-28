@@ -36,6 +36,8 @@ router.get('/unified', async (req, res) => {
       limit = 10000, // Increased default limit to handle large datasets
       offset = 0
     } = req.query;
+    
+    console.log(`🔍 Query params: source=${source}, status=${status}, limit=${limit}, offset=${offset}`);
 
     const result = await unifiedRoadworksManager.getAllRoadworks({
       source,
@@ -54,11 +56,25 @@ router.get('/unified', async (req, res) => {
 
     // Apply filters
     let filteredRoadworks = result.combined;
+    
+    console.log(`📦 Before filtering: ${filteredRoadworks.length} total roadworks`);
+    console.log(`📦 Sample sources:`, filteredRoadworks.slice(0, 5).map(r => r.source));
 
     if (source !== 'all') {
-      filteredRoadworks = filteredRoadworks.filter(r => 
-        r.source?.toLowerCase() === source.toLowerCase()
-      );
+      // Handle both exact match and partial match for StreetManager
+      filteredRoadworks = filteredRoadworks.filter(r => {
+        const roadworkSource = r.source?.toLowerCase() || '';
+        const querySource = source.toLowerCase();
+        
+        // For StreetManager, match both 'streetmanager' and 'street_manager' variants
+        if (querySource === 'streetmanager' || querySource === 'street_manager') {
+          return roadworkSource.includes('street') && roadworkSource.includes('manager');
+        }
+        
+        return roadworkSource === querySource;
+      });
+      
+      console.log(`🎯 After source filter (${source}): ${filteredRoadworks.length} roadworks`);
     }
 
     if (status !== 'all') {

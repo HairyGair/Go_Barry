@@ -1,6 +1,10 @@
 // backend/services/unifiedRoadworksManager.js
 // Unified roadworks data aggregator and management system with StreetManager fallback
 
+import dotenv from 'dotenv';
+// Load environment variables
+dotenv.config();
+
 // Removed axios import - app only uses database/webhook data, not external API calls
 import { generateAlertHash } from '../utils/alertDeduplication.js';
 // Removed streetManager import - app only uses AWS webhook data, not external API calls
@@ -10,35 +14,10 @@ import { bngToLatLng, parseStreetManagerGeometry } from '../utils/bngToLatLng.js
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { getFetch } from '../utils/fetchHelper.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-// Lazy load Supabase client only when needed
-let supabase = null;
-async function getSupabaseClient() {
-  if (!supabase && process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
-    try {
-      const { createClient } = await import('@supabase/supabase-js');
-      supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY, {
-        auth: {
-          persistSession: false // Don't persist auth sessions in backend
-        },
-        db: {
-          schema: 'public'
-        },
-        global: {
-          fetch: fetch // Use native fetch
-        }
-      });
-      console.log('✅ Supabase client initialized successfully');
-    } catch (error) {
-      console.error('❌ Failed to initialize Supabase client:', error.message);
-      throw error;
-    }
-  }
-  return supabase;
-}
 
 /**
  * Unified Roadworks Manager
@@ -532,6 +511,56 @@ class UnifiedRoadworksManager {
       }
       console.log('✅ Supabase client ready');
       
+      // Test the connection first
+      try {
+        console.log('🔍 Testing Supabase connection...');
+        
+        // First, test if we can reach Supabase at all
+        const fetchImpl = await getFetch();
+        console.log('🔍 Testing raw fetch to Supabase...');
+        
+        try {
+          const testUrl = `${process.env.SUPABASE_URL}/rest/v1/`;
+          const testResponse = await fetchImpl(testUrl, {
+            method: 'GET',
+            headers: {
+              'apikey': process.env.SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}`
+            }
+          });
+          console.log(`🎯 Raw fetch response: ${testResponse.status} ${testResponse.statusText}`);
+        } catch (fetchError) {
+          console.error('❌ Raw fetch to Supabase failed:', fetchError.message);
+          console.error('❌ This suggests a network or SSL issue');
+          
+          // Run connectivity test to diagnose the issue
+          console.log('
+🤔 Running connectivity diagnostics...');
+          try {
+            const { testConnectivity } = await import('../tests/connectivity-test.js');
+            await testConnectivity();
+          } catch (diagError) {
+            console.error('❌ Diagnostics failed:', diagError.message);
+          }
+        }
+        
+        // Now try the Supabase client
+        const { data: testData, error: testError } = await supabaseClient
+          .from('streetworks')
+          .select('id')
+          .limit(1)
+          .maybeSingle(); // Use maybeSingle to avoid error if no data
+        
+        if (testError) {
+          console.error('❌ Supabase connection test failed:', testError);
+          throw new Error(`Supabase connection failed: ${testError.message}`);
+        }
+        console.log('✅ Supabase connection test successful');
+      } catch (connError) {
+        console.error('❌ Supabase connection error:', connError);
+        throw connError;
+      }
+      
       console.log('🔍 Starting paginated streetworks query for all records...');
       
       // Implement pagination to get all records (Supabase has 1000 record limit per query)
@@ -560,34 +589,41 @@ class UnifiedRoadworksManager {
         while (hasMoreData) {
           console.log(`📄 Fetching page ${currentPage + 1} (${currentPage * pageSize} to ${(currentPage + 1) * pageSize})...`);
           
-          const { data: pageData, error: pageError } = await supabaseClient
-            .from('streetworks')
-            .select(selectFields)
-            .order('webhook_received_at', { ascending: false })
-            .range(currentPage * pageSize, (currentPage + 1) * pageSize - 1);
+          try {
+            const { data: pageData, error: pageError } = await supabaseClient
+              .from('streetworks')
+              .select(selectFields)
+              .order('webhook_received_at', { ascending: false })
+              .range(currentPage * pageSize, (currentPage + 1) * pageSize - 1);
           
-          if (pageError) {
-            throw pageError;
-          }
-          
-          if (pageData && pageData.length > 0) {
-            allStreetworksRecords.push(...pageData);
-            console.log(`✅ Page ${currentPage + 1}: ${pageData.length} records (total: ${allStreetworksRecords.length})`);
-            
-            // Check if we got a full page (if not, we're done)
-            if (pageData.length < pageSize) {
-              hasMoreData = false;
-            } else {
-              currentPage++;
+            if (pageError) {
+              console.error('❌ Page query error:', pageError);
+              console.error('❌ Error details:', JSON.stringify(pageError, null, 2));
+              throw pageError;
             }
-          } else {
-            hasMoreData = false;
-          }
           
-          // Safety check to prevent infinite loops
-          if (currentPage > 20) { // Max 20k records
-            console.warn('⚠️ Reached maximum page limit (20), stopping pagination');
-            hasMoreData = false;
+            if (pageData && pageData.length > 0) {
+              allStreetworksRecords.push(...pageData);
+              console.log(`✅ Page ${currentPage + 1}: ${pageData.length} records (total: ${allStreetworksRecords.length})`);
+              
+              // Check if we got a full page (if not, we're done)
+              if (pageData.length < pageSize) {
+                hasMoreData = false;
+              } else {
+                currentPage++;
+              }
+            } else {
+              hasMoreData = false;
+            }
+            
+            // Safety check to prevent infinite loops
+            if (currentPage > 20) { // Max 20k records
+              console.warn('⚠️ Reached maximum page limit (20), stopping pagination');
+              hasMoreData = false;
+            }
+          } catch (pageError) {
+            console.error('❌ Error fetching page:', pageError);
+            throw pageError;
           }
         }
         

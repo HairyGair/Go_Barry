@@ -5,8 +5,14 @@ import { getEnhancedLocationWithFallbacks } from '../utils/productionLocation.js
 import { geocodingThrottler } from '../utils/requestThrottler.js';
 import { findAffectedRoutesEnhanced, isGTFSReady } from '../utils/gtfsRouteMatching.js';
 import enhancedLocationMatchingService from './enhancedLocationMatching.js';
-import { incrementTomTomUsage } from '../routes/tomtomUsageAPI.js';
+// Removed circular import: import { incrementTomTomUsage } from '../routes/tomtomUsageAPI.js';
 import { enhancedRouteMatchWithConfidence } from './enhancedRouteConfidence.js';
+
+// Create a stub function to avoid breaking existing code
+function incrementTomTomUsage(apiType, count = 1) {
+  // TODO: Implement proper usage tracking without circular import
+  console.log(`📊 TomTom ${apiType} API usage: +${count}`);
+}
 
 // Enhanced route matching using both coordinates AND geocoded location names
 function findRoutesNearCoordinatesFixed(lat, lng, radiusMeters = 250) {

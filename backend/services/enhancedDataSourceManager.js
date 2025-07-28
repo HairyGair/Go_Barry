@@ -3,8 +3,6 @@
 
 import intelligenceEngine from './intelligenceEngine.js';
 import { fetchTomTomTrafficWithStreetNames } from './tomtom.js';
-
-
 import { fetchNationalHighways } from './nationalHighways.js';
 import streetManagerWebhooks from './streetManagerWebhooksSimple.js';
 import timeBasedPollingManager from './timeBasedPollingManager.js';
