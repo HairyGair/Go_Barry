@@ -252,6 +252,17 @@ async function initializeServer() {
       }
     });
     console.log('✅ Weather endpoint registered at /api/weather/current');
+
+    // Add a simple test endpoint to verify route registration is working
+    app.get('/api/test-route-fix', (req, res) => {
+      res.json({
+        success: true,
+        message: 'Route registration fix is working!',
+        timestamp: new Date().toISOString(),
+        routes_registered: routeManager.getStats()
+      });
+    });
+    console.log('✅ Test endpoint registered at /api/test-route-fix');
     
   } catch (error) {
     console.error('❌ Route registration failed:', error);
