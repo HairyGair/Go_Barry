@@ -39,6 +39,7 @@ router.get('/', async (req, res) => {
       return res.json({
         success: true,
         alerts: [],
+        incidents: [],
         count: 0,
         source: 'fallback',
         message: 'Supabase not available, returning empty results'
@@ -58,6 +59,7 @@ router.get('/', async (req, res) => {
       return res.json({
         success: true,
         alerts: incidents,
+        incidents: incidents,
         count: incidents.length,
         source: 'incidents_table',
         lastUpdated: new Date().toISOString()
@@ -77,6 +79,7 @@ router.get('/', async (req, res) => {
       return res.json({
         success: true,
         alerts: streetworks,
+        incidents: streetworks,
         count: streetworks.length,
         source: 'streetworks_table',
         lastUpdated: new Date().toISOString()
@@ -88,6 +91,7 @@ router.get('/', async (req, res) => {
     res.json({
       success: true,
       alerts: [],
+      incidents: [],
       count: 0,
       message: 'No active incidents',
       lastUpdated: new Date().toISOString()
@@ -99,6 +103,7 @@ router.get('/', async (req, res) => {
       success: false,
       error: error.message,
       alerts: [],
+      incidents: [],
       count: 0
     });
   }
