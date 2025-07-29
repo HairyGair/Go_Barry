@@ -46,53 +46,106 @@
 - **Styling**: React Native StyleSheet (NO Tailwind in RN components!)
 - **Platform**: Web primary, mobile-ready
 
-## 📱 CURRENT NAVIGATION STRUCTURE (JULY 2025 - VERIFIED ACTIVE)
+## 📱 COMPLETE SCREEN DIRECTORY STRUCTURE (JULY 2025 - VERIFIED ACTIVE)
 
-### **🏠 Main Entry Point: Homepage (`app/index.jsx`)**
-Uses `HomePageWithLogin.jsx` component with 6 application cards:
+### **🌐 Full Navigation Hierarchy**
 
-1. **Control Room Display** (`/display`) - 24/7 monitoring display ✅ ACTIVE
-   - **File**: `app/display.jsx` → `components/DisplayScreen.jsx`
-   - **Login**: Not required
-   - **Purpose**: Large screen optimized for control room environments
+```
+🏠 HOME PAGE (/) → `app/index.jsx` → `HomePageWithLogin.jsx`
+├── 📺 CONTROL ROOM DISPLAY (/display)
+│   └── File: `app/display.jsx` → `components/DisplayScreen.jsx`
+│   └── Login: Not required
+│   └── Features: 24/7 monitoring, real-time alerts, large screen optimization
+│
+├── 💬 COMMUNICATIONS HUB (/communications-hub)
+│   └── File: `app/communications-hub.jsx`
+│   └── Login: Required (Supervisor badge)
+│   └── Features: Email integration, 8x8 VoIP, automated reports, SharePoint access
+│
+├── 🏗️ OPERATIONS CENTRE (/operations-centre)
+│   └── File: `app/operations-centre/index.jsx`
+│   └── Components: `app/operations-centre/components/`
+│   └── Login: Required (Supervisor badge)
+│   └── Features: Duty boards, performance statistics, live traffic map, disruption database
+│
+├── 🚧 DISRUPTIONS MANAGER (/disruption-centre)
+│   ├── 📊 Main Dashboard → `app/disruption-centre/index.jsx`
+│   │   └── Uses: `DisruptionDatabase.jsx`, `RoadworksManagerDashboard.jsx`
+│   ├── 🚨 Incidents Tab → `/disruptions/incidents`
+│   │   └── File: `app/disruptions/incidents.jsx`
+│   └── 🛣️ Roadworks Tab → `/disruptions/roadworks`
+│       └── File: `app/disruptions/roadworks.jsx`
+│   └── Login: Required (Supervisor badge)
+│   └── Features: Create/track incidents, manage roadworks, route matching
+│
+├── 🔧 BREAKDOWN GUIDE (/breakdown-guide)
+│   └── File: `app/breakdown-guide.jsx`
+│   └── Login: Not required
+│   └── Features: SDC engineering guide, troubleshooting steps, safety protocols
+│
+└── ⚙️ ADMIN DASHBOARD (/admin) - **ADMIN ONLY**
+    ├── 🏠 Admin Home → `app/admin/index.jsx`
+    │   └── Login: Admin only (AG003, BP009)
+    │   └── Features: 8 admin cards, system overview, quick actions
+    │
+    ├── 📊 System Overview → `/admin/system-overview`
+    │   └── Features: System health, metrics, uptime monitoring
+    │
+    ├── 🧠 Intelligence Dashboard → `/admin/intelligence`
+    │   └── Features: ML predictions, AI insights, model management
+    │
+    ├── 🛣️ Admin Roadworks → `/admin/roadworks`
+    │   └── Features: Administrative roadworks management, bulk operations
+    │
+    ├── 👥 Supervisor Management → `/admin/supervisors`
+    │   └── File: `app/admin/supervisors.jsx`
+    │   └── Features: Team management, permissions, session monitoring
+    │
+    ├── 📋 Activity Audit → `/admin/audit`
+    │   └── Features: System audit logs, activity trails, compliance
+    │
+    ├── 📈 Analytics Dashboard → `/admin/analytics`
+    │   └── Features: Performance metrics, alert analytics, reporting
+    │
+    ├── 🔌 API Usage → `/admin/api-usage`
+    │   └── Features: Service consumption, rate limiting, usage statistics
+    │
+    └── 🗺️ Live Map Admin → `/admin/live-map`
+        └── Features: Real-time traffic view, administrative map controls
+```
 
-2. **Communications Hub** (`/communications-hub`) - Unified messaging center ✅ ACTIVE
-   - **File**: `app/communications-hub.jsx`
-   - **Login**: Required
-   - **Features**: Email, 8x8 VoIP, automated reports, SharePoint access
+### **📂 Screen File Mapping**
 
-3. **Operations Centre** (`/operations-centre`) - Daily operational tools ✅ ACTIVE
-   - **File**: `app/operations-centre/index.jsx`
-   - **Components**: `app/operations-centre/components/` (OperationsHeader, ActivityFeed, etc.)
-   - **Login**: Required
-   - **Features**: Duty boards, performance statistics, live traffic map, disruption database
+| Screen Path | File Location | Component | Login Required |
+|-------------|---------------|-----------|----------------|
+| `/` | `app/index.jsx` | `HomePageWithLogin.jsx` | Optional |
+| `/display` | `app/display.jsx` | `DisplayScreen.jsx` | No |
+| `/communications-hub` | `app/communications-hub.jsx` | Direct | Yes (Supervisor) |
+| `/operations-centre` | `app/operations-centre/index.jsx` | Operations components | Yes (Supervisor) |
+| `/disruption-centre` | `app/disruption-centre/index.jsx` | Disruption components | Yes (Supervisor) |
+| `/disruptions/incidents` | `app/disruptions/incidents.jsx` | Incidents manager | Yes (Supervisor) |
+| `/disruptions/roadworks` | `app/disruptions/roadworks.jsx` | Roadworks manager | Yes (Supervisor) |
+| `/breakdown-guide` | `app/breakdown-guide.jsx` | Breakdown guide | No |
+| `/admin` | `app/admin/index.jsx` | Admin dashboard | Yes (Admin only) |
+| `/admin/supervisors` | `app/admin/supervisors.jsx` | Supervisor management | Yes (Admin only) |
+| `/admin/*` | `app/admin/*.jsx` | Various admin screens | Yes (Admin only) |
 
-4. **Disruptions Manager** (`/disruption-centre`) - Network disruption management ✅ ACTIVE
-   - **File**: `app/disruption-centre/index.jsx`
-   - **Uses**: `DisruptionDatabase.jsx`, `RoadworksManagerDashboard.jsx`
-   - **Login**: Required
-   - **Features**: Create and track incidents, manage roadworks, route matching
+### **🔐 Authentication Hierarchy**
 
-5. **Breakdown Guide** (`/breakdown-guide`) - Engineering issues guide ✅ ACTIVE
-   - **File**: `app/breakdown-guide.jsx`
-   - **Login**: Not required
-   - **Purpose**: SDC guide with troubleshooting steps and safety protocols
+1. **Public Access** (No login required)
+   - Home Page (`/`)
+   - Control Room Display (`/display`)
+   - Breakdown Guide (`/breakdown-guide`)
 
-6. **Admin Dashboard** (`/admin`) - System administration ✅ ACTIVE
-   - **File**: `app/admin/index.jsx`
-   - **Sub-screens**: system-overview, intelligence, roadworks, supervisors, audit, analytics, api-usage, live-map
-   - **Login**: Admin only (AG003, BP009)
+2. **Supervisor Access** (Badge authentication required)
+   - Communications Hub (`/communications-hub`)
+   - Operations Centre (`/operations-centre`)
+   - Disruptions Manager (`/disruption-centre/*`)
+   - All disruption sub-screens
 
-### **🔍 Admin Sub-Screen Structure**
-All located in `app/admin/`:
-- `/admin/system-overview` - System health and metrics
-- `/admin/intelligence` - AI and ML management
-- `/admin/roadworks` - Administrative roadworks management
-- `/admin/supervisors` - Supervisor account management
-- `/admin/audit` - System audit logs
-- `/admin/analytics` - Performance analytics
-- `/admin/api-usage` - API usage statistics
-- `/admin/live-map` - Administrative map interface
+3. **Admin Access** (AG003, BP009 only)
+   - Admin Dashboard (`/admin`)
+   - All admin sub-screens (`/admin/*`)
 
 ## 🧩 ACTIVE COMPONENTS ANALYSIS (JULY 2025)
 
