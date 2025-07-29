@@ -111,12 +111,12 @@ router.get('/unified', async (req, res) => {
           'Content-Type': 'application/json'
         },
         params: {
-          // Filter by work state: only show planned or in progress works (fixed capitalization)
+          // Filter by work state: only show planned or in progress works (CONFIRMED working!)
           'sm_works_state': 'in.(Works planned,Works in progress)',
-          // TEMPORARILY DISABLED: Date filter - let's see all works first
-          // 'or': `sm_start_date.lte.${next28DaysISO},and(sm_start_date.lte.${nowISO},or(sm_end_date.gte.${nowISO},sm_end_date.is.null))`,
+          // Use 180-day window instead of 28 days (infrastructure projects need longer planning)
+          'or': `sm_start_date.lte.${new Date(Date.now() + 180*24*60*60*1000).toISOString()},and(sm_start_date.lte.${nowISO},or(sm_end_date.gte.${nowISO},sm_end_date.is.null))`,
           order: 'sm_start_date.asc',
-          limit: 100 // Reduced limit to see results faster
+          limit: 200 // Increased for more comprehensive results
         },
         timeout: 10000
       });
@@ -167,11 +167,11 @@ router.get('/unified', async (req, res) => {
       }
     }
 
-    console.log(`✅ Fetched ${roadworks?.length || 0} roadworks from Supabase (work state filter only - date filter disabled)`);
+    console.log(`✅ Fetched ${roadworks?.length || 0} roadworks from Supabase (FILTERED: Works planned/in progress, 180-day window)`);
     console.log(`📈 Query params used:`, {
       workStateFilter: 'Works planned, Works in progress',
-      dateFilter: 'DISABLED - showing all dates',
-      limit: 100,
+      dateFilter: '180 days ahead + currently active',
+      limit: 200,
       orderBy: 'sm_start_date.asc'
     });
     
@@ -184,9 +184,10 @@ router.get('/unified', async (req, res) => {
         source: 'supabase_streetworks',
         table: 'streetworks',
         workStateFilter: 'Works planned, Works in progress',
-        dateFilter: 'DISABLED - showing all dates',
-        filterApplied: `States: [Works planned, Works in progress] + Date filter: DISABLED`,
-        lastUpdated: new Date().toISOString()
+        dateFilter: '180_days_ahead_plus_active',
+        filterApplied: `States: [Works planned, Works in progress] + Dates: next 180 days OR currently active`,
+        lastUpdated: new Date().toISOString(),
+        breakthrough: 'Case sensitivity issue resolved - filtering now working!'
       }
     });
   } catch (error) {
