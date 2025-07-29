@@ -96,7 +96,7 @@ router.get('/count', async (req, res) => {
 
 /**
  * GET /api/streetworks/active
- * Get only active streetworks (next 28 days + currently active)
+ * Get only active streetworks (works planned or in progress, next 28 days + currently active)
  */
 router.get('/active', async (req, res) => {
   try {
@@ -109,8 +109,9 @@ router.get('/active', async (req, res) => {
     const { data, error } = await supabase
       .from('streetworks')
       .select('*')
-      .in('alert_status', ['red', 'amber'])
-      // Filter for works starting in next 28 days OR currently active
+      // Filter by work state: only show planned or in progress
+      .in('sm_works_state', ['works planned', 'works in progress'])
+      // Filter by date: works starting in next 28 days OR currently active
       .or(`and(sm_start_date.lte.${next28DaysISO},or(sm_end_date.gte.${nowISO},sm_end_date.is.null)),and(sm_start_date.lte.${nowISO},or(sm_end_date.gte.${nowISO},sm_end_date.is.null))`)
       .order('sm_start_date', { ascending: true });
 

@@ -3,89 +3,6 @@ import axios from 'axios';
 
 const router = express.Router();
 
-// GET /api/roadworks/unified/debug - Debug endpoint to check data counts
-router.get('/unified/debug', async (req, res) => {
-  try {
-    console.log('🔍 Debug: Checking roadworks data counts...');
-    
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_ANON_KEY;
-    
-    if (!supabaseUrl || !supabaseKey) {
-      return res.status(500).json({ success: false, error: 'Supabase configuration missing' });
-    }
-    
-    // Get total count (no filters)
-    const totalResponse = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Prefer': 'count=exact'
-      },
-      params: {
-        select: 'id',
-        limit: 1
-      }
-    });
-    
-    const totalCount = totalResponse.headers['content-range']?.split('/')[1] || 'unknown';
-    
-    // Calculate date range for next 28 days
-    const now = new Date();
-    const next28Days = new Date(now.getTime() + (28 * 24 * 60 * 60 * 1000));
-    const nowISO = now.toISOString();
-    const next28DaysISO = next28Days.toISOString();
-    
-    // Get filtered count
-    const filteredResponse = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Prefer': 'count=exact'
-      },
-      params: {
-        select: 'id',
-        'or': `and(sm_start_date.lte.${next28DaysISO},or(sm_end_date.gte.${nowISO},sm_end_date.is.null)),and(sm_start_date.lte.${nowISO},or(sm_end_date.gte.${nowISO},sm_end_date.is.null))`,
-        limit: 1
-      }
-    });
-    
-    const filteredCount = filteredResponse.headers['content-range']?.split('/')[1] || 'unknown';
-    
-    // Get sample of dates to check spread
-    const sampleResponse = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`
-      },
-      params: {
-        select: 'sm_start_date,sm_end_date',
-        order: 'sm_start_date.asc',
-        limit: 5
-      }
-    });
-    
-    res.json({
-      success: true,
-      debug: {
-        totalRecords: totalCount,
-        filteredRecords: filteredCount,
-        dateRange: {
-          from: nowISO,
-          to: next28DaysISO,
-          description: 'Next 28 days + currently active'
-        },
-        sampleDates: sampleResponse.data,
-        timestamp: new Date().toISOString()
-      }
-    });
-    
-  } catch (error) {
-    console.error('❌ Debug endpoint error:', error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
 // GET /api/roadworks/unified - Get all roadworks from Supabase streetworks table using axios
 router.get('/unified', async (req, res) => {
   try {
@@ -116,17 +33,25 @@ router.get('/unified', async (req, res) => {
         'Content-Type': 'application/json'
       },
       params: {
-        // Filter for works starting in next 28 days OR currently active
-        'or': `and(sm_start_date.lte.${next28DaysISO},or(sm_end_date.gte.${nowISO},sm_end_date.is.null)),and(sm_start_date.lte.${nowISO},or(sm_end_date.gte.${nowISO},sm_end_date.is.null))`,
+        // Filter by work state: only show planned or in progress works
+        'sm_works_state': 'in.("works planned","works in progress")',
+        // Filter by date: works starting in next 28 days OR currently active
+        'and': `(sm_start_date.lte.${next28DaysISO},or(sm_end_date.gte.${nowISO},sm_end_date.is.null))`,
         order: 'sm_start_date.asc',
-        limit: 1000
+        limit: 500
       },
       timeout: 10000
     });
     
     const roadworks = response.data;
 
-    console.log(`✅ Fetched ${roadworks?.length || 0} roadworks from Supabase (filtered for next 28 days)`);
+    console.log(`✅ Fetched ${roadworks?.length || 0} roadworks from Supabase (filtered by work state + 28 days)`);
+    console.log(`📈 Query params used:`, {
+      workStateFilter: 'works planned, works in progress',
+      dateFilter: `${nowISO} to ${next28DaysISO}`,
+      limit: 500,
+      orderBy: 'sm_start_date.asc'
+    });
     
     res.json({
       success: true,
@@ -136,8 +61,9 @@ router.get('/unified', async (req, res) => {
         count: roadworks?.length || 0,
         source: 'supabase_streetworks',
         table: 'streetworks',
+        workStateFilter: 'works planned, works in progress',
         dateFilter: 'next_28_days_and_active',
-        filterApplied: `${nowISO} to ${next28DaysISO}`,
+        filterApplied: `States: [works planned, works in progress] + Dates: ${nowISO} to ${next28DaysISO}`,
         lastUpdated: new Date().toISOString()
       }
     });
