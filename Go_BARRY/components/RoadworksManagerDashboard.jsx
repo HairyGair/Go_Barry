@@ -755,9 +755,9 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
             authority: work.sm_highway_authority || work.sm_promoter_name
           }));
         
-        console.log(`📅 Found ${futureStreetManagerWorks.length} future StreetManager works`);
+        console.log(`📅 Found ${advancePlanningWorks.length} future StreetManager works`);
         
-        if (futureStreetManagerWorks.length === 0) {
+        if (advancePlanningWorks.length === 0) {
           // Try fallback to sample data for development/testing
           console.log('📋 No future works found, checking for sample data...');
           try {
@@ -792,7 +792,7 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
             authority: 'Go BARRY System'
           }]);
         } else {
-          setFutureWorks(futureStreetManagerWorks);
+          setFutureWorks(advancePlanningWorks);
         }
       } else {
         console.warn('API response failed or no roadworks data:', data);
