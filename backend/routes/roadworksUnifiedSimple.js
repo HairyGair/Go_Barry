@@ -26,24 +26,72 @@ router.get('/unified', async (req, res) => {
     const nowISO = now.toISOString();
     const next28DaysISO = next28Days.toISOString();
     
-    const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Content-Type': 'application/json'
-      },
-      params: {
-        // Filter by work state: only show planned or in progress works
-        'sm_works_state': 'in.("works planned","works in progress")',
-        // Filter by date: works starting in next 28 days OR currently active
-        'and': `(sm_start_date.lte.${next28DaysISO},or(sm_end_date.gte.${nowISO},sm_end_date.is.null))`,
-        order: 'sm_start_date.asc',
-        limit: 500
-      },
-      timeout: 10000
-    });
+    let roadworks = [];
     
-    const roadworks = response.data;
+    try {
+      // Try with full filtering first
+      const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json'
+        },
+        params: {
+          // Filter by work state: only show planned or in progress works
+          'sm_works_state': 'in.(works planned,works in progress)',
+          // Filter by date: works starting in next 28 days OR currently active  
+          'or': `sm_start_date.lte.${next28DaysISO},and(sm_start_date.lte.${nowISO},or(sm_end_date.gte.${nowISO},sm_end_date.is.null))`,
+          order: 'sm_start_date.asc',
+          limit: 500
+        },
+        timeout: 10000
+      });
+      
+      roadworks = response.data;
+      
+    } catch (filterError) {
+      console.error('❌ Filtered query failed, trying simpler approach:', filterError.message);
+      
+      // Fallback: Just filter by work state
+      try {
+        const simpleResponse = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json'
+          },
+          params: {
+            'sm_works_state': 'in.(works planned,works in progress)',
+            order: 'sm_start_date.asc',
+            limit: 100
+          },
+          timeout: 10000
+        });
+        
+        roadworks = simpleResponse.data;
+        console.log('✅ Fallback query successful');
+        
+      } catch (simpleError) {
+        console.error('❌ Simple query also failed:', simpleError.message);
+        
+        // Final fallback: Get all data and filter client-side
+        const allResponse = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json'
+          },
+          params: {
+            order: 'sm_start_date.asc',
+            limit: 50
+          },
+          timeout: 10000
+        });
+        
+        roadworks = allResponse.data;
+        console.log('✅ Final fallback: returning all data');
+      }
+    }
 
     console.log(`✅ Fetched ${roadworks?.length || 0} roadworks from Supabase (filtered by work state + 28 days)`);
     console.log(`📈 Query params used:`, {
