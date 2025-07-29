@@ -3,6 +3,80 @@ import axios from 'axios';
 
 const router = express.Router();
 
+// GET /api/roadworks/debug-values - Debug endpoint to check actual database values
+router.get('/debug-values', async (req, res) => {
+  try {
+    console.log('🔍 Debug: Checking actual database values...');
+    
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return res.status(500).json({ success: false, error: 'Supabase configuration missing' });
+    }
+    
+    // Get sample records to check actual field values
+    const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        select: 'id,sm_works_state,sm_start_date,sm_end_date,sm_works_category,sm_location_description',
+        order: 'created_at.desc',
+        limit: 20
+      },
+      timeout: 10000
+    });
+    
+    const sampleData = response.data;
+    
+    // Extract unique work states
+    const workStates = [...new Set(sampleData.map(r => r.sm_works_state).filter(Boolean))];
+    
+    // Extract unique work categories
+    const workCategories = [...new Set(sampleData.map(r => r.sm_works_category).filter(Boolean))];
+    
+    // Check date ranges
+    const now = new Date();
+    const startDates = sampleData.map(r => r.sm_start_date).filter(Boolean);
+    const futureDates = startDates.filter(date => new Date(date) > now);
+    const pastDates = startDates.filter(date => new Date(date) <= now);
+    
+    res.json({
+      success: true,
+      debug: {
+        totalSample: sampleData.length,
+        uniqueWorkStates: workStates,
+        uniqueWorkCategories: workCategories,
+        dateAnalysis: {
+          totalDates: startDates.length,
+          futureDates: futureDates.length,
+          pastDates: pastDates.length,
+          earliestFuture: futureDates.length > 0 ? Math.min(...futureDates.map(d => new Date(d))) : null,
+          latestPast: pastDates.length > 0 ? Math.max(...pastDates.map(d => new Date(d))) : null
+        },
+        sampleRecords: sampleData.slice(0, 5).map(r => ({
+          id: r.id,
+          state: r.sm_works_state,
+          category: r.sm_works_category,
+          startDate: r.sm_start_date,
+          location: r.sm_location_description?.substring(0, 50) + '...'
+        })),
+        currentFilters: {
+          expectedStates: ['Works planned', 'Works in progress'],
+          dateRange: '28 days from now'
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Debug values error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // GET /api/roadworks/unified - Get all roadworks from Supabase streetworks table using axios
 router.get('/unified', async (req, res) => {
   try {
@@ -37,12 +111,12 @@ router.get('/unified', async (req, res) => {
           'Content-Type': 'application/json'
         },
         params: {
-          // Filter by work state: only show planned or in progress works
-          'sm_works_state': 'in.(works planned,works in progress)',
-          // Filter by date: works starting in next 28 days OR currently active  
-          'or': `sm_start_date.lte.${next28DaysISO},and(sm_start_date.lte.${nowISO},or(sm_end_date.gte.${nowISO},sm_end_date.is.null))`,
+          // Filter by work state: only show planned or in progress works (fixed capitalization)
+          'sm_works_state': 'in.(Works planned,Works in progress)',
+          // TEMPORARILY DISABLED: Date filter - let's see all works first
+          // 'or': `sm_start_date.lte.${next28DaysISO},and(sm_start_date.lte.${nowISO},or(sm_end_date.gte.${nowISO},sm_end_date.is.null))`,
           order: 'sm_start_date.asc',
-          limit: 500
+          limit: 100 // Reduced limit to see results faster
         },
         timeout: 10000
       });
@@ -61,7 +135,7 @@ router.get('/unified', async (req, res) => {
             'Content-Type': 'application/json'
           },
           params: {
-            'sm_works_state': 'in.(works planned,works in progress)',
+            'sm_works_state': 'in.(Works planned,Works in progress)',
             order: 'sm_start_date.asc',
             limit: 100
           },
@@ -93,11 +167,11 @@ router.get('/unified', async (req, res) => {
       }
     }
 
-    console.log(`✅ Fetched ${roadworks?.length || 0} roadworks from Supabase (filtered by work state + 28 days)`);
+    console.log(`✅ Fetched ${roadworks?.length || 0} roadworks from Supabase (work state filter only - date filter disabled)`);
     console.log(`📈 Query params used:`, {
-      workStateFilter: 'works planned, works in progress',
-      dateFilter: `${nowISO} to ${next28DaysISO}`,
-      limit: 500,
+      workStateFilter: 'Works planned, Works in progress',
+      dateFilter: 'DISABLED - showing all dates',
+      limit: 100,
       orderBy: 'sm_start_date.asc'
     });
     
@@ -109,9 +183,9 @@ router.get('/unified', async (req, res) => {
         count: roadworks?.length || 0,
         source: 'supabase_streetworks',
         table: 'streetworks',
-        workStateFilter: 'works planned, works in progress',
-        dateFilter: 'next_28_days_and_active',
-        filterApplied: `States: [works planned, works in progress] + Dates: ${nowISO} to ${next28DaysISO}`,
+        workStateFilter: 'Works planned, Works in progress',
+        dateFilter: 'DISABLED - showing all dates',
+        filterApplied: `States: [Works planned, Works in progress] + Date filter: DISABLED`,
         lastUpdated: new Date().toISOString()
       }
     });

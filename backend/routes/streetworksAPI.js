@@ -109,8 +109,8 @@ router.get('/active', async (req, res) => {
     const { data, error } = await supabase
       .from('streetworks')
       .select('*')
-      // Filter by work state: only show planned or in progress
-      .in('sm_works_state', ['works planned', 'works in progress'])
+      // Filter by work state: only show planned or in progress (fixed capitalization)
+      .in('sm_works_state', ['Works planned', 'Works in progress'])
       // Filter by date: works starting in next 28 days OR currently active
       .or(`and(sm_start_date.lte.${next28DaysISO},or(sm_end_date.gte.${nowISO},sm_end_date.is.null)),and(sm_start_date.lte.${nowISO},or(sm_end_date.gte.${nowISO},sm_end_date.is.null))`)
       .order('sm_start_date', { ascending: true });
