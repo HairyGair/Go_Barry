@@ -89,7 +89,7 @@ export default function DisruptionCentre() {
       
       // Fetch disruption data
       const [roadworksResponse, incidentsResponse] = await Promise.all([
-        fetch(`${API_BASE}/api/roadworks`, {
+        fetch(`${API_BASE}/api/roadworks/unified`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
@@ -117,9 +117,9 @@ export default function DisruptionCentre() {
       }
       
       // Update card stats
-      const activeRoadworks = roadworksData?.roadworks?.filter(r => r.status === 'active')?.length || 0;
+      const activeRoadworks = roadworksData?.data?.filter(r => r.status === 'active')?.length || 0;
       const activeIncidents = incidentsData?.incidents?.filter(i => i.status === 'active')?.length || 0;
-      const totalDisruptions = (roadworksData?.roadworks?.length || 0) + (incidentsData?.incidents?.length || 0);
+      const totalDisruptions = (roadworksData?.data?.length || 0) + (incidentsData?.incidents?.length || 0);
       
       setCardStats({
         disruptionDatabase: { value: totalDisruptions.toString(), label: 'Total' },
