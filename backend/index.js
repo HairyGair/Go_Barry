@@ -152,11 +152,15 @@ async function registerRoutes() {
   // Core functionality - load next
   await routeManager.registerRoute(app, '/api/admin', './routes/adminAPI.js', 'Admin API');
   await routeManager.registerRoute(app, '/api/incidents', './routes/incidentAPI.js', 'Incident API');
-  await routeManager.registerRoute(app, '/api/roadworks', './routes/roadworksUnifiedSimple.js', 'Unified Roadworks API');
+  await routeManager.registerRoute(app, '/api/incident-alerts', './routes/incidentAlertsAPI.js', 'Incident Alerts API');
+  await routeManager.registerRoute(app, '/api/roadworks', './routes/roadworksAPI.js', 'Roadworks API');
+  // Also register unified endpoint under the same base path
+  app.use('/api/roadworks', (await lazyImport('./routes/roadworksUnifiedSimple.js')).default);
+  console.log('✅ Unified Roadworks endpoint also available at /api/roadworks/unified');
   
   // Memory-optimized streaming routes - high priority
   await routeManager.registerRoute(app, '/api/gtfs-optimized', './routes/optimizedGTFSAPI.js', 'Optimized GTFS API');
-  await routeManager.registerRoute(app, '/api/roadworks-optimized', './routes/optimizedRoadworksAPI.js', 'Optimized Roadworks API');
+  // await routeManager.registerRoute(app, '/api/roadworks-optimized', './routes/optimizedRoadworksAPI.js', 'Optimized Roadworks API'); // Temporarily disabled
   
   // Secondary routes - load on demand  
   await routeManager.registerRoute(app, '/api/health-extended', './routes/healthExtended.js', 'Health Extended API');
@@ -164,6 +168,7 @@ async function registerRoutes() {
   await routeManager.registerRoute(app, '/api/file-management', './routes/fileManagementAPI.js', 'File Management API');
   await routeManager.registerRoute(app, '/api/roadwork-alerts', './routes/roadworkAlertsAPI-simple.js', 'Roadwork Alerts API');
   await routeManager.registerRoute(app, '/api/streetworks', './routes/streetworksAPI.js', 'Streetworks API');
+  await routeManager.registerRoute(app, '/api/streetmanager-debug', './routes/streetmanagerDebug.js', 'Street Manager Debug API');
   await routeManager.registerRoute(app, '/api/gtfs', './routes/gtfsAPI.js', 'GTFS API');
   await routeManager.registerRoute(app, '/api/events', './routes/eventAPI.js', 'Event API');
   await routeManager.registerRoute(app, '/api/tiles', './routes/tileAPI.js', 'Tile API');
@@ -210,10 +215,55 @@ app.get('/api/optimization/health', (req, res) => {
 
 console.log('✅ Optimization status endpoints registered');
 
-// Register routes asynchronously
-registerRoutes().catch(error => {
-  console.error('❌ Route registration failed:', error);
-});
+// Register routes and wait for completion before starting server
+async function initializeServer() {
+  try {
+    // Register all routes first
+    await registerRoutes();
+    console.log('✅ All routes registered successfully');
+    
+    // Then register direct endpoints
+    app.get('/api/config/tomtom-key', (req, res) => {
+      res.json({
+        success: true,
+        apiKey: process.env.TOMTOM_API_KEY || '',
+        hasKey: !!process.env.TOMTOM_API_KEY
+      });
+    });
+    console.log('✅ TomTom Config endpoint registered at /api/config/tomtom-key');
+
+    app.get('/api/weather/current', async (req, res) => {
+      try {
+        // Simple weather endpoint - can be enhanced later
+        res.json({
+          success: true,
+          weather: {
+            temperature: 15,
+            condition: 'Partly Cloudy',
+            location: 'Newcastle, UK'
+          },
+          message: 'Weather service placeholder - real integration needed'
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: error.message
+        });
+      }
+    });
+    console.log('✅ Weather endpoint registered at /api/weather/current');
+    
+  } catch (error) {
+    console.error('❌ Route registration failed:', error);
+    throw error;
+  }
+}
+
+// Route initialization is handled by render-startup.js
+// Export the initializeServer function for use by render-startup.js
+export { initializeServer };
+
+// Incident alerts endpoint is now registered through routeManager above
 
 // MEMORY-OPTIMIZED ALERTS ENDPOINT
 app.get('/api/alerts-enhanced', async (req, res) => {
@@ -363,18 +413,10 @@ setTimeout(() => {
     // All other services load on-demand
     console.log('✅ All additional services configured for on-demand loading');
     
-    // Display comprehensive initialization summary
-    const memoryStatus = memoryOptimizationIntegration.getHealthStatus();
-    const stats = memoryOptimizationIntegration.getStats();
-    
+    // Display simple initialization summary
     console.log('\n🎆 GO BARRY BACKEND ULTRA-MEMORY-OPTIMIZED READY 🎆');
     console.log('============================================================');
-    console.log(`📊 Memory Status: ${memoryStatus.status.toUpperCase()} (${memoryStatus.memoryUsage})`);
     console.log(`📈 Memory Usage: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB / 2048MB`);
-    console.log(`🔗 Registered Routes: ${routeManager.getStats().registeredRoutes}`);
-    console.log(`📦 Cached Modules: ${routeManager.getStats().cachedModules}`);
-    console.log(`📊 Active Optimizations: ${stats.integration.totalOptimizations}`);
-    console.log(`🎯 Memory Health: ${memoryStatus.message}`);
     console.log('\n🌐 API Access:');
     console.log(`   Local: http://localhost:${process.env.PORT || 3001}`);
     console.log('   Production: https://go-barry.onrender.com');

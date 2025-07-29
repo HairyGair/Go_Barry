@@ -1,32 +1,39 @@
 import express from 'express';
-import { createClient } from '@supabase/supabase-js';
+import axios from 'axios';
 
 const router = express.Router();
 
-// Initialize Supabase
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
-
-// GET /api/roadworks/unified - Get all roadworks from Supabase streetworks table
+// GET /api/roadworks/unified - Get all roadworks from Supabase streetworks table using axios
 router.get('/unified', async (req, res) => {
   try {
-    console.log('📋 Fetching unified roadworks from Supabase streetworks table...');
+    console.log('📋 Fetching unified roadworks from Supabase streetworks table with axios...');
     
-    const { data: roadworks, error } = await supabase
-      .from('streetworks')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('❌ Supabase error:', error);
-      return res.status(500).json({ 
-        success: false, 
-        error: error.message,
-        data: [] 
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('❌ Missing Supabase environment variables');
+      return res.status(500).json({
+        success: false,
+        error: 'Supabase configuration missing',
+        data: []
       });
     }
+    
+    const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        order: 'created_at.desc',
+        limit: 1000
+      },
+      timeout: 10000
+    });
+    
+    const roadworks = response.data;
 
     console.log(`✅ Fetched ${roadworks?.length || 0} roadworks from Supabase`);
     

@@ -595,67 +595,37 @@ app.get('/api/debug/route-test', (req, res) => {
 
 // Note: Removed catch-all to allow actual backend routes to work
 
-// RENDER FIX: Start listening immediately
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Go BARRY Backend LISTENING on PORT ${PORT}`);
-  console.log(`🌐 Server: http://localhost:${PORT}`);
-  console.log(`🔗 Public: https://go-barry.onrender.com`);
-  console.log(`✅ PORT BINDING SUCCESSFUL FOR RENDER.COM`);
-  console.log(`📡 Health check: https://go-barry.onrender.com/api/health`);
-  
-  // Load full backend after port is bound
-  setTimeout(async () => {
-    console.log('🔄 Loading full backend functionality...');
-    console.log(`🔄 Route count before import - GET: ${routeCount.get}, POST: ${routeCount.post}, USE: ${routeCount.use}`);
+// RENDER FIX: Wait for routes to be registered before starting server
+async function startServerWithRoutes() {
+  try {
+    console.log('🔄 Loading routes before starting server...');
     
-    try {
-      // PRODUCTION SUPERVISOR LOGGING: Activate before loading main backend
-      console.log('📝 Initializing production supervisor logging...');
-      try {
-        const { activateSupervisorLoggingForProduction } = await import('./scripts/productionStartupLogging.js');
-        const loggingResult = await activateSupervisorLoggingForProduction();
-        
-        if (loggingResult.success) {
-          console.log('✅ Supervisor logging activated successfully');
-          console.log(`📊 Logging status: ${loggingResult.status}`);
-        } else {
-          console.warn('⚠️ Supervisor logging activation had issues:', loggingResult);
-        }
-      } catch (loggingError) {
-        console.error('❌ Supervisor logging activation failed:', loggingError.message);
-        console.log('⚠️ Continuing without enhanced supervisor logging...');
-      }
-
-      await import('./index.js');
-      console.log('✅ Full backend loaded - ALL ROUTES NOW ACTIVE');
+    // Import and initialize routes first
+    const { initializeServer } = await import('./index.js');
+    await initializeServer();
+    console.log('✅ All routes loaded successfully');
+    
+    // Then start the server
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`✅ Go BARRY Backend LISTENING on PORT ${PORT}`);
+      console.log(`🌐 Server: http://localhost:${PORT}`);
+      console.log(`🔗 Public: https://go-barry.onrender.com`);
+      console.log(`✅ PORT BINDING SUCCESSFUL FOR RENDER.COM`);
+      console.log(`📡 Health check: https://go-barry.onrender.com/api/health`);
       console.log(`🎆 Route count after import - GET: ${routeCount.get}, POST: ${routeCount.post}, USE: ${routeCount.use}`);
-      console.log('🎆 All API endpoints from index.js are now accessible!');
-      console.log('🚀 Test roadwork endpoint: https://go-barry.onrender.com/api/roadwork-alerts-test');
-      console.log('🎯 FIXED: All routes now use the same Express app instance!');
-      
-      // Test if a route from index.js is actually registered
-      if (app._router && app._router.stack) {
-        const testRoute = app._router.stack.find(layer => 
-          layer.route && layer.route.path === '/api/roadwork-alerts-test'
-        );
-        console.log(`🗺️ Test route found in app: ${!!testRoute}`);
-      }
-      
-      // Add a verification endpoint to confirm routes are working
-      app.get('/api/verify-fix', (req, res) => {
-        res.json({
-          success: true,
-          message: 'Routes from index.js are now accessible!',
-          timestamp: new Date().toISOString(),
-          routeCount: routeCount,
-          source: 'Added after index.js import'
-        });
-      });
-    } catch (error) {
-      console.error('⚠️ Full backend failed to load:', error);
-      console.log('🚨 Running in minimal mode');
-    }
-  }, 5000); // 5 second delay
-});
+      console.log('✅ All routes registered and server started successfully!');
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to start server with routes:', error);
+    console.log('🚨 Attempting fallback server start...');
+    
+    // Fallback: start server without waiting for routes
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`⚠️ Go BARRY Backend started in FALLBACK mode on PORT ${PORT}`);
+    });
+  }
+}
 
-// No longer exporting app - it's available via global.goBarryApp
+// Start the server with routes
+startServerWithRoutes();
