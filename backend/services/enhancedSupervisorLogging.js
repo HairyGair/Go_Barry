@@ -1,13 +1,30 @@
 // backend/services/enhancedSupervisorLogging.js
 // Enhanced logging functions to augment existing supervisorManager functionality
 
-import { createClient } from '@supabase/supabase-js';
+// Initialize Supabase with lazy loading and error handling
+let supabase = null;
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+async function getSupabaseClient() {
+  if (supabase) return supabase;
+  
+  try {
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+      console.warn('⚠️ Supabase environment variables not available for enhanced supervisor logging');
+      return null;
+    }
+    
+    const { createClient } = await import('@supabase/supabase-js');
+    supabase = createClient(
+      process.env.SUPABASE_URL,
+      process.env.SUPABASE_ANON_KEY
+    );
+    console.log('✅ Supabase client initialized for enhanced supervisor logging');
+    return supabase;
+  } catch (error) {
+    console.error('❌ Failed to initialize Supabase for enhanced supervisor logging:', error.message);
+    return null;
+  }
+}
 
 /**
  * Enhanced Activity Logging with Performance Optimization
@@ -110,7 +127,14 @@ async function enhancedLogActivity(action, details, supervisorInfo = null, req =
 
 // Insert activity log to database
 async function insertActivityLog(activityLog) {
-  const { error } = await supabase
+  const supabaseClient = await getSupabaseClient();
+  
+  if (!supabaseClient) {
+    console.warn('⚠️ Supabase not available, skipping activity log insert');
+    return;
+  }
+  
+  const { error } = await supabaseClient
     .from('activity_logs')
     .insert(activityLog);
 
@@ -145,7 +169,14 @@ async function processBatch() {
   }
   
   try {
-    const { error } = await supabase
+    const supabaseClient = await getSupabaseClient();
+    
+    if (!supabaseClient) {
+      console.warn('⚠️ Supabase not available, skipping batch activity log insert');
+      return;
+    }
+    
+    const { error } = await supabaseClient
       .from('activity_logs')
       .insert(batch);
 
@@ -411,7 +442,14 @@ function calculateSessionDuration(supervisorInfo) {
 
 async function getSupervisorActivityStats(supervisorId, timeRange = '24h') {
   try {
-    let query = supabase
+    const supabaseClient = await getSupabaseClient();
+    
+    if (!supabaseClient) {
+      console.warn('⚠️ Supabase not available, returning empty stats');
+      return { success: false, error: 'Database not available' };
+    }
+    
+    let query = supabaseClient
       .from('activity_logs')
       .select('action, created_at, details')
       .order('created_at', { ascending: false });

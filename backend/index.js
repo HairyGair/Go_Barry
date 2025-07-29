@@ -142,7 +142,8 @@ console.log('✅ Proceeding with route registration...');
 // MEMORY-OPTIMIZED ROUTE REGISTRATION
 // Register core API routes with lazy loading
 async function registerRoutes() {
-  console.log('🔗 Registering API routes with memory optimization...');
+  console.log('🔗 registerRoutes() called - Registering API routes with memory optimization...');
+  console.log(`📱 App instance in registerRoutes: ${!!app}`);
   
   // Essential routes - load immediately
   await routeManager.registerRoute(app, '/api/health', './routes/health.js', 'Health API');
@@ -218,6 +219,10 @@ console.log('✅ Optimization status endpoints registered');
 // Register routes and wait for completion before starting server
 async function initializeServer() {
   try {
+    console.log('🔄 initializeServer() called - starting route registration...');
+    console.log(`📱 Global app available: ${!!global.goBarryApp}`);
+    console.log(`📱 Local app available: ${!!app}`);
+    
     // Register all routes first
     await registerRoutes();
     console.log('✅ All routes registered successfully');
