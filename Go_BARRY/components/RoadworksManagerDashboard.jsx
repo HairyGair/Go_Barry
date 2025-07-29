@@ -41,7 +41,9 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
   const [filters, setFilters] = useState({
     severity: 'ALL',
     area: 'ALL',
-    timeframe: '7'
+    timeframe: '30', // Show roadworks for next 30 days by default
+    sortBy: 'startDate', // 'startDate', 'endDate', 'severity', 'location'
+    sortOrder: 'asc' // 'asc', 'desc'
   });
   const [actionModalVisible, setActionModalVisible] = useState(false);
   const [actionNotes, setActionNotes] = useState('');
@@ -58,6 +60,28 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
   const areas = ['ALL', 'Newcastle', 'Gateshead', 'Sunderland', 'Durham', 'North Tyneside', 'Northumberland'];
 
   // Helper functions
+  const parseCoordinatesFromWKT = (wktString) => {
+    if (!wktString || typeof wktString !== 'string') return null;
+    
+    try {
+      // Parse WKT POINT format: "POINT(-1.234567 54.987654)"
+      const match = wktString.match(/POINT\s*\(\s*([\-\d\.]+)\s+([\-\d\.]+)\s*\)/);
+      if (match) {
+        const lng = parseFloat(match[1]);
+        const lat = parseFloat(match[2]);
+        
+        // Validate coordinates are reasonable for UK
+        if (lat >= 49 && lat <= 61 && lng >= -8 && lng <= 2) {
+          return [lat, lng];
+        }
+      }
+      return null;
+    } catch (error) {
+      console.warn('Failed to parse WKT coordinates:', wktString, error);
+      return null;
+    }
+  };
+
   const determineSeverity = (roadwork) => {
     const location = (roadwork.location || roadwork.street || '').toLowerCase();
     const description = (roadwork.description || roadwork.workType || '').toLowerCase();
@@ -81,6 +105,98 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
     
     return 'LOW';
   };
+
+  // Enhanced filtering and sorting functions
+  const applyFiltersAndSorting = (alerts) => {
+    if (!alerts || alerts.length === 0) return [];
+    
+    console.log(`🔍 Applying filters and sorting to ${alerts.length} alerts`);
+    console.log('Current filters:', filters);
+    
+    // Apply filters
+    let filteredAlerts = alerts.filter(alert => {
+      // Severity filter
+      if (filters.severity !== 'ALL' && alert.severity !== filters.severity) {
+        return false;
+      }
+      
+      // Area filter
+      if (filters.area !== 'ALL') {
+        const location = (alert.location || '').toLowerCase();
+        const area = filters.area.toLowerCase();
+        if (!location.includes(area)) {
+          return false;
+        }
+      }
+      
+      // Timeframe filter
+      if (filters.timeframe !== 'ALL') {
+        const now = new Date();
+        const daysAhead = parseInt(filters.timeframe);
+        const timeframeCutoff = new Date(now.getTime() + (daysAhead * 24 * 60 * 60 * 1000));
+        
+        const startDate = alert.startDate ? new Date(alert.startDate) : null;
+        const endDate = alert.endDate ? new Date(alert.endDate) : null;
+        
+        // Show if starts within timeframe OR is currently active (no end date or ends in future)
+        const startsWithinTimeframe = startDate && startDate <= timeframeCutoff;
+        const isCurrentlyActive = !endDate || endDate > now;
+        const endsWithinTimeframe = endDate && endDate <= timeframeCutoff && endDate > now;
+        
+        if (!startsWithinTimeframe && !isCurrentlyActive && !endsWithinTimeframe) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+    
+    console.log(`✅ After filtering: ${filteredAlerts.length} alerts remain`);
+    
+    // Apply sorting
+    filteredAlerts.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (filters.sortBy) {
+        case 'startDate':
+          const aStart = a.startDate ? new Date(a.startDate) : new Date(0);
+          const bStart = b.startDate ? new Date(b.startDate) : new Date(0);
+          comparison = aStart.getTime() - bStart.getTime();
+          break;
+          
+        case 'endDate':
+          const aEnd = a.endDate ? new Date(a.endDate) : new Date('2099-12-31');
+          const bEnd = b.endDate ? new Date(b.endDate) : new Date('2099-12-31');
+          comparison = aEnd.getTime() - bEnd.getTime();
+          break;
+          
+        case 'severity':
+          const severityOrder = { 'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3 };
+          const aSeverity = severityOrder[a.severity] || 4;
+          const bSeverity = severityOrder[b.severity] || 4;
+          comparison = aSeverity - bSeverity;
+          break;
+          
+        case 'location':
+          comparison = (a.location || '').localeCompare(b.location || '');
+          break;
+          
+        default:
+          comparison = 0;
+      }
+      
+      return filters.sortOrder === 'desc' ? -comparison : comparison;
+    });
+    
+    console.log(`📊 Sorted by ${filters.sortBy} (${filters.sortOrder}): ${filteredAlerts.length} alerts`);
+    
+    return filteredAlerts;
+  };
+
+  // Memoized filtered and sorted alerts
+  const filteredAndSortedAlerts = useMemo(() => {
+    return applyFiltersAndSorting(criticalAlerts);
+  }, [criticalAlerts, filters]);
 
   const generateMockRoutes = (location) => {
     // Generate mock affected routes based on location
@@ -261,7 +377,15 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
     console.log(`🔄 [${timestamp}] useEffect triggered - loading data. Filters:`, filters);
     loadData();
     // No auto-refresh to prevent alerts disappearing
-  }, [filters]);
+  }, []);
+
+  // Separate effect for filter changes to avoid full data reload
+  useEffect(() => {
+    console.log('🔍 Filters changed, recalculating route impacts...');
+    if (criticalAlerts.length > 0) {
+      loadRouteImpacts();
+    }
+  }, [filteredAndSortedAlerts]);
 
   // Memoize critical state to prevent loss during parent re-renders
   const memoizedCriticalAlerts = useMemo(() => criticalAlerts, [criticalAlerts]);
@@ -303,70 +427,133 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
       };
       const baseUrl = getBaseUrl();
       
-      console.log('Loading StreetManager alerts...');
+      console.log('Loading StreetManager alerts from Supabase...');
       
-      // Go directly to unified endpoint filtered for StreetManager only
-      const roadworksResponse = await fetch(`${baseUrl}/api/roadworks/unified?source=StreetManager`);
+      // Fetch directly from the roadworks unified endpoint which connects to Supabase streetworks table
+      const roadworksResponse = await fetch(`${baseUrl}/api/roadworks/unified`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      });
+      
       if (!roadworksResponse.ok) {
-        console.error('Failed to fetch roadworks:', roadworksResponse.status);
+        console.error('Failed to fetch roadworks:', roadworksResponse.status, roadworksResponse.statusText);
         // Don't clear existing alerts on error
         return;
       }
       
       const roadworksData = await roadworksResponse.json();
-      console.log('Unified roadworks data:', roadworksData);
+      console.log('Supabase streetworks data received:', {
+        success: roadworksData.success,
+        count: roadworksData.data?.length || 0,
+        source: roadworksData.metadata?.source
+      });
       
-      if (roadworksData.success && roadworksData.roadworks && roadworksData.roadworks.length > 0) {
-        // Already filtered for StreetManager at API level
-        const streetManagerOnly = roadworksData.roadworks;
+      if (roadworksData.success && roadworksData.data && roadworksData.data.length > 0) {
+        // Process raw Supabase streetworks data
+        const streetManagerData = roadworksData.data;
         
-        console.log(`Found ${streetManagerOnly.length} StreetManager webhook notifications from Supabase`);
+        console.log(`Found ${streetManagerData.length} StreetManager webhook notifications from Supabase`);
         
-        if (streetManagerOnly.length > 0) {
-          // Take more alerts and sort by severity
-          const sortedWorks = streetManagerOnly.sort((a, b) => {
-            const severityOrder = { 'Critical': 0, 'High': 1, 'Medium': 2, 'Low': 3 };
-            const aSeverity = a.severity || 'Low';
-            const bSeverity = b.severity || 'Low';
-            return (severityOrder[aSeverity] || 3) - (severityOrder[bSeverity] || 3);
+        if (streetManagerData.length > 0) {
+          // Filter active roadworks only
+          const activeRoadworks = streetManagerData.filter(work => {
+            // Filter out completed, cancelled, or expired works
+            const isCompleted = work.sm_works_state === 'Works completed' || 
+                              work.sm_works_state === 'completed' ||
+                              work.sm_cancelled === true;
+            const isExpired = work.sm_actual_end_date && new Date(work.sm_actual_end_date) < new Date();
+            return !isCompleted && !isExpired;
+          });
+          
+          console.log(`Filtered to ${activeRoadworks.length} active roadworks from ${streetManagerData.length} total`);
+          
+          // **NEW LOGIC**: Filter for immediate and near-term roadworks only (next 28 days)
+          const now = new Date();
+          const next28Days = new Date(now.getTime() + (28 * 24 * 60 * 60 * 1000));
+          
+          const immediateRoadworks = activeRoadworks.filter(work => {
+            const startDate = work.sm_start_date || work.sm_actual_start_date;
+            const endDate = work.sm_end_date || work.sm_actual_end_date;
+            
+            // Include if:
+            // 1. Already started (no start date or start date in past)
+            // 2. Starts within next 28 days
+            // 3. Is currently ongoing (started but not ended)
+            const hasNoStartDate = !startDate;
+            const startedAlready = startDate && new Date(startDate) <= now;
+            const startsWithin28Days = startDate && new Date(startDate) <= next28Days;
+            const isOngoing = startedAlready && (!endDate || new Date(endDate) > now);
+            
+            const shouldInclude = hasNoStartDate || startedAlready || startsWithin28Days || isOngoing;
+            
+            if (startDate) {
+              const daysUntilStart = Math.ceil((new Date(startDate) - now) / (1000 * 60 * 60 * 24));
+              console.log(`📅 Work ${work.id || work.sm_reference}: starts in ${daysUntilStart} days (${shouldInclude ? 'INCLUDED' : 'EXCLUDED'})`);
+            }
+            
+            return shouldInclude;
+          });
+          
+          console.log(`📋 Filtered to ${immediateRoadworks.length} immediate/near-term roadworks (next 28 days) from ${activeRoadworks.length} active`);
+          
+          // Sort by urgency: ongoing works first, then by start date
+          const sortedWorks = immediateRoadworks.sort((a, b) => {
+            const now = new Date();
+            const aStart = new Date(a.sm_start_date || a.sm_actual_start_date || now);
+            const bStart = new Date(b.sm_start_date || b.sm_actual_start_date || now);
+            
+            // Ongoing works (started) come first
+            const aStarted = aStart <= now;
+            const bStarted = bStart <= now;
+            
+            if (aStarted && !bStarted) return -1;
+            if (!aStarted && bStarted) return 1;
+            
+            // Within same category, sort by start date
+            return aStart - bStart;
           });
           
           const alerts = sortedWorks.slice(0, 20).map(work => ({
-            id: work.id || work.permit_reference_number || `streetmanager-${Date.now()}-${Math.random()}`,
-            location: work.location || work.location_description || work.street_name || 'Unknown location',
-            description: work.description || work.activity_name || work.work_type || 'StreetManager roadworks',
+            id: work.id || work.sm_reference || `streetmanager-${Date.now()}-${Math.random()}`,
+            location: work.sm_location_description || work.sm_street_name || work.sm_area_name || 'Unknown location',
+            description: work.sm_works_description || work.sm_works_category || 'StreetManager roadworks',
             severity: work.severity || determineSeverity({
-              location: work.location || work.location_description || work.street_name,
-              description: work.description || work.activity_name,
-              workType: work.work_category || work.category
+              location: work.sm_location_description || work.sm_street_name,
+              description: work.sm_works_description,
+              workType: work.sm_works_category
             }),
-            startDate: work.startDate || work.proposedStartDate || work.actualStartDate || work.lastUpdated || work.webhook_received_at,
-            endDate: work.endDate || work.proposedEndDate || work.actualEndDate || null,
-            expectedImpact: work.traffic_management_type || work.impact || 'Potential traffic impact',
-            affectedRoutes: work.affectedRoutes || generateMockRoutes(work.location || work.location_description || work.street_name),
-            status: work.status || work.activity_status || 'pending_review',
+            startDate: work.sm_start_date || work.sm_actual_start_date || work.webhook_received_at || work.created_at,
+            endDate: work.sm_end_date || work.sm_actual_end_date || null,
+            expectedImpact: work.sm_traffic_management_type || 'Potential traffic impact from ' + (work.sm_works_category || 'roadworks'),
+            affectedRoutes: work.affectedRoutes || generateMockRoutes(work.sm_location_description || work.sm_street_name),
+            status: work.sm_works_state || work.status || 'active',
             source: 'streetmanager_webhook',
-            permitReference: work.permitReference || work.permit_reference_number,
-            workCategory: work.workCategory || work.work_category,
-            authority: work.authority || work.highway_authority,
-            // Enhanced coordinate data from webhook
-            coordinates: work.coordinates,
-            coordinateSource: work.coordinateSource || 'none'
+            permitReference: work.sm_permit_reference || work.sm_reference,
+            workCategory: work.sm_works_category,
+            authority: work.sm_highway_authority || work.sm_promoter_name,
+            // Enhanced coordinate data from Street Manager
+            coordinates: work.works_location_coordinates ? 
+              parseCoordinatesFromWKT(work.works_location_coordinates) : null,
+            coordinateSource: work.works_location_coordinates ? 'streetmanager_wkt' : 'none',
+            // Add urgency indicator
+            isUrgent: work.sm_start_date && new Date(work.sm_start_date) <= new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000)), // Next 7 days
+            daysUntilStart: work.sm_start_date ? Math.ceil((new Date(work.sm_start_date) - now) / (1000 * 60 * 60 * 24)) : null
           }));
           
-          console.log(`Loaded ${alerts.length} StreetManager webhook alerts for proactive planning`);
+          console.log(`✅ Loaded ${alerts.length} immediate/near-term StreetManager alerts for critical planning`);
           
           // Debug coordinate extraction success
           const alertsWithCoords = alerts.filter(alert => alert.coordinates && alert.coordinates.length === 2);
           const coordPercentage = alerts.length > 0 ? Math.round((alertsWithCoords.length / alerts.length) * 100) : 0;
           console.log(`📍 Coordinate extraction: ${alertsWithCoords.length}/${alerts.length} alerts (${coordPercentage}%) have precise coordinates`);
           
-          // Log coordinate sources for debugging
-          alerts.forEach(alert => {
-            if (alert.coordinates && alert.coordinateSource) {
-              console.log(`🗺️ Alert ${alert.id}: coordinates from ${alert.coordinateSource}`);
-            }
-          });
+          // Log urgency breakdown
+          const urgentAlerts = alerts.filter(alert => alert.isUrgent);
+          console.log(`🚨 Urgency breakdown: ${urgentAlerts.length} urgent (next 7 days), ${alerts.length - urgentAlerts.length} near-term (8-28 days)`);
           
           setCriticalAlertsWithDebug(alerts);
         } else {
@@ -386,14 +573,16 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
 
   const loadRouteImpacts = async () => {
     try {
-      console.log('Calculating route impacts from StreetManager webhook data...');
+      console.log('Calculating route impacts from filtered StreetManager webhook data...');
       
-      // Use the critical alerts we already loaded to calculate route impacts
-      if (criticalAlerts.length > 0) {
+      // Use the filtered and sorted alerts for route impact calculation
+      const alertsToAnalyze = filteredAndSortedAlerts.length > 0 ? filteredAndSortedAlerts : criticalAlerts;
+      
+      if (alertsToAnalyze.length > 0) {
         // Group alerts by affected routes
         const routeMap = new Map();
         
-        criticalAlerts.forEach(alert => {
+        alertsToAnalyze.forEach(alert => {
           if (alert.affectedRoutes && alert.affectedRoutes.length > 0) {
             alert.affectedRoutes.forEach(route => {
               if (!routeMap.has(route.number)) {
@@ -402,26 +591,53 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
                   routeName: getRouteDescription(route.number),
                   totalDisruptions: 0,
                   criticalDisruptions: 0,
-                  estimatedDelay: 0
+                  estimatedDelay: 0,
+                  activeDisruptions: 0,
+                  avgConfidence: 0,
+                  disruptions: [] // Store disruption details
                 });
               }
               
               const routeData = routeMap.get(route.number);
               routeData.totalDisruptions++;
+              routeData.activeDisruptions++;
+              
               if (alert.severity === 'CRITICAL' || alert.severity === 'HIGH') {
                 routeData.criticalDisruptions++;
               }
-              routeData.estimatedDelay += (alert.severity === 'CRITICAL' ? 15 : 10);
+              
+              routeData.estimatedDelay += (alert.severity === 'CRITICAL' ? 15 : 
+                                          alert.severity === 'HIGH' ? 10 : 
+                                          alert.severity === 'MEDIUM' ? 5 : 2);
+              
+              // Add disruption details
+              routeData.disruptions.push({
+                location: alert.location,
+                impact: alert.expectedImpact,
+                severity: alert.severity,
+                startDate: alert.startDate
+              });
+              
+              // Calculate average confidence
+              const totalConfidence = routeData.disruptions.reduce((sum, d, idx) => 
+                sum + (alert.affectedRoutes[idx]?.confidence || 75), 0);
+              routeData.avgConfidence = Math.round(totalConfidence / routeData.disruptions.length);
             });
           }
         });
         
         // Convert to array and sort by impact
         const impacts = Array.from(routeMap.values())
-          .sort((a, b) => b.criticalDisruptions - a.criticalDisruptions)
+          .sort((a, b) => {
+            // Sort by critical disruptions first, then by total disruptions
+            if (b.criticalDisruptions !== a.criticalDisruptions) {
+              return b.criticalDisruptions - a.criticalDisruptions;
+            }
+            return b.totalDisruptions - a.totalDisruptions;
+          })
           .slice(0, 10);
         
-        console.log(`Calculated impacts for ${impacts.length} routes`);
+        console.log(`Calculated impacts for ${impacts.length} routes from ${alertsToAnalyze.length} filtered alerts`);
         setRouteImpacts(impacts);
       } else {
         setRouteImpacts([]);
@@ -459,11 +675,11 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
       };
       const baseUrl = getBaseUrl();
       
-      // Get StreetManager webhook data from Supabase to find future works
+      // Get StreetManager data from Supabase to find future works
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
       
-      const response = await fetch(`${baseUrl}/api/roadworks/unified?source=streetmanager&limit=1000`, {
+      const response = await fetch(`${baseUrl}/api/roadworks/unified`, {
         signal: controller.signal,
         headers: {
           'Accept': 'application/json',
@@ -488,35 +704,55 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
       const data = await response.json();
       console.log('📅 Future works API response:', {
         success: data.success,
-        totalRoadworks: data.roadworks?.length || 0,
-        sourceFilter: 'streetmanager'
+        totalRoadworks: data.data?.length || 0,
+        source: data.metadata?.source
       });
       
-      if (data.success && data.roadworks) {
-        // Filter for works starting in the future (already StreetManager only)
+      if (data.success && data.data) {
+        // **NEW LOGIC**: Filter for advance planning works (28+ days in the future)
         const now = new Date();
-        const futureStreetManagerWorks = data.roadworks
+        const next28Days = new Date(now.getTime() + (28 * 24 * 60 * 60 * 1000));
+        
+        const advancePlanningWorks = data.data
           .filter(work => {
-            const hasStartDate = work.startDate;
-            const isFuture = hasStartDate && new Date(work.startDate) > now;
-            if (hasStartDate) {
-              console.log(`📅 Work ${work.id}: ${work.startDate} (future: ${isFuture})`);
+            // Filter out completed, cancelled, or expired works first
+            const isCompleted = work.sm_works_state === 'Works completed' || 
+                              work.sm_works_state === 'completed' ||
+                              work.sm_cancelled === true;
+            const isExpired = work.sm_actual_end_date && new Date(work.sm_actual_end_date) < new Date();
+            
+            if (isCompleted || isExpired) {
+              return false;
             }
-            return isFuture;
+            
+            // Check if this is an advance planning work (starts more than 28 days ahead)
+            const startDate = work.sm_start_date || work.sm_actual_start_date;
+            const isAdvancePlanning = startDate && new Date(startDate) > next28Days;
+            
+            if (startDate) {
+              const daysUntilStart = Math.ceil((new Date(startDate) - now) / (1000 * 60 * 60 * 24));
+              console.log(`📅 Advance Work ${work.id || work.sm_reference}: starts in ${daysUntilStart} days (${isAdvancePlanning ? 'INCLUDED' : 'EXCLUDED'})`);
+            }
+            
+            return isAdvancePlanning;
           })
-          .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+          .sort((a, b) => new Date(a.sm_start_date || a.sm_actual_start_date) - new Date(b.sm_start_date || b.sm_actual_start_date))
           .slice(0, 10)
           .map(work => ({
-            id: work.id || work.permitReference || `future-${Date.now()}-${Math.random()}`,
-            location: work.location || work.streetName || 'Unknown location',
-            description: work.description || work.title || 'StreetManager planned work',
-            plannedStart: work.startDate,
-            duration: work.endDate ? 
-              Math.ceil((new Date(work.endDate) - new Date(work.startDate)) / (1000 * 60 * 60 * 24)) : 
+            id: work.id || work.sm_reference || `future-${Date.now()}-${Math.random()}`,
+            location: work.sm_location_description || work.sm_street_name || work.sm_area_name || 'Unknown location',
+            description: work.sm_works_description || work.sm_works_category || 'StreetManager planned work',
+            plannedStart: work.sm_start_date || work.sm_actual_start_date,
+            duration: (work.sm_end_date || work.sm_actual_end_date) ? 
+              Math.ceil((new Date(work.sm_end_date || work.sm_actual_end_date) - new Date(work.sm_start_date || work.sm_actual_start_date)) / (1000 * 60 * 60 * 24)) : 
               'Unknown',
-            impact: work.severity || 'Medium',
-            permitReference: work.permitReference,
-            authority: work.authority
+            impact: work.severity || determineSeverity({
+              location: work.sm_location_description || work.sm_street_name,
+              description: work.sm_works_description,
+              workType: work.sm_works_category
+            }),
+            permitReference: work.sm_permit_reference || work.sm_reference,
+            authority: work.sm_highway_authority || work.sm_promoter_name
           }));
         
         console.log(`📅 Found ${futureStreetManagerWorks.length} future StreetManager works`);
@@ -669,7 +905,7 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
               };
               const baseUrl = getBaseUrl();
               
-              const response = await fetch(`${baseUrl}/api/streetmanager/actions/${alert.id}/dismiss`, {
+              const response = await fetch(`${baseUrl}/api/roadworks/unified/actions/${alert.id}/dismiss`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -697,100 +933,236 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
     );
   };
 
-  // Handle map view
+  // State for enhanced map modal
+  const [mapModalVisible, setMapModalVisible] = useState(false);
+  const [selectedMapAlert, setSelectedMapAlert] = useState(null);
+  const [mapProvider, setMapProvider] = useState('google'); // 'google', 'tomtom', 'openstreet'
+  const [showTrafficLayer, setShowTrafficLayer] = useState(true);
+
+  // Enhanced map view with multiple providers and embedded modal
   const handleMapView = (alert) => {
-    console.log('Map view clicked for alert:', alert.id, alert.location, 'Coordinates:', alert.coordinates, 'Source:', alert.coordinateSource);
+    console.log('🗺️ Enhanced Map view clicked for alert:', alert.id, alert.location, 'Coordinates:', alert.coordinates, 'Source:', alert.coordinateSource);
+    setSelectedMapAlert(alert);
+    setMapModalVisible(true);
+  };
+
+  // Generate map URLs for different providers
+  const generateMapUrls = (alert) => {
+    if (!alert) return {};
     
-    let mapUrl = '';
-    let searchLocation = alert.location;
+    let lat, lng, searchLocation;
     let coordinateInfo = '';
     
-    // If we have coordinates, use them for maximum precision
+    // Use precise coordinates if available
     if (alert.coordinates && alert.coordinates.length === 2) {
-      const [lat, lng] = alert.coordinates;
-      // Use coordinates with high zoom and hybrid view for maximum detail
-      mapUrl = `https://www.google.com/maps?q=${lat},${lng}&z=18&t=h&layer=c`;
-      coordinateInfo = `Precise coordinates (${alert.coordinateSource || 'webhook'}): ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-      console.log('Using precise coordinates with zoom 18 and hybrid view:', mapUrl, 'Source:', alert.coordinateSource);
+      [lat, lng] = alert.coordinates;
+      coordinateInfo = `📍 Precise coordinates from ${alert.coordinateSource || 'Street Manager'}: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
     } else {
-      // Enhanced location parsing for better accuracy
+      // Fallback to enhanced location search
       searchLocation = enhanceLocationString(alert.location);
-      
-      // Determine zoom level based on location specificity
-      const zoomLevel = determineOptimalZoom(searchLocation);
-      
-      const searchQuery = encodeURIComponent(searchLocation.trim());
-      mapUrl = `https://www.google.com/maps/search/${searchQuery}&z=${zoomLevel}`;
-      coordinateInfo = `Location search (zoom ${zoomLevel}): ${searchLocation}`;
-      
-      console.log('Using enhanced location search:', searchLocation, 'Zoom:', zoomLevel, 'URL:', mapUrl);
+      coordinateInfo = `📍 Location search: ${searchLocation}`;
     }
     
-    // Try to open immediately first
-    console.log('🔄 Attempting immediate window.open...');
-    console.log('Platform.OS:', Platform.OS);
-    console.log('typeof window:', typeof window);
-    console.log('window.open exists:', typeof window !== 'undefined' && !!window.open);
+    const urls = {};
+    
+    if (lat && lng) {
+      // Precise coordinate-based URLs
+      urls.google = `https://www.google.com/maps?q=${lat},${lng}&z=18&t=h&layer=c`;
+      urls.googleSatellite = `https://www.google.com/maps?q=${lat},${lng}&z=18&t=k`;
+      urls.googleStreetView = `https://www.google.com/maps/@${lat},${lng},3a,75y,0h,90t/data=!3m7!1e1!3m5!1s0x0:0x0!2e0!3e5!7i13312!8i6656`;
+      urls.tomtom = `https://www.tomtom.com/mapshare/tools/central/?mid=1&lat=${lat}&lng=${lng}&z=17&traffic=1`;
+      urls.openstreet = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=18/${lat}/${lng}&layers=T`;
+      urls.bing = `https://www.bing.com/maps?cp=${lat}~${lng}&lvl=18&style=h`;
+    } else {
+      // Location search-based URLs
+      const encodedLocation = encodeURIComponent(searchLocation);
+      urls.google = `https://www.google.com/maps/search/${encodedLocation}&z=16`;
+      urls.googleSatellite = `https://www.google.com/maps/search/${encodedLocation}&z=16&t=k`;
+      urls.tomtom = `https://www.tomtom.com/mapshare/tools/central/?query=${encodedLocation}&z=16&traffic=1`;
+      urls.openstreet = `https://www.openstreetmap.org/search?query=${encodedLocation}#map=16`;
+      urls.bing = `https://www.bing.com/maps/search?q=${encodedLocation}`;
+    }
+    
+    return { urls, coordinateInfo, hasCoordinates: !!(lat && lng), lat, lng };
+  };
+
+  // Open specific map provider
+  const openMapProvider = (provider, alert) => {
+    const { urls, coordinateInfo } = generateMapUrls(alert);
+    const mapUrl = urls[provider];
+    
+    if (!mapUrl) {
+      Alert.alert('Error', 'Map URL could not be generated');
+      return;
+    }
+    
+    console.log(`🗺️ Opening ${provider} map:`, mapUrl);
     
     try {
       if (typeof window !== 'undefined' && window.open) {
-        console.log('✅ Calling window.open directly...');
         const newWindow = window.open(mapUrl, '_blank', 'noopener,noreferrer');
         
         if (newWindow && !newWindow.closed) {
-          console.log('✅ Map opened successfully!');
-          Alert.alert('Success', 'Map opened in new tab');
+          console.log(`✅ ${provider} map opened successfully!`);
+          Alert.alert('Success', `${provider} map opened in new tab`);
           return;
-        } else {
-          console.warn('❌ window.open failed or was blocked');
         }
       }
     } catch (error) {
-      console.error('❌ Direct window.open failed:', error);
+      console.error(`❌ Failed to open ${provider} map:`, error);
     }
     
-    // If direct open failed, show dialog with options
-    Alert.alert(
-      'View on Map',
-      `Location: ${searchLocation}\n\n${coordinateInfo}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Copy URL', 
-          onPress: () => {
-            if (typeof navigator !== 'undefined' && navigator.clipboard) {
-              navigator.clipboard.writeText(mapUrl).then(() => {
-                Alert.alert('Copied!', 'Map URL copied to clipboard. You can paste it into your browser.');
-              }).catch(err => {
-                console.error('Failed to copy: ', err);
-                Alert.alert('URL', `Please copy this URL manually:\n\n${mapUrl}`);
-              });
-            } else {
-              Alert.alert('URL', `Please copy this URL manually:\n\n${mapUrl}`);
-            }
-          }
-        },
-        { 
-          text: 'Try Again', 
-          onPress: () => {
-            console.log('🔄 Trying window.open again from dialog...');
-            try {
-              if (typeof window !== 'undefined') {
-                const newWindow = window.open(mapUrl, '_blank');
-                if (newWindow) {
-                  console.log('✅ Second attempt successful!');
-                } else {
-                  console.warn('❌ Second attempt also failed');
-                  Alert.alert('Popup Blocked', 'Your browser is blocking popups. Please:\n1. Allow popups for this site\n2. Or use "Copy URL" and paste into browser');
-                }
-              }
-            } catch (error) {
-              console.error('❌ Second attempt error:', error);
-              Alert.alert('Error', 'Unable to open map. Please use "Copy URL" option.');
-            }
-          }
-        }
-      ]
+    // Fallback to copy URL
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(mapUrl).then(() => {
+        Alert.alert('Map URL Copied', `${provider} map URL copied to clipboard. Paste it into your browser.`);
+      }).catch(() => {
+        Alert.alert('Map URL', `Please copy this ${provider} URL manually:\n\n${mapUrl}`);
+      });
+    } else {
+      Alert.alert('Map URL', `Please copy this ${provider} URL manually:\n\n${mapUrl}`);
+    }
+  };
+
+  // Render enhanced map modal
+  const renderMapModal = () => {
+    if (!selectedMapAlert) return null;
+    
+    const { urls, coordinateInfo, hasCoordinates, lat, lng } = generateMapUrls(selectedMapAlert);
+    
+    return (
+      <Modal
+        visible={mapModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMapModalVisible(false)}
+      >
+        <View style={styles.mapModalOverlay}>
+          <View style={styles.mapModalContent}>
+            <View style={styles.mapModalHeader}>
+              <Text style={styles.mapModalTitle}>📍 Roadworks Location</Text>
+              <TouchableOpacity 
+                style={styles.mapModalCloseButton}
+                onPress={() => setMapModalVisible(false)}
+              >
+                <Text style={styles.mapModalCloseText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.mapModalLocation}>{selectedMapAlert.location}</Text>
+            <Text style={styles.mapModalDescription}>{selectedMapAlert.description}</Text>
+            
+            <View style={styles.coordinateInfoContainer}>
+              <Text style={styles.coordinateInfoText}>{coordinateInfo}</Text>
+              {hasCoordinates && (
+                <View style={styles.coordinateDetails}>
+                  <Text style={styles.coordinateDetailText}>Latitude: {lat.toFixed(6)}</Text>
+                  <Text style={styles.coordinateDetailText}>Longitude: {lng.toFixed(6)}</Text>
+                  <Text style={styles.coordinateDetailText}>Accuracy: {selectedMapAlert.coordinateSource === 'streetmanager_wkt' ? 'High (Street Manager)' : 'Medium'}</Text>
+                </View>
+              )}
+            </View>
+            
+            <Text style={styles.mapProvidersTitle}>Choose Map Provider:</Text>
+            
+            <ScrollView style={styles.mapProvidersContainer}>
+              {/* Google Maps Options */}
+              <View style={styles.mapProviderSection}>
+                <Text style={styles.mapProviderSectionTitle}>🌍 Google Maps</Text>
+                <View style={styles.mapProviderButtons}>
+                  <TouchableOpacity 
+                    style={styles.mapProviderButton}
+                    onPress={() => openMapProvider('google', selectedMapAlert)}
+                  >
+                    <Text style={styles.mapProviderButtonText}>📍 Standard View</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.mapProviderButton}
+                    onPress={() => openMapProvider('googleSatellite', selectedMapAlert)}
+                  >
+                    <Text style={styles.mapProviderButtonText}>🛰️ Satellite View</Text>
+                  </TouchableOpacity>
+                  {hasCoordinates && (
+                    <TouchableOpacity 
+                      style={styles.mapProviderButton}
+                      onPress={() => openMapProvider('googleStreetView', selectedMapAlert)}
+                    >
+                      <Text style={styles.mapProviderButtonText}>👁️ Street View</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+              
+              {/* TomTom Maps */}
+              <View style={styles.mapProviderSection}>
+                <Text style={styles.mapProviderSectionTitle}>🚗 TomTom Maps (Traffic)</Text>
+                <TouchableOpacity 
+                  style={[styles.mapProviderButton, styles.tomtomButton]}
+                  onPress={() => openMapProvider('tomtom', selectedMapAlert)}
+                >
+                  <Text style={styles.mapProviderButtonText}>🚦 View with Live Traffic</Text>
+                </TouchableOpacity>
+              </View>
+              
+              {/* OpenStreetMap */}
+              <View style={styles.mapProviderSection}>
+                <Text style={styles.mapProviderSectionTitle}>🗺️ OpenStreetMap</Text>
+                <TouchableOpacity 
+                  style={styles.mapProviderButton}
+                  onPress={() => openMapProvider('openstreet', selectedMapAlert)}
+                >
+                  <Text style={styles.mapProviderButtonText}>🌐 Open Source Map</Text>
+                </TouchableOpacity>
+              </View>
+              
+              {/* Bing Maps */}
+              <View style={styles.mapProviderSection}>
+                <Text style={styles.mapProviderSectionTitle}>🅱️ Bing Maps</Text>
+                <TouchableOpacity 
+                  style={styles.mapProviderButton}
+                  onPress={() => openMapProvider('bing', selectedMapAlert)}
+                >
+                  <Text style={styles.mapProviderButtonText}>🔍 Bing Satellite</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+            
+            {/* Quick Actions */}
+            <View style={styles.mapQuickActions}>
+              <TouchableOpacity 
+                style={styles.mapQuickActionButton}
+                onPress={() => {
+                  const { urls } = generateMapUrls(selectedMapAlert);
+                  const allUrls = Object.entries(urls)
+                    .map(([provider, url]) => `${provider.toUpperCase()}: ${url}`)
+                    .join('\n\n');
+                  
+                  if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                    navigator.clipboard.writeText(allUrls).then(() => {
+                      Alert.alert('All URLs Copied', 'All map URLs copied to clipboard');
+                    });
+                  } else {
+                    Alert.alert('Map URLs', allUrls);
+                  }
+                }}
+              >
+                <Text style={styles.mapQuickActionText}>📋 Copy All URLs</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.mapQuickActionButton}
+                onPress={() => {
+                  // Open the best available map (coordinates -> TomTom for traffic, fallback to Google)
+                  const provider = hasCoordinates ? 'tomtom' : 'google';
+                  openMapProvider(provider, selectedMapAlert);
+                }}
+              >
+                <Text style={styles.mapQuickActionText}>🚀 Best Map</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     );
   };
 
@@ -813,17 +1185,17 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
       };
       
       if (action === 'acknowledge') {
-        endpoint = `/api/streetmanager/actions/${alert.id}/acknowledge`;
+        endpoint = `/api/roadworks/unified/actions/${alert.id}/acknowledge`;
         requestBody.acknowledgmentType = 'reviewed';
       } else if (action === 'monitor') {
-        endpoint = `/api/streetmanager/actions/${alert.id}/acknowledge`;
+        endpoint = `/api/roadworks/unified/actions/${alert.id}/acknowledge`;
         requestBody.acknowledgmentType = 'monitoring';
       } else if (action === 'escalate') {
-        endpoint = `/api/streetmanager/actions/${alert.id}/acknowledge`;
+        endpoint = `/api/roadworks/unified/actions/${alert.id}/acknowledge`;
         requestBody.acknowledgmentType = 'escalated';
         requestBody.notes = `ESCALATED: ${actionNotes || 'Requires immediate attention'}`;
       } else if (action === 'plan_diversion') {
-        endpoint = `/api/streetmanager/actions/${alert.id}/diversion`;
+        endpoint = `/api/roadworks/unified/actions/${alert.id}/diversion`;
         requestBody.diversionRoute = actionNotes || 'Diversion plan to be determined';
       }
       
@@ -962,29 +1334,52 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
   const renderRouteImpact = (route, index) => (
     <View key={index} style={styles.routeCard}>
       <View style={styles.routeHeader}>
-        <Text style={styles.routeTitle}>Service {route.number}</Text>
+        <Text style={styles.routeTitle}>Service {route.routeNumber}</Text>
         <View style={styles.impactMetrics}>
           <Text style={styles.impactCount}>{route.activeDisruptions} active</Text>
           <Text style={styles.confidenceAvg}>Avg: {route.avgConfidence}%</Text>
         </View>
       </View>
       
-      <Text style={styles.routeDescription}>{route.description}</Text>
+      <Text style={styles.routeDescription}>{route.routeName}</Text>
+      
+      <View style={styles.routeStatsRow}>
+        <View style={styles.routeStat}>
+          <Text style={styles.routeStatLabel}>Critical</Text>
+          <Text style={[styles.routeStatValue, { color: route.criticalDisruptions > 0 ? '#dc2626' : '#6b7280' }]}>
+            {route.criticalDisruptions}
+          </Text>
+        </View>
+        <View style={styles.routeStat}>
+          <Text style={styles.routeStatLabel}>Est. Delay</Text>
+          <Text style={styles.routeStatValue}>{route.estimatedDelay}min</Text>
+        </View>
+        <View style={styles.routeStat}>
+          <Text style={styles.routeStatLabel}>Total</Text>
+          <Text style={styles.routeStatValue}>{route.totalDisruptions}</Text>
+        </View>
+      </View>
       
       <View style={styles.disruptionsList}>
         {route.disruptions?.slice(0, 3).map((disruption, idx) => (
           <View key={idx} style={styles.disruptionItem}>
-            <Text style={styles.disruptionLocation}>{disruption.location}</Text>
+            <View style={styles.disruptionHeader}>
+              <Text style={styles.disruptionLocation}>{disruption.location}</Text>
+              <View style={[styles.severityDot, { backgroundColor: severityColors[disruption.severity] || '#6b7280' }]} />
+            </View>
             <Text style={styles.disruptionImpact}>{disruption.impact}</Text>
           </View>
         ))}
+        {route.disruptions?.length > 3 && (
+          <Text style={styles.moreDisruptions}>+{route.disruptions.length - 3} more disruptions</Text>
+        )}
       </View>
       
       <TouchableOpacity 
         style={styles.viewDetailsButton}
-        onPress={() => {/* Navigate to detailed route view */}}
+        onPress={() => {/* Navigate to detailed route view with all disruptions */}}
       >
-        <Text style={styles.viewDetailsText}>View Details</Text>
+        <Text style={styles.viewDetailsText}>View All {route.totalDisruptions} Disruptions</Text>
       </TouchableOpacity>
     </View>
   );
@@ -1018,17 +1413,41 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
         return (
           <View style={styles.tabContent}>
             <Text style={styles.sectionTitle}>Critical Alerts Requiring Attention</Text>
-            {criticalAlerts.length === 0 ? (
+            {filteredAndSortedAlerts.length === 0 ? (
               <View style={styles.emptyStateContainer}>
-                <Text style={styles.emptyState}>No StreetManager roadworks for proactive planning</Text>
-                <Text style={styles.emptySubtext}>
-                  Roadworks Manager shows StreetManager webhook data for advance planning.
-                  Control room disruptions are managed separately in the Disruption Database.
-                  Check console for data source debugging.
-                </Text>
+                {criticalAlerts.length === 0 ? (
+                  <>
+                    <Text style={styles.emptyState}>No StreetManager roadworks for proactive planning</Text>
+                    <Text style={styles.emptySubtext}>
+                      Roadworks Manager shows StreetManager webhook data for advance planning.
+                      Control room disruptions are managed separately in the Disruption Database.
+                      Check console for data source debugging.
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.emptyState}>No roadworks match current filters</Text>
+                    <Text style={styles.emptySubtext}>
+                      {criticalAlerts.length} total roadworks available. 
+                      Try adjusting severity, area, or timeframe filters.
+                    </Text>
+                    <TouchableOpacity 
+                      style={styles.clearFiltersButton}
+                      onPress={() => setFilters({
+                        severity: 'ALL',
+                        area: 'ALL',
+                        timeframe: '30',
+                        sortBy: 'startDate',
+                        sortOrder: 'asc'
+                      })}
+                    >
+                      <Text style={styles.clearFiltersText}>Clear All Filters</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
               </View>
             ) : (
-              criticalAlerts.map(renderCriticalAlert)
+              filteredAndSortedAlerts.map(renderCriticalAlert)
             )}
           </View>
         );
@@ -1086,8 +1505,9 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
         <Text style={styles.subtitle}>StreetManager webhook data for proactive planning • Disruptions managed separately</Text>
       </View>
 
-      {/* Filters */}
+      {/* Enhanced Filters */}
       <View style={styles.filtersContainer}>
+        {/* Severity and Area Row */}
         <View style={styles.filterRow}>
           <Text style={styles.filterLabel}>Severity:</Text>
           <View style={styles.filterButtons}>
@@ -1133,6 +1553,83 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
             ))}
           </View>
         </View>
+        
+        {/* Timeframe Row */}
+        <View style={styles.filterRow}>
+          <Text style={styles.filterLabel}>Timeframe:</Text>
+          <View style={styles.filterButtons}>
+            {[
+              { value: '7', label: '7 days' },
+              { value: '30', label: '30 days' },
+              { value: '90', label: '90 days' },
+              { value: 'ALL', label: 'All' }
+            ].map(timeframe => (
+              <TouchableOpacity
+                key={timeframe.value}
+                style={[
+                  styles.filterButton,
+                  filters.timeframe === timeframe.value && styles.activeFilterButton
+                ]}
+                onPress={() => setFilters({...filters, timeframe: timeframe.value})}
+              >
+                <Text style={[
+                  styles.filterButtonText,
+                  filters.timeframe === timeframe.value && styles.activeFilterButtonText
+                ]}>
+                  {timeframe.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+        
+        {/* Sorting Row */}
+        <View style={styles.filterRow}>
+          <Text style={styles.filterLabel}>Sort by:</Text>
+          <View style={styles.filterButtons}>
+            {[
+              { value: 'startDate', label: 'Start Date' },
+              { value: 'endDate', label: 'End Date' },
+              { value: 'severity', label: 'Severity' },
+              { value: 'location', label: 'Location' }
+            ].map(sort => (
+              <TouchableOpacity
+                key={sort.value}
+                style={[
+                  styles.filterButton,
+                  filters.sortBy === sort.value && styles.activeFilterButton
+                ]}
+                onPress={() => setFilters({...filters, sortBy: sort.value})}
+              >
+                <Text style={[
+                  styles.filterButtonText,
+                  filters.sortBy === sort.value && styles.activeFilterButtonText
+                ]}>
+                  {sort.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            
+            {/* Sort Order Toggle */}
+            <TouchableOpacity
+              style={[styles.filterButton, styles.sortOrderButton]}
+              onPress={() => setFilters({...filters, sortOrder: filters.sortOrder === 'asc' ? 'desc' : 'asc'})}
+            >
+              <Text style={styles.filterButtonText}>
+                {filters.sortOrder === 'asc' ? '↑ Asc' : '↓ Desc'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+        
+        {/* Filter Summary */}
+        <View style={styles.filterSummary}>
+          <Text style={styles.filterSummaryText}>
+            Showing {filteredAndSortedAlerts.length} of {criticalAlerts.length} roadworks
+            {filters.sortBy !== 'startDate' && ` • Sorted by ${filters.sortBy}`}
+            {filters.sortOrder === 'desc' && ' (descending)'}
+          </Text>
+        </View>
       </View>
 
       {/* Tabs */}
@@ -1167,15 +1664,18 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
 
       {/* Content */}
       <ScrollView
-        style={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
+      style={styles.content}
+      refreshControl={
+      <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
       >
-        {renderTabContent()}
+      {renderTabContent()}
       </ScrollView>
 
-      {/* Action Modal */}
+      {/* Enhanced Map Modal */}
+        {renderMapModal()}
+
+        {/* Action Modal */}
       <Modal
         visible={actionModalVisible}
         transparent
@@ -1296,6 +1796,35 @@ const styles = StyleSheet.create({
   },
   activeFilterButtonText: {
     color: 'white',
+  },
+  sortOrderButton: {
+    backgroundColor: '#6366f1',
+    minWidth: 80,
+  },
+  filterSummary: {
+    backgroundColor: '#f9fafb',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  filterSummaryText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  clearFiltersButton: {
+    backgroundColor: '#1e40af',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  clearFiltersText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   tabsContainer: {
     flexDirection: 'row',
@@ -1561,6 +2090,49 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     marginBottom: 12,
   },
+  routeStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 12,
+    paddingVertical: 8,
+    backgroundColor: '#f9fafb',
+    borderRadius: 6,
+  },
+  routeStat: {
+    alignItems: 'center',
+  },
+  routeStatLabel: {
+    fontSize: 10,
+    color: '#6b7280',
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  routeStatValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  disruptionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  severityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  moreDisruptions: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
   disruptionsList: {
     marginBottom: 12,
   },
@@ -1720,6 +2292,155 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalSubmitText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  
+  // Enhanced Map Modal Styles
+  mapModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mapModalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 20,
+    width: screenWidth * 0.95,
+    maxWidth: 500,
+    maxHeight: screenHeight * 0.9,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  mapModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 2,
+    borderBottomColor: '#e5e7eb',
+  },
+  mapModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#111827',
+  },
+  mapModalCloseButton: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mapModalCloseText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#6b7280',
+  },
+  mapModalLocation: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  mapModalDescription: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  coordinateInfoContainer: {
+    backgroundColor: '#f9fafb',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  coordinateInfoText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  coordinateDetails: {
+    backgroundColor: '#ffffff',
+    padding: 8,
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: '#10b981',
+  },
+  coordinateDetailText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginBottom: 2,
+  },
+  mapProvidersTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  mapProvidersContainer: {
+    maxHeight: 300,
+  },
+  mapProviderSection: {
+    marginBottom: 16,
+  },
+  mapProviderSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  mapProviderButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  mapProviderButton: {
+    backgroundColor: '#dbeafe',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    marginRight: 8,
+    marginBottom: 8,
+    alignItems: 'center',
+    minWidth: 120,
+  },
+  tomtomButton: {
+    backgroundColor: '#fbbf24',
+    minWidth: 200,
+  },
+  mapProviderButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1e40af',
+    textAlign: 'center',
+  },
+  mapQuickActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  mapQuickActionButton: {
+    backgroundColor: '#1e40af',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    flex: 1,
+    marginHorizontal: 4,
+    alignItems: 'center',
+  },
+  mapQuickActionText: {
     color: 'white',
     fontSize: 14,
     fontWeight: '600',

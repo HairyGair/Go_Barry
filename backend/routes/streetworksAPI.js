@@ -96,16 +96,23 @@ router.get('/count', async (req, res) => {
 
 /**
  * GET /api/streetworks/active
- * Get only active streetworks
+ * Get only active streetworks (next 28 days + currently active)
  */
 router.get('/active', async (req, res) => {
   try {
+    // Calculate date range for next 28 days
+    const now = new Date();
+    const next28Days = new Date(now.getTime() + (28 * 24 * 60 * 60 * 1000));
+    const nowISO = now.toISOString();
+    const next28DaysISO = next28Days.toISOString();
+    
     const { data, error } = await supabase
       .from('streetworks')
       .select('*')
       .in('alert_status', ['red', 'amber'])
-      .order('severity', { ascending: false })
-      .order('webhook_received_at', { ascending: false });
+      // Filter for works starting in next 28 days OR currently active
+      .or(`and(sm_start_date.lte.${next28DaysISO},or(sm_end_date.gte.${nowISO},sm_end_date.is.null)),and(sm_start_date.lte.${nowISO},or(sm_end_date.gte.${nowISO},sm_end_date.is.null))`)
+      .order('sm_start_date', { ascending: true });
 
     if (error) {
       throw error;

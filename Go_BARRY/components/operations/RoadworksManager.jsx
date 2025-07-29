@@ -33,6 +33,7 @@ const RoadworksManager = ({ baseUrl }) => {
   const [roadworks, setRoadworks] = useState([]);
   const [trafficRoadworks, setTrafficRoadworks] = useState([]); // New: automatic roadworks from traffic APIs
   const [streetManagerRoadworks, setStreetManagerRoadworks] = useState([]); // StreetManager roadworks
+  const [supabaseStreetworks, setSupabaseStreetworks] = useState([]); // NEW: Supabase streetworks data
   const [allTrafficAlerts, setAllTrafficAlerts] = useState([]); // ALL traffic alerts for triage
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -56,6 +57,7 @@ const RoadworksManager = ({ baseUrl }) => {
     pendingTasks: 0,
     automatic: 0, // New: count of automatic roadworks
     streetManager: 0, // Count of StreetManager roadworks
+    supabaseStreetworks: 0, // NEW: Count of Supabase streetworks
     criticalCount: 0, // Critical roadworks
     allAlerts: 0, // Count of all traffic alerts
     routeImpactCount: 0, // Count of roadworks affecting bus routes
@@ -65,6 +67,7 @@ const RoadworksManager = ({ baseUrl }) => {
   const [allRoadworksUnfiltered, setAllRoadworksUnfiltered] = useState([]); // Store all roadworks before filtering
   const [trafficRoadworksUnfiltered, setTrafficRoadworksUnfiltered] = useState([]);
   const [streetManagerUnfiltered, setStreetManagerUnfiltered] = useState([]);
+  const [supabaseStreetworksUnfiltered, setSupabaseStreetworksUnfiltered] = useState([]); // NEW: Unfiltered Supabase data
   
   // Enhanced Filtering States
   const [showFilters, setShowFilters] = useState(false);
@@ -1006,7 +1009,7 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
       
       if (data.success) {
         // Filter out manual roadworks to get only automatic ones
-        let trafficData = (data.roadworks || []).filter(r => r.source !== 'manual');
+        let trafficData = (data.data || data.roadworks || []).filter(r => r.source !== 'manual');
         
         // Enrich all traffic data with route impacts
         trafficData = await enrichRoadworksWithRoutes(trafficData);

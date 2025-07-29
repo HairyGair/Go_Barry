@@ -61,12 +61,31 @@ class MemoryOptimizedRouteManager {
     }
     
     try {
+      console.log(`🔄 Attempting to register ${name} at ${path} from ${moduleFile}`);
       const module = await lazyImport(moduleFile);
+      console.log(`📦 Module loaded for ${name}:`, {
+        hasDefault: !!module.default,
+        hasRouter: !!module.router,
+        type: typeof (module.default || module)
+      });
+      
       const routeHandler = module.default || module;
+      
+      if (!routeHandler) {
+        throw new Error(`No route handler found in ${moduleFile}`);
+      }
       
       app.use(path, routeHandler);
       this.registeredRoutes.add(path);
       console.log(`✅ ${name} registered at ${path}`);
+      
+      // Verify the route was added to the app
+      if (app._router && app._router.stack) {
+        const routeFound = app._router.stack.some(layer => {
+          return layer.regexp && layer.regexp.test(path);
+        });
+        console.log(`🔍 Route verification for ${path}: ${routeFound ? 'FOUND' : 'NOT FOUND'} in app router`);
+      }
       
       // Force garbage collection after route registration
       if (global.gc && this.registeredRoutes.size % 10 === 0) {
@@ -74,6 +93,7 @@ class MemoryOptimizedRouteManager {
       }
     } catch (error) {
       console.error(`❌ Failed to register ${name} at ${path}:`, error.message);
+      console.error(`❌ Error details:`, error);
     }
   }
   
