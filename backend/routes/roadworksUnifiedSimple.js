@@ -1,7 +1,90 @@
 import express from 'express';
 import axios from 'axios';
+import { processStreetManagerCoordinates } from '../utils/coordinateConverter.js';
 
 const router = express.Router();
+
+// GET /api/roadworks/debug-coordinate-data - Debug coordinate field availability
+router.get('/debug-coordinate-data', async (req, res) => {
+  try {
+    console.log('🔍 Debug: Checking coordinate field availability...');
+    
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return res.status(500).json({ success: false, error: 'Supabase configuration missing' });
+    }
+    
+    // Get one record to check ALL available fields
+    const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        limit: 1
+      },
+      timeout: 10000
+    });
+    
+    const record = response.data[0];
+    
+    if (!record) {
+      return res.json({ success: false, error: 'No records found' });
+    }
+    
+    // Check coordinate-related fields
+    const coordinateFields = {
+      'latitude': record.latitude,
+      'longitude': record.longitude, 
+      'works_location_coordinates': record.works_location_coordinates,
+      'raw_webhook_data': record.raw_webhook_data,
+      'geometry': record.geometry,
+      'location_text': record.sm_location_description,
+      'coordinates': record.coordinates
+    };
+    
+    // Check if raw_webhook_data has nested coordinate data
+    let webhookCoordinates = null;
+    if (record.raw_webhook_data) {
+      try {
+        const webhookData = typeof record.raw_webhook_data === 'string' 
+          ? JSON.parse(record.raw_webhook_data) 
+          : record.raw_webhook_data;
+        webhookCoordinates = webhookData?.object_data?.works_location_coordinates;
+      } catch (e) {
+        webhookCoordinates = 'Parse error: ' + e.message;
+      }
+    }
+    
+    res.json({
+      success: true,
+      debug: {
+        totalFields: Object.keys(record).length,
+        allFields: Object.keys(record).sort(),
+        coordinateFields: coordinateFields,
+        webhookCoordinates: webhookCoordinates,
+        sampleRecord: {
+          id: record.id,
+          sm_reference: record.sm_reference,
+          location: record.sm_location_description?.substring(0, 100)
+        },
+        recommendations: {
+          hasDirectCoordinateField: !!record.works_location_coordinates,
+          hasLatLng: !!(record.latitude && record.longitude),
+          hasWebhookData: !!record.raw_webhook_data,
+          hasGeometry: !!record.geometry
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Debug coordinate data error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 // GET /api/roadworks/debug-values - Debug endpoint to check actual database values
 router.get('/debug-values', async (req, res) => {
@@ -123,6 +206,25 @@ router.get('/unified', async (req, res) => {
       
       roadworks = response.data;
       
+      // Process coordinates for each roadwork
+      console.log(`🗺️ Processing coordinates for ${roadworks.length} roadworks...`);
+      roadworks = roadworks.map(roadwork => {
+        const processed = processStreetManagerCoordinates(roadwork);
+        
+        // Log coordinate processing results
+        if (processed.coordinates) {
+          console.log(`✅ ${processed.sm_reference}: [${processed.coordinates[0].toFixed(6)}, ${processed.coordinates[1].toFixed(6)}]`);
+        } else {
+          console.log(`❌ ${processed.sm_reference}: ${processed.coordinateError}`);
+        }
+        
+        return processed;
+      });
+      
+      const successfulCoordinates = roadworks.filter(r => r.coordinates).length;
+      const coordinateSuccessRate = roadworks.length > 0 ? Math.round((successfulCoordinates / roadworks.length) * 100) : 0;
+      console.log(`📍 Coordinate processing complete: ${successfulCoordinates}/${roadworks.length} (${coordinateSuccessRate}%) successful`);
+      
     } catch (filterError) {
       console.error('❌ Filtered query failed, trying simpler approach:', filterError.message);
       
@@ -143,7 +245,10 @@ router.get('/unified', async (req, res) => {
         });
         
         roadworks = simpleResponse.data;
-        console.log('✅ Fallback query successful');
+        
+        // Process coordinates for fallback data too
+        roadworks = roadworks.map(roadwork => processStreetManagerCoordinates(roadwork));
+        console.log('✅ Fallback query successful with coordinate processing');
         
       } catch (simpleError) {
         console.error('❌ Simple query also failed:', simpleError.message);
@@ -163,16 +268,28 @@ router.get('/unified', async (req, res) => {
         });
         
         roadworks = allResponse.data;
-        console.log('✅ Final fallback: returning all data');
+        
+        // Process coordinates for final fallback data
+        roadworks = roadworks.map(roadwork => processStreetManagerCoordinates(roadwork));
+        console.log('✅ Final fallback: returning all data with coordinate processing');
       }
     }
 
     console.log(`✅ Fetched ${roadworks?.length || 0} roadworks from Supabase (FILTERED: Works planned/in progress, 180-day window)`);
+    
+    // Calculate coordinate statistics
+    const coordinateStats = {
+      total: roadworks?.length || 0,
+      withCoordinates: roadworks?.filter(r => r.coordinates)?.length || 0,
+      successRate: roadworks?.length > 0 ? Math.round((roadworks.filter(r => r.coordinates).length / roadworks.length) * 100) : 0
+    };
+    
     console.log(`📈 Query params used:`, {
       workStateFilter: 'Works planned, Works in progress',
       dateFilter: '180 days ahead + currently active',
       limit: 200,
-      orderBy: 'sm_start_date.asc'
+      orderBy: 'sm_start_date.asc',
+      coordinateProcessing: `${coordinateStats.withCoordinates}/${coordinateStats.total} (${coordinateStats.successRate}%)`
     });
     
     res.json({
@@ -186,8 +303,14 @@ router.get('/unified', async (req, res) => {
         workStateFilter: 'Works planned, Works in progress',
         dateFilter: '180_days_ahead_plus_active',
         filterApplied: `States: [Works planned, Works in progress] + Dates: next 180 days OR currently active`,
+        coordinateProcessing: {
+          total: coordinateStats.total,
+          successful: coordinateStats.withCoordinates,
+          successRate: `${coordinateStats.successRate}%`,
+          conversionMethod: 'OSGB36_to_WGS84'
+        },
         lastUpdated: new Date().toISOString(),
-        breakthrough: 'Case sensitivity issue resolved - filtering now working!'
+        breakthrough: 'Case sensitivity issue resolved + coordinate conversion added!'
       }
     });
   } catch (error) {

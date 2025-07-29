@@ -519,7 +519,7 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
           
           const alerts = sortedWorks.slice(0, 20).map(work => ({
             id: work.id || work.sm_reference || `streetmanager-${Date.now()}-${Math.random()}`,
-            location: work.sm_location_description || work.sm_street_name || work.sm_area_name || 'Unknown location',
+            location: work.sm_street_name || work.sm_location_description || work.sm_area_name || 'Unknown location',
             description: work.sm_works_description || work.sm_works_category || 'StreetManager roadworks',
             severity: work.severity || determineSeverity({
               location: work.sm_location_description || work.sm_street_name,
@@ -535,10 +535,15 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
             permitReference: work.sm_permit_reference || work.sm_reference,
             workCategory: work.sm_works_category,
             authority: work.sm_highway_authority || work.sm_promoter_name,
-            // Enhanced coordinate data from Street Manager
-            coordinates: work.works_location_coordinates ? 
-              parseCoordinatesFromWKT(work.works_location_coordinates) : null,
-            coordinateSource: work.works_location_coordinates ? 'streetmanager_wkt' : 'none',
+            
+            // NEW: Enhanced coordinate data from backend processing
+            coordinates: work.coordinates || null,
+            coordinateSource: work.coordinateSource || 'none',
+            coordinateAccuracy: work.coordinateAccuracy || null,
+            coordinateError: work.coordinateError || null,
+            originalCoordinates: work.originalCoordinates || null,
+            coordinatePoints: work.coordinatePoints || null,
+            
             // Add urgency indicator
             isUrgent: work.sm_start_date && new Date(work.sm_start_date) <= new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000)), // Next 7 days
             daysUntilStart: work.sm_start_date ? Math.ceil((new Date(work.sm_start_date) - now) / (1000 * 60 * 60 * 24)) : null
@@ -942,6 +947,16 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
   // Enhanced map view with multiple providers and embedded modal
   const handleMapView = (alert) => {
     console.log('🗺️ Enhanced Map view clicked for alert:', alert.id, alert.location, 'Coordinates:', alert.coordinates, 'Source:', alert.coordinateSource);
+    
+    // Check if we have processed coordinates from Street Manager
+    if (alert.coordinates && alert.coordinateSource === 'street_manager_converted') {
+      console.log('✅ Using processed Street Manager coordinates with high accuracy');
+    } else if (alert.coordinates) {
+      console.log('⚠️ Using basic coordinates, accuracy may vary');
+    } else {
+      console.log('⚠️ No coordinates available, will use location search');
+    }
+    
     setSelectedMapAlert(alert);
     setMapModalVisible(true);
   };
@@ -953,14 +968,26 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
     let lat, lng, searchLocation;
     let coordinateInfo = '';
     
-    // Use precise coordinates if available
-    if (alert.coordinates && alert.coordinates.length === 2) {
+    // Prioritize Street Manager converted coordinates (highest accuracy)
+    if (alert.coordinates && alert.coordinateSource === 'street_manager_converted') {
       [lat, lng] = alert.coordinates;
-      coordinateInfo = `📍 Precise coordinates from ${alert.coordinateSource || 'Street Manager'}: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-    } else {
-      // Fallback to enhanced location search
+      coordinateInfo = `📍 HIGH ACCURACY: Street Manager coordinates converted from OSGB36 to WGS84`;
+      coordinateInfo += `\n🗺️ Original: [${alert.originalCoordinates?.easting}, ${alert.originalCoordinates?.northing}] OSGB36`;
+      coordinateInfo += `\n🌍 Converted: [${lat.toFixed(6)}, ${lng.toFixed(6)}] WGS84`;
+      coordinateInfo += `\n📍 Points in LINESTRING: ${alert.coordinatePoints || 1}`;
+    }
+    // Use any other precise coordinates if available
+    else if (alert.coordinates && alert.coordinates.length === 2) {
+      [lat, lng] = alert.coordinates;
+      coordinateInfo = `📍 Coordinates from ${alert.coordinateSource || 'unknown source'}: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    } 
+    // Fallback to enhanced location search
+    else {
       searchLocation = enhanceLocationString(alert.location);
       coordinateInfo = `📍 Location search: ${searchLocation}`;
+      if (alert.coordinateError) {
+        coordinateInfo += `\n⚠️ Coordinate error: ${alert.coordinateError}`;
+      }
     }
     
     const urls = {};
