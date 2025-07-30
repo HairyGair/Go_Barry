@@ -180,9 +180,11 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
         const now = new Date();
         
         if (filters.timeframe === 'starts_7') {
-          // Special filter: Roadworks that START within next 7 days
+          // Special filter: Show roadworks that are operationally relevant in the next 7 days
+          // This includes: works starting soon OR works currently active
           const next7Days = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000));
           const startDate = alert.startDate ? new Date(alert.startDate) : null;
+          const endDate = alert.endDate ? new Date(alert.endDate) : null;
           
           // Debug: Show all dates we're checking
           if (startDate) {
@@ -193,16 +195,22 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
             console.log(`  - Now: ${now.toISOString()}`);
             console.log(`  - Next7Days: ${next7Days.toISOString()}`);
             console.log(`  - Days until start: ${daysUntilStart}`);
-            console.log(`  - Is future: ${startDate >= now}`);
-            console.log(`  - Within 7 days: ${startDate <= next7Days}`);
+            console.log(`  - Has ended: ${endDate ? endDate <= now : 'No end date'}`);
           } else {
             console.log(`🔍 DEBUG Urgent Filter: "${alert.location}" - NO START DATE`);
           }
           
-          // Include if it has a start date and starts within next 7 days (including today)
+          // Include if:
+          // 1. Starts within next 7 days (future works)
+          // 2. Currently active (started but not ended)
+          // 3. Recently started (within last 7 days) and still active
           const startsWithin7Days = startDate && startDate >= now && startDate <= next7Days;
+          const isCurrentlyActive = startDate && startDate <= now && (!endDate || endDate > now);
+          const recentlyStarted = startDate && startDate >= new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000)) && startDate <= now;
           
-          if (!startsWithin7Days) {
+          const isRelevant = startsWithin7Days || isCurrentlyActive || recentlyStarted;
+          
+          if (!isRelevant) {
             return false;
           }
         } else {

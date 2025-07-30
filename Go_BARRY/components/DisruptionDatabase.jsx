@@ -152,77 +152,12 @@ const DisruptionDatabase = ({ baseUrl, onBack }) => {
   const loadRoadworks = async () => {
     setLoading(true);
     try {
-      // Fetch ONLY control room-created disruptions (NOT StreetManager webhook data)
-      // StreetManager webhook data is handled separately in the Roadworks Manager for proactive planning
-      const [roadworksResponse] = await Promise.all([
-        fetch(`${apiBaseUrl}/api/roadworks/unified?source=manual&limit=1000`).catch(() => 
-          // Fallback to all roadworks but we'll filter out StreetManager sources below
-          fetch(`${apiBaseUrl}/api/roadworks/unified?limit=1000`).catch(() => ({ json: () => ({ success: false, roadworks: [] }) }))
-        )
-      ]);
-
-      const roadworksData = await roadworksResponse.json();
-
-      let allRoadworks = [];
-
-      // Add ONLY control room-created roadworks/disruptions
-      if (roadworksData.success && roadworksData.roadworks) {
-        // Filter out StreetManager webhook data - that goes to Roadworks Manager for proactive planning
-        const controlRoomOnly = roadworksData.roadworks.filter(item => 
-          !item.source || 
-          (item.source !== 'street_manager' && 
-           item.source !== 'streetmanager' && 
-           item.type !== 'streetmanager' &&
-           !item.webhook_received_at &&
-           !item.permit_reference_number)
-        );
-        
-        allRoadworks = [...controlRoomOnly];
-        console.log(`Disruption Database: Loaded ${controlRoomOnly.length} control room disruptions, filtered out ${roadworksData.roadworks.length - controlRoomOnly.length} StreetManager webhook items`);
-      }
-
-      // StreetManager webhook data is NO LONGER loaded here - it goes to Roadworks Manager for proactive planning
-      // This separation ensures:
-      // - Disruption Database = Control room's official record of handled disruptions
-      // - Roadworks Manager = StreetManager webhook data for advance planning
-
-      // Try unified endpoint as fallback but STILL filter out StreetManager webhook data
-      if (allRoadworks.length === 0) {
-        try {
-          const unifiedResponse = await fetch(`${apiBaseUrl}/api/roadworks/unified`);
-          const unifiedData = await unifiedResponse.json();
-          if (unifiedData.success && unifiedData.roadworks) {
-            // Filter out StreetManager webhook data even from unified endpoint
-            const controlRoomOnlyUnified = unifiedData.roadworks.filter(item => 
-              item.source !== 'StreetManager' &&
-              item.source !== 'street_manager' && 
-              item.source !== 'streetmanager' && 
-              !item.webhook_received_at &&
-              !item.permit_reference_number
-            );
-            
-            allRoadworks = controlRoomOnlyUnified.map(item => ({
-              ...item,
-              type: 'control_room_disruption'
-            }));
-            
-            console.log(`Disruption Database (unified fallback): Loaded ${controlRoomOnlyUnified.length} control room items, filtered out ${unifiedData.roadworks.length - controlRoomOnlyUnified.length} StreetManager items`);
-          }
-        } catch (unifiedError) {
-          console.log('Unified endpoint also failed:', unifiedError.message);
-        }
-      }
-
-      setRoadworks(allRoadworks);
-      
-      if (allRoadworks.length === 0) {
-        console.log('No roadworks data found from any source');
-      } else {
-        console.log(`Loaded ${allRoadworks.length} roadworks from multiple sources`);
-      }
-      
+      // TEMPORARILY DISABLED: Return empty data to clear disruption database
+      // User requested all information removed from Disruption Database
+      console.log('Disruption Database: Cleared all data as requested');
+      setRoadworks([]);
     } catch (error) {
-      Alert.alert('Error', `Failed to connect to server: ${error.message}`);
+      console.error('Error in loadRoadworks:', error);
       setRoadworks([]);
     } finally {
       setLoading(false);

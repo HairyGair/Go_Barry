@@ -71,10 +71,6 @@ router.get('/debug-coordinate-data', async (req, res) => {
           sm_reference: record.sm_reference,
           location: record.sm_location_description?.substring(0, 100)
         },
-        params: {
-          'sm_works_state': 'in.(Works planned,Works in progress)',
-          order: 'sm_start_date.asc'
-        },
         recommendations: {
           hasDirectCoordinateField: !!record.works_location_coordinates,
           hasLatLng: !!(record.latitude && record.longitude),
@@ -181,24 +177,81 @@ router.get('/unified', async (req, res) => {
       });
     }
     
-    // Remove date filtering - let frontend handle all filtering logic
-    // Frontend has sophisticated filtering including "Starts 7 days" option
-    console.log('🗄️ Fetching ALL roadworks for frontend filtering');
+    // Calculate date range for next 7 days for start date filtering
+    const now = new Date();
+    const next7Days = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000));
+    const nowISO = now.toISOString();
+    const next7DaysISO = next7Days.toISOString();
+    
+    console.log('🗄️ Fetching roadworks from full Supabase table (10,000+ entries)');
+    console.log('📅 Date filter range:', {
+      now: nowISO,
+      next7Days: next7DaysISO
+    });
     
     let roadworks = [];
     
     try {
-      // Fetch ALL roadworks - frontend will handle date filtering
-      const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+      // First, try to get roadworks that start within next 7 days (most common use case)
+      console.log('🔍 Attempting to fetch roadworks starting within next 7 days...');
+      
+      const urgentResponse = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
         headers: {
           'apikey': supabaseKey,
           'Authorization': `Bearer ${supabaseKey}`,
           'Content-Type': 'application/json'
         },
-        timeout: 10000
+        params: {
+          // Get works that start within next 7 days
+          'and': `(sm_start_date.gte.${nowISO},sm_start_date.lte.${next7DaysISO})`,
+          'sm_works_state': 'in.(Works planned,Works in progress)',
+          order: 'sm_start_date.asc',
+          limit: 1000 // Should be enough for 7-day window
+        },
+        timeout: 15000
       });
       
-      roadworks = response.data;
+      console.log(`✅ Found ${urgentResponse.data.length} roadworks starting within next 7 days`);
+      
+      // If we found works starting soon, use those
+      if (urgentResponse.data.length > 0) {
+        roadworks = urgentResponse.data;
+        console.log('🎯 Using roadworks starting within next 7 days for primary display');
+      }
+      
+    } catch (urgentError) {
+      console.warn('⚠️ Urgent roadworks query failed, trying broader approach:', urgentError.message);
+    }
+    
+    // If no urgent works found, or error occurred, get broader dataset
+    if (roadworks.length === 0) {
+      try {
+        console.log('🔍 Fetching broader dataset from full Supabase table...');
+        
+        // Get all planned and in-progress works (no date filter)
+        const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json'
+          },
+          params: {
+            'sm_works_state': 'in.(Works planned,Works in progress)',
+            order: 'sm_start_date.asc',
+            limit: 2000 // Increased limit to handle more data
+          },
+          timeout: 15000
+        });
+        
+        roadworks = response.data;
+        console.log(`✅ Fallback: Found ${roadworks.length} planned/in-progress works from broader dataset`);
+        
+      } catch (broadError) {
+        console.error('❌ Broader dataset query also failed:', broadError.message);
+        // Final fallback - return empty array
+        roadworks = [];
+      }
+    }
       
       // Process coordinates for each roadwork
       console.log(`🗺️ Processing coordinates for ${roadworks.length} roadworks...`);
@@ -312,8 +365,8 @@ router.get('/unified', async (req, res) => {
         source: 'supabase_streetworks',
         table: 'streetworks',
         workStateFilter: 'Works planned, Works in progress',
-        dateFilter: '30_days_ahead_start_date_debug',
-        filterApplied: `States: [Works planned, Works in progress] + Dates: starting within next 30 days (debugging)`,
+        dateFilter: '7_days_ahead_backend_filtered',
+        filterApplied: `Primary: Roadworks starting within next 7 days | Fallback: All planned/in-progress works`,
         coordinateProcessing: {
           total: coordinateStats.total,
           successful: coordinateStats.withCoordinates,
