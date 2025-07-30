@@ -71,6 +71,10 @@ router.get('/debug-coordinate-data', async (req, res) => {
           sm_reference: record.sm_reference,
           location: record.sm_location_description?.substring(0, 100)
         },
+        params: {
+          'sm_works_state': 'in.(Works planned,Works in progress)',
+          order: 'sm_start_date.asc'
+        },
         recommendations: {
           hasDirectCoordinateField: !!record.works_location_coordinates,
           hasLatLng: !!(record.latitude && record.longitude),
@@ -177,35 +181,15 @@ router.get('/unified', async (req, res) => {
       });
     }
     
-    // Calculate date range for next 30 days (temporarily expanded for debugging)
-    const now = new Date();
-    const next30Days = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
-    const nowISO = now.toISOString();
-    const next30DaysISO = next30Days.toISOString();
-    
-    console.log('🔍 Date range debug:', {
-      now: now.toISOString(),
-      next30Days: next30Days.toISOString(),
-      sampleStartDate: '2025-08-01T00:00:00+00:00',
-      isWithinRange: new Date('2025-08-01T00:00:00+00:00') >= now && new Date('2025-08-01T00:00:00+00:00') <= next30Days
-    });
+    // Remove date filtering - let frontend handle all filtering logic
+    // Frontend has sophisticated filtering including "Starts 7 days" option
+    console.log('🗄️ Fetching ALL roadworks for frontend filtering');
     
     let roadworks = [];
     
     try {
-      // Try with full filtering first - construct URL manually to handle multiple date params
-      const filterParams = new URLSearchParams({
-        'sm_works_state': 'in.(Works planned,Works in progress)',
-        'order': 'sm_start_date.asc'
-      });
-      
-      // Add date range filters
-      filterParams.append('sm_start_date', `gte.${nowISO}`);
-      filterParams.append('sm_start_date', `lte.${next30DaysISO}`);
-      
-      console.log('🔗 Constructed query URL:', `${supabaseUrl}/rest/v1/streetworks?${filterParams}`);
-      
-      const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks?${filterParams}`, {
+      // Fetch ALL roadworks - frontend will handle date filtering
+      const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
         headers: {
           'apikey': supabaseKey,
           'Authorization': `Bearer ${supabaseKey}`,
