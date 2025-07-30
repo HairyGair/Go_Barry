@@ -23,6 +23,33 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
   const [routeImpacts, setRouteImpacts] = useState([]);
   const [futureWorks, setFutureWorks] = useState([]);
   
+  // NEW: Track dismissed roadwork IDs to filter them out
+  const [dismissedRoadworkIds, setDismissedRoadworkIds] = useState(() => {
+    // Load dismissed IDs from localStorage on mount
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        const stored = window.localStorage.getItem('dismissedRoadworkIds');
+        return stored ? JSON.parse(stored) : [];
+      } catch (e) {
+        console.error('Failed to load dismissed roadworks:', e);
+        return [];
+      }
+    }
+    return [];
+  });
+  
+  // Save dismissed IDs whenever they change
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.setItem('dismissedRoadworkIds', JSON.stringify(dismissedRoadworkIds));
+        console.log(`💾 Saved ${dismissedRoadworkIds.length} dismissed roadwork IDs`);
+      } catch (e) {
+        console.error('Failed to save dismissed roadworks:', e);
+      }
+    }
+  }, [dismissedRoadworkIds]);
+  
   // Debug wrapper for setCriticalAlerts to track when alerts are cleared
   const setCriticalAlertsWithDebug = (alerts) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -47,6 +74,10 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
   });
   const [actionModalVisible, setActionModalVisible] = useState(false);
   const [actionNotes, setActionNotes] = useState('');
+  
+  // Pagination state for handling large datasets
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(100); // Show 100 items per page
 
   // Severity colors
   const severityColors = {
@@ -200,15 +231,11 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
             console.log(`🔍 DEBUG Urgent Filter: "${alert.location}" - NO START DATE`);
           }
           
-          // Include if:
-          // 1. Starts within next 7 days (future works)
-          // 2. Currently active (started but not ended)
-          // 3. Recently started (within last 7 days) and still active
-          const startsWithin7Days = startDate && startDate >= now && startDate <= next7Days;
-          const isCurrentlyActive = startDate && startDate <= now && (!endDate || endDate > now);
-          const recentlyStarted = startDate && startDate >= new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000)) && startDate <= now;
+          // Include ONLY if starts within next 7 days (future works only)
+          // Exclude already started works for this specific filter
+          const startsWithin7Days = startDate && startDate > now && startDate <= next7Days;
           
-          const isRelevant = startsWithin7Days || isCurrentlyActive || recentlyStarted;
+          const isRelevant = startsWithin7Days;
           
           if (!isRelevant) {
             return false;
@@ -279,8 +306,46 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
 
   // Memoized filtered and sorted alerts
   const filteredAndSortedAlerts = useMemo(() => {
-    return applyFiltersAndSorting(criticalAlerts);
-  }, [criticalAlerts, filters]);
+    // First filter out dismissed roadworks
+    const nonDismissedAlerts = criticalAlerts.filter(alert => 
+      !dismissedRoadworkIds.includes(alert.id)
+    );
+    console.log(`🚫 Filtering out ${criticalAlerts.length - nonDismissedAlerts.length} dismissed roadworks`);
+    
+    // Then apply regular filters and sorting
+    return applyFiltersAndSorting(nonDismissedAlerts);
+  }, [criticalAlerts, filters, dismissedRoadworkIds]);
+  
+  // Paginated alerts for display
+  const paginatedAlerts = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredAndSortedAlerts.slice(startIndex, endIndex);
+  }, [filteredAndSortedAlerts, currentPage, itemsPerPage]);
+  
+  // Total pages calculation
+  const totalPages = Math.ceil(filteredAndSortedAlerts.length / itemsPerPage);
+  
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, dismissedRoadworkIds]);
+  
+  // Add keyboard navigation for web platform
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const handleKeyPress = (e) => {
+        if (e.key === 'ArrowLeft' && currentPage > 1) {
+          setCurrentPage(currentPage - 1);
+        } else if (e.key === 'ArrowRight' && currentPage < totalPages) {
+          setCurrentPage(currentPage + 1);
+        }
+      };
+      
+      window.addEventListener('keydown', handleKeyPress);
+      return () => window.removeEventListener('keydown', handleKeyPress);
+    }
+  }, [currentPage, totalPages]);
 
   const generateMockRoutes = (location) => {
     // Generate mock affected routes based on location
@@ -544,7 +609,8 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
         // Process raw Supabase streetworks data
         const streetManagerData = roadworksData.data;
         
-        console.log(`Found ${streetManagerData.length} StreetManager webhook notifications from Supabase`);
+        console.log(`🚀 MASSIVE DATA LOAD: Found ${streetManagerData.length} StreetManager webhook notifications from Supabase`);
+        console.log(`📦 This is the full dataset - no limits applied!`);
         
         if (streetManagerData.length > 0) {
           // Filter active roadworks only
@@ -559,34 +625,12 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
           
           console.log(`Filtered to ${activeRoadworks.length} active roadworks from ${streetManagerData.length} total`);
           
-          // **NEW LOGIC**: Filter for immediate and near-term roadworks only (next 90 days instead of 28)
-          const now = new Date();
-          const next90Days = new Date(now.getTime() + (90 * 24 * 60 * 60 * 1000)); // Increased from 28 to 90 days
+          // NO DATE FILTERING - Use ALL active roadworks
+          const immediateRoadworks = activeRoadworks; // Use all active roadworks!
+          const now = new Date(); // Still need this for sorting and other logic
           
-          const immediateRoadworks = activeRoadworks.filter(work => {
-            const startDate = work.sm_start_date || work.sm_actual_start_date;
-            const endDate = work.sm_end_date || work.sm_actual_end_date;
-            
-            // Include if:
-            // 1. Already started (no start date or start date in past)
-            // 2. Starts within next 90 days (increased from 28)
-            // 3. Is currently ongoing (started but not ended)
-            const hasNoStartDate = !startDate;
-            const startedAlready = startDate && new Date(startDate) <= now;
-            const startsWithin90Days = startDate && new Date(startDate) <= next90Days;
-            const isOngoing = startedAlready && (!endDate || new Date(endDate) > now);
-            
-            const shouldInclude = hasNoStartDate || startedAlready || startsWithin90Days || isOngoing;
-            
-            if (startDate) {
-              const daysUntilStart = Math.ceil((new Date(startDate) - now) / (1000 * 60 * 60 * 24));
-              console.log(`📅 Work ${work.id || work.sm_reference}: starts in ${daysUntilStart} days (${shouldInclude ? 'INCLUDED' : 'EXCLUDED'})`);
-            }
-            
-            return shouldInclude;
-          });
-          
-          console.log(`📋 Filtered to ${immediateRoadworks.length} immediate/near-term roadworks (next 90 days) from ${activeRoadworks.length} active`);
+          console.log(`📌 Using ALL ${immediateRoadworks.length} active roadworks (no date filtering applied)`);
+          console.log('📅 TODAY IS:', now.toISOString(), '- Next 7 days cutoff:', new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000)).toISOString());
           
           // Sort by urgency: ongoing works first, then by start date
           const sortedWorks = immediateRoadworks.sort((a, b) => {
@@ -605,7 +649,7 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
             return aStart - bStart;
           });
           
-          const alerts = sortedWorks.slice(0, 500).map(work => ({ // Increased to 500 alerts for better filtering pool
+          const alerts = sortedWorks.map(work => ({ // Process ALL roadworks - no slicing!
             id: work.id || work.sm_reference || `streetmanager-${Date.now()}-${Math.random()}`,
             location: work.sm_street_name || work.sm_location_description || work.sm_area_name || 'Unknown location',
             description: work.sm_works_description || work.sm_works_category || 'StreetManager roadworks',
@@ -637,14 +681,71 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
             daysUntilStart: work.sm_start_date ? Math.ceil((new Date(work.sm_start_date) - now) / (1000 * 60 * 60 * 24)) : null
           }));
           
-          console.log(`✅ Loaded ${alerts.length} immediate/near-term StreetManager alerts for critical planning`);
+          console.log(`✅ Loaded ${alerts.length} StreetManager alerts from ALL active roadworks`);
+      
+      // DEBUG: Analyze start dates to understand the data
+      const dateAnalysis = {
+        total: alerts.length,
+        withStartDates: 0,
+        alreadyStarted: 0,
+        startingToday: 0,
+        startingNext7Days: 0,
+        startingNext30Days: 0,
+        startingNext90Days: 0,
+        startingBeyond90Days: 0,
+        noStartDate: 0
+      };
+      
+      alerts.forEach(alert => {
+        if (!alert.startDate) {
+          dateAnalysis.noStartDate++;
+          return;
+        }
+        
+        dateAnalysis.withStartDates++;
+        const startDate = new Date(alert.startDate);
+        const daysUntilStart = Math.ceil((startDate - now) / (1000 * 60 * 60 * 24));
+        
+        if (daysUntilStart < 0) {
+          dateAnalysis.alreadyStarted++;
+        } else if (daysUntilStart === 0) {
+          dateAnalysis.startingToday++;
+        } else if (daysUntilStart <= 7) {
+          dateAnalysis.startingNext7Days++;
+        } else if (daysUntilStart <= 30) {
+          dateAnalysis.startingNext30Days++;
+        } else if (daysUntilStart <= 90) {
+          dateAnalysis.startingNext90Days++;
+        } else {
+          dateAnalysis.startingBeyond90Days++;
+        }
+      });
+      
+      console.log('📊 ROADWORKS DATE ANALYSIS:', dateAnalysis);
+      console.log(`🎯 Works starting in next 7 days: ${dateAnalysis.startingToday + dateAnalysis.startingNext7Days} (${dateAnalysis.startingToday} today + ${dateAnalysis.startingNext7Days} next 7 days)`);
+      
+      // Show sample of future works
+      const futureWorks = alerts
+        .filter(a => a.startDate && new Date(a.startDate) > now)
+        .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+        .slice(0, 5);
+      
+      if (futureWorks.length > 0) {
+        console.log('📅 Next 5 upcoming roadworks:');
+        futureWorks.forEach((work, i) => {
+          const daysAway = Math.ceil((new Date(work.startDate) - now) / (1000 * 60 * 60 * 24));
+          console.log(`  ${i + 1}. ${work.location} - starts in ${daysAway} days (${new Date(work.startDate).toLocaleDateString()})`);
+        });
+      }
           
-          // Memory usage monitoring
+          // Memory usage monitoring for 15000 records
           const alertMemoryEstimate = alerts.length * 2; // ~2KB per alert object
-          console.log(`📊 Memory estimate: ~${alertMemoryEstimate}KB for ${alerts.length} alerts (target: <200KB)`);
+          console.log(`📊 Memory estimate: ~${(alertMemoryEstimate / 1024).toFixed(1)}MB for ${alerts.length} alerts`);
           
-          if (alerts.length > 80) {
-            console.log('⚠️ High alert count - monitoring for performance impact');
+          if (alerts.length > 10000) {
+            console.warn('⚠️ Very high alert count (10,000+) - monitor for performance impact.');
+          } else if (alerts.length > 5000) {
+            console.log('⚠️ High alert count (5,000+) - dismissals will help manage this.');
           }
           
           // Debug coordinate extraction success
@@ -675,11 +776,12 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
           console.log(`🚨 Urgency breakdown: ${urgentAlerts.length} urgent (next 7 days), ${alerts.length - urgentAlerts.length} near-term (8-90 days)`);
           
           // Performance warnings
-          if (immediateRoadworks.length > 150) {
-            console.warn(`⚠️ High data volume: ${immediateRoadworks.length} roadworks available, showing top 100. Consider tighter filtering for performance.`);
+          if (immediateRoadworks.length > 1000) {
+            console.warn(`⚠️ High data volume: ${immediateRoadworks.length} roadworks loaded. Frontend will handle dismissals for performance.`);
           }
           
           setCriticalAlertsWithDebug(alerts);
+          console.log(`🎯 FINAL RESULT: Set ${alerts.length} alerts in state for display`);
         } else {
           console.log('No StreetManager webhook data found - keeping existing alerts');
           // Keep existing alerts if none found
@@ -983,7 +1085,7 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
 
   const handlePlanDiversion = (alertId) => {
     setSelectedAlert(criticalAlerts.find(a => a.id === alertId));
-    setShowDiversionModal(true);
+    setActionModalVisible(true); // Fixed: was setShowDiversionModal
   };
 
   const handleEscalate = (alertId) => {
@@ -1041,9 +1143,13 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
               });
 
               if (response.ok) {
-                // Remove from current alerts
-                setCriticalAlertsWithDebug(prev => prev.filter(a => a.id !== alert.id));
-                Alert.alert('Success', 'Alert dismissed');
+                // Add to dismissed IDs instead of removing from alerts
+                setDismissedRoadworkIds(prev => {
+                  const newDismissed = [...prev, alert.id];
+                  console.log(`🚫 Added ${alert.id} to dismissed list. Total dismissed: ${newDismissed.length}`);
+                  return newDismissed;
+                });
+                Alert.alert('Success', 'Alert dismissed. It won\'t appear again even after refresh.');
               } else {
                 Alert.alert('Error', 'Failed to dismiss alert');
               }
@@ -1570,6 +1676,40 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
         return (
           <View style={styles.tabContent}>
             <Text style={styles.sectionTitle}>Critical Alerts Requiring Attention</Text>
+            
+            {/* Stats bar showing total, dismissed, and visible counts */}
+            <View style={styles.statsBar}>
+              <Text style={styles.statsText}>
+                📊 Total: {criticalAlerts.length} | 
+                🚫 Dismissed: {dismissedRoadworkIds.length} | 
+                👁️ Showing: {filteredAndSortedAlerts.length}
+              </Text>
+              {dismissedRoadworkIds.length > 0 && (
+                <TouchableOpacity 
+                  style={styles.clearDismissalsButton}
+                  onPress={() => {
+                    Alert.alert(
+                      'Clear Dismissed Roadworks',
+                      `This will restore ${dismissedRoadworkIds.length} dismissed roadworks. Continue?`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { 
+                          text: 'Clear All', 
+                          style: 'destructive',
+                          onPress: () => {
+                            setDismissedRoadworkIds([]);
+                            Alert.alert('Success', 'All dismissed roadworks restored');
+                          }
+                        }
+                      ]
+                    );
+                  }}
+                >
+                  <Text style={styles.clearDismissalsText}>Clear Dismissals</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            
             {filteredAndSortedAlerts.length === 0 ? (
               <View style={styles.emptyStateContainer}>
                 {criticalAlerts.length === 0 ? (
@@ -1604,7 +1744,91 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
                 )}
               </View>
             ) : (
-              filteredAndSortedAlerts.map(renderCriticalAlert)
+              <>
+                {paginatedAlerts.map(renderCriticalAlert)}
+                
+                {/* Items per page selector */}
+                <View style={styles.itemsPerPageContainer}>
+                  <Text style={styles.itemsPerPageLabel}>Items per page:</Text>
+                  <View style={styles.itemsPerPageButtons}>
+                    {[50, 100, 200, 500].map((size) => (
+                      <TouchableOpacity
+                        key={size}
+                        style={[styles.itemsPerPageButton, itemsPerPage === size && styles.itemsPerPageButtonActive]}
+                        onPress={() => {
+                          setItemsPerPage(size);
+                          setCurrentPage(1); // Reset to first page when changing page size
+                        }}
+                      >
+                        <Text style={[styles.itemsPerPageButtonText, itemsPerPage === size && styles.itemsPerPageButtonTextActive]}>
+                          {size}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+                
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <View style={styles.paginationContainer}>
+                    <TouchableOpacity
+                      style={[styles.paginationButton, currentPage === 1 && styles.paginationButtonDisabled]}
+                      onPress={() => setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      <Text style={[styles.paginationButtonText, currentPage === 1 && styles.paginationButtonTextDisabled]}>
+                        ← Previous
+                      </Text>
+                    </TouchableOpacity>
+                    
+                    <View style={styles.paginationInfo}>
+                      <Text style={styles.paginationInfoText}>
+                        Page {currentPage} of {totalPages}
+                      </Text>
+                      <Text style={styles.paginationDetailText}>
+                        {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, filteredAndSortedAlerts.length)} of {filteredAndSortedAlerts.length}
+                      </Text>
+                    </View>
+                    
+                    <TouchableOpacity
+                      style={[styles.paginationButton, currentPage === totalPages && styles.paginationButtonDisabled]}
+                      onPress={() => setCurrentPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      <Text style={[styles.paginationButtonText, currentPage === totalPages && styles.paginationButtonTextDisabled]}>
+                        Next →
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+                
+                {/* Keyboard navigation hint for web */}
+                {Platform.OS === 'web' && totalPages > 1 && (
+                  <Text style={styles.keyboardHint}>
+                    Tip: Use arrow keys (← →) to navigate between pages
+                  </Text>
+                )}
+                
+                {/* Quick jump to page */}
+                {totalPages > 5 && (
+                  <View style={styles.pageJumpContainer}>
+                    <Text style={styles.pageJumpLabel}>Jump to page:</Text>
+                    <View style={styles.pageJumpButtons}>
+                      {[1, Math.floor(totalPages / 4), Math.floor(totalPages / 2), Math.floor(totalPages * 3 / 4), totalPages].map((pageNum) => (
+                        <TouchableOpacity
+                          key={pageNum}
+                          style={[styles.pageJumpButton, currentPage === pageNum && styles.pageJumpButtonActive]}
+                          onPress={() => setCurrentPage(pageNum)}
+                        >
+                          <Text style={[styles.pageJumpButtonText, currentPage === pageNum && styles.pageJumpButtonTextActive]}>
+                            {pageNum}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </>
             )}
           </View>
         );
@@ -1716,7 +1940,7 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
           <Text style={styles.filterLabel}>Timeframe:</Text>
           <View style={styles.filterButtons}>
             {[
-              { value: 'starts_7', label: 'Starts 7 days', urgent: true },
+              { value: 'starts_7', label: 'Starting in 7 days', urgent: true },
               { value: '7', label: '7 days' },
               { value: '30', label: '30 days' },
               { value: '90', label: '90 days' },
@@ -1785,8 +2009,9 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
         {/* Filter Summary */}
         <View style={styles.filterSummary}>
           <Text style={styles.filterSummaryText}>
-            Showing {filteredAndSortedAlerts.length} of {criticalAlerts.length} roadworks
-            {filters.timeframe === 'starts_7' && ' • Starting within next 7 days'}
+            Showing {paginatedAlerts.length} of {filteredAndSortedAlerts.length} roadworks (Total: {criticalAlerts.length})
+            {totalPages > 1 && ` • Page ${currentPage}/${totalPages}`}
+            {filters.timeframe === 'starts_7' && ' • Scheduled to start within next 7 days (future works only)'}
             {filters.timeframe !== 'ALL' && filters.timeframe !== 'starts_7' && ` • ${filters.timeframe} day window`}
             {filters.sortBy !== 'startDate' && ` • Sorted by ${filters.sortBy}`}
             {filters.sortOrder === 'desc' && ' (descending)'}
@@ -2617,6 +2842,163 @@ const styles = StyleSheet.create({
   urgentFilterButtonText: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  
+  // Stats bar styles
+  statsBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    padding: 12,
+    marginBottom: 16,
+    borderRadius: 8,
+  },
+  statsText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  clearDismissalsButton: {
+    backgroundColor: '#6b7280',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  clearDismissalsText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  
+  // Items per page styles
+  itemsPerPageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f9fafb',
+    padding: 12,
+    marginTop: 16,
+    marginHorizontal: -16,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  itemsPerPageLabel: {
+    fontSize: 14,
+    color: '#374151',
+    marginRight: 12,
+  },
+  itemsPerPageButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  itemsPerPageButton: {
+    backgroundColor: 'white',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginHorizontal: 4,
+  },
+  itemsPerPageButtonActive: {
+    backgroundColor: '#1e40af',
+    borderColor: '#1e40af',
+  },
+  itemsPerPageButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  itemsPerPageButtonTextActive: {
+    color: 'white',
+  },
+  
+  // Pagination styles
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    padding: 16,
+    marginTop: 16,
+    marginHorizontal: -16,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+  },
+  paginationButton: {
+    backgroundColor: '#1e40af',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    minWidth: 90,
+    alignItems: 'center',
+  },
+  paginationButtonDisabled: {
+    backgroundColor: '#e5e7eb',
+  },
+  paginationButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  paginationButtonTextDisabled: {
+    color: '#9ca3af',
+  },
+  paginationInfo: {
+    alignItems: 'center',
+  },
+  paginationInfoText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  paginationDetailText: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  pageJumpContainer: {
+    alignItems: 'center',
+    marginTop: 16,
+    paddingBottom: 16,
+  },
+  pageJumpLabel: {
+    fontSize: 14,
+    color: '#374151',
+    marginBottom: 8,
+  },
+  pageJumpButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  pageJumpButton: {
+    backgroundColor: '#f3f4f6',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    minWidth: 40,
+    alignItems: 'center',
+    marginHorizontal: 4,
+  },
+  pageJumpButtonActive: {
+    backgroundColor: '#1e40af',
+  },
+  pageJumpButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  pageJumpButtonTextActive: {
+    color: 'white',
+  },
+  keyboardHint: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: '#6b7280',
+    fontStyle: 'italic',
+    marginTop: 8,
+    marginBottom: -8,
   },
 });
 
