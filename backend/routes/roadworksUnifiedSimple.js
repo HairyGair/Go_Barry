@@ -177,11 +177,18 @@ router.get('/unified', async (req, res) => {
       });
     }
     
-    // Calculate date range for next 28 days
+    // Calculate date range for next 30 days (temporarily expanded for debugging)
     const now = new Date();
-    const next28Days = new Date(now.getTime() + (28 * 24 * 60 * 60 * 1000));
+    const next30Days = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
     const nowISO = now.toISOString();
-    const next28DaysISO = next28Days.toISOString();
+    const next30DaysISO = next30Days.toISOString();
+    
+    console.log('🔍 Date range debug:', {
+      now: now.toISOString(),
+      next30Days: next30Days.toISOString(),
+      sampleStartDate: '2025-08-01T00:00:00+00:00',
+      isWithinRange: new Date('2025-08-01T00:00:00+00:00') >= now && new Date('2025-08-01T00:00:00+00:00') <= next30Days
+    });
     
     let roadworks = [];
     
@@ -194,12 +201,12 @@ router.get('/unified', async (req, res) => {
           'Content-Type': 'application/json'
         },
         params: {
-          // Filter by work state: only show planned or in progress works (CONFIRMED working!)
+          // Filter by work state: only show planned or in progress works
           'sm_works_state': 'in.(Works planned,Works in progress)',
-          // Use 180-day window instead of 28 days (infrastructure projects need longer planning)
-          'or': `sm_start_date.lte.${new Date(Date.now() + 180*24*60*60*1000).toISOString()},and(sm_start_date.lte.${nowISO},or(sm_end_date.gte.${nowISO},sm_end_date.is.null))`,
-          order: 'sm_start_date.asc',
-          limit: 300 // Increased from 200 for better alert selection
+          // Filter for roadworks starting within next 30 days (debugging)
+          'and': `(sm_start_date.gte.${nowISO},sm_start_date.lte.${next30DaysISO})`,
+          order: 'sm_start_date.asc'
+          // No limit - get all roadworks starting in next 7 days
         },
         timeout: 10000
       });
@@ -318,8 +325,8 @@ router.get('/unified', async (req, res) => {
         source: 'supabase_streetworks',
         table: 'streetworks',
         workStateFilter: 'Works planned, Works in progress',
-        dateFilter: '180_days_ahead_plus_active',
-        filterApplied: `States: [Works planned, Works in progress] + Dates: next 180 days OR currently active`,
+        dateFilter: '30_days_ahead_start_date_debug',
+        filterApplied: `States: [Works planned, Works in progress] + Dates: starting within next 30 days (debugging)`,
         coordinateProcessing: {
           total: coordinateStats.total,
           successful: coordinateStats.withCoordinates,

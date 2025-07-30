@@ -113,6 +113,52 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
     console.log(`🔍 Applying filters and sorting to ${alerts.length} alerts`);
     console.log('Current filters:', filters);
     
+    // Debug: Show start date distribution before filtering
+    if (filters.timeframe === 'starts_7') {
+      const now = new Date();
+      const next7Days = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000));
+      
+      console.log(`🚨 URGENT FILTER DEBUG:`);
+      console.log(`  - Current time: ${now.toISOString()}`);
+      console.log(`  - 7-day cutoff: ${next7Days.toISOString()}`);
+      console.log(`  - Total alerts to check: ${alerts.length}`);
+      
+      const dateAnalysis = {
+        withStartDates: 0,
+        withoutStartDates: 0,
+        pastWorks: 0,
+        todayWorks: 0,
+        next7DayWorks: 0,
+        futureWorks: 0
+      };
+      
+      alerts.forEach((alert, index) => {
+        if (alert.startDate) {
+          dateAnalysis.withStartDates++;
+          const startDate = new Date(alert.startDate);
+          const daysFromNow = Math.ceil((startDate - now) / (1000 * 60 * 60 * 24));
+          
+          console.log(`  Alert ${index + 1}: "${alert.location}" starts in ${daysFromNow} days (${alert.startDate})`);
+          
+          if (startDate < now) {
+            dateAnalysis.pastWorks++;
+          } else if (daysFromNow === 0) {
+            dateAnalysis.todayWorks++;
+          } else if (daysFromNow <= 7) {
+            dateAnalysis.next7DayWorks++;
+          } else {
+            dateAnalysis.futureWorks++;
+          }
+        } else {
+          dateAnalysis.withoutStartDates++;
+          console.log(`  Alert ${index + 1}: "${alert.location}" - NO START DATE`);
+        }
+      });
+      
+      console.log(`📈 Date Analysis:`, dateAnalysis);
+      console.log(`🎯 Should show ${dateAnalysis.todayWorks + dateAnalysis.next7DayWorks} works in urgent filter`);
+    }
+    
     // Apply filters
     let filteredAlerts = alerts.filter(alert => {
       // Severity filter
@@ -132,19 +178,49 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
       // Timeframe filter
       if (filters.timeframe !== 'ALL') {
         const now = new Date();
-        const daysAhead = parseInt(filters.timeframe);
-        const timeframeCutoff = new Date(now.getTime() + (daysAhead * 24 * 60 * 60 * 1000));
         
-        const startDate = alert.startDate ? new Date(alert.startDate) : null;
-        const endDate = alert.endDate ? new Date(alert.endDate) : null;
-        
-        // Show if starts within timeframe OR is currently active (no end date or ends in future)
-        const startsWithinTimeframe = startDate && startDate <= timeframeCutoff;
-        const isCurrentlyActive = !endDate || endDate > now;
-        const endsWithinTimeframe = endDate && endDate <= timeframeCutoff && endDate > now;
-        
-        if (!startsWithinTimeframe && !isCurrentlyActive && !endsWithinTimeframe) {
-          return false;
+        if (filters.timeframe === 'starts_7') {
+          // Special filter: Roadworks that START within next 7 days
+          const next7Days = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000));
+          const startDate = alert.startDate ? new Date(alert.startDate) : null;
+          
+          // Debug: Show all dates we're checking
+          if (startDate) {
+            const daysUntilStart = Math.ceil((startDate - now) / (1000 * 60 * 60 * 24));
+            console.log(`🔍 DEBUG Urgent Filter: "${alert.location}"`);
+            console.log(`  - Raw startDate: ${alert.startDate}`);
+            console.log(`  - Parsed startDate: ${startDate.toISOString()}`);
+            console.log(`  - Now: ${now.toISOString()}`);
+            console.log(`  - Next7Days: ${next7Days.toISOString()}`);
+            console.log(`  - Days until start: ${daysUntilStart}`);
+            console.log(`  - Is future: ${startDate >= now}`);
+            console.log(`  - Within 7 days: ${startDate <= next7Days}`);
+          } else {
+            console.log(`🔍 DEBUG Urgent Filter: "${alert.location}" - NO START DATE`);
+          }
+          
+          // Include if it has a start date and starts within next 7 days (including today)
+          const startsWithin7Days = startDate && startDate >= now && startDate <= next7Days;
+          
+          if (!startsWithin7Days) {
+            return false;
+          }
+        } else {
+          // Standard timeframe filtering (active within period)
+          const daysAhead = parseInt(filters.timeframe);
+          const timeframeCutoff = new Date(now.getTime() + (daysAhead * 24 * 60 * 60 * 1000));
+          
+          const startDate = alert.startDate ? new Date(alert.startDate) : null;
+          const endDate = alert.endDate ? new Date(alert.endDate) : null;
+          
+          // Show if starts within timeframe OR is currently active (no end date or ends in future)
+          const startsWithinTimeframe = startDate && startDate <= timeframeCutoff;
+          const isCurrentlyActive = !endDate || endDate > now;
+          const endsWithinTimeframe = endDate && endDate <= timeframeCutoff && endDate > now;
+          
+          if (!startsWithinTimeframe && !isCurrentlyActive && !endsWithinTimeframe) {
+            return false;
+          }
         }
       }
       
@@ -521,7 +597,7 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
             return aStart - bStart;
           });
           
-          const alerts = sortedWorks.slice(0, 100).map(work => ({ // Increased to 100 alerts (memory optimized)
+          const alerts = sortedWorks.slice(0, 500).map(work => ({ // Increased to 500 alerts for better filtering pool
             id: work.id || work.sm_reference || `streetmanager-${Date.now()}-${Math.random()}`,
             location: work.sm_street_name || work.sm_location_description || work.sm_area_name || 'Unknown location',
             description: work.sm_works_description || work.sm_works_category || 'StreetManager roadworks',
@@ -1632,6 +1708,7 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
           <Text style={styles.filterLabel}>Timeframe:</Text>
           <View style={styles.filterButtons}>
             {[
+              { value: 'starts_7', label: 'Starts 7 days', urgent: true },
               { value: '7', label: '7 days' },
               { value: '30', label: '30 days' },
               { value: '90', label: '90 days' },
@@ -1641,13 +1718,15 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
                 key={timeframe.value}
                 style={[
                   styles.filterButton,
-                  filters.timeframe === timeframe.value && styles.activeFilterButton
+                  filters.timeframe === timeframe.value && styles.activeFilterButton,
+                  timeframe.urgent && styles.urgentFilterButton // Special styling for urgent filter
                 ]}
                 onPress={() => setFilters({...filters, timeframe: timeframe.value})}
               >
                 <Text style={[
                   styles.filterButtonText,
-                  filters.timeframe === timeframe.value && styles.activeFilterButtonText
+                  filters.timeframe === timeframe.value && styles.activeFilterButtonText,
+                  timeframe.urgent && styles.urgentFilterButtonText
                 ]}>
                   {timeframe.label}
                 </Text>
@@ -1699,6 +1778,8 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
         <View style={styles.filterSummary}>
           <Text style={styles.filterSummaryText}>
             Showing {filteredAndSortedAlerts.length} of {criticalAlerts.length} roadworks
+            {filters.timeframe === 'starts_7' && ' • Starting within next 7 days'}
+            {filters.timeframe !== 'ALL' && filters.timeframe !== 'starts_7' && ` • ${filters.timeframe} day window`}
             {filters.sortBy !== 'startDate' && ` • Sorted by ${filters.sortBy}`}
             {filters.sortOrder === 'desc' && ' (descending)'}
           </Text>
@@ -2517,6 +2598,17 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
+  },
+  
+  // Urgent filter styles for "Starts 7 days" button
+  urgentFilterButton: {
+    backgroundColor: '#dc2626', // Red background for urgency
+    borderWidth: 2,
+    borderColor: '#b91c1c',
+  },
+  urgentFilterButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
 });
 
