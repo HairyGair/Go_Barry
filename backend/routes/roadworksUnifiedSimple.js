@@ -193,20 +193,23 @@ router.get('/unified', async (req, res) => {
     let roadworks = [];
     
     try {
-      // Try with full filtering first
-      const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+      // Try with full filtering first - construct URL manually to handle multiple date params
+      const filterParams = new URLSearchParams({
+        'sm_works_state': 'in.(Works planned,Works in progress)',
+        'order': 'sm_start_date.asc'
+      });
+      
+      // Add date range filters
+      filterParams.append('sm_start_date', `gte.${nowISO}`);
+      filterParams.append('sm_start_date', `lte.${next30DaysISO}`);
+      
+      console.log('🔗 Constructed query URL:', `${supabaseUrl}/rest/v1/streetworks?${filterParams}`);
+      
+      const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks?${filterParams}`, {
         headers: {
           'apikey': supabaseKey,
           'Authorization': `Bearer ${supabaseKey}`,
           'Content-Type': 'application/json'
-        },
-        params: {
-          // Filter by work state: only show planned or in progress works
-          'sm_works_state': 'in.(Works planned,Works in progress)',
-          // Filter for roadworks starting within next 30 days (debugging)
-          'and': `(sm_start_date.gte.${nowISO},sm_start_date.lte.${next30DaysISO})`,
-          order: 'sm_start_date.asc'
-          // No limit - get all roadworks starting in next 7 days
         },
         timeout: 10000
       });
