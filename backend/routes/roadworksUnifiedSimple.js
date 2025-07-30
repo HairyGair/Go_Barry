@@ -275,23 +275,56 @@ router.get('/unified', async (req, res) => {
     let roadworks = [];
     
     try {
-      // Get ALL planned and in-progress roadworks - no date or limit filters
-      console.log('🔍 Fetching ALL planned/in-progress roadworks (no date filter, no limit)...');
+      // Get ALL planned and in-progress roadworks - fetch in batches due to Supabase 1000 row limit
+      console.log('🔍 Fetching ALL planned/in-progress roadworks in batches...');
       
-      const futureResponse = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
-          'Content-Type': 'application/json'
-        },
-        params: {
-          'sm_works_state': 'in.(Works planned,Works in progress)',
-          order: 'sm_start_date.asc',
-          limit: 15000  // Fetch 15000 records
-        },
-        timeout: 60000 // 60 seconds for 15000 records
-      });
+      let allRoadworks = [];
+      let offset = 0;
+      const batchSize = 1000; // Supabase max limit per request
+      let hasMore = true;
       
+      while (hasMore) {
+        console.log(`📦 Fetching batch: offset=${offset}, limit=${batchSize}`);
+        
+        const batchResponse = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json',
+            'Range': `${offset}-${offset + batchSize - 1}`,
+            'Range-Unit': 'items',
+            'Prefer': 'count=exact'
+          },
+          params: {
+            'sm_works_state': 'in.(Works planned,Works in progress)',
+            order: 'sm_start_date.asc',
+            limit: batchSize,
+            offset: offset
+          },
+          timeout: 30000 // 30 seconds per batch
+        });
+        
+        const batchData = batchResponse.data;
+        console.log(`✅ Batch received: ${batchData.length} records`);
+        
+        allRoadworks = allRoadworks.concat(batchData);
+        offset += batchSize;
+        
+        console.log(`📈 Progress: ${allRoadworks.length} total roadworks fetched so far...`);
+        
+        // Check if we got less than batchSize records (meaning we've reached the end)
+        hasMore = batchData.length === batchSize;
+        
+        // Safety limit to prevent infinite loops
+        if (offset >= 50000) {
+          console.warn('⚠️ Reached safety limit of 50,000 records');
+          hasMore = false;
+        }
+      }
+      
+      const futureResponse = { data: allRoadworks };
+      
+      console.log(`✅ Batch fetching complete: ${Math.ceil(allRoadworks.length / 1000)} batches fetched`);
       console.log(`✅ Found ${futureResponse.data.length} roadworks (future + active)`);
       
       // Simple debug log for date distribution
@@ -317,24 +350,53 @@ router.get('/unified', async (req, res) => {
     // If no future works found, or error occurred, get broader dataset
     if (roadworks.length === 0) {
       try {
-        console.log('🔍 Fallback: Fetching all planned/in-progress works without date filter...');
+        console.log('🔍 Fallback: Fetching all planned/in-progress works in batches...');
         
-        // Get all planned and in-progress works (no date filter)
-        const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json'
-          },
-          params: {
-            'sm_works_state': 'in.(Works planned,Works in progress)',
-            order: 'sm_start_date.asc',
-            limit: 15000  // Fetch 15000 records
-          },
-          timeout: 60000  // 60 seconds for 15000 records
-        });
+        // Use the same batching approach for fallback
+        let allRoadworks = [];
+        let offset = 0;
+        const batchSize = 1000;
+        let hasMore = true;
         
-        roadworks = response.data;
+        while (hasMore) {
+          console.log(`📦 Fallback batch: offset=${offset}, limit=${batchSize}`);
+          
+          const batchResponse = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+              'Range': `${offset}-${offset + batchSize - 1}`,
+              'Range-Unit': 'items',
+              'Prefer': 'count=exact'
+            },
+            params: {
+              'sm_works_state': 'in.(Works planned,Works in progress)',
+              order: 'sm_start_date.asc',
+              limit: batchSize,
+              offset: offset
+            },
+            timeout: 30000
+          });
+          
+          const batchData = batchResponse.data;
+          console.log(`✅ Fallback batch received: ${batchData.length} records`);
+          
+          allRoadworks = allRoadworks.concat(batchData);
+          offset += batchSize;
+          
+          console.log(`📈 Fallback progress: ${allRoadworks.length} total roadworks fetched so far...`);
+          
+          hasMore = batchData.length === batchSize;
+          
+          if (offset >= 50000) {
+            console.warn('⚠️ Fallback reached safety limit of 50,000 records');
+            hasMore = false;
+          }
+        }
+        
+        roadworks = allRoadworks;
+        console.log(`✅ Fallback batch fetching complete: ${Math.ceil(allRoadworks.length / 1000)} batches fetched`);
         console.log(`✅ Fallback: Found ${roadworks.length} planned/in-progress works (no date filter)`);
         
       } catch (broadError) {
@@ -371,10 +433,11 @@ router.get('/unified', async (req, res) => {
     };
     
     console.log(`📈 Query params used:`, {
-      workStateFilter: 'Works planned, Works in progress',
-      dateFilter: 'none - all roadworks',
-      limit: 15000,
-      orderBy: 'sm_start_date.asc',
+    workStateFilter: 'Works planned, Works in progress',
+    dateFilter: 'none - all roadworks',
+    fetchMethod: 'batched (1000 per request)',
+    totalFetched: roadworks.length,
+    orderBy: 'sm_start_date.asc',
       coordinateProcessing: `${coordinateStats.withCoordinates}/${coordinateStats.total} (${coordinateStats.successRate}%)`
     });
     
@@ -390,6 +453,8 @@ router.get('/unified', async (req, res) => {
         dateFilter: 'none_all_roadworks',
         filterApplied: 'All planned/in-progress works - no date filtering',
         dismissalNote: 'Frontend handles dismissals to manage memory',
+        fetchMethod: 'Batched fetching to overcome Supabase 1000 row limit',
+        batchInfo: `Fetched ${Math.ceil(roadworks.length / 1000)} batches of up to 1000 records each`,
         coordinateProcessing: {
           total: coordinateStats.total,
           successful: coordinateStats.withCoordinates,
