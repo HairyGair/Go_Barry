@@ -44,7 +44,8 @@ export default function DisruptionCentre() {
   const getBaseUrl = () => {
     if (Platform.OS === 'web') {
       if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-        return 'http://localhost:3001';
+        // Point to production API during development since local backend might not be running
+        return 'https://go-barry.onrender.com';
       }
     }
     return 'https://go-barry.onrender.com';

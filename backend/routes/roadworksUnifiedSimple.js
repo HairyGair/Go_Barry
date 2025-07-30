@@ -199,7 +199,7 @@ router.get('/unified', async (req, res) => {
           // Use 180-day window instead of 28 days (infrastructure projects need longer planning)
           'or': `sm_start_date.lte.${new Date(Date.now() + 180*24*60*60*1000).toISOString()},and(sm_start_date.lte.${nowISO},or(sm_end_date.gte.${nowISO},sm_end_date.is.null))`,
           order: 'sm_start_date.asc',
-          limit: 200 // Increased for more comprehensive results
+          limit: 300 // Increased from 200 for better alert selection
         },
         timeout: 10000
       });
@@ -224,6 +224,23 @@ router.get('/unified', async (req, res) => {
       const successfulCoordinates = roadworks.filter(r => r.coordinates).length;
       const coordinateSuccessRate = roadworks.length > 0 ? Math.round((successfulCoordinates / roadworks.length) * 100) : 0;
       console.log(`📍 Coordinate processing complete: ${successfulCoordinates}/${roadworks.length} (${coordinateSuccessRate}%) successful`);
+      
+      // Debug: Show first roadwork's raw data structure
+      if (roadworks.length > 0) {
+        const firstWork = response.data[0]; // Use original data before processing
+        console.log('🔍 Raw Supabase data structure:', {
+          id: firstWork.id,
+          sm_reference: firstWork.sm_reference,
+          availableFields: Object.keys(firstWork).sort(),
+          coordinateFields: {
+            sm_easting: firstWork.sm_easting,
+            sm_northing: firstWork.sm_northing,
+            works_location_coordinates: firstWork.works_location_coordinates,
+            raw_webhook_data: firstWork.raw_webhook_data ? 'PRESENT' : 'MISSING',
+            webhook_data_type: typeof firstWork.raw_webhook_data
+          }
+        });
+      }
       
     } catch (filterError) {
       console.error('❌ Filtered query failed, trying simpler approach:', filterError.message);

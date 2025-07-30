@@ -41,7 +41,7 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
   const [filters, setFilters] = useState({
     severity: 'ALL',
     area: 'ALL',
-    timeframe: '30', // Show roadworks for next 30 days by default
+    timeframe: '90', // Show roadworks for next 90 days by default (increased from 30)
     sortBy: 'startDate', // 'startDate', 'endDate', 'severity', 'location'
     sortOrder: 'asc' // 'asc', 'desc'
   });
@@ -229,11 +229,15 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return 'Invalid date';
       
-      // Format: "Mon 26 Jul, 09:30"
+      const currentYear = new Date().getFullYear();
+      const dateYear = date.getFullYear();
+      
+      // Include year if it's different from current year
       const options = { 
         weekday: 'short', 
         day: 'numeric', 
         month: 'short',
+        ...(dateYear !== currentYear && { year: 'numeric' }), // Add year if not current year
         hour: '2-digit',
         minute: '2-digit',
         hour12: false
@@ -471,9 +475,9 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
           
           console.log(`Filtered to ${activeRoadworks.length} active roadworks from ${streetManagerData.length} total`);
           
-          // **NEW LOGIC**: Filter for immediate and near-term roadworks only (next 28 days)
+          // **NEW LOGIC**: Filter for immediate and near-term roadworks only (next 90 days instead of 28)
           const now = new Date();
-          const next28Days = new Date(now.getTime() + (28 * 24 * 60 * 60 * 1000));
+          const next90Days = new Date(now.getTime() + (90 * 24 * 60 * 60 * 1000)); // Increased from 28 to 90 days
           
           const immediateRoadworks = activeRoadworks.filter(work => {
             const startDate = work.sm_start_date || work.sm_actual_start_date;
@@ -481,14 +485,14 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
             
             // Include if:
             // 1. Already started (no start date or start date in past)
-            // 2. Starts within next 28 days
+            // 2. Starts within next 90 days (increased from 28)
             // 3. Is currently ongoing (started but not ended)
             const hasNoStartDate = !startDate;
             const startedAlready = startDate && new Date(startDate) <= now;
-            const startsWithin28Days = startDate && new Date(startDate) <= next28Days;
+            const startsWithin90Days = startDate && new Date(startDate) <= next90Days;
             const isOngoing = startedAlready && (!endDate || new Date(endDate) > now);
             
-            const shouldInclude = hasNoStartDate || startedAlready || startsWithin28Days || isOngoing;
+            const shouldInclude = hasNoStartDate || startedAlready || startsWithin90Days || isOngoing;
             
             if (startDate) {
               const daysUntilStart = Math.ceil((new Date(startDate) - now) / (1000 * 60 * 60 * 24));
@@ -498,7 +502,7 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
             return shouldInclude;
           });
           
-          console.log(`📋 Filtered to ${immediateRoadworks.length} immediate/near-term roadworks (next 28 days) from ${activeRoadworks.length} active`);
+          console.log(`📋 Filtered to ${immediateRoadworks.length} immediate/near-term roadworks (next 90 days) from ${activeRoadworks.length} active`);
           
           // Sort by urgency: ongoing works first, then by start date
           const sortedWorks = immediateRoadworks.sort((a, b) => {
@@ -517,7 +521,7 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
             return aStart - bStart;
           });
           
-          const alerts = sortedWorks.slice(0, 20).map(work => ({
+          const alerts = sortedWorks.slice(0, 100).map(work => ({ // Increased to 100 alerts (memory optimized)
             id: work.id || work.sm_reference || `streetmanager-${Date.now()}-${Math.random()}`,
             location: work.sm_street_name || work.sm_location_description || work.sm_area_name || 'Unknown location',
             description: work.sm_works_description || work.sm_works_category || 'StreetManager roadworks',
@@ -551,14 +555,45 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
           
           console.log(`✅ Loaded ${alerts.length} immediate/near-term StreetManager alerts for critical planning`);
           
+          // Memory usage monitoring
+          const alertMemoryEstimate = alerts.length * 2; // ~2KB per alert object
+          console.log(`📊 Memory estimate: ~${alertMemoryEstimate}KB for ${alerts.length} alerts (target: <200KB)`);
+          
+          if (alerts.length > 80) {
+            console.log('⚠️ High alert count - monitoring for performance impact');
+          }
+          
           // Debug coordinate extraction success
           const alertsWithCoords = alerts.filter(alert => alert.coordinates && alert.coordinates.length === 2);
           const coordPercentage = alerts.length > 0 ? Math.round((alertsWithCoords.length / alerts.length) * 100) : 0;
           console.log(`📍 Coordinate extraction: ${alertsWithCoords.length}/${alerts.length} alerts (${coordPercentage}%) have precise coordinates`);
           
+          // Debug first alert's coordinate data
+          if (alerts.length > 0) {
+            const firstAlert = alerts[0];
+            console.log('🔍 First alert coordinate debug:', {
+              id: firstAlert.id,
+              location: firstAlert.location,
+              coordinates: firstAlert.coordinates,
+              coordinateSource: firstAlert.coordinateSource,
+              originalCoordinates: firstAlert.originalCoordinates,
+              rawWorkData: {
+                sm_easting: sortedWorks[0]?.sm_easting,
+                sm_northing: sortedWorks[0]?.sm_northing,
+                works_location_coordinates: sortedWorks[0]?.works_location_coordinates,
+                raw_webhook_data: sortedWorks[0]?.raw_webhook_data ? 'present' : 'missing'
+              }
+            });
+          }
+          
           // Log urgency breakdown
           const urgentAlerts = alerts.filter(alert => alert.isUrgent);
-          console.log(`🚨 Urgency breakdown: ${urgentAlerts.length} urgent (next 7 days), ${alerts.length - urgentAlerts.length} near-term (8-28 days)`);
+          console.log(`🚨 Urgency breakdown: ${urgentAlerts.length} urgent (next 7 days), ${alerts.length - urgentAlerts.length} near-term (8-90 days)`);
+          
+          // Performance warnings
+          if (immediateRoadworks.length > 150) {
+            console.warn(`⚠️ High data volume: ${immediateRoadworks.length} roadworks available, showing top 100. Consider tighter filtering for performance.`);
+          }
           
           setCriticalAlertsWithDebug(alerts);
         } else {
@@ -946,10 +981,20 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
 
   // Enhanced map view with multiple providers and embedded modal
   const handleMapView = (alert) => {
-    console.log('🗺️ Enhanced Map view clicked for alert:', alert.id, alert.location, 'Coordinates:', alert.coordinates, 'Source:', alert.coordinateSource);
+    console.log('🗺️ Enhanced Map view clicked for alert:', {
+      id: alert.id,
+      location: alert.location,
+      coordinates: alert.coordinates,
+      coordinateSource: alert.coordinateSource,
+      originalCoordinates: alert.originalCoordinates,
+      coordinateAccuracy: alert.coordinateAccuracy,
+      coordinateError: alert.coordinateError,
+      coordinatePoints: alert.coordinatePoints,
+      fullAlert: alert // Show the entire alert object
+    });
     
     // Check if we have processed coordinates from Street Manager
-    if (alert.coordinates && alert.coordinateSource === 'street_manager_converted') {
+    if (alert.coordinates && alert.coordinateSource && alert.coordinateSource.startsWith('street_manager_converted')) {
       console.log('✅ Using processed Street Manager coordinates with high accuracy');
     } else if (alert.coordinates) {
       console.log('⚠️ Using basic coordinates, accuracy may vary');
@@ -968,26 +1013,45 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
     let lat, lng, searchLocation;
     let coordinateInfo = '';
     
-    // Prioritize Street Manager converted coordinates (highest accuracy)
-    if (alert.coordinates && alert.coordinateSource === 'street_manager_converted') {
-      [lat, lng] = alert.coordinates;
-      coordinateInfo = `📍 HIGH ACCURACY: Street Manager coordinates converted from OSGB36 to WGS84`;
-      coordinateInfo += `\n🗺️ Original: [${alert.originalCoordinates?.easting}, ${alert.originalCoordinates?.northing}] OSGB36`;
-      coordinateInfo += `\n🌍 Converted: [${lat.toFixed(6)}, ${lng.toFixed(6)}] WGS84`;
-      coordinateInfo += `\n📍 Points in LINESTRING: ${alert.coordinatePoints || 1}`;
-    }
-    // Use any other precise coordinates if available
-    else if (alert.coordinates && alert.coordinates.length === 2) {
-      [lat, lng] = alert.coordinates;
-      coordinateInfo = `📍 Coordinates from ${alert.coordinateSource || 'unknown source'}: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-    } 
-    // Fallback to enhanced location search
-    else {
-      searchLocation = enhanceLocationString(alert.location);
-      coordinateInfo = `📍 Location search: ${searchLocation}`;
-      if (alert.coordinateError) {
-        coordinateInfo += `\n⚠️ Coordinate error: ${alert.coordinateError}`;
+    console.log('🗺️ Map URL Generation Debug:', {
+      alertId: alert.id,
+      hasCoordinates: !!alert.coordinates,
+      coordinatesValue: alert.coordinates,
+      coordinateSource: alert.coordinateSource,
+      originalCoordinates: alert.originalCoordinates
+    });
+    
+    // Check for ANY valid coordinates first (prioritize existence over source)
+    if (alert.coordinates && Array.isArray(alert.coordinates) && alert.coordinates.length === 2) {
+      const [latValue, lngValue] = alert.coordinates;
+      
+      // Validate coordinates are reasonable numbers for UK
+      if (typeof latValue === 'number' && typeof lngValue === 'number' && 
+          !isNaN(latValue) && !isNaN(lngValue) &&
+          latValue >= 49 && latValue <= 61 && lngValue >= -8 && lngValue <= 2) {
+        
+        lat = latValue;
+        lng = lngValue;
+        
+        // Determine accuracy based on source
+        if (alert.coordinateSource && alert.coordinateSource.startsWith('street_manager_converted')) {
+          coordinateInfo = `📍 Precise location from Street Manager data`;
+        } else {
+          coordinateInfo = `📍 Approximate location`;
+        }
+        
+        console.log('✅ Using precise coordinates:', { lat, lng, source: alert.coordinateSource });
+      } else {
+        console.warn('⚠️ Invalid coordinate values:', alert.coordinates);
+        lat = lng = null;
       }
+    }
+    
+    // Fallback to enhanced location search if no valid coordinates
+    if (!lat || !lng) {
+      searchLocation = enhanceLocationString(alert.location);
+      coordinateInfo = `📍 Searching by location name\n\n📧 For precise location details:\n• Check roadworks email notifications\n• Visit one.network for full site plans\n• Contact highway authority if needed`;
+      console.log('⚠️ Falling back to location search:', searchLocation);
     }
     
     const urls = {};
@@ -1085,7 +1149,6 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
                 <View style={styles.coordinateDetails}>
                   <Text style={styles.coordinateDetailText}>Latitude: {lat.toFixed(6)}</Text>
                   <Text style={styles.coordinateDetailText}>Longitude: {lng.toFixed(6)}</Text>
-                  <Text style={styles.coordinateDetailText}>Accuracy: {selectedMapAlert.coordinateSource === 'streetmanager_wkt' ? 'High (Street Manager)' : 'Medium'}</Text>
                 </View>
               )}
             </View>
@@ -1097,12 +1160,6 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
               <View style={styles.mapProviderSection}>
                 <Text style={styles.mapProviderSectionTitle}>🌍 Google Maps</Text>
                 <View style={styles.mapProviderButtons}>
-                  <TouchableOpacity 
-                    style={styles.mapProviderButton}
-                    onPress={() => openMapProvider('google', selectedMapAlert)}
-                  >
-                    <Text style={styles.mapProviderButtonText}>📍 Standard View</Text>
-                  </TouchableOpacity>
                   <TouchableOpacity 
                     style={styles.mapProviderButton}
                     onPress={() => openMapProvider('googleSatellite', selectedMapAlert)}
@@ -1118,17 +1175,6 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
                     </TouchableOpacity>
                   )}
                 </View>
-              </View>
-              
-              {/* TomTom Maps */}
-              <View style={styles.mapProviderSection}>
-                <Text style={styles.mapProviderSectionTitle}>🚗 TomTom Maps (Traffic)</Text>
-                <TouchableOpacity 
-                  style={[styles.mapProviderButton, styles.tomtomButton]}
-                  onPress={() => openMapProvider('tomtom', selectedMapAlert)}
-                >
-                  <Text style={styles.mapProviderButtonText}>🚦 View with Live Traffic</Text>
-                </TouchableOpacity>
               </View>
               
               {/* OpenStreetMap */}
@@ -1179,8 +1225,8 @@ const RoadworksManagerDashboard = React.memo(({ onClose }) => {
               <TouchableOpacity 
                 style={styles.mapQuickActionButton}
                 onPress={() => {
-                  // Open the best available map (coordinates -> TomTom for traffic, fallback to Google)
-                  const provider = hasCoordinates ? 'tomtom' : 'google';
+                  // Open the best available map (satellite view for precise coordinates, fallback to OpenStreetMap)
+                  const provider = hasCoordinates ? 'googleSatellite' : 'openstreet';
                   openMapProvider(provider, selectedMapAlert);
                 }}
               >

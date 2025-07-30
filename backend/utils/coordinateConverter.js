@@ -140,62 +140,84 @@ export function osgb36ToWGS84(easting, northing) {
 }
 
 /**
- * Process Street Manager coordinates from webhook data OR direct field
- * @param {Object} roadwork - Roadwork record with works_location_coordinates
+ * Process Street Manager coordinates from multiple sources
+ * @param {Object} roadwork - Roadwork record with coordinate data
  * @returns {Object} Enhanced roadwork with processed coordinates
  */
 export function processStreetManagerCoordinates(roadwork) {
   // Try multiple data sources for coordinates
-  let wktString = null;
+  let coordinateData = null;
   let sourceType = 'none';
   
-  // 1. Try webhook data (original format)
-  if (roadwork.raw_webhook_data?.object_data?.works_location_coordinates) {
-    wktString = roadwork.raw_webhook_data.object_data.works_location_coordinates;
-    sourceType = 'webhook';
-  }
-  // 2. Try direct field (Supabase format)
-  else if (roadwork.works_location_coordinates) {
-    wktString = roadwork.works_location_coordinates;
-    sourceType = 'direct';
+  // 1. Try sm_easting and sm_northing (Supabase direct fields)
+  if (roadwork.sm_easting && roadwork.sm_northing) {
+    const easting = parseFloat(roadwork.sm_easting);
+    const northing = parseFloat(roadwork.sm_northing);
+    if (!isNaN(easting) && !isNaN(northing)) {
+      coordinateData = { easting, northing, type: 'point' };
+      sourceType = 'supabase_point';
+    }
   }
   
-  if (!wktString) {
+  // 2. Try webhook data LINESTRING (original format)
+  if (!coordinateData && roadwork.raw_webhook_data?.object_data?.works_location_coordinates) {
+    coordinateData = { wktString: roadwork.raw_webhook_data.object_data.works_location_coordinates, type: 'linestring' };
+    sourceType = 'webhook_linestring';
+  }
+  
+  // 3. Try direct field LINESTRING (Supabase format)
+  if (!coordinateData && roadwork.works_location_coordinates) {
+    coordinateData = { wktString: roadwork.works_location_coordinates, type: 'linestring' };
+    sourceType = 'direct_linestring';
+  }
+  
+  if (!coordinateData) {
     return {
       ...roadwork,
       coordinates: null,
       coordinateSource: 'none',
-      coordinateError: 'No works_location_coordinates found in webhook data or direct field'
+      coordinateError: 'No coordinate data found in sm_easting/sm_northing, webhook data, or works_location_coordinates field'
     };
   }
   
   try {
-    console.log(`🗺️ Processing coordinates for ${roadwork.sm_reference || roadwork.id} (${sourceType}): ${wktString.substring(0, 50)}...`);
+    console.log(`🗺️ Processing coordinates for ${roadwork.sm_reference || roadwork.id} (${sourceType}):`, coordinateData.type === 'point' ? `[${coordinateData.easting}, ${coordinateData.northing}]` : coordinateData.wktString?.substring(0, 50) + '...');
     
-    // Parse LINESTRING coordinates
-    const osgbCoords = parseWKTLinestring(wktString);
-    if (osgbCoords.length === 0) {
-      return {
-        ...roadwork,
-        coordinates: null,
-        coordinateSource: 'failed_parse',
-        coordinateError: 'Failed to parse LINESTRING coordinates'
-      };
+    let easting, northing, pointsCount = 1;
+    
+    if (coordinateData.type === 'point') {
+      // Direct easting/northing coordinates
+      easting = coordinateData.easting;
+      northing = coordinateData.northing;
+      pointsCount = 1;
+    } else {
+      // LINESTRING coordinates - parse and get centroid
+      const osgbCoords = parseWKTLinestring(coordinateData.wktString);
+      if (osgbCoords.length === 0) {
+        return {
+          ...roadwork,
+          coordinates: null,
+          coordinateSource: 'failed_parse',
+          coordinateError: 'Failed to parse LINESTRING coordinates'
+        };
+      }
+      
+      // Get representative point (centroid for multi-point, first point for single)
+      const centroid = getLinestringCentroid(osgbCoords);
+      if (!centroid) {
+        return {
+          ...roadwork,
+          coordinates: null,
+          coordinateSource: 'failed_centroid',
+          coordinateError: 'Failed to calculate centroid'
+        };
+      }
+      
+      [easting, northing] = centroid;
+      pointsCount = osgbCoords.length;
     }
     
-    // Get representative point (centroid for multi-point, first point for single)
-    const centroid = getLinestringCentroid(osgbCoords);
-    if (!centroid) {
-      return {
-        ...roadwork,
-        coordinates: null,
-        coordinateSource: 'failed_centroid',
-        coordinateError: 'Failed to calculate centroid'
-      };
-    }
-    
-    // Convert to WGS84 lat/lng
-    const [easting, northing] = centroid;
+    // Convert OSGB36 to WGS84 lat/lng
     const wgs84 = osgb36ToWGS84(easting, northing);
     
     if (!wgs84) {
@@ -217,7 +239,7 @@ export function processStreetManagerCoordinates(roadwork) {
       coordinateSource: `street_manager_converted_${sourceType}`,
       coordinateAccuracy: 'high',
       originalCoordinates: { easting, northing },
-      coordinatePoints: osgbCoords.length
+      coordinatePoints: pointsCount
     };
     
   } catch (error) {
