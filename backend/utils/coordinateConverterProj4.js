@@ -1,6 +1,9 @@
 // backend/utils/coordinateConverterProj4.js
 // Professional-grade British National Grid (OSGB36) to WGS84 conversion using proj4
 import proj4 from 'proj4';
+import axios from 'axios';
+import dotenv from 'dotenv';
+dotenv.config();
 
 // Define coordinate reference systems
 proj4.defs([
@@ -149,7 +152,65 @@ export function validateUKCoordinates(lat, lng) {
  * @param {Object} options - Processing options
  * @returns {Object} Enhanced roadwork with processed coordinates
  */
-export function processStreetManagerCoordinates(roadwork, options = {}) {
+/**
+ * Geocode an address using Google Maps Geocoding API
+ * @param {string} address - Address to geocode
+ * @returns {Object|null} { lat, lng } or null if failed
+ */
+export async function geocodeAddress(address) {
+  if (!address || !process.env.GOOGLE_MAPS_API_KEY) {
+    console.warn('No address to geocode or missing Google Maps API key');
+    return null;
+  }
+
+  try {
+    // Clean up the address for better geocoding results
+    const cleanAddress = address
+      .replace(/COUNTY COUNCIL/gi, '')
+      .replace(/COUNCIL/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    console.log(`🔍 Geocoding address: "${cleanAddress}"`);
+
+    const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
+      params: {
+        address: cleanAddress + ', UK',  // Add UK to improve results
+        region: 'uk',  // Bias results to UK
+        key: process.env.GOOGLE_MAPS_API_KEY
+      },
+      timeout: 5000
+    });
+
+    if (response.data.status === 'OK' && response.data.results.length > 0) {
+      const location = response.data.results[0].geometry.location;
+      const formattedAddress = response.data.results[0].formatted_address;
+      
+      console.log(`✅ Geocoded to: ${location.lat}, ${location.lng} (${formattedAddress})`);
+      
+      // Validate UK bounds
+      if (location.lat >= 49.5 && location.lat <= 61 && location.lng >= -8 && location.lng <= 2) {
+        return {
+          lat: location.lat,
+          lng: location.lng,
+          formattedAddress,
+          precision: response.data.results[0].geometry.location_type
+        };
+      } else {
+        console.warn(`Geocoded location outside UK bounds: ${location.lat}, ${location.lng}`);
+        return null;
+      }
+    } else {
+      console.warn(`Geocoding failed: ${response.data.status}`);
+      return null;
+    }
+  } catch (error) {
+    console.error('Geocoding error:', error.message);
+    return null;
+  }
+}
+
+export async function processStreetManagerCoordinates(roadwork, options = {}) {
   // Check if we have cached coordinates first
   if (roadwork.converted_coordinates && !options.forceRecalculate) {
     const cached = roadwork.converted_coordinates;
@@ -202,11 +263,56 @@ export function processStreetManagerCoordinates(roadwork, options = {}) {
   }
   
   if (!coordinateData) {
+    // Try geocoding fallback if we have street information
+    if (roadwork.sm_street_name) {
+      const addressParts = [
+        roadwork.sm_street_name,
+        roadwork.sm_town || roadwork.sm_area,
+        roadwork.sm_highway_authority
+      ].filter(Boolean);
+      
+      const address = addressParts.join(', ');
+      console.log(`🗺️ No coordinates found for ${roadwork.sm_reference || roadwork.id}, attempting geocoding...`);
+      
+      const geocoded = await geocodeAddress(address);
+      if (geocoded) {
+        // Prepare cache data for geocoded results
+        const cacheData = {
+          converted_coordinates: {
+            lat: geocoded.lat,
+            lng: geocoded.lng,
+            accuracy: geocoded.precision === 'ROOFTOP' ? 'high' : 'medium'
+          },
+          coordinate_metadata: {
+            converted_at: new Date().toISOString(),
+            method: 'google_geocoding',
+            source: 'geocoded_fallback',
+            precision: geocoded.precision,
+            confidence: geocoded.precision === 'ROOFTOP' ? 0.9 : 0.7,
+            geocoded_address: geocoded.formattedAddress,
+            verified: false
+          }
+        };
+        
+        return {
+          ...roadwork,
+          coordinates: [geocoded.lat, geocoded.lng],
+          coordinateSource: 'geocoded_fallback',
+          coordinateAccuracy: geocoded.precision === 'ROOFTOP' ? 'high' : 'medium',
+          coordinatePrecision: geocoded.precision,
+          geocodedAddress: geocoded.formattedAddress,
+          coordinateError: null,
+          cacheData: cacheData,
+          shouldUpdateCache: true
+        };
+      }
+    }
+    
     return {
       ...roadwork,
       coordinates: null,
       coordinateSource: 'none',
-      coordinateError: 'No coordinate data found in sm_easting/sm_northing, webhook data, or works_location_coordinates field'
+      coordinateError: 'No coordinate data found and geocoding failed'
     };
   }
   

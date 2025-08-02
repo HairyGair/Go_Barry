@@ -6,12 +6,15 @@ export class CoordinateFallbackProcessor {
   constructor() {
     this.nominatimCache = new Map();
     this.cacheExpiry = 24 * 60 * 60 * 1000; // 24 hours
-    this.geocodingEnabled = process.env.DISABLE_GEOCODING !== 'true'; // Can disable via env var
+    // Disable Nominatim if Google Maps is available or if explicitly disabled
+    this.geocodingEnabled = process.env.DISABLE_GEOCODING !== 'true' && !process.env.GOOGLE_MAPS_API_KEY;
     this.failureCount = 0;
     this.maxFailures = 10; // Disable after 10 consecutive failures
     
     if (!this.geocodingEnabled) {
-      console.log('🚫 Geocoding disabled via DISABLE_GEOCODING environment variable');
+      console.log('🚫 Nominatim geocoding disabled (Google Maps API key detected or DISABLE_GEOCODING set)');
+    } else {
+      console.log('✅ Nominatim geocoding enabled as fallback');
     }
   }
 

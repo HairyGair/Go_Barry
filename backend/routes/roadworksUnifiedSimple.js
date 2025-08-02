@@ -563,7 +563,7 @@ router.get('/unified', async (req, res) => {
     const processedRoadworks = await Promise.all(roadworks.map(async (roadwork) => {
       // First, process coordinates with standard converter (uses proj4 if available)
       let processed = isProj4Available() ? 
-        processStreetManagerCoordinates(roadwork, { forceRecalculate: false }) :
+        await processStreetManagerCoordinates(roadwork, { forceRecalculate: false }) :
         roadwork;
       
       // Validate coordinates to detect defaults/mismatches
@@ -1020,7 +1020,7 @@ router.get('/test-route-impact/:id', async (req, res) => {
     }
     
     // Process coordinates
-    const processed = processStreetManagerCoordinates(roadwork);
+    const processed = await processStreetManagerCoordinates(roadwork);
     
     // Calculate affected routes
     const affectedRoutes = await calculateAffectedRoutes(processed);
@@ -1524,6 +1524,56 @@ router.get('/test-filters', async (req, res) => {
   }
 });
 
+// GET /api/roadworks/debug-geocoding - Check Google Maps geocoding setup
+router.get('/debug-geocoding', async (req, res) => {
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    const googleMapsKey = process.env.GOOGLE_MAPS_API_KEY;
+    
+    // Get a sample roadwork without coordinates
+    const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        'sm_works_state': 'in.(Works planned,Works in progress)',
+        limit: 10
+      }
+    });
+    
+    const roadworks = response.data;
+    const needsGeocoding = roadworks.filter(r => 
+      !r.sm_easting && !r.sm_northing && 
+      !r.works_location_coordinates && 
+      r.sm_street_name
+    );
+    
+    res.json({
+      success: true,
+      hasGoogleMapsKey: !!googleMapsKey,
+      googleMapsKeyLength: googleMapsKey?.length || 0,
+      totalRoadworks: roadworks.length,
+      needsGeocoding: needsGeocoding.length,
+      samples: needsGeocoding.slice(0, 3).map(r => ({
+        id: r.id,
+        street_name: r.sm_street_name,
+        town: r.sm_town,
+        authority: r.sm_highway_authority
+      }))
+    });
+    
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      hasGoogleMapsKey: !!process.env.GOOGLE_MAPS_API_KEY
+    });
+  }
+});
+
 // GET /api/roadworks/test-connection - Simple test to check if we can connect at all
 router.get('/test-connection', async (req, res) => {
   try {
@@ -1673,14 +1723,14 @@ router.get('/this-week', async (req, res) => {
     console.log(`✅ Found ${roadworks.length} roadworks for this week`);
     
     // Process coordinates (simplified for performance)
-    const processedRoadworks = roadworks.map(roadwork => {
-      const processed = processStreetManagerCoordinates(roadwork);
+    const processedRoadworks = await Promise.all(roadworks.map(async (roadwork) => {
+      const processed = await processStreetManagerCoordinates(roadwork);
       return {
         ...processed,
         isThisWeek: true,
         weekCategory: determineWeekCategory(processed.sm_start_date, processed.sm_end_date, startOfWeek, endOfWeek)
       };
-    });
+    }));
     
     res.json({
       success: true,
