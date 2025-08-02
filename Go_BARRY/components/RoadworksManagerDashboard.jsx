@@ -472,8 +472,32 @@ const RoadworksManagerDashboard = ({ onClose }) => {
   // Fetch roadworks data with default 90-day window
   const fetchRoadworks = async () => {
     try {
-      const response = await fetch('https://go-barry.onrender.com/api/roadworks/unified?days=90');
+      console.log('🚧 [RoadworksManagerDashboard] Starting to fetch roadworks...');
+      const url = 'https://go-barry.onrender.com/api/roadworks/unified?days=90';
+      console.log('🌐 [RoadworksManagerDashboard] Fetching from:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        credentials: 'omit' // Don't send cookies cross-origin
+      });
+      
+      console.log('📡 [RoadworksManagerDashboard] Response status:', response.status);
+      console.log('📡 [RoadworksManagerDashboard] Response headers:', response.headers);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
+      console.log('📊 [RoadworksManagerDashboard] Data received:', {
+        success: data.success,
+        dataLength: data.data?.length || 0,
+        hasData: !!data.data
+      });
       
       if (data.success && data.data) {
         const formattedRoadworks = data.data.map(item => ({
@@ -492,11 +516,21 @@ const RoadworksManagerDashboard = ({ onClose }) => {
           coordinateSource: item.coordinateSource || null,
           coordinateAccuracy: item.coordinateAccuracy || null
         }));
+        console.log(`✅ [RoadworksManagerDashboard] Formatted ${formattedRoadworks.length} roadworks`);
         setRoadworks(formattedRoadworks);
         setFilteredRoadworks(formattedRoadworks);
+      } else {
+        console.error('❌ [RoadworksManagerDashboard] No data in response:', data);
+        setError('No roadworks data available');
       }
     } catch (err) {
-      setError('Failed to fetch roadworks data');
+      console.error('❌ [RoadworksManagerDashboard] Fetch error:', err);
+      console.error('❌ [RoadworksManagerDashboard] Error details:', {
+        message: err.message,
+        stack: err.stack,
+        name: err.name
+      });
+      setError(`Failed to fetch roadworks: ${err.message}`);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -534,7 +568,7 @@ const RoadworksManagerDashboard = ({ onClose }) => {
 
     try {
       // Call the permanent delete endpoint
-      const response = await fetch(`https://go-barry.onrender.com/api/roadworks/unified/${roadworkId}`, {
+      const response = await fetch(`https://go-barry.onrender.com/api/roadworks/${roadworkId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -546,6 +580,11 @@ const RoadworksManagerDashboard = ({ onClose }) => {
           notes
         })
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
 
       const data = await response.json();
       
@@ -574,7 +613,15 @@ const RoadworksManagerDashboard = ({ onClose }) => {
       }
     } catch (error) {
       console.error('Failed to delete roadwork:', error);
-      Alert.alert('Error', 'Failed to delete roadwork. Please try again.');
+      console.error('Error details:', {
+        roadworkId,
+        error: error.message,
+        response: error.response
+      });
+      Alert.alert(
+        'Error', 
+        `Failed to delete roadwork: ${error.message}\n\nPlease try again or contact support if the issue persists.`
+      );
     }
   };
 
@@ -747,6 +794,16 @@ const RoadworksManagerDashboard = ({ onClose }) => {
               {item.sm_promoter_organisation || item.sm_promoter_name || 'Unknown Contractor'}
             </Text>
           </View>
+
+          {/* Traffic Management Type */}
+          {item.sm_traffic_management_type && (
+            <View style={styles.trafficManagementRow}>
+              <MaterialCommunityIcons name="traffic-cone" size={20} color="#f59e0b" />
+              <Text style={styles.trafficManagementText}>
+                {item.sm_traffic_management_type}
+              </Text>
+            </View>
+          )}
 
           {/* Affected routes */}
           {item.affectedRoutes && item.affectedRoutes.length > 0 && (
@@ -1047,19 +1104,29 @@ const RoadworksManagerDashboard = ({ onClose }) => {
   const handleDismissConfirm = async () => {
     if (!selectedAlert || !dismissReason) return;
 
+    // Close the modal first
+    setShowDismissModal(false);
+
     // Show confirmation dialog
     Alert.alert(
       'Confirm Permanent Deletion',
       `Are you sure you want to permanently delete this roadwork alert?\n\nLocation: ${selectedAlert.street_name}\nThis action cannot be undone.`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Cancel', 
+          style: 'cancel',
+          onPress: () => {
+            // Reopen the modal if cancelled
+            setShowDismissModal(true);
+          }
+        },
         {
           text: 'Delete Permanently',
           style: 'destructive',
           onPress: async () => {
             await handlePermanentDelete(selectedAlert.id, dismissReason, dismissNotes);
             
-            setShowDismissModal(false);
+            // Clear the form
             setDismissReason('');
             setDismissNotes('');
             setSelectedAlert(null);
@@ -1856,6 +1923,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#a78bfa',
     fontWeight: '500',
+  },
+  trafficManagementRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
+    paddingLeft: 4,
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginHorizontal: -4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.2)',
+  },
+  trafficManagementText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#f59e0b',
+    fontWeight: '600',
   },
   routesSection: {
     marginBottom: 16,
