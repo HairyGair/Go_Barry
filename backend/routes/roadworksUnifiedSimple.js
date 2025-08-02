@@ -6,6 +6,7 @@ import { coordinateFallbackProcessor } from '../utils/coordinateFallbackProcesso
 import { coordinateValidator } from '../utils/coordinateValidator.js';
 import { enrichRoadworkWithWhat3Words } from '../services/what3wordsService.js';
 import { snapRoadworkToRoad } from '../services/snapToRoadService.js';
+import { intelligentCoordinateResolver } from '../services/intelligentCoordinateResolver.js';
 
 const router = express.Router();
 
@@ -560,16 +561,27 @@ router.get('/unified', async (req, res) => {
     
     // Process with coordinate conversion and route impact calculation
     const processedRoadworks = await Promise.all(roadworks.map(async (roadwork) => {
-      // First, process coordinates with standard converter
-      let processed = processStreetManagerCoordinates(roadwork);
+      // First, process coordinates with standard converter (uses proj4 if available)
+      let processed = isProj4Available() ? 
+        processStreetManagerCoordinates(roadwork, { forceRecalculate: false }) :
+        roadwork;
       
       // Validate coordinates to detect defaults/mismatches
       processed = coordinateValidator.processWithValidation(processed);
       
-      // If no coordinates found or validation failed, use enhanced fallback processor
+      // If no coordinates found or validation failed, use intelligent resolver
       if (!processed.coordinates) {
-        processed = await coordinateFallbackProcessor.processRoadworkWithFallbacks(processed);
-        console.log(`🔍 Fallback processing for ${processed.sm_reference}: ${processed.coordinateFallbackStrategy}`);
+        // Try intelligent resolution first (faster, more accurate)
+        processed = await intelligentCoordinateResolver.resolveCoordinates(processed);
+        
+        // If intelligent resolution fails, fall back to basic geocoding
+        if (!processed.coordinates) {
+          processed = await coordinateFallbackProcessor.processRoadworkWithFallbacks(processed);
+        }
+        
+        if (processed.coordinateFallbackStrategy) {
+          console.log(`🔍 Fallback for ${processed.sm_reference}: ${processed.coordinateFallbackStrategy}`);
+        }
       }
       
       // Log coordinate processing results (limit logging for performance)
@@ -1267,6 +1279,96 @@ router.get('/date-distribution', async (req, res) => {
   }
 });
 
+// GET /api/roadworks/test-fetch - Test with native fetch instead of axios
+router.get('/test-fetch', async (req, res) => {
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return res.json({
+        success: false,
+        error: 'Missing Supabase credentials'
+      });
+    }
+    
+    const url = `${supabaseUrl}/rest/v1/streetworks?limit=1`;
+    
+    // Use AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+    
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json'
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      const data = await response.json();
+      
+      res.json({
+        success: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+        dataReceived: Array.isArray(data),
+        recordCount: data?.length || 0
+      });
+      
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      
+      if (fetchError.name === 'AbortError') {
+        res.json({
+          success: false,
+          error: 'Request timed out after 3 seconds',
+          timeout: true
+        });
+      } else {
+        res.json({
+          success: false,
+          error: fetchError.message,
+          errorType: fetchError.name
+        });
+      }
+    }
+    
+  } catch (error) {
+    res.json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET /api/roadworks/check-env - Check environment variables only
+router.get('/check-env', async (req, res) => {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY;
+  
+  res.json({
+    hasUrl: !!supabaseUrl,
+    hasKey: !!supabaseKey,
+    urlFormat: supabaseUrl ? {
+      startsWith: supabaseUrl.substring(0, 8),
+      includes: supabaseUrl.includes('.supabase.co'),
+      length: supabaseUrl.length,
+      preview: supabaseUrl.substring(0, 30) + '...'
+    } : null,
+    keyFormat: supabaseKey ? {
+      length: supabaseKey.length,
+      startsWithCorrect: supabaseKey.startsWith('eyJ'),
+      preview: supabaseKey.substring(0, 10) + '...'
+    } : null
+  });
+});
+
 // GET /api/roadworks/simple-test - Simplest possible test
 router.get('/simple-test', async (req, res) => {
   try {
@@ -1285,12 +1387,14 @@ router.get('/simple-test', async (req, res) => {
     // Simplest possible request - just get 1 record
     const url = `${supabaseUrl}/rest/v1/streetworks?limit=1`;
     
+    console.log('🔍 Testing connection to:', url.substring(0, 50) + '...');
+    
     const response = await axios.get(url, {
       headers: {
         'apikey': supabaseKey,
         'Authorization': `Bearer ${supabaseKey}`
       },
-      timeout: 10000
+      timeout: 5000  // Reduced from 10000 to 5000
     });
     
     res.json({

@@ -1,0 +1,24 @@
+// Optional dependencies to add to backend/package.json
+
+{
+  "dependencies": {
+    // ... existing dependencies ...
+    
+    // REQUIRED for coordinate conversion (if not already installed)
+    "proj4": "^2.11.0",
+    
+    // OPTIONAL for enhanced geocoding
+    // Only add these if you have API keys:
+    // "mapbox": "^1.0.0-beta10",  // If using Mapbox
+    
+    // OPTIONAL for web scraping one.network
+    // These are HEAVY dependencies - only add if really needed:
+    // "puppeteer-core": "^22.0.0",
+    // "@sparticuz/chromium": "^119.0.0"
+  }
+}
+
+// To install just the essentials:
+// npm install proj4
+
+// The system will work great with just proj4!

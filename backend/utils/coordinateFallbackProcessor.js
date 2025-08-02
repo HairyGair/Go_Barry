@@ -1,10 +1,18 @@
 import axios from 'axios';
+import { nominatimRateLimiter } from './rateLimiter.js';
 
 // Enhanced coordinate fallback processor with multiple strategies
 export class CoordinateFallbackProcessor {
   constructor() {
     this.nominatimCache = new Map();
     this.cacheExpiry = 24 * 60 * 60 * 1000; // 24 hours
+    this.geocodingEnabled = process.env.DISABLE_GEOCODING !== 'true'; // Can disable via env var
+    this.failureCount = 0;
+    this.maxFailures = 10; // Disable after 10 consecutive failures
+    
+    if (!this.geocodingEnabled) {
+      console.log('🚫 Geocoding disabled via DISABLE_GEOCODING environment variable');
+    }
   }
 
   /**
@@ -55,7 +63,7 @@ export class CoordinateFallbackProcessor {
 
     // Strategy 4: Geocode from street name with enhancements
     const locationString = this.buildLocationString(roadwork);
-    if (locationString) {
+    if (locationString && this.geocodingEnabled) {
       const geocoded = await this.geocodeWithFallbacks(locationString, roadwork);
       if (geocoded) {
         return {
@@ -283,40 +291,83 @@ export class CoordinateFallbackProcessor {
   }
 
   /**
-   * Geocode using Nominatim
+   * Geocode using Nominatim with rate limiting and error handling
    */
   async geocodeWithNominatim(query) {
+    // Check if geocoding is disabled due to failures
+    if (!this.geocodingEnabled) {
+      console.log('⚠️ Geocoding temporarily disabled due to repeated failures');
+      return null;
+    }
+    
     try {
-      const response = await axios.get('https://nominatim.openstreetmap.org/search', {
-        params: {
-          q: query,
-          format: 'json',
-          limit: 1,
-          countrycodes: 'gb',
-          addressdetails: 1
-        },
-        headers: {
-          'User-Agent': 'Go-BARRY-Traffic-System/1.0'
-        },
-        timeout: 5000
-      });
+      // Use rate limiter to respect Nominatim's 1 request/second limit
+      const result = await nominatimRateLimiter.throttle(async () => {
+        const response = await axios.get('https://nominatim.openstreetmap.org/search', {
+          params: {
+            q: query,
+            format: 'json',
+            limit: 1,
+            countrycodes: 'gb',
+            addressdetails: 1
+          },
+          headers: {
+            'User-Agent': 'Go-BARRY-Traffic-System/1.0'
+          },
+          timeout: 5000 // Reduced from 10000
+        });
 
-      if (response.data && response.data.length > 0) {
-        const result = response.data[0];
-        return {
-          lat: parseFloat(result.lat),
-          lng: parseFloat(result.lon),
-          source: 'nominatim_geocoded',
-          accuracy: this.assessGeocodeAccuracy(result),
-          details: {
-            display_name: result.display_name,
-            type: result.type,
-            importance: result.importance
-          }
-        };
-      }
+        if (response.data && response.data.length > 0) {
+          const result = response.data[0];
+          this.failureCount = 0; // Reset failure count on success
+          
+          // Cache successful result
+          this.nominatimCache.set(query.toLowerCase(), {
+            result: {
+              lat: parseFloat(result.lat),
+              lng: parseFloat(result.lon),
+              source: 'nominatim_geocoded',
+              accuracy: this.assessGeocodeAccuracy(result),
+              details: {
+                display_name: result.display_name,
+                type: result.type,
+                importance: result.importance
+              }
+            },
+            timestamp: Date.now()
+          });
+          
+          return this.nominatimCache.get(query.toLowerCase()).result;
+        }
+        return null;
+      });
+      
+      return result;
     } catch (error) {
-      console.error('Nominatim geocoding error:', error.message);
+      // Don't log every timeout, use exponential backoff
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        console.log('⏱️ Nominatim timeout - using fallback strategies');
+      } else {
+        this.failureCount++;
+        
+        // Log only on first failure or every 10th
+        if (this.failureCount === 1 || this.failureCount % 10 === 0) {
+          console.error(`Nominatim geocoding issues: ${this.failureCount} failures`);
+        }
+      }
+      
+      // Disable geocoding after too many failures
+      if (this.failureCount >= this.maxFailures) {
+        this.geocodingEnabled = false;
+        console.error('🚫 Disabling geocoding due to repeated failures. Will use other strategies.');
+        
+        // Re-enable after 5 minutes
+        setTimeout(() => {
+          this.geocodingEnabled = true;
+          this.failureCount = 0;
+          console.log('✅ Re-enabling geocoding after cooldown');
+        }, 5 * 60 * 1000);
+      }
     }
     return null;
   }
