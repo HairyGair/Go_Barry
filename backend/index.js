@@ -117,11 +117,23 @@ console.log('✅ Core imports completed successfully (lazy loading enabled)');
 // Initialize dotenv
 dotenv.config();
 
-// Environment variable compatibility fix
-// Render uses SUPABASE_SERVICE_ROLE_KEY but code expects SUPABASE_SERVICE_KEY
+// Environment variable compatibility fixes
+// Map various Supabase key names to what the code expects
 if (process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.SUPABASE_SERVICE_KEY) {
   process.env.SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
   console.log('✅ Mapped SUPABASE_SERVICE_ROLE_KEY to SUPABASE_SERVICE_KEY');
+}
+
+// Also map service key to anon key if anon key is missing
+if (!process.env.SUPABASE_ANON_KEY && process.env.SUPABASE_SERVICE_KEY) {
+  process.env.SUPABASE_ANON_KEY = process.env.SUPABASE_SERVICE_KEY;
+  console.log('✅ Mapped SUPABASE_SERVICE_KEY to SUPABASE_ANON_KEY');
+}
+
+// Try service role key as anon key too
+if (!process.env.SUPABASE_ANON_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  process.env.SUPABASE_ANON_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  console.log('✅ Mapped SUPABASE_SERVICE_ROLE_KEY to SUPABASE_ANON_KEY');
 }
 
 /*
@@ -175,9 +187,7 @@ async function registerRoutes() {
   await routeManager.registerRoute(app, '/api/incidents', './routes/incidentAPI.js', 'Incident API');
   await routeManager.registerRoute(app, '/api/incident-alerts', './routes/incidentAlertsAPI.js', 'Incident Alerts API');
   await routeManager.registerRoute(app, '/api/roadworks', './routes/roadworksAPI.js', 'Roadworks API');
-  // Also register unified endpoint under the same base path
-  app.use('/api/roadworks', (await lazyImport('./routes/roadworksUnifiedSimple.js')).default);
-  console.log('✅ Unified Roadworks endpoint also available at /api/roadworks/unified');
+  console.log('✅ Roadworks API includes unified endpoint at /api/roadworks/unified');
   
   // Memory-optimized streaming routes - high priority
   await routeManager.registerRoute(app, '/api/gtfs-optimized', './routes/optimizedGTFSAPI.js', 'Optimized GTFS API');

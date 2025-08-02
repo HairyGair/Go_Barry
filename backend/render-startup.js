@@ -20,6 +20,10 @@ async function testSupabaseConnection() {
   
   try {
     console.log('🔄 Testing Supabase connection...');
+console.log('🔗 SUPABASE_URL exists:', !!process.env.SUPABASE_URL);
+console.log('🔑 SUPABASE_ANON_KEY exists:', !!process.env.SUPABASE_ANON_KEY);
+console.log('🔐 SUPABASE_SERVICE_KEY exists:', !!process.env.SUPABASE_SERVICE_KEY);
+console.log('🔐 SUPABASE_SERVICE_ROLE_KEY exists:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
     const response = await fetch(process.env.SUPABASE_URL + '/rest/v1/', {
       method: 'GET',
       headers: {

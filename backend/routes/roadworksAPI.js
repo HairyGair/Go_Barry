@@ -13,6 +13,12 @@ import historicalCollector from '../services/historicalDataCollector.js';
 
 const router = express.Router();
 
+// Import the unified roadworks handler
+import roadworksUnifiedRouter from './roadworksUnifiedSimple.js';
+
+// Mount the unified roadworks routes (they already have their own paths like /unified, /debug-values, etc.)
+router.use('/', roadworksUnifiedRouter);
+
 // Using Supabase storage for persistence
 let roadworksCounter = 1;
 

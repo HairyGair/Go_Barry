@@ -7,6 +7,22 @@ import { coordinateValidator } from '../utils/coordinateValidator.js';
 
 const router = express.Router();
 
+// GET /api/roadworks/env-check - Check what environment variables are available
+router.get('/env-check', (req, res) => {
+  res.json({
+    success: true,
+    environment: {
+      hasSupabaseUrl: !!process.env.SUPABASE_URL,
+      hasAnonKey: !!process.env.SUPABASE_ANON_KEY,
+      hasServiceKey: !!process.env.SUPABASE_SERVICE_KEY,
+      hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      nodeEnv: process.env.NODE_ENV,
+      renderService: process.env.RENDER_SERVICE_NAME
+    },
+    hint: 'If hasAnonKey is false but others are true, the key mapping might not be working'
+  });
+});
+
 // GET /api/roadworks/debug-coordinate-data - Debug coordinate field availability
 router.get('/debug-coordinate-data', async (req, res) => {
   try {
@@ -254,6 +270,150 @@ router.get('/debug-values', async (req, res) => {
   }
 });
 
+// GET /api/roadworks/debug-raw - Get raw data without filters
+router.get('/debug-raw', async (req, res) => {
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return res.status(500).json({ success: false, error: 'Supabase configuration missing' });
+    }
+    
+    // Get raw data with no filters
+    const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        select: 'id,sm_works_state,sm_start_date,sm_end_date,sm_street_name,sm_location_description,created_at',
+        order: 'created_at.desc',
+        limit: 50
+      },
+      timeout: 10000
+    });
+    
+    const data = response.data;
+    
+    // Analyze the data
+    const states = {};
+    const dateAnalysis = {
+      total: data.length,
+      hasStartDate: 0,
+      futureStart: 0,
+      pastStart: 0,
+      activeNow: 0
+    };
+    
+    const now = new Date();
+    
+    data.forEach(record => {
+      // Count states
+      if (record.sm_works_state) {
+        states[record.sm_works_state] = (states[record.sm_works_state] || 0) + 1;
+      }
+      
+      // Analyze dates
+      if (record.sm_start_date) {
+        dateAnalysis.hasStartDate++;
+        const startDate = new Date(record.sm_start_date);
+        if (startDate > now) {
+          dateAnalysis.futureStart++;
+        } else {
+          dateAnalysis.pastStart++;
+        }
+        
+        // Check if active now
+        if (record.sm_end_date) {
+          const endDate = new Date(record.sm_end_date);
+          if (startDate <= now && endDate >= now) {
+            dateAnalysis.activeNow++;
+          }
+        }
+      }
+    });
+    
+    res.json({
+      success: true,
+      totalRecords: data.length,
+      stateBreakdown: states,
+      dateAnalysis,
+      sampleRecords: data.slice(0, 5).map(r => ({
+        id: r.id,
+        state: r.sm_works_state,
+        startDate: r.sm_start_date,
+        endDate: r.sm_end_date,
+        location: r.sm_street_name || r.sm_location_description,
+        createdAt: r.created_at
+      })),
+      recommendation: dateAnalysis.activeNow === 0 
+        ? 'No currently active roadworks. Consider expanding date range or checking data import.'
+        : `Found ${dateAnalysis.activeNow} active roadworks`
+    });
+    
+  } catch (error) {
+    console.error('Debug raw error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      details: error.response?.data 
+    });
+  }
+});
+
+// GET /api/roadworks/debug-auth - Check Supabase authentication
+router.get('/debug-auth', async (req, res) => {
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    console.log('🔍 Checking Supabase auth...');
+    console.log('URL exists:', !!supabaseUrl);
+    console.log('Key exists:', !!supabaseKey);
+    console.log('Key length:', supabaseKey?.length || 0);
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return res.json({
+        success: false,
+        error: 'Missing credentials',
+        hasUrl: !!supabaseUrl,
+        hasKey: !!supabaseKey
+      });
+    }
+    
+    // Try a simple query
+    const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        limit: 1
+      },
+      timeout: 10000
+    });
+    
+    res.json({
+      success: true,
+      message: 'Supabase connection successful',
+      recordCount: response.data.length,
+      status: response.status
+    });
+    
+  } catch (error) {
+    console.error('Auth check error:', error.response?.data || error.message);
+    res.json({
+      success: false,
+      error: error.message,
+      status: error.response?.status,
+      details: error.response?.data
+    });
+  }
+});
+
 // GET /api/roadworks/unified - Get all roadworks from Supabase streetworks table using axios
 router.get('/unified', async (req, res) => {
   try {
@@ -279,6 +439,8 @@ router.get('/unified', async (req, res) => {
     
     console.log(`🗄️ Fetching roadworks for ${days} day window`);
     console.log(`📊 Date range: ${pastDate.toISOString()} to ${futureDate.toISOString()}`);
+    console.log(`🔗 Supabase URL: ${supabaseUrl}`);
+    console.log(`🔑 API Key length: ${supabaseKey?.length || 0}`);
     
     let roadworks = [];
     
@@ -306,6 +468,18 @@ router.get('/unified', async (req, res) => {
       
     } catch (error) {
       console.error('❌ Error fetching roadworks:', error.message);
+      console.error('📝 Error details:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        headers: error.response?.headers
+      });
+      
+      // If it's a 401, it's likely an auth issue
+      if (error.response?.status === 401) {
+        console.error('🔒 Authentication failed - check SUPABASE_URL and SUPABASE_ANON_KEY environment variables');
+      }
+      
       roadworks = [];
     }
     
@@ -667,6 +841,84 @@ router.get('/debug-coordinate-validation', async (req, res) => {
   } catch (error) {
     console.error('❌ Debug coordinate validation error:', error);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/roadworks/test-connection - Simple test to check if we can connect at all
+router.get('/test-connection', async (req, res) => {
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    // Step 1: Check env vars
+    if (!supabaseUrl || !supabaseKey) {
+      return res.json({
+        success: false,
+        step: 'env_check',
+        error: 'Missing environment variables',
+        hasUrl: !!supabaseUrl,
+        hasKey: !!supabaseKey,
+        urlPrefix: supabaseUrl ? supabaseUrl.substring(0, 30) + '...' : 'NOT SET',
+        keyLength: supabaseKey?.length || 0
+      });
+    }
+    
+    // Step 2: Try to connect with no filters
+    let response;
+    try {
+      response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'count=exact'
+        },
+        params: {
+          limit: 1
+        },
+        timeout: 10000
+      });
+    } catch (axiosError) {
+      return res.json({
+        success: false,
+        step: 'connection',
+        error: axiosError.message,
+        status: axiosError.response?.status,
+        statusText: axiosError.response?.statusText,
+        responseData: axiosError.response?.data,
+        hint: axiosError.response?.status === 401 
+          ? 'Invalid API key - check SUPABASE_ANON_KEY in Render environment variables'
+          : 'Connection failed - check SUPABASE_URL in Render environment variables'
+      });
+    }
+    
+    // Step 3: Check the response
+    const totalCount = response.headers['content-range']?.split('/')[1] || 'unknown';
+    
+    res.json({
+      success: true,
+      message: 'Connection successful!',
+      totalRecordsInTable: totalCount,
+      sampleRecord: response.data[0] ? {
+        hasData: true,
+        id: response.data[0].id,
+        state: response.data[0].sm_works_state,
+        location: response.data[0].sm_street_name || response.data[0].sm_location_description
+      } : {
+        hasData: false,
+        message: 'Table exists but is empty'
+      },
+      nextSteps: totalCount === '0' 
+        ? 'The streetworks table is empty. Check if data is being imported from Street Manager.'
+        : 'Connection works! Check /api/roadworks/debug-raw to see why /unified might return empty.'
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      step: 'unexpected_error',
+      error: error.message
+    });
   }
 });
 
