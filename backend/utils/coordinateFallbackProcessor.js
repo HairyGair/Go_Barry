@@ -81,14 +81,14 @@ export class CoordinateFallbackProcessor {
     }
 
     // Strategy 5: Highway authority area centroid
-    const authorityCoords = this.getHighwayAuthorityCoordinates(roadwork.sm_highway_authority);
+    const authorityCoords = this.getHighwayAuthorityCoordinates(roadwork.sm_highway_authority, roadwork);
     if (authorityCoords) {
       return {
         ...roadwork,
         coordinates: authorityCoords.coordinates,
-        coordinateSource: 'highway_authority_area',
-        coordinateAccuracy: 'low',
-        coordinateFallbackStrategy: 'authority_area_centroid',
+        coordinateSource: authorityCoords.source || 'highway_authority_area',
+        coordinateAccuracy: authorityCoords.accuracy || 'low',
+        coordinateFallbackStrategy: authorityCoords.strategy || 'authority_area_centroid',
         areaRadius: authorityCoords.radius
       };
     }
@@ -391,7 +391,7 @@ export class CoordinateFallbackProcessor {
   /**
    * Get highway authority area coordinates
    */
-  getHighwayAuthorityCoordinates(authority) {
+  getHighwayAuthorityCoordinates(authority, roadwork) {
     const authorityCoordinates = {
       'NEWCASTLE CITY COUNCIL': { coordinates: [54.9783, -1.6178], radius: 8000 },
       'GATESHEAD COUNCIL': { coordinates: [54.9527, -1.6035], radius: 7000 },
@@ -402,6 +402,38 @@ export class CoordinateFallbackProcessor {
       'NORTHUMBERLAND COUNTY COUNCIL': { coordinates: [55.2083, -1.6910], radius: 30000 },
       // Add more authorities as needed
     };
+    
+    // Special handling for known areas that might be misattributed
+    const locationOverrides = {
+      'WALKERGATE': { coordinates: [54.9783, -1.5641], radius: 2000 }, // Walkergate, Newcastle
+      'WALKER': { coordinates: [54.9744, -1.5513], radius: 2000 }, // Walker, Newcastle
+      'BYKER': { coordinates: [54.9748, -1.5752], radius: 2000 }, // Byker, Newcastle
+      'HEATON': { coordinates: [54.9883, -1.5825], radius: 2000 }, // Heaton, Newcastle
+      'WALLSEND': { coordinates: [54.9910, -1.5340], radius: 3000 }, // Wallsend
+      'GOSFORTH': { coordinates: [55.0074, -1.6238], radius: 3000 }, // Gosforth
+      'JESMOND': { coordinates: [54.9897, -1.6045], radius: 2000 } // Jesmond
+    };
+    
+    // Check if roadwork location matches any known areas
+    if (roadwork) {
+      const locationText = (
+        (roadwork.sm_street_name || '') + ' ' + 
+        (roadwork.sm_location_description || '') + ' ' +
+        (roadwork.sm_town || '')
+      ).toUpperCase();
+      
+      for (const [area, coords] of Object.entries(locationOverrides)) {
+        if (locationText.includes(area)) {
+          console.log(`📍 Found known area '${area}' in roadwork location`);
+          return {
+            ...coords,
+            source: 'known_area_override',
+            accuracy: 'medium',
+            strategy: `known_area_${area.toLowerCase()}`
+          };
+        }
+      }
+    }
     
     const normalized = this.normalizeAuthorityName(authority);
     return authorityCoordinates[normalized] || null;

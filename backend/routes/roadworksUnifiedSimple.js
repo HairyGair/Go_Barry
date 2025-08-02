@@ -1524,6 +1524,66 @@ router.get('/test-filters', async (req, res) => {
   }
 });
 
+// GET /api/roadworks/debug-specific - Debug a specific roadwork by ID or location
+router.get('/debug-specific', async (req, res) => {
+  try {
+    const { search } = req.query;
+    if (!search) {
+      return res.json({ error: 'Please provide ?search=walkergate or ?search=ID' });
+    }
+
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    // Search for the roadwork
+    const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        'or': `(sm_street_name.ilike.%${search}%,sm_location_description.ilike.%${search}%,id.eq.${search})`,
+        limit: 10
+      }
+    });
+    
+    const roadworks = response.data;
+    
+    res.json({
+      success: true,
+      searchTerm: search,
+      found: roadworks.length,
+      roadworks: roadworks.map(r => ({
+        id: r.id,
+        street_name: r.sm_street_name,
+        location_description: r.sm_location_description,
+        town: r.sm_town,
+        area: r.sm_area,
+        highway_authority: r.sm_highway_authority,
+        permit_ref: r.sm_permit_reference,
+        has_coordinates: {
+          easting_northing: !!(r.sm_easting && r.sm_northing),
+          works_location: !!r.works_location_coordinates,
+          raw_webhook: !!r.raw_webhook_data
+        },
+        coordinates_raw: {
+          sm_easting: r.sm_easting,
+          sm_northing: r.sm_northing,
+          works_location_coordinates: r.works_location_coordinates ? 
+            r.works_location_coordinates.substring(0, 100) + '...' : null
+        }
+      }))
+    });
+    
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message
+    });
+  }
+});
+
 // GET /api/roadworks/debug-geocoding - Check Google Maps geocoding setup
 router.get('/debug-geocoding', async (req, res) => {
   try {
