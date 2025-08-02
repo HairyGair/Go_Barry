@@ -4,6 +4,8 @@ import { processStreetManagerCoordinates, isProj4Available } from '../utils/coor
 import { calculateAffectedRoutes, formatAffectedRoutesSummary } from '../utils/routeImpactCalculator.js';
 import { coordinateFallbackProcessor } from '../utils/coordinateFallbackProcessor.js';
 import { coordinateValidator } from '../utils/coordinateValidator.js';
+import { enrichRoadworkWithWhat3Words } from '../services/what3wordsService.js';
+import { snapRoadworkToRoad } from '../services/snapToRoadService.js';
 
 const router = express.Router();
 
@@ -481,11 +483,23 @@ router.get('/unified', async (req, res) => {
       });
       console.log('🏷️ State filter:', 'Works planned, Works in progress');
       
+      // Get ALL roadworks, ordered by proximity to current date
+      // This ensures we get current/this week's roadworks first
       const requestParams = {
         'sm_works_state': 'in.(Works planned,Works in progress)',
-        order: 'sm_start_date.desc',
-        limit: 300
+        // Order by start date ascending to get current/upcoming works first
+        order: 'sm_start_date.asc',
+        // Increase limit to get ALL roadworks - adjust based on your Supabase plan
+        limit: 2000  // Increased from 300 to capture all roadworks
       };
+      
+      // Add date filter to focus on relevant timeframe
+      // Get roadworks from 30 days ago to 120 days in future
+      const dateFrom = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000)).toISOString();
+      const dateTo = new Date(now.getTime() + (120 * 24 * 60 * 60 * 1000)).toISOString();
+      
+      // Add date range to params
+      requestParams['sm_start_date'] = `gte.${dateFrom},lte.${dateTo}`;
       
       console.log('📤 Request params:', requestParams);
       console.log('🅰️ Making request to:', `${supabaseUrl}/rest/v1/streetworks`);
@@ -630,7 +644,7 @@ router.get('/unified', async (req, res) => {
           to: futureDate.toISOString(),
           days: days
         },
-        limit: 500,
+        limit: 2000,  // Actual limit used in query
         coordinateProcessing: {
           total: coordinateStats.total,
           successful: coordinateStats.withCoordinates,
@@ -1113,6 +1127,148 @@ router.get('/debug-coordinate-validation', async (req, res) => {
   }
 });
 
+// GET /api/roadworks/date-distribution - Analyze roadworks distribution by date
+router.get('/date-distribution', async (req, res) => {
+  try {
+    console.log('📈 Analyzing roadworks date distribution...');
+    
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return res.status(500).json({ success: false, error: 'Supabase configuration missing' });
+    }
+    
+    // Get ALL roadworks to analyze distribution
+    const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        'sm_works_state': 'in.(Works planned,Works in progress)',
+        select: 'id,sm_start_date,sm_end_date,sm_works_state',
+        order: 'sm_start_date.asc',
+        limit: 1000
+      },
+      timeout: 30000
+    });
+    
+    const roadworks = response.data;
+    const now = new Date();
+    const distribution = {
+      total: roadworks.length,
+      byTimeframe: {
+        past: 0,
+        thisWeek: 0,
+        nextWeek: 0,
+        thisMonth: 0,
+        next30Days: 0,
+        next90Days: 0,
+        beyond90Days: 0
+      },
+      byState: {
+        inProgress: 0,
+        planned: 0
+      },
+      missingDates: {
+        noStartDate: 0,
+        noEndDate: 0,
+        noDates: 0
+      }
+    };
+    
+    // Calculate week boundaries
+    const startOfWeek = new Date(now);
+    const dayOfWeek = now.getDay();
+    startOfWeek.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+    
+    const endOfNextWeek = new Date(endOfWeek);
+    endOfNextWeek.setDate(endOfWeek.getDate() + 7);
+    
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const next30Days = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
+    const next90Days = new Date(now.getTime() + (90 * 24 * 60 * 60 * 1000));
+    
+    roadworks.forEach(work => {
+      // State distribution
+      if (work.sm_works_state === 'Works in progress') {
+        distribution.byState.inProgress++;
+      } else if (work.sm_works_state === 'Works planned') {
+        distribution.byState.planned++;
+      }
+      
+      // Date analysis
+      if (!work.sm_start_date && !work.sm_end_date) {
+        distribution.missingDates.noDates++;
+        return;
+      }
+      if (!work.sm_start_date) {
+        distribution.missingDates.noStartDate++;
+        return;
+      }
+      if (!work.sm_end_date) {
+        distribution.missingDates.noEndDate++;
+        return;
+      }
+      
+      const startDate = new Date(work.sm_start_date);
+      const endDate = new Date(work.sm_end_date);
+      
+      // Timeframe analysis
+      if (endDate < now) {
+        distribution.byTimeframe.past++;
+      } else if (startDate <= endOfWeek && endDate >= startOfWeek) {
+        distribution.byTimeframe.thisWeek++;
+      } else if (startDate <= endOfNextWeek && endDate >= endOfWeek) {
+        distribution.byTimeframe.nextWeek++;
+      } else if (startDate <= endOfMonth) {
+        distribution.byTimeframe.thisMonth++;
+      } else if (startDate <= next30Days) {
+        distribution.byTimeframe.next30Days++;
+      } else if (startDate <= next90Days) {
+        distribution.byTimeframe.next90Days++;
+      } else {
+        distribution.byTimeframe.beyond90Days++;
+      }
+    });
+    
+    res.json({
+      success: true,
+      analysis: distribution,
+      dateRanges: {
+        now: now.toISOString(),
+        thisWeek: {
+          start: startOfWeek.toISOString(),
+          end: endOfWeek.toISOString()
+        },
+        nextWeek: {
+          start: endOfWeek.toISOString(),
+          end: endOfNextWeek.toISOString()
+        }
+      },
+      recommendations: {
+        thisWeekEmpty: distribution.byTimeframe.thisWeek === 0 
+          ? 'No roadworks found for this week. Check date filters and data import.'
+          : `${distribution.byTimeframe.thisWeek} roadworks active this week`,
+        dataMissing: (distribution.missingDates.noDates + distribution.missingDates.noEndDate) > 0
+          ? `${distribution.missingDates.noDates + distribution.missingDates.noEndDate} roadworks missing date information`
+          : 'All roadworks have complete date information'
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Date distribution error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // GET /api/roadworks/test-connection - Simple test to check if we can connect at all
 router.get('/test-connection', async (req, res) => {
   try {
@@ -1190,5 +1346,128 @@ router.get('/test-connection', async (req, res) => {
     });
   }
 });
+
+// GET /api/roadworks/this-week - Get roadworks for the current week
+router.get('/this-week', async (req, res) => {
+  try {
+    console.log('📅 Fetching roadworks for this week...');
+    
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return res.status(500).json({
+        success: false,
+        error: 'Supabase configuration missing',
+        data: []
+      });
+    }
+    
+    // Calculate this week's date range
+    const now = new Date();
+    const dayOfWeek = now.getDay();
+    const startOfWeek = new Date(now);
+    const endOfWeek = new Date(now);
+    
+    // Get Monday of this week
+    startOfWeek.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+    startOfWeek.setHours(0, 0, 0, 0);
+    
+    // Get Sunday of this week
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+    
+    console.log('📆 Week range:', {
+      start: startOfWeek.toISOString(),
+      end: endOfWeek.toISOString()
+    });
+    
+    // Query for roadworks that are active or starting this week
+    const requestParams = {
+      'sm_works_state': 'in.(Works planned,Works in progress)',
+      // Get works that start before end of week AND end after start of week
+      'sm_start_date': `lte.${endOfWeek.toISOString()}`,
+      'sm_end_date': `gte.${startOfWeek.toISOString()}`,
+      order: 'sm_start_date.asc',
+      limit: 500  // Should be plenty for one week
+    };
+    
+    const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json'
+      },
+      params: requestParams,
+      timeout: 30000
+    });
+    
+    let roadworks = response.data;
+    
+    // Additional filtering to ensure they're actually active this week
+    roadworks = roadworks.filter(work => {
+      if (!work.sm_start_date || !work.sm_end_date) return false;
+      
+      const startDate = new Date(work.sm_start_date);
+      const endDate = new Date(work.sm_end_date);
+      
+      // Check if the work overlaps with this week
+      return startDate <= endOfWeek && endDate >= startOfWeek;
+    });
+    
+    console.log(`✅ Found ${roadworks.length} roadworks for this week`);
+    
+    // Process coordinates (simplified for performance)
+    const processedRoadworks = roadworks.map(roadwork => {
+      const processed = processStreetManagerCoordinates(roadwork);
+      return {
+        ...processed,
+        isThisWeek: true,
+        weekCategory: determineWeekCategory(processed.sm_start_date, processed.sm_end_date, startOfWeek, endOfWeek)
+      };
+    });
+    
+    res.json({
+      success: true,
+      data: processedRoadworks,
+      metadata: {
+        count: processedRoadworks.length,
+        weekRange: {
+          start: startOfWeek.toISOString(),
+          end: endOfWeek.toISOString()
+        },
+        categories: {
+          startingThisWeek: processedRoadworks.filter(r => r.weekCategory === 'starting').length,
+          ongoingThisWeek: processedRoadworks.filter(r => r.weekCategory === 'ongoing').length,
+          endingThisWeek: processedRoadworks.filter(r => r.weekCategory === 'ending').length
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Error fetching this week roadworks:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message,
+      data: [] 
+    });
+  }
+});
+
+// Helper function to categorize roadworks within the week
+function determineWeekCategory(startDateStr, endDateStr, weekStart, weekEnd) {
+  if (!startDateStr || !endDateStr) return 'unknown';
+  
+  const startDate = new Date(startDateStr);
+  const endDate = new Date(endDateStr);
+  
+  if (startDate >= weekStart && startDate <= weekEnd) {
+    return 'starting';  // Starts this week
+  } else if (endDate >= weekStart && endDate <= weekEnd) {
+    return 'ending';    // Ends this week
+  } else {
+    return 'ongoing';   // Ongoing through the week
+  }
+}
 
 export default router;

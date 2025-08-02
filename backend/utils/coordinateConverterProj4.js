@@ -143,12 +143,38 @@ export function validateUKCoordinates(lat, lng) {
 }
 
 /**
- * Process Street Manager coordinates from multiple sources
- * Enhanced version with proj4 conversion and better error handling
+ * Process Street Manager coordinates from multiple sources with caching
+ * Enhanced version with proj4 conversion, caching, and better error handling
  * @param {Object} roadwork - Roadwork record with coordinate data
+ * @param {Object} options - Processing options
  * @returns {Object} Enhanced roadwork with processed coordinates
  */
-export function processStreetManagerCoordinates(roadwork) {
+export function processStreetManagerCoordinates(roadwork, options = {}) {
+  // Check if we have cached coordinates first
+  if (roadwork.converted_coordinates && !options.forceRecalculate) {
+    const cached = roadwork.converted_coordinates;
+    const metadata = roadwork.coordinate_metadata || {};
+    
+    // Use cached coordinates if they're recent (within 30 days)
+    const cacheAge = metadata.converted_at ? 
+      (Date.now() - new Date(metadata.converted_at).getTime()) / (1000 * 60 * 60 * 24) : 
+      Infinity;
+      
+    if (cacheAge < 30 && cached.lat && cached.lng) {
+      console.log(`📦 Using cached coordinates for ${roadwork.sm_reference || roadwork.id}`);
+      return {
+        ...roadwork,
+        coordinates: [cached.lat, cached.lng],
+        coordinateSource: metadata.source || 'cached',
+        coordinateAccuracy: cached.accuracy || 'high',
+        coordinatePrecision: metadata.precision || '1.1cm',
+        coordinateMetadata: metadata,
+        cacheHit: true
+      };
+    }
+  }
+  
+  // Original processing logic continues...
   // Try multiple data sources for coordinates
   let coordinateData = null;
   let sourceType = 'none';
@@ -271,6 +297,26 @@ export function processStreetManagerCoordinates(roadwork) {
       }).filter(Boolean);
     }
     
+    // Prepare cache data
+    const cacheData = {
+      converted_coordinates: {
+        lat: latitude,
+        lng: longitude,
+        accuracy: 'high'
+      },
+      coordinate_metadata: {
+        converted_at: new Date().toISOString(),
+        method: 'proj4_osgb36_wgs84',
+        source: `street_manager_converted_${sourceType}`,
+        precision: '1.1cm',
+        confidence: 0.95,
+        points_count: pointsCount,
+        has_all_points: !!allWgs84Points,
+        representative_type: pointsCount > 2 ? 'middle' : 'first',
+        verified: false
+      }
+    };
+    
     return {
       ...roadwork,
       coordinates: [latitude, longitude],
@@ -281,7 +327,9 @@ export function processStreetManagerCoordinates(roadwork) {
       coordinatePoints: pointsCount,
       coordinateBoundingBox: boundingBox,
       allCoordinatePoints: allWgs84Points, // All converted points for linestrings
-      representativePointType: pointsCount > 2 ? 'middle' : 'first'
+      representativePointType: pointsCount > 2 ? 'middle' : 'first',
+      cacheData: cacheData, // Include cache data for storage
+      shouldUpdateCache: true
     };
     
   } catch (error) {
