@@ -447,6 +447,21 @@ router.get('/unified', async (req, res) => {
     try {
       // Get roadworks within date range - single request with reasonable limit
       console.log('🔍 Fetching roadworks within date range...');
+      console.log('📅 Date filter:', {
+        from: pastDate.toISOString(),
+        to: futureDate.toISOString(),
+        daysRange: days
+      });
+      console.log('🏷️ State filter:', 'Works planned, Works in progress');
+      
+      const requestParams = {
+        'sm_works_state': 'in.(Works planned,Works in progress)',
+        // 'sm_start_date': `gte.${pastDate.toISOString()},lte.${futureDate.toISOString()}`,
+        order: 'sm_start_date.asc',
+        limit: 500
+      };
+      
+      console.log('📤 Request params:', requestParams);
       
       const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
         headers: {
@@ -454,17 +469,17 @@ router.get('/unified', async (req, res) => {
           'Authorization': `Bearer ${supabaseKey}`,
           'Content-Type': 'application/json'
         },
-        params: {
-          'sm_works_state': 'in.(Works planned,Works in progress)',
-          'sm_start_date': `gte.${pastDate.toISOString()},lte.${futureDate.toISOString()}`,
-          order: 'sm_start_date.asc',
-          limit: 500 // Reasonable limit to prevent memory issues
-        },
+        params: requestParams,
         timeout: 30000
       });
       
       roadworks = response.data;
       console.log(`✅ Found ${roadworks.length} roadworks in date range`);
+      console.log('🔍 First few results:', roadworks.slice(0, 3).map(r => ({
+        state: r.sm_works_state,
+        location: r.sm_street_name,
+        dates: `${r.sm_start_date} to ${r.sm_end_date}`
+      })));
       
     } catch (error) {
       console.error('❌ Error fetching roadworks:', error.message);
