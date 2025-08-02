@@ -38,14 +38,16 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
         source: 'none',
         uncertainty: 'high',
         zoomLevel: 12,
-        markerStyle: 'search'
+        markerStyle: 'search',
+        precision: 'unknown'
       };
     }
 
     const coordinateSource = roadwork.coordinateSource || 'unknown';
     const coordinateAccuracy = roadwork.coordinateAccuracy;
+    const coordinatePrecision = roadwork.coordinatePrecision || 'unknown';
     
-    // High precision GPS coordinates
+    // High precision GPS coordinates - now with proj4 conversion
     if (coordinateSource === 'gps' || coordinateSource === 'survey' || 
         coordinateSource === 'street_manager_precise' || coordinateAccuracy === 'high' ||
         coordinateSource.startsWith('street_manager_converted')) {
@@ -53,8 +55,9 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
         quality: 'high',
         source: coordinateSource,
         uncertainty: 'low',
-        zoomLevel: 17,
-        markerStyle: 'precise'
+        zoomLevel: 18, // Increased zoom for higher precision
+        markerStyle: 'precise',
+        precision: coordinatePrecision
       };
     }
     
@@ -244,7 +247,7 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
             </Text>
             <Text style={styles.headerSubtitle}>
               {hasValidCoordinates 
-                ? `${coordinates[1].toFixed(4)}, ${coordinates[0].toFixed(4)} (${coordinateQuality.quality} quality)`
+                ? `${coordinates[1].toFixed(7)}, ${coordinates[0].toFixed(7)} (${coordinateQuality.quality} quality)`
                 : roadwork?.geocodingAttempted 
                   ? 'Geocoding attempted - showing general area'
                   : roadwork?.coordinateFallbackStrategy === 'highway_authority_area'
@@ -337,10 +340,14 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
                        '#6b7280' }
             ]}>
               {
-                coordinateQuality.quality === 'high' ? 'Precise GPS coordinates' :
-                coordinateQuality.quality === 'medium' ? 'Approximate location from geocoding' :
-                coordinateQuality.quality === 'low' ? 'Coordinates may be inaccurate' :
-                roadwork?.geocodingError ? 'Geocoding failed - showing regional area' :
+                coordinateQuality.quality === 'high' ? 
+                  `Precise GPS coordinates${roadwork?.coordinatePrecision ? ` (${roadwork.coordinatePrecision} precision)` : ''}${roadwork?.coordinatePoints > 1 ? ` - ${roadwork.coordinatePoints} point${roadwork.coordinatePoints > 1 ? 's' : ''} mapped${roadwork?.representativePointType ? `, showing ${roadwork.representativePointType} point` : ''}` : ''}` :
+                coordinateQuality.quality === 'medium' ? 
+                  `Approximate location from geocoding${roadwork?.coordinatePoints > 1 ? ` (${roadwork.coordinatePoints} points)` : ''}` :
+                coordinateQuality.quality === 'low' ? 
+                  'Coordinates may be inaccurate' :
+                roadwork?.geocodingError ? 
+                  'Geocoding failed - showing regional area' :
                 'No coordinates available'
               }
             </Text>

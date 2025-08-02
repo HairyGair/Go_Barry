@@ -1,11 +1,18 @@
 import express from 'express';
 import axios from 'axios';
-import { processStreetManagerCoordinates } from '../utils/coordinateConverter.js';
+import { processStreetManagerCoordinates, isProj4Available } from '../utils/coordinateConverterProj4.js';
 import { calculateAffectedRoutes, formatAffectedRoutesSummary } from '../utils/routeImpactCalculator.js';
 import { coordinateFallbackProcessor } from '../utils/coordinateFallbackProcessor.js';
 import { coordinateValidator } from '../utils/coordinateValidator.js';
 
 const router = express.Router();
+
+// Check if proj4 is available for enhanced coordinate conversion
+if (isProj4Available()) {
+  console.log('✅ Proj4 coordinate conversion available - using professional-grade OSGB36→WGS84 transformation');
+} else {
+  console.warn('⚠️ Proj4 not available - using fallback coordinate conversion');
+}
 
 // GET /api/roadworks/check-dates - Debug date filtering
 router.get('/check-dates', (req, res) => {
@@ -555,7 +562,7 @@ router.get('/unified', async (req, res) => {
       
       // Log coordinate processing results (limit logging for performance)
       if (roadworks.length < 100 && processed.coordinates) {
-        console.log(`✅ ${processed.sm_reference}: [${processed.coordinates[0].toFixed(6)}, ${processed.coordinates[1].toFixed(6)}]`);
+        console.log(`✅ ${processed.sm_reference}: [${processed.coordinates[0].toFixed(7)}, ${processed.coordinates[1].toFixed(7)}]`);
       } else if (roadworks.length < 100 && !processed.coordinates) {
         console.log(`⚠️ ${processed.sm_reference}: No valid coordinates - ${processed.coordinateValidation?.reason || 'unknown reason'}`);
       }
