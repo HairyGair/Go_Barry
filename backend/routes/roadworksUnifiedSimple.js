@@ -487,19 +487,11 @@ router.get('/unified', async (req, res) => {
       // This ensures we get current/this week's roadworks first
       const requestParams = {
         'sm_works_state': 'in.(Works planned,Works in progress)',
-        // Order by start date ascending to get current/upcoming works first
-        order: 'sm_start_date.asc',
-        // Increase limit to get ALL roadworks - adjust based on your Supabase plan
         limit: 2000  // Increased from 300 to capture all roadworks
       };
       
-      // Add date filter to focus on relevant timeframe
-      // Get roadworks from 30 days ago to 120 days in future
-      const dateFrom = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000)).toISOString();
-      const dateTo = new Date(now.getTime() + (120 * 24 * 60 * 60 * 1000)).toISOString();
-      
-      // Add date range to params
-      requestParams['sm_start_date'] = `gte.${dateFrom},lte.${dateTo}`;
+      // Note: Temporarily removed order parameter to test if it's causing issues
+      // Will add back if tests pass
       
       console.log('📤 Request params:', requestParams);
       console.log('🅰️ Making request to:', `${supabaseUrl}/rest/v1/streetworks`);
@@ -526,7 +518,13 @@ router.get('/unified', async (req, res) => {
           message: axiosError.message,
           code: axiosError.code,
           status: axiosError.response?.status,
-          data: axiosError.response?.data
+          statusText: axiosError.response?.statusText,
+          data: axiosError.response?.data,
+          requestParams: requestParams,
+          requestHeaders: {
+            'apikey': supabaseKey ? 'SET (hidden)' : 'NOT SET',
+            'Authorization': supabaseKey ? 'Bearer (hidden)' : 'NOT SET'
+          }
         });
         throw axiosError;
       }
@@ -1265,6 +1263,159 @@ router.get('/date-distribution', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Date distribution error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/roadworks/simple-test - Simplest possible test
+router.get('/simple-test', async (req, res) => {
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return res.json({
+        success: false,
+        error: 'Missing Supabase credentials',
+        hasUrl: !!supabaseUrl,
+        hasKey: !!supabaseKey
+      });
+    }
+    
+    // Simplest possible request - just get 1 record
+    const url = `${supabaseUrl}/rest/v1/streetworks?limit=1`;
+    
+    const response = await axios.get(url, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`
+      },
+      timeout: 10000
+    });
+    
+    res.json({
+      success: true,
+      status: response.status,
+      dataReceived: Array.isArray(response.data),
+      recordCount: response.data?.length || 0,
+      firstRecord: response.data?.[0] ? {
+        hasId: !!response.data[0].id,
+        hasState: !!response.data[0].sm_works_state,
+        state: response.data[0].sm_works_state,
+        hasLocation: !!response.data[0].sm_street_name
+      } : null
+    });
+    
+  } catch (error) {
+    res.json({
+      success: false,
+      error: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      responseData: error.response?.data
+    });
+  }
+});
+
+// GET /api/roadworks/test-filters - Test different filter formats
+router.get('/test-filters', async (req, res) => {
+  try {
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return res.status(500).json({ success: false, error: 'Supabase configuration missing' });
+    }
+    
+    const tests = [];
+    
+    // Test 1: Basic query with no filters
+    try {
+      const response1 = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json'
+        },
+        params: {
+          limit: 1
+        },
+        timeout: 5000
+      });
+      tests.push({ test: 'No filters', status: response1.status, success: true });
+    } catch (e) {
+      tests.push({ test: 'No filters', error: e.message, status: e.response?.status });
+    }
+    
+    // Test 2: Single date filter
+    try {
+      const now = new Date();
+      const response2 = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json'
+        },
+        params: {
+          'sm_start_date': `gte.${now.toISOString()}`,
+          limit: 1
+        },
+        timeout: 5000
+      });
+      tests.push({ test: 'Single date filter (gte)', status: response2.status, success: true });
+    } catch (e) {
+      tests.push({ test: 'Single date filter (gte)', error: e.message, status: e.response?.status });
+    }
+    
+    // Test 3: State filter
+    try {
+      const response3 = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json'
+        },
+        params: {
+          'sm_works_state': 'in.(Works planned,Works in progress)',
+          limit: 1
+        },
+        timeout: 5000
+      });
+      tests.push({ test: 'State filter (in)', status: response3.status, success: true });
+    } catch (e) {
+      tests.push({ test: 'State filter (in)', error: e.message, status: e.response?.status });
+    }
+    
+    // Test 4: Combined filters (what we're currently using)
+    try {
+      const response4 = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json'
+        },
+        params: {
+          'sm_works_state': 'in.(Works planned,Works in progress)',
+          'order': 'sm_start_date.asc',
+          limit: 1
+        },
+        timeout: 5000
+      });
+      tests.push({ test: 'State + order', status: response4.status, success: true });
+    } catch (e) {
+      tests.push({ test: 'State + order', error: e.message, status: e.response?.status });
+    }
+    
+    res.json({
+      success: true,
+      tests: tests,
+      summary: {
+        passed: tests.filter(t => t.success).length,
+        failed: tests.filter(t => !t.success).length
+      }
+    });
+    
+  } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
