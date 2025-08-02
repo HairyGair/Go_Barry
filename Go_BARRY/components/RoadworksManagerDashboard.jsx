@@ -563,13 +563,24 @@ const RoadworksManagerDashboard = ({ onClose }) => {
 
   // Permanent delete function
   const handlePermanentDelete = async (roadworkId, reason, notes) => {
+    console.log('🗑️ Starting permanent delete for roadwork:', roadworkId, typeof roadworkId);
     const roadwork = roadworks.find(r => r.id === roadworkId);
-    if (!roadwork) return;
+    if (!roadwork) {
+      console.error('❌ Roadwork not found in state:', roadworkId);
+      console.log('Available IDs:', roadworks.map(r => ({ id: r.id, type: typeof r.id })));
+      return;
+    }
 
     try {
-      // Call the permanent delete endpoint
-      const response = await fetch(`https://go-barry.onrender.com/api/roadworks/${roadworkId}`, {
-        method: 'DELETE',
+      console.log('📡 Calling DELETE API for roadwork:', roadworkId);
+      
+      // Create an AbortController for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      // Call the permanent delete endpoint - use POST instead of DELETE for better compatibility
+      const response = await fetch(`https://go-barry.onrender.com/api/roadworks/unified/actions/${roadworkId}/delete`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -578,20 +589,33 @@ const RoadworksManagerDashboard = ({ onClose }) => {
           supervisorName: supervisorName,
           reason,
           notes
-        })
+        }),
+        signal: controller.signal
+      }).catch(error => {
+        console.error('❌ Fetch failed:', error);
+        if (error.name === 'AbortError') {
+          throw new Error('Request timed out after 10 seconds');
+        }
+        throw new Error(`Network error: ${error.message}`);
+      }).finally(() => {
+        clearTimeout(timeoutId);
       });
+
+      console.log('🔍 Response status:', response.status);
+      console.log('🔍 Response ok:', response.ok);
 
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('❌ Response not OK:', errorText);
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('✅ API Response:', data);
       
       if (data.success) {
-        // Remove from local state immediately
-        setRoadworks(prev => prev.filter(item => item.id !== roadworkId));
-        setFilteredRoadworks(prev => prev.filter(item => item.id !== roadworkId));
+        // State already updated in handleDismissConfirm for immediate feedback
+        console.log('✅ Backend deletion confirmed');
         
         // Log activity
         await logActivity('permanent_delete_roadwork', {
@@ -603,11 +627,17 @@ const RoadworksManagerDashboard = ({ onClose }) => {
           duration: calculateDuration(roadwork)
         });
         
-        Alert.alert(
-          'Roadwork Deleted',
-          `The roadwork at ${roadwork.street_name} has been permanently deleted.`,
-          [{ text: 'OK' }]
-        );
+        // Success notification - don't use Alert on web
+        if (Platform.OS === 'web') {
+          console.log(`✅ Roadwork deleted: ${roadwork.street_name}`);
+          // Optionally show a toast notification here if you have a toast library
+        } else {
+          Alert.alert(
+            'Roadwork Deleted',
+            `The roadwork at ${roadwork.street_name} has been permanently deleted.`,
+            [{ text: 'OK' }]
+          );
+        }
       } else {
         throw new Error(data.error || 'Failed to delete roadwork');
       }
@@ -618,10 +648,14 @@ const RoadworksManagerDashboard = ({ onClose }) => {
         error: error.message,
         response: error.response
       });
-      Alert.alert(
-        'Error', 
-        `Failed to delete roadwork: ${error.message}\n\nPlease try again or contact support if the issue persists.`
-      );
+      if (Platform.OS === 'web') {
+        window.alert(`Failed to delete roadwork: ${error.message}\n\nPlease try again or contact support if the issue persists.`);
+      } else {
+        Alert.alert(
+          'Error', 
+          `Failed to delete roadwork: ${error.message}\n\nPlease try again or contact support if the issue persists.`
+        );
+      }
     }
   };
 
@@ -655,26 +689,42 @@ const RoadworksManagerDashboard = ({ onClose }) => {
     if (selectedIds.length === 0) return;
     
     // Show confirmation for batch deletion
-    Alert.alert(
-      'Confirm Batch Deletion',
-      `Are you sure you want to permanently delete ${selectedIds.length} roadwork alerts? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete All',
-          style: 'destructive',
-          onPress: async () => {
-            for (const roadworkId of selectedIds) {
-              await handlePermanentDelete(roadworkId, reason, notes);
-            }
-            
-            setSelectedRoadworks(new Set());
-            setBatchMode(false);
-            setShowBatchDismissModal(false);
-          }
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(
+        `Are you sure you want to permanently delete ${selectedIds.length} roadwork alerts? This action cannot be undone.`
+      );
+      
+      if (confirmed) {
+        for (const roadworkId of selectedIds) {
+          await handlePermanentDelete(roadworkId, reason, notes);
         }
-      ]
-    );
+        
+        setSelectedRoadworks(new Set());
+        setBatchMode(false);
+        setShowBatchDismissModal(false);
+      }
+    } else {
+      Alert.alert(
+        'Confirm Batch Deletion',
+        `Are you sure you want to permanently delete ${selectedIds.length} roadwork alerts? This action cannot be undone.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete All',
+            style: 'destructive',
+            onPress: async () => {
+              for (const roadworkId of selectedIds) {
+                await handlePermanentDelete(roadworkId, reason, notes);
+              }
+              
+              setSelectedRoadworks(new Set());
+              setBatchMode(false);
+              setShowBatchDismissModal(false);
+            }
+          }
+        ]
+      );
+    }
   };
 
   // Optimized roadwork card with enhancements
@@ -1104,36 +1154,92 @@ const RoadworksManagerDashboard = ({ onClose }) => {
   const handleDismissConfirm = async () => {
     if (!selectedAlert || !dismissReason) return;
 
-    // Close the modal first
-    setShowDismissModal(false);
+    if (Platform.OS === 'web') {
+      // For web, use a simple confirmation without Alert
+      const confirmed = window.confirm(
+        `Are you sure you want to permanently delete this roadwork alert?\n\nLocation: ${selectedAlert.street_name}\nThis action cannot be undone.`
+      );
+      
+      if (confirmed) {
+        // Store the alert data before closing modal
+        const alertToDelete = selectedAlert;
+        const alertId = selectedAlert.id;
+        
+        console.log('🎨 Deleting alert:', alertId, alertToDelete.street_name);
+        
+        // IMMEDIATELY remove from UI for better user experience
+        setRoadworks(prevRoadworks => {
+          const filtered = prevRoadworks.filter(item => String(item.id) !== String(alertId));
+          console.log(`🔄 Immediate UI update - roadworks count: ${filtered.length} (was ${prevRoadworks.length})`);
+          return filtered;
+        });
+        setFilteredRoadworks(prevFiltered => {
+          const filtered = prevFiltered.filter(item => String(item.id) !== String(alertId));
+          console.log(`🔄 Immediate UI update - filtered count: ${filtered.length} (was ${prevFiltered.length})`);
+          return filtered;
+        });
+        
+        // Clear the form and close modal
+        setDismissReason('');
+        setDismissNotes('');
+        setSelectedAlert(null);
+        setShowDismissModal(false);
+        
+        // Try to delete from backend (fire and forget)
+        handlePermanentDelete(alertId, dismissReason, dismissNotes).catch(error => {
+          console.error('⚠️ Backend deletion failed:', error);
+          // Could re-add the item here if needed, but for now just log the error
+        });
+      }
+      // If not confirmed, modal stays open
+    } else {
+      // For mobile, use React Native Alert
+      // Close the modal first
+      setShowDismissModal(false);
 
-    // Show confirmation dialog
-    Alert.alert(
-      'Confirm Permanent Deletion',
-      `Are you sure you want to permanently delete this roadwork alert?\n\nLocation: ${selectedAlert.street_name}\nThis action cannot be undone.`,
-      [
-        { 
-          text: 'Cancel', 
-          style: 'cancel',
-          onPress: () => {
-            // Reopen the modal if cancelled
-            setShowDismissModal(true);
+      // Show confirmation dialog
+      Alert.alert(
+        'Confirm Permanent Deletion',
+        `Are you sure you want to permanently delete this roadwork alert?\n\nLocation: ${selectedAlert.street_name}\nThis action cannot be undone.`,
+        [
+          { 
+            text: 'Cancel', 
+            style: 'cancel',
+            onPress: () => {
+              // Reopen the modal if cancelled
+              setShowDismissModal(true);
+            }
+          },
+          {
+            text: 'Delete Permanently',
+            style: 'destructive',
+            onPress: async () => {
+              const alertId = selectedAlert.id;
+              
+              // IMMEDIATELY remove from UI
+              setRoadworks(prevRoadworks => {
+                const filtered = prevRoadworks.filter(item => String(item.id) !== String(alertId));
+                return filtered;
+              });
+              setFilteredRoadworks(prevFiltered => {
+                const filtered = prevFiltered.filter(item => String(item.id) !== String(alertId));
+                return filtered;
+              });
+              
+              // Clear the form
+              setDismissReason('');
+              setDismissNotes('');
+              setSelectedAlert(null);
+              
+              // Try to delete from backend (fire and forget)
+              handlePermanentDelete(alertId, dismissReason, dismissNotes).catch(error => {
+                console.error('⚠️ Backend deletion failed:', error);
+              });
+            }
           }
-        },
-        {
-          text: 'Delete Permanently',
-          style: 'destructive',
-          onPress: async () => {
-            await handlePermanentDelete(selectedAlert.id, dismissReason, dismissNotes);
-            
-            // Clear the form
-            setDismissReason('');
-            setDismissNotes('');
-            setSelectedAlert(null);
-          }
-        }
-      ]
-    );
+        ]
+      );
+    }
   };
 
   // Add contractor selection functionality
@@ -1148,6 +1254,7 @@ const RoadworksManagerDashboard = ({ onClose }) => {
 
   // Filter roadworks by compartment and search
   useEffect(() => {
+    console.log('🔄 Filtering roadworks, total:', roadworks.length, 'compartment:', activeCompartment);
     let filtered = roadworks;
 
     // Apply compartment filter first
@@ -1158,12 +1265,14 @@ const RoadworksManagerDashboard = ({ onClose }) => {
       filtered = filtered.filter(item =>
         item.street_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.location_description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.affectedRoutes?.some(route => 
-          route.toLowerCase().includes(searchQuery.toLowerCase())
-        )
+        item.affectedRoutes?.some(route => {
+          const routeStr = typeof route === 'string' ? route : route.routeNumber;
+          return routeStr?.toLowerCase().includes(searchQuery.toLowerCase());
+        })
       );
     }
 
+    console.log('🔍 Filtered result:', filtered.length, 'items');
     setFilteredRoadworks(filtered);
     setDisplayLimit(50); // Reset to initial limit when filtering changes
   }, [searchQuery, roadworks, activeCompartment]);

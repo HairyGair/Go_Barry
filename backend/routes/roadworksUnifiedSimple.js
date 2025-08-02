@@ -748,6 +748,110 @@ router.post('/actions/:id/dismiss', async (req, res) => {
   }
 });
 
+// POST /api/roadworks/unified/actions/:id/delete - Delete a roadwork (alternative to DELETE method)
+router.post('/actions/:id/delete', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { supervisorId, supervisorName, reason, notes } = req.body;
+    
+    console.log(`🗑️ DELETING roadwork ${id} via POST by ${supervisorName}`);
+    
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return res.status(500).json({
+        success: false,
+        error: 'Supabase configuration missing'
+      });
+    }
+    
+    // First, get the roadwork details for logging
+    const fetchResponse = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        'id': `eq.${id}`
+      },
+      timeout: 10000
+    });
+    
+    const roadwork = fetchResponse.data[0];
+    if (!roadwork) {
+      return res.status(404).json({
+        success: false,
+        error: 'Roadwork not found'
+      });
+    }
+    
+    // Log the deletion details before deleting
+    console.log('🔍 Roadwork to be deleted:', {
+      id: roadwork.id,
+      reference: roadwork.sm_reference,
+      location: roadwork.sm_street_name || roadwork.sm_location_description,
+      startDate: roadwork.sm_start_date,
+      endDate: roadwork.sm_end_date,
+      promoter: roadwork.sm_promoter_organisation
+    });
+    
+    // Perform the permanent deletion
+    const deleteResponse = await axios.delete(
+      `${supabaseUrl}/rest/v1/streetworks?id=eq.${id}`,
+      {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      }
+    );
+    
+    if (deleteResponse.status === 200 || deleteResponse.status === 204) {
+      console.log('✅ Roadwork permanently deleted from database');
+      
+      // Log deletion audit trail
+      const deletionRecord = {
+        roadworkId: id,
+        roadworkReference: roadwork.sm_reference,
+        roadworkLocation: roadwork.sm_street_name || roadwork.sm_location_description,
+        deletedBy: supervisorName,
+        supervisorId: supervisorId,
+        reason: reason,
+        notes: notes,
+        deletedAt: new Date().toISOString(),
+        originalData: {
+          startDate: roadwork.sm_start_date,
+          endDate: roadwork.sm_end_date,
+          promoter: roadwork.sm_promoter_organisation,
+          trafficManagement: roadwork.sm_traffic_management_type
+        }
+      };
+      
+      console.log('📝 Deletion audit trail:', deletionRecord);
+      
+      res.json({
+        success: true,
+        message: 'Roadwork permanently deleted',
+        deletionRecord: deletionRecord
+      });
+    } else {
+      throw new Error(`Unexpected delete response status: ${deleteResponse.status}`);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error permanently deleting roadwork:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      details: error.response?.data
+    });
+  }
+});
+
 // DELETE /api/roadworks/unified/:id - Permanently delete a roadwork alert
 router.delete('/:id', async (req, res) => {
   try {
