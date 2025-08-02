@@ -226,81 +226,113 @@ const formatDate = (dateString) => {
   }
 };
 
-// Coordinate quality assessment
-const assessCoordinateQuality = (item) => {
-  // Check if coordinates exist
-  if (!item.coordinates) {
-    return {
-      quality: 'none',
-      source: 'none',
-      confidence: 'none',
-      color: '#6b7280',
-      icon: 'map-search',
-      buttonText: 'Find Location',
-      tooltip: 'No coordinates available - will attempt to geocode location'
-    };
-  }
-
-  // Determine coordinate source and quality
-  const coordinateSource = item.coordinateSource || 'unknown';
-  const coordinateAccuracy = item.coordinateAccuracy;
-  
-  // High precision GPS coordinates
-  if (coordinateSource === 'gps' || coordinateSource === 'survey' || 
-      coordinateSource === 'street_manager_precise' || coordinateAccuracy === 'high') {
-    return {
-      quality: 'high',
-      source: coordinateSource,
-      confidence: 'high',
-      color: '#22c55e',
-      icon: 'crosshairs-gps',
-      buttonText: 'View on Map',
-      tooltip: 'Precise GPS coordinates available'
-    };
-  }
-  
-  // Geocoded or approximate coordinates
-  if (coordinateSource === 'geocoded' || coordinateSource === 'address_lookup' ||
-      coordinateSource === 'street_manager_geocoded' || coordinateAccuracy === 'medium') {
-    return {
-      quality: 'medium',
-      source: coordinateSource,
-      confidence: 'medium',
-      color: '#f59e0b',
-      icon: 'map-marker-radius',
-      buttonText: 'View Area',
-      tooltip: 'Approximate coordinates from address geocoding'
-    };
-  }
-  
-  // Has coordinates but uncertain quality
-  if (Array.isArray(item.coordinates) && item.coordinates.length === 2) {
-    const [lat, lng] = item.coordinates;
-    // Check if coordinates are in reasonable range for UK
-    if (lat >= 50 && lat <= 61 && lng >= -8 && lng <= 2) {
+  // Enhanced coordinate quality assessment
+  const assessCoordinateQuality = (item) => {
+    // Check if coordinates exist
+    if (!item.coordinates) {
+      // Check fallback strategy
+      if (item.coordinateFallbackStrategy === 'all_strategies_exhausted') {
+        return {
+          quality: 'none',
+          source: 'none',
+          confidence: 'none',
+          color: '#ef4444',
+          icon: 'map-marker-remove',
+          buttonText: 'Location Unknown',
+          tooltip: 'Unable to determine location - see suggestions'
+        };
+      }
       return {
-        quality: 'medium',
-        source: 'coordinates_provided',
-        confidence: 'medium', 
-        color: '#f59e0b',
-        icon: 'map-marker',
-        buttonText: 'View Location',
-        tooltip: 'Coordinates available (quality unknown)'
+        quality: 'none',
+        source: 'none',
+        confidence: 'none',
+        color: '#6b7280',
+        icon: 'map-search',
+        buttonText: 'Find Location',
+        tooltip: 'No coordinates available - will attempt to geocode location'
       };
     }
-  }
-  
-  // Fallback for any other coordinate format
-  return {
-    quality: 'low',
-    source: 'unknown',
-    confidence: 'low',
-    color: '#ef4444',
-    icon: 'map-marker-question',
-    buttonText: 'Try Location',
-    tooltip: 'Coordinates may be inaccurate'
+
+    // Determine coordinate source and quality
+    const coordinateSource = item.coordinateSource || 'unknown';
+    const coordinateAccuracy = item.coordinateAccuracy;
+    const fallbackStrategy = item.coordinateFallbackStrategy;
+    
+    // High precision GPS coordinates
+    if (coordinateSource === 'gps' || coordinateSource === 'survey' || 
+        coordinateSource === 'street_manager_precise' || coordinateAccuracy === 'high' ||
+        coordinateSource.startsWith('street_manager_converted') ||
+        fallbackStrategy === 'osgb36_conversion' ||
+        fallbackStrategy === 'linestring_parsing') {
+      return {
+        quality: 'high',
+        source: coordinateSource,
+        confidence: 'high',
+        color: '#22c55e',
+        icon: 'crosshairs-gps',
+        buttonText: 'View on Map',
+        tooltip: 'Precise GPS coordinates available'
+      };
+    }
+    
+    // Geocoded or approximate coordinates
+    if (coordinateSource === 'geocoded' || coordinateSource === 'address_lookup' ||
+        coordinateSource === 'street_manager_geocoded' || coordinateAccuracy === 'medium' ||
+        coordinateSource === 'nominatim_geocoded' || coordinateSource === 'geocoded_fallback' ||
+        fallbackStrategy === 'geocoding') {
+      return {
+        quality: 'medium',
+        source: coordinateSource,
+        confidence: 'medium',
+        color: '#f59e0b',
+        icon: 'map-marker-radius',
+        buttonText: 'View Area',
+        tooltip: 'Approximate coordinates from address geocoding'
+      };
+    }
+    
+    // Authority area fallback
+    if (coordinateSource === 'highway_authority_area' || 
+        fallbackStrategy === 'authority_area_centroid') {
+      return {
+        quality: 'low',
+        source: coordinateSource,
+        confidence: 'low',
+        color: '#a855f7',
+        icon: 'map-marker-outline',
+        buttonText: 'View Region',
+        tooltip: 'Showing general area based on highway authority'
+      };
+    }
+    
+    // Has coordinates but uncertain quality
+    if (Array.isArray(item.coordinates) && item.coordinates.length === 2) {
+      const [lat, lng] = item.coordinates;
+      // Check if coordinates are in reasonable range for UK
+      if (lat >= 50 && lat <= 61 && lng >= -8 && lng <= 2) {
+        return {
+          quality: 'medium',
+          source: 'coordinates_provided',
+          confidence: 'medium', 
+          color: '#f59e0b',
+          icon: 'map-marker',
+          buttonText: 'View Location',
+          tooltip: 'Coordinates available (quality unknown)'
+        };
+      }
+    }
+    
+    // Fallback for any other coordinate format
+    return {
+      quality: 'low',
+      source: 'unknown',
+      confidence: 'low',
+      color: '#ef4444',
+      icon: 'map-marker-question',
+      buttonText: 'Try Location',
+      tooltip: 'Coordinates may be inaccurate'
+    };
   };
-};
 
 const calculateDuration = (item) => {
   try {
@@ -417,9 +449,19 @@ const RoadworksManagerDashboard = ({ onClose }) => {
         });
       
       case 'high-impact':
-        return works.filter(item => 
-          item.affectedRoutes && item.affectedRoutes.length >= 3
-        );
+        return works.filter(item => {
+          if (!item.affectedRoutes || item.affectedRoutes.length === 0) return false;
+          
+          // Count unique route numbers (considering direction as separate impact)
+          const routeCount = item.affectedRoutes.length;
+          
+          // Also check for high severity impacts
+          const hasHighSeverity = item.affectedRoutes.some(route => 
+            typeof route === 'object' && route.impact && route.impact.severity === 'high'
+          );
+          
+          return routeCount >= 3 || hasHighSeverity;
+        });
       
       case 'weekend':
         return works.filter(item => {
@@ -448,6 +490,7 @@ const RoadworksManagerDashboard = ({ onClose }) => {
           start_date: item.sm_start_date || item.start_date || '',
           end_date: item.sm_end_date || item.end_date || '',
           affectedRoutes: item.affectedRoutes || item.affected_routes || [],
+          affectedRoutesSummary: item.affectedRoutesSummary || item.affected_routes_summary || '',
           durationDays: item.durationDays || item.duration_days || 1,
           isUrgent: item.isUrgent || item.is_urgent || item.sm_traffic_management_type === 'Road closure',
           // Include coordinates from backend processing
@@ -838,20 +881,56 @@ const RoadworksManagerDashboard = ({ onClose }) => {
               <View style={styles.routesHeader}>
                 <MaterialCommunityIcons name="bus-multiple" size={16} color="#93c5fd" />
                 <Text style={styles.routesLabel}>Affected Routes</Text>
+                {item.affectedRoutesSummary && (
+                  <Text style={styles.routesSummaryText}>({item.affectedRoutesSummary})</Text>
+                )}
               </View>
               <ScrollView 
                 horizontal 
                 showsHorizontalScrollIndicator={false}
                 style={styles.routesScroll}
               >
-                {item.affectedRoutes.slice(0, 6).map((route, idx) => (
-                  <View 
-                    key={idx} 
-                    style={styles.routeBadge}
-                  >
-                    <Text style={styles.routeText}>{route}</Text>
-                  </View>
-                ))}
+                {item.affectedRoutes.slice(0, 6).map((route, idx) => {
+                  // Handle both string format (legacy) and object format (new)
+                  const routeNumber = typeof route === 'string' ? route : route.routeNumber;
+                  const direction = typeof route === 'object' ? route.direction : null;
+                  const headsign = typeof route === 'object' ? route.headsign : null;
+                  const severity = typeof route === 'object' && route.impact ? route.impact.severity : null;
+                  
+                  return (
+                    <View 
+                      key={idx} 
+                      style={[
+                        styles.routeBadge,
+                        severity === 'high' && styles.routeBadgeHighImpact
+                      ]}
+                      {...(Platform.OS === 'web' && headsign && {
+                        title: `${routeNumber} to ${headsign}`
+                      })}
+                    >
+                      <View style={styles.routeBadgeContent}>
+                        <Text style={[
+                          styles.routeText,
+                          severity === 'high' && styles.routeTextHighImpact
+                        ]}>
+                          {routeNumber}
+                        </Text>
+                        {direction && (
+                          <MaterialCommunityIcons 
+                            name={direction === 'inbound' ? 'arrow-down' : 'arrow-up'} 
+                            size={12} 
+                            color={severity === 'high' ? '#fbbf24' : '#60a5fa'} 
+                          />
+                        )}
+                      </View>
+                      {direction && (
+                        <Text style={styles.routeDirectionText}>
+                          {direction === 'inbound' ? 'IN' : 'OUT'}
+                        </Text>
+                      )}
+                    </View>
+                  );
+                })}
                 {item.affectedRoutes.length > 6 && (
                   <View style={[styles.routeBadge, styles.moreRoutesBadge]}>
                     <Text style={styles.routeText}>+{item.affectedRoutes.length - 6}</Text>
@@ -915,11 +994,20 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                 ]}>
                   {geocodingStates.get(item.id) ? 'Locating...' : assessCoordinateQuality(item).buttonText}
                 </Text>
-                {/* Coordinate quality indicator */}
+                {/* Coordinate quality indicator with validation */}
                 <View style={[
                   styles.qualityIndicator,
                   { backgroundColor: assessCoordinateQuality(item).color }
                 ]} />
+                {item.coordinateValidation && !item.coordinateValidation.valid && (
+                  <View style={styles.validationWarning}>
+                    <MaterialCommunityIcons 
+                      name="alert-circle" 
+                      size={12} 
+                      color="#fbbf24" 
+                    />
+                  </View>
+                )}
               </View>
             </TouchableOpacity>
 
@@ -1032,7 +1120,8 @@ const RoadworksManagerDashboard = ({ onClose }) => {
           setSelectedRoadworkForMap({
             ...item,
             coordinates: null,
-            showRegionalMap: true
+            showRegionalMap: true,
+            fallbackSuggestions: item.fallbackSuggestions
           });
           setShowMapModal(true);
         }
@@ -1988,12 +2077,23 @@ const styles = StyleSheet.create({
   },
   routeBadge: {
     backgroundColor: 'rgba(59, 130, 246, 0.15)',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 20,
     marginHorizontal: 4,
     borderWidth: 1,
     borderColor: 'rgba(59, 130, 246, 0.3)',
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  routeBadgeHighImpact: {
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    borderColor: 'rgba(251, 191, 36, 0.5)',
+  },
+  routeBadgeContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   moreRoutesBadge: {
     backgroundColor: 'rgba(156, 163, 175, 0.15)',
@@ -2003,6 +2103,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#60a5fa',
+  },
+  routeTextHighImpact: {
+    color: '#fbbf24',
+  },
+  routeDirectionText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#93c5fd',
+    marginTop: 2,
+  },
+  routesSummaryText: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontStyle: 'italic',
+    marginLeft: 8,
   },
   timeline: {
     marginBottom: 16,
@@ -2114,6 +2229,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 1,
     elevation: 2,
+  },
+  validationWarning: {
+    position: 'absolute',
+    top: 2,
+    right: 16,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: 'rgba(251, 191, 36, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   loadingContainer: {
     justifyContent: 'center',

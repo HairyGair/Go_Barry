@@ -377,19 +377,26 @@ export async function batchGeocode(locations) {
 }
 
 /**
- * Enhance traffic alert with coordinates
+ * Enhance traffic alert with coordinates (legacy method)
+ * NOTE: New alerts should use enhancedCoordinateService for better accuracy
  */
 export async function enhanceAlertWithCoordinates(alert) {
   if (!alert) return alert;
   
-  // Skip if alert already has valid coordinates
+  // Skip if alert already has valid coordinates with high confidence
   if (alert.coordinates && Array.isArray(alert.coordinates) && alert.coordinates.length >= 2) {
-    return alert;
+    if (alert.coordinateConfidence >= 90) {
+      return alert;
+    }
   }
   
   if (alert.coordinates && alert.coordinates.lat && alert.coordinates.lng) {
-    return alert;
+    if (alert.coordinateConfidence >= 90) {
+      return alert;
+    }
   }
+  
+  console.log(`🗺️ Legacy geocoding for alert: ${alert.id || 'unknown'}`);
   
   // Try to geocode the location
   if (alert.location) {
@@ -397,7 +404,7 @@ export async function enhanceAlertWithCoordinates(alert) {
     if (coords) {
       alert.coordinates = [coords.latitude, coords.longitude];
       alert.geocodingSource = coords.source;
-      alert.geocodingConfidence = coords.confidence;
+      alert.geocodingConfidence = this.mapLegacyConfidence(coords.confidence);
       
       // If we got a better location name, optionally update it
       if (coords.source === 'mapbox' && coords.confidence === 'high') {
@@ -407,6 +414,19 @@ export async function enhanceAlertWithCoordinates(alert) {
   }
   
   return alert;
+}
+
+/**
+ * Map legacy confidence strings to numeric values
+ */
+function mapLegacyConfidence(confidence) {
+  switch (confidence) {
+    case 'high': return 85;
+    case 'medium': return 70;
+    case 'low': return 55;
+    case 'fallback': return 10;
+    default: return 50;
+  }
 }
 
 /**

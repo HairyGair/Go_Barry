@@ -446,6 +446,21 @@ setTimeout(() => {
     // Use memory-optimized supervisor sync instead of WebSocket-heavy version
     console.log('✅ Memory-optimized supervisor sync active (no WebSocket overhead)');
     
+    // Initialize dismissed alerts cleanup scheduler
+    try {
+      const { cleanupScheduler } = await lazyImport('./services/cleanupScheduler.js');
+      const schedulerResult = await cleanupScheduler.startScheduler();
+      if (schedulerResult.success) {
+        console.log(`✅ Dismissed alerts cleanup scheduler started (${schedulerResult.scheduled_jobs} jobs)`);
+        console.log('🧹 Automated cleanup will prevent database bloat and optimize memory usage');
+      } else {
+        console.warn('⚠️ Cleanup scheduler failed to start:', schedulerResult.error);
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not initialize cleanup scheduler:', error.message);
+      console.log('📝 Cleanup can still be triggered manually via API endpoints');
+    }
+    
     // All other services load on-demand
     console.log('✅ All additional services configured for on-demand loading');
     
@@ -462,6 +477,8 @@ setTimeout(() => {
     console.log('   - Automatic garbage collection and cleanup');
     console.log('   - Emergency shutdown protocols active');
     console.log('   - Real-time memory monitoring and optimization');
+    console.log('   - Dismissed alerts cleanup scheduler (daily/weekly/monthly)');
+    console.log('   - Configurable retention periods for dismissed records');
     console.log('============================================================\n');
     
   } catch (error) {

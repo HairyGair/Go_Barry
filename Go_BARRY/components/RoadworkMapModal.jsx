@@ -47,7 +47,8 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
     
     // High precision GPS coordinates
     if (coordinateSource === 'gps' || coordinateSource === 'survey' || 
-        coordinateSource === 'street_manager_precise' || coordinateAccuracy === 'high') {
+        coordinateSource === 'street_manager_precise' || coordinateAccuracy === 'high' ||
+        coordinateSource.startsWith('street_manager_converted')) {
       return {
         quality: 'high',
         source: coordinateSource,
@@ -60,6 +61,7 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
     // Geocoded or approximate coordinates
     if (coordinateSource === 'geocoded' || coordinateSource === 'address_lookup' ||
         coordinateSource === 'street_manager_geocoded' || coordinateSource === 'geocoded_fallback' ||
+        coordinateSource === 'nominatim_geocoded' || coordinateSource === 'linestring_centroid' ||
         coordinateAccuracy === 'medium') {
       return {
         quality: 'medium',
@@ -67,6 +69,17 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
         uncertainty: 'medium',
         zoomLevel: 15,
         markerStyle: 'approximate'
+      };
+    }
+    
+    // Low quality fallbacks
+    if (coordinateSource === 'highway_authority_area') {
+      return {
+        quality: 'low',
+        source: coordinateSource,
+        uncertainty: 'high',
+        zoomLevel: 11,
+        markerStyle: 'area'
       };
     }
     
@@ -234,6 +247,8 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
                 ? `${coordinates[1].toFixed(4)}, ${coordinates[0].toFixed(4)} (${coordinateQuality.quality} quality)`
                 : roadwork?.geocodingAttempted 
                   ? 'Geocoding attempted - showing general area'
+                  : roadwork?.coordinateFallbackStrategy === 'highway_authority_area'
+                    ? `Showing ${roadwork?.sm_highway_authority || 'area'} region`
                   : roadwork?.showRegionalMap
                     ? 'Showing regional map'
                     : 'Location coordinates unavailable'
@@ -331,6 +346,71 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
             </Text>
           </View>
           
+          {/* Fallback Suggestions for missing coordinates */}
+          {(coordinateQuality.quality === 'none' || roadwork?.fallbackSuggestions) && (
+            <View style={styles.fallbackContainer}>
+              <Text style={styles.fallbackTitle}>
+                <MaterialCommunityIcons name="information-outline" size={16} color="#60a5fa" />
+                {' '}How to find this location:
+              </Text>
+              {(roadwork?.fallbackSuggestions || [
+                {
+                  icon: 'email-outline',
+                  text: 'Check the original roadworks notification email',
+                  detail: `Permit ref: ${roadwork?.sm_permit_reference || roadwork?.sm_reference || 'Unknown'}`
+                },
+                {
+                  icon: 'web',
+                  text: 'Search on one.network',
+                  detail: roadwork?.sm_permit_reference ? 
+                    `Use permit reference: ${roadwork.sm_permit_reference}` :
+                    `Search for: ${roadwork?.sm_street_name || roadwork?.street_name}`,
+                  url: roadwork?.sm_permit_reference ? 
+                    `https://one.network/?q=${encodeURIComponent(roadwork.sm_permit_reference)}` :
+                    `https://one.network/`
+                },
+                {
+                  icon: 'phone',
+                  text: `Contact ${roadwork?.sm_promoter_organisation || 'the contractor'}`,
+                  detail: 'Request exact location details'
+                },
+                {
+                  icon: 'map-search',
+                  text: 'Use local knowledge',
+                  detail: `Search area: ${roadwork?.sm_highway_authority || 'Check description'}`
+                }
+              ]).map((suggestion, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.suggestionItem}
+                  onPress={() => {
+                    if (suggestion.url) {
+                      Linking.openURL(suggestion.url);
+                    }
+                  }}
+                  disabled={!suggestion.url}
+                >
+                  <MaterialCommunityIcons 
+                    name={suggestion.icon} 
+                    size={20} 
+                    color="#3b82f6" 
+                  />
+                  <View style={styles.suggestionTextContainer}>
+                    <Text style={styles.suggestionText}>{suggestion.text}</Text>
+                    <Text style={styles.suggestionDetail}>{suggestion.detail}</Text>
+                  </View>
+                  {suggestion.url && (
+                    <MaterialCommunityIcons 
+                      name="open-in-new" 
+                      size={16} 
+                      color="#60a5fa" 
+                    />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
           {/* Manual search interface for missing coordinates */}
           {coordinateQuality.quality === 'none' && (
             <View style={styles.searchContainer}>
@@ -656,6 +736,48 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '600',
+  },
+  fallbackContainer: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: 'rgba(59, 130, 246, 0.05)',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.2)',
+  },
+  fallbackTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#60a5fa',
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  suggestionTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  suggestionText: {
+    fontSize: 14,
+    color: '#ffffff',
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  suggestionDetail: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
   },
 });
 

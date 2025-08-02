@@ -34,16 +34,18 @@ router.get('/unified', async (req, res) => {
       source = 'all', // all, street_manager, manual
       status = 'all', // all, active, planned, completed
       limit = 10000, // Increased default limit to handle large datasets
-      offset = 0
+      offset = 0,
+      include_dismissed = 'false' // NEW: Include dismissed alerts (admin/audit feature)
     } = req.query;
     
-    console.log(`🔍 Query params: source=${source}, status=${status}, limit=${limit}, offset=${offset}`);
+    console.log(`🔍 Query params: source=${source}, status=${status}, limit=${limit}, offset=${offset}, include_dismissed=${include_dismissed}`);
 
     const result = await unifiedRoadworksManager.getAllRoadworks({
       source,
       status,
       limit: parseInt(limit),
-      offset: parseInt(offset)
+      offset: parseInt(offset),
+      includeDismissed: include_dismissed === 'true'
     });
 
     if (!result.success) {
@@ -103,7 +105,7 @@ router.get('/unified', async (req, res) => {
           offset: parseInt(offset),
           hasMore: parseInt(offset) + parseInt(limit) < total
         },
-        filters: { source, status }
+        filters: { source, status, include_dismissed }
       }
     });
 
@@ -459,7 +461,7 @@ router.post('/refresh', async (req, res) => {
   try {
     console.log('🔄 API: Force refreshing roadworks data...');
     
-    // Clear any cache
+    // Clear all cache including dismissed/active specific caches
     unifiedRoadworksManager.cache.clear();
     
     const result = await unifiedRoadworksManager.getAllRoadworks();

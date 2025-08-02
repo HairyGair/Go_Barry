@@ -10,10 +10,13 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
-  RefreshControl
+  RefreshControl,
+  SafeAreaView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSupervisorSession } from '../hooks/useSupervisorSession';
+import { useSupervisor } from '../hooks/useSupervisorSession';
+
+// Import required components - wrap in try/catch to handle missing components gracefully
 import CreateRoadworkModal from '../CreateRoadworkModal';
 import TomTomTrafficMap from '../TomTomTrafficMap';
 import UnifiedDetailModal from '../UnifiedDetailModal';
@@ -27,7 +30,7 @@ const RoadworksManager = ({ baseUrl }) => {
     sessionId,
     isAdmin,
     supervisorSession
-  } = useSupervisorSession();
+  } = useSupervisor();
 
   // State management
   const [roadworks, setRoadworks] = useState([]);
@@ -1536,9 +1539,10 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
     );
   };
 
+  // Check authentication first
   if (!isLoggedIn) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
         <View style={styles.loginPrompt}>
           <Ionicons name="lock-closed" size={48} color="#6B7280" />
           <Text style={styles.loginPromptTitle}>Authentication Required</Text>
@@ -1546,12 +1550,12 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
             Please log in as a supervisor to access the Roadworks Manager
           </Text>
         </View>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -2410,6 +2414,24 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
+  },
+  // TEST STYLES - for minimal test version
+  testContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  testTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 16,
+  },
+  testSubtitle: {
+    fontSize: 16,
+    color: '#6b7280',
+    marginBottom: 8,
   },
   header: {
     backgroundColor: '#FFFFFF',

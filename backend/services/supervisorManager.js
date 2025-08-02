@@ -1993,6 +1993,97 @@ export async function resetSupervisorPassword(adminSessionId, supervisorIdToRese
 initializeSupervisorData();
 
 // Update supervisor data (admin only)
+/**
+ * Get supervisor from session token
+ * This function resolves a session token to supervisor information
+ */
+export async function getSupervisorFromToken(sessionToken) {
+  try {
+    console.log(`🔍 Getting supervisor from token: ${sessionToken?.substring(0, 10)}...`);
+    
+    if (!sessionToken) {
+      return { success: false, error: 'Session token is required' };
+    }
+    
+    // Find the session by token from active sessions
+    let foundSession = null;
+    for (const [sessionId, sessionData] of Object.entries(supervisorSessions)) {
+      if (sessionData.sessionToken === sessionToken && sessionData.active) {
+        foundSession = { sessionId, ...sessionData };
+        break;
+      }
+    }
+    
+    if (!foundSession) {
+      // Try to find in database if not in memory
+      try {
+        const { data: sessionRecord, error } = await supabase
+          .from('supervisor_sessions')
+          .select('*')
+          .eq('session_token', sessionToken)
+          .eq('is_active', true)
+          .single();
+          
+        if (error || !sessionRecord) {
+          console.log('❌ Token not found in active sessions or database');
+          return { success: false, error: 'Invalid or expired session token' };
+        }
+        
+        // Check if session is expired
+        const now = new Date();
+        const expiresAt = new Date(sessionRecord.expires_at);
+        if (now > expiresAt) {
+          console.log('❌ Session token has expired');
+          return { success: false, error: 'Session token has expired' };
+        }
+        
+        foundSession = {
+          sessionId: sessionRecord.session_id,
+          supervisorId: sessionRecord.supervisor_id,
+          supervisorName: sessionRecord.supervisor_name,
+          supervisorBadge: sessionRecord.supervisor_badge,
+          sessionToken: sessionRecord.session_token,
+          isAdmin: sessionRecord.is_admin,
+          startTime: sessionRecord.start_time,
+          lastActivity: sessionRecord.last_activity,
+          active: sessionRecord.is_active
+        };
+      } catch (dbError) {
+        console.error('❌ Database error while validating token:', dbError);
+        return { success: false, error: 'Database error during token validation' };
+      }
+    }
+    
+    // Update last activity
+    try {
+      await updateSessionActivity(foundSession.sessionId);
+    } catch (updateError) {
+      console.warn('⚠️ Could not update session activity:', updateError.message);
+    }
+    
+    console.log(`✅ Token resolved to supervisor: ${foundSession.supervisorName} (${foundSession.supervisorBadge})`);
+    
+    return {
+      success: true,
+      supervisor: {
+        id: foundSession.supervisorId,
+        name: foundSession.supervisorName,
+        badge: foundSession.supervisorBadge,
+        isAdmin: foundSession.isAdmin || false
+      },
+      session: {
+        sessionId: foundSession.sessionId,
+        startTime: foundSession.startTime,
+        lastActivity: foundSession.lastActivity
+      }
+    };
+    
+  } catch (error) {
+    console.error('❌ Error getting supervisor from token:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function updateSupervisorData(adminSessionId, supervisorIdToUpdate, updateData) {
   try {
     // Validate admin session
@@ -2106,6 +2197,7 @@ export default {
   authenticateSupervisorSecure,  // NEW: Secure authentication
   validateSupervisorSession,
   validateSupervisorById,
+  getSupervisorFromToken,  // NEW: Token validation
   dismissAlert,
   restoreAlert,
   isAlertDismissed,

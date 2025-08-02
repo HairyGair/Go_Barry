@@ -1,7 +1,11 @@
-// Cleanup API Routes
-// Provides endpoints for data maintenance and cleanup operations
+// backend/routes/cleanupAPI.js
+// API endpoints for dismissed alerts cleanup management
+// Memory optimized for Render.com 2GB RAM constraint
 
 import express from 'express';
+import { dismissedAlertsCleanupService } from '../services/dismissedAlertsCleanupService.js';
+import { cleanupScheduler } from '../services/cleanupScheduler.js';
+import supervisorManager from '../services/supervisorManager.js';
 import { createClient } from '@supabase/supabase-js';
 import { parseLineStringToBNG, parsePointToBNG } from '../utils/bngToLatLng.js';
 
@@ -225,6 +229,374 @@ router.post('/cleanup-street-manager', async (req, res) => {
   } catch (error) {
     console.error('❌ Error cleaning up Street Manager data:', error);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * Middleware to check admin authorization for cleanup operations
+ */
+const requireAdminAuth = async (req, res, next) => {
+  try {
+    const { supervisorToken } = req.body || req.query;
+    
+    if (!supervisorToken) {
+      return res.status(401).json({
+        success: false,
+        error: 'Supervisor token required for cleanup operations'
+      });
+    }
+
+    const supervisor = await supervisorManager.getSupervisorFromToken(supervisorToken);
+    if (!supervisor.success) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid supervisor token'
+      });
+    }
+
+    // Check if supervisor has admin privileges (AG003 or BP009)
+    const adminBadges = ['AG003', 'BP009'];
+    if (!adminBadges.includes(supervisor.supervisor.badge)) {
+      return res.status(403).json({
+        success: false,
+        error: 'Admin privileges required for cleanup operations'
+      });
+    }
+
+    req.supervisor = supervisor.supervisor;
+    next();
+  } catch (error) {
+    console.error('❌ Admin auth error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Authentication error'
+    });
+  }
+};
+
+// =============================================================================
+// DISMISSED ALERTS CLEANUP ENDPOINTS
+// =============================================================================
+
+/**
+ * GET /api/cleanup/dismissed-alerts/stats
+ * Get dismissed alerts cleanup statistics and current status
+ */
+router.get('/dismissed-alerts/stats', async (req, res) => {
+  try {
+    console.log('📊 API: Getting dismissed alerts cleanup statistics...');
+    
+    const [statsResult, schedulerStatus] = await Promise.all([
+      dismissedAlertsCleanupService.getCleanupStats(),
+      Promise.resolve(cleanupScheduler.getStatus())
+    ]);
+
+    if (!statsResult.success) {
+      return res.status(500).json({
+        success: false,
+        error: statsResult.error
+      });
+    }
+
+    res.json({
+      success: true,
+      cleanup_stats: statsResult.stats,
+      scheduler_status: schedulerStatus,
+      retention_config: dismissedAlertsCleanupService.retentionPeriods,
+      generated_at: statsResult.generated_at
+    });
+
+  } catch (error) {
+    console.error('❌ API Error getting dismissed alerts cleanup stats:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/cleanup/dismissed-alerts/eligible
+ * Get dismissed alert records eligible for cleanup (dry run)
+ */
+router.get('/dismissed-alerts/eligible', requireAdminAuth, async (req, res) => {
+  try {
+    console.log(`📋 API: Finding eligible dismissed alert records for cleanup (by ${req.supervisor.name})...`);
+    
+    const result = await dismissedAlertsCleanupService.findEligibleRecords();
+    
+    res.json({
+      success: result.success,
+      eligible_records: result.eligible_records || null,
+      total_eligible: result.total_eligible || 0,
+      error: result.error || null,
+      supervisor: req.supervisor.name,
+      retention_config: dismissedAlertsCleanupService.retentionPeriods
+    });
+
+  } catch (error) {
+    console.error('❌ API Error finding eligible dismissed alert records:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/cleanup/dismissed-alerts/run
+ * Manually trigger dismissed alerts cleanup operation
+ */
+router.post('/dismissed-alerts/run', requireAdminAuth, async (req, res) => {
+  try {
+    const { 
+      dry_run = false, 
+      cleanup_type = 'daily',
+      force = false 
+    } = req.body;
+
+    console.log(`🧹 API: Manual dismissed alerts cleanup triggered by ${req.supervisor.name} (type: ${cleanup_type}, dry_run: ${dry_run})`);
+    
+    // Check if cleanup is already running
+    const schedulerStatus = cleanupScheduler.getStatus();
+    if (schedulerStatus.running_jobs.length > 0 && !force) {
+      return res.status(409).json({
+        success: false,
+        error: 'Cleanup operation already running',
+        running_jobs: schedulerStatus.running_jobs
+      });
+    }
+
+    let result;
+    
+    if (cleanup_type === 'manual') {
+      // Direct cleanup call with custom settings
+      const originalDryRun = dismissedAlertsCleanupService.dryRun;
+      dismissedAlertsCleanupService.dryRun = dry_run;
+      
+      try {
+        result = await dismissedAlertsCleanupService.performCleanup();
+      } finally {
+        dismissedAlertsCleanupService.dryRun = originalDryRun;
+      }
+    } else {
+      // Use scheduler for consistent job execution
+      result = await cleanupScheduler.triggerManualCleanup(cleanup_type);
+    }
+
+    // Log the manual cleanup operation
+    if (result.success) {
+      await supervisorManager.logActivity(
+        req.supervisor.id,
+        'manual_dismissed_alerts_cleanup_triggered',
+        {
+          cleanup_type,
+          dry_run,
+          deleted_count: result.results?.deleted_count || result.deleted_count || 0,
+          execution_time_ms: result.results?.execution_time_ms || result.execution_time_ms
+        },
+        req
+      );
+    }
+
+    res.json({
+      success: result.success,
+      results: result.results || result,
+      error: result.error || null,
+      initiated_by: req.supervisor.name,
+      initiated_at: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('❌ API Error running dismissed alerts cleanup:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/cleanup/scheduler/status
+ * Get detailed cleanup scheduler status
+ */
+router.get('/scheduler/status', async (req, res) => {
+  try {
+    const status = cleanupScheduler.getStatus();
+    
+    res.json({
+      success: true,
+      scheduler_status: status
+    });
+
+  } catch (error) {
+    console.error('❌ API Error getting scheduler status:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/cleanup/scheduler/start
+ * Start the cleanup scheduler
+ */
+router.post('/scheduler/start', requireAdminAuth, async (req, res) => {
+  try {
+    console.log(`⏰ API: Starting cleanup scheduler (by ${req.supervisor.name})`);
+    
+    const result = await cleanupScheduler.startScheduler();
+    
+    // Log the scheduler start
+    await supervisorManager.logActivity(
+      req.supervisor.id,
+      'cleanup_scheduler_started',
+      {
+        scheduled_jobs: result.scheduled_jobs,
+        next_run_times: result.next_run_times
+      },
+      req
+    );
+
+    res.json({
+      success: result.success,
+      scheduled_jobs: result.scheduled_jobs || 0,
+      next_run_times: result.next_run_times || {},
+      error: result.error || null,
+      started_by: req.supervisor.name
+    });
+
+  } catch (error) {
+    console.error('❌ API Error starting scheduler:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/cleanup/scheduler/stop
+ * Stop the cleanup scheduler
+ */
+router.post('/scheduler/stop', requireAdminAuth, async (req, res) => {
+  try {
+    console.log(`🛑 API: Stopping cleanup scheduler (by ${req.supervisor.name})`);
+    
+    const result = cleanupScheduler.stopScheduler();
+    
+    // Log the scheduler stop
+    await supervisorManager.logActivity(
+      req.supervisor.id,
+      'cleanup_scheduler_stopped',
+      {
+        stopped_jobs: result.stopped_jobs
+      },
+      req
+    );
+
+    res.json({
+      success: result.success,
+      stopped_jobs: result.stopped_jobs || 0,
+      error: result.error || null,
+      stopped_by: req.supervisor.name
+    });
+
+  } catch (error) {
+    console.error('❌ API Error stopping scheduler:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/cleanup/config
+ * Get current cleanup configuration
+ */
+router.get('/config', async (req, res) => {
+  try {
+    const config = {
+      retention_periods: dismissedAlertsCleanupService.retentionPeriods,
+      performance_limits: {
+        batch_size: dismissedAlertsCleanupService.batchSize,
+        max_operation_time_ms: dismissedAlertsCleanupService.maxOperationTime,
+        dry_run_mode: dismissedAlertsCleanupService.dryRun
+      },
+      scheduler_config: cleanupScheduler.enabledJobs,
+      environment_variables: {
+        cleanup_daily_enabled: process.env.CLEANUP_DAILY_ENABLED,
+        cleanup_weekly_enabled: process.env.CLEANUP_WEEKLY_ENABLED,
+        cleanup_monthly_enabled: process.env.CLEANUP_MONTHLY_ENABLED,
+        cleanup_batch_size: process.env.CLEANUP_BATCH_SIZE,
+        cleanup_max_time_ms: process.env.CLEANUP_MAX_TIME_MS,
+        cleanup_dry_run: process.env.CLEANUP_DRY_RUN
+      }
+    };
+
+    res.json({
+      success: true,
+      config
+    });
+
+  } catch (error) {
+    console.error('❌ API Error getting cleanup config:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/cleanup/test
+ * Test dismissed alerts cleanup functionality (dry run only)
+ */
+router.post('/test', requireAdminAuth, async (req, res) => {
+  try {
+    console.log(`🧪 API: Testing dismissed alerts cleanup functionality (by ${req.supervisor.name})`);
+    
+    // Force dry run for test endpoint
+    const originalDryRun = dismissedAlertsCleanupService.dryRun;
+    dismissedAlertsCleanupService.dryRun = true;
+    
+    try {
+      // Get stats first
+      const stats = await dismissedAlertsCleanupService.getCleanupStats();
+      
+      // Find eligible records
+      const eligibleResult = await dismissedAlertsCleanupService.findEligibleRecords();
+      
+      // Run test cleanup (dry run)
+      const cleanupResult = await dismissedAlertsCleanupService.performCleanup(
+        eligibleResult.success ? eligibleResult.eligible_records : null
+      );
+      
+      res.json({
+        success: true,
+        test_results: {
+          current_stats: stats.stats,
+          eligible_records: eligibleResult.success ? eligibleResult : { error: eligibleResult.error },
+          cleanup_simulation: cleanupResult.success ? cleanupResult.results : { error: cleanupResult.error }
+        },
+        message: 'Dismissed alerts cleanup test completed (dry run only)',
+        tested_by: req.supervisor.name,
+        tested_at: new Date().toISOString()
+      });
+      
+    } finally {
+      // Restore original dry run setting
+      dismissedAlertsCleanupService.dryRun = originalDryRun;
+    }
+
+  } catch (error) {
+    console.error('❌ API Error testing dismissed alerts cleanup:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
 });
 

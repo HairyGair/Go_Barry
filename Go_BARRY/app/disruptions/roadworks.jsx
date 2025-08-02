@@ -2,12 +2,13 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, SafeAreaView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import RoadworksManager from '../../components/operations/RoadworksManager';
+import RoadworksManagerDashboard from '../../components/RoadworksManagerDashboard';
 import { useSupervisor } from '../../components/hooks/useSupervisorSession';
 
 export default function RoadworksPage() {
   const router = useRouter();
   const { isLoggedIn, supervisorName } = useSupervisor();
+  const [showRoadworksModal, setShowRoadworksModal] = React.useState(true);
 
   // Determine base URL based on environment
   const getBaseUrl = () => {
@@ -50,7 +51,12 @@ export default function RoadworksPage() {
       </View>
       
       <View style={styles.content}>
-        <RoadworksManager baseUrl={baseUrl} />
+        {showRoadworksModal && (
+          <RoadworksManagerDashboard onClose={() => {
+            setShowRoadworksModal(false);
+            router.back();
+          }} />
+        )}
       </View>
     </SafeAreaView>
   );

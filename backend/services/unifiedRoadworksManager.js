@@ -15,6 +15,8 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { getFetch } from '../utils/fetchHelper.js';
+import { getSupabaseClient } from './supabaseHelper.js';
+import enhancedCoordinateService from './enhancedCoordinateService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -197,6 +199,8 @@ class UnifiedRoadworksManager {
 
   /**
    * Get all roadworks from all sources
+   * @param {Object} options - Query options
+   * @param {boolean} options.includeDismissed - Include dismissed alerts (default: false)
    */
   async getAllRoadworks(options = {}) {
     const startTime = Date.now();
@@ -220,11 +224,11 @@ class UnifiedRoadworksManager {
       const promises = [];
 
       if (this.sources.streetManager.enabled) {
-        promises.push(this.getStreetManagerRoadworks());
+        promises.push(this.getStreetManagerRoadworks(options));
       }
 
       if (this.sources.manual.enabled) {
-        promises.push(this.getManualRoadworks());
+        promises.push(this.getManualRoadworks(options));
       }
 
       // Ensure we have at least one promise to avoid empty Promise.allSettled
@@ -457,8 +461,10 @@ class UnifiedRoadworksManager {
   /**
    * Get StreetManager roadworks from Supabase streetworks table
    * Returns real data from database, never fallback data
+   * @param {Object} options - Query options
+   * @param {boolean} options.includeDismissed - Include dismissed alerts (default: false)
    */
-  async getStreetManagerRoadworks() {
+  async getStreetManagerRoadworks(options = {}) {
     const startTime = Date.now();
     
     try {
@@ -534,8 +540,7 @@ class UnifiedRoadworksManager {
           console.error('❌ This suggests a network or SSL issue');
           
           // Run connectivity test to diagnose the issue
-          console.log('
-🤔 Running connectivity diagnostics...');
+          console.log('🤔 Running connectivity diagnostics...');
           try {
             const { testConnectivity } = await import('../tests/connectivity-test.js');
             await testConnectivity();
@@ -590,10 +595,20 @@ class UnifiedRoadworksManager {
           console.log(`📄 Fetching page ${currentPage + 1} (${currentPage * pageSize} to ${(currentPage + 1) * pageSize})...`);
           
           try {
-            const { data: pageData, error: pageError } = await supabaseClient
+            let query = supabaseClient
               .from('streetworks')
               .select(selectFields)
-              .order('webhook_received_at', { ascending: false })
+              .order('webhook_received_at', { ascending: false });
+
+            // Filter out dismissed/cancelled streetworks unless explicitly requested
+            if (!options.includeDismissed) {
+              query = query.not('status', 'eq', 'dismissed').not('sm_cancelled', 'eq', true);
+              console.log('🚫 Filtering out dismissed/cancelled streetworks');
+            } else {
+              console.log('ℹ️ Including dismissed/cancelled streetworks (admin mode)');
+            }
+
+            const { data: pageData, error: pageError } = await query
               .range(currentPage * pageSize, (currentPage + 1) * pageSize - 1);
           
             if (pageError) {
@@ -671,17 +686,18 @@ class UnifiedRoadworksManager {
       
       if (streetworksRecords && streetworksRecords.length > 0) {
         console.log(`✅ Found ${streetworksRecords.length} streetworks records from database`);
-        streetworksData = this.transformStreetworksData(streetworksRecords);
+        streetworksData = await this.transformStreetworksData(streetworksRecords);
       } else {
         console.log('📭 No streetworks records found in database');
       }
       
-      // Cache the results
+      // Cache the results with dismissed status consideration
       if (streetworksData.length > 0) {
         const metadata = {
           streetworksCount: streetworksData.length,
           totalCount: streetworksData.length,
-          lastFetch: new Date().toISOString()
+          lastFetch: new Date().toISOString(),
+          includeDismissed: options.includeDismissed || false
         };
         
         const cacheData = {
@@ -690,7 +706,12 @@ class UnifiedRoadworksManager {
           source: 'streetworks_database',
           metadata
         };
-        this.cache.set('unified_roadworks_data', cacheData);
+        
+        // Use different cache keys based on dismissed filter
+        const cacheKey = options.includeDismissed ? 
+          'streetworks_data_with_dismissed' : 
+          'streetworks_data_active_only';
+        this.cache.set(cacheKey, cacheData);
       }
       
       console.log(`✅ StreetManager roadworks fetch completed in ${Date.now() - startTime}ms: ${streetworksData.length} total items`);
@@ -755,91 +776,221 @@ class UnifiedRoadworksManager {
   /**
    * Transform streetworks table data to unified roadworks format
    * Handles Street Manager webhook data with rich schema
+   * Now includes ACTIVE enhanced coordinate extraction
    */
-  transformStreetworksData(streetworksRecords) {
-    console.log(`🔄 Transforming ${streetworksRecords.length} streetworks records...`);
+  async transformStreetworksData(streetworksRecords) {
+    console.log(`🔄 Transforming ${streetworksRecords.length} streetworks records with ENHANCED COORDINATE SERVICE ACTIVE...`);
     const startTime = Date.now();
     
-    const roadworks = streetworksRecords.map(record => {
-      // Extract coordinates from multiple sources
-      let coordinates = null;
-      
-      // Try direct WGS84 coordinates first
-      if (record.latitude && record.longitude) {
-        coordinates = [parseFloat(record.latitude), parseFloat(record.longitude)];
-      } 
-      // Try BNG coordinates conversion
-      else if (record.sm_easting && record.sm_northing) {
-        try {
-          const wgs84 = bngToLatLng(parseFloat(record.sm_easting), parseFloat(record.sm_northing));
-          coordinates = [wgs84.lat, wgs84.lng];
-        } catch (e) {
-          console.warn(`⚠️ BNG conversion failed for ${record.id}:`, e.message);
-        }
-      }
-      // Fallback to webhook data coordinates
-      else {
-        const coords = this.extractCoordinatesFromWebhook(record);
-        if (coords) {
-          coordinates = [coords.lat, coords.lng];
-        }
-      }
-      
-      // Build location description
-      const locationParts = [
-        record.sm_location_description,
-        record.sm_street_name,
-        record.sm_area_name
-      ].filter(Boolean);
-      const location = locationParts.length > 0 ? locationParts.join(', ') : 'Unknown location';
-      
-      // Determine severity based on traffic impact and work category
-      let severity = record.severity || 'medium';
-      if (record.sm_traffic_sensitive || record.sm_traffic_management_type?.includes('closure')) {
-        severity = 'high';
-      }
-      
-      return {
-        id: record.id,
-        title: `Street Manager: ${record.sm_street_name || location}`,
-        location: location,
-        description: record.sm_works_description || 'Street works activity',
-        startDate: record.sm_actual_start_date || record.sm_start_date,
-        endDate: record.sm_actual_end_date || record.sm_end_date,
-        source: 'StreetManager',
-        dataSource: 'streetworks_table',
-        severity: severity,
-        status: record.status || 'active',
-        coordinates: coordinates,
-        
-        // Street Manager specific fields
-        permitReference: record.sm_permit_reference,
-        workReference: record.sm_reference,
-        promoter: record.sm_promoter_name,
-        authority: record.sm_highway_authority,
-        workCategory: record.sm_works_category,
-        workState: record.sm_works_state,
-        trafficSensitive: record.sm_traffic_sensitive,
-        trafficManagement: record.sm_traffic_management_type,
-        
-        // Route matching
-        affectedRoutes: record.auto_matched_routes || record.confirmed_routes || [],
-        hasRouteImpact: (record.auto_matched_routes?.length || 0) > 0 || (record.confirmed_routes?.length || 0) > 0,
-        
-        // Metadata
-        isAutomatic: true,
-        canEdit: false,
-        canDismiss: true,
-        webhookData: true,
-        timestamp: Date.now(),
-        receivedAt: record.webhook_received_at,
-        createdAt: record.created_at,
-        updatedAt: record.updated_at
-      };
-    });
+    // Track coordinate enhancement statistics
+    let enhancementStats = {
+      total: 0,
+      enhanced: 0,
+      legacy: 0,
+      failed: 0,
+      highConfidence: 0,
+      mediumConfidence: 0,
+      lowConfidence: 0
+    };
     
-    console.log(`✅ Streetworks transformation completed in ${Date.now() - startTime}ms`);
-    return roadworks;
+    // Process records in batches to avoid memory issues
+    const batchSize = 50;
+    const allRoadworks = [];
+    
+    for (let i = 0; i < streetworksRecords.length; i += batchSize) {
+      const batch = streetworksRecords.slice(i, i + batchSize);
+      console.log(`📦 Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(streetworksRecords.length/batchSize)} - ENHANCED COORDINATES ACTIVE`);
+      
+      const batchPromises = batch.map(async (record) => {
+        enhancementStats.total++;
+        
+        // Build initial roadwork object
+        let roadwork = {
+          id: record.id,
+          title: `Street Manager: ${record.sm_street_name || record.sm_location_description || 'Street Works'}`,
+          location: this.buildLocationDescription(record),
+          description: record.sm_works_description || 'Street works activity',
+          startDate: record.sm_actual_start_date || record.sm_start_date,
+          endDate: record.sm_actual_end_date || record.sm_end_date,
+          source: 'StreetManager',
+          dataSource: 'streetworks_table',
+          severity: this.determineSeverity(record),
+          status: record.status || 'active',
+          
+          // Street Manager specific fields
+          permitReference: record.sm_permit_reference,
+          workReference: record.sm_reference,
+          promoter: record.sm_promoter_name,
+          authority: record.sm_highway_authority,
+          workCategory: record.sm_works_category,
+          workState: record.sm_works_state,
+          trafficSensitive: record.sm_traffic_sensitive,
+          trafficManagement: record.sm_traffic_management_type,
+          
+          // Route matching
+          affectedRoutes: record.auto_matched_routes || record.confirmed_routes || [],
+          hasRouteImpact: (record.auto_matched_routes?.length || 0) > 0 || (record.confirmed_routes?.length || 0) > 0,
+          
+          // Metadata
+          isAutomatic: true,
+          canEdit: false,
+          canDismiss: true,
+          webhookData: true,
+          timestamp: Date.now(),
+          receivedAt: record.webhook_received_at,
+          createdAt: record.created_at,
+          updatedAt: record.updated_at,
+          
+          // Include raw data for coordinate extraction
+          sm_easting: record.sm_easting,
+          sm_northing: record.sm_northing,
+          sm_location_description: record.sm_location_description,
+          sm_street_name: record.sm_street_name,
+          sm_area_name: record.sm_area_name,
+          raw_webhook_data: record.raw_webhook_data
+        };
+
+        // ENHANCED COORDINATE EXTRACTION WITH PERSISTENCE - FULLY ACTIVE
+        console.log(`🎯 ACTIVATING Enhanced Coordinate Service with Persistence for ${record.id}...`);
+        let coordinateEnhancementSuccess = false;
+        
+        try {
+          // Use the new enhanceAndPersistCoordinates method that automatically saves high-confidence coordinates
+          const enhancedRoadwork = await enhancedCoordinateService.enhanceAndPersistCoordinates(roadwork, true);
+          
+          if (enhancedRoadwork.coordinates && enhancedRoadwork.coordinateConfidence >= 50) {
+            roadwork = enhancedRoadwork;
+            coordinateEnhancementSuccess = true;
+            enhancementStats.enhanced++;
+            
+            // Track confidence levels
+            if (enhancedRoadwork.coordinateConfidence >= 90) {
+              enhancementStats.highConfidence++;
+            } else if (enhancedRoadwork.coordinateConfidence >= 70) {
+              enhancementStats.mediumConfidence++;
+            } else {
+              enhancementStats.lowConfidence++;
+            }
+            
+            const persistenceStatus = enhancedRoadwork.coordinatePersisted ? '💾 PERSISTED' : '📝 not persisted';
+            console.log(`✅ Enhanced coordinates SUCCESS for ${record.id}: [${roadwork.coordinates[0]}, ${roadwork.coordinates[1]}] from ${roadwork.coordinateSource} (confidence: ${roadwork.coordinateConfidence}%) - ${persistenceStatus}`);
+            
+            if (enhancedRoadwork.coordinatePersisted) {
+              console.log(`💾 Coordinates saved to ${enhancedRoadwork.persistenceTable} table for future use`);
+            }
+          } else {
+            console.log(`⚠️ Enhanced service returned low-confidence coordinates for ${record.id}, trying legacy fallback...`);
+            coordinateEnhancementSuccess = false;
+          }
+        } catch (error) {
+          console.error(`❌ Enhanced coordinate extraction FAILED for ${record.id}:`, error.message);
+          coordinateEnhancementSuccess = false;
+        }
+        
+        // Fallback to legacy coordinate extraction if enhanced service fails or returns low confidence
+        if (!coordinateEnhancementSuccess) {
+          console.log(`🔄 Falling back to legacy coordinate extraction for ${record.id}...`);
+          const legacyCoords = this.extractLegacyCoordinates(record);
+          if (legacyCoords) {
+            roadwork.coordinates = legacyCoords;
+            roadwork.coordinateSource = coordinateEnhancementSuccess ? 'enhanced_low_confidence' : 'legacy_fallback';
+            roadwork.coordinateConfidence = 60;
+            enhancementStats.legacy++;
+            console.log(`🔧 Legacy coordinates applied for ${record.id}: [${legacyCoords[0]}, ${legacyCoords[1]}]`);
+          } else {
+            // Apply default Newcastle coordinates as final fallback
+            roadwork.coordinates = [54.9783, -1.6178];
+            roadwork.coordinateSource = 'default_newcastle';
+            roadwork.coordinateConfidence = 10;
+            enhancementStats.failed++;
+            console.log(`⚠️ No coordinates found for ${record.id}, using Newcastle default`);
+          }
+        }
+
+        return roadwork;
+      });
+      
+      const batchResults = await Promise.all(batchPromises);
+      allRoadworks.push(...batchResults);
+      
+      // Small delay between batches to prevent overwhelming the system
+      if (i + batchSize < streetworksRecords.length) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+    }
+    
+    // Log comprehensive coordinate enhancement statistics
+    const processingTime = Date.now() - startTime;
+    console.log(`✅ ENHANCED COORDINATE SERVICE RESULTS:`);
+    console.log(`   📊 Total processed: ${enhancementStats.total}`);
+    console.log(`   🎯 Enhanced: ${enhancementStats.enhanced} (${((enhancementStats.enhanced / enhancementStats.total) * 100).toFixed(1)}%)`);
+    console.log(`   🔧 Legacy fallback: ${enhancementStats.legacy} (${((enhancementStats.legacy / enhancementStats.total) * 100).toFixed(1)}%)`);
+    console.log(`   ❌ Failed: ${enhancementStats.failed} (${((enhancementStats.failed / enhancementStats.total) * 100).toFixed(1)}%)`);
+    console.log(`   🏆 High confidence (>=90%): ${enhancementStats.highConfidence}`);
+    console.log(`   🥈 Medium confidence (70-89%): ${enhancementStats.mediumConfidence}`);
+    console.log(`   🥉 Low confidence (50-69%): ${enhancementStats.lowConfidence}`);
+    console.log(`   ⏱️ Processing time: ${processingTime}ms`);
+    
+    // Get enhanced coordinate service statistics
+    const serviceStats = enhancedCoordinateService.getStats();
+    console.log(`📈 Enhanced Coordinate Service Stats:`, serviceStats);
+    
+    console.log(`✅ Enhanced streetworks transformation completed in ${processingTime}ms`);
+    return allRoadworks;
+  }
+
+  /**
+   * Build comprehensive location description for coordinate extraction
+   */
+  buildLocationDescription(record) {
+    const locationParts = [
+      record.sm_location_description,
+      record.sm_street_name,
+      record.sm_area_name
+    ].filter(Boolean);
+    
+    return locationParts.length > 0 ? locationParts.join(', ') : 'Unknown location';
+  }
+
+  /**
+   * Determine severity based on traffic impact and work category
+   */
+  determineSeverity(record) {
+    let severity = record.severity || 'medium';
+    
+    if (record.sm_traffic_sensitive || record.sm_traffic_management_type?.includes('closure')) {
+      severity = 'high';
+    }
+    
+    return severity;
+  }
+
+  /**
+   * Legacy coordinate extraction method (fallback)
+   */
+  extractLegacyCoordinates(record) {
+    // Try direct WGS84 coordinates first
+    if (record.latitude && record.longitude) {
+      return [parseFloat(record.latitude), parseFloat(record.longitude)];
+    } 
+    
+    // Try BNG coordinates conversion
+    if (record.sm_easting && record.sm_northing) {
+      try {
+        const wgs84 = bngToLatLng(parseFloat(record.sm_easting), parseFloat(record.sm_northing));
+        return [wgs84.lat, wgs84.lng];
+      } catch (e) {
+        console.warn(`⚠️ Legacy BNG conversion failed for ${record.id}:`, e.message);
+      }
+    }
+    
+    // Fallback to webhook data coordinates
+    const coords = this.extractCoordinatesFromWebhook(record);
+    if (coords) {
+      return [coords.lat, coords.lng];
+    }
+    
+    return null;
   }
 
   /**
@@ -973,36 +1124,55 @@ class UnifiedRoadworksManager {
   }
 
   /**
-   * Transform webhook data to roadworks format (legacy - more comprehensive)
+   * Transform webhook data to roadworks format with enhanced coordinates
    */
-  transformWebhookData(notifications) {
-    return notifications.map(notification => this.transformSingleWebhookRecord(notification));
+  async transformWebhookData(notifications) {
+    console.log(`🔄 Transforming ${notifications.length} webhook notifications with Enhanced Coordinate Service...`);
+    
+    // Process in batches for memory efficiency
+    const batchSize = 25;
+    const allRoadworks = [];
+    
+    for (let i = 0; i < notifications.length; i += batchSize) {
+      const batch = notifications.slice(i, i + batchSize);
+      console.log(`📦 Processing webhook batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(notifications.length/batchSize)} - ENHANCED COORDINATES ACTIVE`);
+      
+      const batchPromises = batch.map(notification => this.transformSingleWebhookRecord(notification));
+      const batchResults = await Promise.all(batchPromises);
+      allRoadworks.push(...batchResults);
+      
+      // Small delay between batches
+      if (i + batchSize < notifications.length) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+    }
+    
+    console.log(`✅ Webhook transformation with enhanced coordinates completed: ${allRoadworks.length} roadworks`);
+    return allRoadworks;
   }
   
   /**
    * Transform single webhook notification to roadwork format
+   * NOW WITH ENHANCED COORDINATE SERVICE
    */
-  transformSingleWebhookRecord(notification) {
+  async transformSingleWebhookRecord(notification) {
     const rawData = notification.raw_webhook_data || {};
     const objectData = rawData.object_data || {};
     
-    // Extract coordinates using enhanced method
-    const extractedCoords = this.extractCoordinatesFromWebhook(notification);
-    const coordinates = extractedCoords ? [extractedCoords.lat, extractedCoords.lng] : null;
-    
-    if (extractedCoords) {
-      console.log(`🎯 Successfully extracted coordinates for ${notification.id}: [${extractedCoords.lat}, ${extractedCoords.lng}] from ${extractedCoords.source}`);
-    } else {
-      console.log(`❌ No coordinates extracted for ${notification.id}`);
-    }
-    
-    return {
+    // Build initial roadwork object for enhanced coordinate service
+    let roadwork = {
       id: notification.notification_id,
       title: notification.title || `${objectData.activity_type || 'Roadwork'} - ${objectData.street_name || 'Unknown Street'}`,
       description: notification.description || `Street Manager notification: ${notification.webhook_event_type}`,
       location: notification.location_description || `${objectData.street_name || 'Unknown'}, ${objectData.area_name || 'Unknown'}`,
-      coordinates: coordinates,
-      coordinateSource: extractedCoords?.source || 'none',
+      
+      // Include raw data for enhanced coordinate extraction
+      sm_easting: notification.sm_easting,
+      sm_northing: notification.sm_northing,
+      sm_location_description: notification.location_description,
+      sm_street_name: objectData.street_name,
+      sm_area_name: objectData.area_name,
+      raw_webhook_data: notification.raw_webhook_data,
       
       // Status and severity
       status: notification.alert_status || 'amber',
@@ -1045,36 +1215,96 @@ class UnifiedRoadworksManager {
       webhookData: true,
       realTimeData: true
     };
-  }
-  
-  /**
-   * Transform fallback data to roadworks format
-   */
-  transformFallbackData(fallbackRecords) {
-    return fallbackRecords.map(record => this.transformSingleFallbackRecord(record));
-  }
-  
-  /**
-   * Transform single fallback record to roadwork format
-   */
-  transformSingleFallbackRecord(record) {
-    // Extract coordinates using enhanced method
-    const extractedCoords = this.extractCoordinatesFromWebhook(record);
-    const coordinates = extractedCoords ? [extractedCoords.lat, extractedCoords.lng] : null;
     
-    if (extractedCoords) {
-      console.log(`🎯 Successfully extracted coordinates for fallback ${record.notification_id}: [${extractedCoords.lat}, ${extractedCoords.lng}] from ${extractedCoords.source}`);
-    } else {
-      console.log(`❌ No coordinates extracted for fallback ${record.notification_id}`);
+    // ENHANCED COORDINATE EXTRACTION FOR WEBHOOK DATA
+    console.log(`🎯 APPLYING Enhanced Coordinate Service to webhook notification ${notification.notification_id}...`);
+    
+    try {
+      const enhancedRoadwork = await enhancedCoordinateService.enhanceAlertCoordinates(roadwork);
+      
+      if (enhancedRoadwork.coordinates && enhancedRoadwork.coordinateConfidence >= 50) {
+        roadwork = enhancedRoadwork;
+        console.log(`✅ Enhanced coordinates SUCCESS for webhook ${notification.notification_id}: [${roadwork.coordinates[0]}, ${roadwork.coordinates[1]}] from ${roadwork.coordinateSource} (confidence: ${roadwork.coordinateConfidence}%)`);
+      } else {
+        // Fallback to legacy coordinate extraction
+        const extractedCoords = this.extractCoordinatesFromWebhook(notification);
+        const coordinates = extractedCoords ? [extractedCoords.lat, extractedCoords.lng] : null;
+        
+        roadwork.coordinates = coordinates;
+        roadwork.coordinateSource = extractedCoords?.source || 'none';
+        roadwork.coordinateConfidence = extractedCoords ? 60 : 10;
+        
+        if (extractedCoords) {
+          console.log(`🔧 Legacy coordinates applied for webhook ${notification.notification_id}: [${extractedCoords.lat}, ${extractedCoords.lng}] from ${extractedCoords.source}`);
+        } else {
+          console.log(`❌ No coordinates extracted for webhook ${notification.notification_id}`);
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Enhanced coordinate extraction FAILED for webhook ${notification.notification_id}:`, error.message);
+      
+      // Fallback to legacy method
+      const extractedCoords = this.extractCoordinatesFromWebhook(notification);
+      const coordinates = extractedCoords ? [extractedCoords.lat, extractedCoords.lng] : null;
+      
+      roadwork.coordinates = coordinates;
+      roadwork.coordinateSource = extractedCoords?.source || 'legacy_fallback';
+      roadwork.coordinateConfidence = extractedCoords ? 60 : 10;
+      
+      if (extractedCoords) {
+        console.log(`🔧 Legacy fallback coordinates for webhook ${notification.notification_id}: [${extractedCoords.lat}, ${extractedCoords.lng}]`);
+      }
     }
     
-    return {
+    return roadwork;
+  }
+  
+  /**
+   * Transform fallback data to roadworks format with enhanced coordinates
+   */
+  async transformFallbackData(fallbackRecords) {
+    console.log(`🔄 Transforming ${fallbackRecords.length} fallback records with Enhanced Coordinate Service...`);
+    
+    // Process in batches for memory efficiency
+    const batchSize = 25;
+    const allRoadworks = [];
+    
+    for (let i = 0; i < fallbackRecords.length; i += batchSize) {
+      const batch = fallbackRecords.slice(i, i + batchSize);
+      console.log(`📦 Processing fallback batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(fallbackRecords.length/batchSize)} - ENHANCED COORDINATES ACTIVE`);
+      
+      const batchPromises = batch.map(record => this.transformSingleFallbackRecord(record));
+      const batchResults = await Promise.all(batchPromises);
+      allRoadworks.push(...batchResults);
+      
+      // Small delay between batches
+      if (i + batchSize < fallbackRecords.length) {
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+    }
+    
+    console.log(`✅ Fallback transformation with enhanced coordinates completed: ${allRoadworks.length} roadworks`);
+    return allRoadworks;
+  }
+  
+  /**
+   * Transform single fallback record to roadwork format with enhanced coordinates
+   */
+  async transformSingleFallbackRecord(record) {
+    // Build initial roadwork object for enhanced coordinate service
+    let roadwork = {
       id: record.notification_id,
       title: record.title,
       description: record.description,
       location: record.location_description,
-      coordinates: coordinates,
-      coordinateSource: extractedCoords?.source || 'none',
+      
+      // Include raw data for enhanced coordinate extraction
+      sm_easting: record.sm_easting,
+      sm_northing: record.sm_northing,
+      sm_location_description: record.location_description,
+      sm_street_name: record.street_name,
+      sm_area_name: record.area_name,
+      raw_webhook_data: record.raw_webhook_data,
       
       // Status and severity
       status: record.alert_status || 'amber',
@@ -1111,12 +1341,56 @@ class UnifiedRoadworksManager {
       fallbackData: true,
       realTimeData: false
     };
+    
+    // ENHANCED COORDINATE EXTRACTION FOR FALLBACK DATA
+    console.log(`🎯 APPLYING Enhanced Coordinate Service to fallback record ${record.notification_id}...`);
+    
+    try {
+      const enhancedRoadwork = await enhancedCoordinateService.enhanceAlertCoordinates(roadwork);
+      
+      if (enhancedRoadwork.coordinates && enhancedRoadwork.coordinateConfidence >= 50) {
+        roadwork = enhancedRoadwork;
+        console.log(`✅ Enhanced coordinates SUCCESS for fallback ${record.notification_id}: [${roadwork.coordinates[0]}, ${roadwork.coordinates[1]}] from ${roadwork.coordinateSource} (confidence: ${roadwork.coordinateConfidence}%)`);
+      } else {
+        // Fallback to legacy coordinate extraction
+        const extractedCoords = this.extractCoordinatesFromWebhook(record);
+        const coordinates = extractedCoords ? [extractedCoords.lat, extractedCoords.lng] : null;
+        
+        roadwork.coordinates = coordinates;
+        roadwork.coordinateSource = extractedCoords?.source || 'none';
+        roadwork.coordinateConfidence = extractedCoords ? 60 : 10;
+        
+        if (extractedCoords) {
+          console.log(`🔧 Legacy coordinates applied for fallback ${record.notification_id}: [${extractedCoords.lat}, ${extractedCoords.lng}] from ${extractedCoords.source}`);
+        } else {
+          console.log(`❌ No coordinates extracted for fallback ${record.notification_id}`);
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Enhanced coordinate extraction FAILED for fallback ${record.notification_id}:`, error.message);
+      
+      // Fallback to legacy method
+      const extractedCoords = this.extractCoordinatesFromWebhook(record);
+      const coordinates = extractedCoords ? [extractedCoords.lat, extractedCoords.lng] : null;
+      
+      roadwork.coordinates = coordinates;
+      roadwork.coordinateSource = extractedCoords?.source || 'legacy_fallback';
+      roadwork.coordinateConfidence = extractedCoords ? 60 : 10;
+      
+      if (extractedCoords) {
+        console.log(`🔧 Legacy fallback coordinates for fallback ${record.notification_id}: [${extractedCoords.lat}, ${extractedCoords.lng}]`);
+      }
+    }
+    
+    return roadwork;
   }
 
   /**
    * Get manual roadworks/incidents
+   * @param {Object} options - Query options
+   * @param {boolean} options.includeDismissed - Include dismissed alerts (default: false)
    */
-  async getManualRoadworks() {
+  async getManualRoadworks(options = {}) {
     const startTime = Date.now();
     
     try {
@@ -1139,11 +1413,19 @@ class UnifiedRoadworksManager {
         };
       }
       
-      const query = supabaseClient
+      let query = supabaseClient
         .from('roadworks')
         .select('id, location, description, created_at, severity, status')
         .order('created_at', { ascending: false })
         .limit(100); // Reduced limit for performance
+
+      // Filter out dismissed alerts unless explicitly requested
+      if (!options.includeDismissed) {
+        query = query.neq('status', 'dismissed').or('dismissed_at.is.null,dismissed_at.eq.null');
+        console.log('🚫 Filtering out dismissed manual roadworks');
+      } else {
+        console.log('ℹ️ Including dismissed manual roadworks (admin mode)');
+      }
       
       const { data: manualIncidents, error } = await Promise.race([query, timeout]);
       
@@ -1357,6 +1639,9 @@ class UnifiedRoadworksManager {
       // Fallback to clearing specific common cache keys
       this.cache.delete('streetmanager_data');
       this.cache.delete('manual_roadworks');
+      this.cache.delete('streetworks_data_active_only');
+      this.cache.delete('streetworks_data_with_dismissed');
+      this.cache.delete('unified_roadworks_data');
     }
   }
 

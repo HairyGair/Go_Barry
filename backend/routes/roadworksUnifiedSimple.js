@@ -1,6 +1,9 @@
 import express from 'express';
 import axios from 'axios';
 import { processStreetManagerCoordinates } from '../utils/coordinateConverter.js';
+import { calculateAffectedRoutes, formatAffectedRoutesSummary } from '../utils/routeImpactCalculator.js';
+import { coordinateFallbackProcessor } from '../utils/coordinateFallbackProcessor.js';
+import { coordinateValidator } from '../utils/coordinateValidator.js';
 
 const router = express.Router();
 
@@ -268,156 +271,92 @@ router.get('/unified', async (req, res) => {
       });
     }
     
-    // Remove date filtering - get ALL roadworks for comprehensive view
-    console.log('🗄️ Fetching ALL roadworks from Supabase table (10,000+ entries)');
-    console.log('📊 No date filtering - supervisors control relevance through dismissals');
+    // Get date range from query params (default 90 days)
+    const days = parseInt(req.query.days) || 90;
+    const now = new Date();
+    const futureDate = new Date(now.getTime() + (days * 24 * 60 * 60 * 1000));
+    const pastDate = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000)); // 30 days ago
+    
+    console.log(`🗄️ Fetching roadworks for ${days} day window`);
+    console.log(`📊 Date range: ${pastDate.toISOString()} to ${futureDate.toISOString()}`);
     
     let roadworks = [];
     
     try {
-      // Get ALL planned and in-progress roadworks - fetch in batches due to Supabase 1000 row limit
-      console.log('🔍 Fetching ALL planned/in-progress roadworks in batches...');
+      // Get roadworks within date range - single request with reasonable limit
+      console.log('🔍 Fetching roadworks within date range...');
       
-      let allRoadworks = [];
-      let offset = 0;
-      const batchSize = 1000; // Supabase max limit per request
-      let hasMore = true;
+      const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json'
+        },
+        params: {
+          'sm_works_state': 'in.(Works planned,Works in progress)',
+          'sm_start_date': `gte.${pastDate.toISOString()},lte.${futureDate.toISOString()}`,
+          order: 'sm_start_date.asc',
+          limit: 500 // Reasonable limit to prevent memory issues
+        },
+        timeout: 30000
+      });
       
-      while (hasMore) {
-        console.log(`📦 Fetching batch: offset=${offset}, limit=${batchSize}`);
-        
-        const batchResponse = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json',
-            'Range': `${offset}-${offset + batchSize - 1}`,
-            'Range-Unit': 'items',
-            'Prefer': 'count=exact'
-          },
-          params: {
-            'sm_works_state': 'in.(Works planned,Works in progress)',
-            order: 'sm_start_date.asc',
-            limit: batchSize,
-            offset: offset
-          },
-          timeout: 30000 // 30 seconds per batch
-        });
-        
-        const batchData = batchResponse.data;
-        console.log(`✅ Batch received: ${batchData.length} records`);
-        
-        allRoadworks = allRoadworks.concat(batchData);
-        offset += batchSize;
-        
-        console.log(`📈 Progress: ${allRoadworks.length} total roadworks fetched so far...`);
-        
-        // Check if we got less than batchSize records (meaning we've reached the end)
-        hasMore = batchData.length === batchSize;
-        
-        // Safety limit to prevent infinite loops
-        if (offset >= 50000) {
-          console.warn('⚠️ Reached safety limit of 50,000 records');
-          hasMore = false;
-        }
-      }
+      roadworks = response.data;
+      console.log(`✅ Found ${roadworks.length} roadworks in date range`);
       
-      const futureResponse = { data: allRoadworks };
-      
-      console.log(`✅ Batch fetching complete: ${Math.ceil(allRoadworks.length / 1000)} batches fetched`);
-      console.log(`✅ Found ${futureResponse.data.length} roadworks (future + active)`);
-      
-      // Simple debug log for date distribution
-      const futureWorksDebug = futureResponse.data
-        .filter(w => w.sm_start_date && new Date(w.sm_start_date) > new Date())
-        .slice(0, 5)
-        .map(w => {
-          const days = Math.ceil((new Date(w.sm_start_date) - new Date()) / (1000 * 60 * 60 * 24));
-          return `${w.sm_street_name || w.sm_location_description} - ${days} days`;
-        });
-      console.log('📅 Next few roadworks:', futureWorksDebug);
-      
-      // Use the full dataset
-      if (futureResponse.data.length > 0) {
-        roadworks = futureResponse.data;
-        console.log('🎯 Using comprehensive roadworks dataset for frontend filtering');
-      }
-      
-    } catch (futureError) {
-      console.warn('⚠️ Future roadworks query failed, trying broader approach:', futureError.message);
-    }
-    
-    // If no future works found, or error occurred, get broader dataset
-    if (roadworks.length === 0) {
-      try {
-        console.log('🔍 Fallback: Fetching all planned/in-progress works in batches...');
-        
-        // Use the same batching approach for fallback
-        let allRoadworks = [];
-        let offset = 0;
-        const batchSize = 1000;
-        let hasMore = true;
-        
-        while (hasMore) {
-          console.log(`📦 Fallback batch: offset=${offset}, limit=${batchSize}`);
-          
-          const batchResponse = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
-            headers: {
-              'apikey': supabaseKey,
-              'Authorization': `Bearer ${supabaseKey}`,
-              'Content-Type': 'application/json',
-              'Range': `${offset}-${offset + batchSize - 1}`,
-              'Range-Unit': 'items',
-              'Prefer': 'count=exact'
-            },
-            params: {
-              'sm_works_state': 'in.(Works planned,Works in progress)',
-              order: 'sm_start_date.asc',
-              limit: batchSize,
-              offset: offset
-            },
-            timeout: 30000
-          });
-          
-          const batchData = batchResponse.data;
-          console.log(`✅ Fallback batch received: ${batchData.length} records`);
-          
-          allRoadworks = allRoadworks.concat(batchData);
-          offset += batchSize;
-          
-          console.log(`📈 Fallback progress: ${allRoadworks.length} total roadworks fetched so far...`);
-          
-          hasMore = batchData.length === batchSize;
-          
-          if (offset >= 50000) {
-            console.warn('⚠️ Fallback reached safety limit of 50,000 records');
-            hasMore = false;
-          }
-        }
-        
-        roadworks = allRoadworks;
-        console.log(`✅ Fallback batch fetching complete: ${Math.ceil(allRoadworks.length / 1000)} batches fetched`);
-        console.log(`✅ Fallback: Found ${roadworks.length} planned/in-progress works (no date filter)`);
-        
-      } catch (broadError) {
-        console.error('❌ Broader dataset query also failed:', broadError.message);
-        // Final fallback - return empty array
-        roadworks = [];
-      }
+    } catch (error) {
+      console.error('❌ Error fetching roadworks:', error.message);
+      roadworks = [];
     }
     
     // Process coordinates for each roadwork
-    console.log(`🗺️ Processing coordinates for ${roadworks.length} roadworks...`);
-    roadworks = roadworks.map(roadwork => {
-      const processed = processStreetManagerCoordinates(roadwork);
+    console.log(`🗺️ Processing coordinates and route impacts for ${roadworks.length} roadworks...`);
+    
+    // Process with coordinate conversion and route impact calculation
+    const processedRoadworks = await Promise.all(roadworks.map(async (roadwork) => {
+      // First, process coordinates with standard converter
+      let processed = processStreetManagerCoordinates(roadwork);
+      
+      // Validate coordinates to detect defaults/mismatches
+      processed = coordinateValidator.processWithValidation(processed);
+      
+      // If no coordinates found or validation failed, use enhanced fallback processor
+      if (!processed.coordinates) {
+        processed = await coordinateFallbackProcessor.processRoadworkWithFallbacks(processed);
+        console.log(`🔍 Fallback processing for ${processed.sm_reference}: ${processed.coordinateFallbackStrategy}`);
+      }
       
       // Log coordinate processing results (limit logging for performance)
       if (roadworks.length < 100 && processed.coordinates) {
         console.log(`✅ ${processed.sm_reference}: [${processed.coordinates[0].toFixed(6)}, ${processed.coordinates[1].toFixed(6)}]`);
+      } else if (roadworks.length < 100 && !processed.coordinates) {
+        console.log(`⚠️ ${processed.sm_reference}: No valid coordinates - ${processed.coordinateValidation?.reason || 'unknown reason'}`);
+      }
+      
+      // Calculate affected routes if we have valid coordinates
+      if (processed.coordinates || processed.works_location_coordinates) {
+        try {
+          const affectedRoutes = await calculateAffectedRoutes(processed);
+          processed.affectedRoutes = affectedRoutes;
+          processed.affectedRoutesSummary = formatAffectedRoutesSummary(affectedRoutes);
+          
+          if (affectedRoutes.length > 0 && roadworks.length < 50) {
+            console.log(`🚌 ${processed.sm_reference}: Affects ${processed.affectedRoutesSummary}`);
+          }
+        } catch (error) {
+          console.error(`⚠️ Route impact calculation failed for ${processed.sm_reference}:`, error.message);
+          processed.affectedRoutes = [];
+          processed.affectedRoutesSummary = 'Unable to calculate';
+        }
+      } else {
+        processed.affectedRoutes = [];
+        processed.affectedRoutesSummary = 'No coordinates available';
       }
       
       return processed;
-    });
+    }));
+    
+    roadworks = processedRoadworks;
     
     const successfulCoordinates = roadworks.filter(r => r.coordinates).length;
     const coordinateSuccessRate = roadworks.length > 0 ? Math.round((successfulCoordinates / roadworks.length) * 100) : 0;
@@ -433,11 +372,11 @@ router.get('/unified', async (req, res) => {
     };
     
     console.log(`📈 Query params used:`, {
-    workStateFilter: 'Works planned, Works in progress',
-    dateFilter: 'none - all roadworks',
-    fetchMethod: 'batched (1000 per request)',
-    totalFetched: roadworks.length,
-    orderBy: 'sm_start_date.asc',
+      workStateFilter: 'Works planned, Works in progress',
+      dateFilter: `${days} days (${pastDate.toLocaleDateString()} to ${futureDate.toLocaleDateString()})`,
+      limit: 500,
+      totalFetched: roadworks.length,
+      orderBy: 'sm_start_date.asc',
       coordinateProcessing: `${coordinateStats.withCoordinates}/${coordinateStats.total} (${coordinateStats.successRate}%)`
     });
     
@@ -450,19 +389,26 @@ router.get('/unified', async (req, res) => {
         source: 'supabase_streetworks',
         table: 'streetworks',
         workStateFilter: 'Works planned, Works in progress',
-        dateFilter: 'none_all_roadworks',
-        filterApplied: 'All planned/in-progress works - no date filtering',
-        dismissalNote: 'Frontend handles dismissals to manage memory',
-        fetchMethod: 'Batched fetching to overcome Supabase 1000 row limit',
-        batchInfo: `Fetched ${Math.ceil(roadworks.length / 1000)} batches of up to 1000 records each`,
+        dateFilter: `${days}_days`,
+        dateRange: {
+          from: pastDate.toISOString(),
+          to: futureDate.toISOString(),
+          days: days
+        },
+        limit: 500,
         coordinateProcessing: {
           total: coordinateStats.total,
           successful: coordinateStats.withCoordinates,
           successRate: `${coordinateStats.successRate}%`,
           conversionMethod: 'OSGB36_to_WGS84'
         },
+        routeImpactAnalysis: {
+          enabled: true,
+          roadworksWithImpact: roadworks.filter(r => r.affectedRoutes && r.affectedRoutes.length > 0).length,
+          totalRoutesAffected: roadworks.reduce((sum, r) => sum + (r.affectedRoutes?.length || 0), 0)
+        },
         lastUpdated: new Date().toISOString(),
-        breakthrough: 'Case sensitivity issue resolved + coordinate conversion added!'
+        memoryOptimized: true
       }
     });
   } catch (error) {
@@ -571,6 +517,156 @@ router.post('/actions/:id/dismiss', async (req, res) => {
       success: false,
       error: error.message
     });
+  }
+});
+
+// GET /api/roadworks/test-route-impact/:id - Test route impact calculation for a specific roadwork
+router.get('/test-route-impact/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log(`🧪 Testing route impact calculation for roadwork ${id}`);
+    
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return res.status(500).json({ success: false, error: 'Supabase configuration missing' });
+    }
+    
+    // Fetch specific roadwork
+    const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        'id': `eq.${id}`,
+        limit: 1
+      },
+      timeout: 10000
+    });
+    
+    const roadwork = response.data[0];
+    if (!roadwork) {
+      return res.status(404).json({ success: false, error: 'Roadwork not found' });
+    }
+    
+    // Process coordinates
+    const processed = processStreetManagerCoordinates(roadwork);
+    
+    // Calculate affected routes
+    const affectedRoutes = await calculateAffectedRoutes(processed);
+    const summary = formatAffectedRoutesSummary(affectedRoutes);
+    
+    res.json({
+      success: true,
+      roadwork: {
+        id: roadwork.id,
+        location: roadwork.sm_street_name || roadwork.sm_location_description,
+        coordinates: processed.coordinates,
+        coordinateSource: processed.coordinateSource,
+        works_location_coordinates: processed.works_location_coordinates
+      },
+      affectedRoutes: affectedRoutes,
+      affectedRoutesSummary: summary,
+      metadata: {
+        totalRoutesAffected: affectedRoutes.length,
+        uniqueRouteNumbers: [...new Set(affectedRoutes.map(r => r.routeNumber))].length,
+        directions: {
+          inbound: affectedRoutes.filter(r => r.direction === 'inbound').length,
+          outbound: affectedRoutes.filter(r => r.direction === 'outbound').length
+        },
+        highImpact: affectedRoutes.filter(r => r.impact.severity === 'high').length
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Test route impact error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// GET /api/roadworks/debug-coordinate-validation - Debug coordinate validation
+router.get('/debug-coordinate-validation', async (req, res) => {
+  try {
+    console.log('🔍 Debug: Testing coordinate validation...');
+    
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      return res.status(500).json({ success: false, error: 'Supabase configuration missing' });
+    }
+    
+    // Get some roadworks to test
+    const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json'
+      },
+      params: {
+        'sm_highway_authority': 'eq.NORTH TYNESIDE COUNCIL',
+        order: 'created_at.desc',
+        limit: 10
+      },
+      timeout: 10000
+    });
+    
+    const roadworks = response.data;
+    const validationResults = [];
+    
+    for (const roadwork of roadworks) {
+      // Process coordinates
+      let processed = processStreetManagerCoordinates(roadwork);
+      
+      // Validate
+      const beforeValidation = {
+        hasCoordinates: !!processed.coordinates,
+        coordinates: processed.coordinates,
+        source: processed.coordinateSource
+      };
+      
+      processed = coordinateValidator.processWithValidation(processed);
+      
+      const afterValidation = {
+        hasCoordinates: !!processed.coordinates,
+        coordinates: processed.coordinates,
+        validation: processed.coordinateValidation
+      };
+      
+      validationResults.push({
+        id: roadwork.id,
+        streetName: roadwork.sm_street_name,
+        authority: roadwork.sm_highway_authority,
+        beforeValidation,
+        afterValidation,
+        wouldUseFallback: !processed.coordinates
+      });
+    }
+    
+    // Special check for Killingworth Way
+    const killingworthCheck = roadworks.find(r => 
+      r.sm_street_name && r.sm_street_name.toLowerCase().includes('killingworth')
+    );
+    
+    res.json({
+      success: true,
+      totalChecked: validationResults.length,
+      invalidated: validationResults.filter(r => r.wouldUseFallback).length,
+      killingworthWayFound: !!killingworthCheck,
+      killingworthDetails: killingworthCheck ? {
+        streetName: killingworthCheck.sm_street_name,
+        originalCoords: killingworthCheck.coordinates,
+        processedCoords: validationResults.find(r => r.id === killingworthCheck.id)
+      } : null,
+      results: validationResults
+    });
+    
+  } catch (error) {
+    console.error('❌ Debug coordinate validation error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
