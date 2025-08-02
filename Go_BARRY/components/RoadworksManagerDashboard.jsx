@@ -376,19 +376,13 @@ const RoadworksManagerDashboard = ({ onClose }) => {
   const [selectedRoadworkForMap, setSelectedRoadworkForMap] = useState(null);
   const [geocodingStates, setGeocodingStates] = useState(new Map());
   
-  // Enhanced dismiss state
+  // Enhanced dismiss state - SIMPLIFIED FOR PERMANENT DELETION
   const [selectedRoadworks, setSelectedRoadworks] = useState(new Set());
   const [batchMode, setBatchMode] = useState(false);
-  const [toastMessage, setToastMessage] = useState(null);
-  const [undoTimeout, setUndoTimeout] = useState(null);
-  const [pendingDismissals, setPendingDismissals] = useState(new Map());
-  const [dismissalAnimations, setDismissalAnimations] = useState(new Map());
-  const [smartSuggestion, setSmartSuggestion] = useState('');
   const [showBatchDismissModal, setShowBatchDismissModal] = useState(false);
   
   // Animation references
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const toastAnim = useRef(new Animated.Value(0)).current;
 
   // Compartment definitions
   const compartments = [
@@ -520,7 +514,7 @@ const RoadworksManagerDashboard = ({ onClose }) => {
     }).start();
   }, []);
 
-  // Enhanced dismiss reasons with smart categorization
+  // Dismiss reasons with smart categorization
   const dismissReasons = [
     { id: 'work-completed-early', label: 'Work completed early', icon: 'check-circle', color: '#22c55e' },
     { id: 'cancelled-by-contractor', label: 'Cancelled by contractor', icon: 'cancel', color: '#f59e0b' },
@@ -533,181 +527,55 @@ const RoadworksManagerDashboard = ({ onClose }) => {
     { id: 'other', label: 'Other', icon: 'dots-horizontal', color: '#64748b' }
   ];
 
-  // Smart suggestion logic
-  const getSmartSuggestion = (alert) => {
-    if (!alert) return '';
-    
-    const duration = calculateDuration(alert);
-    const endDate = new Date(alert.sm_end_date || alert.end_date);
-    const today = new Date();
-    const daysUntilEnd = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
-    const affectedRoutes = alert.affectedRoutes || [];
-    
-    if (daysUntilEnd <= 1 && daysUntilEnd >= 0) {
-      return 'work-completed-early';
-    }
-    
-    if (affectedRoutes.length >= 5) {
-      return 'Warning: This affects multiple routes. Consider carefully.';
-    }
-    
-    if (duration > 14 || alert.sm_traffic_management_type === 'Road closure') {
-      return 'Warning: Major roadwork - requires confirmation.';
-    }
-    
-    if (affectedRoutes.length === 0) {
-      return 'not-affecting-routes';
-    }
-    
-    return '';
-  };
-
-  // Toast notification system
-  const showToast = (message, action = null) => {
-    setToastMessage({ message, action });
-    Animated.sequence([
-      Animated.timing(toastAnim, {
-        toValue: 1,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-      Animated.delay(action ? 5000 : 2000),
-      Animated.timing(toastAnim, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      })
-    ]).start(() => {
-      setToastMessage(null);
-    });
-  };
-
-  // Enhanced dismiss with undo functionality
-  const handleDismissWithUndo = async (roadworkId, reason, notes) => {
+  // Permanent delete function
+  const handlePermanentDelete = async (roadworkId, reason, notes) => {
     const roadwork = roadworks.find(r => r.id === roadworkId);
     if (!roadwork) return;
 
-    // Create slide-out animation
-    const slideAnim = new Animated.Value(0);
-    setDismissalAnimations(prev => new Map(prev.set(roadworkId, slideAnim)));
-    
-    // Slide out animation
-    Animated.timing(slideAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-
-    // Remove from display immediately
-    setRoadworks(prev => prev.filter(item => item.id !== roadworkId));
-    setFilteredRoadworks(prev => prev.filter(item => item.id !== roadworkId));
-    
-    // Store for potential undo
-    setPendingDismissals(prev => new Map(prev.set(roadworkId, {
-      roadwork,
-      reason,
-      notes,
-      timestamp: Date.now()
-    })));
-
-    // Show undo toast
-    showToast('Alert dismissed', () => undoDismissal(roadworkId));
-    
-    // Set timeout for permanent deletion
-    const timeoutId = setTimeout(() => {
-      performPermanentDismissal(roadworkId, reason, notes);
-    }, 5000);
-    
-    setUndoTimeout(prev => {
-      if (prev) clearTimeout(prev);
-      return timeoutId;
-    });
-  };
-
-  // Undo dismissal
-  const undoDismissal = (roadworkId) => {
-    const pending = pendingDismissals.get(roadworkId);
-    if (!pending) return;
-    
-    // Restore to lists
-    setRoadworks(prev => [...prev, pending.roadwork].sort((a, b) => 
-      new Date(a.sm_start_date || a.start_date) - new Date(b.sm_start_date || b.start_date)
-    ));
-    
-    // Clear pending dismissal
-    setPendingDismissals(prev => {
-      const newMap = new Map(prev);
-      newMap.delete(roadworkId);
-      return newMap;
-    });
-    
-    // Clear animation
-    setDismissalAnimations(prev => {
-      const newMap = new Map(prev);
-      newMap.delete(roadworkId);
-      return newMap;
-    });
-    
-    if (undoTimeout) {
-      clearTimeout(undoTimeout);
-      setUndoTimeout(null);
-    }
-    
-    showToast('Dismissal cancelled');
-  };
-
-  // Perform permanent dismissal
-  const performPermanentDismissal = async (roadworkId, reason, notes) => {
-    const pending = pendingDismissals.get(roadworkId);
-    if (!pending) return;
-    
     try {
-      // Log detailed dismissal with analytics
-      await dismissAlert(roadworkId, {
-        reason,
-        notes,
-        supervisor: supervisorName,
-        timestamp: new Date().toISOString(),
-        affectedRoutes: pending.roadwork.affectedRoutes?.length || 0,
-        duration: calculateDuration(pending.roadwork),
-        location: pending.roadwork.street_name,
-        trafficManagementType: pending.roadwork.sm_traffic_management_type,
-        promoter: pending.roadwork.sm_promoter_organisation
+      // Call the permanent delete endpoint
+      const response = await fetch(`https://go-barry.onrender.com/api/roadworks/unified/${roadworkId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          supervisorId: supervisorSession?.supervisor?.id,
+          supervisorName: supervisorName,
+          reason,
+          notes
+        })
       });
+
+      const data = await response.json();
       
-      await logActivity('dismiss_roadwork_permanent', {
-        roadworkId,
-        reason,
-        notes,
-        location: pending.roadwork.street_name,
-        affectedRoutesCount: pending.roadwork.affectedRoutes?.length || 0,
-        duration: calculateDuration(pending.roadwork),
-        dismissalStats: {
-          totalDismissalsToday: 1, // This would be calculated from actual data
-          reasonUsage: reason
-        }
-      });
-      
-      showToast('Alert permanently dismissed');
+      if (data.success) {
+        // Remove from local state immediately
+        setRoadworks(prev => prev.filter(item => item.id !== roadworkId));
+        setFilteredRoadworks(prev => prev.filter(item => item.id !== roadworkId));
+        
+        // Log activity
+        await logActivity('permanent_delete_roadwork', {
+          roadworkId,
+          reason,
+          notes,
+          location: roadwork.street_name,
+          affectedRoutesCount: roadwork.affectedRoutes?.length || 0,
+          duration: calculateDuration(roadwork)
+        });
+        
+        Alert.alert(
+          'Roadwork Deleted',
+          `The roadwork at ${roadwork.street_name} has been permanently deleted.`,
+          [{ text: 'OK' }]
+        );
+      } else {
+        throw new Error(data.error || 'Failed to delete roadwork');
+      }
     } catch (error) {
-      console.error('Failed to dismiss alert:', error);
-      // Restore on error
-      undoDismissal(roadworkId);
-      Alert.alert('Error', 'Failed to dismiss alert. Please try again.');
+      console.error('Failed to delete roadwork:', error);
+      Alert.alert('Error', 'Failed to delete roadwork. Please try again.');
     }
-    
-    // Clean up
-    setPendingDismissals(prev => {
-      const newMap = new Map(prev);
-      newMap.delete(roadworkId);
-      return newMap;
-    });
-    
-    setDismissalAnimations(prev => {
-      const newMap = new Map(prev);
-      newMap.delete(roadworkId);
-      return newMap;
-    });
   };
 
   // Batch operations
@@ -739,21 +607,32 @@ const RoadworksManagerDashboard = ({ onClose }) => {
     const selectedIds = Array.from(selectedRoadworks);
     if (selectedIds.length === 0) return;
     
-    for (const roadworkId of selectedIds) {
-      await handleDismissWithUndo(roadworkId, reason, notes);
-    }
-    
-    setSelectedRoadworks(new Set());
-    setBatchMode(false);
-    setShowBatchDismissModal(false);
-    
-    showToast(`${selectedIds.length} alerts dismissed`);
+    // Show confirmation for batch deletion
+    Alert.alert(
+      'Confirm Batch Deletion',
+      `Are you sure you want to permanently delete ${selectedIds.length} roadwork alerts? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete All',
+          style: 'destructive',
+          onPress: async () => {
+            for (const roadworkId of selectedIds) {
+              await handlePermanentDelete(roadworkId, reason, notes);
+            }
+            
+            setSelectedRoadworks(new Set());
+            setBatchMode(false);
+            setShowBatchDismissModal(false);
+          }
+        }
+      ]
+    );
   };
 
   // Optimized roadwork card with enhancements
   const RoadworkCard = ({ item, index }) => {
     const [isPressed, setIsPressed] = useState(false);
-    const slideAnim = dismissalAnimations.get(item.id) || new Animated.Value(0);
     const isSelected = selectedRoadworks.has(item.id);
 
     const handlePressIn = () => setIsPressed(true);
@@ -768,12 +647,6 @@ const RoadworksManagerDashboard = ({ onClose }) => {
             transform: [
               {
                 scale: isPressed ? 0.98 : 1
-              },
-              {
-                translateX: slideAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, -screenWidth]
-                })
               }
             ]
           },
@@ -1043,7 +916,6 @@ const RoadworksManagerDashboard = ({ onClose }) => {
               style={styles.actionButton}
               onPress={() => {
                 setSelectedAlert(item);
-                setSmartSuggestion(getSmartSuggestion(item));
                 setShowDismissModal(true);
               }}
               activeOpacity={0.7}
@@ -1052,8 +924,8 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                 style={[styles.actionContent, styles.dismissButton]}
                 {...(Platform.OS === 'web' && { className: 'glass-action-button dismiss' })}
               >
-                <MaterialCommunityIcons name="close-circle-outline" size={20} color="#ef4444" />
-                <Text style={[styles.actionText, { color: '#ef4444' }]}>Dismiss</Text>
+                <MaterialCommunityIcons name="delete-forever" size={20} color="#ef4444" />
+                <Text style={[styles.actionText, { color: '#ef4444' }]}>Delete</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -1175,38 +1047,26 @@ const RoadworksManagerDashboard = ({ onClose }) => {
   const handleDismissConfirm = async () => {
     if (!selectedAlert || !dismissReason) return;
 
-    // Check for high-impact alert confirmation
-    const affectedRoutes = selectedAlert.affectedRoutes || [];
-    const duration = calculateDuration(selectedAlert);
-    const isHighImpact = affectedRoutes.length >= 5 || duration > 14 || 
-                        selectedAlert.sm_traffic_management_type === 'Road closure';
-    
-    if (isHighImpact) {
-      Alert.alert(
-        'Confirm High-Impact Dismissal',
-        `This roadwork affects ${affectedRoutes.length} routes and lasts ${duration} days. Are you sure you want to dismiss it?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { 
-            text: 'Confirm Dismiss', 
-            style: 'destructive',
-            onPress: proceedWithDismissal
+    // Show confirmation dialog
+    Alert.alert(
+      'Confirm Permanent Deletion',
+      `Are you sure you want to permanently delete this roadwork alert?\n\nLocation: ${selectedAlert.street_name}\nThis action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Permanently',
+          style: 'destructive',
+          onPress: async () => {
+            await handlePermanentDelete(selectedAlert.id, dismissReason, dismissNotes);
+            
+            setShowDismissModal(false);
+            setDismissReason('');
+            setDismissNotes('');
+            setSelectedAlert(null);
           }
-        ]
-      );
-    } else {
-      proceedWithDismissal();
-    }
-  };
-  
-  const proceedWithDismissal = async () => {
-    await handleDismissWithUndo(selectedAlert.id, dismissReason, dismissNotes);
-    
-    setShowDismissModal(false);
-    setDismissReason('');
-    setDismissNotes('');
-    setSelectedAlert(null);
-    setSmartSuggestion('');
+        }
+      ]
+    );
   };
 
   // Add contractor selection functionality
@@ -1218,15 +1078,6 @@ const RoadworksManagerDashboard = ({ onClose }) => {
     });
     return Array.from(contractors);
   };
-
-  // Cleanup timeouts on unmount
-  useEffect(() => {
-    return () => {
-      if (undoTimeout) {
-        clearTimeout(undoTimeout);
-      }
-    };
-  }, [undoTimeout]);
 
   // Filter roadworks by compartment and search
   useEffect(() => {
@@ -1294,7 +1145,7 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                       activeOpacity={0.7}
                     >
                       <MaterialCommunityIcons name="delete-multiple" size={20} color="#ef4444" />
-                      <Text style={styles.batchDismissText}>Dismiss ({selectedRoadworks.size})</Text>
+                      <Text style={styles.batchDismissText}>Delete ({selectedRoadworks.size})</Text>
                     </TouchableOpacity>
                   )}
                   
@@ -1544,7 +1395,7 @@ const RoadworksManagerDashboard = ({ onClose }) => {
               <View style={styles.dismissModalOverlay}>
                 <ScrollView contentContainerStyle={styles.dismissModalScrollContent}>
                   <View style={styles.dismissModalContent}>
-                    <Text style={styles.dismissModalTitle}>Dismiss Roadwork Alert</Text>
+                    <Text style={styles.dismissModalTitle}>Delete Roadwork Alert</Text>
                     
                     {/* Alert Summary */}
                     <View style={styles.alertSummary}>
@@ -1575,37 +1426,21 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                       )}
                     </View>
 
-                    {/* Smart Suggestion */}
-                    {smartSuggestion && (
-                      <View style={[
-                        styles.smartSuggestion,
-                        smartSuggestion.includes('Warning') && styles.smartSuggestionWarning
-                      ]}>
-                        <MaterialCommunityIcons 
-                          name={smartSuggestion.includes('Warning') ? "alert" : "lightbulb-on"} 
-                          size={16} 
-                          color={smartSuggestion.includes('Warning') ? "#f59e0b" : "#3b82f6"} 
-                        />
-                        <Text style={[
-                          styles.smartSuggestionText,
-                          smartSuggestion.includes('Warning') && { color: '#f59e0b' }
-                        ]}>
-                          {typeof smartSuggestion === 'string' && smartSuggestion.includes('Warning') 
-                            ? smartSuggestion 
-                            : `Suggested: ${dismissReasons.find(r => r.id === smartSuggestion)?.label || smartSuggestion}`}
-                        </Text>
-                      </View>
-                    )}
+                    <View style={styles.dismissWarning}>
+                      <MaterialCommunityIcons name="alert-circle" size={20} color="#ef4444" />
+                      <Text style={styles.dismissWarningText}>
+                        This action will permanently delete this roadwork alert and cannot be undone.
+                      </Text>
+                    </View>
                     
-                    <Text style={styles.dismissModalLabel}>Select reason for dismissal:</Text>
+                    <Text style={styles.dismissModalLabel}>Select reason for deletion:</Text>
                     <ScrollView style={styles.dismissReasonsContainer}>
                       {dismissReasons.map(reason => (
                         <TouchableOpacity
                           key={reason.id}
                           style={[
                             styles.dismissReasonOption,
-                            dismissReason === reason.id && styles.dismissReasonOptionActive,
-                            smartSuggestion === reason.id && styles.dismissReasonSuggested
+                            dismissReason === reason.id && styles.dismissReasonOptionActive
                           ]}
                           onPress={() => setDismissReason(reason.id)}
                         >
@@ -1622,11 +1457,6 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                             ]}>
                               {reason.label}
                             </Text>
-                            {smartSuggestion === reason.id && (
-                              <View style={styles.suggestedBadge}>
-                                <Text style={styles.suggestedBadgeText}>Suggested</Text>
-                              </View>
-                            )}
                           </View>
                         </TouchableOpacity>
                       ))}
@@ -1650,7 +1480,6 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                           setShowDismissModal(false);
                           setDismissReason('');
                           setDismissNotes('');
-                          setSmartSuggestion('');
                         }}
                       >
                         <Text style={styles.dismissModalCancelText}>Cancel</Text>
@@ -1663,7 +1492,7 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                         onPress={handleDismissConfirm}
                         disabled={!dismissReason}
                       >
-                        <Text style={styles.dismissModalConfirmText}>Dismiss</Text>
+                        <Text style={styles.dismissModalConfirmText}>Delete Permanently</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -1682,12 +1511,13 @@ const RoadworksManagerDashboard = ({ onClose }) => {
             >
               <View style={styles.dismissModalOverlay}>
                 <View style={styles.dismissModalContent}>
-                  <Text style={styles.dismissModalTitle}>Batch Dismiss Alerts</Text>
+                  <Text style={styles.dismissModalTitle}>Batch Delete Alerts</Text>
                   <Text style={styles.batchSummary}>
-                    You are about to dismiss {selectedRoadworks.size} roadwork alerts.
+                    You are about to permanently delete {selectedRoadworks.size} roadwork alerts.
+                    This action cannot be undone.
                   </Text>
                   
-                  <Text style={styles.dismissModalLabel}>Select reason for dismissal:</Text>
+                  <Text style={styles.dismissModalLabel}>Select reason for deletion:</Text>
                   <ScrollView style={styles.dismissReasonsContainer}>
                     {dismissReasons.map(reason => (
                       <TouchableOpacity
@@ -1746,7 +1576,7 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                       onPress={() => handleBatchDismiss(dismissReason, dismissNotes)}
                       disabled={!dismissReason}
                     >
-                      <Text style={styles.dismissModalConfirmText}>Batch Dismiss</Text>
+                      <Text style={styles.dismissModalConfirmText}>Batch Delete</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -1764,37 +1594,6 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                 setSelectedRoadworkForMap(null);
               }}
             />
-          )}
-
-          {/* Toast Notification */}
-          {toastMessage && (
-            <Animated.View
-              style={[
-                styles.toastContainer,
-                {
-                  opacity: toastAnim,
-                  transform: [{
-                    translateY: toastAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [100, 0]
-                    })
-                  }]
-                }
-              ]}
-            >
-              <View style={styles.toastContent}>
-                <Text style={styles.toastText}>{toastMessage.message}</Text>
-                {toastMessage.action && (
-                  <TouchableOpacity
-                    style={styles.toastButton}
-                    onPress={toastMessage.action}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.toastButtonText}>UNDO</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            </Animated.View>
           )}
         </Animated.View>
       </View>
@@ -2533,26 +2332,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   
-  smartSuggestion: {
+  dismissWarning: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
     borderRadius: 12,
     padding: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(59, 130, 246, 0.3)',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
   },
   
-  smartSuggestionWarning: {
-    backgroundColor: 'rgba(251, 191, 36, 0.1)',
-    borderColor: 'rgba(251, 191, 36, 0.3)',
-  },
-  
-  smartSuggestionText: {
+  dismissWarningText: {
     fontSize: 14,
-    color: '#3b82f6',
+    color: '#ef4444',
     fontWeight: '500',
     flex: 1,
   },
@@ -2564,86 +2358,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   
-  dismissReasonSuggested: {
-    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-    borderColor: 'rgba(34, 197, 94, 0.3)',
-  },
-  
-  suggestedBadge: {
-    backgroundColor: '#22c55e',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    marginLeft: 'auto',
-  },
-  
-  suggestedBadgeText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  
   batchSummary: {
     fontSize: 16,
     color: '#93c5fd',
     textAlign: 'center',
     marginBottom: 20,
     fontWeight: '500',
-  },
-  
-  // Toast notification styles
-  toastContainer: {
-    position: 'absolute',
-    bottom: Platform.OS === 'web' ? 40 : 80,
-    left: 20,
-    right: 20,
-    zIndex: 1000,
-  },
-  
-  toastContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(17, 25, 40, 0.95)',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 8,
-    ...(Platform.OS === 'web' && {
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
-      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-    }),
-  },
-  
-  toastText: {
-    flex: 1,
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: '500',
-  },
-  
-  toastButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#3b82f6',
-    marginLeft: 12,
-  },
-  
-  toastButtonText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#3b82f6',
   },
   
   // Batch operations styles
