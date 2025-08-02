@@ -29,6 +29,7 @@
     "install:playwright": "playwright install"
   },
   "dependencies": {
+    "@turf/turf": "^7.2.0",
     "expo": "^53.0.11",
     "mapbox-gl": "^3.12.0",
     "node-fetch": "^3.3.2",

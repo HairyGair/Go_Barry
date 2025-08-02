@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import turf from '@turf/turf';
+import * as turf from '@turf/turf';
 import { parse } from 'csv-parse';
 import { Readable } from 'stream';
 
