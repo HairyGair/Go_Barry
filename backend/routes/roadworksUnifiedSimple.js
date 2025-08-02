@@ -7,6 +7,27 @@ import { coordinateValidator } from '../utils/coordinateValidator.js';
 
 const router = express.Router();
 
+// GET /api/roadworks/check-dates - Debug date filtering
+router.get('/check-dates', (req, res) => {
+  const days = parseInt(req.query.days) || 90;
+  const now = new Date();
+  const futureDate = new Date(now.getTime() + (days * 24 * 60 * 60 * 1000));
+  const pastDate = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+  
+  res.json({
+    currentDate: now.toISOString(),
+    currentDateString: now.toString(),
+    filterRange: {
+      from: pastDate.toISOString(),
+      to: futureDate.toISOString(),
+      fromString: pastDate.toString(),
+      toString: futureDate.toString()
+    },
+    days: days,
+    explanation: 'The unified endpoint filters from 30 days ago to X days in future'
+  });
+});
+
 // GET /api/roadworks/env-check - Check what environment variables are available
 router.get('/env-check', (req, res) => {
   res.json({
@@ -438,8 +459,7 @@ router.get('/unified', async (req, res) => {
     const pastDate = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000)); // 30 days ago
     
     console.log(`🗄️ Fetching roadworks for ${days} day window`);
-    console.log(`📊 Date range: ${pastDate.toISOString()} to ${futureDate.toISOString()}`);
-    console.log(`🔗 Supabase URL: ${supabaseUrl}`);
+    console.log(`📊 Currently showing all planned/in-progress roadworks (no date filter)`);
     console.log(`🔑 API Key length: ${supabaseKey?.length || 0}`);
     
     let roadworks = [];
@@ -456,25 +476,42 @@ router.get('/unified', async (req, res) => {
       
       const requestParams = {
         'sm_works_state': 'in.(Works planned,Works in progress)',
-        // 'sm_start_date': `gte.${pastDate.toISOString()},lte.${futureDate.toISOString()}`,
-        order: 'sm_start_date.asc',
-        limit: 500
+        order: 'sm_start_date.desc',
+        limit: 300
       };
       
       console.log('📤 Request params:', requestParams);
+      console.log('🅰️ Making request to:', `${supabaseUrl}/rest/v1/streetworks`);
       
-      const response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
-          'Content-Type': 'application/json'
-        },
-        params: requestParams,
-        timeout: 30000
-      });
+      let response;
+      try {
+        response = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json'
+          },
+          params: requestParams,
+          timeout: 30000
+        });
+        
+        console.log('📥 Response status:', response.status);
+        console.log('📥 Response headers:', response.headers['content-type']);
+        console.log('📥 Response data type:', Array.isArray(response.data) ? 'array' : typeof response.data);
+        console.log('📥 Response data length:', response.data?.length);
+        
+      } catch (axiosError) {
+        console.error('🆘 Axios error details:', {
+          message: axiosError.message,
+          code: axiosError.code,
+          status: axiosError.response?.status,
+          data: axiosError.response?.data
+        });
+        throw axiosError;
+      }
       
       roadworks = response.data;
-      console.log(`✅ Found ${roadworks.length} roadworks in date range`);
+      console.log(`✅ Found ${roadworks.length} roadworks with state filter`);
       console.log('🔍 First few results:', roadworks.slice(0, 3).map(r => ({
         state: r.sm_works_state,
         location: r.sm_street_name,
@@ -500,6 +537,7 @@ router.get('/unified', async (req, res) => {
     
     // Process coordinates for each roadwork
     console.log(`🗺️ Processing coordinates and route impacts for ${roadworks.length} roadworks...`);
+    console.log('🔍 Pre-processing count:', roadworks.length);
     
     // Process with coordinate conversion and route impact calculation
     const processedRoadworks = await Promise.all(roadworks.map(async (roadwork) => {
@@ -546,6 +584,7 @@ router.get('/unified', async (req, res) => {
     }));
     
     roadworks = processedRoadworks;
+    console.log('🔍 Post-processing count:', roadworks.length);
     
     const successfulCoordinates = roadworks.filter(r => r.coordinates).length;
     const coordinateSuccessRate = roadworks.length > 0 ? Math.round((successfulCoordinates / roadworks.length) * 100) : 0;

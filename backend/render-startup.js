@@ -52,6 +52,7 @@ console.log('🔐 SUPABASE_SERVICE_ROLE_KEY exists:', !!process.env.SUPABASE_SER
 })();
 
 import express from 'express';
+import cors from 'cors';
 import { createServer } from 'http';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -60,6 +61,40 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
+
+// CORS configuration - Allow both production and development origins
+const corsOptions = {
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'https://www.gobarry.co.uk',
+      'https://gobarry.co.uk',
+      'http://localhost:8081',
+      'http://localhost:8082',
+      'http://localhost:3000',
+      'http://localhost:3001'
+    ];
+    
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️ CORS request blocked from origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+console.log('✅ CORS configured for development and production');
+
+// JSON body parser for most routes (webhook will use raw body parser)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 // Raw body parser for webhook will be handled in the route itself
 
 const PORT = process.env.PORT || 3001;
