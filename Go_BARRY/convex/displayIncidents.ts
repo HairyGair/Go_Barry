@@ -239,3 +239,43 @@ export const markMessageDisplayed = mutation({
     return { success: true };
   },
 });
+
+// Remove incident from display (End Display functionality)
+export const removeFromDisplay = mutation({
+  args: {
+    incidentId: v.string(),
+    supervisorBadge: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { incidentId, supervisorBadge } = args;
+    
+    // Find the incident in displayIncidents
+    const incident = await ctx.db
+      .query("displayIncidents")
+      .filter(q => q.eq(q.field("incidentId"), incidentId))
+      .first();
+    
+    if (incident) {
+      // Delete the incident from display
+      await ctx.db.delete(incident._id);
+      
+      // Log the action
+      await ctx.db.insert("supervisorActions", {
+        supervisorBadge,
+        action: "END_DISPLAY",
+        target: "roadwork",
+        targetId: incidentId,
+        details: {
+          location: incident.location,
+          title: incident.title,
+          displayedDuration: Date.now() - incident.displayedAt
+        },
+        timestamp: Date.now(),
+      });
+      
+      return { success: true, message: "Roadwork removed from display" };
+    }
+    
+    return { success: false, message: "Roadwork not found on display" };
+  },
+});

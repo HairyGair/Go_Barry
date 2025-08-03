@@ -19,6 +19,8 @@ import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useSupervisor } from './hooks/useSupervisorSession';
 import RoadworkMapModal from './RoadworkMapModal';
 import { geocodeLocation } from '../services/geocoding';
+import { useMutation, useQuery } from 'convex/react';
+import { api } from '../convex/_generated/api';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -129,6 +131,12 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
       background-color: rgba(249, 115, 22, 0.35) !important;
       border-color: rgba(249, 115, 22, 0.8) !important;
       box-shadow: 0 6px 20px rgba(249, 115, 22, 0.4);
+    }
+    
+    .glass-action-button.end-display:hover {
+      background-color: rgba(220, 38, 38, 0.35) !important;
+      border-color: rgba(220, 38, 38, 0.8) !important;
+      box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4);
     }
     
     .glass-action-button.dismiss:hover {
@@ -377,6 +385,12 @@ const RoadworksManagerDashboard = ({ onClose }) => {
   const [geocodingStates, setGeocodingStates] = useState(new Map());
   const [deletingRoadworks, setDeletingRoadworks] = useState(new Set()); // Track which are being deleted
   
+  // Escalation modal state
+  const [showEscalateModal, setShowEscalateModal] = useState(false);
+  const [selectedRoadworkForEscalation, setSelectedRoadworkForEscalation] = useState(null);
+  const [escalationReason, setEscalationReason] = useState('');
+  const [escalatingRoadworks, setEscalatingRoadworks] = useState(new Set()); // Track which are being escalated
+  
   // Enhanced dismiss state - SIMPLIFIED FOR PERMANENT DELETION
   const [selectedRoadworks, setSelectedRoadworks] = useState(new Set());
   const [batchMode, setBatchMode] = useState(false);
@@ -384,6 +398,12 @@ const RoadworksManagerDashboard = ({ onClose }) => {
   
   // Animation references
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  
+  // Convex mutations and queries
+  const updateDisplayIncidents = useMutation(api.displayIncidents.updateDisplayIncidents);
+  const updateDisplayMessages = useMutation(api.displayIncidents.updateDisplayMessages);
+  const removeFromDisplay = useMutation(api.displayIncidents.removeFromDisplay);
+  const displayIncidents = useQuery(api.displayIncidents.getDisplayIncidents) || [];
 
   // Compartment definitions
   const compartments = [
@@ -467,6 +487,70 @@ const RoadworksManagerDashboard = ({ onClose }) => {
       
       default:
         return works;
+    }
+  };
+
+  // Check if a roadwork is currently on display
+  const isOnDisplay = (roadworkId) => {
+    return displayIncidents.some(incident => 
+      incident.type === 'roadwork' && incident.id === roadworkId
+    );
+  };
+
+  // Handle end display action
+  const handleEndDisplay = async (roadwork) => {
+    try {
+      await removeFromDisplay({
+        incidentId: roadwork.id,
+        supervisorBadge: supervisorSession?.supervisor?.badge || supervisorSession?.supervisor?.id || supervisorName
+      });
+      
+      // Update local state to mark as not escalated
+      setRoadworks(prevRoadworks => 
+        prevRoadworks.map(rw => 
+          rw.id === roadwork.id 
+            ? { ...rw, escalatedToDisplay: false, escalatedAt: null, escalatedBy: null }
+            : rw
+        )
+      );
+      setFilteredRoadworks(prevFiltered => 
+        prevFiltered.map(rw => 
+          rw.id === roadwork.id 
+            ? { ...rw, escalatedToDisplay: false, escalatedAt: null, escalatedBy: null }
+            : rw
+        )
+      );
+      
+      // Log activity
+      await logActivity('end_display', {
+        roadworkId: roadwork.id,
+        location: roadwork.street_name,
+        affectedRoutesCount: roadwork.affectedRoutes?.length || 0,
+        duration: calculateDuration(roadwork)
+      });
+      
+      // Show success message
+      if (Platform.OS === 'web') {
+        console.log(`✅ Roadwork removed from display: ${roadwork.street_name}`);
+      } else {
+        Alert.alert(
+          'Success',
+          `Roadwork at ${roadwork.street_name} has been removed from the Control Room Display.`,
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Failed to remove from display:', error);
+      
+      if (Platform.OS === 'web') {
+        window.alert(`Failed to remove from display: ${error.message}`);
+      } else {
+        Alert.alert(
+          'Error',
+          `Failed to remove from display: ${error.message}`,
+          [{ text: 'OK' }]
+        );
+      }
     }
   };
 
@@ -868,6 +952,14 @@ const RoadworksManagerDashboard = ({ onClose }) => {
             }
           }}
         >
+          {/* Escalated indicator */}
+          {(item.escalatedToDisplay || isOnDisplay(item.id)) && (
+            <View style={styles.escalatedBanner}>
+              <MaterialCommunityIcons name="monitor-eye" size={16} color="#f97316" />
+              <Text style={styles.escalatedText}>On Display • Pushed by {item.escalatedBy || 'Supervisor'}</Text>
+            </View>
+          )}
+          
           {/* Location info */}
           <View style={styles.locationRow}>
             <MaterialCommunityIcons name="map-marker-radius" size={24} color="#3b82f6" />
@@ -1087,15 +1179,40 @@ const RoadworksManagerDashboard = ({ onClose }) => {
 
             <TouchableOpacity 
               style={styles.actionButton}
-              onPress={() => handleEscalate(item)}
+              onPress={() => {
+                if (item.escalatedToDisplay || isOnDisplay(item.id)) {
+                  handleEndDisplay(item);
+                } else {
+                  handleEscalate(item);
+                }
+              }}
               activeOpacity={0.7}
+              disabled={escalatingRoadworks.has(item.id)}
             >
               <View 
-                style={[styles.actionContent, styles.escalateButton]}
+                style={[
+                  styles.actionContent, 
+                  (item.escalatedToDisplay || isOnDisplay(item.id)) ? styles.endDisplayButton : styles.escalateButton,
+                  escalatingRoadworks.has(item.id) && styles.actionButtonDisabled
+                ]}
                 {...(Platform.OS === 'web' && { className: 'glass-action-button escalate' })}
               >
-                <MaterialCommunityIcons name="alert-octagon-outline" size={20} color="#f97316" />
-                <Text style={[styles.actionText, { color: '#f97316' }]}>Escalate</Text>
+                {escalatingRoadworks.has(item.id) ? (
+                  <>
+                    <ActivityIndicator size="small" color="#f97316" />
+                    <Text style={[styles.actionText, { color: '#f97316' }]}>Pushing...</Text>
+                  </>
+                ) : (item.escalatedToDisplay || isOnDisplay(item.id)) ? (
+                  <>
+                    <MaterialCommunityIcons name="monitor-off" size={20} color="#dc2626" />
+                    <Text style={[styles.actionText, { color: '#dc2626' }]}>End Display</Text>
+                  </>
+                ) : (
+                  <>
+                    <MaterialCommunityIcons name="alert-octagon-outline" size={20} color="#f97316" />
+                    <Text style={[styles.actionText, { color: '#f97316' }]}>Escalate</Text>
+                  </>
+                )}
               </View>
             </TouchableOpacity>
 
@@ -1238,11 +1355,8 @@ const RoadworksManagerDashboard = ({ onClose }) => {
   };
 
   const handleEscalate = async (roadwork) => {
-    await logActivity('escalate_roadwork', {
-      roadworkId: roadwork.id,
-      location: roadwork.street_name
-    });
-    alert(`Escalated: ${roadwork.street_name}`);
+    setSelectedRoadworkForEscalation(roadwork);
+    setShowEscalateModal(true);
   };
 
   const handleDismissConfirm = async () => {
@@ -1847,6 +1961,224 @@ const RoadworksManagerDashboard = ({ onClose }) => {
               }}
             />
           )}
+
+          {/* Escalation Modal */}
+          {showEscalateModal && selectedRoadworkForEscalation && (
+            <Modal
+              visible={showEscalateModal}
+              animationType="slide"
+              transparent={true}
+              onRequestClose={() => setShowEscalateModal(false)}
+            >
+              <View style={styles.dismissModalOverlay}>
+                <View style={styles.dismissModalContent}>
+                  <Text style={styles.dismissModalTitle}>Push to Control Room Display</Text>
+                  
+                  {/* Alert Summary */}
+                  <View style={styles.alertSummary}>
+                    <Text style={styles.alertSummaryTitle}>Roadwork Details</Text>
+                    <View style={styles.summaryRow}>
+                      <MaterialCommunityIcons name="map-marker" size={16} color="#93c5fd" />
+                      <Text style={styles.summaryText}>{selectedRoadworkForEscalation.street_name}</Text>
+                    </View>
+                    <View style={styles.summaryRow}>
+                      <MaterialCommunityIcons name="calendar" size={16} color="#93c5fd" />
+                      <Text style={styles.summaryText}>
+                        {calculateDuration(selectedRoadworkForEscalation)} days ({formatDate(selectedRoadworkForEscalation.sm_start_date)} - {formatDate(selectedRoadworkForEscalation.sm_end_date)})
+                      </Text>
+                    </View>
+                    <View style={styles.summaryRow}>
+                      <MaterialCommunityIcons name="bus-multiple" size={16} color="#93c5fd" />
+                      <Text style={styles.summaryText}>
+                        {selectedRoadworkForEscalation.affectedRoutes?.length || 0} affected route(s)
+                      </Text>
+                    </View>
+                    {selectedRoadworkForEscalation.sm_traffic_management_type && (
+                      <View style={styles.summaryRow}>
+                        <MaterialCommunityIcons name="traffic-cone" size={16} color="#f59e0b" />
+                        <Text style={[styles.summaryText, { color: '#f59e0b' }]}>
+                          {selectedRoadworkForEscalation.sm_traffic_management_type}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={[styles.dismissWarning, { backgroundColor: 'rgba(249, 115, 22, 0.1)', borderColor: 'rgba(249, 115, 22, 0.3)' }]}>
+                    <MaterialCommunityIcons name="monitor-eye" size={20} color="#f97316" />
+                    <Text style={[styles.dismissWarningText, { color: '#f97316' }]}>
+                      This will display the roadwork alert on the Control Room screen and create a disruption record.
+                    </Text>
+                  </View>
+                  
+                  <Text style={styles.dismissModalLabel}>Add reason for escalation (optional):</Text>
+                  <TextInput
+                    style={styles.dismissNotesInput}
+                    placeholder="E.g., Major delays expected, road closure affecting multiple routes..."
+                    placeholderTextColor="rgba(147, 197, 253, 0.5)"
+                    value={escalationReason}
+                    onChangeText={setEscalationReason}
+                    multiline
+                    numberOfLines={3}
+                  />
+
+                  <View style={styles.dismissModalButtons}>
+                    <TouchableOpacity
+                      style={styles.dismissModalCancel}
+                      onPress={() => {
+                        setShowEscalateModal(false);
+                        setEscalationReason('');
+                        setSelectedRoadworkForEscalation(null);
+                      }}
+                    >
+                      <Text style={styles.dismissModalCancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.dismissModalConfirm, { backgroundColor: 'rgba(249, 115, 22, 0.15)', borderColor: '#f97316' }]}
+                      onPress={async () => {
+                        const roadwork = selectedRoadworkForEscalation;
+                        
+                        // Add to escalating set
+                        setEscalatingRoadworks(prev => new Set(prev).add(roadwork.id));
+                        
+                        try {
+                          // Create display incident object
+                          const displayIncident = {
+                            id: roadwork.id,
+                            type: 'roadwork',
+                            title: `Roadworks: ${roadwork.street_name}`,
+                            description: roadwork.sm_works_description || roadwork.sm_activity_type || 'Roadworks in progress',
+                            location: roadwork.street_name,
+                            coordinates: roadwork.coordinates,
+                            severity: roadwork.sm_traffic_management_type === 'Road closure' ? 'critical' : 'moderate',
+                            priority: roadwork.sm_traffic_management_type === 'Road closure' ? 0 : 1,
+                            affectsRoutes: roadwork.affectedRoutes || [],
+                            status: 'active',
+                            source: 'roadworks_escalation',
+                            
+                            displayedAt: new Date().toISOString(),
+                            displayedBy: supervisorName,
+                            displayMessage: {
+                              id: `roadwork-${roadwork.id}-${Date.now()}`,
+                              priority: roadwork.sm_traffic_management_type === 'Road closure' ? 0 : 1,
+                              expiresAt: new Date(Date.now() + 3600000).toISOString(), // 1 hour default
+                              autoZoom: true,
+                              zoomLevel: 15,
+                              highlightIncident: true,
+                              showRoutes: true,
+                              pulseAnimation: true,
+                              duration: 30000
+                            },
+                            
+                            createdAt: new Date().toISOString()
+                          };
+                          
+                          // Push to display via Convex
+                          await updateDisplayIncidents({
+                            incidents: [displayIncident],
+                            timestamp: new Date().toISOString()
+                          });
+                          
+                          // Also create a display message
+                          const displayMessage = {
+                            id: `msg-${roadwork.id}-${Date.now()}`,
+                            type: 'roadwork_escalation',
+                            content: `${roadwork.sm_traffic_management_type ? roadwork.sm_traffic_management_type + ': ' : ''}${roadwork.street_name}. ${escalationReason || 'Supervisor escalation for control room awareness.'}`,
+                            priority: roadwork.sm_traffic_management_type === 'Road closure' ? 0 : 1,
+                            supervisorName: supervisorName,
+                            supervisorBadge: supervisorSession?.supervisor?.badge || supervisorSession?.supervisor?.id,
+                            
+                            incidentId: roadwork.id,
+                            alertId: roadwork.id,
+                            
+                            autoZoom: !!roadwork.coordinates,
+                            zoomLevel: 15,
+                            coordinates: roadwork.coordinates,
+                            affectsRoutes: roadwork.affectedRoutes || [],
+                            
+                            createdAt: new Date().toISOString(),
+                            expiresAt: new Date(Date.now() + 3600000).toISOString(), // 1 hour
+                            displayed: false,
+                            
+                            pushedBy: supervisorName,
+                            pushedAt: new Date().toISOString(),
+                            rotationInterval: 30000
+                          };
+                          
+                          await updateDisplayMessages({
+                            messages: [displayMessage],
+                            timestamp: new Date().toISOString()
+                          });
+                          
+                          // Log activity
+                          await logActivity('push_to_display', {
+                            roadworkId: roadwork.id,
+                            location: roadwork.street_name,
+                            reason: escalationReason,
+                            affectedRoutesCount: roadwork.affectedRoutes?.length || 0,
+                            duration: calculateDuration(roadwork),
+                            trafficManagement: roadwork.sm_traffic_management_type
+                          });
+                          
+                          // Update local state to mark as escalated
+                          setRoadworks(prevRoadworks => 
+                            prevRoadworks.map(rw => 
+                              rw.id === roadwork.id 
+                                ? { ...rw, escalatedToDisplay: true, escalatedAt: new Date().toISOString(), escalatedBy: supervisorName }
+                                : rw
+                            )
+                          );
+                          setFilteredRoadworks(prevFiltered => 
+                            prevFiltered.map(rw => 
+                              rw.id === roadwork.id 
+                                ? { ...rw, escalatedToDisplay: true, escalatedAt: new Date().toISOString(), escalatedBy: supervisorName }
+                                : rw
+                            )
+                          );
+                          
+                          // Show success message
+                          if (Platform.OS === 'web') {
+                            window.alert(`Roadwork at ${roadwork.street_name} has been pushed to the Control Room Display.`);
+                          } else {
+                            Alert.alert(
+                              'Success',
+                              `Roadwork at ${roadwork.street_name} has been pushed to the Control Room Display.`,
+                              [{ text: 'OK' }]
+                            );
+                          }
+                          
+                          // Close modal and reset
+                          setShowEscalateModal(false);
+                          setEscalationReason('');
+                          setSelectedRoadworkForEscalation(null);
+                        } catch (error) {
+                          console.error('Failed to push to display:', error);
+                          
+                          if (Platform.OS === 'web') {
+                            window.alert(`Failed to push to display: ${error.message}`);
+                          } else {
+                            Alert.alert(
+                              'Error',
+                              `Failed to push to display: ${error.message}`,
+                              [{ text: 'OK' }]
+                            );
+                          }
+                        } finally {
+                          // Remove from escalating set
+                          setEscalatingRoadworks(prev => {
+                            const newSet = new Set(prev);
+                            newSet.delete(roadwork.id);
+                            return newSet;
+                          });
+                        }
+                      }}
+                    >
+                      <Text style={[styles.dismissModalConfirmText, { color: '#f97316' }]}>Push to Display</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </Modal>
+          )}
         </Animated.View>
       </View>
     </Modal>
@@ -2273,6 +2605,10 @@ const styles = StyleSheet.create({
   escalateButton: {
     backgroundColor: 'rgba(249, 115, 22, 0.25)',
     borderColor: '#f97316',
+  },
+  endDisplayButton: {
+    backgroundColor: 'rgba(220, 38, 38, 0.25)',
+    borderColor: '#dc2626',
   },
   dismissButton: {
     backgroundColor: 'rgba(239, 68, 68, 0.25)',
@@ -2747,6 +3083,29 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  
+  // Escalated indicator styles
+  escalatedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(249, 115, 22, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginHorizontal: -20,
+    marginTop: -20,
+    marginBottom: 12,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(249, 115, 22, 0.3)',
+  },
+  escalatedText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#f97316',
+    flex: 1,
   },
 });
 

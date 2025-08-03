@@ -40,6 +40,16 @@ const DisplayScreen = () => {
   const displayIncidents = convexData?.displayIncidents || [];
   const displayMessageQueue = convexData?.displayMessages || [];
   
+  // Filter roadwork incidents specifically
+  const roadworkIncidents = displayIncidents.filter(inc => inc.type === 'roadwork');
+  
+  // Combine messages and roadworks for rotation
+  const [currentDisplayIndex, setCurrentDisplayIndex] = useState(0);
+  const allDisplayItems = [
+    ...displayMessageQueue.map(msg => ({ type: 'message', data: msg })),
+    ...roadworkIncidents.map(rw => ({ type: 'roadwork', data: rw }))
+  ];
+  
   // Extract VIX data from Convex (with safe fallback)
   const lateRunners = vixData?.lateRunners || [];
 
@@ -98,21 +108,22 @@ const DisplayScreen = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Auto-rotate messages based on priority
+  // Auto-rotate display items based on priority and type
   useEffect(() => {
-    if (!activeMessages?.length || activeMessages.length <= 1) return;
+    if (!allDisplayItems?.length || allDisplayItems.length <= 1) return;
     
-    const currentMessage = activeMessages[currentMessageIndex];
-    const rotationInterval = currentMessage?.rotationInterval || 30000;
+    const currentItem = allDisplayItems[currentDisplayIndex];
+    const rotationInterval = currentItem?.data?.rotationInterval || 
+                           (currentItem?.type === 'roadwork' ? 45000 : 30000); // Roadworks show longer
     
     const interval = setInterval(() => {
-      setCurrentMessageIndex((prev) => {
-        return (prev + 1) % activeMessages.length;
+      setCurrentDisplayIndex((prev) => {
+        return (prev + 1) % allDisplayItems.length;
       });
     }, rotationInterval);
     
     return () => clearInterval(interval);
-  }, [activeMessages?.length, currentMessageIndex]);
+  }, [allDisplayItems?.length, currentDisplayIndex]);
 
   // Toggle between supervisor activity, weather widget, and late runners every 30 seconds
   useEffect(() => {
@@ -142,9 +153,20 @@ const DisplayScreen = () => {
     return handoverTime > twoHoursAgo;
   }) || false;
 
-  const getCurrentMessage = () => {
-    if (!activeMessages?.length || currentMessageIndex >= activeMessages.length) return null;
-    return activeMessages[currentMessageIndex];
+  const getCurrentDisplayItem = () => {
+    if (!allDisplayItems?.length || currentDisplayIndex >= allDisplayItems.length) return null;
+    return allDisplayItems[currentDisplayIndex];
+  };
+  
+  const formatRoadworkDuration = (startDate, endDate) => {
+    try {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const diffDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+      return diffDays;
+    } catch {
+      return 'Unknown';
+    }
   };
 
   const calculatePassengerImpact = (message) => {
@@ -189,10 +211,13 @@ const DisplayScreen = () => {
     }
   };
 
-  const currentMessage = getCurrentMessage();
+  const currentDisplayItem = getCurrentDisplayItem();
+  const currentMessage = currentDisplayItem?.type === 'message' ? currentDisplayItem.data : null;
+  const currentRoadwork = currentDisplayItem?.type === 'roadwork' ? currentDisplayItem.data : null;
   const currentWeatherLocation = weatherLocations[weatherLocationIndex];
   const currentWeatherData = weather?.locations?.[currentWeatherLocation];
-  const passengerImpact = currentMessage ? calculatePassengerImpact(currentMessage) : null;
+  const passengerImpact = currentMessage ? calculatePassengerImpact(currentMessage) : 
+                          currentRoadwork ? calculatePassengerImpact(currentRoadwork) : null;
   
   // Handle weather alert generation
   const handleWeatherAlert = (alert) => {
@@ -205,12 +230,16 @@ const DisplayScreen = () => {
   
   // Simple queue status for display
   const queueStatus = {
-    totalMessages: activeMessages.length,
+    totalItems: allDisplayItems.length,
+    byType: {
+      messages: allDisplayItems.filter(item => item.type === 'message').length,
+      roadworks: allDisplayItems.filter(item => item.type === 'roadwork').length
+    },
     byPriority: {
-      P0: activeMessages.filter(m => m.priority === 0).length,
-      P1: activeMessages.filter(m => m.priority === 1).length,
-      P2: activeMessages.filter(m => m.priority === 2).length,
-      P3: activeMessages.filter(m => m.priority === 3).length,
+      P0: allDisplayItems.filter(item => item.data.priority === 0).length,
+      P1: allDisplayItems.filter(item => item.data.priority === 1).length,
+      P2: allDisplayItems.filter(item => item.data.priority === 2).length,
+      P3: allDisplayItems.filter(item => item.data.priority === 3).length,
     }
   };
 
@@ -262,7 +291,7 @@ const DisplayScreen = () => {
 
         {/* Message Queue Status and Incidents */}
         <div style={{ display: 'flex', gap: '15px' }}>
-          {queueStatus && (queueStatus.totalMessages > 0) && (
+          {queueStatus && (queueStatus.totalItems > 0) && (
             <div style={{
               backgroundColor: '#1a1a1a',
               padding: '12px 18px',
@@ -270,12 +299,23 @@ const DisplayScreen = () => {
               fontSize: '20px',
               border: '2px solid #333'
             }}>
-              <div style={{ color: '#999', fontSize: '16px' }}>MESSAGE QUEUE</div>
-              <div style={{ display: 'flex', gap: '10px', marginTop: '2px' }}>
-                <span style={{ color: '#DC2626' }}>P0: {queueStatus.byPriority?.P0 || 0}</span>
-                <span style={{ color: '#F59E0B' }}>P1: {queueStatus.byPriority?.P1 || 0}</span>
-                <span style={{ color: '#3B82F6' }}>P2: {queueStatus.byPriority?.P2 || 0}</span>
-                <span style={{ color: '#10B981' }}>P3: {queueStatus.byPriority?.P3 || 0}</span>
+              <div style={{ color: '#999', fontSize: '16px' }}>DISPLAY QUEUE</div>
+              <div style={{ display: 'flex', gap: '15px', marginTop: '2px' }}>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <span style={{ color: '#3B82F6' }}>📺 {queueStatus.byType.messages}</span>
+                  <span style={{ color: '#F97316' }}>🚧 {queueStatus.byType.roadworks}</span>
+                </div>
+                <div style={{ 
+                  borderLeft: '1px solid #444', 
+                  paddingLeft: '15px',
+                  display: 'flex',
+                  gap: '8px',
+                  fontSize: '16px'
+                }}>
+                  {queueStatus.byPriority.P0 > 0 && <span style={{ color: '#DC2626' }}>P0: {queueStatus.byPriority.P0}</span>}
+                  {queueStatus.byPriority.P1 > 0 && <span style={{ color: '#F59E0B' }}>P1: {queueStatus.byPriority.P1}</span>}
+                  {queueStatus.byPriority.P2 > 0 && <span style={{ color: '#3B82F6' }}>P2: {queueStatus.byPriority.P2}</span>}
+                </div>
               </div>
             </div>
           )}
@@ -306,6 +346,7 @@ const DisplayScreen = () => {
         <EmergencyAlertsSection 
           alerts={activeMessages.filter(msg => msg.priority === 0)} // P0 Emergency
           incidents={displayIncidents.filter(inc => inc.severity === 'critical')}
+          roadworks={roadworkIncidents.filter(rw => rw.severity === 'critical' || rw.priority === 0)}
           mostSevereEvent={mostSevereEvent}
         />
 
@@ -344,86 +385,239 @@ const DisplayScreen = () => {
           flexDirection: 'column',
           gap: '15px'
         }}>
-          {/* Current Message */}
-          {currentMessage ? (
-            <div style={{
-              backgroundColor: '#1a1a1a',
-              borderRadius: '12px',
-              padding: '25px',
-              border: `3px solid ${getPriorityColor(currentMessage.priority)}`,
-              boxShadow: `0 0 20px ${getPriorityColor(currentMessage.priority)}33`
-            }}>
-              {/* Priority Header */}
+          {/* Current Display Item */}
+          {currentDisplayItem ? (
+            currentDisplayItem.type === 'message' ? (
+              // Message Display
               <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '15px'
+                backgroundColor: '#1a1a1a',
+                borderRadius: '12px',
+                padding: '25px',
+                border: `3px solid ${getPriorityColor(currentMessage.priority)}`,
+                boxShadow: `0 0 20px ${getPriorityColor(currentMessage.priority)}33`
               }}>
+                {/* Priority Header */}
                 <div style={{
-                  backgroundColor: getPriorityColor(currentMessage.priority),
-                  color: '#ffffff',
-                  padding: '8px 16px',
-                  borderRadius: '20px',
-                  fontSize: '24px',
-                  fontWeight: 'bold'
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '15px'
                 }}>
-                  {getPriorityLabel(currentMessage.priority)}
+                  <div style={{
+                    backgroundColor: getPriorityColor(currentMessage.priority),
+                    color: '#ffffff',
+                    padding: '8px 16px',
+                    borderRadius: '20px',
+                    fontSize: '24px',
+                    fontWeight: 'bold'
+                  }}>
+                    {getPriorityLabel(currentMessage.priority)}
+                  </div>
+                  <div style={{ 
+                    fontSize: '20px', 
+                    color: '#999',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px'
+                  }}>
+                    {currentMessage.autoTriggered && <span style={{ color: '#F59E0B' }}>🤖 AUTO</span>}
+                    <span>from {currentMessage.supervisorName}</span>
+                  </div>
                 </div>
-                <div style={{ 
-                  fontSize: '20px', 
-                  color: '#999',
+
+                <h1 style={{
+                  fontSize: '72px',
+                  fontWeight: 'bold',
+                  margin: '0 0 20px 0',
+                  lineHeight: '1.1',
+                  color: '#ffffff',
+                  textShadow: '2px 2px 4px rgba(0,0,0,0.5)'
+                }}>
+                  {currentMessage.content}
+                </h1>
+
+                {/* Passenger Impact */}
+                {passengerImpact && (
+                  <div style={{
+                    backgroundColor: '#2a2a2a',
+                    borderRadius: '8px',
+                    padding: '15px',
+                    marginTop: '20px',
+                    border: '2px solid #444'
+                  }}>
+                    <div style={{ fontSize: '20px', color: '#F59E0B', marginBottom: '10px', fontWeight: 'bold' }}>
+                      📊 PASSENGER IMPACT ESTIMATE
+                    </div>
+                    <div style={{ display: 'flex', gap: '30px', fontSize: '24px' }}>
+                      <span>👥 {passengerImpact.affectedPassengers} passengers</span>
+                      <span>🚌 {passengerImpact.affectedRoutes} routes</span>
+                      <span>⏱️ {passengerImpact.estimatedDelay} delay</span>
+                    </div>
+                  </div>
+                )}
+
+                <div style={{
+                  fontSize: '20px',
+                  color: '#999999',
+                  marginTop: '20px',
+                  display: 'flex',
+                  justifyContent: 'space-between'
+                }}>
+                  <span>Created: {new Date(currentMessage.createdAt).toLocaleTimeString()}</span>
+                  <span>Item {currentDisplayIndex + 1} of {allDisplayItems.length}</span>
+                </div>
+              </div>
+            ) : (
+              // Roadwork Display
+              <div style={{
+                backgroundColor: '#1a1a1a',
+                borderRadius: '12px',
+                padding: '25px',
+                border: `3px solid ${getPriorityColor(currentRoadwork.priority)}`,
+                boxShadow: `0 0 20px ${getPriorityColor(currentRoadwork.priority)}33`
+              }}>
+                {/* Header */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '15px'
+                }}>
+                  <div style={{
+                    backgroundColor: '#F97316',
+                    color: '#ffffff',
+                    padding: '8px 16px',
+                    borderRadius: '20px',
+                    fontSize: '24px',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    🚧 ROADWORKS
+                  </div>
+                  <div style={{ 
+                    fontSize: '18px', 
+                    color: '#999',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px'
+                  }}>
+                    <span style={{ 
+                      backgroundColor: 'rgba(249, 115, 22, 0.2)',
+                      padding: '4px 8px',
+                      borderRadius: '8px',
+                      color: '#F97316'
+                    }}>
+                      Pushed by {currentRoadwork.displayedBy}
+                    </span>
+                  </div>
+                </div>
+
+                <h1 style={{
+                  fontSize: '56px',
+                  fontWeight: 'bold',
+                  margin: '0 0 15px 0',
+                  lineHeight: '1.1',
+                  color: '#ffffff',
+                  textShadow: '2px 2px 4px rgba(0,0,0,0.5)'
+                }}>
+                  {currentRoadwork.title}
+                </h1>
+
+                {/* Location and Details */}
+                <div style={{
+                  fontSize: '28px',
+                  color: '#FCD34D',
+                  marginBottom: '20px',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '10px'
                 }}>
-                  {currentMessage.autoTriggered && <span style={{ color: '#F59E0B' }}>🤖 AUTO</span>}
-                  <span>from {currentMessage.supervisorName}</span>
+                  📍 {currentRoadwork.location}
                 </div>
-              </div>
 
-              <h1 style={{
-                fontSize: '72px',
-                fontWeight: 'bold',
-                margin: '0 0 20px 0',
-                lineHeight: '1.1',
-                color: '#ffffff',
-                textShadow: '2px 2px 4px rgba(0,0,0,0.5)'
-              }}>
-                {currentMessage.content}
-              </h1>
-
-              {/* Passenger Impact */}
-              {passengerImpact && (
+                {/* Work Details */}
                 <div style={{
                   backgroundColor: '#2a2a2a',
                   borderRadius: '8px',
                   padding: '15px',
-                  marginTop: '20px',
+                  marginBottom: '20px',
                   border: '2px solid #444'
                 }}>
-                  <div style={{ fontSize: '20px', color: '#F59E0B', marginBottom: '10px', fontWeight: 'bold' }}>
-                    📊 PASSENGER IMPACT ESTIMATE
+                  <div style={{ fontSize: '22px', color: '#ccc', marginBottom: '10px' }}>
+                    {currentRoadwork.description}
                   </div>
-                  <div style={{ display: 'flex', gap: '30px', fontSize: '24px' }}>
-                    <span>👥 {passengerImpact.affectedPassengers} passengers</span>
-                    <span>🚌 {passengerImpact.affectedRoutes} routes</span>
-                    <span>⏱️ {passengerImpact.estimatedDelay} delay</span>
+                  <div style={{ display: 'flex', gap: '20px', fontSize: '20px', color: '#999' }}>
+                    <span>📅 Duration: {formatRoadworkDuration(currentRoadwork.createdAt, currentRoadwork.expiresAt)} days</span>
+                    {currentRoadwork.severity === 'critical' && (
+                      <span style={{ color: '#DC2626', fontWeight: 'bold' }}>⚠️ ROAD CLOSURE</span>
+                    )}
                   </div>
                 </div>
-              )}
 
-              <div style={{
-                fontSize: '20px',
-                color: '#999999',
-                marginTop: '20px',
-                display: 'flex',
-                justifyContent: 'space-between'
-              }}>
-                <span>Created: {new Date(currentMessage.createdAt).toLocaleTimeString()}</span>
-                <span>Message {currentMessageIndex + 1} of {activeMessages.length}</span>
+                {/* Affected Routes */}
+                {currentRoadwork.affectsRoutes && currentRoadwork.affectsRoutes.length > 0 && (
+                  <div style={{
+                    backgroundColor: '#2a2a2a',
+                    borderRadius: '8px',
+                    padding: '15px',
+                    marginBottom: '20px',
+                    border: '2px solid #F97316'
+                  }}>
+                    <div style={{ fontSize: '20px', color: '#F97316', marginBottom: '10px', fontWeight: 'bold' }}>
+                      🚌 AFFECTED ROUTES
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+                      {currentRoadwork.affectsRoutes.map((route, idx) => (
+                        <span key={idx} style={{
+                          backgroundColor: 'rgba(249, 115, 22, 0.2)',
+                          color: '#F97316',
+                          padding: '8px 16px',
+                          borderRadius: '20px',
+                          fontSize: '24px',
+                          fontWeight: 'bold',
+                          border: '2px solid #F97316'
+                        }}>
+                          {route}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Passenger Impact */}
+                {passengerImpact && (
+                  <div style={{
+                    backgroundColor: '#2a2a2a',
+                    borderRadius: '8px',
+                    padding: '15px',
+                    marginTop: '20px',
+                    border: '2px solid #444'
+                  }}>
+                    <div style={{ fontSize: '20px', color: '#F59E0B', marginBottom: '10px', fontWeight: 'bold' }}>
+                      📊 PASSENGER IMPACT ESTIMATE
+                    </div>
+                    <div style={{ display: 'flex', gap: '30px', fontSize: '24px' }}>
+                      <span>👥 {passengerImpact.affectedPassengers} passengers</span>
+                      <span>🚌 {passengerImpact.affectedRoutes} routes</span>
+                      <span>⏱️ {passengerImpact.estimatedDelay} delay</span>
+                    </div>
+                  </div>
+                )}
+
+                <div style={{
+                  fontSize: '20px',
+                  color: '#999999',
+                  marginTop: '20px',
+                  display: 'flex',
+                  justifyContent: 'space-between'
+                }}>
+                  <span>Pushed: {new Date(currentRoadwork.displayedAt).toLocaleTimeString()}</span>
+                  <span>Item {currentDisplayIndex + 1} of {allDisplayItems.length}</span>
+                </div>
               </div>
-            </div>
+            )
           ) : (
             <div style={{
               backgroundColor: '#1a1a1a',
@@ -438,10 +632,11 @@ const DisplayScreen = () => {
                 ALL CLEAR
               </h1>
               <p style={{ fontSize: '32px', color: '#666666', marginTop: '20px' }}>
-                No priority messages in queue
+                No priority messages or roadworks in queue
               </p>
             </div>
           )}
+
 
           {/* Map */}
           <div style={{
@@ -461,14 +656,16 @@ const DisplayScreen = () => {
                     lat: incident.coordinates.lat,
                     lng: incident.coordinates.lng
                   },
-                  description: `🚨 ${incident.incidentType?.toUpperCase() || 'INCIDENT'}: ${incident.description}`,
+                  description: incident.type === 'roadwork' 
+                    ? `🚧 ${incident.title}: ${incident.description}`
+                    : `🚨 ${incident.incidentType?.toUpperCase() || 'INCIDENT'}: ${incident.description}`,
                   severity: incident.severity || 'medium',
-                  type: 'incident',
-                  affectedRoutes: incident.affectedRoutes
+                  type: incident.type || 'incident',
+                  affectedRoutes: incident.affectedRoutes || incident.affectsRoutes
                 }))
               ]}
               currentAlert={currentMessage}
-              alertIndex={currentMessageIndex}
+              alertIndex={currentDisplayIndex}
               mapId="display-screen-60m"
             />
           </div>
@@ -1161,13 +1358,14 @@ const RegionalStatusPanel = ({ regionalStatus, activeSupervisors }) => {
 };
 
 // Emergency Alerts Section Component
-const EmergencyAlertsSection = ({ alerts = [], incidents = [], mostSevereEvent }) => {
+const EmergencyAlertsSection = ({ alerts = [], incidents = [], roadworks = [], mostSevereEvent }) => {
   const [currentAlertIndex, setCurrentAlertIndex] = useState(0);
 
   // Combine all emergency items
   const emergencyItems = [
     ...alerts.map(alert => ({ type: 'message', data: alert })),
     ...incidents.map(incident => ({ type: 'incident', data: incident })),
+    ...roadworks.map(roadwork => ({ type: 'roadwork', data: roadwork })),
     ...(mostSevereEvent ? [{ type: 'event', data: mostSevereEvent }] : [])
   ];
 
@@ -1190,6 +1388,7 @@ const EmergencyAlertsSection = ({ alerts = [], incidents = [], mostSevereEvent }
     switch (item.type) {
       case 'message': return '#DC2626'; // Red for P0 messages
       case 'incident': return '#DC2626'; // Red for critical incidents
+      case 'roadwork': return item.data.severity === 'critical' ? '#DC2626' : '#F59E0B'; // Red for critical roadworks
       case 'event': return item.data.severity === 'CRITICAL' ? '#DC2626' : '#F59E0B'; // Red/Orange for events
       default: return '#DC2626';
     }
@@ -1199,6 +1398,7 @@ const EmergencyAlertsSection = ({ alerts = [], incidents = [], mostSevereEvent }
     switch (item.type) {
       case 'message': return '🚨';
       case 'incident': return '⚠️';
+      case 'roadwork': return '🚧';
       case 'event': return '🏟️';
       default: return '🚨';
     }
@@ -1210,6 +1410,8 @@ const EmergencyAlertsSection = ({ alerts = [], incidents = [], mostSevereEvent }
         return `${item.data.content}`;
       case 'incident':
         return `${item.data.incidentType?.toUpperCase() || 'INCIDENT'}: ${item.data.description}`;
+      case 'roadwork':
+        return `ROADWORKS: ${item.data.location} - ${item.data.description}`;
       case 'event':
         return `${item.data.venue}: ${item.data.event} - ${item.data.time}`;
       default:
@@ -1221,6 +1423,7 @@ const EmergencyAlertsSection = ({ alerts = [], incidents = [], mostSevereEvent }
     switch (item.type) {
       case 'message': return 'EMERGENCY MESSAGE';
       case 'incident': return 'CRITICAL INCIDENT';
+      case 'roadwork': return 'CRITICAL ROADWORKS';
       case 'event': return 'MAJOR EVENT';
       default: return 'EMERGENCY';
     }
