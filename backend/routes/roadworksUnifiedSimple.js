@@ -462,8 +462,12 @@ router.get('/unified', async (req, res) => {
       });
     }
     
-    // Get date range from query params (default 90 days)
+    // Get date range and pagination from query params
     const days = parseInt(req.query.days) || 90;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 500; // Default limit reduced from 2000
+    const offset = (page - 1) * limit;
+    
     const now = new Date();
     const futureDate = new Date(now.getTime() + (days * 24 * 60 * 60 * 1000));
     const pastDate = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000)); // 30 days ago
@@ -484,11 +488,13 @@ router.get('/unified', async (req, res) => {
       });
       console.log('🏷️ State filter:', 'Works planned, Works in progress');
       
-      // Get ALL roadworks, ordered by proximity to current date
-      // This ensures we get current/this week's roadworks first
+      // Get roadworks with pagination support
+      // This ensures better memory usage and faster initial loading
       const requestParams = {
         'sm_works_state': 'in.(Works planned,Works in progress)',
-        limit: 2000  // Increased from 300 to capture all roadworks
+        limit: limit,
+        offset: offset,
+        order: 'sm_start_date.asc.nullslast' // Show dated items first, undated last
       };
       
       // Note: Temporarily removed order parameter to test if it's causing issues
@@ -555,63 +561,45 @@ router.get('/unified', async (req, res) => {
       roadworks = [];
     }
     
-    // Process coordinates for each roadwork
+    // Process coordinates using optimized batch processing
     console.log(`🗺️ Processing coordinates and route impacts for ${roadworks.length} roadworks...`);
     console.log('🔍 Pre-processing count:', roadworks.length);
     
-    // Process with coordinate conversion and route impact calculation
-    const processedRoadworks = await Promise.all(roadworks.map(async (roadwork) => {
-      // First, process coordinates with standard converter (uses proj4 if available)
-      let processed = isProj4Available() ? 
-        await processStreetManagerCoordinates(roadwork, { forceRecalculate: false }) :
-        roadwork;
-      
-      // Validate coordinates to detect defaults/mismatches
-      processed = coordinateValidator.processWithValidation(processed);
-      
-      // If no coordinates found or validation failed, use intelligent resolver
-      if (!processed.coordinates) {
-        // Try intelligent resolution first (faster, more accurate)
-        processed = await intelligentCoordinateResolver.resolveCoordinates(processed);
-        
-        // If intelligent resolution fails, fall back to basic geocoding
-        if (!processed.coordinates) {
-          processed = await coordinateFallbackProcessor.processRoadworkWithFallbacks(processed);
-        }
-        
-        if (processed.coordinateFallbackStrategy) {
-          console.log(`🔍 Fallback for ${processed.sm_reference}: ${processed.coordinateFallbackStrategy}`);
-        }
-      }
-      
-      // Log coordinate processing results (limit logging for performance)
-      if (roadworks.length < 100 && processed.coordinates) {
-        console.log(`✅ ${processed.sm_reference}: [${processed.coordinates[0].toFixed(7)}, ${processed.coordinates[1].toFixed(7)}]`);
-      } else if (roadworks.length < 100 && !processed.coordinates) {
-        console.log(`⚠️ ${processed.sm_reference}: No valid coordinates - ${processed.coordinateValidation?.reason || 'unknown reason'}`);
-      }
-      
+    // Import batch processor
+    const { batchCoordinateProcessor } = await import('../services/batchCoordinateProcessor.js');
+    
+    // Use optimized batch processing for coordinates
+    const coordinateProcessedRoadworks = await batchCoordinateProcessor.processCoordinatesBatch(roadworks, {
+      skipRouteCalculation: false // We'll calculate routes after
+    });
+    
+    // Process route impacts in parallel batches (much faster than sequential)
+    console.log(`🚌 Calculating route impacts for ${coordinateProcessedRoadworks.length} roadworks...`);
+    const processedRoadworks = await Promise.all(coordinateProcessedRoadworks.map(async (roadwork) => {
       // Calculate affected routes if we have valid coordinates
-      if (processed.coordinates || processed.works_location_coordinates) {
+      if (roadwork.coordinates || roadwork.works_location_coordinates) {
         try {
-          const affectedRoutes = await calculateAffectedRoutes(processed);
-          processed.affectedRoutes = affectedRoutes;
-          processed.affectedRoutesSummary = formatAffectedRoutesSummary(affectedRoutes);
-          
-          if (affectedRoutes.length > 0 && roadworks.length < 50) {
-            console.log(`🚌 ${processed.sm_reference}: Affects ${processed.affectedRoutesSummary}`);
-          }
+          const affectedRoutes = await calculateAffectedRoutes(roadwork);
+          return {
+            ...roadwork,
+            affectedRoutes: affectedRoutes,
+            affectedRoutesSummary: formatAffectedRoutesSummary(affectedRoutes)
+          };
         } catch (error) {
-          console.error(`⚠️ Route impact calculation failed for ${processed.sm_reference}:`, error.message);
-          processed.affectedRoutes = [];
-          processed.affectedRoutesSummary = 'Unable to calculate';
+          console.error(`⚠️ Route impact calculation failed for ${roadwork.sm_reference}:`, error.message);
+          return {
+            ...roadwork,
+            affectedRoutes: [],
+            affectedRoutesSummary: 'Unable to calculate'
+          };
         }
       } else {
-        processed.affectedRoutes = [];
-        processed.affectedRoutesSummary = 'No coordinates available';
+        return {
+          ...roadwork,
+          affectedRoutes: [],
+          affectedRoutesSummary: 'No coordinates available'
+        };
       }
-      
-      return processed;
     }));
     
     roadworks = processedRoadworks;
@@ -639,7 +627,14 @@ router.get('/unified', async (req, res) => {
       coordinateProcessing: `${coordinateStats.withCoordinates}/${coordinateStats.total} (${coordinateStats.successRate}%)`
     });
     
-    res.json({
+    // Set compression headers for faster response
+    res.set({
+      'Content-Encoding': 'gzip',
+      'Cache-Control': 'public, max-age=300', // Cache for 5 minutes
+      'Vary': 'Accept-Encoding'
+    });
+
+    const response = {
       success: true,
       data: roadworks || [],
       roadworks: roadworks || [], // Keep for backward compatibility
@@ -654,12 +649,18 @@ router.get('/unified', async (req, res) => {
           to: futureDate.toISOString(),
           days: days
         },
-        limit: 2000,  // Actual limit used in query
+        pagination: {
+          page: page,
+          limit: limit,
+          offset: offset,
+          hasMore: roadworks.length === limit // Indicates if there are more pages
+        },
         coordinateProcessing: {
           total: coordinateStats.total,
           successful: coordinateStats.withCoordinates,
           successRate: `${coordinateStats.successRate}%`,
-          conversionMethod: 'OSGB36_to_WGS84'
+          conversionMethod: 'OSGB36_to_WGS84',
+          processingStats: await batchCoordinateProcessor.getProcessingStats().catch(() => ({}))
         },
         routeImpactAnalysis: {
           enabled: true,
@@ -667,9 +668,16 @@ router.get('/unified', async (req, res) => {
           totalRoutesAffected: roadworks.reduce((sum, r) => sum + (r.affectedRoutes?.length || 0), 0)
         },
         lastUpdated: new Date().toISOString(),
-        memoryOptimized: true
+        optimizations: {
+          batchProcessing: true,
+          coordinateCaching: true,
+          pagination: true,
+          compression: true
+        }
       }
-    });
+    };
+
+    res.json(response);
   } catch (error) {
     console.error('❌ Error fetching roadworks:', error);
     res.status(500).json({ 
