@@ -3,6 +3,7 @@
   "version": "3.0.0",
   "description": "BARRY - Traffic Intelligence Platform",
   "main": "node_modules/expo-router/entry",
+  "type": "module",
   "scripts": {
     "start": "expo start --web",
     "dev": "expo start --web --dev-client",

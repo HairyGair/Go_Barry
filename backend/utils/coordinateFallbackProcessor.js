@@ -1,20 +1,20 @@
 import axios from 'axios';
-import { nominatimRateLimiter } from './rateLimiter.js';
+import { geocodeWithGoogle, buildGeocodingAddress } from '../../Go_BARRY/services/googleGeocoding.js';
 
-// Enhanced coordinate fallback processor with multiple strategies
+// Enhanced coordinate fallback processor with Google Maps geocoding
 export class CoordinateFallbackProcessor {
   constructor() {
-    this.nominatimCache = new Map();
+    this.geocodingCache = new Map();
     this.cacheExpiry = 24 * 60 * 60 * 1000; // 24 hours
-    // Disable Nominatim if Google Maps is available or if explicitly disabled
-    this.geocodingEnabled = process.env.DISABLE_GEOCODING !== 'true' && !process.env.GOOGLE_MAPS_API_KEY;
+    // Use Google Maps geocoding for better accuracy
+    this.geocodingEnabled = process.env.DISABLE_GEOCODING !== 'true';
     this.failureCount = 0;
-    this.maxFailures = 10; // Disable after 10 consecutive failures
+    this.maxFailures = 5; // Reduce max failures since Google is more reliable
     
     if (!this.geocodingEnabled) {
-      console.log('🚫 Nominatim geocoding disabled (Google Maps API key detected or DISABLE_GEOCODING set)');
+      console.log('🚫 Google Maps geocoding disabled (DISABLE_GEOCODING set)');
     } else {
-      console.log('✅ Nominatim geocoding enabled as fallback');
+      console.log('✅ Google Maps geocoding enabled for enhanced accuracy');
     }
   }
 
@@ -262,86 +262,52 @@ export class CoordinateFallbackProcessor {
   }
 
   /**
-   * Build location string for geocoding
+   * Build enhanced location string for Google geocoding
    */
   buildLocationString(roadwork) {
-    const parts = [];
-    
-    // Primary location
-    if (roadwork.sm_street_name) parts.push(roadwork.sm_street_name);
-    else if (roadwork.street_name) parts.push(roadwork.street_name);
-    
-    // Additional context
-    if (roadwork.sm_town) parts.push(roadwork.sm_town);
-    if (roadwork.sm_area_name) parts.push(roadwork.sm_area_name);
-    
-    // Use location description if no street name
-    if (parts.length === 0 && roadwork.sm_location_description) {
-      // Extract useful parts from description
-      const cleaned = roadwork.sm_location_description
-        .replace(/from .+ to .+/gi, '') // Remove "from X to Y"
-        .replace(/junction with .+/gi, '') // Remove junction details
-        .replace(/[()]/g, '') // Remove parentheses
-        .trim();
-      if (cleaned) parts.push(cleaned);
-    }
-    
-    // Add region/authority context
-    if (roadwork.sm_highway_authority) {
-      const authority = this.normalizeAuthorityName(roadwork.sm_highway_authority);
-      if (authority && !parts.some(p => p.includes(authority))) {
-        parts.push(authority);
-      }
-    }
-    
-    // Always add UK context
-    if (!parts.some(p => p.toLowerCase().includes('uk') || p.toLowerCase().includes('england'))) {
-      parts.push('UK');
-    }
-    
-    return parts.join(', ');
+    return buildGeocodingAddress(roadwork);
   }
 
   /**
-   * Geocode with multiple fallback strategies
+   * Geocode with Google Maps (much more accurate than Nominatim)
    */
   async geocodeWithFallbacks(locationString, roadwork) {
-    // Check cache first
+    // Check local cache first
     const cacheKey = locationString.toLowerCase();
-    const cached = this.nominatimCache.get(cacheKey);
+    const cached = this.geocodingCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.cacheExpiry) {
       return cached.result;
     }
 
-    // Strategy 1: Try full location string
-    let result = await this.geocodeWithNominatim(locationString);
+    // Strategy 1: Try full location string with Google
+    let result = await this.geocodeWithGoogle(locationString);
     
-    // Strategy 2: Try without highway authority
+    // Strategy 2: Try without highway authority if first attempt fails
     if (!result && roadwork.sm_highway_authority) {
-      const withoutAuthority = locationString.replace(`, ${this.normalizeAuthorityName(roadwork.sm_highway_authority)}`, '');
-      result = await this.geocodeWithNominatim(withoutAuthority);
+      const withoutAuthority = locationString.replace(new RegExp(roadwork.sm_highway_authority.replace(/COUNCIL|CITY/gi, '').trim() + ',?\s*', 'gi'), '');
+      result = await this.geocodeWithGoogle(withoutAuthority);
     }
     
     // Strategy 3: Try just street name + nearest town
     if (!result && roadwork.sm_street_name) {
       const nearestTown = this.findNearestTown(roadwork);
       if (nearestTown) {
-        result = await this.geocodeWithNominatim(`${roadwork.sm_street_name}, ${nearestTown}, UK`);
+        result = await this.geocodeWithGoogle(`${roadwork.sm_street_name}, ${nearestTown}, UK`);
       }
     }
     
-    // Strategy 4: Try major landmarks or junctions mentioned
+    // Strategy 4: Try location description with landmarks
     if (!result && roadwork.sm_location_description) {
       const landmarks = this.extractLandmarks(roadwork.sm_location_description);
       for (const landmark of landmarks) {
-        result = await this.geocodeWithNominatim(`${landmark}, ${roadwork.sm_highway_authority || 'UK'}`);
+        result = await this.geocodeWithGoogle(`${landmark}, ${roadwork.sm_highway_authority || 'North East England'}, UK`);
         if (result) break;
       }
     }
     
-    // Cache result
+    // Cache result if successful
     if (result) {
-      this.nominatimCache.set(cacheKey, {
+      this.geocodingCache.set(cacheKey, {
         result,
         timestamp: Date.now()
       });
@@ -351,9 +317,9 @@ export class CoordinateFallbackProcessor {
   }
 
   /**
-   * Geocode using Nominatim with rate limiting and error handling
+   * Geocode using Google Maps with enhanced error handling
    */
-  async geocodeWithNominatim(query) {
+  async geocodeWithGoogle(query) {
     // Check if geocoding is disabled due to failures
     if (!this.geocodingEnabled) {
       console.log('⚠️ Geocoding temporarily disabled due to repeated failures');
@@ -361,72 +327,45 @@ export class CoordinateFallbackProcessor {
     }
     
     try {
-      // Use rate limiter to respect Nominatim's 1 request/second limit
-      const result = await nominatimRateLimiter.throttle(async () => {
-        const response = await axios.get('https://nominatim.openstreetmap.org/search', {
-          params: {
-            q: query,
-            format: 'json',
-            limit: 1,
-            countrycodes: 'gb',
-            addressdetails: 1
-          },
-          headers: {
-            'User-Agent': 'Go-BARRY-Traffic-System/1.0'
-          },
-          timeout: 5000 // Reduced from 10000
-        });
-
-        if (response.data && response.data.length > 0) {
-          const result = response.data[0];
-          this.failureCount = 0; // Reset failure count on success
-          
-          // Cache successful result
-          this.nominatimCache.set(query.toLowerCase(), {
-            result: {
-              lat: parseFloat(result.lat),
-              lng: parseFloat(result.lon),
-              source: 'nominatim_geocoded',
-              accuracy: this.assessGeocodeAccuracy(result),
-              details: {
-                display_name: result.display_name,
-                type: result.type,
-                importance: result.importance
-              }
-            },
-            timestamp: Date.now()
-          });
-          
-          return this.nominatimCache.get(query.toLowerCase()).result;
-        }
-        return null;
-      });
+      console.log(`🌍 Google geocoding: "${query}"`);
       
-      return result;
-    } catch (error) {
-      // Don't log every timeout, use exponential backoff
-      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
-        console.log('⏱️ Nominatim timeout - using fallback strategies');
-      } else {
-        this.failureCount++;
+      const result = await geocodeWithGoogle(query);
+      
+      if (result) {
+        this.failureCount = 0; // Reset failure count on success
         
-        // Log only on first failure or every 10th
-        if (this.failureCount === 1 || this.failureCount % 10 === 0) {
-          console.error(`Nominatim geocoding issues: ${this.failureCount} failures`);
-        }
+        return {
+          lat: result.latitude,
+          lng: result.longitude,
+          source: 'google_maps',
+          accuracy: result.confidence,
+          details: {
+            address: result.address,
+            place_id: result.place_id,
+            types: result.types
+          }
+        };
+      }
+      return null;
+    } catch (error) {
+      this.failureCount++;
+      
+      // Log significant errors
+      if (this.failureCount === 1 || this.failureCount % 5 === 0) {
+        console.error(`Google geocoding issues: ${this.failureCount} failures -`, error.message);
       }
       
       // Disable geocoding after too many failures
       if (this.failureCount >= this.maxFailures) {
         this.geocodingEnabled = false;
-        console.error('🚫 Disabling geocoding due to repeated failures. Will use other strategies.');
+        console.error('🚫 Disabling geocoding due to repeated failures. Will use coordinate fallbacks.');
         
-        // Re-enable after 5 minutes
+        // Re-enable after 10 minutes
         setTimeout(() => {
           this.geocodingEnabled = true;
           this.failureCount = 0;
           console.log('✅ Re-enabling geocoding after cooldown');
-        }, 5 * 60 * 1000);
+        }, 10 * 60 * 1000);
       }
     }
     return null;
