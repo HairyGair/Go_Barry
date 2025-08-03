@@ -578,9 +578,9 @@ const RoadworksManagerDashboard = ({ onClose }) => {
     try {
       console.log('📡 Calling DELETE API for roadwork:', roadworkId);
       
-      // Create an AbortController for timeout
+      // Create an AbortController for timeout - REDUCED to 10 seconds
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
       // Call the permanent delete endpoint - use POST instead of DELETE for better compatibility
       const response = await fetch(`https://go-barry.onrender.com/api/roadworks/unified/actions/${roadworkId}/delete`, {
@@ -618,8 +618,19 @@ const RoadworksManagerDashboard = ({ onClose }) => {
       console.log('✅ API Response:', data);
       
       if (data.success) {
-        // State already updated in handleDismissConfirm for immediate feedback
         console.log('✅ Backend deletion confirmed');
+        
+        // ONLY UPDATE UI AFTER BACKEND CONFIRMS SUCCESS
+        setRoadworks(prevRoadworks => {
+          const filtered = prevRoadworks.filter(item => String(item.id) !== String(roadworkId));
+          console.log(`🔄 Post-delete UI update - roadworks count: ${filtered.length} (was ${prevRoadworks.length})`);
+          return filtered;
+        });
+        setFilteredRoadworks(prevFiltered => {
+          const filtered = prevFiltered.filter(item => String(item.id) !== String(roadworkId));
+          console.log(`🔄 Post-delete UI update - filtered count: ${filtered.length} (was ${prevFiltered.length})`);
+          return filtered;
+        });
         
         // Log activity
         await logActivity('permanent_delete_roadwork', {
@@ -650,14 +661,28 @@ const RoadworksManagerDashboard = ({ onClose }) => {
       console.error('Error details:', {
         roadworkId,
         error: error.message,
-        response: error.response
+        name: error.name,
+        stack: error.stack
       });
+      
+      // Enhanced error handling
+      let errorMessage = error.message;
+      if (error.name === 'AbortError' || error.message.includes('timeout')) {
+        errorMessage = 'Request timed out. The roadwork may have been deleted - please refresh to check.';
+      } else if (error.message.includes('Network error')) {
+        errorMessage = 'Network connection failed. Please check your internet connection and try again.';
+      } else if (error.message.includes('HTTP 404')) {
+        errorMessage = 'Roadwork not found - it may have already been deleted.';
+      } else if (error.message.includes('HTTP 500')) {
+        errorMessage = 'Server error occurred. Please try again in a few moments.';
+      }
+      
       if (Platform.OS === 'web') {
-        window.alert(`Failed to delete roadwork: ${error.message}\n\nPlease try again or contact support if the issue persists.`);
+        window.alert(`Failed to delete roadwork: ${errorMessage}`);
       } else {
         Alert.alert(
-          'Error', 
-          `Failed to delete roadwork: ${error.message}\n\nPlease try again or contact support if the issue persists.`
+          'Delete Failed', 
+          `Failed to delete roadwork: ${errorMessage}`
         );
       }
     } finally {
@@ -706,13 +731,20 @@ const RoadworksManagerDashboard = ({ onClose }) => {
       );
       
       if (confirmed) {
-        for (const roadworkId of selectedIds) {
-          await handlePermanentDelete(roadworkId, reason, notes);
-        }
-        
+        // Clear UI state first
         setSelectedRoadworks(new Set());
         setBatchMode(false);
         setShowBatchDismissModal(false);
+        
+        // Process deletions - each will update UI individually upon success
+        for (const roadworkId of selectedIds) {
+          try {
+            await handlePermanentDelete(roadworkId, reason, notes);
+          } catch (error) {
+            console.error(`Failed to delete roadwork ${roadworkId}:`, error);
+            // Continue with other deletions even if one fails
+          }
+        }
       }
     } else {
       Alert.alert(
@@ -724,13 +756,20 @@ const RoadworksManagerDashboard = ({ onClose }) => {
             text: 'Delete All',
             style: 'destructive',
             onPress: async () => {
-              for (const roadworkId of selectedIds) {
-                await handlePermanentDelete(roadworkId, reason, notes);
-              }
-              
+              // Clear UI state first
               setSelectedRoadworks(new Set());
               setBatchMode(false);
               setShowBatchDismissModal(false);
+              
+              // Process deletions - each will update UI individually upon success
+              for (const roadworkId of selectedIds) {
+                try {
+                  await handlePermanentDelete(roadworkId, reason, notes);
+                } catch (error) {
+                  console.error(`Failed to delete roadwork ${roadworkId}:`, error);
+                  // Continue with other deletions even if one fails
+                }
+              }
             }
           }
         ]
@@ -1222,28 +1261,18 @@ const RoadworksManagerDashboard = ({ onClose }) => {
         
         console.log('🎨 Deleting alert:', alertId, alertToDelete.street_name);
         
-        // IMMEDIATELY remove from UI for better user experience
-        setRoadworks(prevRoadworks => {
-          const filtered = prevRoadworks.filter(item => String(item.id) !== String(alertId));
-          console.log(`🔄 Immediate UI update - roadworks count: ${filtered.length} (was ${prevRoadworks.length})`);
-          return filtered;
-        });
-        setFilteredRoadworks(prevFiltered => {
-          const filtered = prevFiltered.filter(item => String(item.id) !== String(alertId));
-          console.log(`🔄 Immediate UI update - filtered count: ${filtered.length} (was ${prevFiltered.length})`);
-          return filtered;
-        });
-        
-        // Clear the form and close modal
+        // Clear the form and close modal FIRST
+        const reasonToUse = dismissReason;
+        const notesToUse = dismissNotes;
         setDismissReason('');
         setDismissNotes('');
         setSelectedAlert(null);
         setShowDismissModal(false);
         
-        // Try to delete from backend (fire and forget)
-        handlePermanentDelete(alertId, dismissReason, dismissNotes).catch(error => {
+        // Delete from backend - UI will update when backend confirms success
+        handlePermanentDelete(alertId, reasonToUse, notesToUse).catch(error => {
           console.error('⚠️ Backend deletion failed:', error);
-          // Could re-add the item here if needed, but for now just log the error
+          // On error, optionally re-add the item or show an error
         });
       }
       // If not confirmed, modal stays open
@@ -1270,24 +1299,16 @@ const RoadworksManagerDashboard = ({ onClose }) => {
             style: 'destructive',
             onPress: async () => {
               const alertId = selectedAlert.id;
-              
-              // IMMEDIATELY remove from UI
-              setRoadworks(prevRoadworks => {
-                const filtered = prevRoadworks.filter(item => String(item.id) !== String(alertId));
-                return filtered;
-              });
-              setFilteredRoadworks(prevFiltered => {
-                const filtered = prevFiltered.filter(item => String(item.id) !== String(alertId));
-                return filtered;
-              });
+              const reasonToUse = dismissReason;
+              const notesToUse = dismissNotes;
               
               // Clear the form
               setDismissReason('');
               setDismissNotes('');
               setSelectedAlert(null);
               
-              // Try to delete from backend (fire and forget)
-              handlePermanentDelete(alertId, dismissReason, dismissNotes).catch(error => {
+              // Delete from backend - UI will update when backend confirms success
+              handlePermanentDelete(alertId, reasonToUse, notesToUse).catch(error => {
                 console.error('⚠️ Backend deletion failed:', error);
               });
             }

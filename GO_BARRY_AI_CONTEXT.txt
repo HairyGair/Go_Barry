@@ -1,235 +1,7 @@
-## 🗺️ COORDINATE CONVERSION SYSTEM (JULY 2025 - FULLY IMPLEMENTED & OPTIMIZED)
-
-### **✅ COMPLETE END-TO-END COORDINATE PROCESSING WITH ENHANCED USER EXPERIENCE**
-Go BARRY now has a sophisticated coordinate conversion system that provides supervisors with precise, street-level location data for all roadworks alerts. **July 30, 2025 UPDATE: Fixed coordinate detection issues and streamlined supervisor interface.**
-
-### **🔄 Data Flow Architecture**
-```
-Street Manager API → Supabase → Backend Processing → Frontend Maps
-     LINESTRING    →  Raw Data →   OSGB36→WGS84   →  Google/Bing/OSM
-```
-
-### **📊 Backend Coordinate Processing**
-
-#### **Core Conversion Functions (`/backend/utils/coordinateConverter.js`)**
-- **`processStreetManagerCoordinates()`** - Main processing function with multiple data source support
-- **`osgb36ToWGS84()`** - Precise British National Grid to WGS84 conversion 
-- **`parseWKTLinestring()`** - Parses LINESTRING format coordinates
-- **`getLinestringCentroid()`** - Calculates representative point from multi-point data
-
-#### **Multi-Source Coordinate Detection**
-The system intelligently detects coordinates from multiple sources in priority order:
-1. **`sm_easting` + `sm_northing`** (Supabase direct fields) - Point coordinates
-2. **`raw_webhook_data.object_data.works_location_coordinates`** - LINESTRING format
-3. **`works_location_coordinates`** (direct field) - LINESTRING format
-
-#### **Coordinate Processing Results**
-```javascript
-// Example processed alert with coordinates
-{
-  coordinates: [55.014647, -1.546879], // WGS84 lat/lng
-  coordinateSource: 'street_manager_converted_webhook',
-  coordinateAccuracy: 'high',
-  originalCoordinates: { easting: 428971.99, northing: 569001.32 },
-  coordinatePoints: 3 // Number of points in original LINESTRING
-}
-```
-
-### **🎯 Frontend Map Integration (ENHANCED JULY 30, 2025)**
-
-#### **Streamlined Map Modal (`RoadworksManagerDashboard.jsx`)**
-- **✅ FIXED**: Coordinate detection now properly uses available coordinates instead of falling back to location search
-- **✅ OPTIMIZED**: Removed TomTom traffic and Google Standard view - kept essential maps only
-- **✅ USER-FRIENDLY**: Simplified coordinate information display for supervisors
-- **✅ HELPFUL GUIDANCE**: Added instructions for missing coordinates (check emails, one.network)
-- **Precise URL generation**: Uses exact lat/lng coordinates when available
-- **Enhanced map providers**: Google Satellite/Street View, OpenStreetMap, Bing Maps
-
-#### **Map Provider Selection (Optimized)**
-- **Google Maps**: Satellite View (primary), Street View (when coordinates available)
-- **OpenStreetMap**: Open source alternative for operational flexibility
-- **Bing Maps**: Additional satellite imagery for verification
-- **"Best Map" button**: Auto-selects Google Satellite for precise coordinates
-
-### **🔧 Technical Implementation Details**
-
-#### **FIXED: Coordinate Detection Logic (July 30, 2025)**
-**Previous Issue**: Frontend checking for exact `coordinateSource === 'street_manager_converted'`
-**Actual API Response**: `'street_manager_converted_webhook'` or `'street_manager_converted_supabase_point'`
-**✅ SOLUTION**: Updated to `coordinateSource.startsWith('street_manager_converted')` with proper validation
-
-```javascript
-// FIXED: Enhanced coordinate detection
-if (alert.coordinates && Array.isArray(alert.coordinates) && alert.coordinates.length === 2) {
-  const [latValue, lngValue] = alert.coordinates;
-  
-  // Validate coordinates are reasonable numbers for UK
-  if (typeof latValue === 'number' && typeof lngValue === 'number' && 
-      !isNaN(latValue) && !isNaN(lngValue) &&
-      latValue >= 49 && latValue <= 61 && lngValue >= -8 && lngValue <= 2) {
-    // Use precise coordinates
-  }
-}
-```
-
-### **🔧 Technical Implementation Details**
-
-#### **OSGB36 → WGS84 Conversion Algorithm**
-- **Input**: British National Grid coordinates (easting, northing)
-- **Process**: Iterative calculation using UK-specific geodetic parameters
-- **Output**: WGS84 latitude/longitude suitable for web maps
-- **Accuracy**: Street-level precision for roadworks planning
-- **Validation**: UK bounds checking (49-61°N, -8-2°W)
-
-#### **API Integration Points**
-- **`/api/roadworks/unified`** - Processes all roadworks with coordinates
-- **Real-time processing**: Coordinates calculated on each API call
-- **Error handling**: Graceful fallback with detailed error reporting
-- **Performance**: Optimized for 200+ roadworks processing
-
-### **📍 Coordinate Accuracy Levels**
-
-| Source Type | Accuracy | Use Case | Example |
-|-------------|----------|----------|---------|
-| `street_manager_converted_supabase_point` | **HIGH** | Single point coordinates | Exact junction location |
-| `street_manager_converted_webhook_linestring` | **HIGH** | Road section coordinates | Multi-point road works |
-| `street_manager_converted_direct_linestring` | **HIGH** | Processed LINESTRING | Complex geometries |
-| `geocoded` | **MEDIUM** | Location search results | Address-based locations |
-| `fallback` | **LOW** | Area approximations | General area reference |
-
-### **🎆 Recent Fixes & Enhancements (July 30, 2025)**
-
-#### **✅ MAJOR FIXES IMPLEMENTED**
-
-**1. Coordinate System Fixes:**
-- **Issue**: Map modal showing "Location search" instead of using precise coordinates
-- **Root Cause**: Frontend coordinate detection logic mismatch
-- **Solution**: Enhanced validation and detection logic
-- **Result**: 🎯 **100% coordinate accuracy** - supervisors now get pinpoint map locations
-
-**2. User Experience Improvements:**
-- **Simplified coordinate info**: Removed technical jargon (OSGB36, WGS84) for supervisor-friendly display
-- **Streamlined map options**: Removed unnecessary TomTom traffic, kept essential providers
-- **Missing coordinate guidance**: Added helpful instructions to check roadworks emails and one.network
-- **Date formatting enhancement**: Automatically shows year for roadworks from previous years
-
-**3. Alert Capacity & Performance:**
-- **Expanded coverage**: 20 → 100 alerts displayed (5x increase)
-- **Extended planning horizon**: 28 → 90 day window for better operational planning
-- **Memory optimization**: Added monitoring and warnings to maintain <2GB usage
-- **Smart filtering**: Backend limit increased 200 → 300 records for better selection
-
-#### **📊 Performance Metrics (July 30, 2025)**
-- **Alert Processing**: 100 alerts × 2KB = ~200KB memory usage (✅ Safe)
-- **Coordinate Success Rate**: 80-90% alerts get precise coordinates
-- **Memory Headroom**: 1.4GB current vs 2GB limit = 600MB safety margin
-- **Map Accuracy**: Street-level precision for operational planning
-
-#### **🚀 Supervisor Benefits (Enhanced)**
-- **📍 Street-level accuracy**: Precise location data enables accurate diversion planning
-- **🗺️ Multiple map options**: Google Satellite/Street View, OpenStreetMap, Bing Maps
-- **⚡ Real-time processing**: Fresh coordinates with each data load
-- **🎯 Enhanced planning**: 90-day horizon shows 5x more roadworks for proactive management
-- **📞 Operational guidance**: Clear instructions when precise coordinates unavailable
-
-### **🔮 Future Enhancements**
-
-#### **Potential Improvements**
-- **Coordinate caching**: Store converted coordinates in Supabase
-- **Geometric analysis**: Use full LINESTRING for affected area visualization
-- **Route intersection**: Calculate which bus routes cross work areas
-- **Mobile map integration**: Native map apps on mobile devices
-
-### **🛠️ Developer Notes**
-
-#### **Key Files**
-- **Backend**: `/backend/utils/coordinateConverter.js`
-- **Frontend**: `/Go_BARRY/components/RoadworksManagerDashboard.jsx`
-- **API**: `/backend/routes/roadworksUnifiedSimple.js`
-- **Testing**: `/backend/test-coordinates.js`
-
-#### **Important Constants**
-- **UK Coordinate bounds**: Validates results are within UK territory
-- **OSGB36 parameters**: Geodetic constants for accurate conversion
-- **Map zoom levels**: Optimized for different location types
-
-#### **Error Handling Patterns**
-```javascript
-// Always provide fallback coordinates
-if (!coordinates) {
-  return {
-    coordinates: null,
-    coordinateSource: 'none', 
-    coordinateError: 'Descriptive error message'
-  };
-}
-```
-
-### **✅ System Status: PRODUCTION READY (July 30, 2025)**
-The coordinate conversion system is fully implemented, tested, and enhanced with significant performance improvements. All major coordinate detection issues have been resolved, user interface streamlined, and alert capacity increased 5x while maintaining memory efficiency.
-
-### **🚀 DEPLOYMENT TO PRODUCTION REQUIRED**
-
-#### **📝 Files Changed for Deployment:**
-```
-FRONTEND FILES:
-• Go_BARRY/components/RoadworksManagerDashboard.jsx (MAJOR UPDATES)
-• Go_BARRY/app/disruption-centre/index.jsx (API endpoint fix)
-
-BACKEND FILES:
-• backend/routes/roadworksUnifiedSimple.js (alert capacity increase)
-
-CONTEXT FILES:
-• GO_BARRY_AI_CONTEXT.txt (documentation update)
-```
-
-#### **🔄 Deployment Process:**
-
-**Backend (Auto-Deploy):**
-1. ✅ **Git commit & push** → Render.com auto-deploys in ~2-3 minutes
-2. ✅ **Verify endpoints**: Check `/api/roadworks/unified` returns enhanced data
-3. ✅ **Monitor memory**: Ensure <2GB usage with increased alert capacity
-
-**Frontend (Manual Deploy):**
-1. ⚠️ **Build required**: `cd Go_BARRY && expo export:web`
-2. ⚠️ **Upload files**: Deploy built files to www.gobarry.co.uk hosting
-3. ⚠️ **Test maps**: Verify coordinate detection and map modal functionality
-
-#### **🧨 Critical Testing Checklist:**
-- [ ] **Map accuracy**: Click "Map View" → should show precise coordinates (not location search)
-- [ ] **Alert capacity**: Should display up to 100 roadworks instead of 20
-- [ ] **Date formatting**: Roadworks from 2023/2024 should show year
-- [ ] **Map providers**: Google Satellite/Street View, OpenStreetMap, Bing work
-- [ ] **Missing coordinates**: Should show helpful guidance instead of technical errors
-- [ ] **Memory monitoring**: Check console for memory usage warnings
-
-#### **📊 Expected Production Impact:**
-- **➕ 5x more roadworks visible** to supervisors (20 → 100 alerts)
-- **➕ 90-day planning horizon** instead of 28 days
-- **➕ 100% coordinate accuracy** - no more location search fallbacks
-- **➕ Simplified interface** - supervisor-friendly language
-- **➕ Enhanced operational planning** with precise map locations
-
-#### **🚨 Rollback Plan (if needed):**
-```bash
-# If issues arise, revert to previous version:
-git log --oneline -10  # Find previous commit
-git revert [commit-hash]  # Revert changes
-git push  # Auto-deploys rollback
-```
-
-#### **📈 Success Metrics to Monitor:**
-- **Coordinate usage**: % of roadworks with precise coordinates (target: >80%)
-- **Memory stability**: Backend memory usage (target: <1.8GB)
-- **Supervisor satisfaction**: Feedback on enhanced map accuracy
-- **Performance**: Page load times with increased alert capacity
-
----
-
 # GO BARRY - CRITICAL PROJECT CONTEXT FOR AI ASSISTANTS
 # © 2024-2025 Anthony Gair. All rights reserved.
 # READ THIS FIRST IN EVERY NEW CHAT SESSION
-# Last Updated: July 29, 2025 - ROUTE REGISTRATION FIXES & API ENDPOINT RESOLUTION
+# Last Updated: January 2025 - CURRENT STATE ANALYSIS
 
 ## 🚨 CRITICAL REMINDERS - DON'T FORGET THESE!
 
@@ -237,20 +9,16 @@ git push  # Auto-deploys rollback
 2. **NO localStorage/sessionStorage**: These don't work in Expo/React Native web - use React state only
    - Exception: useSupervisorSession hook uses localStorage ONLY for web persistence
    - NEVER use browser storage in artifacts or general components
-3. **CORS IS FIXED**: Don't try to "fix" CORS - it's already properly configured for gobarry.co.uk
-4. **DEDUPLICATION WORKS**: Alert deduplication is implemented and working - don't reimplement
-5. **IMPORT STYLES**: Use ES6 imports (import X from 'Y') not CommonJS (require)
-6. **SUPERVISOR SYSTEM**: 9 real supervisors with badge auth - don't create mock supervisors
-7. **CONVEX REAL-TIME SYNC**: Convex is integrated for real-time sync without CORS/WebSocket issues
-8. **SESSION MANAGEMENT**: Don't clear localStorage aggressively - it breaks login persistence
-9. **ADMIN ACCESS**: Only AG003 (Anthony Gair) and BP009 (Barry Perryman) have admin privileges
-10. **SUPABASE INTEGRATION**: Real Supabase streetworks data available via axios (July 2025)
-11. **MEMORY OPTIMIZATION**: Comprehensive optimization system prevents Render crashes (July 2025)
-12. **ROUTE REGISTRATION**: Fixed async route registration race conditions (July 29, 2025)
-13. **LAZY LOADING**: Supabase clients use lazy loading to prevent import-time failures (July 29, 2025)
-14. **🎉 ROADWORKS MANAGER**: **FULLY WORKING!** Live Street Manager data integration complete (July 29, 2025)
-15. **🗺️ COORDINATE SYSTEM**: **FULLY OPTIMIZED!** 100% coordinate accuracy with streamlined UI (July 30, 2025)
-16. **📋 ALERT CAPACITY**: **5X INCREASED!** 100 alerts displayed with 90-day planning horizon (July 30, 2025)
+3. **CORS IS CONFIGURED**: Don't try to "fix" CORS - it's properly configured for gobarry.co.uk
+4. **IMPORT STYLES**: Use ES6 imports (import X from 'Y') not CommonJS (require)
+5. **SUPERVISOR SYSTEM**: 9 real supervisors with badge auth - don't create mock supervisors
+6. **CONVEX REAL-TIME SYNC**: Convex is integrated for real-time sync without CORS/WebSocket issues
+7. **SESSION MANAGEMENT**: Don't clear localStorage aggressively - it breaks login persistence
+8. **ADMIN ACCESS**: Only AG003 (Anthony Gair) and BP009 (Barry Perryman) have admin privileges
+9. **SUPABASE INTEGRATION**: Real Supabase data available via axios (prevents Node.js fetch issues)
+10. **MEMORY OPTIMIZATION**: Comprehensive optimization system prevents Render crashes
+11. **LAZY LOADING**: Components and routes use lazy loading to prevent import-time failures
+12. **ROUTE STRUCTURE**: Mature backend with 100+ API route files for comprehensive functionality
 
 ## 📍 PROJECT OVERVIEW
 
@@ -260,24 +28,27 @@ git push  # Auto-deploys rollback
 - **Users**: 9 Go North East supervisors + control room staff
 - **Scale**: Processes thousands of alerts daily from 6+ data sources
 
-## 🏗️ ARCHITECTURE
+## 🏗️ ARCHITECTURE (JANUARY 2025)
 
 ### Backend (Node.js + Express)
 - **Location**: `/backend/`
 - **Entry**: `index.js` (ES6 modules, NOT CommonJS)
+- **Version**: 1.0.0
 - **Port**: 3001 locally, auto on Render
 - **Memory**: Optimized for <2GB with comprehensive optimization system
 - **Database**: Supabase (with axios integration) + local JSON files
 - **Real-time**: Convex sync (replaces WebSocket)
+- **Routes**: 100+ API route files for comprehensive functionality
 
 ### Frontend (React Native + Expo)
 - **Location**: `/Go_BARRY/`
-- **Framework**: React Native 0.79.3, Expo 53.0.10
+- **Version**: 3.0.0
+- **Framework**: React Native 0.79.5, Expo 53.0.20, React 19.0.0
 - **Navigation**: Expo Router (file-based)
 - **Styling**: React Native StyleSheet (NO Tailwind in RN components!)
 - **Platform**: Web primary, mobile-ready
 
-## 📱 COMPLETE SCREEN DIRECTORY STRUCTURE (JULY 2025 - VERIFIED ACTIVE)
+## 📱 COMPLETE SCREEN DIRECTORY STRUCTURE (VERIFIED ACTIVE)
 
 ### **🌐 Full Navigation Hierarchy**
 
@@ -378,7 +149,7 @@ git push  # Auto-deploys rollback
    - Admin Dashboard (`/admin`)
    - All admin sub-screens (`/admin/*`)
 
-## 🧩 ACTIVE COMPONENTS ANALYSIS (JULY 2025)
+## 🧩 ACTIVE COMPONENTS ANALYSIS
 
 ### **✅ CONFIRMED ACTIVE CORE COMPONENTS**
 
@@ -396,153 +167,71 @@ git push  # Auto-deploys rollback
 - **`useBARRYapi.js`** - Backend API communication (ACTIVE)
 
 #### **Common UI Components:**
-- **`AppHeader.jsx`** - Shared header component used across multiple screens
+- **`AppCard.jsx`** - App navigation cards used on home screen
 - **`MessageDistributionCentre.jsx`** - Communications hub functionality
 - **`UnifiedDetailModal.jsx`** - Modal for displaying detailed information
-- **`CreateRoadworkModal.jsx`** - Modal for creating new roadworks (likely dynamically imported)
+- **`CreateRoadworkModal.jsx`** - Modal for creating new roadworks
+- **`ErrorBoundary.jsx`** - Error handling component
 
 #### **Admin Components (Active for AG003/BP009):**
-Located in `app/admin/components/`:
+Located in `app/admin/components/` and `components/admin/`:
 - **`StatusIndicator.jsx`** - System status display
 - **`MetricCard.jsx`** - Metrics visualization
 - **`ServiceHealthCard.jsx`** - Service health monitoring
 - **`ActivityCard.jsx`** - Activity tracking display
 - **`LoadingScreen.jsx`** - Admin loading states
 
-### **❌ POTENTIALLY UNUSED/OUTDATED COMPONENTS**
+## 🔧 BACKEND API INTEGRATION (COMPREHENSIVE)
 
-#### **Duplicate Components (Need Investigation):**
-1. **`components/operations/DisruptionDatabase.jsx`** vs **`components/DisruptionDatabase.jsx`**
-   - Main disruption centre uses the root-level component
-   - Operations subfolder version may be legacy
+### **🌐 Base URL**: https://go-barry.onrender.com
 
-2. **Session Management Duplicates:**
-   - **`useSupervisorSession.js`** (ACTIVE) vs **`useSupervisorSessionSimple.js`** (UNUSED?)
-   - Simple version appears to be a fallback that's not imported
-
-3. **Email Integration Duplicates:**
-   - **`EmailIntegration.jsx`** vs **`EmailIntegrationEnhanced.jsx`**
-   - Enhanced version likely active, original may be legacy
-
-4. **Message Distribution Duplicates:**
-   - **`MessageDistributionCentre.jsx`** vs **`MessageDistributionEnhanced.jsx`**
-   - Need to verify which is actively used in communications hub
-
-#### **Potentially Unused Standalone Components:**
-- **`AutomatedReportingSystem.jsx`** - No direct imports found
-- **`ControlDashboard.jsx`** - No direct imports found, may be replaced by DisplayScreen
-- **`TomTomUsageMonitor.jsx`** - Admin-only component, limited usage
-- **`ChangePasswordModal.jsx`** - Modal component, may be dynamically imported
-
-#### **Test/Legacy Files:**
-- **`app/operations.jsx`** - Legacy file, replaced by `/operations-centre/index.jsx`
-- **`app/about.jsx`** - No navigation route exists to this screen
-- **`app/sharepoint-test.jsx`** - Development test file only
-- **All files in `app/admin/__tests__/`** - Test files, not production code
-
-### **🗂️ COMPONENT ORGANIZATION ISSUES**
-
-#### **Duplicated Directory Structures:**
-1. **Operations Components:**
-   - **`components/operations/`** - Legacy structure with duplicates
-   - **`app/operations-centre/components/`** - Current active structure
-
-2. **Admin Components:**
-   - **`components/admin/`** - Some components here
-   - **`app/admin/components/`** - Current active structure
-   - May have overlap and unused components in the old structure
-
-3. **Communications Structure:**
-   - **`components/communications/`** - Multiple integration files
-   - Some may be legacy versions replaced by enhanced variants
-
-## 🔧 BACKEND API INTEGRATION (JULY 2025 UPDATE)
-
-### **✅ RECENTLY FIXED ENDPOINTS**
-All previously missing endpoints have been added to prevent 404 errors:
-
-1. **`/api/config/tomtom-key`** - Returns TomTom API configuration
-2. **`/api/weather/current`** - Weather service placeholder
-3. **`/api/roadworks`** - Proxy to unified roadworks with axios fallback
-4. **`/api/incident-alerts`** - Standardized incident alerts endpoint
-
-### **✅ SUPABASE INTEGRATION FIXED**
-- **Issue**: Node.js native fetch failing to connect to Supabase
-- **Solution**: Implemented axios-based connection in `incidentAPI.js` and `roadworksUnifiedSimple.js`
-- **Result**: Real streetworks data now accessible (21 active records → 5 current alerts)
-- **Status**: Ready for production once Supabase environment variables added to Render
-
-### **✅ MEMORY OPTIMIZATION COMPLETE**
-Comprehensive memory optimization system implemented:
-- **Lazy loading**: 95+ imports reduced to 4 critical at startup
-- **GTFS streaming**: Memory-safe processing with 60% reduction
-- **Request throttling**: 5-level memory pressure management
-- **Emergency protocols**: Prevents Render.com crashes
-- **Result**: Memory usage reduced from 2GB+ to 1.2-1.4GB stable
-
-## 📋 CLEANUP RECOMMENDATIONS
-
-### **🚀 High Priority Removals:**
-1. **`app/operations.jsx`** - Replaced by operations-centre structure
-2. **`app/about.jsx`** - No navigation route exists
-3. **`useSupervisorSessionSimple.js`** - Duplicate of main session hook
-4. **Test files** - Remove all `__tests__/` directories from production builds
-
-### **🔍 Verification Needed:**
-1. **Modal Components** - Check if CreateRoadworkModal, ChangePasswordModal are dynamically imported
-2. **Email Integration** - Confirm which email component is actively used in communications
-3. **Operations Duplicates** - Verify if old operations/ folder components are referenced
-4. **Admin Components** - Check which admin structure is actually active
-
-### **🧹 Component Consolidation:**
-1. **Merge duplicate disruption database components**
-2. **Standardize on one message distribution system**
-3. **Remove unused session management hooks**
-4. **Consolidate admin component directories**
-
-## 🗄️ DATABASE & STORAGE
-
-### Supabase (Available & Configured - JULY 2025 UPDATE)
-- **Status**: Fully configured with axios integration
-- **Current Usage**: Supervisor data + streetworks data (21 active records)
-- **Environment**: SUPABASE_URL and SUPABASE_ANON_KEY configured
-- **Integration**: axios-based requests bypass Node.js fetch issues
-- **Data Available**: 
-  - streetworks table with real Street Manager data
-  - supervisor sessions and authentication
-  - historical incident data
-
-### Local JSON Storage
-- **Location**: /backend/data/
-- **Files**: 
-  - dismissed-alerts.json (persistent dismissals)
-  - supervisors.json (supervisor data)
-  - streetmanager_fallback.json (fallback data)
-  - routes.json (GTFS route geometries)
-
-## 🌐 API ENDPOINTS (COMPREHENSIVE LIST)
-
-### Base URL: https://go-barry.onrender.com
-
-### **Primary Endpoints (All Working)**
+### **Primary Endpoints (Core Functionality)**
 - **`GET /api/alerts-enhanced`** - Main endpoint with ML, deduplication, route matching
-- **`GET /api/incidents`** - Incident management with Supabase streetworks integration
+- **`GET /api/incidents`** - Incident management with Supabase integration
 - **`GET /api/roadworks/unified`** - Unified roadworks data (axios-based)
 - **`GET /api/health-extended`** - Detailed system status
 - **`POST /api/supervisor/login`** - Supervisor authentication
 - **`POST /api/supervisor/dismiss-alert`** - Dismiss with audit trail
 
-### **Recently Added Endpoints (July 2025)**
-- **`GET /api/config/tomtom-key`** - TomTom API key configuration
-- **`GET /api/weather/current`** - Weather service placeholder
-- **`GET /api/roadworks`** - Proxy to unified roadworks
-- **`GET /api/incident-alerts`** - Standardized incident alerts
+### **Administrative Endpoints**
+- **`/api/admin/*`** - Administrative functions (AG003, BP009 only)
+- **`/api/analytics/*`** - Analytics and reporting endpoints
+- **`/api/supervisor/*`** - Supervisor management and session handling
+- **`/api/audit/*`** - Activity logging and audit trails
 
 ### **Specialized Endpoints**
-- **`/api/intelligence/predict/severity`** - ML predictions
-- **`/api/gtfs/match/enhanced`** - Route matching
-- **`/api/streetmanager/webhook`** - Receives live updates
-- **`/api/streetmanager/reset-circuit-breaker`** - Reset circuit breaker for Supabase
+- **`/api/intelligence/*`** - ML predictions and AI insights
+- **`/api/gtfs/*`** - Route matching and GTFS data
+- **`/api/streetmanager/*`** - Street Manager webhook integration
+- **`/api/communications/*`** - Email, VoIP, and messaging services
+- **`/api/tomtom/*`** - TomTom API integration and usage monitoring
+
+### **Data Integration Endpoints**
+- **`/api/config/tomtom-key`** - TomTom API key configuration
+- **`/api/weather/current`** - Weather service integration
+- **`/api/incident-alerts`** - Standardized incident alerts
+- **`/api/roadworks`** - Proxy to unified roadworks
+
+## 🗄️ DATABASE & STORAGE
+
+### Supabase (Configured & Active)
+- **Status**: Fully configured with axios integration
+- **Usage**: Supervisor data + streetworks data + incident management
+- **Environment**: SUPABASE_URL and SUPABASE_ANON_KEY configured
+- **Integration**: axios-based requests bypass Node.js fetch issues
+- **Tables**: 
+  - streetworks (Street Manager data)
+  - supervisor_sessions (authentication)
+  - incident_logs (historical data)
+  - supervisor_actions (audit trail)
+
+### Local JSON Storage
+- **Location**: `/backend/data/`
+- **Files**: 
+  - dismissed-alerts.json (persistent dismissals)
+  - supervisors.json (supervisor data)
+  - streetmanager_fallback.json (fallback data)
+  - routes.json (GTFS route geometries)
 
 ## 👥 SUPERVISOR SYSTEM (REAL DATA)
 
@@ -567,8 +256,8 @@ Features:
 ## 🚌 GTFS ROUTE DATA
 
 - **Total Routes**: 231 Go North East routes  
-- **Data Files**: /backend/data/routes.txt, stops.txt, shapes.txt
-- **Matching**: enhancedGTFSMatcher.js provides 80-90% accuracy
+- **Data Files**: `/backend/data/routes.txt`, `stops.txt`, `shapes.txt`
+- **Matching**: enhancedGTFSMatcher.js provides route intersection analysis
 - **Key Routes**: 21, X21 (A1), 1, 2, 307 (A19), Q3 (Newcastle)
 - **Memory Optimization**: Streaming processor for 2GB RAM limit
 
@@ -579,7 +268,7 @@ Features:
 - **Dashboard**: https://dashboard.convex.dev/d/standing-octopus-908
 - **Integration**: Complete real-time sync replacing WebSocket/polling
 
-### Convex Schema (/Go_BARRY/convex/)
+### Convex Schema (`/Go_BARRY/convex/`)
 ```
 ✅ IMPLEMENTED:
 - schema.ts - Database schema definition
@@ -605,132 +294,34 @@ const convex = new ConvexReactClient(process.env.EXPO_PUBLIC_CONVEX_URL);
 const { activeAlerts, activeSupervisors, dismissFromDisplay, syncState } = useConvexSync();
 ```
 
-## 🔧 CURRENT STATE (JULY 30, 2025 - MAJOR ENHANCEMENTS)
+## 🔧 CURRENT STATE (JANUARY 2025)
 
-### ✅ FULLY WORKING AND ENHANCED
+### ✅ WORKING FUNCTIONALITY
 - **Homepage Navigation**: 6 app cards with complete routing
 - **Control Room Display**: 24/7 monitoring with real-time maps
-- **Disruptions Management**: Complete incident and roadworks management
+- **Disruptions Management**: Incident and roadworks management system
 - **Operations Centre**: Duty boards, statistics, live map, database
 - **Communications Hub**: Email, VoIP, messaging integration
-- **Admin Dashboard**: Full system administration (8 sub-screens)
+- **Admin Dashboard**: System administration (8 sub-screens)
 - **Breakdown Guide**: Engineering troubleshooting system
 - **Real-time Sync**: Convex integration across all screens
 - **Memory Optimization**: Comprehensive system preventing crashes
-- **Supabase Integration**: Real streetworks data via axios
-- **API Completeness**: All missing endpoints added
-- **🚀 ROADWORKS MANAGER INTEGRATION**: **FULLY WORKING!** Direct connection to Supabase streetworks table with AWS SNS data from Street Manager webhooks
-- **🎯 COORDINATE SYSTEM**: **100% ACCURATE!** Fixed all coordinate detection issues - supervisors get pinpoint map locations
-- **📋 ALERT CAPACITY**: **5X INCREASED!** Now displays 100 roadworks with 90-day planning horizon
+- **Supabase Integration**: Real data via axios connection
+- **API Infrastructure**: 100+ route files providing comprehensive functionality
 
-### 🎆 **MAJOR SUCCESS: COORDINATE SYSTEM OPTIMIZATION + ALERT CAPACITY EXPANSION (JULY 30, 2025)**
+### 🔧 TECHNICAL IMPLEMENTATION
+- **Backend**: Node.js 18+ with Express 4.21.2, ES6 modules
+- **Frontend**: React 19.0.0 + React Native 0.79.5 + Expo 53.0.20
+- **Database**: Supabase with axios integration, local JSON fallbacks
+- **Real-time**: Convex 1.24.8 for live sync across all clients
+- **Memory**: Optimized for Render.com 2GB limit with monitoring
+- **Authentication**: Badge-based supervisor system with session management
 
-**STATUS: ✅ FULLY ENHANCED AND READY FOR PRODUCTION**
-
-**What's Enhanced:**
-- **🎯 100% Coordinate Accuracy**: Fixed all coordinate detection issues - supervisors now get precise map locations instead of location searches
-- **🗺️ Streamlined Map Interface**: Removed unnecessary options, simplified coordinate display for supervisor use
-- **📋 5x Alert Capacity**: Increased from 20 to 100 roadworks displayed with intelligent memory monitoring
-- **📅 Extended Planning**: 28 → 90 day horizon gives supervisors comprehensive operational overview
-- **🚑 Enhanced Guidance**: Clear instructions when coordinates unavailable (check emails, one.network)
-- **📅 Smart Date Display**: Automatically shows year for roadworks from previous years
-
-**Technical Implementation:**
-- **Frontend**: Enhanced coordinate validation and user-friendly map modal
-- **Backend**: Increased data limits with memory monitoring and performance warnings
-- **Memory Safety**: ~200KB for 100 alerts with 600MB headroom under 2GB Render limit
-- **Map Providers**: Optimized selection - Google Satellite/Street View, OpenStreetMap, Bing
-
-**Supervisor Experience:**
-- Precise map locations enable accurate diversion planning
-- 5x more roadworks visible for comprehensive operational planning
-- 90-day horizon supports proactive route management
-- Simplified interface removes technical complexity
-- Clear guidance when additional information needed
-
-**Deployment Status:**
-- Backend changes auto-deploy via Git push
-- Frontend requires manual build and upload to www.gobarry.co.uk
-- All fixes tested and verified in development environment
-- Ready for immediate production deployment
-
-### 🎉 **MAJOR SUCCESS: ROADWORKS MANAGER + SUPABASE INTEGRATION (JULY 29, 2025)**
-
-**STATUS: ✅ FULLY OPERATIONAL AND TESTED**
-
-**What's Working:**
-- **Live Street Manager Data**: Real AWS SNS webhook notifications displayed in Roadworks Manager
-- **Supabase Connection**: Direct connection to `streetworks` table via `/api/roadworks/unified`
-- **Data Mapping**: Perfect field mapping from `sm_*` columns to dashboard display
-- **WKT Coordinate Parsing**: Precise map locations from Street Manager's coordinate data
-- **Supervisor Actions**: Full workflow (acknowledge, monitor, escalate, dismiss, plan diversions)
-- **Active Filtering**: Automatically filters out completed/cancelled/expired works
-- **Future Planning**: Shows upcoming roadworks for advance route planning
-- **Route Impact Analysis**: Calculates affected bus routes from location data
-
-**Data Flow (CONFIRMED WORKING):**
-```
-Street Manager API → AWS SNS Webhook → Go BARRY Backend → Supabase streetworks table → 
-/api/roadworks/unified → RoadworksManagerDashboard → Live Supervisor Interface
-```
-
-**Technical Implementation:**
-- **Frontend**: `RoadworksManagerDashboard.jsx` with full Supabase integration
-- **Backend**: `roadworksUnifiedSimple.js` with axios-based Supabase connection
-- **Data Processing**: Real-time WKT coordinate parsing and field mapping
-- **API Endpoints**: Complete action handling for supervisor workflow
-
-**User Experience:**
-- Supervisors see live roadworks data for proactive planning
-- Precise map integration with actual Street Manager coordinates
-- Full action workflow for operational response
-- Advance planning tab for future works preparation
-- Route impact analysis for service planning
-
-### ✅ ARCHITECTURE VERIFIED
-- **6 Main Application Sections**: All confirmed active and routed
-- **Component Usage**: Core components verified as active
-- **Authentication System**: 9 real supervisors with badge-based login
-- **Database Integration**: Supabase + local JSON working
-- **Performance Optimization**: 2GB memory limit compliance
-
-### ⚠️ CLEANUP NEEDED
-- **Legacy Components**: Multiple duplicates identified for removal
-- **Unused Files**: Several outdated screens and test files
-- **Directory Structure**: Some organizational inconsistencies
-- **Dead Code**: Components that exist but aren't imported
-
-### 🚨 CRITICAL ISSUES RESOLVED (JULY 2025)
-1. **Memory Crashes**: Comprehensive optimization prevents Render restarts
-2. **Missing APIs**: All 404 endpoints fixed and working
-3. **Supabase Connection**: Axios integration bypasses Node.js fetch issues
-4. **Component Analysis**: Complete verification of active vs unused files
-
-### 🔧 RECENT FIXES (JULY 29, 2025)
-**Route Registration Race Condition Fix:**
-- **Issue**: API endpoints returning 404 due to async route registration race condition
-- **Solution**: Modified `render-startup.js` to await route initialization before starting server
-- **Files**: `backend/render-startup.js`, `backend/index.js`
-- **Impact**: Ensures `/api/config/tomtom-key`, `/api/weather/current`, `/api/incident-alerts`, `/api/roadworks` are accessible
-
-**Supabase Import-Time Initialization Fix:**
-- **Issue**: Route files failing to import due to Supabase initialization at module load time
-- **Solution**: Implemented lazy loading pattern for Supabase clients with graceful fallbacks
-- **Files**: `backend/services/enhancedSupervisorLogging.js`, `backend/routes/incidentAlertsAPI.js`
-- **Impact**: Fixes import failures for `supervisorAPI.js`, `adminAPI.js`, `incidentAPI.js`
-
-**Enhanced Route Registration Debugging:**
-- **Addition**: Comprehensive logging and verification in `MemoryOptimizedRouteManager`
-- **Purpose**: Better visibility into route registration process and failure detection
-- **Result**: Improved troubleshooting and monitoring of route availability
-
-**🎉 ROADWORKS MANAGER + SUPABASE INTEGRATION (JULY 29, 2025) - MAJOR SUCCESS!**
-- **Achievement**: Complete integration of Roadworks Manager with live Street Manager data
-- **Implementation**: Direct Supabase streetworks table connection via axios
-- **Features**: WKT coordinate parsing, supervisor actions, active filtering, future planning
-- **Files**: `RoadworksManagerDashboard.jsx`, `roadworksUnifiedSimple.js`
-- **Result**: Live AWS SNS webhook data displayed in supervisor interface for proactive planning
-- **Status**: ✅ FULLY WORKING AND TESTED
+### ⚠️ DEVELOPMENT CONSIDERATIONS
+- **Memory Monitoring**: Critical for Render.com stability
+- **Component Cleanup**: Some duplicate components may exist from development
+- **API Maturity**: Extensive route structure indicates feature-complete backend
+- **Version Management**: Project uses modern React 19 and latest dependencies
 
 ## 💡 DEVELOPMENT GUIDELINES
 
@@ -756,18 +347,15 @@ const response = await axios.get(`${supabaseUrl}/rest/v1/table`, {
   }
 });
 
-// Lazy-loaded Supabase client (prevents import-time failures)
-let supabase = null;
-async function getSupabaseClient() {
-  if (supabase) return supabase;
-  
-  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
-    return null; // Graceful fallback
+// Lazy-loaded modules (prevents import-time failures)
+const lazyImportCache = new Map();
+async function lazyImport(modulePath) {
+  if (lazyImportCache.has(modulePath)) {
+    return lazyImportCache.get(modulePath);
   }
-  
-  const { createClient } = await import('@supabase/supabase-js');
-  supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-  return supabase;
+  const module = await import(modulePath);
+  lazyImportCache.set(modulePath, module);
+  return module;
 }
 ```
 
@@ -797,201 +385,41 @@ const styles = StyleSheet.create({
 });
 ```
 
-## 📊 PERFORMANCE METRICS (JULY 2025)
+## 📊 PERFORMANCE METRICS
 
-### Memory Optimization Results
-- **Peak Memory**: Reduced from 2GB+ (crashes) to 1.2-1.4GB (stable)
-- **Startup Memory**: 60% reduction through lazy loading
-- **API Response Times**: 25-35% faster with optimized processing
-- **Concurrent Capacity**: 200% increase in request handling
+### Memory Optimization
+- **Target**: <2GB usage for Render.com compatibility
+- **Strategy**: Lazy loading, streaming processors, memory monitoring
+- **Implementation**: masterMemoryOptimization.js middleware
 
-### User Experience Improvements  
-- **Load Times**: 60% faster with skeleton loading and optimization
+### API Performance
+- **Routes**: 100+ API endpoints for comprehensive functionality
+- **Response Times**: Optimized with memory-efficient processing
+- **Error Handling**: Comprehensive error boundaries and fallbacks
+
+### User Experience
 - **Navigation**: Clear 6-card system with consistent routing
-- **Error Handling**: Component-level boundaries prevent crashes
+- **Authentication**: Badge-based system with session persistence
 - **Real-time Updates**: Convex sync eliminates polling delays
 
-## 🎯 NEXT STEPS & PRIORITIES
+## 🎯 DEVELOPMENT PRIORITIES
 
-### 🎉 MAJOR MILESTONE ACHIEVED (July 29, 2025)
-**✅ ROADWORKS MANAGER + SUPABASE INTEGRATION COMPLETE!**
-- Live Street Manager AWS SNS webhook data successfully integrated
-- Full supervisor workflow operational (acknowledge, monitor, escalate, dismiss)
-- WKT coordinate parsing working for precise map locations
-- Active filtering and future planning tabs functional
-- Route impact analysis operational
-
-### Immediate Actions Required (Updated July 29, 2025)
-1. **✅ COMPLETED: Roadworks Manager Integration** - Major success!
-2. **Test API endpoints after deployment** (/api/config/tomtom-key, /api/weather/current, etc.)
-3. **Add Supabase environment variables to Render.com** (critical for real data)
-4. **Monitor route registration logs** (ensure no silent failures)
-5. **Celebrate this major breakthrough!** 🎉
-
-### Development Priorities  
-1. **Route Architecture Review**: Evaluate if MemoryOptimizedRouteManager is needed or if direct registration is better
-2. **Component Cleanup**: Remove duplicates and unused files (lower priority)
-3. **Directory Consolidation**: Standardize component organization (lower priority)
-4. **Performance Monitoring**: Implement real-time performance tracking
+### Current Focus Areas
+1. **System Stability**: Ensure memory optimization continues working
+2. **Feature Completion**: Complete any partially implemented features
+3. **Component Cleanup**: Remove duplicate or unused components
+4. **Documentation**: Keep context file updated with changes
 
 ### Quality Assurance
 1. **Navigation Testing**: Verify all 6 app cards and sub-routes work
 2. **Authentication Testing**: Confirm supervisor login across all screens
 3. **API Integration Testing**: Verify all endpoints return expected data
-4. **Mobile Responsiveness**: Test React Native web responsiveness
+4. **Memory Monitoring**: Watch for memory usage patterns
 
-This comprehensive analysis provides the complete picture of Go BARRY's current architecture, active components, and development priorities as of July 2025.
+### Technical Debt
+1. **Component Deduplication**: Clean up duplicate components
+2. **Route Optimization**: Ensure all 100+ routes are necessary
+3. **Dependency Updates**: Keep libraries current and secure
+4. **Performance Monitoring**: Implement metrics collection
 
-## 🚨 CRITICAL DEBUGGING SESSION RESULTS (July 29, 2025 - Evening)
-
-### ⚡ MAJOR ROADWORKS FILTERING BREAKTHROUGH
-
-**🎯 ROOT CAUSE IDENTIFIED:** Roadworks filtering was failing due to case sensitivity mismatch in Supabase queries.
-
-#### **Critical Database Field Values (VERIFIED IN SUPABASE):**
-- **❌ WRONG:** `sm_works_state: "works planned"` (lowercase)
-- **✅ CORRECT:** `sm_works_state: "Works planned"` (title case with capital W)
-- **❌ WRONG:** `sm_works_state: "works in progress"` (lowercase)  
-- **✅ CORRECT:** `sm_works_state: "Works in progress"` (title case with capital W)
-
-#### **Files Fixed:**
-- `backend/routes/roadworksUnifiedSimple.js` - Fixed Supabase filter queries
-- `backend/routes/streetworksAPI.js` - Fixed active roadworks filtering
-- `Go_BARRY/app/disruption-centre/index.jsx` - Fixed API endpoint calls
-- `Go_BARRY/components/RoadworksManagerDashboard.jsx` - Fixed variable name typo
-
-### 🔧 DEPLOYMENT ARCHITECTURE CLARIFIED
-
-**Backend (Render.com):** `go-barry.onrender.com`
-- ✅ Auto-deploys from Git pushes
-- ✅ Handles all `/api/*` endpoints
-- ✅ Connects to Supabase with axios integration
-
-**Frontend (Traditional Hosting):** `www.gobarry.co.uk`
-- ⚠️ Requires manual build + upload deployment
-- ⚠️ Must point to `go-barry.onrender.com` for API calls
-- ⚠️ Changes need `expo export:web` then file upload
-
-### 🐛 CRITICAL BUGS FIXED
-
-#### **1. Frontend API Endpoint Mismatch**
-- **Issue:** Frontend calling `/api/roadworks` but backend fixed endpoint was `/api/roadworks/unified`
-- **Fix:** Updated `disruption-centre/index.jsx` to call correct endpoint
-- **Impact:** Prevents 404 errors and enables roadworks data loading
-
-#### **2. Undefined Variable Error**
-- **Issue:** `futureStreetManagerWorks is not defined` in RoadworksManagerDashboard
-- **Fix:** Changed to correct variable name `advancePlanningWorks` 
-- **Impact:** Prevents JavaScript crashes in Promise.all
-
-#### **3. Data Structure Mismatch**
-- **Issue:** Frontend expecting `roadworksData.roadworks` but backend returns `roadworksData.data`
-- **Fix:** Updated frontend to use `roadworksData.data`
-- **Impact:** Fixes stats calculations in disruption centre
-
-### 📊 SUPABASE STREETWORKS TABLE ANALYSIS
-
-**Confirmed Data Structure:**
-```sql
-Table: streetworks
-Key Fields:
-- sm_works_state: "Works planned" | "Works in progress" | "Works cancelled" (TITLE CASE)
-- sm_location_description: Often NULL (use sm_street_name instead)
-- sm_street_name: Primary location field (KIRKWOOD GARDENS, EAST GEORGE STREET, etc.)
-- sm_start_date: ISO date format
-- sm_end_date: ISO date format
-- sm_highway_authority: Council names (DURHAM COUNTY COUNCIL, etc.)
-```
-
-**Records Count:** 10,000+ total streetworks in database
-**Active Records:** Hundreds with "Works planned" and "Works in progress" states
-
-### 🎯 FILTERING STRATEGY EVOLUTION
-
-#### **Original Approach (FAILED):**
-```javascript
-'sm_works_state': 'in.(works planned,works in progress)' // lowercase - no matches
-```
-
-#### **Fixed Approach (SUCCESS):**
-```javascript
-'sm_works_state': 'in.(Works planned,Works in progress)' // title case - matches data
-```
-
-#### **Date Filtering Challenges:**
-- **28-day filter too restrictive** for Street Manager data
-- **Most works planned months ahead** (infrastructure projects)
-- **Recommend 90-180 day window** for meaningful results
-
-### 🚀 DEPLOYMENT LESSONS LEARNED
-
-#### **Git Push Deployment Process:**
-1. **Backend:** `git push` → Auto-deploys to Render.com in ~2-3 minutes
-2. **Frontend:** Requires manual `expo export:web` + file upload to hosting
-3. **Testing:** Always verify metadata changes in API responses
-
-#### **Deployment Verification Checklist:**
-- ✅ Check API response metadata for updated values
-- ✅ Verify workStateFilter shows correct capitalization
-- ✅ Confirm count > 0 instead of empty data arrays
-- ✅ Test both `/api/roadworks/unified` and `/api/streetworks/active`
-
-### 🔍 DEBUGGING TECHNIQUES THAT WORKED
-
-#### **1. Debug Endpoint Creation:**
-```javascript
-// GET /api/roadworks/debug-values - Shows actual database values
-// Critical for identifying case sensitivity issues
-```
-
-#### **2. Progressive Filter Removal:**
-- Remove all filters → Test basic connectivity
-- Add work state filter → Test case sensitivity  
-- Add date filter → Test date range appropriateness
-
-#### **3. Supabase Direct Inspection:**
-- View table data directly in Supabase dashboard
-- Identify actual field values vs. assumed values
-- Verify data types and formatting
-
-### ⚠️ CRITICAL REMINDERS FOR FUTURE DEVELOPMENT
-
-#### **Database Field Values (CASE SENSITIVE!):**
-- ✅ **ALWAYS use title case:** "Works planned", "Works in progress"
-- ✅ **Check Supabase directly** when filters return empty results
-- ✅ **Use debug endpoints** to verify actual field values
-
-#### **API Endpoint Consistency:**
-- ✅ **Frontend must match backend endpoints** exactly
-- ✅ **Use `/api/roadworks/unified`** not `/api/roadworks`
-- ✅ **Check response data structure** (`.data` vs `.roadworks`)
-
-#### **Deployment Verification:**
-- ✅ **Always check API response metadata** after deployment
-- ✅ **Verify git changes are reflected** in live API responses  
-- ✅ **Test with simple cases first** before complex filtering
-
-#### **Variable Naming:**
-- ✅ **Use consistent naming** throughout function scope
-- ✅ **Avoid similar variable names** that can cause typos
-- ✅ **Use TypeScript or ESLint** to catch undefined variables
-
-### 🎉 SESSION ACHIEVEMENTS
-
-1. **✅ Identified root cause** of roadworks filtering failure
-2. **✅ Fixed case sensitivity** in database queries
-3. **✅ Corrected API endpoint** mismatches
-4. **✅ Resolved JavaScript errors** from undefined variables
-5. **✅ Clarified deployment architecture** and process
-6. **✅ Created debugging endpoints** for future troubleshooting
-7. **✅ Documented database structure** from live Supabase inspection
-
-### 🔮 NEXT IMMEDIATE ACTIONS
-
-1. **Deploy fixes to production** and verify roadworks data appears
-2. **Adjust date filtering** to 90-180 days for relevant results
-3. **Update frontend build** and upload to www.gobarry.co.uk
-4. **Test end-to-end functionality** from production website
-5. **Re-enable proper filtering** once basic connectivity confirmed
-
-**END OF CRITICAL DEBUGGING SESSION - July 29, 2025, 10:20 PM**
+This comprehensive analysis provides the complete picture of Go BARRY's current architecture, active components, and development status as of January 2025.
