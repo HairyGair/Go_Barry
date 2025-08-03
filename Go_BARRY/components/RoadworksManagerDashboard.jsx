@@ -985,7 +985,37 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                 ]}>
                   {geocodingStates.get(item.id) ? 'Locating...' : assessCoordinateQuality(item).buttonText}
                 </Text>
-                {/* Coordinate quality indicator with validation */}
+                
+                {/* Enhanced coordinate quality badge */}
+                <View style={[
+                  styles.coordinateQualityBadge,
+                  { 
+                    borderColor: assessCoordinateQuality(item).color,
+                    backgroundColor: `${assessCoordinateQuality(item).color}15`
+                  }
+                ]}>
+                  <MaterialCommunityIcons 
+                    name={
+                      assessCoordinateQuality(item).quality === 'high' ? 'crosshairs-gps' :
+                      assessCoordinateQuality(item).quality === 'medium' ? 'map-marker-radius' :
+                      assessCoordinateQuality(item).quality === 'low' ? 'map-marker-question' :
+                      'map-search'
+                    }
+                    size={10} 
+                    color={assessCoordinateQuality(item).color}
+                  />
+                  <Text style={[
+                    styles.coordinateQualityText,
+                    { color: assessCoordinateQuality(item).color }
+                  ]}>
+                    {assessCoordinateQuality(item).quality === 'high' ? 'GPS' :
+                     assessCoordinateQuality(item).quality === 'medium' ? 'Approx' :
+                     assessCoordinateQuality(item).quality === 'low' ? 'Area' :
+                     'Search'}
+                  </Text>
+                </View>
+                
+                {/* Keep the original small quality indicator for visual balance */}
                 <View style={[
                   styles.qualityIndicator,
                   { backgroundColor: assessCoordinateQuality(item).color }
@@ -2677,6 +2707,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#3b82f6',
+  },
+  coordinateQualityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    position: 'absolute',
+    bottom: -8,
+    right: -4,
+    borderWidth: 1,
+  },
+  coordinateQualityText: {
+    fontSize: 10,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 });
 

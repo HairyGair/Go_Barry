@@ -149,6 +149,41 @@ export function osgb36ToWGS84(easting, northing) {
  * @returns {Object} Enhanced roadwork with processed coordinates
  */
 /**
+ * Build a geocoding-friendly address from roadwork data
+ * @param {Object} alert - Roadwork record with location data
+ * @returns {string} Formatted address for geocoding
+ */
+export function buildGeocodingAddress(alert) {
+  const parts = [];
+  
+  // Street name
+  if (alert.sm_street_name) {
+    parts.push(alert.sm_street_name);
+  }
+  
+  // Town/area (prioritize this over council)
+  if (alert.sm_town) {
+    parts.push(alert.sm_town);
+  } else if (alert.sm_area_name) {
+    parts.push(alert.sm_area_name);
+  }
+  
+  // Only add council if no town/area AND clean it up
+  if (!alert.sm_town && !alert.sm_area_name && alert.sm_highway_authority) {
+    const cleanedAuthority = alert.sm_highway_authority
+      .replace(/COUNCIL$/i, '')
+      .replace(/CITY$/i, '')
+      .trim();
+    parts.push(cleanedAuthority);
+  }
+  
+  // Add UK but not "North East England"
+  parts.push('UK');
+  
+  return parts.filter(Boolean).join(', ');
+}
+
+/**
  * Geocode an address using Google Maps Geocoding API
  * @param {string} address - Address to geocode
  * @returns {Object|null} { lat, lng } or null if failed
@@ -160,18 +195,11 @@ export async function geocodeAddress(address) {
   }
 
   try {
-    // Clean up the address for better geocoding results
-    const cleanAddress = address
-      .replace(/COUNTY COUNCIL/gi, '')
-      .replace(/COUNCIL/gi, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    console.log(`🔍 Geocoding address: "${cleanAddress}"`);
+    console.log(`🔍 Geocoding address: "${address}"`);
 
     const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
       params: {
-        address: cleanAddress + ', UK',  // Add UK to improve results
+        address: address,  // Use the address as-is (already includes UK)
         region: 'uk',  // Bias results to UK
         key: process.env.GOOGLE_MAPS_API_KEY
       },
@@ -236,13 +264,7 @@ export async function processStreetManagerCoordinates(roadwork) {
   if (!coordinateData) {
     // Try geocoding fallback if we have street information
     if (roadwork.sm_street_name) {
-      const addressParts = [
-        roadwork.sm_street_name,
-        roadwork.sm_town || roadwork.sm_area,
-        roadwork.sm_highway_authority
-      ].filter(Boolean);
-      
-      const address = addressParts.join(', ');
+      const address = buildGeocodingAddress(roadwork);
       console.log(`🗺️ No coordinates found for ${roadwork.sm_reference || roadwork.id}, attempting geocoding...`);
       
       const geocoded = await geocodeAddress(address);

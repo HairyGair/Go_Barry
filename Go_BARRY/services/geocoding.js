@@ -214,8 +214,8 @@ async function makeMapBoxRequest(location, options = {}) {
     throw new Error('MapBox token not configured');
   }
   
-  // Enhanced search query for North East England context
-  const searchQuery = `${location}, North East England, UK`;
+  // Use location as provided (backend already adds UK)
+  const searchQuery = location;
   
   // MapBox request parameters
   const params = new URLSearchParams({
