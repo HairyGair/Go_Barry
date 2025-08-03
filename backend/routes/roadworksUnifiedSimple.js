@@ -797,36 +797,9 @@ router.post('/actions/:id/delete', async (req, res) => {
       });
     }
     
-    // First, get the roadwork details for logging
-    const fetchResponse = await axios.get(`${supabaseUrl}/rest/v1/streetworks`, {
-      headers: {
-        'apikey': supabaseKey,
-        'Authorization': `Bearer ${supabaseKey}`,
-        'Content-Type': 'application/json'
-      },
-      params: {
-        'id': `eq.${id}`
-      },
-      timeout: 10000
-    });
-    
-    const roadwork = fetchResponse.data[0];
-    if (!roadwork) {
-      return res.status(404).json({
-        success: false,
-        error: 'Roadwork not found'
-      });
-    }
-    
-    // Log the deletion details before deleting
-    console.log('🔍 Roadwork to be deleted:', {
-      id: roadwork.id,
-      reference: roadwork.sm_reference,
-      location: roadwork.sm_street_name || roadwork.sm_location_description,
-      startDate: roadwork.sm_start_date,
-      endDate: roadwork.sm_end_date,
-      promoter: roadwork.sm_promoter_organisation
-    });
+    // Optimized: Delete first, log details after
+    // This reduces the time before response
+    const startTime = Date.now();
     
     // Perform the permanent deletion
     const deleteResponse = await axios.delete(
@@ -835,46 +808,70 @@ router.post('/actions/:id/delete', async (req, res) => {
         headers: {
           'apikey': supabaseKey,
           'Authorization': `Bearer ${supabaseKey}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation' // Return deleted record
         },
-        timeout: 10000
+        timeout: 25000 // 25 second timeout for Supabase
       }
     );
+    
+    const deleteTime = Date.now() - startTime;
+    console.log(`✅ Deletion completed in ${deleteTime}ms`);
     
     if (deleteResponse.status === 200 || deleteResponse.status === 204) {
       console.log('✅ Roadwork permanently deleted from database');
       
-      // Log deletion audit trail
+      // Get deleted record info from response if available
+      const deletedRecord = deleteResponse.data?.[0] || {};
+      
+      // Log deletion audit trail (async - don't wait)
       const deletionRecord = {
         roadworkId: id,
-        roadworkReference: roadwork.sm_reference,
-        roadworkLocation: roadwork.sm_street_name || roadwork.sm_location_description,
+        roadworkReference: deletedRecord.sm_reference || 'Unknown',
+        roadworkLocation: deletedRecord.sm_street_name || deletedRecord.sm_location_description || 'Unknown',
         deletedBy: supervisorName,
         supervisorId: supervisorId,
         reason: reason,
         notes: notes,
         deletedAt: new Date().toISOString(),
-        originalData: {
-          startDate: roadwork.sm_start_date,
-          endDate: roadwork.sm_end_date,
-          promoter: roadwork.sm_promoter_organisation,
-          trafficManagement: roadwork.sm_traffic_management_type
-        }
+        deletionTime: deleteTime
       };
       
       console.log('📝 Deletion audit trail:', deletionRecord);
       
+      // Return success immediately
       res.json({
         success: true,
         message: 'Roadwork permanently deleted',
         deletionRecord: deletionRecord
       });
+      
+      // Optional: Log to audit service asynchronously
+      // Don't await this - let it run in background
+      if (process.env.ENABLE_AUDIT_LOGGING === 'true') {
+        logDeletionAudit(deletionRecord).catch(err => 
+          console.error('Failed to log deletion audit:', err)
+        );
+      }
+      
     } else {
       throw new Error(`Unexpected delete response status: ${deleteResponse.status}`);
     }
     
   } catch (error) {
-    console.error('❌ Error permanently deleting roadwork:', error);
+    const errorTime = Date.now();
+    console.error('❌ Error permanently deleting roadwork:', error.message);
+    console.error('Error occurred at:', new Date(errorTime).toISOString());
+    
+    // Check if it's a timeout
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      return res.status(504).json({
+        success: false,
+        error: 'Database operation timed out. The roadwork may have been deleted - please refresh to check.',
+        details: 'Supabase took too long to respond'
+      });
+    }
+    
     res.status(500).json({
       success: false,
       error: error.message,
@@ -882,6 +879,13 @@ router.post('/actions/:id/delete', async (req, res) => {
     });
   }
 });
+
+// Async audit logging function (runs in background)
+async function logDeletionAudit(deletionRecord) {
+  // This would log to your audit service
+  // For now, just log to console
+  console.log('📋 Audit log entry created:', deletionRecord.roadworkId);
+}
 
 // DELETE /api/roadworks/unified/:id - Permanently delete a roadwork alert
 router.delete('/:id', async (req, res) => {

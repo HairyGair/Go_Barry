@@ -375,6 +375,7 @@ const RoadworksManagerDashboard = ({ onClose }) => {
   const [showMapModal, setShowMapModal] = useState(false);
   const [selectedRoadworkForMap, setSelectedRoadworkForMap] = useState(null);
   const [geocodingStates, setGeocodingStates] = useState(new Map());
+  const [deletingRoadworks, setDeletingRoadworks] = useState(new Set()); // Track which are being deleted
   
   // Enhanced dismiss state - SIMPLIFIED FOR PERMANENT DELETION
   const [selectedRoadworks, setSelectedRoadworks] = useState(new Set());
@@ -571,12 +572,15 @@ const RoadworksManagerDashboard = ({ onClose }) => {
       return;
     }
 
+    // Add to deleting set
+    setDeletingRoadworks(prev => new Set(prev).add(roadworkId));
+
     try {
       console.log('📡 Calling DELETE API for roadwork:', roadworkId);
       
       // Create an AbortController for timeout
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
       
       // Call the permanent delete endpoint - use POST instead of DELETE for better compatibility
       const response = await fetch(`https://go-barry.onrender.com/api/roadworks/unified/actions/${roadworkId}/delete`, {
@@ -656,6 +660,13 @@ const RoadworksManagerDashboard = ({ onClose }) => {
           `Failed to delete roadwork: ${error.message}\n\nPlease try again or contact support if the issue persists.`
         );
       }
+    } finally {
+      // Remove from deleting set
+      setDeletingRoadworks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(roadworkId);
+        return newSet;
+      });
     }
   };
 
@@ -1026,13 +1037,27 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                 setShowDismissModal(true);
               }}
               activeOpacity={0.7}
+              disabled={deletingRoadworks.has(item.id)}
             >
               <View 
-                style={[styles.actionContent, styles.dismissButton]}
+                style={[
+                  styles.actionContent, 
+                  styles.dismissButton,
+                  deletingRoadworks.has(item.id) && styles.actionButtonDisabled
+                ]}
                 {...(Platform.OS === 'web' && { className: 'glass-action-button dismiss' })}
               >
-                <MaterialCommunityIcons name="delete-forever" size={20} color="#ef4444" />
-                <Text style={[styles.actionText, { color: '#ef4444' }]}>Delete</Text>
+                {deletingRoadworks.has(item.id) ? (
+                  <>
+                    <ActivityIndicator size="small" color="#ef4444" />
+                    <Text style={[styles.actionText, { color: '#ef4444' }]}>Deleting...</Text>
+                  </>
+                ) : (
+                  <>
+                    <MaterialCommunityIcons name="delete-forever" size={20} color="#ef4444" />
+                    <Text style={[styles.actionText, { color: '#ef4444' }]}>Delete</Text>
+                  </>
+                )}
               </View>
             </TouchableOpacity>
           </View>
@@ -2407,6 +2432,11 @@ const styles = StyleSheet.create({
     color: '#60a5fa',
     fontWeight: '700',
     textAlign: 'center',
+  },
+  actionButtonDisabled: {
+    opacity: 0.5,
+    backgroundColor: 'rgba(107, 114, 128, 0.1)',
+    borderColor: 'rgba(107, 114, 128, 0.3)',
   },
   memoryWarning: {
     flexDirection: 'row',
