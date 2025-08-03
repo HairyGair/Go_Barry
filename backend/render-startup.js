@@ -71,13 +71,20 @@ const corsOptions = {
       'http://localhost:8081',
       'http://localhost:8082',
       'http://localhost:3000',
-      'http://localhost:3001'
+      'http://localhost:3001',
+      'http://localhost:19000',
+      'http://localhost:19006',
+      'http://localhost:8080',
+      'http://localhost:5173',
+      'http://localhost:4173'
     ];
     
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // For development, be more permissive with localhost origins
+    if (allowedOrigins.indexOf(origin) !== -1 || 
+        (process.env.NODE_ENV !== 'production' && origin && origin.includes('localhost'))) {
       callback(null, true);
     } else {
       console.warn(`⚠️ CORS request blocked from origin: ${origin}`);
@@ -153,15 +160,22 @@ app.use((req, res, next) => {
       'https://www.gobarry.co.uk', 
       'https://go-barry.onrender.com',
       'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:8080',
       'http://localhost:8081',
+      'http://localhost:8082',
+      'http://localhost:19000',
       'http://localhost:19006',
-      'http://localhost:19000'
+      'http://localhost:5173',
+      'http://localhost:4173'
     ];
   
   const origin = req.headers.origin;
   
   // Always allow requests from allowed origins or no origin (server-to-server)
-  if (!origin || allowedOrigins.includes(origin) || origin.includes('gobarry.co.uk')) {
+  // For development, allow any localhost origin
+  if (!origin || allowedOrigins.includes(origin) || origin.includes('gobarry.co.uk') ||
+      (process.env.NODE_ENV !== 'production' && origin && origin.includes('localhost'))) {
     res.header('Access-Control-Allow-Origin', origin || '*');
     // Only log non-standard origins to reduce noise
     if (origin && !origin.includes('localhost') && !origin.includes('gobarry.co.uk')) {
