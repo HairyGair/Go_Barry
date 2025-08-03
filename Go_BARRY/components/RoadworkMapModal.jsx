@@ -113,13 +113,52 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
       }
     }
     
-    // Fallback to Newcastle center if no coordinates
+    // Intelligent fallback based on highway authority or location
+    const fallbackCoords = getIntelligentFallback();
+    return fallbackCoords;
+  };
+  
+  // Intelligent fallback coordinates based on available info
+  const getIntelligentFallback = () => {
+    // Try to get authority-specific coordinates
+    const authority = roadwork?.sm_highway_authority;
+    const locationText = (roadwork?.sm_street_name || roadwork?.sm_location_description || '').toLowerCase();
+    
+    // Location-specific fallbacks
+    if (locationText.includes('killingworth')) {
+      return [-1.5858, 55.0333]; // Killingworth area
+    }
+    if (locationText.includes('wallsend') || locationText.includes('station road')) {
+      return [-1.5340, 54.9910]; // Wallsend area
+    }
+    if (locationText.includes('rake lane')) {
+      return [-1.4858, 55.0182]; // North Shields/Rake Lane area
+    }
+    if (locationText.includes('walker') || locationText.includes('byker')) {
+      return [-1.5513, 54.9744]; // Walker area
+    }
+    
+    // Authority-specific fallbacks
+    if (authority === 'NORTH TYNESIDE COUNCIL') {
+      return [-1.4858, 55.0182]; // North Tyneside center
+    }
+    if (authority === 'NEWCASTLE CITY COUNCIL') {
+      return [-1.6178, 54.9783]; // Newcastle center
+    }
+    if (authority === 'GATESHEAD COUNCIL') {
+      return [-1.6035, 54.9527]; // Gateshead center
+    }
+    if (authority === 'SUNDERLAND CITY COUNCIL') {
+      return [-1.3838, 54.9069]; // Sunderland center
+    }
+    
+    // Final fallback to Newcastle center
     return [-1.6178, 54.9783];
   };
 
   const coordinates = getCoordinates();
   const hasValidCoordinates = roadwork?.coordinates && 
-    coordinates[0] !== -1.6178 && coordinates[1] !== 54.9783;
+    Array.isArray(roadwork.coordinates) && roadwork.coordinates.length === 2;
   const coordinateQuality = assessCoordinateQuality(roadwork);
   
   // Handle manual location search
