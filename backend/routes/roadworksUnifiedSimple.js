@@ -465,7 +465,7 @@ router.get('/unified', async (req, res) => {
     // Get date range and pagination from query params
     const days = parseInt(req.query.days) || 90;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 500; // Default limit reduced from 2000
+    const limit = parseInt(req.query.limit) || 50; // TEMPORARY: Reduced from 500 to 50 for debugging
     const offset = (page - 1) * limit;
     
     const now = new Date();
@@ -565,6 +565,16 @@ router.get('/unified', async (req, res) => {
     console.log(`🗺️ Processing coordinates and route impacts for ${roadworks.length} roadworks...`);
     console.log('🔍 Pre-processing count:', roadworks.length);
     
+    // TEMPORARILY SKIP BATCH PROCESSING TO DIAGNOSE 500 ERROR
+    console.log('⚠️ TEMPORARY: Skipping batch coordinate processing to diagnose 500 error');
+    const coordinateProcessedRoadworks = roadworks.map(roadwork => ({
+      ...roadwork,
+      coordinates: null,
+      coordinateSource: 'skipped_for_debugging',
+      coordinateError: 'Batch processing temporarily disabled'
+    }));
+    
+    /* COMMENTED OUT FOR DEBUGGING
     // Import batch processor
     const { batchCoordinateProcessor } = await import('../services/batchCoordinateProcessor.js');
     
@@ -572,7 +582,17 @@ router.get('/unified', async (req, res) => {
     const coordinateProcessedRoadworks = await batchCoordinateProcessor.processCoordinatesBatch(roadworks, {
       skipRouteCalculation: false // We'll calculate routes after
     });
+    */
     
+    // TEMPORARILY SKIP ROUTE IMPACT CALCULATIONS
+    console.log('⚠️ TEMPORARY: Skipping route impact calculations to diagnose 500 error');
+    const processedRoadworks = coordinateProcessedRoadworks.map(roadwork => ({
+      ...roadwork,
+      affectedRoutes: [],
+      affectedRoutesSummary: 'Calculations temporarily disabled'
+    }));
+    
+    /* COMMENTED OUT FOR DEBUGGING
     // Process route impacts in parallel batches (much faster than sequential)
     console.log(`🚌 Calculating route impacts for ${coordinateProcessedRoadworks.length} roadworks...`);
     const processedRoadworks = await Promise.all(coordinateProcessedRoadworks.map(async (roadwork) => {
@@ -601,6 +621,7 @@ router.get('/unified', async (req, res) => {
         };
       }
     }));
+    */
     
     roadworks = processedRoadworks;
     console.log('🔍 Post-processing count:', roadworks.length);
@@ -659,7 +680,7 @@ router.get('/unified', async (req, res) => {
           successful: coordinateStats.withCoordinates,
           successRate: `${coordinateStats.successRate}%`,
           conversionMethod: 'OSGB36_to_WGS84',
-          processingStats: await batchCoordinateProcessor.getProcessingStats().catch(() => ({}))
+          processingStats: { debugMode: true, message: 'Batch processing temporarily disabled' }
         },
         routeImpactAnalysis: {
           enabled: true,
