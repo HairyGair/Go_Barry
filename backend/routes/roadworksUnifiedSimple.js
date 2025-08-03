@@ -627,9 +627,8 @@ router.get('/unified', async (req, res) => {
       coordinateProcessing: `${coordinateStats.withCoordinates}/${coordinateStats.total} (${coordinateStats.successRate}%)`
     });
     
-    // Set compression headers for faster response
+    // Set cache headers for faster response (removed compression headers to fix "incorrect header check" error)
     res.set({
-      'Content-Encoding': 'gzip',
       'Cache-Control': 'public, max-age=300', // Cache for 5 minutes
       'Vary': 'Accept-Encoding'
     });
