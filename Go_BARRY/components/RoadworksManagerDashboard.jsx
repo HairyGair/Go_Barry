@@ -2124,6 +2124,45 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                             timestamp: new Date().toISOString()
                           });
                           
+                          // Create disruption record in database
+                          try {
+                            const baseUrl = process.env.NODE_ENV === 'development' ? '' : 'https://go-barry.onrender.com';
+                            const disruptionResponse = await fetch(`${baseUrl}/api/disruptions/create`, {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                              },
+                              body: JSON.stringify({
+                                alert: {
+                                  ...roadwork,
+                                  id: roadwork.id,
+                                  location: roadwork.street_name,
+                                  sm_street_name: roadwork.street_name,
+                                  sm_town: roadwork.sm_town || roadwork.town,
+                                  sm_highway_authority: roadwork.sm_highway_authority || roadwork.highway_authority,
+                                  sm_description: roadwork.sm_works_description || roadwork.sm_activity_type,
+                                  sm_location_description: roadwork.sm_location_description || roadwork.location_description,
+                                  coordinates: roadwork.coordinates,
+                                  affectedRoutes: roadwork.affectedRoutes || []
+                                },
+                                pushedBy: supervisorSession?.supervisor?.badge || supervisorSession?.supervisor?.id || supervisorName,
+                                pushedByName: supervisorName,
+                                reason: escalationReason || 'Escalated to control room display',
+                                sessionId: sessionId
+                              })
+                            });
+                            
+                            if (!disruptionResponse.ok) {
+                              console.error('Failed to create disruption record:', await disruptionResponse.text());
+                            } else {
+                              const disruptionData = await disruptionResponse.json();
+                              console.log('✅ Disruption record created:', disruptionData.disruption?.id);
+                            }
+                          } catch (disruptionError) {
+                            console.error('Error creating disruption record:', disruptionError);
+                            // Don't fail the whole escalation if disruption creation fails
+                          }
+                          
                           // Also create a display message
                           const displayMessage = {
                             id: `msg-${roadwork.id}-${Date.now()}`,

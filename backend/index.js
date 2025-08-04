@@ -192,6 +192,8 @@ async function registerRoutes() {
   console.log('✅ Coordinate enhancements API registered for improved location accuracy');
   await routeManager.registerRoute(app, '/api/coordinate-cache', './routes/coordinateCacheTest.js', 'Coordinate Cache Test API');
   console.log('✅ Coordinate cache test API registered for testing new caching system');
+  await routeManager.registerRoute(app, '/api/disruptions', './routes/disruptionAPI.js', 'Disruption API');
+  console.log('✅ Disruption API registered for roadworks escalation system');
   
   // Memory-optimized streaming routes - high priority
   await routeManager.registerRoute(app, '/api/gtfs-optimized', './routes/optimizedGTFSAPI.js', 'Optimized GTFS API');

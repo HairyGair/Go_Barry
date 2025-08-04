@@ -176,8 +176,7 @@ export default function DisruptionCentre() {
       case 'disruption-database':
         Component = () => (
           <DisruptionDatabase 
-            baseUrl={getBaseUrl()}
-            onBack={() => setSelectedCard(null)}
+            onClose={() => setSelectedCard(null)}
           />
         );
         break;
