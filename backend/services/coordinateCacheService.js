@@ -13,7 +13,20 @@ class CoordinateCacheService {
    * Get cached coordinates for a roadwork item
    */
   getCachedCoordinates(roadwork) {
-    // Check memory cache first
+    // Check memory cache first by ID
+    const idCacheKey = `id:${roadwork.id}`;
+    const memoryCachedById = this.memoryCache.get(idCacheKey);
+    
+    if (memoryCachedById && this.isCacheValid(memoryCachedById.timestamp)) {
+      return {
+        coordinates: [memoryCachedById.lat, memoryCachedById.lng],
+        source: memoryCachedById.source,
+        accuracy: memoryCachedById.accuracy,
+        cacheHit: 'memory'
+      };
+    }
+    
+    // Also check by generated cache key for backward compatibility
     const cacheKey = this.generateCacheKey(roadwork);
     const memoryCached = this.memoryCache.get(cacheKey);
     
@@ -26,7 +39,8 @@ class CoordinateCacheService {
       };
     }
 
-    // Check database cache
+    // Check database cache (disabled for now as fields don't exist)
+    /*
     if (roadwork.converted_coordinates && roadwork.coordinate_metadata) {
       const cached = roadwork.converted_coordinates;
       const metadata = roadwork.coordinate_metadata;
@@ -49,6 +63,7 @@ class CoordinateCacheService {
         };
       }
     }
+    */
 
     return null;
   }
@@ -58,6 +73,21 @@ class CoordinateCacheService {
    */
   async storeCachedCoordinates(roadworkId, coordinates, metadata) {
     try {
+      // DISABLED: The streetworks table doesn't have converted_coordinates/coordinate_metadata fields
+      // This was causing 400 errors. Keeping memory cache only.
+      
+      // Store in memory cache only
+      const cacheKey = `id:${roadworkId}`;
+      this.memoryCache.set(cacheKey, {
+        lat: coordinates[0],
+        lng: coordinates[1],
+        source: metadata.source || 'processed',
+        accuracy: metadata.accuracy || 'high',
+        timestamp: new Date().toISOString()
+      });
+      
+      // Comment out Supabase update to prevent 400 errors
+      /*
       const supabaseUrl = process.env.SUPABASE_URL;
       const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
@@ -92,6 +122,7 @@ class CoordinateCacheService {
           timeout: 5000
         }
       );
+      */
 
     } catch (error) {
       console.error('Failed to store cached coordinates:', error.message);
@@ -102,6 +133,25 @@ class CoordinateCacheService {
    * Batch update coordinates for multiple roadworks
    */
   async batchStoreCachedCoordinates(roadworksWithCoordinates) {
+    // DISABLED: Batch storage to Supabase disabled due to missing table columns
+    // Only using memory cache now
+    console.log('📦 Batch coordinate storage skipped (using memory cache only)');
+    
+    // Store all in memory cache
+    for (const roadwork of roadworksWithCoordinates) {
+      if (roadwork.id && roadwork.coordinates) {
+        const cacheKey = `id:${roadwork.id}`;
+        this.memoryCache.set(cacheKey, {
+          lat: roadwork.coordinates[0],
+          lng: roadwork.coordinates[1],
+          source: roadwork.coordinateSource || 'processed',
+          accuracy: roadwork.coordinateAccuracy || 'high',
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+    
+    /* Original batch storage disabled
     const batches = this.createBatches(roadworksWithCoordinates, this.batchSize);
     
     for (const batch of batches) {
@@ -111,6 +161,7 @@ class CoordinateCacheService {
         console.error('Batch storage failed:', error.message);
       }
     }
+    */
   }
 
   /**

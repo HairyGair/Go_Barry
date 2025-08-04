@@ -79,8 +79,8 @@ export default function DisruptionCentre() {
   useEffect(() => {
     if (!isInitializing) {
       fetchDisruptionStats();
-      // Reduced frequency from 30s to 60s to minimize re-renders
-      const interval = setInterval(fetchDisruptionStats, 60000);
+      // Increased from 60s to 120s to reduce duplicate calls
+      const interval = setInterval(fetchDisruptionStats, 120000);
       return () => clearInterval(interval);
     }
   }, [isInitializing]);
