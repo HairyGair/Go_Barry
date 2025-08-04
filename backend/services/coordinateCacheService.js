@@ -39,31 +39,26 @@ class CoordinateCacheService {
       };
     }
 
-    // Check database cache (disabled for now as fields don't exist)
-    /*
-    if (roadwork.converted_coordinates && roadwork.coordinate_metadata) {
-      const cached = roadwork.converted_coordinates;
-      const metadata = roadwork.coordinate_metadata;
-      
-      if (this.isCacheValid(metadata.converted_at)) {
+    // Check database cache using new columns
+    if (roadwork.cached_lat && roadwork.cached_lng && roadwork.cached_at) {
+      if (this.isCacheValid(roadwork.cached_at)) {
         // Store in memory cache for faster future access
-        this.memoryCache.set(cacheKey, {
-          lat: cached.lat,
-          lng: cached.lng,
-          source: metadata.source,
-          accuracy: cached.accuracy,
-          timestamp: metadata.converted_at
+        this.memoryCache.set(idCacheKey, {
+          lat: roadwork.cached_lat,
+          lng: roadwork.cached_lng,
+          source: roadwork.cached_coordinate_source || 'cached',
+          accuracy: roadwork.cached_coordinate_accuracy || 'high',
+          timestamp: roadwork.cached_at
         });
 
         return {
-          coordinates: [cached.lat, cached.lng],
-          source: metadata.source || 'cached',
-          accuracy: cached.accuracy || 'high',
+          coordinates: [parseFloat(roadwork.cached_lat), parseFloat(roadwork.cached_lng)],
+          source: roadwork.cached_coordinate_source || 'cached',
+          accuracy: roadwork.cached_coordinate_accuracy || 'high',
           cacheHit: 'database'
         };
       }
     }
-    */
 
     return null;
   }
@@ -73,10 +68,7 @@ class CoordinateCacheService {
    */
   async storeCachedCoordinates(roadworkId, coordinates, metadata) {
     try {
-      // DISABLED: The streetworks table doesn't have converted_coordinates/coordinate_metadata fields
-      // This was causing 400 errors. Keeping memory cache only.
-      
-      // Store in memory cache only
+      // Store in memory cache first
       const cacheKey = `id:${roadworkId}`;
       this.memoryCache.set(cacheKey, {
         lat: coordinates[0],
@@ -86,8 +78,7 @@ class CoordinateCacheService {
         timestamp: new Date().toISOString()
       });
       
-      // Comment out Supabase update to prevent 400 errors
-      /*
+      // Now store in database with new columns
       const supabaseUrl = process.env.SUPABASE_URL;
       const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
@@ -97,15 +88,15 @@ class CoordinateCacheService {
       }
 
       const cacheData = {
-        converted_coordinates: {
-          lat: coordinates[0],
-          lng: coordinates[1],
-          accuracy: metadata.accuracy || 'high'
-        },
+        cached_lat: coordinates[0],
+        cached_lng: coordinates[1],
+        cached_coordinate_source: metadata.source || 'processed',
+        cached_coordinate_accuracy: metadata.accuracy || 'high',
+        cached_at: new Date().toISOString(),
         coordinate_metadata: {
           ...metadata,
-          converted_at: new Date().toISOString(),
-          cached: true
+          cached: true,
+          cache_version: '2.0'
         }
       };
 
@@ -117,15 +108,18 @@ class CoordinateCacheService {
           headers: {
             'apikey': supabaseKey,
             'Authorization': `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
           },
           timeout: 5000
         }
       );
-      */
+      
+      console.log(`✅ Cached coordinates for roadwork ${roadworkId}`);
 
     } catch (error) {
       console.error('Failed to store cached coordinates:', error.message);
+      // Don't throw - caching failure shouldn't break coordinate processing
     }
   }
 
@@ -133,11 +127,7 @@ class CoordinateCacheService {
    * Batch update coordinates for multiple roadworks
    */
   async batchStoreCachedCoordinates(roadworksWithCoordinates) {
-    // DISABLED: Batch storage to Supabase disabled due to missing table columns
-    // Only using memory cache now
-    console.log('📦 Batch coordinate storage skipped (using memory cache only)');
-    
-    // Store all in memory cache
+    // Store all in memory cache first
     for (const roadwork of roadworksWithCoordinates) {
       if (roadwork.id && roadwork.coordinates) {
         const cacheKey = `id:${roadwork.id}`;
@@ -151,7 +141,7 @@ class CoordinateCacheService {
       }
     }
     
-    /* Original batch storage disabled
+    // Now batch update to database
     const batches = this.createBatches(roadworksWithCoordinates, this.batchSize);
     
     for (const batch of batches) {
@@ -159,9 +149,9 @@ class CoordinateCacheService {
         await this.processBatch(batch);
       } catch (error) {
         console.error('Batch storage failed:', error.message);
+        // Continue with other batches even if one fails
       }
     }
-    */
   }
 
   /**
@@ -262,18 +252,27 @@ class CoordinateCacheService {
   async processBatch(batch) {
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.warn('Cannot batch store coordinates: Supabase config missing');
+      return;
+    }
 
     const updates = batch.map(item => ({
       id: item.id,
-      converted_coordinates: {
-        lat: item.coordinates[0],
-        lng: item.coordinates[1],
-        accuracy: item.accuracy || 'high'
-      },
+      cached_lat: item.coordinates[0],
+      cached_lng: item.coordinates[1],
+      cached_coordinate_source: item.coordinateSource || 'processed',
+      cached_coordinate_accuracy: item.coordinateAccuracy || item.accuracy || 'high',
+      cached_at: new Date().toISOString(),
       coordinate_metadata: {
-        ...item.metadata,
-        converted_at: new Date().toISOString(),
-        batch_processed: true
+        ...(item.metadata || {}),
+        source: item.coordinateSource,
+        accuracy: item.coordinateAccuracy || item.accuracy,
+        strategy: item.coordinateStrategy,
+        confidence: item.coordinateConfidence,
+        batch_processed: true,
+        cache_version: '2.0'
       }
     }));
 
@@ -286,11 +285,13 @@ class CoordinateCacheService {
           'apikey': supabaseKey,
           'Authorization': `Bearer ${supabaseKey}`,
           'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates'
+          'Prefer': 'resolution=merge-duplicates,return=minimal'
         },
         timeout: 10000
       }
     );
+    
+    console.log(`✅ Batch cached ${updates.length} coordinates`);
   }
 
   /**

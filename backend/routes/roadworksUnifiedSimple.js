@@ -494,7 +494,9 @@ router.get('/unified', async (req, res) => {
         'sm_works_state': 'in.(Works planned,Works in progress)',
         limit: limit,
         offset: offset,
-        order: 'sm_start_date.asc.nullslast' // Show dated items first, undated last
+        order: 'sm_start_date.asc.nullslast', // Show dated items first, undated last
+        // Include cached coordinate fields for performance
+        select: '*,cached_lat,cached_lng,cached_coordinate_source,cached_coordinate_accuracy,cached_at,coordinate_metadata'
       };
       
       // Note: Temporarily removed order parameter to test if it's causing issues

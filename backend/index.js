@@ -190,6 +190,8 @@ async function registerRoutes() {
   console.log('✅ Roadworks API includes unified endpoint at /api/roadworks/unified');
   await routeManager.registerRoute(app, '/api/coordinates', './routes/coordinateEnhancementsAPI.js', 'Coordinate Enhancements API');
   console.log('✅ Coordinate enhancements API registered for improved location accuracy');
+  await routeManager.registerRoute(app, '/api/coordinate-cache', './routes/coordinateCacheTest.js', 'Coordinate Cache Test API');
+  console.log('✅ Coordinate cache test API registered for testing new caching system');
   
   // Memory-optimized streaming routes - high priority
   await routeManager.registerRoute(app, '/api/gtfs-optimized', './routes/optimizedGTFSAPI.js', 'Optimized GTFS API');
