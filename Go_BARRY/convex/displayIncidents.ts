@@ -139,37 +139,50 @@ export const updateDisplayMessages = mutation({
 export const getDisplayIncidents = query({
   args: {},
   handler: async (ctx) => {
-    const now = Date.now();
-    
-    // Get non-expired incidents
-    const incidents = await ctx.db
-      .query("displayIncidents")
-      .filter(q => 
-        q.or(
-          q.gt(q.field("expiresAt"), now),
-          q.eq(q.field("expiresAt"), undefined)
-        )
-      )
-      .order("desc")
-      .take(20);
-    
-    return incidents.map(incident => ({
-      id: incident.incidentId,
-      type: incident.type,
-      title: incident.title,
-      description: incident.description,
-      location: incident.location,
-      coordinates: incident.coordinates,
-      severity: incident.severity,
-      priority: incident.priority,
-      affectsRoutes: incident.affectsRoutes,
-      status: incident.status,
-      source: incident.source,
-      displayedAt: new Date(incident.displayedAt).toISOString(),
-      displayedBy: incident.displayedBy,
-      displayMessage: incident.displayMessage,
-      createdAt: new Date(incident.createdAt).toISOString(),
-    }));
+    try {
+      const now = Date.now();
+      
+      // Get all incidents first, then filter in JavaScript
+      // This avoids the complex filter logic that was causing server errors
+      const allIncidents = await ctx.db
+        .query("displayIncidents")
+        .withIndex("by_displayed_at")
+        .order("desc")
+        .take(50); // Get more to filter properly
+      
+      // Filter non-expired incidents in JavaScript
+      const activeIncidents = allIncidents.filter(incident => {
+        // If no expiration time set, consider it active
+        if (!incident.expiresAt) return true;
+        // Otherwise check if not expired
+        return incident.expiresAt > now;
+      });
+      
+      // Take only the most recent 20 after filtering
+      const recentIncidents = activeIncidents.slice(0, 20);
+      
+      return recentIncidents.map(incident => ({
+        id: incident.incidentId,
+        type: incident.type,
+        title: incident.title || '',
+        description: incident.description || '',
+        location: incident.location || '',
+        coordinates: incident.coordinates,
+        severity: incident.severity,
+        priority: incident.priority,
+        affectsRoutes: incident.affectsRoutes || [],
+        status: incident.status,
+        source: incident.source,
+        displayedAt: new Date(incident.displayedAt).toISOString(),
+        displayedBy: incident.displayedBy,
+        displayMessage: incident.displayMessage,
+        createdAt: new Date(incident.createdAt).toISOString(),
+      }));
+    } catch (error) {
+      console.error('Error in getDisplayIncidents:', error);
+      // Return empty array instead of throwing to prevent frontend crashes
+      return [];
+    }
   },
 });
 

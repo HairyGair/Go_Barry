@@ -1,62 +1,32 @@
+// webpack.config.js - Custom webpack configuration for Expo Web
 const createExpoWebpackConfigAsync = require('@expo/webpack-config');
-const TerserPlugin = require('terser-webpack-plugin');
-const CompressionPlugin = require('compression-webpack-plugin');
 
 module.exports = async function (env, argv) {
   const config = await createExpoWebpackConfigAsync(env, argv);
   
-  // Production optimizations
-  if (env.mode === 'production') {
-    // Enhanced minification
-    config.optimization.minimizer = [
-      new TerserPlugin({
-        terserOptions: {
-          compress: {
-            drop_console: true,
-            drop_debugger: true,
-            pure_funcs: ['console.log', 'console.info'],
+  // Add proxy configuration for development
+  if (config.mode === 'development') {
+    config.devServer = {
+      ...config.devServer,
+      proxy: {
+        '/api': {
+          target: 'https://go-barry.onrender.com',
+          changeOrigin: true,
+          secure: false,
+          logLevel: 'debug',
+          onProxyReq: (proxyReq, req, res) => {
+            console.log(`[Proxy] ${req.method} ${req.url} -> https://go-barry.onrender.com${req.url}`);
           },
-          mangle: {
-            safari10: true,
+          onProxyRes: (proxyRes, req, res) => {
+            console.log(`[Proxy] Response: ${proxyRes.statusCode}`);
           },
-          output: {
-            comments: false,
-            ascii_only: true,
-          },
-        },
-      }),
-    ];
-    
-    // Code splitting
-    config.optimization.splitChunks = {
-      chunks: 'all',
-      cacheGroups: {
-        vendor: {
-          test: /[\\/]node_modules[\\/]/,
-          name: 'vendors',
-          priority: 10,
-        },
-        common: {
-          minChunks: 2,
-          priority: 5,
-          reuseExistingChunk: true,
-        },
-      },
+          onError: (err, req, res) => {
+            console.error('[Proxy] Error:', err);
+          }
+        }
+      }
     };
-    
-    // Gzip compression
-    config.plugins.push(
-      new CompressionPlugin({
-        test: /\.(js|css|html|svg)$/,
-        algorithm: 'gzip',
-      })
-    );
   }
-  
-  // Faster builds
-  config.cache = {
-    type: 'filesystem',
-  };
   
   return config;
 };

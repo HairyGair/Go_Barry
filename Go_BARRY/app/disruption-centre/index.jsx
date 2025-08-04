@@ -10,6 +10,7 @@ import AppHeader from '../../components/common/AppHeader';
 import DisruptionDatabase from '../../components/DisruptionDatabase';
 // Import the Roadworks Manager component
 import RoadworksManagerDashboard from '../../components/RoadworksManagerDashboard';
+import RoadworksErrorBoundary from '../../components/RoadworksErrorBoundary';
 
 // Theme based on operations theme
 const disruptionTheme = {
@@ -185,9 +186,17 @@ export default function DisruptionCentre() {
         Component = () => {
           console.log('🚧 Rendering RoadworksManagerDashboard component...');
           return (
-            <RoadworksManagerDashboard 
+            <RoadworksErrorBoundary
               onClose={() => setSelectedCard(null)}
-            />
+              onError={(error, errorInfo) => {
+                console.error('Roadworks dashboard error in disruption centre:', error);
+                console.error('Error info:', errorInfo);
+              }}
+            >
+              <RoadworksManagerDashboard 
+                onClose={() => setSelectedCard(null)}
+              />
+            </RoadworksErrorBoundary>
           );
         };
         break;

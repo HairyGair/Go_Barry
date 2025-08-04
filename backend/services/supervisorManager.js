@@ -27,11 +27,75 @@ console.log('🔍 Supabase Config:');
 console.log('  URL:', process.env.SUPABASE_URL ? '✅ Set' : '❌ Missing');
 console.log('  KEY:', process.env.SUPABASE_ANON_KEY ? '✅ Set (length: ' + process.env.SUPABASE_ANON_KEY.length + ')' : '❌ Missing');
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+// Get Supabase client with retry logic
+let supabaseClient = null;
+let connectionAttempts = 0;
+const MAX_CONNECTION_ATTEMPTS = 3;
+
+async function getSupabaseClient() {
+  if (supabaseClient) return supabaseClient;
+  
+  for (let attempt = 1; attempt <= MAX_CONNECTION_ATTEMPTS; attempt++) {
+    try {
+      console.log(`🔄 Attempting Supabase connection (attempt ${attempt}/${MAX_CONNECTION_ATTEMPTS})...`);
+      
+      // Try to get client from optimizer first
+      try {
+        supabaseClient = supabaseOptimizer.getClient();
+        console.log('✅ Got Supabase client from optimizer');
+        return supabaseClient;
+      } catch (optimizerError) {
+        console.log('⚠️ Optimizer client not available, creating new client...');
+      }
+      
+      // Create new client if optimizer fails
+      supabaseClient = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_ANON_KEY,
+        {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false
+          }
+        }
+      );
+      
+      // Test the connection
+      const { error } = await supabaseClient
+        .from('supervisors')
+        .select('count')
+        .limit(1);
+      
+      if (error) throw error;
+      
+      console.log('✅ Supabase connection successful');
+      return supabaseClient;
+      
+    } catch (error) {
+      console.error(`❌ Supabase connection failed (attempt ${attempt}/${MAX_CONNECTION_ATTEMPTS}):`, {
+        message: error.message || 'Unknown error',
+        details: error.details || error.toString(),
+        hint: attempt < MAX_CONNECTION_ATTEMPTS ? `Retrying in ${attempt} seconds...` : 'Max retries reached, continuing in offline mode',
+        code: error.code || 'NETWORK_ERROR'
+      });
+      
+      if (attempt < MAX_CONNECTION_ATTEMPTS) {
+        await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+      }
+    }
+  }
+  
+  console.warn('⚠️ Supervisor system starting in offline mode due to Supabase connection issues');
+  return null;
+}
+
+// Initialize Supabase client (legacy variable for compatibility)
+let supabase = null;
+
+// Initialize supabase on module load
+(async () => {
+  supabase = await getSupabaseClient();
+})();
 
 // Supabase-backed session storage with memory optimization
 let supervisorSessions = {}; // Keep as cache with size limit
@@ -46,13 +110,17 @@ console.log('🔄 supervisorManager.js module loaded at', moduleLoadTime);
 // Initialize sessions from Supabase on startup
 async function loadSessionsFromSupabase() {
   try {
-    // Use optimized query with caching
-    const { data, error } = await supabaseOptimizer.optimizedSelect(supabase, 'supervisor_sessions', {
-      filters: { is_active: true },
-      limit: 20, // Limit active sessions
-      cacheTTL: 180, // 3 minutes cache for session data
-      cacheKey: 'active_supervisor_sessions'
-    });
+    const client = await getSupabaseClient();
+    if (!client) {
+      console.warn('⚠️ Skipping session load - Supabase not available');
+      return;
+    }
+    
+    const { data, error } = await client
+      .from('supervisor_sessions')
+      .select('*')
+      .eq('is_active', true)
+      .limit(20);
     
     if (!error && data) {
       // Rebuild in-memory cache from Supabase
@@ -82,7 +150,13 @@ async function loadSessionsFromSupabase() {
 // Save session to Supabase
 async function saveSessionToSupabase(sessionId, sessionData) {
   try {
-    const { error } = await supabase
+    const client = await getSupabaseClient();
+    if (!client) {
+      console.warn('⚠️ Cannot save session - Supabase offline');
+      return false;
+    }
+    
+    const { error } = await client
       .from('supervisor_sessions')
       .upsert({
         id: sessionId,
@@ -115,6 +189,12 @@ async function saveSessionToSupabase(sessionId, sessionData) {
 // Log activity to Supabase
 async function logActivity(action, details, supervisorInfo = null, req = null) {
   try {
+    const client = await getSupabaseClient();
+    if (!client) {
+      console.warn('⚠️ Cannot log activity - Supabase offline');
+      return;
+    }
+    
     const activityLog = {
       action,
       details,
@@ -126,7 +206,7 @@ async function logActivity(action, details, supervisorInfo = null, req = null) {
       created_at: new Date().toISOString()
     };
 
-    const { error } = await supabase
+    const { error } = await client
       .from('activity_logs')
       .insert(activityLog);
 
@@ -523,9 +603,15 @@ async function initializeSupervisorData() {
     try {
       console.log(`🔄 Attempting Supabase connection (attempt ${retryCount + 1}/${maxRetries})...`);
       
+      // Get Supabase client
+      const client = await getSupabaseClient();
+      if (!client) {
+        throw new Error('Supabase client not available');
+      }
+      
       // Verify Supabase connection with timeout
       const { data, error } = await Promise.race([
-        supabase
+        client
           .from('supervisors')
           .select('count', { count: 'exact' })
           .limit(1),

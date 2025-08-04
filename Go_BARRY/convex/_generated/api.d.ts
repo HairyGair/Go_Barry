@@ -19,13 +19,16 @@ import type * as buses from "../buses.js";
 import type * as communications from "../communications.js";
 import type * as coordination from "../coordination.js";
 import type * as crons from "../crons.js";
+import type * as displayIncidents from "../displayIncidents.js";
 import type * as disruptions from "../disruptions.js";
 import type * as dutyBoards from "../dutyBoards.js";
+import type * as flowMonitoring from "../flowMonitoring.js";
 import type * as incidentsEnhanced from "../incidentsEnhanced.js";
 import type * as storage from "../storage.js";
 import type * as supervisors from "../supervisors.js";
 import type * as sync from "../sync.js";
 import type * as templates from "../templates.js";
+import type * as training from "../training.js";
 import type * as vixData from "../vixData.js";
 
 /**
@@ -43,13 +46,16 @@ declare const fullApi: ApiFromModules<{
   communications: typeof communications;
   coordination: typeof coordination;
   crons: typeof crons;
+  displayIncidents: typeof displayIncidents;
   disruptions: typeof disruptions;
   dutyBoards: typeof dutyBoards;
+  flowMonitoring: typeof flowMonitoring;
   incidentsEnhanced: typeof incidentsEnhanced;
   storage: typeof storage;
   supervisors: typeof supervisors;
   sync: typeof sync;
   templates: typeof templates;
+  training: typeof training;
   vixData: typeof vixData;
 }>;
 export declare const api: FilterApi<

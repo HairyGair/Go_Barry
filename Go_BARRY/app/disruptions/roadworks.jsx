@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, SafeAreaView, Platform } from 'react
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import RoadworksManagerDashboard from '../../components/RoadworksManagerDashboard';
+import RoadworksErrorBoundary from '../../components/RoadworksErrorBoundary';
 import { useSupervisor } from '../../components/hooks/useSupervisorSession';
 
 export default function RoadworksPage() {
@@ -52,10 +53,21 @@ export default function RoadworksPage() {
       
       <View style={styles.content}>
         {showRoadworksModal && (
-          <RoadworksManagerDashboard onClose={() => {
-            setShowRoadworksModal(false);
-            router.back();
-          }} />
+          <RoadworksErrorBoundary
+            onClose={() => {
+              setShowRoadworksModal(false);
+              router.back();
+            }}
+            onError={(error, errorInfo) => {
+              console.error('Roadworks dashboard error:', error);
+              console.error('Error info:', errorInfo);
+            }}
+          >
+            <RoadworksManagerDashboard onClose={() => {
+              setShowRoadworksModal(false);
+              router.back();
+            }} />
+          </RoadworksErrorBoundary>
         )}
       </View>
     </SafeAreaView>

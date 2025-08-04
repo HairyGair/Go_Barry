@@ -1,0 +1,25 @@
+// setupProxy.js - Development proxy to bypass CORS
+// This file is used by Expo Web to proxy API requests during development
+
+const { createProxyMiddleware } = require('http-proxy-middleware');
+
+module.exports = function(app) {
+  app.use(
+    '/api',
+    createProxyMiddleware({
+      target: 'https://go-barry.onrender.com',
+      changeOrigin: true,
+      secure: false,
+      logLevel: 'debug',
+      onProxyReq: (proxyReq, req, res) => {
+        console.log(`[Proxy] ${req.method} ${req.url} -> ${proxyReq.path}`);
+      },
+      onProxyRes: (proxyRes, req, res) => {
+        console.log(`[Proxy] Response: ${proxyRes.statusCode}`);
+      },
+      onError: (err, req, res) => {
+        console.error('[Proxy] Error:', err);
+      }
+    })
+  );
+};

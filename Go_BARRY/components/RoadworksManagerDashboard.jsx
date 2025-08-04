@@ -403,7 +403,51 @@ const RoadworksManagerDashboard = ({ onClose }) => {
   const updateDisplayIncidents = useMutation(api.displayIncidents.updateDisplayIncidents);
   const updateDisplayMessages = useMutation(api.displayIncidents.updateDisplayMessages);
   const removeFromDisplay = useMutation(api.displayIncidents.removeFromDisplay);
-  const displayIncidents = useQuery(api.displayIncidents.getDisplayIncidents) || [];
+  
+  // Enhanced Convex query with error handling and fallback
+  const convexDisplayIncidents = useQuery(api.displayIncidents.getDisplayIncidents);
+  const [displayIncidents, setDisplayIncidents] = useState([]);
+  const [convexError, setConvexError] = useState(null);
+  
+  // Handle Convex query result and errors with REST API fallback
+  useEffect(() => {
+    if (convexDisplayIncidents !== undefined) {
+      // Successful query result
+      setDisplayIncidents(Array.isArray(convexDisplayIncidents) ? convexDisplayIncidents : []);
+      setConvexError(null);
+      console.log(`✅ [RoadworksManagerDashboard] Convex displayIncidents loaded: ${convexDisplayIncidents.length} incidents`);
+    } else if (convexDisplayIncidents === null) {
+      // Query failed, try REST API fallback
+      setConvexError('Convex query failed');
+      console.warn('🔴 [RoadworksManagerDashboard] Convex displayIncidents query failed, trying REST API fallback');
+      
+      // Fallback to REST API
+      const fetchDisplayIncidentsFromAPI = async () => {
+        try {
+          const baseUrl = process.env.NODE_ENV === 'development' ? '' : 'https://go-barry.onrender.com';
+          const response = await fetch(`${baseUrl}/api/display/display-incidents`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && Array.isArray(data.incidents)) {
+              setDisplayIncidents(data.incidents);
+              console.log(`✅ [RoadworksManagerDashboard] Successfully fetched ${data.incidents.length} display incidents from REST API fallback`);
+            } else {
+              setDisplayIncidents([]);
+              console.warn('⚠️ [RoadworksManagerDashboard] REST API returned invalid data format');
+            }
+          } else {
+            console.warn(`⚠️ [RoadworksManagerDashboard] REST API fallback failed with status: ${response.status}`);
+            setDisplayIncidents([]);
+          }
+        } catch (error) {
+          console.error('🔴 [RoadworksManagerDashboard] REST API fallback error:', error);
+          setDisplayIncidents([]);
+        }
+      };
+      
+      fetchDisplayIncidentsFromAPI();
+    }
+  }, [convexDisplayIncidents]);
 
   // Compartment definitions
   const compartments = [
@@ -558,6 +602,7 @@ const RoadworksManagerDashboard = ({ onClose }) => {
   const fetchRoadworks = async () => {
     try {
       console.log('🚧 [RoadworksManagerDashboard] Starting to fetch roadworks...');
+      // Use explicit absolute URL for roadworks API
       const url = 'https://go-barry.onrender.com/api/roadworks/unified?days=90';
       console.log('🌐 [RoadworksManagerDashboard] Fetching from:', url);
       
@@ -667,7 +712,8 @@ const RoadworksManagerDashboard = ({ onClose }) => {
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
       // Call the permanent delete endpoint - use POST instead of DELETE for better compatibility
-      const response = await fetch(`https://go-barry.onrender.com/api/roadworks/unified/actions/${roadworkId}/delete`, {
+      const baseUrl = process.env.NODE_ENV === 'development' ? '' : 'https://go-barry.onrender.com';
+      const response = await fetch(`${baseUrl}/api/roadworks/unified/actions/${roadworkId}/delete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
