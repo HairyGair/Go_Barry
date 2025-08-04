@@ -575,9 +575,30 @@ router.get('/unified', async (req, res) => {
       skipRouteCalculation: false // We'll calculate routes after
     });
     
+    // Fix for unconverted OSGB36 centroids - use existing lat/lng if coordinates look like raw OSGB36
+    const fixedCoordinateRoadworks = coordinateProcessedRoadworks.map(roadwork => {
+      if (roadwork.coordinates && roadwork.coordinateSource === 'linestring_centroid') {
+        const [val1, val2] = roadwork.coordinates;
+        // Check if these look like OSGB36 coordinates (large numbers)
+        if (val1 > 1000 || val2 > 1000) {
+          // Use the existing latitude/longitude fields if available
+          if (roadwork.latitude && roadwork.longitude) {
+            console.log(`🔧 Fixed unconverted centroid for ${roadwork.sm_reference}: [${val1}, ${val2}] → [${roadwork.latitude}, ${roadwork.longitude}]`);
+            return {
+              ...roadwork,
+              coordinates: [roadwork.latitude, roadwork.longitude],
+              coordinateSource: 'database_lat_lng',
+              coordinateAccuracy: 'high'
+            };
+          }
+        }
+      }
+      return roadwork;
+    });
+    
     // Process route impacts in parallel batches (much faster than sequential)
-    console.log(`🚌 Calculating route impacts for ${coordinateProcessedRoadworks.length} roadworks...`);
-    const processedRoadworks = await Promise.all(coordinateProcessedRoadworks.map(async (roadwork) => {
+    console.log(`🚌 Calculating route impacts for ${fixedCoordinateRoadworks.length} roadworks...`);
+    const processedRoadworks = await Promise.all(fixedCoordinateRoadworks.map(async (roadwork) => {
       // Calculate affected routes if we have valid coordinates
       if (roadwork.coordinates || roadwork.works_location_coordinates) {
         try {

@@ -140,7 +140,11 @@ export function osgb36ToWGS84(easting, northing) {
     return null;
   }
   
-  return [latitude, longitude];
+  // Limit to 6 decimal places to prevent issues with map services
+  return [
+    parseFloat(latitude.toFixed(6)),
+    parseFloat(longitude.toFixed(6))
+  ];
 }
 
 /**

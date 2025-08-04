@@ -1,5 +1,6 @@
 -- Supabase Migration: Create disruptions table for roadworks escalation system
 -- Run this in the Supabase SQL Editor
+-- FIXED: Removed WHERE clause from CONSTRAINT (not supported in PostgreSQL)
 
 -- Create disruptions table
 CREATE TABLE IF NOT EXISTS disruptions (

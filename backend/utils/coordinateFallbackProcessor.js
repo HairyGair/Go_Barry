@@ -234,27 +234,38 @@ export class CoordinateFallbackProcessor {
       if (!match) return null;
 
       const coordPairs = match[1].split(',');
-      const points = coordPairs.map(pair => {
-        const [x, y] = pair.trim().split(/\s+/).map(parseFloat);
-        return { lng: x, lat: y };
+      const osgbPoints = coordPairs.map(pair => {
+        const [easting, northing] = pair.trim().split(/\s+/).map(parseFloat);
+        return { easting, northing };
       });
 
-      if (points.length === 0) return null;
+      if (osgbPoints.length === 0) return null;
 
-      // Calculate centroid
-      const sumLat = points.reduce((sum, p) => sum + p.lat, 0);
-      const sumLng = points.reduce((sum, p) => sum + p.lng, 0);
-      const centroid = [sumLat / points.length, sumLng / points.length];
+      // Convert OSGB36 points to WGS84
+      const wgs84Points = osgbPoints.map(point => {
+        const converted = this.convertOSGB36ToWGS84(point.easting, point.northing);
+        if (converted) {
+          return { lat: converted.lat, lng: converted.lng };
+        }
+        return null;
+      }).filter(Boolean);
+
+      if (wgs84Points.length === 0) return null;
+
+      // Calculate centroid from WGS84 coordinates
+      const sumLat = wgs84Points.reduce((sum, p) => sum + p.lat, 0);
+      const sumLng = wgs84Points.reduce((sum, p) => sum + p.lng, 0);
+      const centroid = [sumLat / wgs84Points.length, sumLng / wgs84Points.length];
 
       // Calculate bounds
       const bounds = {
-        north: Math.max(...points.map(p => p.lat)),
-        south: Math.min(...points.map(p => p.lat)),
-        east: Math.max(...points.map(p => p.lng)),
-        west: Math.min(...points.map(p => p.lng))
+        north: Math.max(...wgs84Points.map(p => p.lat)),
+        south: Math.min(...wgs84Points.map(p => p.lat)),
+        east: Math.max(...wgs84Points.map(p => p.lng)),
+        west: Math.min(...wgs84Points.map(p => p.lng))
       };
 
-      return { centroid, bounds, points };
+      return { centroid, bounds, points: wgs84Points };
     } catch (error) {
       console.error('LINESTRING parsing failed:', error);
       return null;

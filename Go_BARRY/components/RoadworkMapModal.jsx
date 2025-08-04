@@ -101,15 +101,14 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
     if (roadwork?.coordinates) {
       // Handle different coordinate formats
       if (roadwork.coordinates.lat && roadwork.coordinates.lng) {
-        return [roadwork.coordinates.lng, roadwork.coordinates.lat];
+        return [roadwork.coordinates.lat, roadwork.coordinates.lng];
       }
       if (roadwork.coordinates.latitude && roadwork.coordinates.longitude) {
-        return [roadwork.coordinates.longitude, roadwork.coordinates.latitude];
+        return [roadwork.coordinates.latitude, roadwork.coordinates.longitude];
       }
       if (Array.isArray(roadwork.coordinates) && roadwork.coordinates.length === 2) {
-        // Our backend returns [latitude, longitude], but mapbox expects [longitude, latitude]
-        const [lat, lng] = roadwork.coordinates;
-        return [lng, lat];
+        // Backend returns [latitude, longitude] - keep as is for Google Maps
+        return roadwork.coordinates;
       }
     }
     
@@ -124,36 +123,36 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
     const authority = roadwork?.sm_highway_authority;
     const locationText = (roadwork?.sm_street_name || roadwork?.sm_location_description || '').toLowerCase();
     
-    // Location-specific fallbacks
+    // Location-specific fallbacks [lat, lng]
     if (locationText.includes('killingworth')) {
-      return [-1.5858, 55.0333]; // Killingworth area
+      return [55.0333, -1.5858]; // Killingworth area
     }
     if (locationText.includes('wallsend') || locationText.includes('station road')) {
-      return [-1.5340, 54.9910]; // Wallsend area
+      return [54.9910, -1.5340]; // Wallsend area
     }
     if (locationText.includes('rake lane')) {
-      return [-1.4858, 55.0182]; // North Shields/Rake Lane area
+      return [55.0182, -1.4858]; // North Shields/Rake Lane area
     }
     if (locationText.includes('walker') || locationText.includes('byker')) {
-      return [-1.5513, 54.9744]; // Walker area
+      return [54.9744, -1.5513]; // Walker area
     }
     
-    // Authority-specific fallbacks
+    // Authority-specific fallbacks [lat, lng]
     if (authority === 'NORTH TYNESIDE COUNCIL') {
-      return [-1.4858, 55.0182]; // North Tyneside center
+      return [55.0182, -1.4858]; // North Tyneside center
     }
     if (authority === 'NEWCASTLE CITY COUNCIL') {
-      return [-1.6178, 54.9783]; // Newcastle center
+      return [54.9783, -1.6178]; // Newcastle center
     }
     if (authority === 'GATESHEAD COUNCIL') {
-      return [-1.6035, 54.9527]; // Gateshead center
+      return [54.9527, -1.6035]; // Gateshead center
     }
     if (authority === 'SUNDERLAND CITY COUNCIL') {
-      return [-1.3838, 54.9069]; // Sunderland center
+      return [54.9069, -1.3838]; // Sunderland center
     }
     
-    // Final fallback to Newcastle center
-    return [-1.6178, 54.9783];
+    // Final fallback to Newcastle center [lat, lng]
+    return [54.9783, -1.6178];
   };
 
   const coordinates = getCoordinates();
@@ -221,10 +220,10 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
         }
       }
       
-      // Fallback to transformed coordinates if needed
+      // Fallback to coordinates array if needed
       if (!lat || !lng) {
-        lat = coordinates[1];
-        lng = coordinates[0];
+        lat = coordinates[0];
+        lng = coordinates[1];
       }
       
       const label = encodeURIComponent(roadwork?.sm_street_name || roadwork?.street_name || 'Roadwork Location');
@@ -256,8 +255,8 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
   };
 
   const openDirections = () => {
-    const lat = coordinates[1];
-    const lng = coordinates[0];
+    const lat = coordinates[0];
+    const lng = coordinates[1];
     
     if (Platform.OS === 'ios') {
       const url = `http://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`;
@@ -286,7 +285,7 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
             </Text>
             <Text style={styles.headerSubtitle}>
               {hasValidCoordinates 
-                ? `${coordinates[1].toFixed(7)}, ${coordinates[0].toFixed(7)} (${coordinateQuality.quality} quality)`
+                ? `${Number(coordinates[0]).toFixed(6)}, ${Number(coordinates[1]).toFixed(6)} (${coordinateQuality.quality} quality)`
                 : roadwork?.geocodingAttempted 
                   ? 'Geocoding attempted - showing general area'
                   : roadwork?.coordinateFallbackStrategy === 'highway_authority_area'
@@ -307,7 +306,7 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
           {Platform.OS === 'web' ? (
             <>
               <iframe
-                src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBhBN_kVOnIRTKXYhzrDwpr8kvb0Uy0IY8&q=${coordinates[1]},${coordinates[0]}&zoom=${coordinateQuality.zoomLevel}&maptype=roadmap`}
+                src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBhBN_kVOnIRTKXYhzrDwpr8kvb0Uy0IY8&q=${Number(coordinates[0]).toFixed(6)},${Number(coordinates[1]).toFixed(6)}&zoom=${coordinateQuality.zoomLevel}&maptype=roadmap`}
                 style={{
                   width: '100%',
                   height: '100%',
