@@ -30,7 +30,7 @@ router.get('/health', async (req, res) => {
 
     // 1. Check webhook endpoint accessibility
     try {
-      const webhookResponse = await fetch('https://go-barry.onrender.com/api/streetmanager', {
+      const webhookResponse = await fetch('https://go-barry.onrender.com/api/streetmanager/webhook', {
         method: 'GET',
         timeout: 10000
       });
@@ -39,7 +39,7 @@ router.get('/health', async (req, res) => {
         const webhookData = await webhookResponse.json();
         diagnostics.webhook = {
           status: 'accessible',
-          endpoint: 'https://go-barry.onrender.com/api/streetmanager',
+          endpoint: 'https://go-barry.onrender.com/api/streetmanager/webhook',
           responseTime: Date.now() - Date.now(), // Would need proper timing
           storageType: webhookData.storage?.type,
           lastWebhook: webhookData.storage?.lastWebhook || 'Never'

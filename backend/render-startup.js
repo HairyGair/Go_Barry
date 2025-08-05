@@ -101,22 +101,22 @@ app.use(cors(corsOptions));
 console.log('✅ CORS configured for development and production');
 
 // CRITICAL: Street Manager webhook requires raw body for AWS SNS signature verification
-// Apply text body parsing ONLY to the webhook endpoint
-app.use('/api/streetmanager/webhook', express.text({ type: '*/*', limit: '10mb' }));
-console.log('✅ Raw body parser configured for Street Manager webhook');
+// Apply text body parsing to ALL Street Manager routes (webhook can be at various paths)
+app.use('/api/streetmanager', express.text({ type: '*/*', limit: '10mb' }));
+console.log('✅ Raw body parser configured for all Street Manager routes');
 
 // JSON body parser for all OTHER routes (skip webhook)
 app.use((req, res, next) => {
-  // Skip JSON parsing for the webhook endpoint - it needs raw text
-  if (req.path === '/api/streetmanager/webhook') {
+  // Skip JSON parsing for the webhook endpoints - they need raw text
+  if (req.path.startsWith('/api/streetmanager')) {
     return next();
   }
   express.json({ limit: '10mb' })(req, res, next);
 });
 
 app.use((req, res, next) => {
-  // Skip URL encoding for the webhook endpoint
-  if (req.path === '/api/streetmanager/webhook') {
+  // Skip URL encoding for the webhook endpoints
+  if (req.path.startsWith('/api/streetmanager')) {
     return next();
   }
   express.urlencoded({ extended: true, limit: '10mb' })(req, res, next);

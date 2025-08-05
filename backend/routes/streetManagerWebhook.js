@@ -305,7 +305,10 @@ function parseCoordinates(coordString) {
 }
 
 // Main webhook endpoint - EXACTLY as per official docs
-router.post('/', async (req, res) => {
+router.post('/', handleWebhook);
+router.post('/webhook', handleWebhook);
+
+async function handleWebhook(req, res) {
   console.log('📨 StreetManager webhook received');
   console.log('Headers:', req.headers);
   
@@ -339,10 +342,13 @@ router.post('/', async (req, res) => {
     console.error('❌ Webhook error:', err);
     res.status(500).send('Internal Server Error');
   }
-});
+}
 
 // Status endpoint (for GET requests to main webhook URL)
-router.get('/', async (req, res) => {
+router.get('/', statusHandler);
+router.get('/webhook', statusHandler);
+
+async function statusHandler(req, res) {
   // Get storage stats (with fallback)
   let stats = { database: { size_estimate: 'N/A' }, files: { size_estimate: 'N/A' } };
   if (hybridStorage) {
@@ -376,16 +382,19 @@ router.get('/', async (req, res) => {
     fixed: 'Database bloat issue resolved (489MB → lightweight summaries)',
     timestamp: new Date().toISOString()
   });
-});
+}
 
 // Test endpoint
-router.get('/test', (req, res) => {
+router.get('/test', testHandler);
+router.get('/webhook/test', testHandler);
+
+function testHandler(req, res) {
   res.json({
     status: 'ready',
     endpoint: '/api/streetmanager/webhook',
     expects: 'SNS notifications with x-amz-sns-message-type header',
     bodyParser: 'text'
   });
-});
+}
 
 export default router;
