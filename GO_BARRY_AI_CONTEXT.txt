@@ -1,24 +1,29 @@
 # GO BARRY - CRITICAL PROJECT CONTEXT FOR AI ASSISTANTS
 # © 2024-2025 Anthony Gair. All rights reserved.
 # READ THIS FIRST IN EVERY NEW CHAT SESSION
-# Last Updated: January 2025 - CURRENT STATE ANALYSIS
+# Last Updated: August 2025 - STREET MANAGER WEBHOOK CRITICAL UPDATE
 
 ## 🚨 CRITICAL REMINDERS - DON'T FORGET THESE!
 
-1. **MEMORY LIMIT**: Backend runs on Render.com with 2GB RAM limit - ALWAYS optimize for memory
-2. **NO localStorage/sessionStorage**: These don't work in Expo/React Native web - use React state only
+1. **🚨 STREET MANAGER WEBHOOK**: AWS SNS sends to `/api/streetmanager/webhook` (NOT just `/api/streetmanager`)
+   - **Endpoint**: `POST https://go-barry.onrender.com/api/streetmanager/webhook`
+   - **Body Parser**: MUST use `express.text()` for AWS SNS signature verification
+   - **Routes**: Primary registration (no delay) - webhook is CRITICAL infrastructure
+   - **Status**: ✅ WORKING as of August 2025 - DO NOT CHANGE THIS CONFIGURATION
+2. **MEMORY LIMIT**: Backend runs on Render.com with 2GB RAM limit - ALWAYS optimize for memory
+3. **NO localStorage/sessionStorage**: These don't work in Expo/React Native web - use React state only
    - Exception: useSupervisorSession hook uses localStorage ONLY for web persistence
    - NEVER use browser storage in artifacts or general components
-3. **CORS IS CONFIGURED**: Don't try to "fix" CORS - it's properly configured for gobarry.co.uk
-4. **IMPORT STYLES**: Use ES6 imports (import X from 'Y') not CommonJS (require)
-5. **SUPERVISOR SYSTEM**: 9 real supervisors with badge auth - don't create mock supervisors
-6. **CONVEX REAL-TIME SYNC**: Convex is integrated for real-time sync without CORS/WebSocket issues
-7. **SESSION MANAGEMENT**: Don't clear localStorage aggressively - it breaks login persistence
-8. **ADMIN ACCESS**: Only AG003 (Anthony Gair) and BP009 (Barry Perryman) have admin privileges
-9. **SUPABASE INTEGRATION**: Real Supabase data available via axios (prevents Node.js fetch issues)
-10. **MEMORY OPTIMIZATION**: Comprehensive optimization system prevents Render crashes
-11. **LAZY LOADING**: Components and routes use lazy loading to prevent import-time failures
-12. **ROUTE STRUCTURE**: Mature backend with 100+ API route files for comprehensive functionality
+4. **CORS IS CONFIGURED**: Don't try to "fix" CORS - it's properly configured for gobarry.co.uk
+5. **IMPORT STYLES**: Use ES6 imports (import X from 'Y') not CommonJS (require)
+6. **SUPERVISOR SYSTEM**: 9 real supervisors with badge auth - don't create mock supervisors
+7. **CONVEX REAL-TIME SYNC**: Convex is integrated for real-time sync without CORS/WebSocket issues
+8. **SESSION MANAGEMENT**: Don't clear localStorage aggressively - it breaks login persistence
+9. **ADMIN ACCESS**: Only AG003 (Anthony Gair) and BP009 (Barry Perryman) have admin privileges
+10. **SUPABASE INTEGRATION**: Real Supabase data available via axios (prevents Node.js fetch issues)
+11. **MEMORY OPTIMIZATION**: Comprehensive optimization system prevents Render crashes
+12. **LAZY LOADING**: Components and routes use lazy loading to prevent import-time failures
+13. **ROUTE STRUCTURE**: Mature backend with 100+ API route files for comprehensive functionality
 
 ## 📍 PROJECT OVERVIEW
 
@@ -233,6 +238,47 @@ Located in `app/admin/components/` and `components/admin/`:
   - streetmanager_fallback.json (fallback data)
   - routes.json (GTFS route geometries)
 
+## 🔴 STREET MANAGER AWS SNS INTEGRATION (✅ CRITICAL - WORKING)
+
+### **Webhook Configuration**
+- **🚨 CRITICAL ENDPOINT**: `POST https://go-barry.onrender.com/api/streetmanager/webhook`
+- **Status Endpoint**: `GET https://go-barry.onrender.com/api/streetmanager/webhook`
+- **Test Endpoint**: `GET https://go-barry.onrender.com/api/streetmanager/webhook/test`
+- **AWS SNS Topic**: Configured by Street Manager to send notifications
+- **Status**: ✅ **ACTIVELY RECEIVING NOTIFICATIONS** as of August 2025
+
+### **Technical Requirements**
+- **Body Parser**: MUST use `express.text()` for raw body (AWS SNS signature verification)
+- **Route Registration**: Primary routes (NO delay) - webhook is critical infrastructure
+- **Signature Validation**: Official AWS SNS signature verification implemented
+- **Storage**: Hybrid system (DB summaries + JSON file full payloads)
+
+### **Configuration Details**
+```javascript
+// Route registration in index.js - CRITICAL
+await routeManager.registerRoute(app, '/api/streetmanager', './routes/streetManagerWebhook.js', 'Street Manager Webhook');
+
+// Body parser in render-startup.js - CRITICAL
+app.use('/api/streetmanager', express.text({ type: '*/*', limit: '10mb' }));
+
+// Routes in streetManagerWebhook.js
+router.post('/webhook', handleWebhook);  // Main webhook endpoint
+router.get('/webhook', statusHandler);   // Status check
+```
+
+### **Data Flow**
+1. AWS SNS sends notification to `/api/streetmanager/webhook`
+2. Webhook validates signature and processes notification
+3. Data stored in Supabase `streetworks` table
+4. Full payload archived in JSON files for 7 days
+5. Roadworks Manager Dashboard displays live data
+
+### **⚠️ DO NOT CHANGE**
+- The webhook URL path (`/webhook` suffix)
+- Body parser configuration (must be text, not JSON)
+- Route registration order (must be in primary routes)
+- Any part of the signature validation logic
+
 ## 👥 SUPERVISOR SYSTEM (REAL DATA)
 
 9 Active Supervisors:
@@ -308,6 +354,7 @@ const { activeAlerts, activeSupervisors, dismissFromDisplay, syncState } = useCo
 - **Memory Optimization**: Comprehensive system preventing crashes
 - **Supabase Integration**: Real data via axios connection
 - **API Infrastructure**: 100+ route files providing comprehensive functionality
+- **🚨 Street Manager Integration**: Live AWS SNS webhook receiving real-time roadworks data
 
 ### 🔧 TECHNICAL IMPLEMENTATION
 - **Backend**: Node.js 18+ with Express 4.21.2, ES6 modules
