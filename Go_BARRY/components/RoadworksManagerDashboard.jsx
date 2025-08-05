@@ -18,7 +18,9 @@ import {
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useSupervisor } from './hooks/useSupervisorSession';
 import RoadworkMapModal from './RoadworkMapModal';
+import RoadworkLinestringMap from './RoadworkLinestringMap';
 import { geocodeLocation } from '../services/geocoding';
+import { offlineCoordinateCache } from '../services/offlineCoordinateCache';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 
@@ -270,6 +272,7 @@ const formatDate = (dateString) => {
     if (coordinateSource === 'gps' || coordinateSource === 'survey' || 
         coordinateSource === 'street_manager_precise' || coordinateAccuracy === 'high' ||
         coordinateSource.startsWith('street_manager_converted') ||
+        coordinateSource === 'database_lat_lng' ||
         fallbackStrategy === 'osgb36_conversion' ||
         fallbackStrategy === 'linestring_parsing') {
       return {
@@ -677,6 +680,26 @@ const RoadworksManagerDashboard = ({ onClose }) => {
       useNativeDriver: true,
     }).start();
   }, []);
+  
+  // Sync critical roadworks to offline cache
+  useEffect(() => {
+    if (roadworks.length > 0 && Platform.OS === 'web') {
+      // Sync the most critical roadworks (road closures, major works, high-impact)
+      const criticalRoadworks = roadworks.filter(rw => 
+        rw.sm_traffic_management_type === 'Road closure' ||
+        rw.sm_works_category === 'major' ||
+        (rw.affectedRoutes && rw.affectedRoutes.length >= 3)
+      ).slice(0, 20); // Cache up to 20 critical roadworks
+      
+      offlineCoordinateCache.syncOfflineCache(criticalRoadworks)
+        .then(() => {
+          console.log(`✅ Synced ${criticalRoadworks.length} critical roadworks to offline cache`);
+        })
+        .catch(error => {
+          console.error('Failed to sync offline cache:', error);
+        });
+    }
+  }, [roadworks]);
 
   // Dismiss reasons with smart categorization
   const dismissReasons = [
@@ -1040,6 +1063,21 @@ const RoadworksManagerDashboard = ({ onClose }) => {
               <Text style={styles.trafficManagementText}>
                 {item.sm_traffic_management_type}
               </Text>
+            </View>
+          )}
+          
+          {/* LINESTRING Preview Map for multi-point roadworks */}
+          {item.allCoordinatePoints && item.allCoordinatePoints.length > 1 && (
+            <View style={styles.linestringMapContainer}>
+              <Text style={styles.linestringMapLabel}>
+                <MaterialCommunityIcons name="map-legend" size={14} color="#60a5fa" />
+                {' '}Roadwork Extent ({item.allCoordinatePoints.length} points)
+              </Text>
+              <RoadworkLinestringMap 
+                roadwork={item}
+                height={180}
+                style={styles.linestringMap}
+              />
             </View>
           )}
 
@@ -3191,6 +3229,30 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#f97316',
     flex: 1,
+  },
+  
+  // LINESTRING map preview styles
+  linestringMapContainer: {
+    marginBottom: 16,
+    backgroundColor: 'rgba(96, 165, 250, 0.05)',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(96, 165, 250, 0.2)',
+  },
+  linestringMapLabel: {
+    fontSize: 14,
+    color: '#60a5fa',
+    fontWeight: '600',
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  linestringMap: {
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(96, 165, 250, 0.3)',
   },
 });
 

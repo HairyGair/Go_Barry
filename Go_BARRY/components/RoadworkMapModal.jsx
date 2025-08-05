@@ -9,9 +9,11 @@ import {
   SafeAreaView,
   Linking,
   Alert,
-  TextInput
+  TextInput,
+  ActivityIndicator
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import CoordinateVerificationButton from './CoordinateVerificationButton';
 
 // No longer need mapbox-gl for Google Maps iframe
 
@@ -19,9 +21,16 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [currentRoadwork, setCurrentRoadwork] = useState(roadwork);
+  const [isVerifying, setIsVerifying] = useState(false);
   
   // Import geocoding service
   const [geocodeLocation, setGeocodeLocation] = useState(null);
+  
+  // Update local roadwork when prop changes
+  useEffect(() => {
+    setCurrentRoadwork(roadwork);
+  }, [roadwork]);
   
   useEffect(() => {
     // Dynamically import geocoding service for better performance
@@ -98,17 +107,17 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
 
   // Get coordinates with fallback
   const getCoordinates = () => {
-    if (roadwork?.coordinates) {
+    if (currentRoadwork?.coordinates) {
       // Handle different coordinate formats
-      if (roadwork.coordinates.lat && roadwork.coordinates.lng) {
-        return [roadwork.coordinates.lat, roadwork.coordinates.lng];
+      if (currentRoadwork.coordinates.lat && currentRoadwork.coordinates.lng) {
+        return [currentRoadwork.coordinates.lat, currentRoadwork.coordinates.lng];
       }
-      if (roadwork.coordinates.latitude && roadwork.coordinates.longitude) {
-        return [roadwork.coordinates.latitude, roadwork.coordinates.longitude];
+      if (currentRoadwork.coordinates.latitude && currentRoadwork.coordinates.longitude) {
+        return [currentRoadwork.coordinates.latitude, currentRoadwork.coordinates.longitude];
       }
-      if (Array.isArray(roadwork.coordinates) && roadwork.coordinates.length === 2) {
+      if (Array.isArray(currentRoadwork.coordinates) && currentRoadwork.coordinates.length === 2) {
         // Backend returns [latitude, longitude] - keep as is for Google Maps
-        return roadwork.coordinates;
+        return currentRoadwork.coordinates;
       }
     }
     
@@ -120,8 +129,8 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
   // Intelligent fallback coordinates based on available info
   const getIntelligentFallback = () => {
     // Try to get authority-specific coordinates
-    const authority = roadwork?.sm_highway_authority;
-    const locationText = (roadwork?.sm_street_name || roadwork?.sm_location_description || '').toLowerCase();
+    const authority = currentRoadwork?.sm_highway_authority;
+    const locationText = (currentRoadwork?.sm_street_name || currentRoadwork?.sm_location_description || '').toLowerCase();
     
     // Location-specific fallbacks [lat, lng]
     if (locationText.includes('killingworth')) {
@@ -156,9 +165,9 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
   };
 
   const coordinates = getCoordinates();
-  const hasValidCoordinates = roadwork?.coordinates && 
-    Array.isArray(roadwork.coordinates) && roadwork.coordinates.length === 2;
-  const coordinateQuality = assessCoordinateQuality(roadwork);
+  const hasValidCoordinates = currentRoadwork?.coordinates && 
+    Array.isArray(currentRoadwork.coordinates) && currentRoadwork.coordinates.length === 2;
+  const coordinateQuality = assessCoordinateQuality(currentRoadwork);
   
   // Handle manual location search
   const handleLocationSearch = async () => {
@@ -206,17 +215,17 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
       // Get original coordinates from roadwork data (should be [lat, lng])
       let lat, lng;
       
-      if (roadwork?.coordinates) {
-        if (Array.isArray(roadwork.coordinates) && roadwork.coordinates.length === 2) {
+      if (currentRoadwork?.coordinates) {
+        if (Array.isArray(currentRoadwork.coordinates) && currentRoadwork.coordinates.length === 2) {
           // Backend returns [latitude, longitude]
-          lat = roadwork.coordinates[0];
-          lng = roadwork.coordinates[1];
-        } else if (roadwork.coordinates.lat && roadwork.coordinates.lng) {
-          lat = roadwork.coordinates.lat;
-          lng = roadwork.coordinates.lng;
-        } else if (roadwork.coordinates.latitude && roadwork.coordinates.longitude) {
-          lat = roadwork.coordinates.latitude;
-          lng = roadwork.coordinates.longitude;
+          lat = currentRoadwork.coordinates[0];
+          lng = currentRoadwork.coordinates[1];
+        } else if (currentRoadwork.coordinates.lat && currentRoadwork.coordinates.lng) {
+          lat = currentRoadwork.coordinates.lat;
+          lng = currentRoadwork.coordinates.lng;
+        } else if (currentRoadwork.coordinates.latitude && currentRoadwork.coordinates.longitude) {
+          lat = currentRoadwork.coordinates.latitude;
+          lng = currentRoadwork.coordinates.longitude;
         }
       }
       
@@ -226,7 +235,7 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
         lng = coordinates[1];
       }
       
-      const label = encodeURIComponent(roadwork?.sm_street_name || roadwork?.street_name || 'Roadwork Location');
+      const label = encodeURIComponent(currentRoadwork?.sm_street_name || currentRoadwork?.street_name || 'Roadwork Location');
       
       if (Platform.OS === 'web') {
         // For web, open in new tab with more specific URL
@@ -281,16 +290,16 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={styles.headerTitle} numberOfLines={1}>
-              {roadwork?.sm_street_name || roadwork?.street_name || 'Roadwork Location'}
+              {currentRoadwork?.sm_street_name || currentRoadwork?.street_name || 'Roadwork Location'}
             </Text>
             <Text style={styles.headerSubtitle}>
               {hasValidCoordinates 
                 ? `${Number(coordinates[0]).toFixed(6)}, ${Number(coordinates[1]).toFixed(6)} (${coordinateQuality.quality} quality)`
-                : roadwork?.geocodingAttempted 
+                : currentRoadwork?.geocodingAttempted 
                   ? 'Geocoding attempted - showing general area'
-                  : roadwork?.coordinateFallbackStrategy === 'highway_authority_area'
-                    ? `Showing ${roadwork?.sm_highway_authority || 'area'} region`
-                  : roadwork?.showRegionalMap
+                  : currentRoadwork?.coordinateFallbackStrategy === 'highway_authority_area'
+                    ? `Showing ${currentRoadwork?.sm_highway_authority || 'area'} region`
+                  : currentRoadwork?.showRegionalMap
                     ? 'Showing regional map'
                     : 'Location coordinates unavailable'
               }
@@ -345,6 +354,35 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
               <MaterialCommunityIcons name="map-marker" size={20} color="#3b82f6" />
               <Text style={styles.actionButtonText}>Open in External Map</Text>
             </TouchableOpacity>
+            
+            {/* Coordinate Verification Button */}
+            {coordinateQuality.quality !== 'none' && !currentRoadwork?.coordinateMetadata?.verified && (
+              <CoordinateVerificationButton 
+                roadwork={currentRoadwork}
+                onVerified={(verifiedData) => {
+                  // Update the local roadwork with verified data
+                  setCurrentRoadwork({
+                    ...currentRoadwork,
+                    ...verifiedData,
+                    coordinateMetadata: {
+                      ...currentRoadwork.coordinateMetadata,
+                      ...verifiedData.coordinateMetadata,
+                      verified: true
+                    }
+                  });
+                  
+                  // Show success message
+                  if (Platform.OS === 'web') {
+                    window.alert('Coordinates verified successfully!');
+                  } else {
+                    Alert.alert('Success', 'Coordinates verified successfully!');
+                  }
+                }}
+                isVerifying={isVerifying}
+                setIsVerifying={setIsVerifying}
+                style={styles.actionButton}
+              />
+            )}
           </View>
           
           {/* Coordinate quality indicator */}
@@ -391,38 +429,62 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
             </Text>
           </View>
           
+          {/* What3Words Display */}
+          {currentRoadwork?.what3words && (
+            <TouchableOpacity 
+              style={styles.w3wContainer}
+              onPress={() => {
+                const w3wUrl = currentRoadwork.what3words.mapUrl || 
+                              `https://what3words.com/${currentRoadwork.what3words.words.replace(/\/\/\//g, '')}`;
+                Linking.openURL(w3wUrl);
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.w3wContent}>
+                <MaterialCommunityIcons name="grid" size={20} color="#e11f26" />
+                <View style={styles.w3wTextContainer}>
+                  <Text style={styles.w3wLabel}>what3words address:</Text>
+                  <Text style={styles.w3wText}>
+                    ///{currentRoadwork.what3words.words}
+                  </Text>
+                </View>
+                <MaterialCommunityIcons name="open-in-new" size={16} color="#e11f26" />
+              </View>
+            </TouchableOpacity>
+          )}
+          
           {/* Fallback Suggestions for missing coordinates */}
-          {(coordinateQuality.quality === 'none' || roadwork?.fallbackSuggestions) && (
+          {(coordinateQuality.quality === 'none' || currentRoadwork?.fallbackSuggestions) && (
             <View style={styles.fallbackContainer}>
               <Text style={styles.fallbackTitle}>
                 <MaterialCommunityIcons name="information-outline" size={16} color="#60a5fa" />
                 {' '}How to find this location:
               </Text>
-              {(roadwork?.fallbackSuggestions || [
+              {(currentRoadwork?.fallbackSuggestions || [
                 {
                   icon: 'email-outline',
                   text: 'Check the original roadworks notification email',
-                  detail: `Permit ref: ${roadwork?.sm_permit_reference || roadwork?.sm_reference || 'Unknown'}`
+                  detail: `Permit ref: ${currentRoadwork?.sm_permit_reference || currentRoadwork?.sm_reference || 'Unknown'}`
                 },
                 {
                   icon: 'web',
                   text: 'Search on one.network',
-                  detail: roadwork?.sm_permit_reference ? 
-                    `Use permit reference: ${roadwork.sm_permit_reference}` :
-                    `Search for: ${roadwork?.sm_street_name || roadwork?.street_name}`,
-                  url: roadwork?.sm_permit_reference ? 
-                    `https://one.network/?q=${encodeURIComponent(roadwork.sm_permit_reference)}` :
+                  detail: currentRoadwork?.sm_permit_reference ? 
+                    `Use permit reference: ${currentRoadwork.sm_permit_reference}` :
+                    `Search for: ${currentRoadwork?.sm_street_name || currentRoadwork?.street_name}`,
+                  url: currentRoadwork?.sm_permit_reference ? 
+                    `https://one.network/?q=${encodeURIComponent(currentRoadwork.sm_permit_reference)}` :
                     `https://one.network/`
                 },
                 {
                   icon: 'phone',
-                  text: `Contact ${roadwork?.sm_promoter_organisation || 'the contractor'}`,
+                  text: `Contact ${currentRoadwork?.sm_promoter_organisation || 'the contractor'}`,
                   detail: 'Request exact location details'
                 },
                 {
                   icon: 'map-search',
                   text: 'Use local knowledge',
-                  detail: `Search area: ${roadwork?.sm_highway_authority || 'Check description'}`
+                  detail: `Search area: ${currentRoadwork?.sm_highway_authority || 'Check description'}`
                 }
               ]).map((suggestion, index) => (
                 <TouchableOpacity
@@ -494,25 +556,25 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
 
         {/* Roadwork Info */}
         <View style={styles.infoContainer}>
-          <Text style={styles.infoTitle}>{roadwork?.sm_street_name || roadwork?.street_name}</Text>
-          <Text style={styles.infoDescription}>{roadwork?.sm_works_description || roadwork?.sm_activity_type || 'Roadworks'}</Text>
+          <Text style={styles.infoTitle}>{currentRoadwork?.sm_street_name || currentRoadwork?.street_name}</Text>
+          <Text style={styles.infoDescription}>{currentRoadwork?.sm_works_description || currentRoadwork?.sm_activity_type || 'Roadworks'}</Text>
           
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Contractor:</Text>
-            <Text style={styles.infoValue}>{roadwork?.sm_promoter_organisation || roadwork?.sm_promoter_name || 'Unknown'}</Text>
+            <Text style={styles.infoValue}>{currentRoadwork?.sm_promoter_organisation || currentRoadwork?.sm_promoter_name || 'Unknown'}</Text>
           </View>
           
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Status:</Text>
             <View style={[styles.severityBadge, { backgroundColor: '#3b82f6' }]}>
-              <Text style={styles.severityText}>{roadwork?.sm_works_state || 'UNKNOWN'}</Text>
+              <Text style={styles.severityText}>{currentRoadwork?.sm_works_state || 'UNKNOWN'}</Text>
             </View>
           </View>
           
-          {roadwork?.sm_permit_reference && (
+          {currentRoadwork?.sm_permit_reference && (
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Permit:</Text>
-              <Text style={styles.infoValue}>{roadwork.sm_permit_reference}</Text>
+              <Text style={styles.infoValue}>{currentRoadwork.sm_permit_reference}</Text>
             </View>
           )}
         </View>
@@ -823,6 +885,35 @@ const styles = StyleSheet.create({
   suggestionDetail: {
     fontSize: 12,
     color: 'rgba(255, 255, 255, 0.6)',
+  },
+  w3wContainer: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: 'rgba(225, 31, 38, 0.1)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(225, 31, 38, 0.3)',
+    overflow: 'hidden',
+  },
+  w3wContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  w3wTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  w3wLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginBottom: 2,
+  },
+  w3wText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#e11f26',
+    letterSpacing: 0.5,
   },
 });
 

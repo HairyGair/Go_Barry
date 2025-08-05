@@ -195,6 +195,12 @@ async function registerRoutes() {
   await routeManager.registerRoute(app, '/api/disruptions', './routes/disruptionAPI.js', 'Disruption API');
   console.log('✅ Disruption API registered for roadworks escalation system');
   
+  // CRITICAL: Street Manager webhook must be registered immediately for AWS SNS
+  await routeManager.registerRoute(app, '/api/streetmanager', './routes/streetManagerWebhook.js', 'Street Manager Webhook');
+  console.log('✅ Street Manager Webhook registered for AWS SNS notifications');
+  await routeManager.registerRoute(app, '/api/streetmanager-diagnostics', './routes/streetManagerDiagnostics.js', 'Street Manager Diagnostics');
+  console.log('✅ Street Manager Diagnostics registered');
+  
   // Memory-optimized streaming routes - high priority
   await routeManager.registerRoute(app, '/api/gtfs-optimized', './routes/optimizedGTFSAPI.js', 'Optimized GTFS API');
   // await routeManager.registerRoute(app, '/api/roadworks-optimized', './routes/optimizedRoadworksAPI.js', 'Optimized Roadworks API'); // Temporarily disabled
@@ -405,11 +411,9 @@ async function registerSecondaryRoutes() {
   await routeManager.registerRoute(app, '/api/message', './routes/messageAPI.js', 'Message API');
   await routeManager.registerRoute(app, '/api/message-history', './routes/messageHistoryRoutes.js', 'Message History API');
   
-  // Street Manager routes
-  await routeManager.registerRoute(app, '/api/streetmanager', './routes/streetManagerWebhook.js', 'Street Manager Webhook');
+  // Street Manager secondary routes (webhook and diagnostics moved to primary)
   await routeManager.registerRoute(app, '/api/streetmanager-cleanup', './routes/streetManagerCleanup.js', 'Street Manager Cleanup');
   await routeManager.registerRoute(app, '/api/streetmanager-actions', './routes/streetManagerActionsAPI.js', 'Street Manager Actions');
-  await routeManager.registerRoute(app, '/api/streetmanager-diagnostics', './routes/streetManagerDiagnostics.js', 'Street Manager Diagnostics');
   
   // Intelligence and ML routes
   await routeManager.registerRoute(app, '/api/intelligence', './routes/intelligenceAPI.js', 'Intelligence API');

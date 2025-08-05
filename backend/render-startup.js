@@ -100,11 +100,27 @@ const corsOptions = {
 app.use(cors(corsOptions));
 console.log('✅ CORS configured for development and production');
 
-// JSON body parser for most routes (webhook will use raw body parser)
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// CRITICAL: Street Manager webhook requires raw body for AWS SNS signature verification
+// Apply text body parsing ONLY to the webhook endpoint
+app.use('/api/streetmanager/webhook', express.text({ type: '*/*', limit: '10mb' }));
+console.log('✅ Raw body parser configured for Street Manager webhook');
 
-// Raw body parser for webhook will be handled in the route itself
+// JSON body parser for all OTHER routes (skip webhook)
+app.use((req, res, next) => {
+  // Skip JSON parsing for the webhook endpoint - it needs raw text
+  if (req.path === '/api/streetmanager/webhook') {
+    return next();
+  }
+  express.json({ limit: '10mb' })(req, res, next);
+});
+
+app.use((req, res, next) => {
+  // Skip URL encoding for the webhook endpoint
+  if (req.path === '/api/streetmanager/webhook') {
+    return next();
+  }
+  express.urlencoded({ extended: true, limit: '10mb' })(req, res, next);
+});
 
 const PORT = process.env.PORT || 3001;
 const server = createServer(app);
