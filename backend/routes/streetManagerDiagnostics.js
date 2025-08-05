@@ -30,7 +30,7 @@ router.get('/health', async (req, res) => {
 
     // 1. Check webhook endpoint accessibility
     try {
-      const webhookResponse = await fetch('https://go-barry.onrender.com/api/streetmanager/webhook', {
+      const webhookResponse = await fetch('https://go-barry.onrender.com/api/streetmanager', {
         method: 'GET',
         timeout: 10000
       });
@@ -39,7 +39,7 @@ router.get('/health', async (req, res) => {
         const webhookData = await webhookResponse.json();
         diagnostics.webhook = {
           status: 'accessible',
-          endpoint: 'https://go-barry.onrender.com/api/streetmanager/webhook',
+          endpoint: 'https://go-barry.onrender.com/api/streetmanager',
           responseTime: Date.now() - Date.now(), // Would need proper timing
           storageType: webhookData.storage?.type,
           lastWebhook: webhookData.storage?.lastWebhook || 'Never'
@@ -77,7 +77,7 @@ router.get('/health', async (req, res) => {
       // Test basic connection
       const { data: connectionTest, error: connectionError } = await supabase
         .from('streetworks')
-        .select('notification_id')
+        .select('id')
         .limit(1);
 
       if (connectionError) {
@@ -91,22 +91,22 @@ router.get('/health', async (req, res) => {
 
       const { data: recentNotifications } = await supabase
         .from('streetworks')
-        .select('webhook_received_at, webhook_event_type')
-        .order('webhook_received_at', { ascending: false })
+        .select('created_at, sm_event_type')
+        .order('created_at', { ascending: false })
         .limit(10);
 
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const { count: recentCount } = await supabase
         .from('streetworks')
         .select('*', { count: 'exact', head: true })
-        .gte('webhook_received_at', yesterday.toISOString());
+        .gte('created_at', yesterday.toISOString());
 
       diagnostics.database = {
         status: 'connected',
         totalNotifications: totalNotifications || 0,
         recentNotifications: recentCount || 0,
-        lastNotification: recentNotifications?.[0]?.webhook_received_at || 'Never',
-        latestEventTypes: recentNotifications?.map(n => n.webhook_event_type).slice(0, 5) || []
+        lastNotification: recentNotifications?.[0]?.created_at || 'Never',
+        latestEventTypes: recentNotifications?.map(n => n.sm_event_type || 'unknown').slice(0, 5) || []
       };
 
       if (totalNotifications === 0) {
