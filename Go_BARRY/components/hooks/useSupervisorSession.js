@@ -239,6 +239,7 @@ export const useSupervisorSession = () => {
   const [needsPasswordSetup, setNeedsPasswordSetup] = useState(false);
   const [pendingLoginData, setPendingLoginData] = useState(null);
   const [sessionCheckComplete, setSessionCheckComplete] = useState(false);
+  const [passwordStatus, setPasswordStatus] = useState(null);
   
   // Convex mutations
   const convexLogin = useMutation(api.supervisors.login);
@@ -294,26 +295,51 @@ export const useSupervisorSession = () => {
       return { success: false, error: 'Password too short' };
     }
 
-    // Save the password
-    const saved = passwordStorageService.savePassword(pendingLoginData.supervisorId, newPassword);
-    if (!saved) {
-      setError('Failed to save password');
-      return { success: false, error: 'Password save failed' };
+    // Get backend mapping
+    const backendSupervisor = BACKEND_MAPPING[pendingLoginData.supervisorId];
+    if (!backendSupervisor) {
+      setError('Backend mapping not found');
+      return { success: false, error: 'Invalid supervisor' };
     }
 
-    // Continue with login using the new password
-    const loginResult = await login({
-      ...pendingLoginData,
-      password: newPassword,
-      isPasswordSetup: true
-    });
+    // For first-time setup, use a temporary password to create initial entry
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/password/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supervisorBadge: backendSupervisor.badge,
+          currentPassword: '', // Empty for first time
+          newPassword: newPassword
+        })
+      });
 
-    if (loginResult.success) {
+      const data = await response.json();
+      
+      if (!data.success) {
+        setError(data.error || 'Failed to set password');
+        return { success: false, error: data.error || 'Password setup failed' };
+      }
+
+      // Password set successfully, now we need to login
+      // Set flag to indicate password was just set up
       setNeedsPasswordSetup(false);
-      setPendingLoginData(null);
+      
+      // Return success and let the component handle the login
+      return { 
+        success: true, 
+        needsLogin: true,
+        loginData: {
+          ...pendingLoginData,
+          password: newPassword,
+          isPasswordSetup: true
+        }
+      };
+    } catch (error) {
+      console.error('Password setup error:', error);
+      setError('Failed to set password');
+      return { success: false, error: 'Password setup failed' };
     }
-
-    return loginResult;
   }, [pendingLoginData]);
 
   // Update session timeout
@@ -337,37 +363,70 @@ export const useSupervisorSession = () => {
         throw new Error('Supervisor not found');
       }
 
-      // Check if this is a first-time user who needs password setup
-      if (!loginData.isPasswordSetup && passwordStorageService.isFirstTimeUser(loginData.supervisorId)) {
-        // Special case for users with default passwords - auto-migrate them
-        if (supervisor.defaultPassword && ['barry_perryman', 'anthony_gair', 'james_daglish', 'john_paterson', 'simon_glass'].includes(loginData.supervisorId)) {
-          passwordStorageService.savePassword(loginData.supervisorId, supervisor.defaultPassword);
-        } else {
-          // Show password setup screen for other users
-          setNeedsPasswordSetup(true);
-          setPendingLoginData(loginData);
-          setIsLoading(false);
-          return { success: false, needsPasswordSetup: true };
-        }
-      }
-
-      // Validate password
+      // Validate password with backend API
       if (!loginData.password) {
         throw new Error('Password is required');
       }
 
-      // Check password (special case for users with default passwords)
-      const isValidPassword = passwordStorageService.checkPassword(loginData.supervisorId, loginData.password) ||
-        (supervisor.defaultPassword && ['barry_perryman', 'anthony_gair', 'james_daglish', 'john_paterson', 'simon_glass'].includes(loginData.supervisorId) && loginData.password === supervisor.defaultPassword);
-
-      if (!isValidPassword) {
-        throw new Error('Incorrect password');
-      }
-
-      // Get backend mapping
+      // Get backend mapping first
       const backendSupervisor = BACKEND_MAPPING[loginData.supervisorId];
       if (!backendSupervisor) {
         throw new Error('Backend mapping not found for supervisor');
+      }
+
+      // Verify password with backend
+      let passwordInfo = null;
+      try {
+        const passwordResponse = await fetch(`${API_BASE_URL}/api/password/verify-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            supervisorBadge: backendSupervisor.badge,
+            password: loginData.password
+          })
+        });
+
+        const passwordData = await passwordResponse.json();
+        
+        if (!passwordData.success) {
+          if (passwordData.needsSetup) {
+            // First time user - needs password setup
+            setNeedsPasswordSetup(true);
+            setPendingLoginData(loginData);
+            setIsLoading(false);
+            return { success: false, needsPasswordSetup: true };
+          } else {
+            throw new Error('Incorrect password');
+          }
+        }
+
+        // Check if password change is required
+        if (passwordData.mustChange) {
+          // Store password status for later use
+          setPasswordStatus({
+            mustChange: true,
+            daysUntilExpiry: passwordData.daysUntilExpiry || 0,
+            isExpired: passwordData.isExpired || false
+          });
+          console.warn('Password change required');
+        }
+        
+        // Store password info in session
+        passwordInfo = {
+          lastChanged: passwordData.lastChanged,
+          daysUntilExpiry: passwordData.daysUntilExpiry,
+          mustChange: passwordData.mustChange
+        };
+      } catch (apiError) {
+        // Fallback to local password check for existing users
+        console.warn('Backend password verification failed, using local check:', apiError.message);
+        
+        const isValidPassword = passwordStorageService.checkPassword(loginData.supervisorId, loginData.password) ||
+          (supervisor.defaultPassword && ['barry_perryman', 'anthony_gair', 'james_daglish', 'john_paterson', 'simon_glass'].includes(loginData.supervisorId) && loginData.password === supervisor.defaultPassword);
+
+        if (!isValidPassword) {
+          throw new Error('Incorrect password');
+        }
       }
       
       // Find the selected duty
@@ -395,7 +454,8 @@ export const useSupervisorSession = () => {
             ['dismiss_alerts', 'view_all_activity', 'manage_supervisors', 'create_incidents', 'send_messages'] : 
             ['dismiss_alerts', 'create_incidents'],
           backendId: backendSupervisor.id,
-          badge: backendSupervisor.badge
+          badge: backendSupervisor.badge,
+          passwordInfo: passwordInfo || null
         },
         loginTime: new Date().toISOString(),
         lastActivity: Date.now(),
@@ -480,26 +540,40 @@ export const useSupervisorSession = () => {
       return { success: false, error: 'Not logged in' };
     }
 
-    // Validate current password
-    const isValid = passwordStorageService.checkPassword(supervisorSession.supervisor.id, currentPassword);
-    if (!isValid) {
-      return { success: false, error: 'Current password is incorrect' };
-    }
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/password/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          supervisorBadge: supervisorSession.supervisor.badge,
+          currentPassword,
+          newPassword
+        })
+      });
 
-    // Validate new password
-    if (!newPassword || newPassword.length < 6) {
-      return { success: false, error: 'New password must be at least 6 characters' };
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update session with new password info
+        const updatedSession = {
+          ...supervisorSession,
+          supervisor: {
+            ...supervisorSession.supervisor,
+            passwordLastChanged: data.lastChanged
+          }
+        };
+        setSupervisorSession(updatedSession);
+        sessionStorageService.saveSession(updatedSession);
+        
+        // Log activity
+        await logActivity('PASSWORD_CHANGE', 'Password changed successfully');
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Change password error:', error);
+      return { success: false, error: 'Failed to change password' };
     }
-
-    // Save new password
-    const saved = passwordStorageService.savePassword(supervisorSession.supervisor.id, newPassword);
-    if (!saved) {
-      return { success: false, error: 'Failed to save new password' };
-    }
-
-    logActivity('PASSWORD_CHANGE', 'Password changed successfully');
-    
-    return { success: true };
   }, [supervisorSession, logActivity]);
 
   // Logout function
@@ -633,6 +707,44 @@ export const useSupervisorSession = () => {
     return () => clearInterval(interval);
   }, [supervisorSession]);
 
+  // Clock In function for shift management
+  const clockIn = useCallback(async (dutyCode) => {
+    if (!supervisorSession) {
+      return { success: false, error: 'Not logged in' };
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/shifts/clock-in`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          supervisorBadge: supervisorSession.supervisor.badge || supervisorSession.supervisor.id, 
+          dutyCode 
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        // Update session with duty info
+        const updatedSession = { 
+          ...supervisorSession, 
+          duty: dutyCode, 
+          shiftId: data.shift.id,
+          clockInTime: data.shift.clock_in
+        };
+        setSupervisorSession(updatedSession);
+        sessionStorageService.saveSession(updatedSession);
+        
+        // Log activity
+        await logActivity('CLOCK_IN', { duty: dutyCode });
+      }
+      return data;
+    } catch (error) {
+      console.error('Clock in error:', error);
+      return { success: false, error: error.message };
+    }
+  }, [supervisorSession, logActivity]);
+
   return {
     supervisorSession,
     isLoading,
@@ -646,7 +758,10 @@ export const useSupervisorSession = () => {
     setPassword,
     changePassword,
     needsPasswordSetup,
+    passwordStatus,
     updateSessionTimeout,
+    clockIn,
+    currentDuty: supervisorSession?.duty,
     isLoggedIn: !!supervisorSession,
     supervisorName: supervisorSession?.supervisor?.name,
     supervisorRole: supervisorSession?.supervisor?.role,

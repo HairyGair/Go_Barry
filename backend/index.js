@@ -18,8 +18,18 @@ import path from 'path';
 import memoryMonitor from './services/memoryMonitor.js';
 import supervisorManager from './services/supervisorManager.js';
 
+// NEW: Memory crisis resolution services
+import redisCache from './services/redisCache.js';
+import requestQueue from './services/requestQueue.js';
+import StreamingResponseService from './services/streamingResponse.js';
+import supabaseService from './services/supabaseService.js';
+import supabaseConnectionManager from './services/supabaseConnectionManager.js';
+
 // Import comprehensive memory optimization integration
 import { masterMemoryOptimizationMiddleware, getOptimizationStats, getOptimizationHealth } from './middleware/masterMemoryOptimization.js';
+
+// Import lightweight error recovery system (memory-optimized)
+import errorRecoverySystemLite from './errorRecoverySystemLite.js';
 
 // Lazy import cache to prevent duplicate loading
 const lazyImportCache = new Map();
@@ -180,16 +190,26 @@ async function registerRoutes() {
   // Essential routes - load immediately
   await routeManager.registerRoute(app, '/api/health', './routes/health.js', 'Health API');
   await routeManager.registerRoute(app, '/api/memory', './routes/memoryAPI.js', 'Memory API');
+  await routeManager.registerRoute(app, '/api/memory-crisis', './routes/memoryCrisisAPI.js', 'Memory Crisis Management API');
+  await routeManager.registerRoute(app, '/api/supabase-health', './routes/supabaseHealthAPI.js', 'Supabase Health Monitoring API');
   await routeManager.registerRoute(app, '/api/supervisor', './routes/supervisorAPI.js', 'Supervisor API');
+  await routeManager.registerRoute(app, '/api/password', './routes/passwordManagement.js', 'Password Management');
   
   // Core functionality - load next
   await routeManager.registerRoute(app, '/api/admin', './routes/adminAPI.js', 'Admin API');
+  await routeManager.registerRoute(app, '/api/shifts', './routes/shiftManagement.js', 'Shift Management');
   await routeManager.registerRoute(app, '/api/incidents', './routes/incidentAPI.js', 'Incident API');
   await routeManager.registerRoute(app, '/api/incident-alerts', './routes/incidentAlertsAPI.js', 'Incident Alerts API');
   await routeManager.registerRoute(app, '/api/roadworks', './routes/roadworksAPI.js', 'Roadworks API');
   console.log('✅ Roadworks API includes unified endpoint at /api/roadworks/unified');
-  await routeManager.registerRoute(app, '/api/coordinates', './routes/coordinateEnhancementsAPI.js', 'Coordinate Enhancements API');
-  console.log('✅ Coordinate enhancements API registered for improved location accuracy');
+  
+  // NEW: Unified coordinate service API
+  await routeManager.registerRoute(app, '/api/coordinates', './routes/coordinateAPI.js', 'Unified Coordinate API');
+  console.log('✅ Unified Coordinate API registered - single source of truth for all coordinate operations');
+  
+  // Legacy coordinate enhancement API (will be deprecated)
+  await routeManager.registerRoute(app, '/api/coordinates-legacy', './routes/coordinateEnhancementsAPI.js', 'Legacy Coordinate Enhancements API');
+  console.log('⚠️ Legacy coordinate enhancements API registered (deprecated - use /api/coordinates instead)');
   await routeManager.registerRoute(app, '/api/coordinate-cache', './routes/coordinateCacheTest.js', 'Coordinate Cache Test API');
   console.log('✅ Coordinate cache test API registered for testing new caching system');
   await routeManager.registerRoute(app, '/api/disruptions', './routes/disruptionAPI.js', 'Disruption API');
@@ -218,6 +238,10 @@ async function registerRoutes() {
   await routeManager.registerRoute(app, '/api/display', './routes/displayAPI.js', 'Display API');
   await routeManager.registerRoute(app, '/api/analytics', './routes/analyticsAPI.js', 'Analytics API');
   await routeManager.registerRoute(app, '/api/analytics-routes', './routes/analyticsRoutes.js', 'Analytics Routes');
+  
+  // Error recovery and circuit breaker management
+  await routeManager.registerRoute(app, '/api/circuit-breaker', './routes/circuitBreaker.js', 'Circuit Breaker Management');
+  console.log('✅ Circuit breaker management API registered');
   
   console.log('✅ Core routes registered with memory optimization');
 }
@@ -481,6 +505,30 @@ setTimeout(() => {
       console.log('📝 Cleanup can still be triggered manually via API endpoints');
     }
     
+    // Initialize memory crisis resolution services
+    console.log('🚨 Initializing memory crisis resolution services...');
+    
+    // Supabase connection manager with pooling and retries
+    await supabaseService.initialize();
+    console.log('✅ Supabase connection manager with pooling initialized');
+    
+    // Redis cache service
+    await redisCache.initialize();
+    console.log('✅ Redis cache service initialized');
+    
+    // Initialize lightweight error recovery system
+    await errorRecoverySystemLite.initialize();
+    console.log('✅ Error recovery system (lite) initialized');
+    
+    // Request queue middleware (apply globally)
+    app.use('/api/roadworks', requestQueue.middleware('roadworks'));
+    app.use('/api/alerts', requestQueue.middleware('alerts'));
+    console.log('✅ Request queuing system active');
+    
+    // Streaming response middleware
+    app.use(StreamingResponseService.streamingMiddleware());
+    console.log('✅ Streaming response system ready');
+    
     // All other services load on-demand
     console.log('✅ All additional services configured for on-demand loading');
     
@@ -494,11 +542,18 @@ setTimeout(() => {
     console.log('\n🛡️ Memory Protection:');
     console.log('   - Lazy loading active for all non-critical modules');
     console.log('   - GTFS streaming with 2GB RAM limits');
+    console.log('   - Supabase connection pooling with retry mechanisms');
+    console.log('   - Redis caching layer to reduce database queries');
+    console.log('   - Request queuing to prevent concurrent memory spikes');
+    console.log('   - Streaming responses for large datasets');
     console.log('   - Automatic garbage collection and cleanup');
     console.log('   - Emergency shutdown protocols active');
     console.log('   - Real-time memory monitoring and optimization');
     console.log('   - Dismissed alerts cleanup scheduler (daily/weekly/monthly)');
     console.log('   - Configurable retention periods for dismissed records');
+    console.log('   - Circuit breaker pattern for external API resilience');
+    console.log('   - Automatic retry with exponential backoff');
+    console.log('   - Fallback data system for service outages');
     console.log('============================================================\n');
     
   } catch (error) {

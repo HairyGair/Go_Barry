@@ -19,10 +19,11 @@ import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useSupervisor } from './hooks/useSupervisorSession';
 import RoadworkMapModal from './RoadworkMapModal';
 import RoadworkLinestringMap from './RoadworkLinestringMap';
-import { geocodeLocation } from '../services/geocoding';
-import { offlineCoordinateCache } from '../services/offlineCoordinateCache';
+import unifiedCoordinateService from '../services/unifiedCoordinateService';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
+
+import { API_CONFIG } from '../config/api';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -376,7 +377,11 @@ const RoadworksManagerDashboard = ({ onClose }) => {
   const [roadworks, setRoadworks] = useState([]);
   const [filteredRoadworks, setFilteredRoadworks] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [displayLimit, setDisplayLimit] = useState(50); // Start with 50 items
+  // Pagination state for server-side loading
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMorePages, setHasMorePages] = useState(true);
+  const [totalRoadworks, setTotalRoadworks] = useState(0);
+  const PAGE_SIZE = 50; // Items per page
   const [activeCompartment, setActiveCompartment] = useState('all'); // Active filter compartment
   const [showDismissModal, setShowDismissModal] = useState(false);
   const [selectedAlert, setSelectedAlert] = useState(null);
@@ -426,9 +431,8 @@ const RoadworksManagerDashboard = ({ onClose }) => {
       
       // Fallback to REST API
       const fetchDisplayIncidentsFromAPI = async () => {
-        try {
-          const baseUrl = process.env.NODE_ENV === 'development' ? '' : 'https://go-barry.onrender.com';
-          const response = await fetch(`${baseUrl}/api/display/display-incidents`);
+      try {
+      const response = await fetch(`${API_CONFIG.baseURL}/api/display/display-incidents`);
           if (response.ok) {
             const data = await response.json();
             if (data.success && Array.isArray(data.incidents)) {
@@ -601,39 +605,104 @@ const RoadworksManagerDashboard = ({ onClose }) => {
     }
   };
 
-  // Fetch roadworks data with default 90-day window
-  const fetchRoadworks = async () => {
+  // Calculate severity score for sorting
+  const calculateSeverityScore = (item) => {
+    let score = 0;
+    
+    // Traffic management type scoring
+    if (item.sm_traffic_management_type === 'Road closure') score += 100;
+    else if (item.sm_traffic_management_type === 'Two-way signals') score += 50;
+    else if (item.sm_traffic_management_type === 'Multi-way signals') score += 40;
+    else if (item.sm_traffic_management_type === 'Lane closure') score += 30;
+    else if (item.sm_traffic_management_type === 'Some carriageway incursion') score += 20;
+    
+    // Works category scoring
+    if (item.sm_works_category === 'immediate_emergency') score += 80;
+    else if (item.sm_works_category === 'major') score += 60;
+    else if (item.sm_works_category === 'standard') score += 30;
+    else if (item.sm_works_category === 'minor') score += 10;
+    
+    // Affected routes scoring
+    const affectedRoutesCount = item.affectedRoutes?.length || 0;
+    score += Math.min(affectedRoutesCount * 10, 50); // Max 50 points for routes
+    
+    // Duration scoring
+    const duration = calculateDuration(item);
+    if (duration > 30) score += 30;
+    else if (duration > 14) score += 20;
+    else if (duration > 7) score += 10;
+    
+    // Traffic sensitive scoring
+    if (item.sm_traffic_sensitive) score += 20;
+    
+    return score;
+  };
+
+  // Enhanced fetch function with better error handling
+  const fetchRoadworksEnhanced = async (retryCount = 0, isRefresh = false) => {
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY = 1000; // 1 second
+    
     try {
       console.log('🚧 [RoadworksManagerDashboard] Starting to fetch roadworks...');
-      // Use explicit absolute URL for roadworks API
-      const url = 'https://go-barry.onrender.com/api/roadworks/unified?days=90';
+      setError(null); // Clear any previous errors
+      
+      // Use central API configuration - but check if we're in development
+      const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const baseUrl = isDevelopment ? 'http://localhost:3001' : API_CONFIG.baseURL;
+      const url = `${baseUrl}/api/roadworks/unified?days=90&limit=${PAGE_SIZE}&page=${currentPage}`;
       console.log('🌐 [RoadworksManagerDashboard] Fetching from:', url);
+      
+      // Create an AbortController for timeout handling
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
       
       const response = await fetch(url, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache', // Prevent stale data
         },
-        credentials: 'omit' // Don't send cookies cross-origin
+        credentials: isDevelopment ? 'include' : 'same-origin',
+        signal: controller.signal
+      }).finally(() => {
+        clearTimeout(timeoutId);
       });
       
       console.log('📡 [RoadworksManagerDashboard] Response status:', response.status);
-      console.log('📡 [RoadworksManagerDashboard] Response headers:', response.headers);
+      console.log('📡 [RoadworksManagerDashboard] Response headers:', Object.fromEntries(response.headers.entries()));
       
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      // Handle different response statuses
+      if (response.status === 401) {
+        throw new Error('Authentication required. Please log in.');
+      } else if (response.status === 403) {
+        throw new Error('Access denied. You do not have permission to view roadworks.');
+      } else if (response.status === 404) {
+        throw new Error('Roadworks API endpoint not found. Please contact support.');
+      } else if (response.status >= 500) {
+        throw new Error(`Server error (${response.status}). The service may be temporarily unavailable.`);
+      } else if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
+      
+      // Check content type (but don't fail if header is wrong)
+      const contentType = response.headers.get('content-type');
+      console.log('📡 [RoadworksManagerDashboard] Content-Type:', contentType);
+      // Skip strict content-type check - backend returns JSON but may have wrong header
       
       const data = await response.json();
       console.log('📊 [RoadworksManagerDashboard] Data received:', {
         success: data.success,
-        dataLength: data.data?.length || 0,
-        hasData: !!data.data
+        dataLength: data.roadworks?.length || data.data?.length || 0,
+        hasData: !!(data.roadworks || data.data),
+        sampleData: (data.roadworks || data.data)?.[0] // Log first item for debugging
       });
       
-      if (data.success && data.data) {
-        const formattedRoadworks = data.data.map(item => ({
+      if (data.success && (data.roadworks || data.data)) {
+        const roadworksData = data.roadworks || data.data || [];
+        const formattedRoadworks = roadworksData.map(item => ({
           ...item,
           // Map Street Manager fields to component fields
           street_name: item.sm_street_name || item.street_name || item.sm_location_description || 'Unknown Location',
@@ -647,29 +716,125 @@ const RoadworksManagerDashboard = ({ onClose }) => {
           // Include coordinates from backend processing
           coordinates: item.coordinates || null,
           coordinateSource: item.coordinateSource || null,
-          coordinateAccuracy: item.coordinateAccuracy || null
+          coordinateAccuracy: item.coordinateAccuracy || null,
+          // Add severity scoring for sorting
+          severityScore: calculateSeverityScore(item)
         }));
+        
+        // Sort by severity score (highest first)
+        formattedRoadworks.sort((a, b) => b.severityScore - a.severityScore);
+        
         console.log(`✅ [RoadworksManagerDashboard] Formatted ${formattedRoadworks.length} roadworks`);
-        setRoadworks(formattedRoadworks);
-        setFilteredRoadworks(formattedRoadworks);
+        // Handle pagination metadata
+        const metadata = data.metadata || {};
+        setHasMorePages(metadata.pagination?.hasMore || false);
+        
+        // Update total count if we know there are more pages
+        if (currentPage === 1 || isRefresh) {
+          // On first page, we don't know the total yet
+          setTotalRoadworks(metadata.count || formattedRoadworks.length);
+        } else if (!hasMorePages) {
+          // On last page, we know the exact total
+          setTotalRoadworks(roadworks.length + formattedRoadworks.length);
+        }
+        
+        // For page 1 or refresh, replace all roadworks. For subsequent pages, append.
+        if (currentPage === 1 || isRefresh) {
+          setRoadworks(formattedRoadworks);
+          setFilteredRoadworks(formattedRoadworks);
+        } else {
+          setRoadworks(prev => [...prev, ...formattedRoadworks]);
+          setFilteredRoadworks(prev => [...prev, ...formattedRoadworks]);
+        }
+        
+        // Cache the data for offline use
+        if (Platform.OS === 'web' && 'localStorage' in window) {
+          try {
+            localStorage.setItem('roadworks_cache', JSON.stringify({
+              data: formattedRoadworks.slice(0, 50), // Cache first 50 for performance
+              timestamp: new Date().toISOString()
+            }));
+          } catch (e) {
+            console.warn('Failed to cache roadworks data:', e);
+          }
+        }
       } else {
         console.error('❌ [RoadworksManagerDashboard] No data in response:', data);
-        setError('No roadworks data available');
+        throw new Error(data.error || 'No roadworks data available');
       }
     } catch (err) {
       console.error('❌ [RoadworksManagerDashboard] Fetch error:', err);
       console.error('❌ [RoadworksManagerDashboard] Error details:', {
         message: err.message,
         stack: err.stack,
-        name: err.name
+        name: err.name,
+        retryCount
       });
-      setError(`Failed to fetch roadworks: ${err.message}`);
+      
+      // Handle specific error types
+      let errorToThrow = err;
+      if (err.name === 'AbortError') {
+        errorToThrow = new Error('Request timed out. The server may be slow or unreachable.');
+      } else if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+        errorToThrow = new Error('Network connection failed. Please check your internet connection.');
+      }
+      
+      // Retry logic for network errors
+      if (retryCount < MAX_RETRIES && (errorToThrow.message.includes('timed out') || errorToThrow.message.includes('Network'))) {
+        console.log(`🔄 Retrying in ${RETRY_DELAY}ms... (Attempt ${retryCount + 1}/${MAX_RETRIES})`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        return fetchRoadworksEnhanced(retryCount + 1);
+      }
+      
+      // Try to load from cache if available
+      if (Platform.OS === 'web' && 'localStorage' in window) {
+        try {
+          const cached = localStorage.getItem('roadworks_cache');
+          if (cached) {
+            const { data, timestamp } = JSON.parse(cached);
+            const cacheAge = Date.now() - new Date(timestamp).getTime();
+            const ONE_HOUR = 60 * 60 * 1000;
+            
+            if (cacheAge < ONE_HOUR) {
+              console.log('📦 Loading from cache due to network error');
+              setRoadworks(data);
+              setFilteredRoadworks(data);
+              setError(`Using cached data from ${new Date(timestamp).toLocaleTimeString()}. ${errorToThrow.message}`);
+              return;
+            }
+          }
+        } catch (cacheError) {
+          console.error('Failed to load from cache:', cacheError);
+        }
+      }
+      
+      setError(`Failed to fetch roadworks: ${errorToThrow.message}`);
+      throw errorToThrow;
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
+  // Replace the existing fetchRoadworks function with this enhanced version
+  const fetchRoadworks = fetchRoadworksEnhanced;
+
+  // Load more roadworks from server
+  const loadMoreRoadworks = async () => {
+    if (!hasMorePages || loading) return;
+    
+    console.log('📥 Loading more roadworks, current page:', currentPage);
+    setCurrentPage(prev => prev + 1);
+    // This will trigger the useEffect to fetch the next page
+  };
+  
+  // Reset when compartment changes - no need to refetch for client-side filters
+  useEffect(() => {
+    // Only reset pagination state, don't refetch
+    // The filtering happens client-side in the other useEffect
+  }, [activeCompartment]);
+  
+  // Initial fetch on mount
   useEffect(() => {
     fetchRoadworks();
     
@@ -680,6 +845,13 @@ const RoadworksManagerDashboard = ({ onClose }) => {
       useNativeDriver: true,
     }).start();
   }, []);
+  
+  // Fetch roadworks when page changes (for page 2+)
+  useEffect(() => {
+    if (currentPage > 1) {
+      fetchRoadworks();
+    }
+  }, [currentPage]);
   
   // Sync critical roadworks to offline cache
   useEffect(() => {
@@ -735,8 +907,7 @@ const RoadworksManagerDashboard = ({ onClose }) => {
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
       // Call the permanent delete endpoint - use POST instead of DELETE for better compatibility
-      const baseUrl = process.env.NODE_ENV === 'development' ? '' : 'https://go-barry.onrender.com';
-      const response = await fetch(`${baseUrl}/api/roadworks/unified/actions/${roadworkId}/delete`, {
+      const response = await fetch(`${API_CONFIG.baseURL}/api/roadworks/unified/actions/${roadworkId}/delete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1548,7 +1719,6 @@ const RoadworksManagerDashboard = ({ onClose }) => {
 
     console.log('🔍 Filtered result:', filtered.length, 'items');
     setFilteredRoadworks(filtered);
-    setDisplayLimit(50); // Reset to initial limit when filtering changes
   }, [searchQuery, roadworks, activeCompartment]);
 
   return (
@@ -1582,7 +1752,11 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                   </Text>
                   <Text style={styles.subtitle}>
                     <MaterialCommunityIcons name="shield-account" size={16} color="#93c5fd" />
-                    {' '}{supervisorName} • {compartments.find(c => c.id === activeCompartment)?.label} • {Math.min(displayLimit, filteredRoadworks.length)} of {filteredRoadworks.length}
+                    {' '}{supervisorName} • {compartments.find(c => c.id === activeCompartment)?.label} • 
+                    {activeCompartment === 'all' 
+                      ? `${roadworks.length} loaded${hasMorePages ? '+' : ''}` 
+                      : `${filteredRoadworks.length} of ${roadworks.length}`
+                    }
                   </Text>
                 </View>
                 
@@ -1772,7 +1946,11 @@ const RoadworksManagerDashboard = ({ onClose }) => {
               <View style={styles.errorContainer}>
                 <MaterialCommunityIcons name="alert-octagon" size={72} color="#ef4444" />
                 <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity style={styles.retryButton} onPress={fetchRoadworks}>
+                <TouchableOpacity style={styles.retryButton} onPress={() => {
+                  setCurrentPage(1);
+                  setHasMorePages(true);
+                  fetchRoadworks(0, true);
+                }}>
                   <Text style={styles.retryButtonText}>Retry Connection</Text>
                 </TouchableOpacity>
               </View>
@@ -1806,28 +1984,35 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                 refreshControl={
                   <RefreshControl
                     refreshing={refreshing}
-                    onRefresh={() => {
+                    onRefresh={async () => {
                       setRefreshing(true);
-                      fetchRoadworks();
+                      setCurrentPage(1); // Reset to page 1
+                      setHasMorePages(true);
+                      await fetchRoadworks(0, true); // Pass isRefresh=true
                     }}
                     tintColor="#3b82f6"
                   />
                 }
               >
-                {filteredRoadworks.slice(0, displayLimit).map((item, index) => (
-                  <View key={item.id}>
+                {filteredRoadworks.map((item, index) => (
+                  <View key={`${item.id}-${index}`}>
                     <RoadworkCard item={item} index={index} />
                   </View>
                 ))}
                 
-                {filteredRoadworks.length > displayLimit && (
+                {hasMorePages && activeCompartment === 'all' && (
                   <TouchableOpacity
                     style={styles.loadMoreButton}
-                    onPress={() => setDisplayLimit(prev => Math.min(prev + 50, filteredRoadworks.length))}
+                    onPress={loadMoreRoadworks}
+                    disabled={loading}
                   >
-                    <Text style={styles.loadMoreText}>
-                      Load More ({displayLimit} of {filteredRoadworks.length})
-                    </Text>
+                    {loading ? (
+                      <ActivityIndicator size="small" color="#3b82f6" />
+                    ) : (
+                      <Text style={styles.loadMoreText}>
+                        Load More ({filteredRoadworks.length} loaded)
+                      </Text>
+                    )}
                   </TouchableOpacity>
                 )}
               </ScrollView>
@@ -2164,8 +2349,7 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                           
                           // Create disruption record in database
                           try {
-                            const baseUrl = process.env.NODE_ENV === 'development' ? '' : 'https://go-barry.onrender.com';
-                            const disruptionResponse = await fetch(`${baseUrl}/api/disruptions/create`, {
+                            const disruptionResponse = await fetch(`${API_CONFIG.baseURL}/api/disruptions/create`, {
                               method: 'POST',
                               headers: {
                                 'Content-Type': 'application/json',

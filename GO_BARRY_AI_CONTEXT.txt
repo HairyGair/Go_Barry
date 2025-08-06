@@ -1,7 +1,7 @@
 # GO BARRY - CRITICAL PROJECT CONTEXT FOR AI ASSISTANTS
 # © 2024-2025 Anthony Gair. All rights reserved.
 # READ THIS FIRST IN EVERY NEW CHAT SESSION
-# Last Updated: August 2025 - STREET MANAGER WEBHOOK CRITICAL UPDATE
+# Last Updated: January 2025 - COMPREHENSIVE ARCHITECTURAL ANALYSIS
 
 ## 🚨 CRITICAL REMINDERS - DON'T FORGET THESE!
 
@@ -11,10 +11,13 @@
    - **Routes**: Primary registration (no delay) - webhook is CRITICAL infrastructure
    - **Status**: ✅ WORKING as of August 2025 - DO NOT CHANGE THIS CONFIGURATION
 2. **MEMORY LIMIT**: Backend runs on Render.com with 2GB RAM limit - ALWAYS optimize for memory
+   - **Roadworks API**: Limited to 50 items per page to prevent memory issues (was 500)
+   - **Pagination**: Server-side pagination implemented to handle large datasets
 3. **NO localStorage/sessionStorage**: These don't work in Expo/React Native web - use React state only
    - Exception: useSupervisorSession hook uses localStorage ONLY for web persistence
    - NEVER use browser storage in artifacts or general components
 4. **CORS IS CONFIGURED**: Don't try to "fix" CORS - it's properly configured for gobarry.co.uk
+   - Development: localhost:8081 is allowed when backend runs locally
 5. **IMPORT STYLES**: Use ES6 imports (import X from 'Y') not CommonJS (require)
 6. **SUPERVISOR SYSTEM**: 9 real supervisors with badge auth - don't create mock supervisors
 7. **CONVEX REAL-TIME SYNC**: Convex is integrated for real-time sync without CORS/WebSocket issues
@@ -24,6 +27,7 @@
 11. **MEMORY OPTIMIZATION**: Comprehensive optimization system prevents Render crashes
 12. **LAZY LOADING**: Components and routes use lazy loading to prevent import-time failures
 13. **ROUTE STRUCTURE**: Mature backend with 100+ API route files for comprehensive functionality
+14. **ROADWORKS PAGINATION**: Server-side pagination (50 items/page) - DO NOT increase limit or backend will return 503
 
 ## 📍 PROJECT OVERVIEW
 
@@ -37,21 +41,23 @@
 
 ### Backend (Node.js + Express)
 - **Location**: `/backend/`
-- **Entry**: `index.js` (ES6 modules, NOT CommonJS)
+- **Entry**: `index.js` (ES6 modules, NOT CommonJS) with `render-startup.js` for production
 - **Version**: 1.0.0
 - **Port**: 3001 locally, auto on Render
-- **Memory**: Optimized for <2GB with comprehensive optimization system
-- **Database**: Supabase (with axios integration) + local JSON files
+- **Memory**: Optimized for <2GB with `masterMemoryOptimization.js` system
+- **Database**: Supabase (with axios integration) + local JSON files in `/data/`
 - **Real-time**: Convex sync (replaces WebSocket)
-- **Routes**: 100+ API route files for comprehensive functionality
+- **Routes**: 50+ API route files with memory-optimized lazy loading via `MemoryOptimizedRouteManager`
+- **Hosting**: Render.com with memory constraints and auto-scaling
 
 ### Frontend (React Native + Expo)
 - **Location**: `/Go_BARRY/`
 - **Version**: 3.0.0
 - **Framework**: React Native 0.79.5, Expo 53.0.20, React 19.0.0
-- **Navigation**: Expo Router (file-based)
+- **Navigation**: Expo Router (file-based in `app/` directory)
 - **Styling**: React Native StyleSheet (NO Tailwind in RN components!)
-- **Platform**: Web primary, mobile-ready
+- **Platform**: Web primary via `expo start --web`, mobile-ready
+- **Build**: Supports cPanel deployment via `build:cpanel` command
 
 ## 📱 COMPLETE SCREEN DIRECTORY STRUCTURE (VERIFIED ACTIVE)
 
@@ -163,6 +169,10 @@
 - **`DisplayScreen.jsx`** - Control room display with real-time alerts and maps
 - **`DisruptionDatabase.jsx`** - Used in disruption centre for database management
 - **`RoadworksManagerDashboard.jsx`** - Active roadworks management interface
+  - Server-side pagination: Loads 50 items per page to prevent memory issues
+  - Load More button fetches next page from server (not client-side reveal)
+  - Compartment filters work on client-side with already loaded data
+  - Pull-to-refresh resets to page 1 and reloads data
 - **`TomTomTrafficMap.jsx`** - Interactive traffic maps with real-time data
 - **`TrafficFlowDashboard.jsx`** - Traffic flow visualization and analysis
 
@@ -186,6 +196,64 @@ Located in `app/admin/components/` and `components/admin/`:
 - **`ActivityCard.jsx`** - Activity tracking display
 - **`LoadingScreen.jsx`** - Admin loading states
 
+## 🔧 COMPREHENSIVE APPLICATION ARCHITECTURE
+
+### **📊 Project Scale & Structure**
+- **Total Files**: 1000+ files across frontend and backend  
+- **Backend Routes**: 94 API route files with lazy loading system
+- **Frontend Components**: 100+ React Native components with cross-platform support
+- **Database Integration**: Hybrid Supabase + JSON file system for resilience
+- **Memory Management**: Advanced optimization for 2GB Render.com constraint
+- **Real-time Sync**: Convex-based synchronization across all clients
+
+### **🎯 Core Data Flow Architecture**
+
+#### **1. Data Sources → Backend Processing**
+```
+Street Manager AWS SNS → /api/streetmanager/webhook → Supabase + JSON storage
+National Highways API → Enhanced processors → Memory-optimized caching  
+TomTom Traffic API → Real-time processing → Route matching algorithms
+Manual Incidents → Supervisor input → Audit trail logging
+```
+
+#### **2. Backend → Frontend Sync**
+```
+Backend APIs → useBARRYapi hook → React state management
+Convex real-time → useConvexSync hook → Cross-screen synchronization
+Memory optimization → Lazy loading → Component performance
+```
+
+#### **3. Frontend Navigation Flow**
+```
+app/index.jsx (HomePageWithLogin) → 6 main application cards
+├── Control Room Display (public access)
+├── Operations Centre (supervisor access)  
+├── Disruptions Manager (supervisor + admin access)
+├── Communications Hub (supervisor access)
+├── Breakdown Guide (public access)
+└── Admin Dashboard (admin only - AG003, BP009)
+```
+
+### **🔄 Critical Integration Points**
+
+#### **Memory Management System**
+- **File**: `backend/middleware/masterMemoryOptimization.js`
+- **Function**: Prevents crashes on 2GB Render.com limit
+- **Implementation**: Route-level lazy loading, garbage collection, memory monitoring
+- **Status**: Active and essential for production stability
+
+#### **Authentication Flow**
+- **Backend**: `supervisorManager.js` handles badge-based authentication  
+- **Frontend**: `useSupervisorSession.js` hook manages sessions with localStorage persistence
+- **Convex Sync**: Real-time session synchronization via `supervisors.ts`
+- **Security**: Only AG003 and BP009 have admin privileges
+
+#### **Street Manager Integration (CRITICAL)**
+- **Webhook Path**: `/api/streetmanager/webhook` (NOT `/api/streetmanager`)
+- **Body Parser**: `express.text()` required for AWS SNS signature verification
+- **Storage**: Hybrid system - summaries in Supabase, full payloads in JSON
+- **Processing**: Real-time coordinate enhancement and route matching
+
 ## 🔧 BACKEND API INTEGRATION (COMPREHENSIVE)
 
 ### **🌐 Base URL**: https://go-barry.onrender.com
@@ -194,6 +262,9 @@ Located in `app/admin/components/` and `components/admin/`:
 - **`GET /api/alerts-enhanced`** - Main endpoint with ML, deduplication, route matching
 - **`GET /api/incidents`** - Incident management with Supabase integration
 - **`GET /api/roadworks/unified`** - Unified roadworks data (axios-based)
+  - Query params: `?days=90&limit=50&page=1`
+  - Pagination: Server-side, 50 items per page max (memory constraint)
+  - Response includes `metadata.pagination.hasMore` flag
 - **`GET /api/health-extended`** - Detailed system status
 - **`POST /api/supervisor/login`** - Supervisor authentication
 - **`POST /api/supervisor/dismiss-alert`** - Dismiss with audit trail
@@ -346,6 +417,9 @@ const { activeAlerts, activeSupervisors, dismissFromDisplay, syncState } = useCo
 - **Homepage Navigation**: 6 app cards with complete routing
 - **Control Room Display**: 24/7 monitoring with real-time maps
 - **Disruptions Management**: Incident and roadworks management system
+  - Server-side pagination (50 items/page) implemented January 2025
+  - Load More functionality fetches from server (not client-side)
+  - Memory-optimized to prevent 503 errors
 - **Operations Centre**: Duty boards, statistics, live map, database
 - **Communications Hub**: Email, VoIP, messaging integration
 - **Admin Dashboard**: System administration (8 sub-screens)
@@ -423,6 +497,18 @@ const [data, setData] = useState(); // ✅
 // API calls to backend
 const response = await fetch('https://go-barry.onrender.com/api/...');
 
+// Pagination pattern (server-side)
+const [currentPage, setCurrentPage] = useState(1);
+const [hasMorePages, setHasMorePages] = useState(true);
+const PAGE_SIZE = 50; // Don't exceed 50 - memory constraint!
+
+// Append data for pagination
+if (currentPage === 1) {
+  setData(newData); // Replace
+} else {
+  setData(prev => [...prev, ...newData]); // Append
+}
+
 // Styling
 const styles = StyleSheet.create({
   container: {
@@ -438,6 +524,8 @@ const styles = StyleSheet.create({
 - **Target**: <2GB usage for Render.com compatibility
 - **Strategy**: Lazy loading, streaming processors, memory monitoring
 - **Implementation**: masterMemoryOptimization.js middleware
+- **Roadworks API**: Limited to 50 items per page (down from 500) to prevent 503 errors
+- **Pagination**: Server-side to reduce memory load per request
 
 ### API Performance
 - **Routes**: 100+ API endpoints for comprehensive functionality
@@ -469,4 +557,113 @@ const styles = StyleSheet.create({
 3. **Dependency Updates**: Keep libraries current and secure
 4. **Performance Monitoring**: Implement metrics collection
 
-This comprehensive analysis provides the complete picture of Go BARRY's current architecture, active components, and development status as of January 2025.
+## 📁 CRITICAL FILE LOCATIONS & PURPOSES
+
+### **Backend Core Files**
+- **`backend/index.js`** - Main server entry with MemoryOptimizedRouteManager  
+- **`backend/render-startup.js`** - Production startup with memory optimization
+- **`backend/middleware/masterMemoryOptimization.js`** - Critical memory management system
+- **`backend/services/supervisorManager.js`** - Authentication and session handling
+- **`backend/routes/streetManagerWebhook.js`** - CRITICAL Street Manager AWS SNS webhook
+- **`backend/data/`** - JSON data storage (routes, stops, supervisor sessions, dismissed alerts)
+
+### **Frontend Core Files**  
+- **`Go_BARRY/app/index.jsx`** - Main entry point routing to HomePageWithLogin
+- **`Go_BARRY/components/HomePageWithLogin.jsx`** - Primary navigation with 6 app cards (control-room, communications, operations, disruptions, breakdown-guide, admin)
+- **`Go_BARRY/app/_layout.jsx`** - Root layout with ConvexProvider and SupervisorProvider
+- **`Go_BARRY/components/hooks/useBARRYapi.js`** - Primary API communication hook
+- **`Go_BARRY/hooks/useConvexSync.js`** - Real-time synchronization hook (in hooks/ not components/hooks/)
+- **`Go_BARRY/components/hooks/useSupervisorSession.js`** - Authentication with mandatory passwords (NOTE: File header says "useSupervisorSessionWithPasswords.js" but actual filename is different)
+- **`Go_BARRY/components/hooks/useSupervisorSessionSimple.js`** - Simplified supervisor session management
+
+### **Configuration Files**
+- **`Go_BARRY/config/api.js`** - API base URL and request configuration
+- **`Go_BARRY/convex/schema.ts`** - Convex database schema definition  
+- **`backend/convex/`** - Backend Convex integration (if present)
+- **`.env` files** - Environment variables for API keys and database connections
+
+### **Critical Data Files**
+- **`backend/data/supervisors.json`** - 9 real supervisor badge data
+- **`backend/data/dismissed-alerts.json`** - Persistent alert dismissals
+- **`backend/data/routes.txt`** - GTFS route geometries (231 bus routes)
+- **`backend/data/supervisor-sessions.json`** - Active supervisor sessions
+
+### **Admin & Operations Files**
+- **`Go_BARRY/app/admin/index.jsx`** - Admin dashboard (AG003, BP009 only)
+- **`Go_BARRY/app/operations-centre/index.jsx`** - Operations centre main screen
+- **`Go_BARRY/app/disruption-centre/index.jsx`** - Disruptions management dashboard
+- **`Go_BARRY/components/admin/`** - Administrative components directory
+
+### **Integration Service Files**
+- **`backend/services/streetManager.js`** - Street Manager data processing
+- **`backend/services/enhancedNationalHighways.js`** - National Highways integration
+- **`backend/services/tomtom.js`** - TomTom traffic API integration
+- **`backend/services/supabaseHelper.js`** - Database connection helper
+- **`backend/services/memoryMonitor.js`** - System memory monitoring
+
+## 🚀 DEPLOYMENT & BUILD PROCESS
+
+### **Frontend Deployment**
+```bash
+npm run build:web          # Standard web build
+npm run build:cpanel       # cPanel hosting build
+npm run build:cpanel:zip   # Creates deployment zip
+```
+
+### **Backend Deployment**  
+- **Platform**: Render.com with automatic deployment
+- **Memory**: 2GB limit with optimization middleware
+- **Startup**: `render-startup.js` handles production initialization
+- **Environment**: Auto-configured via Render environment variables
+
+### **Development Commands**
+```bash
+# Full stack development
+npm run dev:full          # Both frontend and backend
+npm run dev:browser       # Frontend web only  
+npm run dev:backend       # Backend only
+
+# Testing
+npm test                  # Playwright E2E tests
+npm run test:integration  # Integration tests
+npm run test:communications # Communications system tests
+```
+
+## 🔧 TROUBLESHOOTING COMMON ISSUES
+
+### **503 Service Unavailable Errors**
+- **Cause**: Backend memory limit exceeded (2GB on Render.com)
+- **Solution**: Reduce API response size - use pagination (50 items max)
+- **Check**: `/api/roadworks/unified` should use `limit=50` not `limit=500`
+
+### **CORS Errors**  
+- **Development**: Run backend locally (`npm run dev` in backend folder)
+- **Production**: Backend already configured for gobarry.co.uk
+- **Never**: Try to "fix" CORS by changing backend config
+
+### **Roadworks Not Loading**
+1. Check if backend is running (locally or on Render)
+2. Verify pagination limit is 50 (not 500)
+3. Check browser console for 503 errors
+4. If using cached data, note the timestamp in error message
+
+### **Memory Issues**
+- Backend limited to 2GB RAM on Render.com
+- All endpoints must be memory-optimized
+- Use streaming/pagination for large datasets
+- Monitor with `/api/memory` endpoint
+
+## ⚠️ IMPORTANT ACCURACY NOTES
+
+### **File Naming & Location Discrepancies**
+- Some files may have headers/comments that don't match their actual filenames
+- Multiple versions of similar hooks exist (e.g., `useSupervisorSession.js` and `useSupervisorSessionSimple.js`)
+- Always verify actual file paths and current contents before making assumptions
+- Development evolution has created some naming inconsistencies
+
+### **Version Control Considerations**
+- Project has active feature branches (e.g., `feature/supervisor-duty-selection`)
+- File structure may vary between branches
+- Always check the current branch and file status before modifications
+
+This analysis provides the current understanding of Go BARRY's architecture, but file verification is recommended before making changes due to the evolutionary nature of the codebase and potential naming discrepancies as of January 2025.

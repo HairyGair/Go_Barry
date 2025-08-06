@@ -98,6 +98,17 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Add preflight handling for all routes
+app.options('*', cors(corsOptions));
+
+// Log CORS requests in development
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    console.log(`📡 ${req.method} ${req.path} from origin: ${req.headers.origin || 'no origin'}`);
+    next();
+  });
+}
 console.log('✅ CORS configured for development and production');
 
 // CRITICAL: Street Manager webhook requires raw body for AWS SNS signature verification

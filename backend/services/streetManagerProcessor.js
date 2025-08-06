@@ -2,7 +2,7 @@
 // Processes webhook notifications into the new streetworks table for supervisor review
 
 import { createClient } from '@supabase/supabase-js';
-import { parseLineStringToBNG, parsePointToBNG } from '../utils/bngToLatLng.js';
+import coordinateService from './coordinateService.js';
 import enhancedGTFSMatcher from './enhancedGTFSMatcher.js';
 import { isNorthEastLocation, isInNorthEastBounds } from './locationValidation.js';
 
@@ -35,22 +35,23 @@ export async function processWebhookToStreetworks(webhookData) {
       return { success: false, reason: 'Not in North East area' };
     }
 
-    // Parse coordinates
+    // Parse coordinates using unified service
     let latitude = null, longitude = null;
-    let coordinates = [];
+    let coordinateConfidence = 0;
     
-    if (object_data.works_location_coordinates) {
-      coordinates = parseLineStringToBNG(object_data.works_location_coordinates);
-      if (coordinates.length > 0) {
-        latitude = coordinates[0].lat;
-        longitude = coordinates[0].lng;
-      }
-    } else if (object_data.works_coordinates) {
-      const point = parsePointToBNG(object_data.works_coordinates);
-      if (point) {
-        latitude = point.lat;
-        longitude = point.lng;
-      }
+    const coordResult = await coordinateService.processCoordinate({
+      geometry: object_data.works_location_coordinates || object_data.works_coordinates,
+      easting: object_data.easting,
+      northing: object_data.northing,
+      location: object_data.location_description || object_data.street_name,
+      postcode: object_data.postcode,
+      permitReference: object_data.permit_reference_number
+    });
+    
+    if (coordResult.success) {
+      latitude = coordResult.lat;
+      longitude = coordResult.lng;
+      coordinateConfidence = coordResult.confidence;
     }
 
     // Auto-match affected routes if we have coordinates

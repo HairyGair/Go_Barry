@@ -16,7 +16,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { getFetch } from '../utils/fetchHelper.js';
 import { getSupabaseClient } from './supabaseHelper.js';
-import enhancedCoordinateService from './enhancedCoordinateService.js';
+import coordinateService from './coordinateService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -96,104 +96,52 @@ class UnifiedRoadworksManager {
   }
 
   /**
-   * Extract coordinates from fallback data
+   * Extract coordinates from fallback data using unified service
    */
-  extractCoordinatesFromFallback(item) {
-    try {
-      // Try to parse the activity_location_coordinates if it exists
-      if (item.activity_location_coordinates) {
-        const coordStr = item.activity_location_coordinates;
-        
-        // Handle "POINT(-1.6178 54.9783)" format
-        const pointMatch = coordStr.match(/POINT\(([^)]+)\)/);
-        if (pointMatch) {
-          const coords = pointMatch[1].trim().split(/\s+/);
-          if (coords.length === 2) {
-            const lng = parseFloat(coords[0]);
-            const lat = parseFloat(coords[1]);
-            if (!isNaN(lng) && !isNaN(lat)) {
-              return [lat, lng];
-            }
-          }
-        }
-      }
-      
-      // Default to Newcastle city center if no coordinates
-      return [54.9783, -1.6178];
-    } catch (error) {
-      console.warn('⚠️ Error extracting coordinates from fallback item:', error);
-      return [54.9783, -1.6178]; // Newcastle default
-    }
+  async extractCoordinatesFromFallback(item) {
+    // Use unified coordinate service
+    const result = await coordinateService.processCoordinate({
+      id: item.notification_id,
+      geometry: item.activity_location_coordinates,
+      location: item.location_description,
+      postcode: item.postcode
+    });
+    
+    // Return as array for backward compatibility
+    return result.success ? [result.lat, result.lng] : [54.9783, -1.6178];
   }
 
   /**
-   * Enhanced coordinate extraction from StreetManager webhook data
-   * Handles multiple coordinate formats including BNG conversion
+   * Enhanced coordinate extraction using unified coordinate service
    */
-  extractCoordinatesFromWebhook(streetwork) {
-    console.log(`🗺️ Extracting coordinates for streetwork ${streetwork.id}...`);
+  async extractCoordinatesFromWebhook(streetwork) {
+    console.log(`🗺️ Processing coordinates for streetwork ${streetwork.id}...`);
     
-    // Method 1: Check pre-converted WGS84 coordinates (most reliable)
-    if (streetwork.latitude && streetwork.longitude) {
-      const lat = parseFloat(streetwork.latitude);
-      const lng = parseFloat(streetwork.longitude);
-      
-      if (!isNaN(lat) && !isNaN(lng)) {
-        console.log(`✅ Found pre-converted WGS84: ${lat}, ${lng}`);
-        return {
-          lat,
-          lng,
-          source: 'streetworks_wgs84'
-        };
-      }
+    // Use unified coordinate service
+    const result = await coordinateService.processCoordinate({
+      id: streetwork.id,
+      lat: streetwork.latitude,
+      lng: streetwork.longitude,
+      easting: streetwork.sm_easting,
+      northing: streetwork.sm_northing,
+      geometry: streetwork.raw_webhook_data?.object_data?.works_location_coordinates,
+      location: streetwork.location_description,
+      postcode: streetwork.postcode,
+      usrn: streetwork.usrn,
+      permitReference: streetwork.permit_reference_number
+    });
+    
+    if (result.success) {
+      console.log(`✅ Coordinates resolved: ${result.lat}, ${result.lng} (${result.source})`);
+      return {
+        lat: result.lat,
+        lng: result.lng,
+        source: result.source,
+        confidence: result.confidence
+      };
     }
     
-    // Method 2: Check BNG coordinates in streetworks table
-    if (streetwork.sm_easting && streetwork.sm_northing) {
-      try {
-        const eastingVal = parseFloat(streetwork.sm_easting);
-        const northingVal = parseFloat(streetwork.sm_northing);
-        
-        if (!isNaN(eastingVal) && !isNaN(northingVal)) {
-          console.log(`🗺️ Converting BNG coordinates: ${eastingVal}, ${northingVal}`);
-          const wgs84 = bngToLatLng(eastingVal, northingVal);
-          console.log(`✅ Converted BNG to WGS84: ${wgs84.lat}, ${wgs84.lng}`);
-          return {
-            lat: wgs84.lat,
-            lng: wgs84.lng,
-            source: 'streetworks_bng_converted',
-            originalBNG: { easting: eastingVal, northing: northingVal }
-          };
-        }
-      } catch (e) {
-        console.warn(`⚠️ Failed to convert BNG coordinates:`, e.message);
-      }
-    }
-    
-    // Method 3: Parse works_location_coordinates from raw webhook data
-    if (streetwork.raw_webhook_data) {
-      try {
-        const rawData = typeof streetwork.raw_webhook_data === 'string' ? 
-          JSON.parse(streetwork.raw_webhook_data) : streetwork.raw_webhook_data;
-        
-        if (rawData && rawData.object_data && rawData.object_data.works_location_coordinates) {
-          const geometryString = rawData.object_data.works_location_coordinates;
-          console.log(`🗺️ Found works_location_coordinates: ${geometryString}`);
-          
-          const parsed = parseStreetManagerGeometry(geometryString);
-          if (parsed) {
-            console.log(`✅ Parsed geometry to WGS84: ${parsed.lat}, ${parsed.lng} (${parsed.source})`);
-            return parsed;
-          }
-        }
-      } catch (e) {
-        console.warn(`⚠️ Failed to parse raw webhook data for ${streetwork.id}:`, e.message);
-        // Log the raw data structure for debugging
-        console.log(`Raw data type: ${typeof streetwork.raw_webhook_data}`);
-      }
-    }
-    
-    console.log(`❌ No coordinates found for streetwork ${streetwork.id}`);
+    console.log(`❌ Could not resolve coordinates for streetwork ${streetwork.id}`);
     return null;
   }
 

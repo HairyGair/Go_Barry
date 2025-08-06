@@ -1,16 +1,20 @@
 // Go_BARRY/config/api.js
-// Production API configuration for gobarry.co.uk deployment
+// API configuration with automatic environment detection
 
-// Force production URL - never use localhost in production
+// Detect environment properly
+const isDevelopment = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
 const PRODUCTION_API_URL = 'https://go-barry.onrender.com';
-const isDevelopment = false; // Force production mode
+const DEVELOPMENT_API_URL = 'http://localhost:3001';
 
 export const API_CONFIG = {
-  // Always use production backend
-  baseURL: PRODUCTION_API_URL,
+  // Use appropriate URL based on environment
+  baseURL: isDevelopment ? DEVELOPMENT_API_URL : PRODUCTION_API_URL,
   
-  // Remove localhost from fallback URLs
-  fallbackURLs: [
+  // Fallback URLs based on environment
+  fallbackURLs: isDevelopment ? [
+    DEVELOPMENT_API_URL,
+    PRODUCTION_API_URL
+  ] : [
     PRODUCTION_API_URL
   ],
   

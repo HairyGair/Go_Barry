@@ -35,6 +35,10 @@ import DailyLostMileageCard from '../../components/operations/cards/DailyLostMil
 // Improved SharePoint components (iframe-based but enhanced)
 import OnTimeRequestImproved from '../../components/operations/cards/OnTimeRequestImproved.jsx';
 import DailyLostMileageImproved from '../../components/operations/cards/DailyLostMileageImproved.jsx';
+// Shift Management
+import ShiftManagementScreen from '../../components/ShiftManagementScreen.jsx';
+import ActivityDashboard from '../../components/ActivityDashboard.jsx';
+import ChangePasswordScreen from '../../components/ChangePasswordScreen.jsx';
 
 // Import theme
 import { operationsTheme } from '../../lib/_styles-index.js';
@@ -77,6 +81,9 @@ export default function OperationsCentre() {
     liveMap: { value: '37', label: UK_LOCALE.ALERTS },
     onTimeRequest: { value: 'Live', label: 'SharePoint' },
     dailyLostMileage: { value: 'SDC', label: 'Report' },
+    shiftManagement: { value: 'D100', label: 'Current' },
+    activityDashboard: { value: '7', label: 'Days' },
+    changePassword: { value: '90', label: 'Days Left' },
   });
   
   // Initialize operations centre when ready
@@ -115,6 +122,32 @@ export default function OperationsCentre() {
       }
     }
   }, [supervisor?.badge]);
+
+  // Fetch password status
+  useEffect(() => {
+    if (supervisor?.badge) {
+      fetchPasswordStatus();
+    }
+  }, [supervisor]);
+
+  const fetchPasswordStatus = async () => {
+    try {
+      const response = await fetch(`https://go-barry.onrender.com/api/password/password-status/${supervisor.badge}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setCardStats(prev => ({
+          ...prev,
+          changePassword: {
+            value: data.daysUntilExpiry ? data.daysUntilExpiry.toString() : 'Set',
+            label: data.daysUntilExpiry ? 'Days Left' : 'Password'
+          }
+        }));
+      }
+    } catch (error) {
+      console.warn('Failed to fetch password status:', error);
+    }
+  };
 
   // Fetch statistics
   useEffect(() => {
@@ -297,6 +330,33 @@ export default function OperationsCentre() {
 
   const operationsCards = [
     {
+      id: 'shift-management',
+      title: 'Shift Management',
+      subtitle: 'Clock In/Out & Breaks',
+      icon: 'clock-time-eight',
+      color: ['#0891b2', '#0e7490'], // Cyan gradient
+      stats: cardStats.shiftManagement,
+      hasTimestamp: true,
+    },
+    {
+      id: 'activity-dashboard',
+      title: 'My Activity',
+      subtitle: 'Personal Performance Stats',
+      icon: 'chart-timeline-variant',
+      color: ['#7c3aed', '#6d28d9'], // Purple gradient
+      stats: cardStats.activityDashboard,
+      hasTimestamp: true,
+    },
+    {
+      id: 'change-password',
+      title: 'Security',
+      subtitle: 'Change Your Password',
+      icon: 'lock-reset',
+      color: ['#dc2626', '#b91c1c'], // Red gradient
+      stats: cardStats.changePassword,
+      hasTimestamp: false,
+    },
+    {
       id: 'duty-boards',
       title: UK_LOCALE.DUTY_BOARDS,
       subtitle: UK_LOCALE.VIEW_DRIVER_PDFS,
@@ -378,6 +438,15 @@ export default function OperationsCentre() {
     
     let Component;
     switch (selectedCard) {
+      case 'shift-management':
+        Component = () => <ShiftManagementScreen />;
+        break;
+      case 'activity-dashboard':
+        Component = () => <ActivityDashboard />;
+        break;
+      case 'change-password':
+        Component = () => <ChangePasswordScreen onClose={() => setSelectedCard(null)} />;
+        break;
       case 'duty-boards':
         Component = DutyBoardsCard;
         break;

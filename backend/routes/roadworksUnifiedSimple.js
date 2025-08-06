@@ -465,7 +465,7 @@ router.get('/unified', async (req, res) => {
     // Get date range and pagination from query params
     const days = parseInt(req.query.days) || 90;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50; // TEMPORARY: Reduced from 500 to 50 for debugging
+    const limit = parseInt(req.query.limit) || 50; // Items per page for memory efficiency
     const offset = (page - 1) * limit;
     
     const now = new Date();
@@ -675,7 +675,8 @@ router.get('/unified', async (req, res) => {
           page: page,
           limit: limit,
           offset: offset,
-          hasMore: roadworks.length === limit // Indicates if there are more pages
+          hasMore: roadworks.length === limit, // If we got a full page, there might be more
+          totalReturned: roadworks.length
         },
         coordinateProcessing: {
           total: coordinateStats.total,

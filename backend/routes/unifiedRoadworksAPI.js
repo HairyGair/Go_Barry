@@ -4,6 +4,8 @@
 import express from 'express';
 import unifiedRoadworksManager from '../services/unifiedRoadworksManager.js';
 import supervisorManager from '../services/supervisorManager.js';
+import redisCache from '../services/redisCache.js';
+import StreamingResponseService from '../services/streamingResponse.js';
 
 // Enhanced supervisor logging imports
 import {
@@ -25,15 +27,16 @@ const router = express.Router();
 /**
  * GET /api/roadworks/unified
  * Get all roadworks from all sources (Street Manager, Durham, Manual)
+ * NOW WITH: Redis caching, streaming responses, memory optimization
  */
-router.get('/unified', async (req, res) => {
+router.get('/unified', redisCache.middleware(300), async (req, res) => {
   try {
     console.log('📋 API: Fetching unified roadworks data...');
     
     const {
       source = 'all', // all, street_manager, manual
       status = 'all', // all, active, planned, completed
-      limit = 10000, // Increased default limit to handle large datasets
+      limit = 50, // Memory optimized - max 50 items per page
       offset = 0,
       include_dismissed = 'false' // NEW: Include dismissed alerts (admin/audit feature)
     } = req.query;
@@ -93,6 +96,30 @@ router.get('/unified', async (req, res) => {
     );
 
     console.log(`✅ API: Returning ${paginatedRoadworks.length}/${total} unified roadworks`);
+
+    // Check if streaming is requested
+    if (StreamingResponseService.supportsStreaming(req) || req.query.stream === 'true') {
+      console.log('📡 Streaming response requested');
+      
+      // Stream paginated data
+      return res.streamPaginated(
+        async (pageSize, offset) => {
+          const pageResult = await unifiedRoadworksManager.getAllRoadworks({
+            source,
+            status,
+            limit: Math.min(pageSize, 50), // Enforce 50 max per page
+            offset,
+            includeDismissed: include_dismissed === 'true'
+          });
+          return pageResult.success ? pageResult.combined : [];
+        },
+        {
+          pageSize: Math.min(parseInt(limit), 50),
+          maxPages: Math.ceil(total / Math.min(parseInt(limit), 50)),
+          delayMs: 50 // Small delay to prevent memory spikes
+        }
+      );
+    }
 
     res.json({
       success: true,
