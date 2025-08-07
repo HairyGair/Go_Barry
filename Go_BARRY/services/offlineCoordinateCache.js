@@ -1,9 +1,50 @@
 // Go_BARRY/services/offlineCoordinateCache.js
 // Offline coordinate caching for critical roadworks
-import AsyncStorage from '@react-native-async-storage/async-storage';
+// Uses localStorage for web, AsyncStorage for React Native
 
 const CACHE_KEY = 'offline_critical_coordinates';
 const CACHE_EXPIRY_DAYS = 7;
+
+// Platform detection and storage adapter
+const getStorage = () => {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    // Web platform - use localStorage
+    return {
+      setItem: async (key, value) => {
+        try {
+          window.localStorage.setItem(key, value);
+          return Promise.resolve();
+        } catch (error) {
+          return Promise.reject(error);
+        }
+      },
+      getItem: async (key) => {
+        try {
+          const value = window.localStorage.getItem(key);
+          return Promise.resolve(value);
+        } catch (error) {
+          return Promise.reject(error);
+        }
+      },
+      removeItem: async (key) => {
+        try {
+          window.localStorage.removeItem(key);
+          return Promise.resolve();
+        } catch (error) {
+          return Promise.reject(error);
+        }
+      }
+    };
+  } else {
+    // React Native - would use AsyncStorage, but for now return a dummy implementation
+    console.warn('🔶 Offline coordinate cache not available on this platform');
+    return {
+      setItem: async () => Promise.resolve(),
+      getItem: async () => Promise.resolve(null),
+      removeItem: async () => Promise.resolve()
+    };
+  }
+};
 
 /**
  * Cache critical roadwork coordinates for offline access
@@ -12,6 +53,8 @@ const CACHE_EXPIRY_DAYS = 7;
  */
 export async function cacheOfflineCoordinates(roadworks) {
   try {
+    const storage = getStorage();
+    
     // Filter critical roadworks (high impact)
     const criticalRoadworks = roadworks.filter(r => {
       return (
@@ -44,7 +87,7 @@ export async function cacheOfflineCoordinates(roadworks) {
       data: cacheData
     };
 
-    await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(cacheEntry));
+    await storage.setItem(CACHE_KEY, JSON.stringify(cacheEntry));
     
     console.log(`💾 Cached ${cacheData.length} critical roadwork coordinates offline`);
     
@@ -68,7 +111,8 @@ export async function cacheOfflineCoordinates(roadworks) {
  */
 export async function getOfflineCoordinates() {
   try {
-    const cached = await AsyncStorage.getItem(CACHE_KEY);
+    const storage = getStorage();
+    const cached = await storage.getItem(CACHE_KEY);
     
     if (!cached) {
       return {
@@ -139,7 +183,8 @@ export async function searchOfflineCoordinates(searchTerm) {
  */
 export async function clearOfflineCache() {
   try {
-    await AsyncStorage.removeItem(CACHE_KEY);
+    const storage = getStorage();
+    await storage.removeItem(CACHE_KEY);
     console.log('🗑️ Offline coordinate cache cleared');
     return { success: true };
   } catch (error) {
@@ -153,7 +198,8 @@ export async function clearOfflineCache() {
  */
 export async function getCacheStats() {
   try {
-    const cached = await AsyncStorage.getItem(CACHE_KEY);
+    const storage = getStorage();
+    const cached = await storage.getItem(CACHE_KEY);
     
     if (!cached) {
       return {
@@ -187,17 +233,26 @@ export async function getCacheStats() {
  * @param {Array} onlineRoadworks - Current online roadworks
  */
 export async function syncOfflineCache(onlineRoadworks) {
-  const stats = await getCacheStats();
-  
-  // Only update if online data is available and cache is old
-  if (onlineRoadworks && onlineRoadworks.length > 0 && 
-      (!stats.exists || stats.ageInDays > 1)) {
-    const result = await cacheOfflineCoordinates(onlineRoadworks);
-    console.log(`🔄 Auto-synced offline cache: ${result.cached} roadworks`);
-    return result;
+  try {
+    if (!onlineRoadworks || !Array.isArray(onlineRoadworks)) {
+      console.log('🔶 No roadworks data to sync to offline cache');
+      return { success: false, reason: 'No data provided' };
+    }
+    
+    const stats = await getCacheStats();
+    
+    // Only update if online data is available and cache is old
+    if (onlineRoadworks.length > 0 && (!stats.exists || stats.ageInDays > 1)) {
+      const result = await cacheOfflineCoordinates(onlineRoadworks);
+      console.log(`🔄 Auto-synced offline cache: ${result.cached} roadworks`);
+      return result;
+    }
+    
+    return { success: false, reason: 'No sync needed' };
+  } catch (error) {
+    console.error('❌ Sync offline cache error:', error);
+    return { success: false, error: error.message };
   }
-  
-  return { success: false, reason: 'No sync needed' };
 }
 
 export default {

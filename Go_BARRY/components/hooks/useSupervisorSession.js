@@ -7,6 +7,8 @@ import { useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 
 // Password storage service
+// NOTE: This is primarily for backwards compatibility and fallback scenarios.
+// The backend now handles secure password hashing with bcrypt and JWT authentication.
 const passwordStorageService = {
   storageKey: 'barry_supervisor_passwords',
   
@@ -66,6 +68,7 @@ const passwordStorageService = {
 };
 
 // Session storage service with configurable timeout
+// NOTE: This stores session metadata locally. JWT tokens are stored in HttpOnly cookies by the backend.
 const sessionStorageService = {
   memoryStorage: new Map(),
   storageKey: 'barry_supervisor_session',
@@ -283,7 +286,7 @@ export const useSupervisorSession = () => {
     sessionStorageService.updateActivity();
   }, [supervisorSession]);
 
-  // Set password for first-time users
+  // Set password for first-time users - updated for secure JWT auth
   const setPassword = useCallback(async (newPassword) => {
     if (!pendingLoginData) {
       setError('No pending login data');
@@ -302,19 +305,25 @@ export const useSupervisorSession = () => {
       return { success: false, error: 'Invalid supervisor' };
     }
 
-    // For first-time setup, use a temporary password to create initial entry
+    // For first-time setup, use the secure setup endpoint
     try {
-      const response = await fetch(`${API_BASE_URL}/api/password/change-password`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/setup-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
-          supervisorBadge: backendSupervisor.badge,
-          currentPassword: '', // Empty for first time
+          badge: backendSupervisor.badge,
           newPassword: newPassword
         })
       });
 
       const data = await response.json();
+      
+      // Handle rate limiting
+      if (response.status === 429) {
+        setError('Too many attempts. Please wait before trying again.');
+        return { success: false, error: 'Rate limit exceeded' };
+      }
       
       if (!data.success) {
         setError(data.error || 'Failed to set password');
@@ -341,6 +350,39 @@ export const useSupervisorSession = () => {
       return { success: false, error: 'Password setup failed' };
     }
   }, [pendingLoginData]);
+
+  // Refresh JWT tokens automatically
+  const refreshTokens = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include', // Include current JWT from HttpOnly cookie
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          console.log('✅ JWT tokens refreshed successfully');
+          return { success: true };
+        }
+      }
+      
+      // If refresh fails, user needs to login again
+      if (response.status === 401) {
+        console.warn('⚠️ JWT refresh failed - authentication expired');
+        sessionStorageService.clearSession();
+        setSupervisorSession(null);
+        setError('Session expired - please log in again');
+        return { success: false, error: 'Authentication expired' };
+      }
+      
+      return { success: false, error: 'Token refresh failed' };
+    } catch (error) {
+      console.error('❌ Token refresh error:', error);
+      return { success: false, error: 'Token refresh failed' };
+    }
+  }, []);
 
   // Update session timeout
   const updateSessionTimeout = useCallback((newTimeout) => {
@@ -374,52 +416,60 @@ export const useSupervisorSession = () => {
         throw new Error('Backend mapping not found for supervisor');
       }
 
-      // Verify password with backend
+      // Use new secure authentication endpoint
+      let authResponse;
       let passwordInfo = null;
       try {
-        const passwordResponse = await fetch(`${API_BASE_URL}/api/password/verify-password`, {
+        authResponse = await fetch(`${API_BASE_URL}/api/auth/login`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include', // Important: include cookies for HttpOnly JWT
           body: JSON.stringify({
-            supervisorBadge: backendSupervisor.badge,
+            badge: backendSupervisor.badge,
             password: loginData.password
           })
         });
 
-        const passwordData = await passwordResponse.json();
+        const authData = await authResponse.json();
         
-        if (!passwordData.success) {
-          if (passwordData.needsSetup) {
+        // Handle rate limiting
+        if (authResponse.status === 429) {
+          throw new Error('Too many login attempts. Please wait before trying again.');
+        }
+        
+        if (!authResponse.ok || !authData.success) {
+          if (authData.needsSetup) {
             // First time user - needs password setup
             setNeedsPasswordSetup(true);
             setPendingLoginData(loginData);
             setIsLoading(false);
             return { success: false, needsPasswordSetup: true };
           } else {
-            throw new Error('Incorrect password');
+            throw new Error(authData.error || 'Authentication failed');
           }
         }
 
         // Check if password change is required
-        if (passwordData.mustChange) {
-          // Store password status for later use
+        if (authData.supervisor?.passwordInfo?.mustChange) {
           setPasswordStatus({
             mustChange: true,
-            daysUntilExpiry: passwordData.daysUntilExpiry || 0,
-            isExpired: passwordData.isExpired || false
+            daysUntilExpiry: authData.supervisor.passwordInfo.daysUntilExpiry || 0,
+            isExpired: authData.supervisor.passwordInfo.isExpired || false
           });
           console.warn('Password change required');
         }
         
-        // Store password info in session
-        passwordInfo = {
-          lastChanged: passwordData.lastChanged,
-          daysUntilExpiry: passwordData.daysUntilExpiry,
-          mustChange: passwordData.mustChange
-        };
+        // Store password info from response
+        passwordInfo = authData.supervisor?.passwordInfo || null;
+        
+        // JWT tokens are now in HttpOnly cookies, so we don't handle them client-side
+        console.log('✅ Secure authentication successful');
+        
       } catch (apiError) {
-        // Fallback to local password check for existing users
-        console.warn('Backend password verification failed, using local check:', apiError.message);
+        // For backwards compatibility, fall back to local password check
+        console.warn('Secure authentication failed, using fallback:', apiError.message);
         
         const isValidPassword = passwordStorageService.checkPassword(loginData.supervisorId, loginData.password) ||
           (supervisor.defaultPassword && ['barry_perryman', 'anthony_gair', 'james_daglish', 'john_paterson', 'simon_glass'].includes(loginData.supervisorId) && loginData.password === supervisor.defaultPassword);
@@ -491,36 +541,9 @@ export const useSupervisorSession = () => {
         console.warn('⚠️ Convex sync error (non-blocking):', convexError.message);
       }
       
-      // Try backend auth (non-blocking)
-      try {
-        console.log('🔐 Authenticating with backend...');
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-        
-        const authResponse = await fetch(`${API_BASE_URL}/api/supervisor/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            supervisorId: backendSupervisor.id,
-            badge: backendSupervisor.badge
-          }),
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (authResponse.ok) {
-          const responseData = await authResponse.json();
-          if (responseData?.success) {
-            console.log('✅ Backend authentication successful');
-            const updatedSession = { ...session, backendSessionId: responseData.sessionId };
-            sessionStorageService.saveSession(updatedSession, loginData.rememberMe);
-            setSupervisorSession(updatedSession);
-          }
-        }
-      } catch (backendError) {
-        console.warn('⚠️ Backend auth error (non-blocking):', backendError.message);
-      }
+      // JWT authentication is handled by the secure endpoint above
+      // Tokens are stored in HttpOnly cookies automatically
+      console.log('✅ Using secure JWT authentication with HttpOnly cookies');
       
       return { success: true, session };
       
@@ -534,24 +557,29 @@ export const useSupervisorSession = () => {
     }
   }, [logActivity, convexLogin]);
 
-  // Change password function
+  // Change password function - updated for secure JWT auth
   const changePassword = useCallback(async (currentPassword, newPassword) => {
     if (!supervisorSession) {
       return { success: false, error: 'Not logged in' };
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/password/change-password`, {
+      const response = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Include JWT token from HttpOnly cookie
         body: JSON.stringify({
-          supervisorBadge: supervisorSession.supervisor.badge,
           currentPassword,
           newPassword
         })
       });
 
       const data = await response.json();
+      
+      // Handle rate limiting
+      if (response.status === 429) {
+        return { success: false, error: 'Too many attempts. Please wait before trying again.' };
+      }
       
       if (data.success) {
         // Update session with new password info
@@ -576,7 +604,7 @@ export const useSupervisorSession = () => {
     }
   }, [supervisorSession, logActivity]);
 
-  // Logout function
+  // Logout function - updated for secure JWT auth
   const logout = useCallback(async () => {
     if (!supervisorSession) return;
 
@@ -585,6 +613,18 @@ export const useSupervisorSession = () => {
     try {
       // Log logout activity
       logActivity('LOGOUT', `${supervisorSession.supervisor.name} logged out`);
+      
+      // Try secure logout endpoint to clear JWT tokens
+      try {
+        await fetch(`${API_BASE_URL}/api/auth/logout`, {
+          method: 'POST',
+          credentials: 'include', // Include JWT token from HttpOnly cookie
+          headers: { 'Content-Type': 'application/json' }
+        });
+        console.log('✅ Secure logout successful - JWT tokens cleared');
+      } catch (logoutError) {
+        console.warn('⚠️ Secure logout error (non-blocking):', logoutError);
+      }
       
       // Try Convex logout (non-blocking)
       if (supervisorSession.convexSessionId) {
@@ -596,7 +636,7 @@ export const useSupervisorSession = () => {
         }
       }
       
-      // Clear session
+      // Clear local session
       sessionStorageService.clearSession();
       setSupervisorSession(null);
       setError(null);
@@ -683,16 +723,24 @@ export const useSupervisorSession = () => {
     return activityLog.slice(0, limit);
   }, [supervisorSession]);
 
-  // Update activity periodically
+  // Update activity periodically and refresh JWT tokens
   useEffect(() => {
     if (supervisorSession) {
-      const interval = setInterval(() => {
+      const activityInterval = setInterval(() => {
         sessionStorageService.updateActivity();
       }, 30000); // 30 seconds
       
-      return () => clearInterval(interval);
+      // Refresh JWT tokens every 45 minutes (tokens expire after 1 hour)
+      const tokenRefreshInterval = setInterval(() => {
+        refreshTokens();
+      }, 45 * 60 * 1000); // 45 minutes
+      
+      return () => {
+        clearInterval(activityInterval);
+        clearInterval(tokenRefreshInterval);
+      };
     }
-  }, [supervisorSession]);
+  }, [supervisorSession, refreshTokens]);
 
   // Check for session expiry
   useEffect(() => {
@@ -913,6 +961,7 @@ export const useSupervisorSession = () => {
     needsPasswordSetup,
     passwordStatus,
     updateSessionTimeout,
+    refreshTokens, // New secure JWT token refresh function
     // Shift Management
     clockIn,
     clockOut,

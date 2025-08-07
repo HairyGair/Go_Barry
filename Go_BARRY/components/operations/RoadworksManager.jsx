@@ -340,20 +340,21 @@ const StatusChangeModal = ({ visible, roadwork, onClose, onConfirm, loading }) =
         if (!sessionId || sessionId.startsWith('session-')) {
           console.log('⚠️ No valid backend session, attempting emergency auth...');
           try {
-            const emergencyAuth = await fetch(`${apiBaseUrl}/api/supervisor/login`, {
+            const emergencyAuth = await fetch(`${apiBaseUrl}/api/auth/login`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
+              credentials: 'include', // Include JWT cookies
               body: JSON.stringify({
-                supervisorId: 'supervisor003', // Fallback to AG003
-                badge: 'AG003'
+                badge: 'AG003', // Fallback to AG003
+                password: 'Anthony123' // Emergency fallback password
               })
             });
             
             if (emergencyAuth.ok) {
               const authData = await emergencyAuth.json();
               if (authData.success) {
-                payload.sessionId = authData.sessionId;
-                console.log('✅ Emergency auth successful, using session:', authData.sessionId);
+                // JWT tokens are now in HttpOnly cookies, no sessionId needed
+                console.log('✅ Emergency secure auth successful for AG003');
               }
             }
           } catch (authError) {

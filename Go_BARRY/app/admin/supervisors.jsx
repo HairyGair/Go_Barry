@@ -54,36 +54,47 @@ export default function SupervisorManagement() {
   const [showPermissionTemplates, setShowPermissionTemplates] = useState(false);
   const [activeSessions, setActiveSessions] = useState([]);
 
-  // Helper function to get JWT token
-  const getJWTToken = async () => {
-    let token = supervisorSession?.jwtToken;
-    if (!token && supervisorSession?.supervisor?.badge) {
-      try {
-        const authResponse = await fetch(`${API_BASE}/api/supervisor/login`, {
+  // Helper function to check JWT authentication
+  // JWT tokens are now in HttpOnly cookies, so we don't need to manage them client-side
+  const checkJWTAuth = async () => {
+    if (!supervisorSession?.supervisor?.badge) {
+      console.warn('⚠️ No supervisor session for JWT auth check');
+      return false;
+    }
+    
+    try {
+      // Test if we have valid JWT tokens by making a simple auth check
+      const response = await fetch(`${API_BASE}/api/auth/check`, {
+        method: 'GET',
+        credentials: 'include', // Include JWT from HttpOnly cookie
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data.success && data.authenticated;
+      }
+      
+      // If auth check fails, try to refresh tokens
+      if (response.status === 401) {
+        console.log('🔄 JWT expired, attempting refresh...');
+        const refreshResponse = await fetch(`${API_BASE}/api/auth/refresh`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            badge: supervisorSession.supervisor.badge,
-            password: 'password' // Default password - in production this should be properly managed
-          })
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' }
         });
         
-        if (authResponse.ok) {
-          const authData = await authResponse.json();
-          if (authData.success && authData.token) {
-            token = authData.token;
-            // Store token in session for future use
-            if (supervisorSession) {
-              supervisorSession.jwtToken = token;
-            }
-            return token;
-          }
+        if (refreshResponse.ok) {
+          const refreshData = await refreshResponse.json();
+          return refreshData.success;
         }
-      } catch (authError) {
-        console.error('❌ Authentication error:', authError);
       }
+      
+      return false;
+    } catch (error) {
+      console.error('❌ JWT auth check error:', error);
+      return false;
     }
-    return token;
   };
 
   // Redirect if not admin
@@ -111,15 +122,16 @@ export default function SupervisorManagement() {
     try {
       setLoading(true);
       
-      // For admin supervisor list, we need JWT token
-      const token = await getJWTToken();
+      // Check JWT authentication (tokens are in HttpOnly cookies)
+      const isAuthenticated = await checkJWTAuth();
       
       // Try the admin endpoint first (requires JWT)
-      if (token) {
+      if (isAuthenticated) {
         try {
           const response = await fetch(`${API_BASE}/api/supervisor/list/all`, {
+            credentials: 'include', // Include JWT from HttpOnly cookie
             headers: {
-              'Authorization': `Bearer ${token}`
+              'Content-Type': 'application/json'
             }
           });
           
@@ -240,9 +252,9 @@ export default function SupervisorManagement() {
       return;
     }
     
-    // Get JWT token
-    const token = await getJWTToken();
-    if (!token) {
+    // Check JWT authentication
+    const isAuthenticated = await checkJWTAuth();
+    if (!isAuthenticated) {
       showError('Authentication failed - please log in again');
       return;
     }
@@ -251,9 +263,9 @@ export default function SupervisorManagement() {
     try {
       const response = await fetch(`${API_BASE}/api/supervisor/admin/edit/${selectedSupervisor.badge || selectedSupervisor.id}`, {
         method: 'PUT',
+        credentials: 'include', // Include JWT from HttpOnly cookie
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           ...formData
@@ -293,9 +305,9 @@ export default function SupervisorManagement() {
     
     if (!confirmed) return;
     
-    // Get JWT token
-    const token = await getJWTToken();
-    if (!token) {
+    // Check JWT authentication
+    const isAuthenticated = await checkJWTAuth();
+    if (!isAuthenticated) {
       showError('Authentication failed - please log in again');
       return;
     }
@@ -304,9 +316,9 @@ export default function SupervisorManagement() {
     try {
       const response = await fetch(`${API_BASE}/api/supervisor/admin/delete/${supervisor.badge || supervisor.id}`, {
         method: 'DELETE',
+        credentials: 'include', // Include JWT from HttpOnly cookie
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         }
       });
       
@@ -339,9 +351,9 @@ export default function SupervisorManagement() {
     
     if (!confirmed) return;
     
-    // Get JWT token
-    const token = await getJWTToken();
-    if (!token) {
+    // Check JWT authentication
+    const isAuthenticated = await checkJWTAuth();
+    if (!isAuthenticated) {
       showError('Authentication failed - please log in again');
       return;
     }
@@ -350,9 +362,9 @@ export default function SupervisorManagement() {
     try {
       const response = await fetch(`${API_BASE}/api/supervisor/admin/reset-password/${supervisor.badge || supervisor.id}`, {
         method: 'POST',
+        credentials: 'include', // Include JWT from HttpOnly cookie
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           newPassword: 'Barry123' // Default password

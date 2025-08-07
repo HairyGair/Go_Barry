@@ -21,6 +21,23 @@ import RoadworkMapModal from './RoadworkMapModal';
 import RoadworkLinestringMap from './RoadworkLinestringMap';
 import DisruptionWorkflowModal from './DisruptionWorkflowModal';
 import unifiedCoordinateService from '../services/unifiedCoordinateService';
+
+// Import with fallback for offlineCoordinateCache
+let offlineCoordinateCache;
+try {
+  offlineCoordinateCache = require('../services/offlineCoordinateCache').default;
+  console.log('✅ offlineCoordinateCache loaded successfully');
+} catch (error) {
+  console.warn('⚠️ Failed to load offlineCoordinateCache, using fallback:', error.message);
+  offlineCoordinateCache = {
+    syncOfflineCache: () => Promise.resolve({ success: false, reason: 'Module not available' }),
+    getCacheStats: () => Promise.resolve({ exists: false, count: 0, sizeKB: 0 }),
+    getOfflineCoordinates: () => Promise.resolve({ success: true, data: [] }),
+    searchOfflineCoordinates: () => Promise.resolve([]),
+    clearOfflineCache: () => Promise.resolve({ success: true }),
+    cacheOfflineCoordinates: () => Promise.resolve({ success: false })
+  };
+}
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
 
@@ -858,10 +875,8 @@ const RoadworksManagerDashboard = ({ onClose }) => {
   }, [currentPage]);
   
   // Sync critical roadworks to offline cache
-  // TODO: Implement offlineCoordinateCache when service is available
-  /*
   useEffect(() => {
-    if (roadworks.length > 0 && Platform.OS === 'web') {
+    if (roadworks.length > 0 && Platform.OS === 'web' && offlineCoordinateCache && offlineCoordinateCache.syncOfflineCache) {
       // Sync the most critical roadworks (road closures, major works, high-impact)
       const criticalRoadworks = roadworks.filter(rw => 
         rw.sm_traffic_management_type === 'Road closure' ||
@@ -876,9 +891,10 @@ const RoadworksManagerDashboard = ({ onClose }) => {
         .catch(error => {
           console.error('Failed to sync offline cache:', error);
         });
+    } else if (!offlineCoordinateCache) {
+      console.warn('🔶 offlineCoordinateCache not available - skipping offline sync');
     }
   }, [roadworks]);
-  */
 
   // Dismiss reasons with smart categorization
   const dismissReasons = [

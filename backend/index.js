@@ -194,6 +194,7 @@ async function registerRoutes() {
   await routeManager.registerRoute(app, '/api/supabase-health', './routes/supabaseHealthAPI.js', 'Supabase Health Monitoring API');
   await routeManager.registerRoute(app, '/api/supervisor', './routes/supervisorAPI.js', 'Supervisor API');
   await routeManager.registerRoute(app, '/api/password', './routes/passwordManagement.js', 'Password Management');
+  await routeManager.registerRoute(app, '/api/auth', './routes/secureAuth.js', 'Secure Authentication (JWT + bcrypt)');
   
   // Core functionality - load next
   await routeManager.registerRoute(app, '/api/admin', './routes/adminAPI.js', 'Admin API');

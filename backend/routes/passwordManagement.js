@@ -2,7 +2,7 @@ import express from 'express';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import crypto from 'crypto';
+import { hashPassword, verifyPassword } from '../utils/secureAuth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router = express.Router();
@@ -10,19 +10,7 @@ const router = express.Router();
 const PASSWORDS_FILE = path.join(__dirname, '../data/supervisor-passwords.json');
 const PASSWORD_HISTORY_FILE = path.join(__dirname, '../data/password-history.json');
 
-// Simple password hashing (in production, use bcrypt)
-function hashPassword(password, salt = null) {
-  if (!salt) {
-    salt = crypto.randomBytes(16).toString('hex');
-  }
-  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
-  return { hash, salt };
-}
-
-function verifyPassword(password, hash, salt) {
-  const verifyHash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
-  return hash === verifyHash;
-}
+// Now using secure bcrypt authentication utilities from ../utils/secureAuth.js
 
 // Read password data
 async function readPasswords() {
