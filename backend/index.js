@@ -215,6 +215,8 @@ async function registerRoutes() {
   console.log('✅ Coordinate cache test API registered for testing new caching system');
   await routeManager.registerRoute(app, '/api/disruptions', './routes/disruptionAPI.js', 'Disruption API');
   console.log('✅ Disruption API registered for roadworks escalation system');
+  await routeManager.registerRoute(app, '/api/escalation', './routes/escalationAPI.js', 'Escalation API');
+  console.log('✅ Escalation API registered for comprehensive roadworks escalation workflow');
   await routeManager.registerRoute(app, '/api/alerts', './routes/alerts.js', 'Alerts API');
   console.log('✅ Alerts API registered for alert management and display push');
   

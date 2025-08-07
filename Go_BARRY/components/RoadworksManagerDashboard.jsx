@@ -20,6 +20,7 @@ import { useSupervisor } from './hooks/useSupervisorSession';
 import RoadworkMapModal from './RoadworkMapModal';
 import RoadworkLinestringMap from './RoadworkLinestringMap';
 import DisruptionWorkflowModal from './DisruptionWorkflowModal';
+import EscalationOptionsModal from './EscalationOptionsModal';
 import unifiedCoordinateService from '../services/unifiedCoordinateService';
 
 // Import with fallback for offlineCoordinateCache
@@ -2246,116 +2247,30 @@ const RoadworksManagerDashboard = ({ onClose }) => {
             />
           )}
 
-          {/* Escalation Modal */}
-          {showEscalateModal && selectedRoadworkForEscalation && (
-            <Modal
-              visible={showEscalateModal}
-              animationType="slide"
-              transparent={true}
-              onRequestClose={() => setShowEscalateModal(false)}
-            >
-              <View style={styles.dismissModalOverlay}>
-                <View style={styles.dismissModalContent}>
-                  <Text style={styles.dismissModalTitle}>Push to Control Room Display</Text>
-                  
-                  {/* Alert Summary */}
-                  <View style={styles.alertSummary}>
-                    <Text style={styles.alertSummaryTitle}>Roadwork Details</Text>
-                    <View style={styles.summaryRow}>
-                      <MaterialCommunityIcons name="map-marker" size={16} color="#93c5fd" />
-                      <Text style={styles.summaryText}>{selectedRoadworkForEscalation.street_name}</Text>
-                    </View>
-                    <View style={styles.summaryRow}>
-                      <MaterialCommunityIcons name="calendar" size={16} color="#93c5fd" />
-                      <Text style={styles.summaryText}>
-                        {calculateDuration(selectedRoadworkForEscalation)} days ({formatDate(selectedRoadworkForEscalation.sm_start_date)} - {formatDate(selectedRoadworkForEscalation.sm_end_date)})
-                      </Text>
-                    </View>
-                    <View style={styles.summaryRow}>
-                      <MaterialCommunityIcons name="bus-multiple" size={16} color="#93c5fd" />
-                      <Text style={styles.summaryText}>
-                        {selectedRoadworkForEscalation.affectedRoutes?.length || 0} affected route(s)
-                      </Text>
-                    </View>
-                    {selectedRoadworkForEscalation.sm_traffic_management_type && (
-                      <View style={styles.summaryRow}>
-                        <MaterialCommunityIcons name="traffic-cone" size={16} color="#f59e0b" />
-                        <Text style={[styles.summaryText, { color: '#f59e0b' }]}>
-                          {selectedRoadworkForEscalation.sm_traffic_management_type}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-
-                  <View style={[styles.dismissWarning, { backgroundColor: 'rgba(249, 115, 22, 0.1)', borderColor: 'rgba(249, 115, 22, 0.3)' }]}>
-                    <MaterialCommunityIcons name="monitor-eye" size={20} color="#f97316" />
-                    <Text style={[styles.dismissWarningText, { color: '#f97316' }]}>
-                      This will display the roadwork alert on the Control Room screen and create a disruption record.
-                    </Text>
-                  </View>
-                  
-                  <Text style={styles.dismissModalLabel}>Add reason for escalation (optional):</Text>
-                  <TextInput
-                    style={styles.dismissNotesInput}
-                    placeholder="E.g., Major delays expected, road closure affecting multiple routes..."
-                    placeholderTextColor="rgba(147, 197, 253, 0.5)"
-                    value={escalationReason}
-                    onChangeText={setEscalationReason}
-                    multiline
-                    numberOfLines={3}
-                  />
-
-                  <View style={styles.dismissModalButtons}>
-                    <TouchableOpacity
-                      style={styles.dismissModalCancel}
-                      onPress={() => {
-                        setShowEscalateModal(false);
-                        setEscalationReason('');
-                        setSelectedRoadworkForEscalation(null);
-                      }}
-                    >
-                      <Text style={styles.dismissModalCancelText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.dismissModalConfirm, { backgroundColor: 'rgba(249, 115, 22, 0.15)', borderColor: '#f97316' }]}
-                      onPress={async () => {
-                        const roadwork = selectedRoadworkForEscalation;
-                        
-                        // Add to escalating set
-                        setEscalatingRoadworks(prev => new Set(prev).add(roadwork.id));
-                        
-                        try {
-                          // Format coordinates properly for Convex
-                          let formattedCoordinates = null;
-                          if (roadwork.coordinates) {
-                            if (Array.isArray(roadwork.coordinates)) {
-                              formattedCoordinates = {
-                                lat: roadwork.coordinates[0],
-                                lng: roadwork.coordinates[1]
-                              };
-                            } else if (roadwork.coordinates.lat && roadwork.coordinates.lng) {
-                              formattedCoordinates = roadwork.coordinates;
-                            } else if (roadwork.coordinates.latitude && roadwork.coordinates.longitude) {
-                              formattedCoordinates = {
-                                lat: roadwork.coordinates.latitude,
-                                lng: roadwork.coordinates.longitude
-                              };
-                            }
-                          }
-                          
-                          // Create display incident object
-                          const displayIncident = {
-                            id: roadwork.id || `roadwork-${Date.now()}`,
-                            type: 'roadwork',
-                            title: `Roadworks: ${roadwork.street_name || roadwork.sm_street_name || 'Unknown location'}`,
-                            description: roadwork.sm_works_description || roadwork.sm_activity_type || 'Roadworks in progress',
-                            location: roadwork.street_name || roadwork.sm_street_name || 'Unknown location',
-                            coordinates: formattedCoordinates,
-                            severity: roadwork.sm_traffic_management_type === 'Road closure' ? 'critical' : 'moderate',
-                            priority: roadwork.sm_traffic_management_type === 'Road closure' ? 0 : 1,
-                            affectsRoutes: roadwork.affectedRoutes || [],
-                            status: 'active',
-                            source: 'roadworks_escalation',
+          {/* Enhanced Escalation Options Modal */}
+          <EscalationOptionsModal
+            visible={showEscalateModal}
+            onClose={() => {
+              setShowEscalateModal(false);
+              setEscalationReason('');
+              setSelectedRoadworkForEscalation(null);
+            }}
+            roadwork={selectedRoadworkForEscalation}
+            onComplete={(result) => {
+              console.log('✅ Escalation completed:', result);
+              // Remove from escalating set
+              if (selectedRoadworkForEscalation) {
+                setEscalatingRoadworks(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(selectedRoadworkForEscalation.id);
+                  return newSet;
+                });
+                
+                // Refresh roadworks list to remove escalated item
+                fetchRoadworks(0, true);
+              }
+            }}
+          />
                             
                             displayedAt: new Date().toISOString(),
                             displayedBy: supervisorName || 'Supervisor',
