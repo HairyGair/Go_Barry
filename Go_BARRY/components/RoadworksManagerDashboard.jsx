@@ -19,6 +19,7 @@ import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { useSupervisor } from './hooks/useSupervisorSession';
 import RoadworkMapModal from './RoadworkMapModal';
 import RoadworkLinestringMap from './RoadworkLinestringMap';
+import DisruptionWorkflowModal from './DisruptionWorkflowModal';
 import unifiedCoordinateService from '../services/unifiedCoordinateService';
 import { useMutation, useQuery } from 'convex/react';
 import { api } from '../convex/_generated/api';
@@ -404,6 +405,10 @@ const RoadworksManagerDashboard = ({ onClose }) => {
   const [batchMode, setBatchMode] = useState(false);
   const [showBatchDismissModal, setShowBatchDismissModal] = useState(false);
   
+  // Disruption workflow modal state
+  const [showWorkflowModal, setShowWorkflowModal] = useState(false);
+  const [selectedRoadworkForWorkflow, setSelectedRoadworkForWorkflow] = useState(null);
+  
   // Animation references
   const fadeAnim = useRef(new Animated.Value(0)).current;
   
@@ -647,15 +652,14 @@ const RoadworksManagerDashboard = ({ onClose }) => {
       console.log('🚧 [RoadworksManagerDashboard] Starting to fetch roadworks...');
       setError(null); // Clear any previous errors
       
-      // Use central API configuration - but check if we're in development
-      const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const baseUrl = isDevelopment ? 'http://localhost:3001' : API_CONFIG.baseURL;
+      // Always use production API - backend is on Render
+      const baseUrl = API_CONFIG.baseURL; // This will be https://go-barry.onrender.com
       const url = `${baseUrl}/api/roadworks/unified?days=90&limit=${PAGE_SIZE}&page=${currentPage}`;
       console.log('🌐 [RoadworksManagerDashboard] Fetching from:', url);
       
       // Create an AbortController for timeout handling
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout (backend may be waking up)
       
       const response = await fetch(url, {
         method: 'GET',
@@ -664,7 +668,7 @@ const RoadworksManagerDashboard = ({ onClose }) => {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache', // Prevent stale data
         },
-        credentials: isDevelopment ? 'include' : 'same-origin',
+        credentials: 'omit', // Don't send credentials cross-origin
         signal: controller.signal
       }).finally(() => {
         clearTimeout(timeoutId);
@@ -774,9 +778,9 @@ const RoadworksManagerDashboard = ({ onClose }) => {
       // Handle specific error types
       let errorToThrow = err;
       if (err.name === 'AbortError') {
-        errorToThrow = new Error('Request timed out. The server may be slow or unreachable.');
+        errorToThrow = new Error('Request timed out. The backend server may be starting up (this can take 30-60 seconds on first request). Please wait a moment and try again.');
       } else if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-        errorToThrow = new Error('Network connection failed. Please check your internet connection.');
+        errorToThrow = new Error('Cannot connect to backend server. The server may be starting up. Please wait 30 seconds and click "Retry Connection".');
       }
       
       // Retry logic for network errors
@@ -854,6 +858,8 @@ const RoadworksManagerDashboard = ({ onClose }) => {
   }, [currentPage]);
   
   // Sync critical roadworks to offline cache
+  // TODO: Implement offlineCoordinateCache when service is available
+  /*
   useEffect(() => {
     if (roadworks.length > 0 && Platform.OS === 'web') {
       // Sync the most critical roadworks (road closures, major works, high-impact)
@@ -872,6 +878,7 @@ const RoadworksManagerDashboard = ({ onClose }) => {
         });
     }
   }, [roadworks]);
+  */
 
   // Dismiss reasons with smart categorization
   const dismissReasons = [
@@ -1521,45 +1528,15 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                               item.sm_location_description || item.location_description;
         
         if (locationString && locationString !== 'Unknown Location') {
-          // Use the existing geocoding service
-          const geocodedResult = await geocodeLocation(locationString);
-          
-          if (geocodedResult && geocodedResult.latitude && geocodedResult.longitude) {
-            // Update the item with geocoded coordinates
-            const updatedItem = {
-              ...item,
-              coordinates: [geocodedResult.latitude, geocodedResult.longitude],
-              coordinateSource: 'geocoded_fallback',
-              coordinateAccuracy: geocodedResult.confidence || 'medium'
-            };
-            
-            // Update the roadworks state
-            setRoadworks(prev => prev.map(rw => 
-              rw.id === item.id ? updatedItem : rw
-            ));
-            setFilteredRoadworks(prev => prev.map(rw => 
-              rw.id === item.id ? updatedItem : rw
-            ));
-            
-            setSelectedRoadworkForMap(updatedItem);
-            setShowMapModal(true);
-            
-            await logActivity('geocoded_roadwork_location', {
-              roadworkId: item.id,
-              originalLocation: locationString,
-              geocodedCoordinates: [geocodedResult.latitude, geocodedResult.longitude],
-              confidence: geocodedResult.confidence
-            });
-          } else {
-            // Show general area map with search functionality
-            setSelectedRoadworkForMap({
-              ...item,
-              coordinates: null, // Will trigger fallback in modal
-              geocodingAttempted: true,
-              originalLocationString: locationString
-            });
-            setShowMapModal(true);
-          }
+          // TODO: Implement geocoding service
+          // For now, just show the map modal without coordinates
+          setSelectedRoadworkForMap({
+            ...item,
+            coordinates: null,
+            geocodingAttempted: true,
+            originalLocationString: locationString
+          });
+          setShowMapModal(true);
         } else {
           // No location data available - show regional map
           setSelectedRoadworkForMap({
@@ -1602,11 +1579,14 @@ const RoadworksManagerDashboard = ({ onClose }) => {
 
   // Handle actions
   const handleAcknowledge = async (roadwork) => {
-    await logActivity('acknowledge_roadwork', {
+    // Open the disruption workflow modal
+    setSelectedRoadworkForWorkflow(roadwork);
+    setShowWorkflowModal(true);
+    
+    await logActivity('open_disruption_workflow', {
       roadworkId: roadwork.id,
       location: roadwork.street_name
     });
-    alert(`Acknowledged: ${roadwork.street_name}`);
   };
 
   const handleEscalate = async (roadwork) => {
@@ -2231,6 +2211,25 @@ const RoadworksManagerDashboard = ({ onClose }) => {
             />
           )}
 
+          {/* Disruption Workflow Modal */}
+          {showWorkflowModal && selectedRoadworkForWorkflow && (
+            <DisruptionWorkflowModal
+              visible={showWorkflowModal}
+              alert={selectedRoadworkForWorkflow}
+              onClose={() => {
+                setShowWorkflowModal(false);
+                setSelectedRoadworkForWorkflow(null);
+              }}
+              onComplete={() => {
+                // Refresh or update the roadworks list if needed
+                setShowWorkflowModal(false);
+                setSelectedRoadworkForWorkflow(null);
+                // Optionally refresh the roadworks data
+                fetchRoadworks(0, true);
+              }}
+            />
+          )}
+
           {/* Escalation Modal */}
           {showEscalateModal && selectedRoadworkForEscalation && (
             <Modal
@@ -2310,14 +2309,32 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                         setEscalatingRoadworks(prev => new Set(prev).add(roadwork.id));
                         
                         try {
+                          // Format coordinates properly for Convex
+                          let formattedCoordinates = null;
+                          if (roadwork.coordinates) {
+                            if (Array.isArray(roadwork.coordinates)) {
+                              formattedCoordinates = {
+                                lat: roadwork.coordinates[0],
+                                lng: roadwork.coordinates[1]
+                              };
+                            } else if (roadwork.coordinates.lat && roadwork.coordinates.lng) {
+                              formattedCoordinates = roadwork.coordinates;
+                            } else if (roadwork.coordinates.latitude && roadwork.coordinates.longitude) {
+                              formattedCoordinates = {
+                                lat: roadwork.coordinates.latitude,
+                                lng: roadwork.coordinates.longitude
+                              };
+                            }
+                          }
+                          
                           // Create display incident object
                           const displayIncident = {
-                            id: roadwork.id,
+                            id: roadwork.id || `roadwork-${Date.now()}`,
                             type: 'roadwork',
-                            title: `Roadworks: ${roadwork.street_name}`,
+                            title: `Roadworks: ${roadwork.street_name || roadwork.sm_street_name || 'Unknown location'}`,
                             description: roadwork.sm_works_description || roadwork.sm_activity_type || 'Roadworks in progress',
-                            location: roadwork.street_name,
-                            coordinates: roadwork.coordinates,
+                            location: roadwork.street_name || roadwork.sm_street_name || 'Unknown location',
+                            coordinates: formattedCoordinates,
                             severity: roadwork.sm_traffic_management_type === 'Road closure' ? 'critical' : 'moderate',
                             priority: roadwork.sm_traffic_management_type === 'Road closure' ? 0 : 1,
                             affectsRoutes: roadwork.affectedRoutes || [],
@@ -2325,7 +2342,7 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                             source: 'roadworks_escalation',
                             
                             displayedAt: new Date().toISOString(),
-                            displayedBy: supervisorName,
+                            displayedBy: supervisorName || 'Supervisor',
                             displayMessage: {
                               id: `roadwork-${roadwork.id}-${Date.now()}`,
                               priority: roadwork.sm_traffic_management_type === 'Road closure' ? 0 : 1,
@@ -2341,11 +2358,15 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                             createdAt: new Date().toISOString()
                           };
                           
+                          console.log('📤 Sending to Convex:', displayIncident);
+                          
                           // Push to display via Convex
                           await updateDisplayIncidents({
                             incidents: [displayIncident],
                             timestamp: new Date().toISOString()
                           });
+                          
+                          console.log('✅ Successfully pushed to display');
                           
                           // Create disruption record in database
                           try {
@@ -2384,37 +2405,6 @@ const RoadworksManagerDashboard = ({ onClose }) => {
                             console.error('Error creating disruption record:', disruptionError);
                             // Don't fail the whole escalation if disruption creation fails
                           }
-                          
-                          // Also create a display message
-                          const displayMessage = {
-                            id: `msg-${roadwork.id}-${Date.now()}`,
-                            type: 'roadwork_escalation',
-                            content: `${roadwork.sm_traffic_management_type ? roadwork.sm_traffic_management_type + ': ' : ''}${roadwork.street_name}. ${escalationReason || 'Supervisor escalation for control room awareness.'}`,
-                            priority: roadwork.sm_traffic_management_type === 'Road closure' ? 0 : 1,
-                            supervisorName: supervisorName,
-                            supervisorBadge: supervisorSession?.supervisor?.badge || supervisorSession?.supervisor?.id,
-                            
-                            incidentId: roadwork.id,
-                            alertId: roadwork.id,
-                            
-                            autoZoom: !!roadwork.coordinates,
-                            zoomLevel: 15,
-                            coordinates: roadwork.coordinates,
-                            affectsRoutes: roadwork.affectedRoutes || [],
-                            
-                            createdAt: new Date().toISOString(),
-                            expiresAt: new Date(Date.now() + 3600000).toISOString(), // 1 hour
-                            displayed: false,
-                            
-                            pushedBy: supervisorName,
-                            pushedAt: new Date().toISOString(),
-                            rotationInterval: 30000
-                          };
-                          
-                          await updateDisplayMessages({
-                            messages: [displayMessage],
-                            timestamp: new Date().toISOString()
-                          });
                           
                           // Log activity
                           await logActivity('push_to_display', {

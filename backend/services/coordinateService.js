@@ -9,6 +9,7 @@ import LRUCache from '../utils/lruCache.js';
 import { getSupabaseClient } from './supabaseHelper.js';
 import redisCache from './redisCache.js';
 import { getFetch } from '../utils/fetchHelper.js';
+import coordinateServiceEnhancements from './coordinateServiceEnhancements.js';
 
 dotenv.config();
 
@@ -244,33 +245,28 @@ class CoordinateService {
   }
 
   /**
-   * Geocode UK postcode
+   * Geocode UK postcode with enhanced fallback
    */
   async geocodePostcode(postcode) {
-    try {
-      const fetch = await getFetch();
-      const response = await fetch(
-        `https://api.postcodes.io/postcodes/${encodeURIComponent(postcode)}`
-      );
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.result) {
-          return {
-            lat: this.roundToPrecision(data.result.latitude),
-            lng: this.roundToPrecision(data.result.longitude),
-            source: 'postcode_lookup',
-            confidence: 90,
-            postcode: postcode.toUpperCase()
-          };
+    // Use enhanced postcode geocoding with multiple fallbacks
+    const result = await coordinateServiceEnhancements.enhancedPostcodeGeocoding(postcode);
+    
+    if (result) {
+      return {
+        lat: this.roundToPrecision(result.lat),
+        lng: this.roundToPrecision(result.lng),
+        source: result.source,
+        confidence: result.confidence,
+        postcode: postcode.toUpperCase(),
+        metadata: {
+          district: result.district,
+          ward: result.ward,
+          area: result.area
         }
-      }
-      
-      throw new Error('Postcode not found');
-    } catch (error) {
-      console.error('❌ Postcode geocoding error:', error);
-      throw error;
+      };
     }
+    
+    throw new Error('Postcode not found');
   }
 
   /**
@@ -518,6 +514,27 @@ class CoordinateService {
     }
     
     console.log('✅ All coordinate caches cleared');
+  }
+
+  /**
+   * Get coordinate quality assessment
+   */
+  assessQuality(coord, metadata = {}) {
+    return coordinateServiceEnhancements.scoreCoordinateQuality(coord, metadata);
+  }
+
+  /**
+   * Cluster nearby coordinates for map display
+   */
+  clusterCoordinates(coordinates, radius = 100) {
+    return coordinateServiceEnhancements.clusterNearbyCoordinates(coordinates, radius);
+  }
+
+  /**
+   * Interpolate points along a roadwork segment
+   */
+  interpolateSegment(startCoord, endCoord, numPoints = 5) {
+    return coordinateServiceEnhancements.interpolateRoadworkSegment(startCoord, endCoord, numPoints);
   }
 }
 

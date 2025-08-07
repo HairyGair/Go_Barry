@@ -13,6 +13,7 @@ const AppHeader = ({ onLoginSuccess }) => {
   const [showLoginForm, setShowLoginForm] = useState(false);
   const [selectedSupervisor, setSelectedSupervisor] = useState('');
   const [password, setPassword] = useState('');
+  const [selectedDuty, setSelectedDuty] = useState('');
   const [loginError, setLoginError] = useState('');
 
   // Supervisor options for the login form
@@ -26,6 +27,15 @@ const AppHeader = ({ onLoginSuccess }) => {
     { id: 'john_paterson', name: 'John Paterson', badge: 'JP007' },
     { id: 'simon_glass', name: 'Simon Glass', badge: 'SG008' },
     { id: 'barry_perryman', name: 'Barry Perryman', badge: 'BP009', isAdmin: true },
+  ];
+  
+  // Duty options
+  const DUTY_OPTIONS = [
+    { id: '100', name: 'Duty 100 (6am-3:30pm)', shift: 'Early' },
+    { id: '200', name: 'Duty 200 (7:30am-5pm)', shift: 'Day' },
+    { id: '400', name: 'Duty 400 (12:30pm-10pm)', shift: 'Late' },
+    { id: '500', name: 'Duty 500 (2:45pm-12:15am)', shift: 'Night' },
+    { id: 'xops', name: 'XOps', shift: 'Operations' },
   ];
   
   const isOperationsCentre = pathname === '/operations-centre' || pathname === '/operations';
@@ -43,8 +53,8 @@ const AppHeader = ({ onLoginSuccess }) => {
   };
 
   const handleLogin = async () => {
-    if (!selectedSupervisor || !password) {
-      setLoginError('Please select supervisor and enter password');
+    if (!selectedSupervisor || !password || !selectedDuty) {
+      setLoginError('Please select supervisor, duty and enter password');
       return;
     }
 
@@ -54,7 +64,7 @@ const AppHeader = ({ onLoginSuccess }) => {
     const loginData = {
       supervisorId: selectedSupervisor,
       password: password,
-      duty: 'end_of_shift',
+      duty: selectedDuty,
       rememberMe: false
     };
     
@@ -66,6 +76,7 @@ const AppHeader = ({ onLoginSuccess }) => {
       // Clear form and hide login
       setSelectedSupervisor('');
       setPassword('');
+      setSelectedDuty('');
       setShowLoginForm(false);
       setLoginError('');
       
@@ -241,6 +252,31 @@ const AppHeader = ({ onLoginSuccess }) => {
                     />
                   </View>
                   
+                  <View style={styles.loginFormGroup}>
+                    <Text style={styles.loginLabel}>Duty</Text>
+                    {Platform.OS === 'web' ? (
+                      <select
+                        style={styles.headerSelect}
+                        value={selectedDuty}
+                        onChange={(e) => setSelectedDuty(e.target.value)}
+                      >
+                        <option value="">Select Duty</option>
+                        {DUTY_OPTIONS.map(duty => (
+                          <option key={duty.id} value={duty.id}>
+                            {duty.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <TextInput
+                        style={styles.headerInput}
+                        placeholder="Duty"
+                        value={selectedDuty}
+                        onChangeText={setSelectedDuty}
+                      />
+                    )}
+                  </View>
+                  
                   <View style={styles.loginActions}>
                     <Pressable 
                       style={styles.loginActionButton}
@@ -264,6 +300,7 @@ const AppHeader = ({ onLoginSuccess }) => {
                         setLoginError('');
                         setSelectedSupervisor('');
                         setPassword('');
+                        setSelectedDuty('');
                       }}
                     >
                       <MaterialCommunityIcons name="close" size={16} color="#94a3b8" />
@@ -451,7 +488,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
-    minWidth: 400,
+    minWidth: 600,
   },
   loginFormGroup: {
     flexDirection: 'column',

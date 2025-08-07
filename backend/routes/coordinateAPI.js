@@ -143,6 +143,91 @@ router.post('/geocode', async (req, res) => {
 });
 
 /**
+ * POST /api/coordinates/assess-quality
+ * Assess the quality of coordinates
+ */
+router.post('/assess-quality', async (req, res) => {
+  try {
+    const { coordinates, metadata = {} } = req.body;
+    
+    if (!coordinates || !Array.isArray(coordinates)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Coordinates array is required'
+      });
+    }
+    
+    const assessments = coordinates.map(coord => {
+      const quality = coordinateService.assessQuality(coord, coord.metadata || metadata);
+      return {
+        ...coord,
+        quality
+      };
+    });
+    
+    const avgScore = assessments.reduce((sum, a) => sum + a.quality.score, 0) / assessments.length;
+    
+    res.json({
+      success: true,
+      assessments,
+      summary: {
+        total: assessments.length,
+        averageScore: avgScore.toFixed(1),
+        distribution: {
+          A: assessments.filter(a => a.quality.grade === 'A').length,
+          B: assessments.filter(a => a.quality.grade === 'B').length,
+          C: assessments.filter(a => a.quality.grade === 'C').length,
+          D: assessments.filter(a => a.quality.grade === 'D').length,
+          F: assessments.filter(a => a.quality.grade === 'F').length
+        }
+      }
+    });
+  } catch (error) {
+    console.error('❌ Quality assessment error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * POST /api/coordinates/cluster
+ * Cluster nearby coordinates
+ */
+router.post('/cluster', async (req, res) => {
+  try {
+    const { coordinates, radius = 100 } = req.body;
+    
+    if (!coordinates || !Array.isArray(coordinates)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Coordinates array is required'
+      });
+    }
+    
+    const clusters = coordinateService.clusterCoordinates(coordinates, radius);
+    
+    res.json({
+      success: true,
+      clusters,
+      metadata: {
+        originalCount: coordinates.length,
+        clusterCount: clusters.length,
+        radius,
+        reduction: `${((1 - clusters.length / coordinates.length) * 100).toFixed(1)}%`
+      }
+    });
+  } catch (error) {
+    console.error('❌ Clustering error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * GET /api/coordinates/known-locations
  * Get list of known locations
  */

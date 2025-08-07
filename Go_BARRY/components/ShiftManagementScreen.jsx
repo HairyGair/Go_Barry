@@ -1,55 +1,62 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, TextInput, Alert } from 'react-native';
-import { useSupervisorSession } from './hooks/useSupervisorSession';
+import { useSupervisor } from './hooks/useSupervisorSession';
 import DutySelectionModal from './DutySelectionModal';
 
 const DUTY_INFO = {
-  D100: { name: 'Early Breakdown Handler', color: '#FF6B6B' },
-  D200: { name: 'Vehicle Regulator', color: '#4ECDC4' },
-  D400: { name: 'Afternoon Regulator', color: '#45B7D1' },
-  D500: { name: 'Lost Mileage Coordinator', color: '#96CEB4' }
+  '100': { name: 'Early Breakdown Handler', color: '#FF6B6B' },
+  '200': { name: 'Vehicle Regulator', color: '#4ECDC4' },
+  '400': { name: 'Afternoon Regulator', color: '#45B7D1' },
+  '500': { name: 'Lost Mileage Coordinator', color: '#96CEB4' }
 };
 
 export default function ShiftManagementScreen() {
-  const { supervisorSession, currentDuty, clockIn, supervisorName } = useSupervisorSession();
-  const [shiftData, setShiftData] = useState(null);
+  // Use global shift state from supervisor context
+  const { 
+    supervisorSession, 
+    supervisorName,
+    currentShift,
+    clockIn,
+    clockOut,
+    startBreak,
+    endBreak,
+    isOnBreak,
+    isClockedIn,
+    fetchCurrentShift
+  } = useSupervisor();
+  
   const [showDutyModal, setShowDutyModal] = useState(false);
   const [showHandoverModal, setShowHandoverModal] = useState(false);
   const [handoverNotes, setHandoverNotes] = useState('');
   const [timeWorked, setTimeWorked] = useState('00:00');
-  const [onBreak, setOnBreak] = useState(false);
 
+  // Refresh shift data when component mounts only if needed
   useEffect(() => {
-    if (supervisorSession?.supervisor?.badge) {
+    // Only fetch if we're logged in and don't have current shift data
+    if (supervisorSession?.supervisor?.badge && !currentShift) {
       fetchCurrentShift();
-      const interval = setInterval(updateTimeWorked, 60000); // Update every minute
+    }
+  }, []);  // Empty dependency to only run once on mount
+
+  // Update time worked every minute
+  useEffect(() => {
+    if (currentShift?.clock_in) {
+      updateTimeWorked();
+      const interval = setInterval(updateTimeWorked, 60000);
       return () => clearInterval(interval);
     }
-  }, [supervisorSession]);
-
-  const fetchCurrentShift = async () => {
-    try {
-      const response = await fetch(`https://go-barry.onrender.com/api/shifts/current-shift/${supervisorSession.supervisor.badge}`);
-      const data = await response.json();
-      if (data.shift) {
-        setShiftData(data.shift);
-        setOnBreak(data.shift.break_start && !data.shift.break_end);
-      }
-    } catch (error) {
-      console.error('Error fetching shift:', error);
-    }
-  };
+  }, [currentShift]);
 
   const updateTimeWorked = () => {
-    if (shiftData?.clock_in) {
-      const start = new Date(shiftData.clock_in);
+    if (currentShift?.clock_in) {
+      const start = new Date(currentShift.clock_in);
       const now = new Date();
       const diff = now - start;
       
       // Subtract break time if applicable
       let breakTime = 0;
-      if (shiftData.break_start && shiftData.break_end) {
-        breakTime = new Date(shiftData.break_end) - new Date(shiftData.break_start);
+      if (currentShift.break_start && currentShift.break_end) {
+        breakTime = new Date(currentShift.break_end) - new Date(currentShift.break_start);
       }
       
       const totalMinutes = Math.floor((diff - breakTime) / 60000);
@@ -63,29 +70,17 @@ export default function ShiftManagementScreen() {
     setShowDutyModal(false);
     const result = await clockIn(dutyCode);
     if (result.success) {
-      setShiftData(result.shift);
-      Alert.alert('Success', `Clocked in to ${dutyCode}`);
+      Alert.alert('Success', `Clocked in to D${dutyCode}`);
     } else {
-      Alert.alert('Error', result.message);
+      Alert.alert('Error', result.message || 'Failed to clock in');
     }
   };
 
   const handleBreak = async () => {
-    const endpoint = onBreak ? 'end-break' : 'start-break';
-    try {
-      const response = await fetch(`https://go-barry.onrender.com/api/shifts/${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ supervisorBadge: supervisorSession.supervisor.badge })
-      });
-      
-      const data = await response.json();
-      if (data.success) {
-        setOnBreak(!onBreak);
-        fetchCurrentShift();
-        Alert.alert('Success', onBreak ? 'Break ended' : 'Break started');
-      }
-    } catch (error) {
+    const result = isOnBreak ? await endBreak() : await startBreak();
+    if (result.success) {
+      Alert.alert('Success', isOnBreak ? 'Break ended' : 'Break started');
+    } else {
       Alert.alert('Error', 'Failed to update break status');
     }
   };
@@ -96,29 +91,18 @@ export default function ShiftManagementScreen() {
       return;
     }
 
-    try {
-      const response = await fetch('https://go-barry.onrender.com/api/shifts/clock-out', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          supervisorBadge: supervisorSession.supervisor.badge,
-          handoverNotes 
-        })
-      });
-      
-      const data = await response.json();
-      if (data.success) {
-        setShiftData(null);
-        setShowHandoverModal(false);
-        setHandoverNotes('');
-        Alert.alert('Success', 'Clocked out successfully');
-      }
-    } catch (error) {
+    const result = await clockOut(handoverNotes);
+    if (result.success) {
+      setShowHandoverModal(false);
+      setHandoverNotes('');
+      Alert.alert('Success', 'Clocked out successfully');
+    } else {
       Alert.alert('Error', 'Failed to clock out');
     }
   };
 
-  if (!shiftData) {
+  // Not clocked in view
+  if (!isClockedIn) {
     return (
       <View style={styles.container}>
         <View style={styles.notClockedIn}>
@@ -141,17 +125,18 @@ export default function ShiftManagementScreen() {
     );
   }
 
-  const dutyInfo = DUTY_INFO[shiftData.duty_code];
+  const dutyInfo = DUTY_INFO[currentShift.duty_code];
 
+  // Clocked in view
   return (
     <View style={styles.container}>
-      <View style={[styles.dutyCard, { borderColor: dutyInfo.color }]}>
-        <View style={[styles.dutyBar, { backgroundColor: dutyInfo.color }]} />
+      <View style={[styles.dutyCard, { borderColor: dutyInfo?.color || '#666' }]}>
+        <View style={[styles.dutyBar, { backgroundColor: dutyInfo?.color || '#666' }]} />
         <View style={styles.dutyContent}>
-          <Text style={styles.dutyCode}>{shiftData.duty_code}</Text>
-          <Text style={styles.dutyName}>{dutyInfo.name}</Text>
+          <Text style={styles.dutyCode}>D{currentShift.duty_code}</Text>
+          <Text style={styles.dutyName}>{dutyInfo?.name || 'Unknown Duty'}</Text>
           <Text style={styles.clockInTime}>
-            Clocked in: {new Date(shiftData.clock_in).toLocaleTimeString()}
+            Clocked in: {new Date(currentShift.clock_in).toLocaleTimeString()}
           </Text>
         </View>
       </View>
@@ -161,7 +146,7 @@ export default function ShiftManagementScreen() {
           <Text style={styles.statLabel}>Time Worked</Text>
           <Text style={styles.statValue}>{timeWorked}</Text>
         </View>
-        {onBreak && (
+        {isOnBreak && (
           <View style={styles.breakIndicator}>
             <Text style={styles.breakText}>ON BREAK</Text>
           </View>
@@ -172,16 +157,16 @@ export default function ShiftManagementScreen() {
         <TouchableOpacity
           style={[
             styles.breakButton,
-            onBreak && styles.endBreakButton,
-            shiftData.break_start && shiftData.break_end && styles.disabledButton
+            isOnBreak && styles.endBreakButton,
+            currentShift.break_start && currentShift.break_end && styles.disabledButton
           ]}
           onPress={handleBreak}
-          disabled={shiftData.break_start && shiftData.break_end}
+          disabled={currentShift.break_start && currentShift.break_end}
         >
           <Text style={styles.buttonText}>
-            {shiftData.break_start && shiftData.break_end 
+            {currentShift.break_start && currentShift.break_end 
               ? 'Break Taken' 
-              : onBreak 
+              : isOnBreak 
               ? 'End Break' 
               : 'Take 30min Break'}
           </Text>

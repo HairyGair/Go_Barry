@@ -6,7 +6,21 @@ import { useNavigationGuard } from '../../hooks/useNavigationGuard';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import AppHeader from '../../components/common/AppHeader';
-import { UK_LOCALE } from '../../lib/_constants-index.js';
+
+// UK Locale constants
+const UK_LOCALE = {
+  DUTY_BOARDS: 'Duty Boards',
+  VIEW_DRIVER_PDFS: 'View driver PDFs',
+  DISRUPTIONS: 'Disruptions',
+  DATABASE_VIEW: 'Database view',
+  STATISTICS: 'Statistics',
+  PERFORMANCE_METRICS: 'Performance metrics',
+  LIVE_MAP: 'Live Map',
+  REAL_TIME_VIEW: 'Real-time view',
+  TOTAL: 'Total',
+  TODAY: 'Today',
+  ALERTS: 'Alerts',
+};
 
 // Mock utilities for now
 const auditLog = (action, data) => {
@@ -40,15 +54,26 @@ import ShiftManagementScreen from '../../components/ShiftManagementScreen.jsx';
 import ActivityDashboard from '../../components/ActivityDashboard.jsx';
 import ChangePasswordScreen from '../../components/ChangePasswordScreen.jsx';
 
-// Import theme
-import { operationsTheme } from '../../lib/_styles-index.js';
+// Theme configuration
+const operationsTheme = {
+  colors: {
+    gradients: {
+      dutyBoards: ['#6366f1', '#8b5cf6'],
+      onTimeRequest: ['#0ea5e9', '#06b6d4'],
+      dailyLostMileage: ['#f59e0b', '#f97316'],
+      disruptions: ['#10b981', '#34d399'],
+      statistics: ['#3b82f6', '#6366f1'],
+      liveMap: ['#06b6d4', '#0891b2'],
+    }
+  }
+};
 
 // Initialize performance monitor
 const perfMonitor = new PerformanceMonitor();
 
 export default function OperationsCentre() {
   const router = useRouter();
-  const { supervisorName, logout, supervisor } = useSupervisor();
+  const { supervisorName, logout, supervisor, currentShift, isClockedIn } = useSupervisor();
   
   // Use navigation guard hook
   const { 
@@ -81,7 +106,7 @@ export default function OperationsCentre() {
     liveMap: { value: '37', label: UK_LOCALE.ALERTS },
     onTimeRequest: { value: 'Live', label: 'SharePoint' },
     dailyLostMileage: { value: 'SDC', label: 'Report' },
-    shiftManagement: { value: 'D100', label: 'Current' },
+    shiftManagement: { value: 'OFF', label: 'Not Clocked In' },
     activityDashboard: { value: '7', label: 'Days' },
     changePassword: { value: '90', label: 'Days Left' },
   });
@@ -123,12 +148,33 @@ export default function OperationsCentre() {
     }
   }, [supervisor?.badge]);
 
-  // Fetch password status
+  // Fetch password status and update shift card
   useEffect(() => {
     if (supervisor?.badge) {
       fetchPasswordStatus();
     }
   }, [supervisor]);
+  
+  // Update shift management card based on current shift
+  useEffect(() => {
+    if (isClockedIn && currentShift) {
+      setCardStats(prev => ({
+        ...prev,
+        shiftManagement: {
+          value: `D${currentShift.duty_code}`,
+          label: 'On Duty'
+        }
+      }));
+    } else {
+      setCardStats(prev => ({
+        ...prev,
+        shiftManagement: {
+          value: 'OFF',
+          label: 'Not Clocked In'
+        }
+      }));
+    }
+  }, [isClockedIn, currentShift]);
 
   const fetchPasswordStatus = async () => {
     try {

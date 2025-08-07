@@ -53,6 +53,7 @@ console.log('🔐 SUPABASE_SERVICE_ROLE_KEY exists:', !!process.env.SUPABASE_SER
 
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import { createServer } from 'http';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -98,6 +99,18 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Add compression for all responses > 1KB
+app.use(compression({
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  },
+  threshold: 1024
+}));
+console.log('✅ Response compression enabled');
 
 // Add preflight handling for all routes
 app.options('*', cors(corsOptions));

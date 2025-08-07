@@ -2,20 +2,20 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 
 const DUTIES = [
-  { code: 'D100', name: 'Early Breakdown Handler', time: '06:00 - 15:30', color: '#FF6B6B' },
-  { code: 'D200', name: 'Vehicle Regulator', time: '07:30 - 17:00', color: '#4ECDC4' },
-  { code: 'D400', name: 'Afternoon Regulator', time: '12:30 - 22:00', color: '#45B7D1' },
-  { code: 'D500', name: 'Lost Mileage Coordinator', time: '14:45 - 00:15', color: '#96CEB4' }
+  { code: '100', name: 'Early Breakdown Handler', time: '06:00 - 15:30', color: '#FF6B6B' },
+  { code: '200', name: 'Vehicle Regulator', time: '07:30 - 17:00', color: '#4ECDC4' },
+  { code: '400', name: 'Afternoon Regulator', time: '12:30 - 22:00', color: '#45B7D1' },
+  { code: '500', name: 'Lost Mileage Coordinator', time: '14:45 - 00:15', color: '#96CEB4' }
 ];
 
 export default function DutySelectionModal({ visible, onSelectDuty, onCancel }) {
   const currentTime = new Date().getHours() * 100 + new Date().getMinutes();
   
   const getSuggestedDuty = () => {
-    if (currentTime >= 545 && currentTime < 800) return 'D100';
-    if (currentTime >= 700 && currentTime < 1300) return 'D200';
-    if (currentTime >= 1200 && currentTime < 1500) return 'D400';
-    if (currentTime >= 1400) return 'D500';
+    if (currentTime >= 545 && currentTime < 800) return '100';
+    if (currentTime >= 700 && currentTime < 1300) return '200';
+    if (currentTime >= 1200 && currentTime < 1500) return '400';
+    if (currentTime >= 1400) return '500';
     return null;
   };
   
@@ -39,7 +39,7 @@ export default function DutySelectionModal({ visible, onSelectDuty, onCancel }) 
             >
               <View style={[styles.colorBar, { backgroundColor: duty.color }]} />
               <View style={styles.dutyInfo}>
-                <Text style={styles.dutyCode}>{duty.code}</Text>
+                <Text style={styles.dutyCode}>D{duty.code}</Text>
                 <Text style={styles.dutyName}>{duty.name}</Text>
                 <Text style={styles.dutyTime}>{duty.time}</Text>
               </View>

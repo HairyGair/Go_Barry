@@ -707,6 +707,58 @@ export const useSupervisorSession = () => {
     return () => clearInterval(interval);
   }, [supervisorSession]);
 
+  // Shift Management State - persists across navigation
+  const [currentShift, setCurrentShift] = useState(() => {
+    // Initialize from saved session
+    const savedSession = sessionStorageService.loadSession();
+    return savedSession?.currentShift || null;
+  });
+  
+  // Save shift to session whenever it changes
+  useEffect(() => {
+    if (currentShift) {
+      const session = sessionStorageService.loadSession();
+      if (session) {
+        const updatedSession = {
+          ...session,
+          currentShift,
+          duty: currentShift.duty_code,
+          shiftId: currentShift.id,
+          clockInTime: currentShift.clock_in
+        };
+        sessionStorageService.saveSession(updatedSession, session.rememberMe);
+      }
+    }
+  }, [currentShift]);
+  
+  // Load shift data on mount if we have a badge but no shift
+  useEffect(() => {
+    if (supervisorSession?.supervisor?.badge && !currentShift) {
+      fetchCurrentShift();
+    }
+  }, [supervisorSession?.supervisor?.badge]);
+  
+  // Fetch current shift from backend
+  const fetchCurrentShift = useCallback(async () => {
+    if (!supervisorSession?.supervisor?.badge) return;
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/shifts/current-shift/${supervisorSession.supervisor.badge}`);
+      const data = await response.json();
+      if (data.success && data.shift) {
+        setCurrentShift(data.shift);
+        // Don't update session here to avoid circular updates
+      } else {
+        // Only clear if we explicitly get no shift
+        if (data.success && data.shift === null) {
+          setCurrentShift(null);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching current shift:', error);
+    }
+  }, [supervisorSession?.supervisor?.badge]);
+  
   // Clock In function for shift management
   const clockIn = useCallback(async (dutyCode) => {
     if (!supervisorSession) {
@@ -724,19 +776,25 @@ export const useSupervisorSession = () => {
       });
       
       const data = await response.json();
-      if (data.success) {
-        // Update session with duty info
+      if (data.success && data.shift) {
+        // Update current shift state
+        setCurrentShift(data.shift);
+        
+        // Update session with full shift data - this will trigger the save via useEffect
         const updatedSession = { 
-          ...supervisorSession, 
+          ...supervisorSession,
+          currentShift: data.shift,
           duty: dutyCode, 
           shiftId: data.shift.id,
           clockInTime: data.shift.clock_in
         };
         setSupervisorSession(updatedSession);
-        sessionStorageService.saveSession(updatedSession);
+        sessionStorageService.saveSession(updatedSession, supervisorSession.rememberMe);
         
         // Log activity
-        await logActivity('CLOCK_IN', { duty: dutyCode });
+        logActivity('CLOCK_IN', { duty: dutyCode });
+        
+        console.log('✅ Clock in successful:', data.shift);
       }
       return data;
     } catch (error) {
@@ -744,6 +802,101 @@ export const useSupervisorSession = () => {
       return { success: false, error: error.message };
     }
   }, [supervisorSession, logActivity]);
+  
+  // Clock Out function
+  const clockOut = useCallback(async (handoverNotes) => {
+    if (!supervisorSession || !currentShift) {
+      return { success: false, error: 'Not clocked in' };
+    }
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/shifts/clock-out`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          supervisorBadge: supervisorSession.supervisor.badge,
+          handoverNotes 
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        // Clear shift data
+        setCurrentShift(null);
+        
+        // Update session to remove shift data
+        const updatedSession = { 
+          ...supervisorSession,
+          currentShift: null,
+          duty: null,
+          shiftId: null,
+          clockInTime: null
+        };
+        setSupervisorSession(updatedSession);
+        sessionStorageService.saveSession(updatedSession);
+        
+        // Log activity
+        await logActivity('CLOCK_OUT', { handoverNotes });
+      }
+      return data;
+    } catch (error) {
+      console.error('Clock out error:', error);
+      return { success: false, error: error.message };
+    }
+  }, [supervisorSession, currentShift, logActivity]);
+  
+  // Break management functions
+  const startBreak = useCallback(async () => {
+    if (!supervisorSession || !currentShift) {
+      return { success: false, error: 'Not clocked in' };
+    }
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/shifts/start-break`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          supervisorBadge: supervisorSession.supervisor.badge
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setCurrentShift(data.shift);
+        await logActivity('BREAK_START', {});
+      }
+      return data;
+    } catch (error) {
+      console.error('Start break error:', error);
+      return { success: false, error: error.message };
+    }
+  }, [supervisorSession, currentShift, logActivity]);
+  
+  const endBreak = useCallback(async () => {
+    if (!supervisorSession || !currentShift) {
+      return { success: false, error: 'Not clocked in' };
+    }
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/shifts/end-break`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          supervisorBadge: supervisorSession.supervisor.badge
+        })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setCurrentShift(data.shift);
+        await logActivity('BREAK_END', {});
+      }
+      return data;
+    } catch (error) {
+      console.error('End break error:', error);
+      return { success: false, error: error.message };
+    }
+  }, [supervisorSession, currentShift, logActivity]);
 
   return {
     supervisorSession,
@@ -760,8 +913,17 @@ export const useSupervisorSession = () => {
     needsPasswordSetup,
     passwordStatus,
     updateSessionTimeout,
+    // Shift Management
     clockIn,
-    currentDuty: supervisorSession?.duty,
+    clockOut,
+    startBreak,
+    endBreak,
+    currentShift,
+    fetchCurrentShift,
+    isOnBreak: currentShift?.break_start && !currentShift?.break_end,
+    isClockedIn: !!currentShift,
+    // Session properties
+    currentDuty: currentShift?.duty_code || supervisorSession?.duty,
     isLoggedIn: !!supervisorSession,
     supervisorName: supervisorSession?.supervisor?.name,
     supervisorRole: supervisorSession?.supervisor?.role,
