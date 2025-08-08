@@ -13,7 +13,7 @@ import {
   Switch
 } from 'react-native';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
-import { useSupervisorSession } from './hooks/useSupervisorSession';
+import { useSupervisor } from './hooks/useSupervisorSession';
 
 const EscalationOptionsModal = ({ 
   visible, 
@@ -21,7 +21,12 @@ const EscalationOptionsModal = ({
   roadwork,
   onComplete 
 }) => {
-  const { supervisorBadge, supervisor } = useSupervisorSession();
+  const { supervisorBadge, supervisorName, supervisor } = useSupervisor();
+  
+  // Early return if roadwork is null or undefined
+  if (!roadwork) {
+    return null;
+  }
   
   const [loading, setLoading] = useState(false);
   const [escalationOptions, setEscalationOptions] = useState({

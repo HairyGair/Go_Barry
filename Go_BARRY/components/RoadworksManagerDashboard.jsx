@@ -672,7 +672,10 @@ const RoadworksManagerDashboard = ({ onClose }) => {
       
       // Always use production API - backend is on Render
       const baseUrl = API_CONFIG.baseURL; // This will be https://go-barry.onrender.com
-      const url = `${baseUrl}/api/roadworks/unified?days=90&limit=${PAGE_SIZE}&page=${currentPage}`;
+      // Convert page to offset for backend (backend expects offset/limit, not page-based pagination)
+      const offset = (currentPage - 1) * PAGE_SIZE;
+      // Filter to only show streetmanager data that needs supervisor review
+      const url = `${baseUrl}/api/roadworks/unified?source=streetmanager&status=pending_review&days=90&limit=${PAGE_SIZE}&offset=${offset}`;
       console.log('🌐 [RoadworksManagerDashboard] Fetching from:', url);
       
       // Create an AbortController for timeout handling
@@ -732,13 +735,19 @@ const RoadworksManagerDashboard = ({ onClose }) => {
           start_date: item.sm_start_date || item.start_date || '',
           end_date: item.sm_end_date || item.end_date || '',
           affectedRoutes: item.affectedRoutes || item.affected_routes || [],
-          affectedRoutesSummary: item.affectedRoutesSummary || item.affected_routes_summary || '',
+          affectedRoutesSummary: item.affectedRoutesSummary || item.affected_routes_summary || 'No routes affected',
           durationDays: item.durationDays || item.duration_days || 1,
-          isUrgent: item.isUrgent || item.is_urgent || item.sm_traffic_management_type === 'Road closure',
+          isUrgent: item.isUrgent || item.is_urgent || item.sm_traffic_management_type === 'Road closure' || item.severity === 'high',
           // Include coordinates from backend processing
           coordinates: item.coordinates || null,
           coordinateSource: item.coordinateSource || null,
           coordinateAccuracy: item.coordinateAccuracy || null,
+          // Ensure status is properly mapped
+          status: item.status || 'active',
+          severity: item.severity || 'medium',
+          // Add proper date formatting
+          displayStartDate: formatDate(item.sm_start_date || item.start_date),
+          displayEndDate: formatDate(item.sm_end_date || item.end_date),
           // Add severity scoring for sorting
           severityScore: calculateSeverityScore(item)
         }));
@@ -750,6 +759,12 @@ const RoadworksManagerDashboard = ({ onClose }) => {
         // Handle pagination metadata
         const metadata = data.metadata || {};
         setHasMorePages(metadata.pagination?.hasMore || false);
+        console.log('📄 [RoadworksManagerDashboard] Pagination info:', {
+          currentPage,
+          offset,
+          hasMore: metadata.pagination?.hasMore,
+          totalReturned: metadata.pagination?.totalReturned
+        });
         
         // Update total count if we know there are more pages
         if (currentPage === 1 || isRefresh) {
@@ -930,15 +945,15 @@ const RoadworksManagerDashboard = ({ onClose }) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
-      // Call the permanent delete endpoint - use POST instead of DELETE for better compatibility
-      const response = await fetch(`${API_CONFIG.baseURL}/api/roadworks/unified/actions/${roadworkId}/delete`, {
+      // Call the dismiss endpoint
+      const response = await fetch(`${API_CONFIG.baseURL}/api/roadworks/actions/${roadworkId}/dismiss`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          supervisorId: supervisorSession?.supervisor?.id,
-          supervisorName: supervisorName,
+          sessionId: supervisorSession?.sessionToken || 'web-session',
+          dismissedBy: supervisorName || 'Unknown Supervisor',
           reason,
           notes
         }),
@@ -1596,14 +1611,58 @@ const RoadworksManagerDashboard = ({ onClose }) => {
 
   // Handle actions
   const handleAcknowledge = async (roadwork) => {
-    // Open the disruption workflow modal
-    setSelectedRoadworkForWorkflow(roadwork);
-    setShowWorkflowModal(true);
+    // For acknowledge, give supervisor option to push to display screen  
+    const pushToDisplay = Platform.OS === 'web' ? 
+      window.confirm(`✅ Acknowledge this alert?\n\n${roadwork.street_name}\n\nClick OK to also push to display screens, or Cancel to acknowledge without display.`) 
+      : false; // For mobile, just acknowledge without display for now
     
-    await logActivity('open_disruption_workflow', {
-      roadworkId: roadwork.id,
-      location: roadwork.street_name
-    });
+    try {
+      console.log('✅ Acknowledging roadwork:', roadwork.id, roadwork.street_name, 'pushToDisplay:', pushToDisplay);
+      
+      // Call the acknowledge API endpoint
+      const response = await fetch(`${API_CONFIG.baseURL}/api/roadworks/actions/${roadwork.id}/acknowledge`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: supervisorSession?.sessionToken || 'web-session',
+          note: `Acknowledged by ${supervisorName} - Alert reviewed and noted`,
+          pushToDisplay: pushToDisplay
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Roadwork acknowledged successfully:', data);
+        
+        // Remove from the list since it's now acknowledged
+        setRoadworks(prev => prev.filter(r => r.id !== roadwork.id));
+        setFilteredRoadworks(prev => prev.filter(r => r.id !== roadwork.id));
+        
+        // Show success feedback
+        const message = pushToDisplay 
+          ? `✅ Alert acknowledged and pushed to display screens!\n\n${roadwork.street_name} has been marked as reviewed and is now visible on bus displays.`
+          : `✅ Alert acknowledged successfully!\n\n${roadwork.street_name} has been marked as reviewed.`;
+        
+        if (Platform.OS === 'web' && window.alert) {
+          window.alert(message);
+        }
+        
+        await logActivity('roadwork_acknowledged', {
+          roadworkId: roadwork.id,
+          location: roadwork.street_name,
+          pushedToDisplay: pushToDisplay
+        });
+      } else {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('❌ Error acknowledging roadwork:', error);
+      if (Platform.OS === 'web' && window.alert) {
+        window.alert(`❌ Failed to acknowledge alert: ${error.message}`);
+      }
+    }
   };
 
   const handleEscalate = async (roadwork) => {
@@ -2015,6 +2074,7 @@ const RoadworksManagerDashboard = ({ onClose }) => {
               </ScrollView>
             )}
           </SafeAreaView>
+        </Animated.View>
 
           {/* Enhanced Dismiss Modal */}
           {showDismissModal && selectedAlert && (
@@ -2249,7 +2309,7 @@ const RoadworksManagerDashboard = ({ onClose }) => {
 
           {/* Enhanced Escalation Options Modal */}
           <EscalationOptionsModal
-            visible={showEscalateModal}
+            visible={showEscalateModal && selectedRoadworkForEscalation}
             onClose={() => {
               setShowEscalateModal(false);
               setEscalationReason('');
@@ -2271,147 +2331,10 @@ const RoadworksManagerDashboard = ({ onClose }) => {
               }
             }}
           />
-                            
-                            displayedAt: new Date().toISOString(),
-                            displayedBy: supervisorName || 'Supervisor',
-                            displayMessage: {
-                              id: `roadwork-${roadwork.id}-${Date.now()}`,
-                              priority: roadwork.sm_traffic_management_type === 'Road closure' ? 0 : 1,
-                              expiresAt: new Date(Date.now() + 3600000).toISOString(), // 1 hour default
-                              autoZoom: true,
-                              zoomLevel: 15,
-                              highlightIncident: true,
-                              showRoutes: true,
-                              pulseAnimation: true,
-                              duration: 30000
-                            },
-                            
-                            createdAt: new Date().toISOString()
-                          };
-                          
-                          console.log('📤 Sending to Convex:', displayIncident);
-                          
-                          // Push to display via Convex
-                          await updateDisplayIncidents({
-                            incidents: [displayIncident],
-                            timestamp: new Date().toISOString()
-                          });
-                          
-                          console.log('✅ Successfully pushed to display');
-                          
-                          // Create disruption record in database
-                          try {
-                            const disruptionResponse = await fetch(`${API_CONFIG.baseURL}/api/disruptions/create`, {
-                              method: 'POST',
-                              headers: {
-                                'Content-Type': 'application/json',
-                              },
-                              body: JSON.stringify({
-                                alert: {
-                                  ...roadwork,
-                                  id: roadwork.id,
-                                  location: roadwork.street_name,
-                                  sm_street_name: roadwork.street_name,
-                                  sm_town: roadwork.sm_town || roadwork.town,
-                                  sm_highway_authority: roadwork.sm_highway_authority || roadwork.highway_authority,
-                                  sm_description: roadwork.sm_works_description || roadwork.sm_activity_type,
-                                  sm_location_description: roadwork.sm_location_description || roadwork.location_description,
-                                  coordinates: roadwork.coordinates,
-                                  affectedRoutes: roadwork.affectedRoutes || []
-                                },
-                                pushedBy: supervisorSession?.supervisor?.badge || supervisorSession?.supervisor?.id || supervisorName,
-                                pushedByName: supervisorName,
-                                reason: escalationReason || 'Escalated to control room display',
-                                sessionId: sessionId
-                              })
-                            });
-                            
-                            if (!disruptionResponse.ok) {
-                              console.error('Failed to create disruption record:', await disruptionResponse.text());
-                            } else {
-                              const disruptionData = await disruptionResponse.json();
-                              console.log('✅ Disruption record created:', disruptionData.disruption?.id);
-                            }
-                          } catch (disruptionError) {
-                            console.error('Error creating disruption record:', disruptionError);
-                            // Don't fail the whole escalation if disruption creation fails
-                          }
-                          
-                          // Log activity
-                          await logActivity('push_to_display', {
-                            roadworkId: roadwork.id,
-                            location: roadwork.street_name,
-                            reason: escalationReason,
-                            affectedRoutesCount: roadwork.affectedRoutes?.length || 0,
-                            duration: calculateDuration(roadwork),
-                            trafficManagement: roadwork.sm_traffic_management_type
-                          });
-                          
-                          // Update local state to mark as escalated
-                          setRoadworks(prevRoadworks => 
-                            prevRoadworks.map(rw => 
-                              rw.id === roadwork.id 
-                                ? { ...rw, escalatedToDisplay: true, escalatedAt: new Date().toISOString(), escalatedBy: supervisorName }
-                                : rw
-                            )
-                          );
-                          setFilteredRoadworks(prevFiltered => 
-                            prevFiltered.map(rw => 
-                              rw.id === roadwork.id 
-                                ? { ...rw, escalatedToDisplay: true, escalatedAt: new Date().toISOString(), escalatedBy: supervisorName }
-                                : rw
-                            )
-                          );
-                          
-                          // Show success message
-                          if (Platform.OS === 'web') {
-                            window.alert(`Roadwork at ${roadwork.street_name} has been pushed to the Control Room Display.`);
-                          } else {
-                            Alert.alert(
-                              'Success',
-                              `Roadwork at ${roadwork.street_name} has been pushed to the Control Room Display.`,
-                              [{ text: 'OK' }]
-                            );
-                          }
-                          
-                          // Close modal and reset
-                          setShowEscalateModal(false);
-                          setEscalationReason('');
-                          setSelectedRoadworkForEscalation(null);
-                        } catch (error) {
-                          console.error('Failed to push to display:', error);
-                          
-                          if (Platform.OS === 'web') {
-                            window.alert(`Failed to push to display: ${error.message}`);
-                          } else {
-                            Alert.alert(
-                              'Error',
-                              `Failed to push to display: ${error.message}`,
-                              [{ text: 'OK' }]
-                            );
-                          }
-                        } finally {
-                          // Remove from escalating set
-                          setEscalatingRoadworks(prev => {
-                            const newSet = new Set(prev);
-                            newSet.delete(roadwork.id);
-                            return newSet;
-                          });
-                        }
-                      }}
-                    >
-                      <Text style={[styles.dismissModalConfirmText, { color: '#f97316' }]}>Push to Display</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            </Modal>
-          )}
-        </Animated.View>
-      </View>
-    </Modal>
-  );
-};
+        </View>
+      </Modal>
+    );
+  };
 
 const styles = StyleSheet.create({
   modalOverlay: {

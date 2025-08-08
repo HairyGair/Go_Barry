@@ -220,6 +220,10 @@ async function registerRoutes() {
   await routeManager.registerRoute(app, '/api/alerts', './routes/alerts.js', 'Alerts API');
   console.log('✅ Alerts API registered for alert management and display push');
   
+  // Weather API for display screen
+  await routeManager.registerRoute(app, '/api/weather', './routes/weather.js', 'Weather API');
+  console.log('✅ Weather API registered for multi-location weather monitoring');
+  
   // CRITICAL: Street Manager webhook must be registered immediately for AWS SNS
   await routeManager.registerRoute(app, '/api/streetmanager', './routes/streetManagerWebhook.js', 'Street Manager Webhook');
   console.log('✅ Street Manager Webhook registered for AWS SNS notifications');
@@ -308,26 +312,7 @@ async function initializeServer() {
     });
     console.log('✅ TomTom Config endpoint registered at /api/config/tomtom-key');
 
-    app.get('/api/weather/current', async (req, res) => {
-      try {
-        // Simple weather endpoint - can be enhanced later
-        res.json({
-          success: true,
-          weather: {
-            temperature: 15,
-            condition: 'Partly Cloudy',
-            location: 'Newcastle, UK'
-          },
-          message: 'Weather service placeholder - real integration needed'
-        });
-      } catch (error) {
-        res.status(500).json({
-          success: false,
-          error: error.message
-        });
-      }
-    });
-    console.log('✅ Weather endpoint registered at /api/weather/current');
+    // Weather endpoint now handled by weather.js route file
 
     // Add a simple test endpoint to verify route registration is working
     app.get('/api/test-route-fix', (req, res) => {

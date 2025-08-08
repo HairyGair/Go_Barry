@@ -12,7 +12,7 @@ import {
   Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useSupervisorSession } from './hooks/useSupervisorSession';
+import { useSupervisor } from './hooks/useSupervisorSession';
 import { useBARRYapi } from './hooks/useBARRYapi';
 
 export default function DisruptionWorkflowModal({ 
@@ -21,7 +21,7 @@ export default function DisruptionWorkflowModal({
   alert,
   onComplete 
 }) {
-  const { supervisorBadge } = useSupervisorSession();
+  const { supervisorBadge } = useSupervisor();
   const { postToAPI } = useBARRYapi();
   
   const [step, setStep] = useState(1);
