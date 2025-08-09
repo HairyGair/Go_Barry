@@ -610,7 +610,25 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                             <ArrowLeft className="w-4 h-4 mr-2" />Previous Step
                         </button>
                         <button
-                            onClick={onComplete}
+                            onClick={async () => {
+                                // Log breakdown if critical condition
+                                if (isCritical) {
+                                    try {
+                                        await window.logBreakdown({
+                                            supervisorId: window.AppConstants?.currentSupervisor || 'Unknown',
+                                            vehicleReg: window.selectedReg || 'Unknown',
+                                            fleetNo: window.selectedFleetNo || 'Unknown',
+                                            breakdownType: 'Steering',
+                                            timestamp: new Date().toISOString()
+                                        });
+                                        console.log('✅ Steering breakdown logged successfully');
+                                    } catch (error) {
+                                        console.error('Failed to log steering breakdown:', error);
+                                        // Don't block completion if logging fails
+                                    }
+                                }
+                                onComplete();
+                            }}
                             className="flex items-center px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                         >
                             <CheckCircle className="w-4 h-4 mr-2" />Complete Assessment

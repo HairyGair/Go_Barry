@@ -23,8 +23,60 @@ const App = function() {
         setCurrentStep(prev => Math.max(1, prev - 1));
     };
 
-    const handleComplete = () => {
-        alert('Assessment completed! Data would be saved here.');
+    const handleComplete = async () => {
+        // Integrate with Breakdown Analytics
+        if (window.BreakdownAnalytics && responses.fleetNumber) {
+            try {
+                // Determine the decision based on wizard responses
+                let decision = 'CONTINUE';
+                
+                // Check for critical issues based on wizard type
+                if (currentWizard === 'brakes') {
+                    const criticalIssues = responses.brakeToFloor || responses.delayedBraking || 
+                                         responses.brakeLeaks || responses.brakesGrabbing || 
+                                         responses.redABSLight;
+                    decision = criticalIssues ? 'STOP' : (responses.otherBrakeConcerns === 'yes' ? 'AMBER' : 'CONTINUE');
+                } else if (currentWizard === 'steering') {
+                    const criticalIssues = responses.excessivePlay === 'yes' || responses.difficultyTurning === 'yes' ||
+                                         responses.steeringNoises === 'yes' || responses.vehiclePulling === 'yes';
+                    decision = criticalIssues ? 'STOP' : 'CONTINUE';
+                } else if (currentWizard === 'oil_warning') {
+                    decision = 'STOP'; // Oil warning is always critical
+                } else if (currentWizard === 'loose_wheel_nuts') {
+                    decision = 'STOP'; // Loose wheel nuts are always critical
+                }
+                
+                // Record the breakdown
+                const result = await window.BreakdownAnalytics.recordBreakdown(
+                    currentWizard,
+                    responses,
+                    decision
+                );
+                
+                if (result.success) {
+                    console.log('Breakdown recorded successfully');
+                } else if (result.offline) {
+                    console.log('Breakdown stored offline for later sync');
+                }
+                
+                // Check for patterns
+                if (responses.fleetNumber && responses.depot) {
+                    const patterns = await window.BreakdownAnalytics.checkPatterns(
+                        responses.fleetNumber,
+                        responses.depot || window.BreakdownAnalytics.detectDepot(responses.fleetNumber)
+                    );
+                    
+                    if (patterns.length > 0) {
+                        console.log('Pattern alerts:', patterns);
+                        // Could show pattern alerts to supervisor here
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to record breakdown:', error);
+            }
+        }
+        
+        alert('Assessment completed! Data has been recorded.');
         setCurrentWizard(null);
         setCurrentStep(1);
         setResponses({});
@@ -1779,6 +1831,46 @@ const App = function() {
                             </button>
                         ))}
                     </div>
+                </div>
+                
+                {/* Fleet Analytics Dashboard */}
+                <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-4">
+                        <div className="h-px flex-1 bg-purple-500/30"></div>
+                        <h2 className="text-xs font-bold text-purple-500 uppercase tracking-wider">Fleet Analytics</h2>
+                        <div className="h-px flex-1 bg-purple-500/30"></div>
+                    </div>
+                    <a
+                        href="../breakdown-analytics"
+                        className="block bg-gradient-to-br from-purple-900/20 to-purple-800/20 backdrop-blur-sm border border-purple-500/30 rounded-2xl p-8 hover:from-purple-800/30 hover:to-purple-700/30 hover:border-purple-400/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-purple-500/20"
+                    >
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
+                                    <span className="text-3xl">📊</span>
+                                    Fleet Breakdown Analytics Dashboard
+                                </h3>
+                                <p className="text-purple-300/80">View breakdown patterns, vehicle reliability scores, depot analysis, and operational insights</p>
+                                <div className="mt-4 flex flex-wrap gap-3">
+                                    <span className="text-xs bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full border border-purple-500/30">
+                                        Pattern Detection
+                                    </span>
+                                    <span className="text-xs bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full border border-purple-500/30">
+                                        Vehicle Rankings
+                                    </span>
+                                    <span className="text-xs bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full border border-purple-500/30">
+                                        Depot Insights
+                                    </span>
+                                    <span className="text-xs bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full border border-purple-500/30">
+                                        Real-time Alerts
+                                    </span>
+                                </div>
+                            </div>
+                            <svg className="w-12 h-12 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                        </div>
+                    </a>
                 </div>
                 
                 {/* Coming Soon */}

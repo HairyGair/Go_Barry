@@ -703,7 +703,23 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <ArrowLeft className="w-4 h-4 mr-2" />Previous Step
                         </button>
                         <button
-                            onClick={onComplete}
+                            onClick={async () => {
+                                // Always log breakdown for loose wheel nuts - critical safety issue
+                                try {
+                                    await window.logBreakdown({
+                                        supervisorId: window.AppConstants?.currentSupervisor || 'Unknown',
+                                        vehicleReg: window.selectedReg || 'Unknown',
+                                        fleetNo: window.selectedFleetNo || 'Unknown',
+                                        breakdownType: 'Loose Wheel Nuts',
+                                        timestamp: new Date().toISOString()
+                                    });
+                                    console.log('✅ Loose Wheel Nuts breakdown logged successfully');
+                                } catch (error) {
+                                    console.error('Failed to log loose wheel nuts breakdown:', error);
+                                    // Don't block completion if logging fails
+                                }
+                                onComplete();
+                            }}
                             className="flex items-center px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all text-lg font-semibold"
                         >
                             <CheckCircle className="w-5 h-5 mr-2" />COMPLETE SAFETY ASSESSMENT

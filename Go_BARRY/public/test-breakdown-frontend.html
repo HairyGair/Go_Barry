@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Breakdown Frontend Integration</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .log-output { background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 4px; font-family: monospace; white-space: pre-wrap; }
+        input, select { padding: 8px; margin: 5px; border: 1px solid #ccc; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Breakdown Logging System Test</h1>
+        <p>This page tests the breakdown logging integration between frontend and backend.</p>
+        
+        <div class="test-section">
+            <h3>📡 Backend Connection Test</h3>
+            <button onclick="testBackendConnection()">Test Backend Connection</button>
+            <div id="connection-status"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🔧 Log Test Breakdown</h3>
+            <div>
+                <label>Supervisor ID:</label>
+                <select id="supervisorId">
+                    <option value="AG003">AG003 (Anthony Gair)</option>
+                    <option value="BP009">BP009 (Barry Perryman)</option>
+                </select>
+            </div>
+            <div>
+                <label>Vehicle Reg:</label>
+                <input type="text" id="vehicleReg" value="NK67 EJS" placeholder="e.g. NK67 EJS">
+            </div>
+            <div>
+                <label>Fleet No:</label>
+                <input type="text" id="fleetNo" value="12345" placeholder="e.g. 12345">
+            </div>
+            <div>
+                <label>Breakdown Type:</label>
+                <select id="breakdownType">
+                    <option value="Battery">Battery</option>
+                    <option value="Brakes">Brakes</option>
+                    <option value="Engine">Engine</option>
+                    <option value="Electrical">Electrical</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div>
+                <label>Location:</label>
+                <input type="text" id="location" value="Newcastle Depot" placeholder="e.g. Newcastle Depot">
+            </div>
+            <div>
+                <label>Description:</label>
+                <input type="text" id="description" value="Test breakdown for system validation" placeholder="Description">
+            </div>
+            <button onclick="logBreakdown()">Log Breakdown</button>
+            <div id="log-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📊 View Recent Breakdowns</h3>
+            <button onclick="viewBreakdowns()">Refresh Breakdown List</button>
+            <div id="breakdown-list"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📈 Analytics Test</h3>
+            <button onclick="getAnalytics()">Get Today's Analytics</button>
+            <div id="analytics-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>📝 Test Log</h3>
+            <div id="test-log" class="log-output"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - use local backend for testing
+        const API_BASE = 'http://localhost:3001'; // Change to production URL when needed
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logDiv = document.getElementById('test-log');
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(message);
+        }
+        
+        function showResult(elementId, success, message, data = null) {
+            const element = document.getElementById(elementId);
+            element.className = `test-section ${success ? 'success' : 'error'}`;
+            element.innerHTML = `
+                <strong>${success ? '✅ Success' : '❌ Error'}:</strong> ${message}
+                ${data ? `<pre>${JSON.stringify(data, null, 2)}</pre>` : ''}
+            `;
+        }
+        
+        async function testBackendConnection() {
+            log('Testing backend connection...');
+            try {
+                const response = await fetch(`${API_BASE}/api/breakdowns/health`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    showResult('connection-status', true, 'Backend is healthy and responding', {
+                        status: data.status,
+                        totalLogs: data.data.totalLogs,
+                        version: data.data.version
+                    });
+                    log('✅ Backend connection successful');
+                } else {
+                    showResult('connection-status', false, 'Backend responded but reported unhealthy status', data);
+                    log('⚠️ Backend unhealthy');
+                }
+            } catch (error) {
+                showResult('connection-status', false, `Cannot connect to backend: ${error.message}`);
+                log(`❌ Backend connection failed: ${error.message}`);
+            }
+        }
+        
+        async function logBreakdown() {
+            const breakdownData = {
+                supervisorId: document.getElementById('supervisorId').value,
+                vehicleReg: document.getElementById('vehicleReg').value,
+                fleetNo: document.getElementById('fleetNo').value,
+                breakdownType: document.getElementById('breakdownType').value,
+                location: document.getElementById('location').value,
+                description: document.getElementById('description').value,
+                timestamp: new Date().toISOString(),
+                severity: 'medium'
+            };
+            
+            log(`Logging breakdown: ${breakdownData.breakdownType} for ${breakdownData.vehicleReg}`);
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/breakdowns/log`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(breakdownData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showResult('log-result', true, result.message, result.data);
+                    log(`✅ Breakdown logged successfully: ${result.data.id}`);
+                    // Automatically refresh the breakdown list
+                    setTimeout(viewBreakdowns, 500);
+                } else {
+                    showResult('log-result', false, result.error || 'Failed to log breakdown', result);
+                    log(`❌ Breakdown logging failed: ${result.error}`);
+                }
+            } catch (error) {
+                showResult('log-result', false, `Network error: ${error.message}`);
+                log(`❌ Network error: ${error.message}`);
+            }
+        }
+        
+        async function viewBreakdowns() {
+            log('Retrieving recent breakdowns...');
+            try {
+                const response = await fetch(`${API_BASE}/api/breakdowns/logs?limit=10`);
+                const data = await response.json();
+                
+                if (data.success && data.data.length > 0) {
+                    const breakdownsHtml = data.data.map(breakdown => `
+                        <div style="border: 1px solid #ddd; padding: 10px; margin: 5px; border-radius: 4px;">
+                            <strong>${breakdown.breakdownType}</strong> - ${breakdown.vehicleReg} (Fleet: ${breakdown.fleetNo})
+                            <br>Supervisor: ${breakdown.supervisorId} | Status: ${breakdown.status}
+                            <br>Time: ${new Date(breakdown.timestamp).toLocaleString()}
+                            <br>Location: ${breakdown.location}
+                            ${breakdown.description ? `<br>Description: ${breakdown.description}` : ''}
+                        </div>
+                    `).join('');
+                    
+                    showResult('breakdown-list', true, `Found ${data.data.length} recent breakdowns`, null);
+                    document.getElementById('breakdown-list').innerHTML += breakdownsHtml;
+                    log(`✅ Retrieved ${data.data.length} breakdowns`);
+                } else if (data.success && data.data.length === 0) {
+                    showResult('breakdown-list', true, 'No breakdowns found');
+                    log('ℹ️ No breakdowns in system');
+                } else {
+                    showResult('breakdown-list', false, data.error || 'Failed to retrieve breakdowns');
+                    log(`❌ Failed to retrieve breakdowns: ${data.error}`);
+                }
+            } catch (error) {
+                showResult('breakdown-list', false, `Network error: ${error.message}`);
+                log(`❌ Network error retrieving breakdowns: ${error.message}`);
+            }
+        }
+        
+        async function getAnalytics() {
+            log('Getting analytics data...');
+            try {
+                const response = await fetch(`${API_BASE}/api/breakdowns/analytics?period=today`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const analytics = data.data;
+                    showResult('analytics-result', true, 'Analytics retrieved successfully', {
+                        totalBreakdowns: analytics.totalBreakdowns,
+                        period: analytics.period,
+                        severityDistribution: analytics.severity,
+                        statusDistribution: analytics.status,
+                        topBreakdownTypes: analytics.commonTypes.slice(0, 3)
+                    });
+                    log(`✅ Analytics: ${analytics.totalBreakdowns} breakdowns today`);
+                } else {
+                    showResult('analytics-result', false, data.error || 'Failed to get analytics');
+                    log(`❌ Analytics failed: ${data.error}`);
+                }
+            } catch (error) {
+                showResult('analytics-result', false, `Network error: ${error.message}`);
+                log(`❌ Network error getting analytics: ${error.message}`);
+            }
+        }
+        
+        // Initialize page
+        log('🔧 Breakdown Logging Test Page Loaded');
+        log(`API Base URL: ${API_BASE}`);
+        log('Click "Test Backend Connection" to begin');
+        
+        // Auto-test connection on page load
+        setTimeout(testBackendConnection, 1000);
+    </script>
+</body>
+</html>

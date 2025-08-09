@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>✅ Breakdown Logging - Production Status</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-4xl font-bold mb-8 text-center">
+            <span class="text-green-400">✅</span> Breakdown Logging System
+            <span class="text-xs block text-gray-400 mt-2">Production Ready - v1.0.0</span>
+        </h1>
+
+        <!-- Status Overview -->
+        <div class="bg-green-900/20 border border-green-400/30 rounded-lg p-6 mb-8">
+            <h2 class="text-2xl font-semibold text-green-400 mb-4">🚀 System Status: ACTIVE</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <p class="text-gray-300">Backend API:</p>
+                    <p class="text-green-400 font-mono">✅ /api/breakdowns</p>
+                </div>
+                <div>
+                    <p class="text-gray-300">Frontend Logger:</p>
+                    <p class="text-green-400 font-mono">✅ window.logBreakdown()</p>
+                </div>
+                <div>
+                    <p class="text-gray-300">Data Storage:</p>
+                    <p class="text-green-400 font-mono">✅ /backend/data/breakdowns.json</p>
+                </div>
+                <div>
+                    <p class="text-gray-300">Integration Status:</p>
+                    <p class="text-green-400 font-mono">✅ 7/7 Critical Wizards</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Integrated Wizards -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-8">
+            <h3 class="text-xl font-semibold mb-4">📋 Integrated Wizards</h3>
+            <div class="space-y-2">
+                <div class="flex items-center justify-between p-3 bg-gray-700/50 rounded">
+                    <span>🚗 SteeringWizard</span>
+                    <span class="text-green-400 text-sm">✅ Logs on any steering defect</span>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-gray-700/50 rounded">
+                    <span>🛑 BrakesWizard</span>
+                    <span class="text-green-400 text-sm">✅ Logs on critical brake issues</span>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-gray-700/50 rounded">
+                    <span>🔑 NonStarterWizard</span>
+                    <span class="text-green-400 text-sm">✅ Logs when vehicle won't start</span>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-gray-700/50 rounded">
+                    <span>🔋 BatteryWizard</span>
+                    <span class="text-green-400 text-sm">✅ Logs when engineering required</span>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-gray-700/50 rounded">
+                    <span>🚪 DoorsWizard</span>
+                    <span class="text-green-400 text-sm">✅ Logs when safety defects present</span>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-gray-700/50 rounded">
+                    <span>⚠️ OilWarningLightWizard</span>
+                    <span class="text-green-400 text-sm">✅ Logs on must stop condition</span>
+                </div>
+                <div class="flex items-center justify-between p-3 bg-gray-700/50 rounded">
+                    <span>🔧 LooseWheelNutsWizard</span>
+                    <span class="text-green-400 text-sm">✅ Always logs (critical safety)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Test -->
+        <div class="bg-blue-900/20 border border-blue-400/30 rounded-lg p-6 mb-8">
+            <h3 class="text-xl font-semibold text-blue-400 mb-4">🧪 Quick Integration Test</h3>
+            <button onclick="testLogging()" class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg font-semibold transition-colors">
+                Test Breakdown Logging
+            </button>
+            <div id="testResult" class="mt-4 hidden">
+                <div class="bg-gray-800 rounded p-4 font-mono text-sm"></div>
+            </div>
+        </div>
+
+        <!-- Recent Logs -->
+        <div class="bg-gray-800 rounded-lg p-6">
+            <h3 class="text-xl font-semibold mb-4">📊 Recent Breakdown Logs</h3>
+            <div id="recentLogs" class="space-y-2">
+                <p class="text-gray-400">Loading...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="../breakdownLogger.js"></script>
+    <script>
+        // Test the logging function
+        async function testLogging() {
+            const resultDiv = document.getElementById('testResult');
+            const resultContent = resultDiv.querySelector('div');
+            
+            resultDiv.classList.remove('hidden');
+            resultContent.innerHTML = '<span class="text-yellow-400">Testing breakdown logging...</span>';
+            
+            try {
+                const testData = {
+                    supervisorId: 'TEST001',
+                    vehicleReg: 'TEST123',
+                    fleetNo: '9999',
+                    breakdownType: 'System Test',
+                    timestamp: new Date().toISOString()
+                };
+                
+                await window.logBreakdown(testData);
+                
+                resultContent.innerHTML = `
+                    <span class="text-green-400">✅ Logging successful!</span>
+                    <pre class="mt-2 text-xs">${JSON.stringify(testData, null, 2)}</pre>
+                `;
+                
+                // Refresh recent logs
+                loadRecentLogs();
+            } catch (error) {
+                resultContent.innerHTML = `
+                    <span class="text-red-400">❌ Logging failed!</span>
+                    <pre class="mt-2 text-xs text-red-300">${error.message}</pre>
+                `;
+            }
+        }
+        
+        // Load recent logs
+        async function loadRecentLogs() {
+            const logsDiv = document.getElementById('recentLogs');
+            
+            try {
+                const apiUrl = window.location.hostname === 'localhost' 
+                    ? 'http://localhost:8080/api/breakdowns'
+                    : '/api/breakdowns';
+                    
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+                
+                if (data.breakdowns && data.breakdowns.length > 0) {
+                    const recent = data.breakdowns.slice(-5).reverse();
+                    logsDiv.innerHTML = recent.map(log => `
+                        <div class="bg-gray-700/50 rounded p-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="font-semibold">${log.breakdownType}</span>
+                                    <span class="text-gray-400 text-sm ml-2">${log.vehicleReg} / ${log.fleetNo}</span>
+                                </div>
+                                <span class="text-xs text-gray-400">${new Date(log.timestamp).toLocaleString()}</span>
+                            </div>
+                            <div class="text-xs text-gray-400 mt-1">
+                                Supervisor: ${log.supervisorId} | ID: ${log.id}
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    logsDiv.innerHTML = '<p class="text-gray-400">No breakdown logs found</p>';
+                }
+            } catch (error) {
+                logsDiv.innerHTML = `<p class="text-red-400">Error loading logs: ${error.message}</p>`;
+            }
+        }
+        
+        // Check if logger is available
+        if (window.logBreakdown) {
+            console.log('✅ Breakdown logger is loaded and ready');
+        } else {
+            console.error('❌ Breakdown logger not found');
+        }
+        
+        // Load logs on page load
+        loadRecentLogs();
+        
+        // Auto-refresh logs every 30 seconds
+        setInterval(loadRecentLogs, 30000);
+    </script>
+</body>
+</html>

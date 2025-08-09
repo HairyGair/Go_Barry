@@ -456,7 +456,25 @@ function DoorsWizard({ currentStep, responses, updateResponse, onNext, onPreviou
                 Previous
               </button>
               <button
-                onClick={onComplete}
+                onClick={async () => {
+                  // Log breakdown if safety defects are present
+                  if (responses.safetyDefects === 'present') {
+                    try {
+                      await window.logBreakdown({
+                        supervisorId: window.AppConstants?.currentSupervisor || 'Unknown',
+                        vehicleReg: window.selectedReg || 'Unknown',
+                        fleetNo: window.selectedFleetNo || 'Unknown',
+                        breakdownType: 'Doors',
+                        timestamp: new Date().toISOString()
+                      });
+                      console.log('✅ Doors breakdown logged successfully');
+                    } catch (error) {
+                      console.error('Failed to log doors breakdown:', error);
+                      // Don't block completion if logging fails
+                    }
+                  }
+                  onComplete();
+                }}
                 className={`px-6 py-3 ${responses.safetyDefects === 'present' ? 'bg-red-600 hover:bg-red-500' : 'bg-amber-600 hover:bg-amber-500'} text-white rounded-lg transition-colors`}
               >
                 Complete Assessment

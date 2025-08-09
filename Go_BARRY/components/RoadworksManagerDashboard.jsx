@@ -668,6 +668,7 @@ const RoadworksManagerDashboard = ({ onClose }) => {
     
     try {
       console.log('🚧 [RoadworksManagerDashboard] Starting to fetch roadworks...');
+      console.log('🔧 [RoadworksManagerDashboard] API_CONFIG.baseURL:', API_CONFIG.baseURL);
       setError(null); // Clear any previous errors
       
       // Always use production API - backend is on Render

@@ -1,8 +1,8 @@
 // Go_BARRY/config/api.js
 // API configuration with automatic environment detection
 
-// Detect environment properly
-const isDevelopment = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+// Always use production - safer than environment detection
+const isDevelopment = false;
 const PRODUCTION_API_URL = 'https://go-barry.onrender.com';
 const DEVELOPMENT_API_URL = 'http://localhost:3001';
 

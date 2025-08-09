@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 Backend Connection Debugger</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-item {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .pending { background: #fff3cd; color: #856404; }
+        code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Backend Connection Debugger</h1>
+        <p>Let's figure out what's happening with your backend connection...</p>
+        
+        <div id="tests"></div>
+        
+        <h3>Manual Check:</h3>
+        <p>Run this command to see what port your backend is using:</p>
+        <code>lsof -i :8080</code>
+        <p>Or check if it's on port 3001:</p>
+        <code>lsof -i :3001</code>
+        
+        <h3>Direct API Test:</h3>
+        <p>Try these URLs in a new browser tab:</p>
+        <ul>
+            <li><a href="http://localhost:8080/api/health" target="_blank">http://localhost:8080/api/health</a></li>
+            <li><a href="http://localhost:3001/api/health" target="_blank">http://localhost:3001/api/health</a></li>
+            <li><a href="http://localhost:8080/api/admin-breakdowns" target="_blank">http://localhost:8080/api/admin-breakdowns</a></li>
+            <li><a href="http://localhost:3001/api/admin-breakdowns" target="_blank">http://localhost:3001/api/admin-breakdowns</a></li>
+        </ul>
+    </div>
+
+    <script>
+        const testsEl = document.getElementById('tests');
+        
+        async function runTests() {
+            // Test different ports
+            const ports = [8080, 3001, 3000];
+            
+            for (const port of ports) {
+                const testDiv = document.createElement('div');
+                testDiv.className = 'test-item pending';
+                testDiv.innerHTML = `Testing port ${port}...`;
+                testsEl.appendChild(testDiv);
+                
+                try {
+                    // Try health endpoint
+                    const healthResponse = await fetch(`http://localhost:${port}/api/health`, {
+                        method: 'GET',
+                        mode: 'cors',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+                    
+                    if (healthResponse.ok) {
+                        testDiv.className = 'test-item success';
+                        testDiv.innerHTML = `✅ Port ${port}: Backend is running here!`;
+                        
+                        // Test breakdown endpoint
+                        try {
+                            const breakdownResponse = await fetch(`http://localhost:${port}/api/admin-breakdowns?limit=1`);
+                            if (breakdownResponse.ok) {
+                                const data = await breakdownResponse.json();
+                                testDiv.innerHTML += `<br>✅ Breakdown API working! Found ${data.logs ? data.logs.length : 0} logs`;
+                            }
+                        } catch (e) {
+                            testDiv.innerHTML += `<br>⚠️ Breakdown API error: ${e.message}`;
+                        }
+                    } else {
+                        throw new Error(`Status ${healthResponse.status}`);
+                    }
+                } catch (error) {
+                    testDiv.className = 'test-item error';
+                    testDiv.innerHTML = `❌ Port ${port}: ${error.message}`;
+                }
+            }
+            
+            // Test direct Supabase connection
+            const supabaseDiv = document.createElement('div');
+            supabaseDiv.className = 'test-item pending';
+            supabaseDiv.innerHTML = 'Testing Supabase connection...';
+            testsEl.appendChild(supabaseDiv);
+            
+            try {
+                // This will test if we can reach Supabase directly
+                const response = await fetch('https://pcedgoatddzvqkqhqnji.supabase.co/rest/v1/breakdowns?limit=1', {
+                    headers: {
+                        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBjZWRnb2F0ZGR6dnFrcWhxbmppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MTg3MTU0MzAsImV4cCI6MjAzNDI5MTQzMH0.KvcOkuKnXvZtQFJCLBGnVo5p7KTM-O8gSq5sVJrO9lk'
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    supabaseDiv.className = 'test-item success';
+                    supabaseDiv.innerHTML = `✅ Direct Supabase connection works! ${data.length} records found`;
+                }
+            } catch (error) {
+                supabaseDiv.className = 'test-item error';
+                supabaseDiv.innerHTML = `❌ Supabase test failed: ${error.message}`;
+            }
+        }
+        
+        runTests();
+    </script>
+</body>
+</html>

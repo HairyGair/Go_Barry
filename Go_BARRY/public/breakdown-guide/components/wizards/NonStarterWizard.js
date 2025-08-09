@@ -415,7 +415,23 @@ function NonStarterWizard({ currentStep, responses, updateResponse, onNext, onPr
                 Previous
               </button>
               <button
-                onClick={onComplete}
+                onClick={async () => {
+                  // Log breakdown for non-starter incident
+                  try {
+                    await window.logBreakdown({
+                      supervisorId: window.AppConstants?.currentSupervisor || 'Unknown',
+                      vehicleReg: window.selectedReg || 'Unknown',
+                      fleetNo: window.selectedFleetNo || 'Unknown',
+                      breakdownType: 'Non-Starter',
+                      timestamp: new Date().toISOString()
+                    });
+                    console.log('✅ Non-Starter breakdown logged successfully');
+                  } catch (error) {
+                    console.error('Failed to log non-starter breakdown:', error);
+                    // Don't block completion if logging fails
+                  }
+                  onComplete();
+                }}
                 className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-500 transition-colors"
               >
                 Complete Assessment

@@ -471,7 +471,25 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                 Previous
               </button>
               <button
-                onClick={onComplete}
+                onClick={async () => {
+                  // Log breakdown if critical issues detected
+                  if (criticalIssues) {
+                    try {
+                      await window.logBreakdown({
+                        supervisorId: window.AppConstants?.currentSupervisor || 'Unknown',
+                        vehicleReg: window.selectedReg || 'Unknown',
+                        fleetNo: window.selectedFleetNo || 'Unknown',
+                        breakdownType: 'Brakes',
+                        timestamp: new Date().toISOString()
+                      });
+                      console.log('✅ Brakes breakdown logged successfully');
+                    } catch (error) {
+                      console.error('Failed to log brakes breakdown:', error);
+                      // Don't block completion if logging fails
+                    }
+                  }
+                  onComplete();
+                }}
                 className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors"
               >
                 Complete Assessment

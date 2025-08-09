@@ -198,6 +198,16 @@ async function registerRoutes() {
   
   // Core functionality - load next
   await routeManager.registerRoute(app, '/api/admin', './routes/adminAPI.js', 'Admin API');
+  
+  // Breakdown Analytics API for fleet operations monitoring
+  await routeManager.registerRoute(app, '/api/breakdown-analytics', './routes/breakdownAnalyticsAPI.js', 'Breakdown Analytics API');
+  console.log('✅ Breakdown Analytics API registered for fleet breakdown pattern monitoring');
+  
+  // Breakdown logging system routes - UPDATED to use unified breakdown routes
+  await routeManager.registerRoute(app, '/api/breakdowns', './routes/breakdowns.js', 'Unified Breakdown API');
+  console.log('✅ Unified Breakdown API registered for logging and analytics at /api/breakdowns');
+  await routeManager.registerRoute(app, '/api/admin-breakdowns', './routes/adminBreakdowns.js', 'Admin Breakdowns');
+  console.log('✅ Admin Breakdowns API registered for viewing breakdown logs at /api/admin-breakdowns');
   await routeManager.registerRoute(app, '/api/shifts', './routes/shiftManagement.js', 'Shift Management');
   await routeManager.registerRoute(app, '/api/incidents', './routes/incidentAPI.js', 'Incident API');
   await routeManager.registerRoute(app, '/api/incident-alerts', './routes/incidentAlertsAPI.js', 'Incident Alerts API');

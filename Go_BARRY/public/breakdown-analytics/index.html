@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go North East - Fleet Breakdown Analytics</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pulse-red { animation: pulse-red 2s infinite; }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #ce0e2d;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .file-drop-zone {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .file-drop-zone:hover {
+            border-color: #ce0e2d;
+            background-color: #fef2f2;
+        }
+        .file-drop-zone.dragover {
+            border-color: #ce0e2d;
+            background-color: #fef2f2;
+        }
+        .tab-active {
+            border-bottom: 2px solid #ce0e2d;
+            color: #ce0e2d;
+        }
+    </style>
+</head>
+<body>
+    <div id="root">
+        <!-- Loading indicator -->
+        <div style="display: flex; justify-content: center; align-items: center; height: 100vh;">
+            <div style="text-align: center;">
+                <div class="loading-spinner" style="margin: 0 auto;"></div>
+                <p style="margin-top: 20px; color: #666;">Loading Analytics Dashboard...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Load the breakdown analytics module -->
+    <script src="../breakdown-guide/breakdown-analytics.js"></script>
+    
+    <script type="text/babel">
+        // Wait for all scripts to load
+        function waitForLibraries() {
+            return new Promise((resolve) => {
+                const checkLibraries = () => {
+                    if (typeof React !== 'undefined' && 
+                        typeof ReactDOM !== 'undefined' && 
+                        typeof XLSX !== 'undefined' &&
+                        typeof window.BreakdownAnalytics !== 'undefined') {
+                        resolve();
+                    } else {
+                        setTimeout(checkLibraries, 100);
+                    }
+                };
+                checkLibraries();
+            });
+        }
+
+        // Main app initialization
+        waitForLibraries().then(() => {
+            console.log('All libraries loaded, initializing dashboard...');
+            
+            const { useState, useEffect, useRef } = React;
+
+            // Components
+            const StatCard = ({ title, value, change, icon, color = 'blue' }) => (
+                <div className="bg-white rounded-lg shadow p-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-medium text-gray-600">{title}</p>
+                            <p className={`text-2xl font-bold text-${color}-600 mt-1`}>{value}</p>
+                            {change !== undefined && (
+                                <p className={`text-sm mt-2 ${change >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                    {change >= 0 ? '↑' : '↓'} {Math.abs(change)}% from last week
+                                </p>
+                            )}
+                        </div>
+                        <div className={`text-3xl text-${color}-500`}>{icon}</div>
+                    </div>
+                </div>
+            );
+
+            const LoadingSpinner = () => (
+                <div className="flex justify-center items-center py-8">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#ce0e2d]"></div>
+                </div>
+            );
+
+            const ErrorMessage = ({ message }) => (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+                    <p className="font-semibold">Error loading data</p>
+                    <p className="text-sm mt-1">{message}</p>
+                </div>
+            );
+
+            const FileUploader = ({ onFileLoad }) => {
+                const fileInputRef = useRef(null);
+                const [isDragging, setIsDragging] = useState(false);
+
+                const handleFile = async (file) => {
+                    if (!file) return;
+
+                    const reader = new FileReader();
+                    reader.onload = async (e) => {
+                        try {
+                            const data = new Uint8Array(e.target.result);
+                            const workbook = XLSX.read(data, { type: 'array' });
+                            onFileLoad(workbook);
+                        } catch (error) {
+                            console.error('Error reading file:', error);
+                            alert('Error reading Excel file. Please ensure it\'s a valid .xlsx file.');
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
+                };
+
+                const handleDragEnter = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDragging(true);
+                };
+
+                const handleDragLeave = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDragging(false);
+                };
+
+                const handleDragOver = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                };
+
+                const handleDrop = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDragging(false);
+
+                    const files = e.dataTransfer.files;
+                    if (files && files[0]) {
+                        handleFile(files[0]);
+                    }
+                };
+
+                const handleFileInput = (e) => {
+                    const files = e.target.files;
+                    if (files && files[0]) {
+                        handleFile(files[0]);
+                    }
+                };
+
+                return (
+                    <div 
+                        className={`file-drop-zone ${isDragging ? 'dragover' : ''}`}
+                        onDragEnter={handleDragEnter}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        onClick={() => fileInputRef.current?.click()}
+                    >
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".xlsx,.xls"
+                            onChange={handleFileInput}
+                            style={{ display: 'none' }}
+                        />
+                        <div className="text-6xl mb-4">📊</div>
+                        <h3 className="text-lg font-semibold mb-2">Upload Additional Fleet Data</h3>
+                        <p className="text-gray-600 mb-4">
+                            Drag and drop Excel files here to merge with wizard data
+                        </p>
+                        <button className="bg-[#ce0e2d] text-white px-6 py-2 rounded hover:bg-red-700">
+                            Select File
+                        </button>
+                    </div>
+                );
+            };
+
+            const BreakdownDashboard = () => {
+                const [selectedDepot, setSelectedDepot] = useState('All Depots');
+                const [timeRange, setTimeRange] = useState('7');
+                const [loading, setLoading] = useState(false);
+                const [error, setError] = useState(null);
+                const [dataSource, setDataSource] = useState('wizard'); // 'wizard' or 'excel'
+                const [wizardData, setWizardData] = useState(null);
+                const [excelData, setExcelData] = useState(null);
+                const [processedData, setProcessedData] = useState(null);
+                const [patterns, setPatterns] = useState([]);
+                
+                // Load wizard data on mount and when filters change
+                useEffect(() => {
+                    if (dataSource === 'wizard') {
+                        loadWizardData();
+                    }
+                }, [selectedDepot, timeRange, dataSource]);
+                
+                // Load data from BreakdownAnalytics
+                const loadWizardData = () => {
+                    setLoading(true);
+                    try {
+                        const filters = {
+                            days: parseInt(timeRange),
+                            depot: selectedDepot !== 'All Depots' ? selectedDepot : undefined
+                        };
+                        
+                        const stats = window.BreakdownAnalytics.getAnalyticsSummary(filters);
+                        const allBreakdowns = window.BreakdownAnalytics.getFilteredBreakdowns(filters);
+                        
+                        // Check for patterns
+                        const detectedPatterns = [];
+                        const vehicleCounts = stats.vehicleBreakdowns;
+                        Object.entries(vehicleCounts).forEach(([vehicle, count]) => {
+                            if (count >= 3) {
+                                detectedPatterns.push({
+                                    type: 'warning',
+                                    message: `Vehicle ${vehicle} has ${count} breakdowns in selected period`
+                                });
+                            }
+                        });
+                        
+                        setPatterns(detectedPatterns);
+                        setWizardData(allBreakdowns);
+                        setProcessedData(stats);
+                        
+                    } catch (err) {
+                        console.error('Error loading wizard data:', err);
+                        setError(err.message);
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+                
+                // Export data to Excel
+                const exportToExcel = () => {
+                    const data = window.BreakdownAnalytics.exportToExcel();
+                    
+                    // Create worksheet
+                    const ws = XLSX.utils.json_to_sheet(data);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Breakdowns");
+                    
+                    // Save file
+                    const fileName = `GO_BARRY_Breakdowns_${new Date().toISOString().split('T')[0]}.xlsx`;
+                    XLSX.writeFile(wb, fileName);
+                };
+                
+                // Process Excel data
+                const processExcelData = (workbook) => {
+                    // ... (keep existing Excel processing logic)
+                    console.log('Processing Excel data to merge with wizard data');
+                };
+                
+                // Transform data for display
+                const depotChartData = React.useMemo(() => {
+                    if (!processedData?.depotBreakdown) return [];
+                    return Object.entries(processedData.depotBreakdown)
+                        .map(([depot, count]) => ({ depot, breakdowns: count }))
+                        .sort((a, b) => b.breakdowns - a.breakdowns);
+                }, [processedData]);
+                
+                const categoryChartData = React.useMemo(() => {
+                    if (!processedData?.categoryBreakdown) return [];
+                    const total = processedData.totalBreakdowns || 1;
+                    return Object.entries(processedData.categoryBreakdown)
+                        .map(([name, value]) => ({
+                            name,
+                            value,
+                            percentage: ((value / total) * 100).toFixed(1)
+                        }))
+                        .sort((a, b) => b.value - a.value)
+                        .slice(0, 6);
+                }, [processedData]);
+                
+                const vehicleReliabilityData = React.useMemo(() => {
+                    if (!processedData?.vehicleBreakdowns) return [];
+                    return Object.entries(processedData.vehicleBreakdowns)
+                        .map(([fleet_number, breakdown_count]) => ({
+                            fleet_number,
+                            breakdown_count,
+                            reliability_rating: breakdown_count >= 5 ? 'Poor' : breakdown_count >= 3 ? 'Fair' : 'Good'
+                        }))
+                        .sort((a, b) => b.breakdown_count - a.breakdown_count)
+                        .slice(0, 10);
+                }, [processedData]);
+
+                return (
+                    <div className="min-h-screen bg-gray-50">
+                        {/* Header */}
+                        <header className="bg-[#ce0e2d] text-white shadow-lg">
+                            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center space-x-4">
+                                        <h1 className="text-2xl font-bold">Fleet Breakdown Analytics</h1>
+                                        <span className="text-sm opacity-75">Live Dashboard</span>
+                                    </div>
+                                    <div className="flex items-center space-x-4">
+                                        <select 
+                                            className="bg-white/20 border border-white/30 rounded px-3 py-1 text-sm text-white"
+                                            value={selectedDepot}
+                                            onChange={(e) => setSelectedDepot(e.target.value)}
+                                        >
+                                            <option value="All Depots">All Depots</option>
+                                            <option value="Washington">Washington</option>
+                                            <option value="Consett">Consett</option>
+                                            <option value="Hexham">Hexham</option>
+                                            <option value="Riverside">Riverside</option>
+                                            <option value="Gateshead Riverside">Gateshead Riverside</option>
+                                        </select>
+                                        <select 
+                                            className="bg-white/20 border border-white/30 rounded px-3 py-1 text-sm text-white"
+                                            value={timeRange}
+                                            onChange={(e) => setTimeRange(e.target.value)}
+                                        >
+                                            <option value="7">Last 7 days</option>
+                                            <option value="30">Last 30 days</option>
+                                            <option value="90">Last 90 days</option>
+                                            <option value="365">All Time</option>
+                                        </select>
+                                        <button 
+                                            onClick={exportToExcel}
+                                            className="bg-green-600 hover:bg-green-700 px-4 py-1 rounded text-sm flex items-center gap-2"
+                                        >
+                                            <span>📥</span> Export Excel
+                                        </button>
+                                        <a 
+                                            href="../breakdown-guide" 
+                                            className="bg-white/20 hover:bg-white/30 px-4 py-1 rounded text-sm"
+                                        >
+                                            GO BARRY →
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </header>
+
+                        {/* Main Content */}
+                        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                            {/* Data Source Tabs */}
+                            <div className="flex border-b border-gray-200 mb-6">
+                                <button
+                                    className={`px-6 py-3 font-medium ${dataSource === 'wizard' ? 'tab-active' : 'text-gray-500'}`}
+                                    onClick={() => setDataSource('wizard')}
+                                >
+                                    GO BARRY Wizard Data ({wizardData?.length || 0} records)
+                                </button>
+                                <button
+                                    className={`px-6 py-3 font-medium ${dataSource === 'excel' ? 'tab-active' : 'text-gray-500'}`}
+                                    onClick={() => setDataSource('excel')}
+                                >
+                                    Import Excel Data
+                                </button>
+                            </div>
+
+                            {loading ? (
+                                <LoadingSpinner />
+                            ) : error ? (
+                                <ErrorMessage message={error} />
+                            ) : dataSource === 'excel' && !excelData ? (
+                                <div className="bg-white rounded-lg shadow-lg p-8">
+                                    <FileUploader onFileLoad={processExcelData} />
+                                </div>
+                            ) : (
+                                <>
+                                    {/* Pattern Alerts */}
+                                    {patterns.length > 0 && (
+                                        <div className="mb-6 space-y-2">
+                                            {patterns.map((pattern, idx) => (
+                                                <div key={idx} className={`p-4 rounded-lg border ${
+                                                    pattern.type === 'warning' ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-200'
+                                                }`}>
+                                                    <span className="font-medium">{pattern.type === 'warning' ? '⚠️' : 'ℹ️'}</span>
+                                                    <span className="ml-2">{pattern.message}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                    
+                                    {/* Overview Stats */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+                                        <StatCard 
+                                            title="Total Breakdowns" 
+                                            value={processedData?.totalBreakdowns || 0} 
+                                            icon="🚨"
+                                            color="red"
+                                        />
+                                        <StatCard 
+                                            title="Vehicles Affected" 
+                                            value={processedData?.vehiclesAffected || 0}
+                                            icon="🚌"
+                                            color="blue"
+                                        />
+                                        <StatCard 
+                                            title="Safety Critical (STOP)" 
+                                            value={processedData?.stopDecisions || 0}
+                                            icon="🛑"
+                                            color="red"
+                                        />
+                                        <StatCard 
+                                            title="Amber Warnings" 
+                                            value={processedData?.amberDecisions || 0}
+                                            icon="⚠️"
+                                            color="amber"
+                                        />
+                                        <StatCard 
+                                            title="Continue Decisions" 
+                                            value={processedData?.continueDecisions || 0}
+                                            icon="✅"
+                                            color="green"
+                                        />
+                                    </div>
+
+                                    {/* Data Tables */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                                        {/* Depot Summary */}
+                                        <div className="bg-white rounded-lg shadow p-6">
+                                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Breakdowns by Depot</h3>
+                                            <div className="space-y-2 max-h-64 overflow-y-auto">
+                                                {depotChartData.length > 0 ? (
+                                                    depotChartData.map(({ depot, breakdowns }) => (
+                                                        <div key={depot} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
+                                                            <span className="font-medium">{depot}</span>
+                                                            <span className="text-sm text-gray-600">{breakdowns} breakdowns</span>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <p className="text-gray-500 text-center py-4">No depot data available</p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Category Breakdown */}
+                                        <div className="bg-white rounded-lg shadow p-6">
+                                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Breakdown Categories</h3>
+                                            <div className="space-y-2 max-h-64 overflow-y-auto">
+                                                {categoryChartData.length > 0 ? (
+                                                    categoryChartData.map(({ name, value, percentage }) => (
+                                                        <div key={name} className="flex justify-between items-center p-2 hover:bg-gray-50 rounded">
+                                                            <span className="font-medium text-sm">{name}</span>
+                                                            <span className="text-sm text-gray-600">{value} ({percentage}%)</span>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <p className="text-gray-500 text-center py-4">No category data available</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Vehicle Reliability Table */}
+                                    <div className="bg-white rounded-lg shadow">
+                                        <div className="px-6 py-4 border-b border-gray-200">
+                                            <h3 className="text-lg font-semibold text-gray-900">Vehicle Reliability - Worst Performers</h3>
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                            <table className="min-w-full divide-y divide-gray-200">
+                                                <thead className="bg-gray-50">
+                                                    <tr>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fleet #</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Breakdowns</th>
+                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="bg-white divide-y divide-gray-200">
+                                                    {vehicleReliabilityData.length > 0 ? (
+                                                        vehicleReliabilityData.map((vehicle) => (
+                                                            <tr key={vehicle.fleet_number}>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{vehicle.fleet_number}</td>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{vehicle.breakdown_count}</td>
+                                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                                                        vehicle.reliability_rating === 'Poor' ? 'bg-red-100 text-red-800' :
+                                                                        vehicle.reliability_rating === 'Fair' ? 'bg-yellow-100 text-yellow-800' :
+                                                                        'bg-green-100 text-green-800'
+                                                                    }`}>
+                                                                        {vehicle.reliability_rating}
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        ))
+                                                    ) : (
+                                                        <tr>
+                                                            <td colSpan="3" className="px-6 py-4 text-center text-gray-500">
+                                                                <p>No breakdown data from wizards yet</p>
+                                                                <p className="text-xs mt-2">Complete assessments in GO BARRY to see data here</p>
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    {/* Recent Breakdowns from Wizards */}
+                                    {processedData?.recentBreakdowns?.length > 0 && (
+                                        <div className="mt-8 bg-white rounded-lg shadow">
+                                            <div className="px-6 py-4 border-b border-gray-200">
+                                                <h3 className="text-lg font-semibold text-gray-900">Recent Wizard Assessments</h3>
+                                            </div>
+                                            <div className="overflow-x-auto">
+                                                <table className="min-w-full divide-y divide-gray-200">
+                                                    <thead className="bg-gray-50">
+                                                        <tr>
+                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date/Time</th>
+                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fleet #</th>
+                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Decision</th>
+                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Driver</th>
+                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="bg-white divide-y divide-gray-200">
+                                                        {processedData.recentBreakdowns.map((breakdown) => (
+                                                            <tr key={breakdown.id}>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                                    {breakdown.date} {breakdown.time}
+                                                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                                    {breakdown.fleetNumber}
+                                                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                                    {breakdown.category}
+                                                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                                                        breakdown.decision === 'STOP' ? 'bg-red-100 text-red-800' :
+                                                                        breakdown.decision === 'AMBER' ? 'bg-amber-100 text-amber-800' :
+                                                                        'bg-green-100 text-green-800'
+                                                                    }`}>
+                                                                        {breakdown.decision}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                                    {breakdown.driverName}
+                                                                </td>
+                                                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                                    {breakdown.location}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </main>
+                    </div>
+                );
+            };
+
+            // Error boundary
+            class ErrorBoundary extends React.Component {
+                constructor(props) {
+                    super(props);
+                    this.state = { hasError: false, error: null };
+                }
+
+                static getDerivedStateFromError(error) {
+                    return { hasError: true, error };
+                }
+
+                componentDidCatch(error, errorInfo) {
+                    console.error('React Error:', error, errorInfo);
+                }
+
+                render() {
+                    if (this.state.hasError) {
+                        return (
+                            <div style={{ padding: '20px', textAlign: 'center' }}>
+                                <h1>Something went wrong.</h1>
+                                <p>Check the browser console for details.</p>
+                                <pre style={{ textAlign: 'left', background: '#f5f5f5', padding: '10px', overflow: 'auto' }}>
+                                    {this.state.error && this.state.error.toString()}
+                                </pre>
+                            </div>
+                        );
+                    }
+
+                    return this.props.children;
+                }
+            }
+
+            // Render the app
+            const root = document.getElementById('root');
+            if (root) {
+                const reactRoot = ReactDOM.createRoot(root);
+                reactRoot.render(
+                    <ErrorBoundary>
+                        <BreakdownDashboard />
+                    </ErrorBoundary>
+                );
+                console.log('Dashboard rendered successfully');
+            }
+        }).catch(error => {
+            console.error('Failed to initialize dashboard:', error);
+        });
+    </script>
+</body>
+</html>

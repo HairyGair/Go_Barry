@@ -603,7 +603,25 @@ function BatteryWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                 Previous
               </button>
               <button
-                onClick={onComplete}
+                onClick={async () => {
+                  // Log breakdown if engineering assistance is required
+                  if (needsEngineering) {
+                    try {
+                      await window.logBreakdown({
+                        supervisorId: window.AppConstants?.currentSupervisor || 'Unknown',
+                        vehicleReg: window.selectedReg || 'Unknown',
+                        fleetNo: window.selectedFleetNo || 'Unknown',
+                        breakdownType: 'Battery',
+                        timestamp: new Date().toISOString()
+                      });
+                      console.log('✅ Battery breakdown logged successfully');
+                    } catch (error) {
+                      console.error('Failed to log battery breakdown:', error);
+                      // Don't block completion if logging fails
+                    }
+                  }
+                  onComplete();
+                }}
                 className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors"
               >
                 Complete Assessment

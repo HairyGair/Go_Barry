@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 Breakdown Logs Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top: 3px solid #3b82f6;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+    <div class="container mx-auto p-6 max-w-6xl">
+        <h1 class="text-3xl font-bold mb-8 text-center">
+            📊 Go BARRY Breakdown Logs Viewer
+        </h1>
+
+        <!-- Stats Section -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-gray-800 rounded-lg p-4 text-center">
+                <div class="text-2xl font-bold text-blue-400" id="totalCount">-</div>
+                <div class="text-sm text-gray-400">Total Breakdowns</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4 text-center">
+                <div class="text-2xl font-bold text-green-400" id="todayCount">-</div>
+                <div class="text-sm text-gray-400">Today</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4 text-center">
+                <div class="text-2xl font-bold text-yellow-400" id="weekCount">-</div>
+                <div class="text-sm text-gray-400">This Week</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg p-4 text-center">
+                <div class="text-2xl font-bold text-purple-400" id="monthCount">-</div>
+                <div class="text-sm text-gray-400">This Month</div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="bg-gray-800 rounded-lg p-4 mb-6">
+            <h2 class="text-xl font-semibold mb-4">🔍 Filters</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Breakdown Type</label>
+                    <select id="typeFilter" class="w-full bg-gray-700 rounded px-3 py-2">
+                        <option value="">All Types</option>
+                        <option value="Steering">Steering</option>
+                        <option value="Brakes">Brakes</option>
+                        <option value="Non-Starter">Non-Starter</option>
+                        <option value="Battery">Battery</option>
+                        <option value="Doors">Doors</option>
+                        <option value="Oil Warning Light">Oil Warning Light</option>
+                        <option value="Loose Wheel Nuts">Loose Wheel Nuts</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Supervisor ID</label>
+                    <input type="text" id="supervisorFilter" placeholder="e.g., JS001" 
+                           class="w-full bg-gray-700 rounded px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Vehicle Reg</label>
+                    <input type="text" id="vehicleFilter" placeholder="e.g., NX70ABC" 
+                           class="w-full bg-gray-700 rounded px-3 py-2">
+                </div>
+                <div class="flex items-end">
+                    <button onclick="applyFilters()" 
+                            class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded font-semibold w-full">
+                        Apply Filters
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loading" class="flex justify-center items-center py-12">
+            <div class="loading-spinner"></div>
+        </div>
+
+        <!-- Logs Table -->
+        <div id="logsContainer" class="hidden">
+            <h2 class="text-xl font-semibold mb-4">📋 Recent Breakdown Logs</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full bg-gray-800 rounded-lg overflow-hidden">
+                    <thead class="bg-gray-700">
+                        <tr>
+                            <th class="px-4 py-3 text-left">Timestamp</th>
+                            <th class="px-4 py-3 text-left">Type</th>
+                            <th class="px-4 py-3 text-left">Vehicle</th>
+                            <th class="px-4 py-3 text-left">Fleet #</th>
+                            <th class="px-4 py-3 text-left">Supervisor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsTable" class="divide-y divide-gray-700">
+                        <!-- Logs will be inserted here -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="flex justify-between items-center mt-4">
+                <div class="text-sm text-gray-400">
+                    Showing <span id="showingCount">0</span> of <span id="totalLogs">0</span> logs
+                </div>
+                <div class="space-x-2">
+                    <button onclick="previousPage()" id="prevBtn"
+                            class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded disabled:opacity-50">
+                        Previous
+                    </button>
+                    <button onclick="nextPage()" id="nextBtn"
+                            class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded disabled:opacity-50">
+                        Next
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Error Message -->
+        <div id="errorMessage" class="hidden bg-red-900/20 border border-red-500 rounded-lg p-4 text-red-400">
+        </div>
+
+        <!-- Breakdown Type Distribution -->
+        <div class="mt-8 bg-gray-800 rounded-lg p-6">
+            <h2 class="text-xl font-semibold mb-4">📈 Breakdown Types Distribution</h2>
+            <div id="typeDistribution" class="space-y-2">
+                <!-- Distribution will be shown here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API configuration - use port 3001
+        const API_BASE = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3001' 
+            : ''; // Production uses same origin
+            
+        let currentOffset = 0;
+        const limit = 20;
+        let totalCount = 0;
+        let allLogs = [];
+
+        // Load logs on page load
+        window.onload = () => {
+            loadLogs();
+            loadStats();
+        };
+
+        async function loadLogs() {
+            const loading = document.getElementById('loading');
+            const logsContainer = document.getElementById('logsContainer');
+            const errorMessage = document.getElementById('errorMessage');
+            
+            loading.classList.remove('hidden');
+            logsContainer.classList.add('hidden');
+            errorMessage.classList.add('hidden');
+            
+            try {
+                // Build query parameters
+                const params = new URLSearchParams({
+                    limit: limit,
+                    offset: currentOffset
+                });
+                
+                // Add filters
+                const typeFilter = document.getElementById('typeFilter').value;
+                const supervisorFilter = document.getElementById('supervisorFilter').value;
+                const vehicleFilter = document.getElementById('vehicleFilter').value;
+                
+                if (typeFilter) params.append('breakdownType', typeFilter);
+                if (supervisorFilter) params.append('supervisorId', supervisorFilter);
+                if (vehicleFilter) params.append('vehicleReg', vehicleFilter);
+                
+                const response = await fetch(`${API_BASE}/api/admin-breakdowns?${params}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    allLogs = data.logs;
+                    totalCount = data.pagination.total || data.logs.length;
+                    displayLogs(data.logs);
+                    updatePagination();
+                    
+                    loading.classList.add('hidden');
+                    logsContainer.classList.remove('hidden');
+                } else {
+                    throw new Error(data.error || 'Failed to load logs');
+                }
+            } catch (error) {
+                loading.classList.add('hidden');
+                errorMessage.classList.remove('hidden');
+                errorMessage.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        async function loadStats() {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin-breakdowns/stats`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Update total count
+                    document.getElementById('totalCount').textContent = data.stats.totalBreakdowns;
+                    
+                    // Calculate time-based stats
+                    const today = new Date().toLocaleDateString();
+                    const todayCount = data.stats.byDay[today] || 0;
+                    document.getElementById('todayCount').textContent = todayCount;
+                    
+                    // Calculate week and month counts
+                    let weekCount = 0;
+                    let monthCount = 0;
+                    const now = new Date();
+                    
+                    Object.entries(data.stats.byDay).forEach(([dateStr, count]) => {
+                        const date = new Date(dateStr);
+                        const daysDiff = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+                        
+                        if (daysDiff <= 7) weekCount += count;
+                        if (daysDiff <= 30) monthCount += count;
+                    });
+                    
+                    document.getElementById('weekCount').textContent = weekCount;
+                    document.getElementById('monthCount').textContent = monthCount;
+                    
+                    // Display type distribution
+                    displayTypeDistribution(data.stats.byType);
+                }
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+            }
+        }
+
+        function displayLogs(logs) {
+            const tbody = document.getElementById('logsTable');
+            tbody.innerHTML = '';
+            
+            if (logs.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-gray-400">
+                            No breakdown logs found
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            logs.forEach(log => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-700/50';
+                
+                const timestamp = new Date(log.timestamp).toLocaleString();
+                const typeColor = getTypeColor(log.breakdown_type);
+                
+                row.innerHTML = `
+                    <td class="px-4 py-3 text-sm">${timestamp}</td>
+                    <td class="px-4 py-3">
+                        <span class="px-2 py-1 rounded text-xs font-semibold ${typeColor}">
+                            ${log.breakdown_type}
+                        </span>
+                    </td>
+                    <td class="px-4 py-3">${log.vehicle_reg}</td>
+                    <td class="px-4 py-3">${log.fleet_no}</td>
+                    <td class="px-4 py-3">${log.supervisor_id}</td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+            
+            // Update showing count
+            document.getElementById('showingCount').textContent = 
+                `${currentOffset + 1}-${Math.min(currentOffset + limit, totalCount)}`;
+            document.getElementById('totalLogs').textContent = totalCount;
+        }
+
+        function getTypeColor(type) {
+            const colors = {
+                'Steering': 'bg-red-600 text-white',
+                'Brakes': 'bg-orange-600 text-white',
+                'Non-Starter': 'bg-yellow-600 text-white',
+                'Battery': 'bg-blue-600 text-white',
+                'Doors': 'bg-purple-600 text-white',
+                'Oil Warning Light': 'bg-pink-600 text-white',
+                'Loose Wheel Nuts': 'bg-red-800 text-white'
+            };
+            return colors[type] || 'bg-gray-600 text-white';
+        }
+
+        function displayTypeDistribution(byType) {
+            const container = document.getElementById('typeDistribution');
+            container.innerHTML = '';
+            
+            const total = Object.values(byType).reduce((sum, count) => sum + count, 0);
+            
+            Object.entries(byType)
+                .sort((a, b) => b[1] - a[1])
+                .forEach(([type, count]) => {
+                    const percentage = ((count / total) * 100).toFixed(1);
+                    const barWidth = `${percentage}%`;
+                    
+                    const item = document.createElement('div');
+                    item.className = 'mb-3';
+                    item.innerHTML = `
+                        <div class="flex justify-between text-sm mb-1">
+                            <span>${type}</span>
+                            <span class="text-gray-400">${count} (${percentage}%)</span>
+                        </div>
+                        <div class="w-full bg-gray-700 rounded-full h-2">
+                            <div class="h-2 rounded-full ${getTypeColor(type).replace('text-white', '')}" 
+                                 style="width: ${barWidth}"></div>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                });
+        }
+
+        function updatePagination() {
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            
+            prevBtn.disabled = currentOffset === 0;
+            nextBtn.disabled = currentOffset + limit >= totalCount;
+            
+            prevBtn.classList.toggle('disabled:opacity-50', prevBtn.disabled);
+            nextBtn.classList.toggle('disabled:opacity-50', nextBtn.disabled);
+        }
+
+        function previousPage() {
+            if (currentOffset > 0) {
+                currentOffset = Math.max(0, currentOffset - limit);
+                loadLogs();
+            }
+        }
+
+        function nextPage() {
+            if (currentOffset + limit < totalCount) {
+                currentOffset += limit;
+                loadLogs();
+            }
+        }
+
+        function applyFilters() {
+            currentOffset = 0;
+            loadLogs();
+            loadStats();
+        }
+
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            loadLogs();
+            loadStats();
+        }, 30000);
+    </script>
+</body>
+</html>
