@@ -10,17 +10,17 @@ const SupervisorLogin = function({ onLoginSuccess }) {
     const [error, setError] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
     
-    // List of all 9 Go North East supervisors
+    // List of all 9 Go North East supervisors with supervisor IDs
     const supervisors = [
-        { badge: 'AW001', name: 'Alex Woodcock' },
-        { badge: 'AC002', name: 'Andrew Cowley' },
-        { badge: 'AG003', name: 'Anthony Gair', isAdmin: true },
-        { badge: 'CF004', name: 'Claire Fiddler' },
-        { badge: 'DH005', name: 'David Hall' },
-        { badge: 'JD006', name: 'James Daglish' },
-        { badge: 'JP007', name: 'John Paterson' },
-        { badge: 'SG008', name: 'Simon Glass' },
-        { badge: 'BP009', name: 'Barry Perryman', isAdmin: true }
+        { supervisorId: 'supervisor001', badge: 'AW001', name: 'Alex Woodcock' },
+        { supervisorId: 'supervisor002', badge: 'AC002', name: 'Andrew Cowley' },
+        { supervisorId: 'supervisor003', badge: 'AG003', name: 'Anthony Gair', isAdmin: true },
+        { supervisorId: 'supervisor004', badge: 'CF004', name: 'Claire Fiddler' },
+        { supervisorId: 'supervisor005', badge: 'DH005', name: 'David Hall' },
+        { supervisorId: 'supervisor006', badge: 'JD006', name: 'James Daglish' },
+        { supervisorId: 'supervisor007', badge: 'JP007', name: 'John Paterson' },
+        { supervisorId: 'supervisor008', badge: 'SG008', name: 'Simon Glass' },
+        { supervisorId: 'supervisor009', badge: 'BP009', name: 'Barry Perryman', isAdmin: true }
     ];
     
     // Check for existing session on mount
@@ -47,13 +47,33 @@ const SupervisorLogin = function({ onLoginSuccess }) {
     }, []);
     
     const handleLogin = async (e) => {
+        console.log('handleLogin called with:', { selectedSupervisor, password: password ? '***' : 'empty' });
         e.preventDefault();
         setLoading(true);
         setError('');
         
+        if (!selectedSupervisor || !password) {
+            console.log('Missing credentials:', { selectedSupervisor, hasPassword: !!password });
+            setError('Please select a supervisor and enter password');
+            setLoading(false);
+            return;
+        }
+        
         try {
             // Get backend URL from environment or use default
             const backendUrl = window.BACKEND_URL || 'https://go-barry.onrender.com';
+            
+            const selectedSup = supervisors.find(s => s.supervisorId === selectedSupervisor);
+            const requestBody = {
+                supervisorId: selectedSupervisor,
+                badge: selectedSup?.badge,
+                password: password
+            };
+            
+            console.log('Sending login request:', {
+                url: `${backendUrl}/api/auth/login`,
+                body: requestBody
+            });
             
             // Authenticate with backend
             const response = await fetch(`${backendUrl}/api/auth/login`, {
@@ -61,22 +81,35 @@ const SupervisorLogin = function({ onLoginSuccess }) {
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    supervisorId: selectedSupervisor,
-                    badge: selectedSupervisor,
-                    password: password
-                })
+                body: JSON.stringify(requestBody)
             });
             
-            const data = await response.json();
+            let data = await response.json();
+            
+            // Handle double-encoded JSON response
+            if (typeof data === 'string') {
+                try {
+                    data = JSON.parse(data);
+                } catch (parseError) {
+                    console.error('Failed to parse response data:', parseError);
+                }
+            }
+            
+            console.log('Login response:', {
+                status: response.status,
+                ok: response.ok,
+                data: data,
+                dataType: typeof data
+            });
             
             if (response.ok && data.success) {
+                console.log('Creating session from data:', data.data.supervisor);
                 const session = {
-                    supervisorId: data.supervisor.badge_number,
-                    supervisorName: data.supervisor.name,
-                    depot: data.supervisor.depot,
-                    isAdmin: data.supervisor.is_admin,
-                    token: data.token,
+                    supervisorId: data.data.supervisor.badge || data.data.supervisor.id,
+                    supervisorName: data.data.supervisor.name,
+                    depot: data.data.supervisor.depot || 'Unknown',
+                    isAdmin: data.data.supervisor.is_admin || false,
+                    token: data.tokens.accessToken,
                     timestamp: new Date().toISOString()
                 };
                 
@@ -88,14 +121,28 @@ const SupervisorLogin = function({ onLoginSuccess }) {
                 }
                 
                 // Initialize breakdown analytics with supervisor info
-                if (window.BreakdownAnalytics) {
+                if (window.BreakdownAnalytics && typeof window.BreakdownAnalytics.setSupervisor === 'function') {
                     window.BreakdownAnalytics.setSupervisor(session);
+                    console.log('BreakdownAnalytics supervisor set successfully');
+                } else {
+                    console.warn('BreakdownAnalytics.setSupervisor not available:', {
+                        hasBreakdownAnalytics: !!window.BreakdownAnalytics,
+                        setSupervisorType: typeof window.BreakdownAnalytics?.setSupervisor
+                    });
                 }
                 
                 // Log successful login
                 console.log(`Supervisor ${session.supervisorId} logged in successfully`);
+                console.log('About to call onLoginSuccess with:', session);
+                console.log('onLoginSuccess function:', typeof onLoginSuccess);
                 
-                onLoginSuccess(session);
+                try {
+                    onLoginSuccess(session);
+                    console.log('onLoginSuccess completed successfully');
+                } catch (callbackError) {
+                    console.error('Error in onLoginSuccess callback:', callbackError);
+                    setError('Login succeeded but failed to initialize app');
+                }
             } else {
                 setError(data.message || 'Invalid supervisor or password');
             }
@@ -148,8 +195,8 @@ const SupervisorLogin = function({ onLoginSuccess }) {
                         ),
                         ...supervisors.map(supervisor =>
                             React.createElement('option', {
-                                key: supervisor.badge,
-                                value: supervisor.badge
+                                key: supervisor.supervisorId,
+                                value: supervisor.supervisorId
                             }, `${supervisor.badge} - ${supervisor.name}${supervisor.isAdmin ? ' (Admin)' : ''}`)
                         )
                     )
