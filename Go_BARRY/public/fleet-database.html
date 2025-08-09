@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go North East Fleet Database</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #003366;
+            text-align: center;
+        }
+        .search-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .search-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #003366;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #004499;
+        }
+        .vehicle-info {
+            background-color: #e8f4f8;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .error {
+            background-color: #fee;
+            color: #c00;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .stat-card h3 {
+            margin: 0 0 10px 0;
+            color: #003366;
+        }
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #004499;
+        }
+        .depot-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .depot-item {
+            background: #e8f4f8;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #003366;
+            color: white;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .loading {
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚌 Go North East Fleet Database</h1>
+        
+        <div class="search-section">
+            <h2>Fleet Lookup</h2>
+            <div class="search-group">
+                <input type="text" id="fleetNumber" placeholder="Enter fleet number (e.g., 5301)">
+                <button onclick="lookupFleet()">Lookup Fleet</button>
+            </div>
+            
+            <h2>Search Vehicles</h2>
+            <div class="search-group">
+                <input type="text" id="searchQuery" placeholder="Search by type, depot, or registration">
+                <button onclick="searchFleet()">Search</button>
+            </div>
+            
+            <h2>Filter by Depot</h2>
+            <div class="search-group">
+                <select id="depotSelect" style="flex: 1; padding: 10px; font-size: 16px;">
+                    <option value="">All Depots</option>
+                    <option value="Consett">Consett</option>
+                    <option value="Deptford">Deptford</option>
+                    <option value="Percy Main">Percy Main</option>
+                    <option value="Riverside">Riverside</option>
+                    <option value="Washington">Washington</option>
+                    <option value="Hexham">Hexham</option>
+                    <option value="Chester-le-Street">Chester-le-Street</option>
+                    <option value="Stanley">Stanley</option>
+                </select>
+                <button onclick="filterByDepot()">Filter</button>
+            </div>
+        </div>
+        
+        <div id="result"></div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Total Fleet</h3>
+                <div class="stat-value" id="totalFleet">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Active Depots</h3>
+                <div class="stat-value" id="totalDepots">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Bus Types</h3>
+                <div class="stat-value" id="totalTypes">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Average Age</h3>
+                <div class="stat-value" id="avgAge">-</div>
+            </div>
+        </div>
+        
+        <h2 style="margin-top: 30px;">Fleet Distribution by Depot</h2>
+        <div id="depotDistribution" class="depot-list"></div>
+        
+        <h2 style="margin-top: 30px;">Recent Additions</h2>
+        <div id="recentAdditions"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3001/api/fleet-database';
+        
+        // Load stats on page load
+        window.onload = function() {
+            loadFleetStats();
+            loadRecentAdditions();
+        };
+        
+        async function lookupFleet() {
+            const fleetNumber = document.getElementById('fleetNumber').value.trim();
+            const resultDiv = document.getElementById('result');
+            
+            if (!fleetNumber) {
+                resultDiv.innerHTML = '<div class="error">Please enter a fleet number</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="loading">Loading...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/${fleetNumber}`);
+                
+                if (!response.ok) {
+                    throw new Error('Vehicle not found');
+                }
+                
+                const data = await response.json();
+                displayVehicle(data);
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function searchFleet() {
+            const query = document.getElementById('searchQuery').value.trim();
+            const resultDiv = document.getElementById('result');
+            
+            if (!query) {
+                resultDiv.innerHTML = '<div class="error">Please enter a search query</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="loading">Searching...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/search/${encodeURIComponent(query)}`);
+                const data = await response.json();
+                
+                if (data.length === 0) {
+                    resultDiv.innerHTML = '<div class="error">No vehicles found matching your search</div>';
+                } else {
+                    displayVehicleList(data, `Search Results (${data.length} vehicles)`);
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function filterByDepot() {
+            const depot = document.getElementById('depotSelect').value;
+            const resultDiv = document.getElementById('result');
+            
+            if (!depot) {
+                resultDiv.innerHTML = '';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="loading">Loading depot vehicles...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/depot/${encodeURIComponent(depot)}`);
+                const data = await response.json();
+                
+                displayVehicleList(data, `${depot} Depot (${data.length} vehicles)`);
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        function displayVehicle(vehicle) {
+            const resultDiv = document.getElementById('result');
+            const age = new Date().getFullYear() - vehicle.yearOfManufacture;
+            
+            resultDiv.innerHTML = `
+                <div class="vehicle-info">
+                    <h2>Fleet ${vehicle.fleetNumber} - ${vehicle.registration}</h2>
+                    <p><strong>Type:</strong> ${vehicle.busType}</p>
+                    <p><strong>Depot:</strong> ${vehicle.depot}</p>
+                    <p><strong>Capacity:</strong> ${vehicle.capacity} seats</p>
+                    <p><strong>Year:</strong> ${vehicle.yearOfManufacture} (${age} years old)</p>
+                </div>
+            `;
+        }
+        
+        function displayVehicleList(vehicles, title) {
+            const resultDiv = document.getElementById('result');
+            
+            let html = `<h3>${title}</h3>`;
+            html += `<table>
+                <thead>
+                    <tr>
+                        <th>Fleet</th>
+                        <th>Registration</th>
+                        <th>Type</th>
+                        <th>Depot</th>
+                        <th>Capacity</th>
+                        <th>Year</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+            
+            vehicles.forEach(v => {
+                html += `
+                    <tr onclick="document.getElementById('fleetNumber').value='${v.fleetNumber}'; lookupFleet();" style="cursor: pointer;">
+                        <td>${v.fleetNumber}</td>
+                        <td>${v.registration}</td>
+                        <td>${v.busType}</td>
+                        <td>${v.depot}</td>
+                        <td>${v.capacity}</td>
+                        <td>${v.yearOfManufacture}</td>
+                    </tr>`;
+            });
+            
+            html += '</tbody></table>';
+            resultDiv.innerHTML = html;
+        }
+        
+        async function loadFleetStats() {
+            try {
+                const response = await fetch(API_BASE);
+                const data = await response.json();
+                
+                // Calculate stats
+                const vehicles = Object.values(data);
+                const depots = [...new Set(vehicles.map(v => v.depot))];
+                const types = [...new Set(vehicles.map(v => v.busType))];
+                const currentYear = new Date().getFullYear();
+                const avgAge = Math.round(vehicles.reduce((sum, v) => sum + (currentYear - v.yearOfManufacture), 0) / vehicles.length);
+                
+                // Update stats
+                document.getElementById('totalFleet').textContent = vehicles.length;
+                document.getElementById('totalDepots').textContent = depots.length;
+                document.getElementById('totalTypes').textContent = types.length;
+                document.getElementById('avgAge').textContent = avgAge + ' yrs';
+                
+                // Calculate depot distribution
+                const depotCounts = {};
+                vehicles.forEach(v => {
+                    depotCounts[v.depot] = (depotCounts[v.depot] || 0) + 1;
+                });
+                
+                // Display depot distribution
+                const depotDiv = document.getElementById('depotDistribution');
+                depotDiv.innerHTML = Object.entries(depotCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([depot, count]) => `
+                        <div class="depot-item" onclick="document.getElementById('depotSelect').value='${depot}'; filterByDepot();" style="cursor: pointer;">
+                            <strong>${depot}</strong><br>
+                            ${count} vehicles
+                        </div>
+                    `).join('');
+                
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+        
+        async function loadRecentAdditions() {
+            try {
+                const response = await fetch(API_BASE);
+                const data = await response.json();
+                
+                // Get newest vehicles (2024)
+                const recent = Object.values(data)
+                    .filter(v => v.yearOfManufacture >= 2024)
+                    .sort((a, b) => parseInt(b.fleetNumber) - parseInt(a.fleetNumber))
+                    .slice(0, 10);
+                
+                if (recent.length > 0) {
+                    displayVehicleList(recent, 'Recent Fleet Additions (2024)');
+                }
+                
+            } catch (error) {
+                console.error('Error loading recent additions:', error);
+            }
+        }
+    </script>
+</body>
+</html>

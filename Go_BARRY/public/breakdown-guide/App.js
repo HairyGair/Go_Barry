@@ -30,6 +30,13 @@ const App = function() {
             window.BreakdownAnalytics.setSupervisor(session);
         }
         
+        // Initialize Breakdown Tracker
+        if (window.breakdownTracker) {
+            window.breakdownTracker.supervisorBadge = session.supervisorId;
+            window.breakdownTracker.supervisorName = session.name;
+            window.breakdownTracker.init();
+        }
+        
         console.log(`Supervisor ${session.supervisorId} authenticated successfully`);
     };
 
@@ -2056,6 +2063,17 @@ const App = function() {
                     </div>
                 </div>
                 
+                {/* Breakdown Tracker */}
+                <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-4">
+                        <div className="h-px flex-1 bg-blue-500/30"></div>
+                        <h2 className="text-xs font-bold text-blue-500 uppercase tracking-wider">Live Breakdown Tracking</h2>
+                        <div className="h-px flex-1 bg-blue-500/30"></div>
+                    </div>
+                    <div id="breakdown-tracker-container" className="bg-gradient-to-br from-blue-900/20 to-blue-800/20 backdrop-blur-sm border border-blue-500/30 rounded-2xl p-6">
+                        {/* Breakdown Tracker UI will be rendered here */}
+                    </div>
+                </div>
 
                 {/* Safety Notice */}
                 <div className="mt-8 bg-red-900/20 backdrop-blur-sm border border-red-500/30 rounded-2xl p-6">

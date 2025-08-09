@@ -1,13 +1,80 @@
-// Common Breakdown Information Component
-// Collects essential data for all breakdown assessments
+// Common Breakdown Information Component with Fleet Database Integration
+// Collects essential data for all breakdown assessments with auto-lookup
 
 const BreakdownInfoStep = ({ responses, updateResponse, onNext }) => {
-    const { FileText, MapPin, User, Truck, Building } = window.Icons || {};
+    const { FileText, MapPin, User, Truck, Building, Search, CheckCircle } = window.Icons || {};
+    const [isLookingUp, setIsLookingUp] = React.useState(false);
+    const [vehicleInfo, setVehicleInfo] = React.useState(null);
+    const [lookupError, setLookupError] = React.useState(null);
     
-    const depots = ['Washington', 'Consett', 'Hexham', 'Riverside', 'Gateshead Riverside'];
+    const depots = ['Washington', 'Consett', 'Hexham', 'Riverside', 'Gateshead Riverside', 'Percy Main', 'Deptford', 'Chester-le-Street', 'Stanley'];
+    
+    // Fleet database lookup function
+    const lookupFleetNumber = async (fleetNumber) => {
+        if (!fleetNumber || fleetNumber.length < 3) {
+            setVehicleInfo(null);
+            return;
+        }
+        
+        setIsLookingUp(true);
+        setLookupError(null);
+        
+        try {
+            // Use the correct backend URL
+            const backendUrl = window.BACKEND_URL || 'https://go-barry.onrender.com';
+            const response = await fetch(`${backendUrl}/api/fleet-database/${fleetNumber}`);
+            
+            if (response.ok) {
+                const data = await response.json();
+                setVehicleInfo(data);
+                
+                // Auto-populate registration
+                if (data.registration) {
+                    updateResponse('registration', data.registration);
+                }
+                
+                // Auto-populate depot if vehicle has one and none selected
+                if (data.depot && !responses.depot) {
+                    updateResponse('depot', data.depot);
+                }
+                
+                // Store vehicle info in responses for logging
+                updateResponse('vehicleInfo', {
+                    busType: data.busType,
+                    capacity: data.capacity,
+                    yearOfManufacture: data.yearOfManufacture,
+                    depot: data.depot
+                });
+                
+                console.log('Vehicle found:', data);
+            } else if (response.status === 404) {
+                setVehicleInfo(null);
+                setLookupError('Vehicle not found in database');
+            } else {
+                throw new Error('Failed to lookup vehicle');
+            }
+        } catch (error) {
+            console.error('Fleet lookup error:', error);
+            setLookupError('Unable to connect to fleet database');
+        } finally {
+            setIsLookingUp(false);
+        }
+    };
+    
+    // Handle fleet number changes
+    React.useEffect(() => {
+        const delayDebounce = setTimeout(() => {
+            if (responses.fleetNumber) {
+                lookupFleetNumber(responses.fleetNumber);
+            }
+        }, 500); // Debounce API calls
+        
+        return () => clearTimeout(delayDebounce);
+    }, [responses.fleetNumber]);
     
     const isComplete = () => {
         return responses.fleetNumber && 
+               responses.registration &&
                responses.depot && 
                responses.driverName && 
                responses.location;
@@ -24,26 +91,68 @@ const BreakdownInfoStep = ({ responses, updateResponse, onNext }) => {
             </div>
             
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20 space-y-4">
-                {/* Fleet Number */}
+                {/* Fleet Number with lookup indicator */}
                 <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                         <Truck className="inline w-4 h-4 mr-2" />
                         Fleet Number
                     </label>
+                    <div className="relative">
+                        <input
+                            type="text"
+                            value={responses.fleetNumber || ''}
+                            onChange={(e) => updateResponse('fleetNumber', e.target.value)}
+                            placeholder="e.g., 5301"
+                            className="w-full px-4 py-2 bg-white/10 border border-white/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-400"
+                        />
+                        {isLookingUp && (
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                <div className="animate-spin h-4 w-4 border-2 border-blue-400 border-t-transparent rounded-full"></div>
+                            </div>
+                        )}
+                        {vehicleInfo && !isLookingUp && (
+                            <CheckCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-green-400" />
+                        )}
+                    </div>
+                    {lookupError && (
+                        <p className="text-amber-400 text-sm mt-1">{lookupError}</p>
+                    )}
+                </div>
+                
+                {/* Registration - Auto-populated */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Registration Number
+                    </label>
                     <input
                         type="text"
-                        value={responses.fleetNumber || ''}
-                        onChange={(e) => updateResponse('fleetNumber', e.target.value)}
-                        placeholder="e.g., 5301"
-                        className="w-full px-4 py-2 bg-white/10 border border-white/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-400"
+                        value={responses.registration || ''}
+                        onChange={(e) => updateResponse('registration', e.target.value)}
+                        placeholder={vehicleInfo ? 'Auto-filled' : 'e.g., NX70ABC'}
+                        className={`w-full px-4 py-2 bg-white/10 border rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-400 ${
+                            vehicleInfo ? 'border-green-400/50' : 'border-white/30'
+                        }`}
                     />
                 </div>
+                
+                {/* Vehicle Info Display */}
+                {vehicleInfo && (
+                    <div className="bg-blue-500/10 border border-blue-400/30 rounded-lg p-3">
+                        <p className="text-sm text-blue-200 font-medium mb-1">Vehicle Details</p>
+                        <div className="text-xs text-gray-300 space-y-1">
+                            <p>Type: {vehicleInfo.busType}</p>
+                            <p>Capacity: {vehicleInfo.capacity} seats</p>
+                            <p>Year: {vehicleInfo.yearOfManufacture}</p>
+                            <p>Home Depot: {vehicleInfo.depot}</p>
+                        </div>
+                    </div>
+                )}
                 
                 {/* Depot */}
                 <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                         <Building className="inline w-4 h-4 mr-2" />
-                        Depot
+                        Current Depot
                     </label>
                     <select
                         value={responses.depot || ''}

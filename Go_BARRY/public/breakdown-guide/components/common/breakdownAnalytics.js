@@ -7,6 +7,9 @@ window.BreakdownAnalytics = {
     ? 'http://localhost:3001/api/breakdown-analytics'
     : '/api/breakdown-analytics',
   
+  // Fleet database cache
+  fleetDatabase: null,
+  
   // Map wizard types to breakdown categories
   wizardCategoryMap: {
     'brakes': 'Brake System',
@@ -42,18 +45,92 @@ window.BreakdownAnalytics = {
     'interior_exterior_damage': 'Other'
   },
   
-  // Detect depot from fleet number (adjust based on your numbering system)
+  // Load fleet database from backend API
+  loadFleetDatabase: async function() {
+    try {
+      const apiUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:3001/api/fleet-database'
+        : '/api/fleet-database';
+      
+      const response = await fetch(apiUrl);
+      const result = await response.json();
+      
+      if (result.success) {
+        this.fleetDatabase = result.data;
+        console.log('✅ Fleet database loaded', Object.keys(this.fleetDatabase).length, 'vehicles');
+        return this.fleetDatabase;
+      } else {
+        throw new Error(result.error || 'API returned error');
+      }
+    } catch (error) {
+      console.error('Failed to load fleet database:', error);
+      return null;
+    }
+  },
+
+  // Get fleet information by fleet number
+  getFleetInfo: function(fleetNumber) {
+    if (!this.fleetDatabase) {
+      console.warn('Fleet database not loaded');
+      return null;
+    }
+    
+    const fleetInfo = this.fleetDatabase[fleetNumber];
+    if (!fleetInfo) {
+      console.warn(`Fleet number ${fleetNumber} not found in database`);
+      return null;
+    }
+    
+    return fleetInfo;
+  },
+
+  // Enhanced depot detection using fleet database
   detectDepot: function(fleetNumber) {
+    // Try to get depot from fleet database first
+    const fleetInfo = this.getFleetInfo(fleetNumber);
+    if (fleetInfo && fleetInfo.depot) {
+      return fleetInfo.depot;
+    }
+    
+    // Fallback to number-based detection
     const num = parseInt(fleetNumber);
     if (isNaN(num)) return 'Unknown';
     
-    if (num >= 6000 && num < 6500) return 'Washington';
+    if (num >= 6900 && num <= 6999) return 'Percy Main';
+    if (num >= 6070 && num <= 6080) return 'Consett';
+    if (num >= 6000 && num < 6070) return 'Washington';
+    if (num >= 5420 && num <= 5430) return 'Percy Main';
+    if (num >= 5300 && num <= 5309) return 'Riverside';
     if (num >= 5000 && num < 5500) return 'Consett';
     if (num >= 4000 && num < 4500) return 'Hexham';
     if (num >= 3000 && num < 3500) return 'Riverside';
     if (num >= 700 && num < 800) return 'Hexham'; // Solos
     
     return 'Unknown';
+  },
+
+  // Get bus type from fleet database
+  getBusType: function(fleetNumber) {
+    const fleetInfo = this.getFleetInfo(fleetNumber);
+    return fleetInfo ? fleetInfo.busType : 'Unknown';
+  },
+
+  // Get registration number from fleet database
+  getRegistration: function(fleetNumber) {
+    const fleetInfo = this.getFleetInfo(fleetNumber);
+    return fleetInfo ? fleetInfo.registration : 'Unknown';
+  },
+
+  // Get vehicle capacity
+  getCapacity: function(fleetNumber) {
+    const fleetInfo = this.getFleetInfo(fleetNumber);
+    return fleetInfo ? fleetInfo.capacity : null;
+  },
+
+  // Get year of manufacture
+  getYearOfManufacture: function(fleetNumber) {
+    const fleetInfo = this.getFleetInfo(fleetNumber);
+    return fleetInfo ? fleetInfo.yearOfManufacture : null;
   },
   
   // Extract symptoms from wizard responses
@@ -102,7 +179,11 @@ window.BreakdownAnalytics = {
       const breakdownData = {
         // Vehicle info
         fleet_number: responses.fleetNumber || responses.vehicleNumber,
+        registration: this.getRegistration(responses.fleetNumber),
+        bus_type: this.getBusType(responses.fleetNumber),
         depot: responses.depot || this.detectDepot(responses.fleetNumber),
+        capacity: this.getCapacity(responses.fleetNumber),
+        year_of_manufacture: this.getYearOfManufacture(responses.fleetNumber),
         
         // Breakdown details
         breakdown_category: this.wizardCategoryMap[wizardType] || 'Other',
@@ -258,6 +339,13 @@ window.BreakdownAnalytics = {
 
 // Auto-sync offline breakdowns when page loads
 window.addEventListener('load', () => {
+  // Load fleet database first
+  window.BreakdownAnalytics.loadFleetDatabase()
+    .then(() => {
+      console.log('Fleet database ready for breakdown guide');
+    })
+    .catch(console.error);
+
   // Check for offline breakdowns after a delay
   setTimeout(() => {
     window.BreakdownAnalytics.syncOfflineBreakdowns()

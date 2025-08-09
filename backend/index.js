@@ -165,7 +165,7 @@ if (!app) {
 }
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // RENDER FIX: Immediate startup signal
 console.log(`🚀 Go BARRY Backend Starting - PORT: ${process.env.PORT || 3001}`);
@@ -206,10 +206,23 @@ async function registerRoutes() {
   // Breakdown logging system routes - UPDATED to use unified breakdown routes
   await routeManager.registerRoute(app, '/api/breakdowns', './routes/breakdowns.js', 'Unified Breakdown API');
   console.log('✅ Unified Breakdown API registered for logging and analytics at /api/breakdowns');
+  
+  // Fleet Database API for vehicle information lookup
+  await routeManager.registerRoute(app, '/api/fleet-database', './routes/fleetAPI.js', 'Fleet Database API');
+  console.log('✅ Fleet Database API registered for vehicle info lookup at /api/fleet-database');
   await routeManager.registerRoute(app, '/api/breakdown-assessments', './routes/breakdownAssessmentAPI.js', 'Breakdown Assessment API with Supervisor Auth');
   console.log('✅ Breakdown Assessment API registered for supervisor-authenticated logging at /api/breakdown-assessments');
   await routeManager.registerRoute(app, '/api/admin-breakdowns', './routes/adminBreakdowns.js', 'Admin Breakdowns');
   console.log('✅ Admin Breakdowns API registered for viewing breakdown logs at /api/admin-breakdowns');
+  
+  // Breakdown Tracker API for timed response analytics
+  await routeManager.registerRoute(app, '/api/breakdown-tracker', './routes/breakdownTrackerAPI.js', 'Breakdown Tracker API');
+  console.log('✅ Breakdown Tracker API registered for stage-by-stage breakdown timing at /api/breakdown-tracker');
+  
+  // Fleet Database API for vehicle lookups in Breakdown Guide
+  await routeManager.registerRoute(app, '/api/fleet-database', './routes/fleetDatabaseAPI.js', 'Fleet Database API');
+  console.log('✅ Fleet Database API registered for vehicle information lookups');
+  
   await routeManager.registerRoute(app, '/api/shifts', './routes/shiftManagement.js', 'Shift Management');
   await routeManager.registerRoute(app, '/api/incidents', './routes/incidentAPI.js', 'Incident API');
   await routeManager.registerRoute(app, '/api/incident-alerts', './routes/incidentAlertsAPI.js', 'Incident Alerts API');
@@ -323,6 +336,7 @@ async function initializeServer() {
       });
     });
     console.log('✅ TomTom Config endpoint registered at /api/config/tomtom-key');
+    
 
     // Weather endpoint now handled by weather.js route file
 
