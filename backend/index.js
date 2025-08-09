@@ -206,6 +206,8 @@ async function registerRoutes() {
   // Breakdown logging system routes - UPDATED to use unified breakdown routes
   await routeManager.registerRoute(app, '/api/breakdowns', './routes/breakdowns.js', 'Unified Breakdown API');
   console.log('✅ Unified Breakdown API registered for logging and analytics at /api/breakdowns');
+  await routeManager.registerRoute(app, '/api/breakdown-assessments', './routes/breakdownAssessmentAPI.js', 'Breakdown Assessment API with Supervisor Auth');
+  console.log('✅ Breakdown Assessment API registered for supervisor-authenticated logging at /api/breakdown-assessments');
   await routeManager.registerRoute(app, '/api/admin-breakdowns', './routes/adminBreakdowns.js', 'Admin Breakdowns');
   console.log('✅ Admin Breakdowns API registered for viewing breakdown logs at /api/admin-breakdowns');
   await routeManager.registerRoute(app, '/api/shifts', './routes/shiftManagement.js', 'Shift Management');

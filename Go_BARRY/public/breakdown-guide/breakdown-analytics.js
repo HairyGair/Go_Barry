@@ -9,15 +9,30 @@
     
     // Initialize the BreakdownAnalytics module
     window.BreakdownAnalytics = {
+        // Store supervisor session
+        supervisorSession: null,
+        
+        // Set supervisor session
+        setSupervisor: function(session) {
+            this.supervisorSession = session;
+            console.log(`BreakdownAnalytics: Supervisor ${session.supervisorId} set`);
+        },
+        
         // Record a new breakdown from wizard completion
         recordBreakdown: async function(wizardType, responses, decision) {
             try {
-                // Create breakdown record
+                // Create breakdown record with supervisor tracking
                 const breakdown = {
                     id: Date.now().toString(),
                     timestamp: new Date().toISOString(),
                     date: new Date().toLocaleDateString('en-GB'),
                     time: new Date().toLocaleTimeString('en-GB'),
+                    
+                    // Supervisor Information (CRITICAL FOR AUDIT)
+                    supervisorId: this.supervisorSession?.supervisorId || 'UNKNOWN',
+                    supervisorName: this.supervisorSession?.supervisorName || 'Unknown Supervisor',
+                    supervisorDepot: this.supervisorSession?.depot || 'Unknown',
+                    supervisorAdmin: this.supervisorSession?.isAdmin || false,
                     
                     // Vehicle Information
                     fleetNumber: responses.fleetNumber || responses.vehicleNumber || 'Unknown',
@@ -43,8 +58,16 @@
                     requiresEngineering: decision !== 'CONTINUE',
                     
                     // Metadata
-                    recordedBy: responses.supervisorName || 'Supervisor',
-                    goCheckReported: responses.goCheckReported || false
+                    recordedBy: this.supervisorSession?.supervisorId || 'Supervisor',
+                    goCheckReported: responses.goCheckReported || false,
+                    
+                    // Audit Trail
+                    auditLog: {
+                        createdAt: new Date().toISOString(),
+                        createdBy: this.supervisorSession?.supervisorId,
+                        sessionToken: this.supervisorSession?.token ? 'Present' : 'Missing',
+                        browserInfo: navigator.userAgent
+                    }
                 };
                 
                 // Get existing breakdowns

@@ -52,7 +52,7 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                                         className="mt-1 mr-3 h-4 w-4 text-orange-600 border-gray-300 focus:ring-orange-500"
                                     />
                                     <div>
-                                        <span className="font-medium text-orange-600">❌ Ramp won't deploy</span>
+                                        <span className="font-medium text-orange-600">❌ Ramp won\'t deploy</span>
                                         <p className="text-sm text-gray-600 mt-1">Cannot extend ramp from stowed position</p>
                                     </div>
                                 </label>

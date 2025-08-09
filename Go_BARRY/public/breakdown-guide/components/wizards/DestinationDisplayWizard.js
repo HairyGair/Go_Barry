@@ -216,7 +216,7 @@ const DestinationDisplayWizard = ({ currentStep, responses, updateResponse, onNe
                                     {responses.fault_type === 'blank' && '⬛ Blank/not illuminated'}
                                     {responses.fault_type === 'wrong_info' && '❌ Wrong information'}
                                     {responses.fault_type === 'partial' && '⚡ Partial failure'}
-                                    {responses.fault_type === 'stuck' && '🔒 Stuck/won't change'}
+                                    {responses.fault_type === 'stuck' && '🔒 Stuck/won\'t change'}
                                 </span>
                             </div>
                         </div>

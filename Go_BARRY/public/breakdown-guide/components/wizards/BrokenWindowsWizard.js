@@ -309,7 +309,7 @@ const BrokenWindowsWizard = ({ currentStep, responses, updateResponse, onNext, o
 
                     <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-6 border border-blue-400/30">
                         <h3 className="text-lg font-semibold text-blue-200 mb-4">Engineering Consultation</h3>
-                        <p className="text-blue-300/80 text-sm mb-4">Consult engineering if you don't believe the vehicle can continue safely.</p>
+                        <p className="text-blue-300/80 text-sm mb-4">Consult engineering if you don\'t believe the vehicle can continue safely.</p>
                         <div className="space-y-3">
                             <button
                                 onClick={() => updateResponse('engineering_needed', 'yes')}

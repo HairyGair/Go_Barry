@@ -5,26 +5,117 @@ const App = function() {
     const { useState, useEffect } = React;
     const { Home } = window.Icons || {};
     
+    // Authentication state
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [supervisorSession, setSupervisorSession] = useState(null);
+    
+    // Assessment state
     const [currentWizard, setCurrentWizard] = useState(null);
     const [currentStep, setCurrentStep] = useState(1);
     const [responses, setResponses] = useState({});
+    const [assessmentId, setAssessmentId] = useState(null);
+
+    // Handle successful login
+    const handleLoginSuccess = (session) => {
+        setSupervisorSession(session);
+        setIsAuthenticated(true);
+        
+        // Initialize the logger with supervisor session
+        if (window.SupervisorBreakdownLogger) {
+            window.SupervisorBreakdownLogger.setSupervisor(session);
+        }
+        
+        // Also update BreakdownAnalytics for compatibility
+        if (window.BreakdownAnalytics) {
+            window.BreakdownAnalytics.setSupervisor(session);
+        }
+        
+        console.log(`Supervisor ${session.supervisorId} authenticated successfully`);
+    };
 
     const updateResponse = (key, value) => {
         setResponses(prev => ({ ...prev, [key]: value }));
+        
+        // Log every response change
+        if (window.SupervisorBreakdownLogger && assessmentId) {
+            window.SupervisorBreakdownLogger.logAction('RESPONSE_UPDATED', {
+                field: key,
+                value: value,
+                step: currentStep,
+                wizard: currentWizard
+            });
+        }
     }
 
 
 
     const handleNext = () => {
+        // Log step completion before moving to next
+        if (window.SupervisorBreakdownLogger && assessmentId) {
+            window.SupervisorBreakdownLogger.logStepProgression(
+                currentStep,
+                `Step ${currentStep} of ${currentWizard}`,
+                responses
+            );
+        }
         setCurrentStep(prev => prev + 1);
     };
 
     const handlePrevious = () => {
+        // Log navigation back
+        if (window.SupervisorBreakdownLogger && assessmentId) {
+            window.SupervisorBreakdownLogger.logAction('NAVIGATION_BACK', {
+                fromStep: currentStep,
+                toStep: currentStep - 1
+            });
+        }
         setCurrentStep(prev => Math.max(1, prev - 1));
     };
 
     const handleComplete = async () => {
-        // Integrate with Breakdown Analytics
+        // Complete assessment with enhanced logging
+        if (window.SupervisorBreakdownLogger && assessmentId) {
+            // Determine the decision based on wizard responses
+            let decision = 'CONTINUE';
+            
+            // Check for critical issues based on wizard type
+            if (currentWizard === 'brakes') {
+                const criticalIssues = responses.brakeToFloor || responses.delayedBraking || 
+                                     responses.brakeLeaks || responses.brakesGrabbing || 
+                                     responses.redABSLight;
+                decision = criticalIssues ? 'STOP' : (responses.otherBrakeConcerns === 'yes' ? 'AMBER' : 'CONTINUE');
+            } else if (currentWizard === 'steering') {
+                const criticalIssues = responses.excessivePlay === 'yes' || responses.difficultyTurning === 'yes' ||
+                                     responses.steeringNoises === 'yes' || responses.vehiclePulling === 'yes';
+                decision = criticalIssues ? 'STOP' : 'CONTINUE';
+            } else if (currentWizard === 'oil_warning') {
+                decision = 'STOP'; // Oil warning is always critical
+            } else if (currentWizard === 'loose_wheel_nuts') {
+                decision = 'STOP'; // Loose wheel nuts are always critical
+            }
+            
+            // Log the final decision
+            window.SupervisorBreakdownLogger.logSafetyDetermination(
+                currentWizard,
+                decision,
+                decision === 'STOP' ? 'Vehicle must not continue' : 
+                decision === 'AMBER' ? 'Proceed with caution' : 'Safe to continue'
+            );
+            
+            // Complete the assessment with supervisor details
+            const result = await window.SupervisorBreakdownLogger.completeAssessment(
+                decision,
+                responses
+            );
+            
+            if (result.success) {
+                console.log('Assessment completed and synced successfully');
+            } else if (result.offline) {
+                console.log('Assessment saved offline for later sync');
+            }
+        }
+        
+        // Also integrate with existing Breakdown Analytics
         if (window.BreakdownAnalytics && responses.fleetNumber) {
             try {
                 // Determine the decision based on wizard responses
@@ -83,16 +174,54 @@ const App = function() {
     };
 
     const handleWizardSelect = (wizardType) => {
+        // Start a new assessment with supervisor tracking
+        if (window.SupervisorBreakdownLogger && supervisorSession) {
+            const fleetNumber = prompt('Enter Fleet Number (e.g., 6301):');
+            const depot = prompt('Enter Depot (e.g., Riverside):') || supervisorSession.depot;
+            
+            if (fleetNumber) {
+                const assessmentStarted = window.SupervisorBreakdownLogger.startAssessment(
+                    wizardType,
+                    fleetNumber,
+                    depot
+                );
+                
+                if (assessmentStarted) {
+                    setAssessmentId(window.SupervisorBreakdownLogger.currentAssessment.id);
+                    setResponses({ fleetNumber, depot });
+                }
+            } else {
+                alert('Fleet number is required to start an assessment');
+                return;
+            }
+        }
+        
         setCurrentWizard(wizardType);
         setCurrentStep(1);
-        setResponses({});
     };
 
     const handleBackToMenu = () => {
+        // Log assessment cancellation if active
+        if (window.SupervisorBreakdownLogger && assessmentId && currentWizard) {
+            window.SupervisorBreakdownLogger.logAction('ASSESSMENT_CANCELLED', {
+                wizard: currentWizard,
+                atStep: currentStep,
+                reason: 'User returned to menu'
+            });
+        }
+        
         setCurrentWizard(null);
         setCurrentStep(1);
         setResponses({});
+        setAssessmentId(null);
     };
+    
+    // If not authenticated, show login screen
+    if (!isAuthenticated) {
+        return React.createElement(window.SupervisorLogin, {
+            onLoginSuccess: handleLoginSuccess
+        });
+    }
 
     // Steering Wizard - Safety Critical
     if (currentWizard === 'steering') {
@@ -1736,6 +1865,17 @@ const App = function() {
                             </div>
                         </div>
                         <div className="flex items-center space-x-4">
+                            {/* Supervisor Info */}
+                            <div className="flex items-center space-x-3 px-4 py-2 bg-green-600/20 border border-green-500/30 rounded-lg">
+                                <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                                <div className="text-sm">
+                                    <div className="text-white font-medium">{supervisorSession?.supervisorName || 'Supervisor'}</div>
+                                    <div className="text-green-400 text-xs">{supervisorSession?.supervisorId} • {supervisorSession?.depot}</div>
+                                </div>
+                            </div>
+                            
                             <a
                                 href="https://goahead.tranzaura.com/Login/UserLogin"
                                 target="_blank"
@@ -1747,7 +1887,24 @@ const App = function() {
                                 </svg>
                                 Open Tranzaura
                             </a>
-                            <span className="text-xs text-white/50">Select a defect type to begin assessment</span>
+                            
+                            {/* Logout Button */}
+                            <button
+                                onClick={() => {
+                                    if (confirm('Are you sure you want to logout?')) {
+                                        localStorage.removeItem('supervisor_session');
+                                        sessionStorage.removeItem('supervisor_session');
+                                        setIsAuthenticated(false);
+                                        setSupervisorSession(null);
+                                    }
+                                }}
+                                className="flex items-center px-3 py-2 text-red-400 hover:text-red-300 transition-colors"
+                                title="Logout"
+                            >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                </svg>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1758,7 +1915,7 @@ const App = function() {
                 {/* Title */}
                 <div className="text-center mb-12">
                     <h1 className="text-4xl font-bold text-white mb-4">Vehicle Breakdown Assessment</h1>
-                    <p className="text-xl text-gray-300 mb-6">Select the type of defect you're experiencing to begin the guided assessment process</p>
+                    <p className="text-xl text-gray-300 mb-6">Select the type of defect you are experiencing to begin the guided assessment process</p>
                 </div>
                 
                 {/* Safety Critical */}

@@ -55,7 +55,7 @@ function NonStarterWizard({ currentStep, responses, updateResponse, onNext, onPr
                 >
                   <div className="flex items-center space-x-3">
                     {window.Icons.xCircle}
-                    <span>No - Vehicle still won't start</span>
+                    <span>No - Vehicle still won\'t start</span>
                   </div>
                 </button>
               </div>
@@ -175,7 +175,7 @@ function NonStarterWizard({ currentStep, responses, updateResponse, onNext, onPr
                 >
                   <div className="flex items-center space-x-3">
                     {window.Icons.xCircle}
-                    <span>No - Vehicle still won't start</span>
+                    <span>No - Vehicle still won\'t start</span>
                   </div>
                 </button>
               </div>
