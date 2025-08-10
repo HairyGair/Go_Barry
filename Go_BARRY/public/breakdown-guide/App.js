@@ -2160,37 +2160,37 @@ const App = function() {
                         <h2 className="text-xs font-bold text-purple-500 uppercase tracking-wider">Fleet Analytics</h2>
                         <div className="h-px flex-1 bg-purple-500/30"></div>
                     </div>
-                    <a
-                        href="../breakdown-analytics"
-                        className="block bg-gradient-to-br from-purple-900/20 to-purple-800/20 backdrop-blur-sm border border-purple-500/30 rounded-2xl p-8 hover:from-purple-800/30 hover:to-purple-700/30 hover:border-purple-400/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-purple-500/20"
-                    >
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
-                                    <span className="text-3xl">📊</span>
-                                    Fleet Breakdown Analytics Dashboard
-                                </h3>
-                                <p className="text-purple-300/80">View breakdown patterns, vehicle reliability scores, depot analysis, and operational insights</p>
-                                <div className="mt-4 flex flex-wrap gap-3">
-                                    <span className="text-xs bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full border border-purple-500/30">
-                                        Pattern Detection
-                                    </span>
-                                    <span className="text-xs bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full border border-purple-500/30">
-                                        Vehicle Rankings
-                                    </span>
-                                    <span className="text-xs bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full border border-purple-500/30">
-                                        Depot Insights
-                                    </span>
-                                    <span className="text-xs bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full border border-purple-500/30">
-                                        Real-time Alerts
-                                    </span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <a
+                            href="../breakdown-analytics"
+                            className="block bg-gradient-to-br from-purple-900/20 to-purple-800/20 backdrop-blur-sm border border-purple-500/30 rounded-2xl p-6 hover:from-purple-800/30 hover:to-purple-700/30 hover:border-purple-400/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-purple-500/20"
+                        >
+                            <div className="text-center">
+                                <div className="text-4xl mb-3">📊</div>
+                                <h3 className="text-xl font-bold text-white mb-2">Analytics Dashboard</h3>
+                                <p className="text-purple-300/80 text-sm">Breakdown patterns and vehicle reliability insights</p>
+                                <div className="mt-3 flex flex-wrap gap-2 justify-center">
+                                    <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-1 rounded-full">Patterns</span>
+                                    <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-1 rounded-full">Rankings</span>
                                 </div>
                             </div>
-                            <svg className="w-12 h-12 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                            </svg>
-                        </div>
-                    </a>
+                        </a>
+
+                        <a
+                            href="../breakdown-analysis"
+                            className="block bg-gradient-to-br from-red-900/20 to-red-800/20 backdrop-blur-sm border border-red-500/30 rounded-2xl p-6 hover:from-red-800/30 hover:to-red-700/30 hover:border-red-400/50 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-red-500/20"
+                        >
+                            <div className="text-center">
+                                <div className="text-4xl mb-3">🚨</div>
+                                <h3 className="text-xl font-bold text-white mb-2">Operations Center</h3>
+                                <p className="text-red-300/80 text-sm">Real-time breakdown monitoring and engineer dispatch</p>
+                                <div className="mt-3 flex flex-wrap gap-2 justify-center">
+                                    <span className="text-xs bg-red-500/20 text-red-300 px-2 py-1 rounded-full">Live Tracking</span>
+                                    <span className="text-xs bg-red-500/20 text-red-300 px-2 py-1 rounded-full">Response Times</span>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
                 </div>
                 
                 {/* Coming Soon */}

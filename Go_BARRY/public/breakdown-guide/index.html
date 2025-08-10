@@ -82,8 +82,27 @@
             logAssessment: (data) => console.log('Mock: Log assessment', data)
         };
         
-        // Mock BreakdownAnalytics - Complete implementation
+        // Mock BreakdownAnalytics - Complete implementation with real data storage
         window.BreakdownAnalytics = {
+            // Persistent data store using localStorage
+            get breakdownData() {
+                try {
+                    const stored = localStorage.getItem('gobarry_breakdown_data');
+                    return stored ? JSON.parse(stored) : [];
+                } catch (e) {
+                    console.warn('Failed to load breakdown data from localStorage:', e);
+                    return [];
+                }
+            },
+            
+            set breakdownData(data) {
+                try {
+                    localStorage.setItem('gobarry_breakdown_data', JSON.stringify(data));
+                } catch (e) {
+                    console.warn('Failed to save breakdown data to localStorage:', e);
+                }
+            },
+            
             setSupervisor: (session) => {
                 console.log('Mock: Analytics set supervisor', session);
                 return true;
@@ -94,7 +113,41 @@
             },
             recordBreakdown: async (category, responses, decision) => {
                 console.log('Mock: Record breakdown', { category, responses, decision });
-                return Promise.resolve({ success: true, id: 'mock_' + Date.now() });
+                
+                // Create a proper breakdown record
+                const breakdown = {
+                    id: 'breakdown_' + Date.now(),
+                    timestamp: new Date().toISOString(),
+                    wizardType: category,
+                    fleetNumber: responses.fleetNumber || 'Unknown',
+                    registration: responses.registration || 'Unknown',
+                    depot: responses.depot || 'Unknown',
+                    vehicleType: responses.vehicleType || 'Unknown',
+                    decision: decision,
+                    safetyLevel: decision === 'STOP' ? 'CRITICAL' : decision === 'AMBER' ? 'WARNING' : 'SAFE',
+                    supervisor: window.currentSupervisorSession?.supervisorId || 'Unknown',
+                    supervisorName: window.currentSupervisorSession?.name || 'Unknown',
+                    responses: responses,
+                    // Operational tracking fields
+                    resolved: false,
+                    engineerDispatched: false,
+                    engineerDispatchTime: null,
+                    engineerDetails: null,
+                    resolvedTime: null,
+                    resolution: null,
+                    priority: decision === 'STOP' ? 'CRITICAL' : decision === 'AMBER' ? 'HIGH' : 'NORMAL'
+                };
+                
+                // Add to our persistent data store
+                const currentData = window.BreakdownAnalytics.breakdownData;
+                currentData.push(breakdown);
+                window.BreakdownAnalytics.breakdownData = currentData;
+                
+                console.log('✅ Breakdown stored in analytics:', breakdown);
+                console.log('📊 Total breakdowns now:', window.BreakdownAnalytics.breakdownData.length);
+                console.log('💾 Data saved to localStorage');
+                
+                return Promise.resolve({ success: true, id: breakdown.id });
             },
             checkPatterns: async (fleetNumber, depot) => {
                 console.log('Mock: Check patterns', { fleetNumber, depot });
@@ -104,14 +157,38 @@
                 console.log('Mock: Detect depot', fleetNumber);
                 return 'Unknown Depot';
             },
-            getAllBreakdowns: () => [],
-            getAnalyticsSummary: () => ({
-                totalBreakdowns: 0,
-                vehiclesAffected: 0,
-                stopDecisions: 0,
-                amberDecisions: 0,
-                continueDecisions: 0
-            }),
+            getAllBreakdowns: () => {
+                return window.BreakdownAnalytics.breakdownData;
+            },
+            getFilteredBreakdowns: (filters = {}) => {
+                let filtered = window.BreakdownAnalytics.breakdownData;
+                
+                // Filter by depot
+                if (filters.depot && filters.depot !== 'All Depots') {
+                    filtered = filtered.filter(b => b.depot === filters.depot);
+                }
+                
+                // Filter by days
+                if (filters.days) {
+                    const cutoffDate = new Date();
+                    cutoffDate.setDate(cutoffDate.getDate() - filters.days);
+                    filtered = filtered.filter(b => new Date(b.timestamp) >= cutoffDate);
+                }
+                
+                return filtered;
+            },
+            getAnalyticsSummary: (filters = {}) => {
+                const breakdowns = window.BreakdownAnalytics.getFilteredBreakdowns(filters);
+                const vehiclesSet = new Set(breakdowns.map(b => b.fleetNumber));
+                
+                return {
+                    totalBreakdowns: breakdowns.length,
+                    vehiclesAffected: vehiclesSet.size,
+                    stopDecisions: breakdowns.filter(b => b.decision === 'STOP').length,
+                    amberDecisions: breakdowns.filter(b => b.decision === 'AMBER').length,
+                    continueDecisions: breakdowns.filter(b => b.decision === 'CONTINUE').length
+                };
+            },
             init: () => {
                 console.log('Mock: BreakdownAnalytics init');
                 return true;
@@ -122,11 +199,26 @@
                 console.log('Mock: Log event', event, data);
                 return true;
             },
-            getStats: () => ({
-                today: 0,
-                week: 0,
-                month: 0
-            })
+            getStats: () => {
+                const breakdowns = window.BreakdownAnalytics.breakdownData;
+                return {
+                    today: breakdowns.filter(b => {
+                        const today = new Date();
+                        today.setHours(0,0,0,0);
+                        return new Date(b.timestamp) >= today;
+                    }).length,
+                    week: breakdowns.filter(b => {
+                        const weekAgo = new Date();
+                        weekAgo.setDate(weekAgo.getDate() - 7);
+                        return new Date(b.timestamp) >= weekAgo;
+                    }).length,
+                    month: breakdowns.filter(b => {
+                        const monthAgo = new Date();
+                        monthAgo.setDate(monthAgo.getDate() - 30);
+                        return new Date(b.timestamp) >= monthAgo;
+                    }).length
+                };
+            }
         };
         
         // Mock breakdown tracker

@@ -83,9 +83,61 @@
             });
         }
 
+        // Initialize BreakdownAnalytics for dashboard
+        window.BreakdownAnalytics = {
+            // Persistent data store using localStorage
+            get breakdownData() {
+                try {
+                    const stored = localStorage.getItem('gobarry_breakdown_data');
+                    return stored ? JSON.parse(stored) : [];
+                } catch (e) {
+                    console.warn('Failed to load breakdown data from localStorage:', e);
+                    return [];
+                }
+            },
+            
+            getAllBreakdowns: function() {
+                return this.breakdownData;
+            },
+            
+            getFilteredBreakdowns: function(filters = {}) {
+                let filtered = this.breakdownData;
+                
+                // Filter by depot
+                if (filters.depot && filters.depot !== 'All Depots') {
+                    filtered = filtered.filter(b => b.depot === filters.depot);
+                }
+                
+                // Filter by days
+                if (filters.days) {
+                    const cutoffDate = new Date();
+                    cutoffDate.setDate(cutoffDate.getDate() - filters.days);
+                    filtered = filtered.filter(b => new Date(b.timestamp) >= cutoffDate);
+                }
+                
+                return filtered;
+            },
+            
+            getAnalyticsSummary: function(filters = {}) {
+                const breakdowns = this.getFilteredBreakdowns(filters);
+                const vehiclesSet = new Set(breakdowns.map(b => b.fleetNumber));
+                
+                return {
+                    totalBreakdowns: breakdowns.length,
+                    vehiclesAffected: vehiclesSet.size,
+                    stopDecisions: breakdowns.filter(b => b.decision === 'STOP').length,
+                    amberDecisions: breakdowns.filter(b => b.decision === 'AMBER').length,
+                    continueDecisions: breakdowns.filter(b => b.decision === 'CONTINUE').length
+                };
+            }
+        };
+
         // Main app initialization
         waitForLibraries().then(() => {
             console.log('All libraries loaded, initializing dashboard...');
+            console.log('📊 Loading breakdown data from localStorage...');
+            const data = window.BreakdownAnalytics.breakdownData;
+            console.log('📊 Found breakdown records:', data.length);
             
             const { useState, useEffect, useRef } = React;
 
