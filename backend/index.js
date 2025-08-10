@@ -539,6 +539,15 @@ setTimeout(() => {
     // Request queue middleware (apply globally)
     app.use('/api/roadworks', requestQueue.middleware('roadworks'));
     app.use('/api/alerts', requestQueue.middleware('alerts'));
+
+  // Integrate fleet database with existing APIs
+  try {
+    patchBreakdownTrackerAPI(app._router);
+    patchBreakdownAnalyticsAPI(app._router);
+    console.log('✅ Fleet database integrated with APIs');
+  } catch (error) {
+    console.error('❌ Failed to integrate fleet database:', error);
+  }
     console.log('✅ Request queuing system active');
     
     // Streaming response middleware
@@ -597,3 +606,8 @@ process.on('SIGTERM', () => {
 
 export default app;
 export { lazyImport, routeManager };
+// Fleet database integration
+import fleetDatabase from './services/fleetDatabaseService.js';
+import { patchBreakdownTrackerAPI } from './integration/fleetTrackerIntegration.js';
+import { patchBreakdownAnalyticsAPI } from './integration/fleetAnalyticsIntegration.js';
+

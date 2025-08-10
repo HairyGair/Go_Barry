@@ -14,6 +14,11 @@ const App = function() {
     const [currentStep, setCurrentStep] = useState(1);
     const [responses, setResponses] = useState({});
     const [assessmentId, setAssessmentId] = useState(null);
+    
+    // Fleet selection state
+    const [showFleetModal, setShowFleetModal] = useState(false);
+    const [pendingWizardType, setPendingWizardType] = useState(null);
+    const [selectedVehicle, setSelectedVehicle] = useState(null);
 
     // Handle successful login
     const handleLoginSuccess = (session) => {
@@ -80,27 +85,103 @@ const App = function() {
     };
 
     const handleComplete = async () => {
+        // Determine the decision based on wizard responses
+        let decision = 'CONTINUE';
+        
+        // Check for critical issues based on wizard type
+        switch (currentWizard) {
+            case 'brakes':
+                const criticalBrakeIssues = responses.brakeToFloor || responses.delayedBraking || 
+                                          responses.brakeLeaks || responses.brakesGrabbing || 
+                                          responses.redABSLight;
+                decision = criticalBrakeIssues ? 'STOP' : (responses.otherBrakeConcerns === 'yes' ? 'AMBER' : 'CONTINUE');
+                break;
+                
+            case 'steering':
+                const criticalSteeringIssues = responses.excessivePlay === 'yes' || responses.difficultyTurning === 'yes' ||
+                                             responses.steeringNoises === 'yes' || responses.vehiclePulling === 'yes';
+                decision = criticalSteeringIssues ? 'STOP' : 'CONTINUE';
+                break;
+                
+            case 'oil_warning':
+                decision = 'STOP'; // Oil pressure issues are always critical
+                break;
+                
+            case 'loose_wheel_nuts':
+                decision = 'STOP'; // Loose wheel nuts are always safety critical
+                break;
+                
+            case 'puncture':
+                decision = responses.tyreDamageLevel === 'severe' ? 'STOP' : 'AMBER';
+                break;
+                
+            case 'doors':
+                decision = responses.safetyDefects === 'present' ? 'STOP' : 'AMBER';
+                break;
+                
+            case 'wipers_screenwash':
+                const wipersDefective = responses.frontWipersDefective === 'yes' || responses.washersNotWorking === 'yes';
+                decision = wipersDefective ? 'AMBER' : 'CONTINUE';
+                break;
+                
+            case 'battery':
+                const batteryFailure = responses.engineNotStarting === 'yes' || responses.auxiliaryFailure === 'yes';
+                decision = batteryFailure ? 'STOP' : 'CONTINUE';
+                break;
+                
+            case 'non_starter':
+                decision = 'STOP'; // Non-starting vehicle always requires attention
+                break;
+                
+            case 'abs_light':
+                decision = responses.redWarningLight === 'on' ? 'STOP' : 'AMBER';
+                break;
+                
+            case 'interior_exterior_damage':
+                if (responses.damageType === 'driver_controls' || responses.damageType === 'safety_critical') {
+                    decision = 'STOP';
+                } else if (responses.damageType === 'high_risk_detachment') {
+                    decision = 'AMBER';
+                } else {
+                    decision = 'CONTINUE';
+                }
+                break;
+                
+            case 'wheelchair_ramp':
+                decision = responses.rampNotWorking === 'yes' ? 'AMBER' : 'CONTINUE';
+                break;
+                
+            case 'destination_display':
+                decision = responses.displayNotWorking === 'yes' ? 'AMBER' : 'CONTINUE';
+                break;
+                
+            case 'interior_lights':
+                decision = responses.safetyLightingDefective === 'yes' ? 'AMBER' : 'CONTINUE';
+                break;
+                
+            case 'exterior_lights':
+                const criticalLighting = responses.headlightsDefective === 'yes' || 
+                                       responses.brakelightsDefective === 'yes' ||
+                                       responses.indicatorsDefective === 'yes';
+                decision = criticalLighting ? 'STOP' : 'AMBER';
+                break;
+                
+            case 'cooling_system':
+                decision = responses.overheating === 'yes' ? 'STOP' : 'CONTINUE';
+                break;
+                
+            case 'excessive_smoke':
+                decision = responses.heavySmokeEmission === 'yes' ? 'STOP' : 'AMBER';
+                break;
+                
+            default:
+                // For unknown wizards, be conservative
+                decision = 'AMBER';
+                break;
+        }
+
         // Complete assessment with enhanced logging
         if (window.SupervisorBreakdownLogger && assessmentId) {
-            // Determine the decision based on wizard responses
-            let decision = 'CONTINUE';
-            
-            // Check for critical issues based on wizard type
-            if (currentWizard === 'brakes') {
-                const criticalIssues = responses.brakeToFloor || responses.delayedBraking || 
-                                     responses.brakeLeaks || responses.brakesGrabbing || 
-                                     responses.redABSLight;
-                decision = criticalIssues ? 'STOP' : (responses.otherBrakeConcerns === 'yes' ? 'AMBER' : 'CONTINUE');
-            } else if (currentWizard === 'steering') {
-                const criticalIssues = responses.excessivePlay === 'yes' || responses.difficultyTurning === 'yes' ||
-                                     responses.steeringNoises === 'yes' || responses.vehiclePulling === 'yes';
-                decision = criticalIssues ? 'STOP' : 'CONTINUE';
-            } else if (currentWizard === 'oil_warning') {
-                decision = 'STOP'; // Oil warning is always critical
-            } else if (currentWizard === 'loose_wheel_nuts') {
-                decision = 'STOP'; // Loose wheel nuts are always critical
-            }
-            
             // Log the final decision
             window.SupervisorBreakdownLogger.logSafetyDetermination(
                 currentWizard,
@@ -121,30 +202,33 @@ const App = function() {
                 console.log('Assessment saved offline for later sync');
             }
         }
+
+        // ✨ NEW: Integrate with Breakdown Tracker
+        if (window.wizardTrackerIntegration) {
+            try {
+                const trackerResult = await window.wizardTrackerIntegration.createBreakdownFromWizard(
+                    currentWizard,
+                    decision,
+                    responses,
+                    assessmentId
+                );
+                
+                if (trackerResult?.success) {
+                    console.log(`[TRACKER-INTEGRATION] Breakdown logged with ID: ${trackerResult.breakdownId}`);
+                } else if (trackerResult === null) {
+                    console.log(`[TRACKER-INTEGRATION] ${decision} decision - no tracker record needed`);
+                } else {
+                    console.warn('[TRACKER-INTEGRATION] Failed to create breakdown record:', trackerResult?.error);
+                }
+            } catch (error) {
+                console.error('[TRACKER-INTEGRATION] Error integrating with tracker:', error);
+            }
+        }
         
         // Also integrate with existing Breakdown Analytics
         if (window.BreakdownAnalytics && responses.fleetNumber) {
             try {
-                // Determine the decision based on wizard responses
-                let decision = 'CONTINUE';
-                
-                // Check for critical issues based on wizard type
-                if (currentWizard === 'brakes') {
-                    const criticalIssues = responses.brakeToFloor || responses.delayedBraking || 
-                                         responses.brakeLeaks || responses.brakesGrabbing || 
-                                         responses.redABSLight;
-                    decision = criticalIssues ? 'STOP' : (responses.otherBrakeConcerns === 'yes' ? 'AMBER' : 'CONTINUE');
-                } else if (currentWizard === 'steering') {
-                    const criticalIssues = responses.excessivePlay === 'yes' || responses.difficultyTurning === 'yes' ||
-                                         responses.steeringNoises === 'yes' || responses.vehiclePulling === 'yes';
-                    decision = criticalIssues ? 'STOP' : 'CONTINUE';
-                } else if (currentWizard === 'oil_warning') {
-                    decision = 'STOP'; // Oil warning is always critical
-                } else if (currentWizard === 'loose_wheel_nuts') {
-                    decision = 'STOP'; // Loose wheel nuts are always critical
-                }
-                
-                // Record the breakdown
+                // Record the breakdown using the same decision logic
                 const result = await window.BreakdownAnalytics.recordBreakdown(
                     currentWizard,
                     responses,
@@ -181,30 +265,44 @@ const App = function() {
     };
 
     const handleWizardSelect = (wizardType) => {
+        // Show fleet selection modal instead of prompts
+        setPendingWizardType(wizardType);
+        setShowFleetModal(true);
+    };
+    
+    const handleVehicleSelected = (vehicle) => {
+        setSelectedVehicle(vehicle);
+        
         // Start a new assessment with supervisor tracking
         if (window.SupervisorBreakdownLogger && supervisorSession) {
-            const fleetNumber = prompt('Enter Fleet Number (e.g., 6301):');
-            const depot = prompt('Enter Depot (e.g., Riverside):') || supervisorSession.depot;
+            const assessmentStarted = window.SupervisorBreakdownLogger.startAssessment(
+                pendingWizardType,
+                vehicle.fleetNumber,
+                vehicle.depot
+            );
             
-            if (fleetNumber) {
-                const assessmentStarted = window.SupervisorBreakdownLogger.startAssessment(
-                    wizardType,
-                    fleetNumber,
-                    depot
-                );
-                
-                if (assessmentStarted) {
-                    setAssessmentId(window.SupervisorBreakdownLogger.currentAssessment.id);
-                    setResponses({ fleetNumber, depot });
-                }
-            } else {
-                alert('Fleet number is required to start an assessment');
-                return;
+            if (assessmentStarted) {
+                setAssessmentId(window.SupervisorBreakdownLogger.currentAssessment.id);
+                setResponses({ 
+                    fleetNumber: vehicle.fleetNumber, 
+                    depot: vehicle.depot,
+                    registration: vehicle.registration,
+                    vehicleType: vehicle.vehicleType,
+                    vehicleDetails: vehicle
+                });
             }
         }
         
-        setCurrentWizard(wizardType);
+        // Start the wizard
+        setCurrentWizard(pendingWizardType);
         setCurrentStep(1);
+        setShowFleetModal(false);
+        setPendingWizardType(null);
+    };
+    
+    const handleFleetModalClose = () => {
+        setShowFleetModal(false);
+        setPendingWizardType(null);
     };
 
     const handleBackToMenu = () => {
@@ -221,6 +319,7 @@ const App = function() {
         setCurrentStep(1);
         setResponses({});
         setAssessmentId(null);
+        setSelectedVehicle(null);
     };
     
     // If not authenticated, show login screen
@@ -1869,6 +1968,23 @@ const App = function() {
                                 </div>
                                 <div className="hidden sm:block h-8 w-px bg-white/20"></div>
                                 <span className="hidden sm:block text-sm font-medium text-white/70">Breakdown Guide System</span>
+                                {selectedVehicle && (
+                                    <div className="ml-4 px-4 py-2 bg-green-600/20 border border-green-500/30 rounded-lg">
+                                        <div className="flex items-center space-x-3">
+                                            <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414A1 1 0 0120 8.414V17a2 2 0 01-2 2h-1M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h1m12-6h-3m-5 0h3" />
+                                            </svg>
+                                            <div className="text-sm">
+                                                <div className="text-white font-medium">
+                                                    Fleet {selectedVehicle.fleetNumber} - {selectedVehicle.registration}
+                                                </div>
+                                                <div className="text-green-400 text-xs">
+                                                    {selectedVehicle.depot} • {selectedVehicle.vehicleTypeCategory}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                         <div className="flex items-center space-x-4">
@@ -2092,6 +2208,16 @@ const App = function() {
                     </div>
                 </div>
             </div>
+            
+            {/* Fleet Selection Modal */}
+            {showFleetModal && (
+                React.createElement(window.FleetSelectionModal, {
+                    isVisible: showFleetModal,
+                    onClose: handleFleetModalClose,
+                    onVehicleSelected: handleVehicleSelected,
+                    wizardType: pendingWizardType
+                })
+            )}
         </div>
     );
 };

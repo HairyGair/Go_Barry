@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fleet Database Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .status { 
+            padding: 10px; 
+            border-radius: 5px; 
+            margin: 10px 0;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        input {
+            padding: 10px;
+            width: 300px;
+            margin-right: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Fleet Database Test & Fix</h1>
+    
+    <div id="status" class="status info">Checking fleet database...</div>
+    
+    <div style="margin: 20px 0;">
+        <input type="text" id="searchInput" placeholder="Search fleet number or registration">
+        <button onclick="testSearch()">Test Search</button>
+    </div>
+    
+    <div id="results" class="results" style="display: none;"></div>
+    
+    <div style="margin-top: 30px;">
+        <button onclick="reloadDatabase()">Reload Database</button>
+        <button onclick="fixBreakdownGuide()">Fix Breakdown Guide</button>
+    </div>
+
+    <script>
+        // Check if fleet database exists
+        async function checkDatabase() {
+            const statusDiv = document.getElementById('status');
+            
+            try {
+                // Check if the JSON file is accessible
+                const response = await fetch('/backend/data/fleet-database.json');
+                const data = await response.json();
+                
+                const vehicleCount = Object.keys(data).length;
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = `✅ Fleet database loaded successfully! ${vehicleCount} vehicles found.`;
+                
+                // Store in window for testing
+                window.testFleetData = data;
+                
+                // Test a few lookups
+                const testFleet = Object.keys(data)[0];
+                const testVehicle = data[testFleet];
+                console.log('Sample vehicle:', testVehicle);
+                
+                return true;
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.innerHTML = `❌ Error loading fleet database: ${error.message}`;
+                return false;
+            }
+        }
+        
+        // Test search functionality
+        function testSearch() {
+            const query = document.getElementById('searchInput').value;
+            const resultsDiv = document.getElementById('results');
+            
+            if (!window.testFleetData) {
+                resultsDiv.style.display = 'block';
+                resultsDiv.innerHTML = '<div class="error">Fleet database not loaded!</div>';
+                return;
+            }
+            
+            const searchTerm = query.toLowerCase();
+            const results = Object.values(window.testFleetData).filter(vehicle => 
+                vehicle.fleetNumber.toString().includes(searchTerm) ||
+                vehicle.registration.toLowerCase().includes(searchTerm)
+            );
+            
+            resultsDiv.style.display = 'block';
+            
+            if (results.length === 0) {
+                resultsDiv.innerHTML = '<div class="info">No vehicles found</div>';
+            } else {
+                resultsDiv.innerHTML = '<h3>Search Results:</h3>' + 
+                    results.slice(0, 10).map(v => `
+                        <div style="padding: 10px; border-bottom: 1px solid #ddd;">
+                            <strong>Fleet ${v.fleetNumber}</strong> - ${v.registration}<br>
+                            <small>${v.busType} | ${v.depot}</small>
+                        </div>
+                    `).join('');
+            }
+        }
+        
+        // Reload the database
+        async function reloadDatabase() {
+            document.getElementById('status').className = 'status info';
+            document.getElementById('status').innerHTML = 'Reloading database...';
+            
+            // Clear any cached data
+            delete window.testFleetData;
+            if (window.fleetDatabase) {
+                delete window.fleetDatabase.fleetData;
+            }
+            
+            // Reload
+            const success = await checkDatabase();
+            
+            if (success && window.fleetDatabase) {
+                // Reinitialize the fleet database service
+                window.fleetDatabase.loadFleetDatabase();
+            }
+        }
+        
+        // Fix the breakdown guide
+        function fixBreakdownGuide() {
+            // Inject the fixed fleet database into the parent window if in iframe
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'FLEET_DATABASE_FIX',
+                    data: window.testFleetData
+                }, '*');
+            }
+            
+            // Also try to fix it directly
+            if (!window.fleetDatabase) {
+                window.fleetDatabase = {
+                    fleetData: window.testFleetData || {},
+                    searchVehicles: function(query) {
+                        const searchTerm = query.toString().toLowerCase();
+                        return Object.values(this.fleetData).filter(vehicle => 
+                            vehicle.fleetNumber.toString().includes(searchTerm) ||
+                            vehicle.registration.toLowerCase().includes(searchTerm)
+                        );
+                    }
+                };
+            } else {
+                window.fleetDatabase.fleetData = window.testFleetData || {};
+            }
+            
+            alert('Fleet database has been reinitialized! Try searching again in the Breakdown Guide.');
+        }
+        
+        // Check on load
+        checkDatabase();
+    </script>
+</body>
+</html>

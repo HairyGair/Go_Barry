@@ -667,3 +667,53 @@ npm run test:communications # Communications system tests
 - Always check the current branch and file status before modifications
 
 This analysis provides the current understanding of Go BARRY's architecture, but file verification is recommended before making changes due to the evolutionary nature of the codebase and potential naming discrepancies as of January 2025.
+
+## 🚗 FLEET DATABASE INTEGRATION (AUGUST 2025)
+
+### **Overview**
+GNE fleet database integrated with 559 vehicles from 6 active depots, enhancing breakdown management with real vehicle data.
+
+### **Database Details**
+- **File**: `gne-fleet-database.json` - 559 vehicles
+- **Depots**: Washington (72), Hexham (21), Riverside (178), Percy Main (81), Deptford (126), Consett (81)
+- **Vehicle Structure**: `{ fleetNumber, regNo, vehicleType }`
+- **Most Common**: Wrightbus Streetlite DF (140), Volvo B9TL (136), ADL Enviro 400 (58)
+
+### **Integration Architecture**
+1. **Fleet Service**: `backend/services/fleetDatabaseService.js`
+   - Core service with vehicle lookup, depot assignment, categorization
+   - Methods: `getByFleetNumber()`, `getByRegNumber()`, `searchVehicles()`
+
+2. **Breakdown Tracker API**: Enhanced `backend/routes/breakdownTrackerAPI.js`
+   - `GET /api/breakdown-tracker/vehicles/search?q=XXX` - Vehicle search
+   - `GET /api/breakdown-tracker/vehicles/:fleetNumber` - Vehicle details
+   - Auto-validates vehicles, assigns depots, adds metadata
+
+3. **Breakdown Analytics API**: Enhanced `backend/routes/breakdownAnalyticsAPI.js`
+   - `GET /api/breakdown-analytics/fleet-health` - Fleet statistics
+   - `GET /api/breakdown-analytics/fleet-composition` - Fleet analysis
+
+4. **Frontend Component**: `Go_BARRY/public/breakdown-guide/fleetLookupComponent.js`
+   - Vehicle search UI with auto-complete
+   - Displays vehicle info, common issues by type
+
+### **Fleet Number Ranges**
+- 600-699: Hexham (mainly Solo vehicles)
+- 5200-5499: Washington
+- 5500-5799: Riverside
+- 6000-6299: Percy Main
+- 6300-6599: Consett
+- 6900-7199: Deptford
+- 8300-8399: Riverside (coaches)
+
+### **Testing & Maintenance**
+- Test integration: `node test-fleet-integration.mjs`
+- Update fleet: `node generate-gne-fleet-json.mjs [excel-file]`
+- Re-integrate: `node integrate-fleet-database.mjs`
+
+### **Key Benefits**
+- Real vehicle validation (no invalid fleet numbers)
+- Automatic depot assignment based on fleet patterns
+- Vehicle metadata (type, engine, Euro rating, age)
+- Fleet health analytics and breakdown patterns
+- Enhanced breakdown tracking with real data

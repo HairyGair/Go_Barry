@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fleet Database Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            background: #f5f5f5;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .test-pass {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .test-fail {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .search-test {
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            width: 200px;
+        }
+        button {
+            padding: 8px 15px;
+            margin: 5px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result-display {
+            background: #f8f9fa;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            min-height: 50px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Fleet Database Connection Test</h1>
+    <p>This page tests the fleet database connectivity fixes.</p>
+    
+    <div class="test-section">
+        <h2>🔧 Fleet Database Service Test</h2>
+        <div id="service-test-result" class="test-result">Testing...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>🔍 Search Function Test</h2>
+        <div class="search-test">
+            <h3>Test Fleet Number Search</h3>
+            <input type="text" id="fleet-search" placeholder="Enter fleet number (e.g. 638)" value="638">
+            <button onclick="testFleetSearch()">Search by Fleet Number</button>
+            <div id="fleet-result" class="result-display"></div>
+        </div>
+        
+        <div class="search-test">
+            <h3>Test Registration Search</h3>
+            <input type="text" id="reg-search" placeholder="Enter registration (e.g. NK12HCE)" value="NK12HCE">
+            <button onclick="testRegSearch()">Search by Registration</button>
+            <div id="reg-result" class="result-display"></div>
+        </div>
+        
+        <div class="search-test">
+            <h3>Test General Search</h3>
+            <input type="text" id="general-search" placeholder="Enter any search term" value="Solo">
+            <button onclick="testGeneralSearch()">General Search</button>
+            <div id="general-result" class="result-display"></div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>📊 Database Statistics</h2>
+        <div id="stats-result" class="result-display">Loading...</div>
+    </div>
+
+    <!-- Load the fleet database components -->
+    <script src="./services/fleetDatabase.js"></script>
+    <script src="./fleet-database-init.js"></script>
+
+    <script>
+        // Test functions
+        function showTestResult(elementId, success, message) {
+            const element = document.getElementById(elementId);
+            element.className = success ? 'test-result test-pass' : 'test-result test-fail';
+            element.innerHTML = success ? '✅ ' + message : '❌ ' + message;
+        }
+
+        function displayVehicle(vehicle, elementId) {
+            const element = document.getElementById(elementId);
+            if (vehicle) {
+                element.innerHTML = `
+                    <strong>Fleet ${vehicle.fleetNumber}</strong> - ${vehicle.registration}<br>
+                    Type: ${vehicle.busType || 'Unknown'}<br>
+                    Depot: ${vehicle.depot || 'Unknown'}<br>
+                    Capacity: ${vehicle.capacity || 'Unknown'}<br>
+                    Year: ${vehicle.yearOfManufacture || 'Unknown'}<br>
+                    Age: ${vehicle.age ? vehicle.age + ' years' : 'Unknown'}
+                `;
+            } else {
+                element.innerHTML = '<span style="color: #dc3545;">Vehicle not found</span>';
+            }
+        }
+
+        function testFleetSearch() {
+            const fleetNumber = document.getElementById('fleet-search').value;
+            if (window.fleetDatabase) {
+                const vehicle = window.fleetDatabase.getByFleetNumber(fleetNumber);
+                displayVehicle(vehicle, 'fleet-result');
+            } else {
+                document.getElementById('fleet-result').innerHTML = '<span style="color: #dc3545;">Fleet database not loaded</span>';
+            }
+        }
+
+        function testRegSearch() {
+            const registration = document.getElementById('reg-search').value;
+            if (window.fleetDatabase) {
+                const vehicle = window.fleetDatabase.getByRegistration(registration);
+                displayVehicle(vehicle, 'reg-result');
+            } else {
+                document.getElementById('reg-result').innerHTML = '<span style="color: #dc3545;">Fleet database not loaded</span>';
+            }
+        }
+
+        function testGeneralSearch() {
+            const query = document.getElementById('general-search').value;
+            if (window.fleetDatabase) {
+                const vehicles = window.fleetDatabase.searchVehicles(query);
+                const resultElement = document.getElementById('general-result');
+                if (vehicles.length > 0) {
+                    resultElement.innerHTML = `
+                        <strong>Found ${vehicles.length} vehicles:</strong><br>
+                        ${vehicles.slice(0, 5).map(v => 
+                            `Fleet ${v.fleetNumber} - ${v.registration} (${v.busType})`
+                        ).join('<br>')}
+                        ${vehicles.length > 5 ? '<br>...and ' + (vehicles.length - 5) + ' more' : ''}
+                    `;
+                } else {
+                    resultElement.innerHTML = '<span style="color: #dc3545;">No vehicles found</span>';
+                }
+            } else {
+                document.getElementById('general-result').innerHTML = '<span style="color: #dc3545;">Fleet database not loaded</span>';
+            }
+        }
+
+        function testService() {
+            if (window.fleetDatabase) {
+                if (window.fleetDatabase.fleetData && Object.keys(window.fleetDatabase.fleetData).length > 0) {
+                    showTestResult('service-test-result', true, 
+                        `Fleet database loaded successfully with ${Object.keys(window.fleetDatabase.fleetData).length} vehicles`);
+                } else {
+                    showTestResult('service-test-result', false, 
+                        'Fleet database service exists but no data loaded');
+                }
+            } else {
+                showTestResult('service-test-result', false, 
+                    'Fleet database service not available');
+            }
+        }
+
+        function updateStats() {
+            const statsElement = document.getElementById('stats-result');
+            if (window.fleetDatabase && window.fleetDatabase.fleetData) {
+                const fleetData = window.fleetDatabase.fleetData;
+                const vehicleCount = Object.keys(fleetData).length;
+                const depots = {};
+                const busTypes = {};
+                
+                Object.values(fleetData).forEach(vehicle => {
+                    depots[vehicle.depot] = (depots[vehicle.depot] || 0) + 1;
+                    busTypes[vehicle.busType] = (busTypes[vehicle.busType] || 0) + 1;
+                });
+                
+                statsElement.innerHTML = `
+                    <strong>Total Vehicles:</strong> ${vehicleCount}<br>
+                    <strong>Depots:</strong> ${Object.keys(depots).length} (${Object.keys(depots).join(', ')})<br>
+                    <strong>Most Common Bus Types:</strong><br>
+                    ${Object.entries(busTypes)
+                        .sort((a, b) => b[1] - a[1])
+                        .slice(0, 5)
+                        .map(([type, count]) => `• ${type}: ${count} vehicles`)
+                        .join('<br>')}
+                `;
+            } else {
+                statsElement.innerHTML = 'Fleet database not loaded';
+            }
+        }
+
+        // Run tests periodically until fleet database is loaded
+        function runTests() {
+            testService();
+            updateStats();
+            
+            if (!window.fleetDatabase || !window.fleetDatabase.fleetData || Object.keys(window.fleetDatabase.fleetData).length === 0) {
+                setTimeout(runTests, 1000);
+            }
+        }
+
+        // Start testing
+        runTests();
+    </script>
+</body>
+</html>

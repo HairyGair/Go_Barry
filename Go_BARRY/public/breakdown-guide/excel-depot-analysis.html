@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Depot Analysis</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .analysis-section {
+            background: #f5f5f5;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .depot-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .depot-card {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .operational {
+            border-left: 4px solid #28a745;
+        }
+        .non-operational {
+            border-left: 4px solid #dc3545;
+        }
+        .depot-count {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .sample-assignments {
+            max-height: 300px;
+            overflow-y: auto;
+            background: white;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        .download-btn {
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        .download-btn:hover {
+            background: #218838;
+        }
+    </style>
+</head>
+<body>
+    <h1>📊 Excel Fleet Depot Analysis</h1>
+    <p>Analyzing real depot assignments from Excel file using correct column names.</p>
+    
+    <div class="analysis-section">
+        <h3>📁 File Analysis Status</h3>
+        <div id="file-status">Attempting to load Excel file...</div>
+    </div>
+    
+    <div class="analysis-section">
+        <h3>🎯 Operational Vehicle Count</h3>
+        <div id="count-summary">Loading...</div>
+    </div>
+    
+    <div class="analysis-section">
+        <h3>🏢 All Depot Assignments</h3>
+        <div id="depot-breakdown" class="depot-grid">Loading...</div>
+    </div>
+    
+    <div class="analysis-section">
+        <h3>📋 Sample Real Depot Assignments</h3>
+        <div id="sample-assignments" class="sample-assignments">Loading...</div>
+    </div>
+    
+    <div class="analysis-section">
+        <h3>💾 Export Real Depot Data</h3>
+        <button id="download-btn" class="download-btn">Download Real Depot Assignments (JSON)</button>
+        <p style="color: #666; font-size: 0.9em;">This will create a JSON file with the real depot assignments from Excel.</p>
+    </div>
+
+    <script>
+        let realDepotAssignments = {};
+        
+        async function analyzeExcelFile() {
+            try {
+                console.log('📊 Loading Excel file...');
+                document.getElementById('file-status').innerHTML = '📊 Loading Excel file...';
+                
+                // Try to load the Excel file
+                const response = await fetch('/GNE_Fleet_Master.xlsx');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: Cannot access Excel file`);
+                }
+                
+                const arrayBuffer = await response.arrayBuffer();
+                
+                // Load SheetJS
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+                document.head.appendChild(script);
+                
+                script.onload = function() {
+                    parseExcelFile(arrayBuffer);
+                };
+                
+            } catch (error) {
+                console.error('❌ Error loading Excel file:', error);
+                document.getElementById('file-status').innerHTML = `❌ Error: ${error.message}`;
+            }
+        }
+        
+        function parseExcelFile(arrayBuffer) {
+            try {
+                console.log('📋 Parsing Excel file...');
+                document.getElementById('file-status').innerHTML = '📋 Parsing Excel file...';
+                
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                const firstSheet = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheet];
+                
+                // Convert to array format
+                const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                console.log(`✅ Loaded ${data.length} rows`);
+                document.getElementById('file-status').innerHTML = `✅ Excel file loaded: ${data.length} rows`;
+                
+                if (data.length === 0) {
+                    throw new Error('No data found in Excel file');
+                }
+                
+                // Find column indices using the correct names
+                const headers = data[0];
+                console.log('📝 Headers:', headers);
+                
+                const allocatedDepotIndex = headers.findIndex(h => h && h.toString().includes('Allocated Depot'));
+                const fleetNoIndex = headers.findIndex(h => h && h.toString().includes('FleetNo'));
+                const regNumberIndex = headers.findIndex(h => h && h.toString().includes('RegNumber'));
+                const vehicleTypeIndex = headers.findIndex(h => h && h.toString().includes('VehicleType Equinox'));
+                
+                console.log('🔍 Column indices:');
+                console.log(`  Allocated Depot: ${allocatedDepotIndex}`);
+                console.log(`  FleetNo: ${fleetNoIndex}`);
+                console.log(`  RegNumber: ${regNumberIndex}`);
+                console.log(`  VehicleType Equinox: ${vehicleTypeIndex}`);
+                
+                if (allocatedDepotIndex === -1 || fleetNoIndex === -1) {
+                    throw new Error('Required columns (Allocated Depot, FleetNo) not found');
+                }
+                
+                // Extract real depot assignments
+                const depotCounts = {};
+                const operationalDepots = ['Percy Main', 'Riverside', 'Hexham', 'Consett', 'Deptford', 'Washington'];
+                let operationalCount = 0;
+                const sampleAssignments = [];
+                
+                data.slice(1).forEach((row, index) => {
+                    const fleetNo = row[fleetNoIndex];
+                    const depot = row[allocatedDepotIndex];
+                    const regNumber = row[regNumberIndex];
+                    const vehicleType = row[vehicleTypeIndex];
+                    
+                    if (fleetNo && depot) {
+                        realDepotAssignments[fleetNo.toString()] = {
+                            fleetNumber: fleetNo.toString(),
+                            depot: depot,
+                            registration: regNumber || 'Unknown',
+                            vehicleType: vehicleType || 'Unknown'
+                        };
+                        
+                        depotCounts[depot] = (depotCounts[depot] || 0) + 1;
+                        
+                        if (operationalDepots.includes(depot)) {
+                            operationalCount++;
+                        }
+                        
+                        // Collect samples
+                        if (sampleAssignments.length < 50) {
+                            sampleAssignments.push(`Fleet ${fleetNo}: ${depot} (${regNumber})`);
+                        }
+                    }
+                });
+                
+                // Display results
+                displayResults(operationalCount, depotCounts, operationalDepots, sampleAssignments);
+                
+            } catch (error) {
+                console.error('❌ Error parsing Excel:', error);
+                document.getElementById('file-status').innerHTML = `❌ Parse error: ${error.message}`;
+            }
+        }
+        
+        function displayResults(operationalCount, depotCounts, operationalDepots, sampleAssignments) {
+            // Count summary
+            const countSummary = document.getElementById('count-summary');
+            const isExact = operationalCount === 541;
+            countSummary.innerHTML = `
+                <div style="font-size: 1.2em; ${isExact ? 'color: #28a745;' : 'color: #dc3545;'}">
+                    <strong>${isExact ? '✅ PERFECT MATCH!' : '⚠️ COUNT MISMATCH'}</strong><br>
+                    Operational vehicles: <strong>${operationalCount}</strong><br>
+                    Expected: <strong>541</strong><br>
+                    Difference: <strong>${541 - operationalCount}</strong>
+                </div>
+            `;
+            
+            // Depot breakdown
+            const depotBreakdown = document.getElementById('depot-breakdown');
+            depotBreakdown.innerHTML = Object.entries(depotCounts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([depot, count]) => {
+                    const isOperational = operationalDepots.includes(depot);
+                    return `
+                        <div class="depot-card ${isOperational ? 'operational' : 'non-operational'}">
+                            <div class="depot-count">${count}</div>
+                            <div><strong>${depot}</strong></div>
+                            <div style="color: #666; font-size: 0.9em;">
+                                ${isOperational ? '✅ Operational' : '❌ Non-operational'}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            
+            // Sample assignments
+            const sampleDiv = document.getElementById('sample-assignments');
+            sampleDiv.innerHTML = sampleAssignments.join('\n');
+            
+            console.log('✅ Analysis complete!');
+            console.log(`📊 Total vehicles processed: ${Object.keys(realDepotAssignments).length}`);
+            console.log(`🎯 Operational vehicles: ${operationalCount}`);
+        }
+        
+        // Download functionality
+        document.getElementById('download-btn').addEventListener('click', function() {
+            if (Object.keys(realDepotAssignments).length === 0) {
+                alert('No depot assignments loaded yet. Please wait for analysis to complete.');
+                return;
+            }
+            
+            const dataStr = JSON.stringify(realDepotAssignments, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'real-depot-assignments.json';
+            link.click();
+            URL.revokeObjectURL(url);
+        });
+        
+        // Start analysis
+        analyzeExcelFile();
+    </script>
+</body>
+</html>

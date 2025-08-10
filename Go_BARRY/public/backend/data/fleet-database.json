@@ -1,0 +1,6066 @@
+{
+  "133": {
+    "fleetNumber": "133",
+    "registration": "NX58FJY",
+    "depot": "Saltmeadows Road Stores",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2058
+  },
+  "618": {
+    "fleetNumber": "618",
+    "registration": "NK55RUV",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "ADL Dart Pointer 2 ISBe4 AT545 8.8 3",
+    "capacity": 50,
+    "yearOfManufacture": 2055
+  },
+  "625": {
+    "fleetNumber": "625",
+    "registration": "NK11HBB",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2011
+  },
+  "626": {
+    "fleetNumber": "626",
+    "registration": "NK61DBX",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2061
+  },
+  "627": {
+    "fleetNumber": "627",
+    "registration": "NK61DBY",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2061
+  },
+  "631": {
+    "fleetNumber": "631",
+    "registration": "NK61FEU",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2061
+  },
+  "633": {
+    "fleetNumber": "633",
+    "registration": "NK61FEX",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2061
+  },
+  "634": {
+    "fleetNumber": "634",
+    "registration": "NK61FJO",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2061
+  },
+  "637": {
+    "fleetNumber": "637",
+    "registration": "NK12HCD",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5 (SCRT Emisssions Upgrade to Euro 6)",
+    "capacity": 30,
+    "yearOfManufacture": 2012
+  },
+  "638": {
+    "fleetNumber": "638",
+    "registration": "NK12HCE",
+    "depot": "Deptford",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5 (SCRT Emisssions Upgrade to Euro 6)",
+    "capacity": 30,
+    "yearOfManufacture": 2012
+  },
+  "641": {
+    "fleetNumber": "641",
+    "registration": "NL63YBA",
+    "depot": "Consett",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2063
+  },
+  "643": {
+    "fleetNumber": "643",
+    "registration": "NL63XZP",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2063
+  },
+  "644": {
+    "fleetNumber": "644",
+    "registration": "NL63XZR",
+    "depot": "Consett",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2063
+  },
+  "645": {
+    "fleetNumber": "645",
+    "registration": "NL63XZS",
+    "depot": "Consett",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2063
+  },
+  "653": {
+    "fleetNumber": "653",
+    "registration": "NK15GDE",
+    "depot": "Deptford",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2015
+  },
+  "654": {
+    "fleetNumber": "654",
+    "registration": "NK15GDF",
+    "depot": "Deptford",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2015
+  },
+  "655": {
+    "fleetNumber": "655",
+    "registration": "NK15GDJ",
+    "depot": "Deptford",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2015
+  },
+  "656": {
+    "fleetNumber": "656",
+    "registration": "NK15GDO",
+    "depot": "Deptford",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2015
+  },
+  "657": {
+    "fleetNumber": "657",
+    "registration": "NK15GEY",
+    "depot": "Deptford",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2015
+  },
+  "658": {
+    "fleetNumber": "658",
+    "registration": "NK15GFA",
+    "depot": "Deptford",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2015
+  },
+  "659": {
+    "fleetNumber": "659",
+    "registration": "NK15GFE",
+    "depot": "Deptford",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2015
+  },
+  "660": {
+    "fleetNumber": "660",
+    "registration": "NK15GFG",
+    "depot": "Percy Main",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2015
+  },
+  "661": {
+    "fleetNumber": "661",
+    "registration": "NK15GFJ",
+    "depot": "Percy Main",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2015
+  },
+  "662": {
+    "fleetNumber": "662",
+    "registration": "NK15GFO",
+    "depot": "Deptford",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2015
+  },
+  "663": {
+    "fleetNumber": "663",
+    "registration": "NK15GFU",
+    "depot": "Deptford",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2015
+  },
+  "664": {
+    "fleetNumber": "664",
+    "registration": "NK15GFV",
+    "depot": "Hexham",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2015
+  },
+  "665": {
+    "fleetNumber": "665",
+    "registration": "NK15GFX",
+    "depot": "Hexham",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2015
+  },
+  "666": {
+    "fleetNumber": "666",
+    "registration": "NK15EMJ",
+    "depot": "Hexham",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2015
+  },
+  "667": {
+    "fleetNumber": "667",
+    "registration": "NK16BXH",
+    "depot": "Hexham",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2016
+  },
+  "668": {
+    "fleetNumber": "668",
+    "registration": "NK16BXJ",
+    "depot": "Hexham",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2016
+  },
+  "669": {
+    "fleetNumber": "669",
+    "registration": "NK16BXL",
+    "depot": "Hexham",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2016
+  },
+  "670": {
+    "fleetNumber": "670",
+    "registration": "NK16BXM",
+    "depot": "Hexham",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2016
+  },
+  "671": {
+    "fleetNumber": "671",
+    "registration": "NK16BXN",
+    "depot": "Hexham",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2016
+  },
+  "672": {
+    "fleetNumber": "672",
+    "registration": "NK16BXO",
+    "depot": "Percy Main",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2016
+  },
+  "673": {
+    "fleetNumber": "673",
+    "registration": "NK16BXP",
+    "depot": "Deptford",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2016
+  },
+  "674": {
+    "fleetNumber": "674",
+    "registration": "NK16BXR",
+    "depot": "Deptford",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2016
+  },
+  "675": {
+    "fleetNumber": "675",
+    "registration": "NK16BXS",
+    "depot": "Deptford",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2016
+  },
+  "676": {
+    "fleetNumber": "676",
+    "registration": "NK16BXU",
+    "depot": "Deptford",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2016
+  },
+  "677": {
+    "fleetNumber": "677",
+    "registration": "NK16BXV",
+    "depot": "Deptford",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2016
+  },
+  "678": {
+    "fleetNumber": "678",
+    "registration": "NK16BXW",
+    "depot": "Deptford",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2016
+  },
+  "679": {
+    "fleetNumber": "679",
+    "registration": "NK16BXX",
+    "depot": "Deptford",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2016
+  },
+  "680": {
+    "fleetNumber": "680",
+    "registration": "NK16BXY",
+    "depot": "Percy Main",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2016
+  },
+  "681": {
+    "fleetNumber": "681",
+    "registration": "NK66CWW",
+    "depot": "Percy Main",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2066
+  },
+  "682": {
+    "fleetNumber": "682",
+    "registration": "NK66CWX",
+    "depot": "Deptford",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2066
+  },
+  "683": {
+    "fleetNumber": "683",
+    "registration": "NK66CWY",
+    "depot": "Washington",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2066
+  },
+  "684": {
+    "fleetNumber": "684",
+    "registration": "NK66CWZ",
+    "depot": "Washington",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2066
+  },
+  "685": {
+    "fleetNumber": "685",
+    "registration": "NK66CXA",
+    "depot": "Washington",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2066
+  },
+  "686": {
+    "fleetNumber": "686",
+    "registration": "NK66CXB",
+    "depot": "Washington",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2066
+  },
+  "687": {
+    "fleetNumber": "687",
+    "registration": "NK66CXC",
+    "depot": "Washington",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2066
+  },
+  "688": {
+    "fleetNumber": "688",
+    "registration": "NK66CXD",
+    "depot": "Washington",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2066
+  },
+  "689": {
+    "fleetNumber": "689",
+    "registration": "NK66CXE",
+    "depot": "Washington",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2066
+  },
+  "690": {
+    "fleetNumber": "690",
+    "registration": "NK66CXF",
+    "depot": "Washington",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+    "capacity": 30,
+    "yearOfManufacture": 2066
+  },
+  "691": {
+    "fleetNumber": "691",
+    "registration": "YJ13HNW",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2013
+  },
+  "692": {
+    "fleetNumber": "692",
+    "registration": "YJ13HNX",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2013
+  },
+  "694": {
+    "fleetNumber": "694",
+    "registration": "YJ13HNZ",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2013
+  },
+  "695": {
+    "fleetNumber": "695",
+    "registration": "YJ13HOA",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2013
+  },
+  "696": {
+    "fleetNumber": "696",
+    "registration": "YJ13HOH",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2013
+  },
+  "709": {
+    "fleetNumber": "709",
+    "registration": "WK58EAJ",
+    "depot": "Washington",
+    "busType": "Optare Solo Solo OM904LA S2000 8.8 4",
+    "capacity": 30,
+    "yearOfManufacture": 2058
+  },
+  "719": {
+    "fleetNumber": "719",
+    "registration": "YJ62FME",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2062
+  },
+  "720": {
+    "fleetNumber": "720",
+    "registration": "YJ62FYH",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2062
+  },
+  "721": {
+    "fleetNumber": "721",
+    "registration": "KY63VTL",
+    "depot": "Hexham",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2063
+  },
+  "722": {
+    "fleetNumber": "722",
+    "registration": "KY63VTA",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2063
+  },
+  "723": {
+    "fleetNumber": "723",
+    "registration": "YD63UZC",
+    "depot": "Hexham",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2063
+  },
+  "724": {
+    "fleetNumber": "724",
+    "registration": "YJ13HMY",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+    "capacity": 30,
+    "yearOfManufacture": 2013
+  },
+  "726": {
+    "fleetNumber": "726",
+    "registration": "NK68BZW",
+    "depot": "Deptford",
+    "busType": "Optare Solo Solo OM934LA T2100 9.2 6",
+    "capacity": 30,
+    "yearOfManufacture": 2068
+  },
+  "727": {
+    "fleetNumber": "727",
+    "registration": "NK68BZX",
+    "depot": "Deptford",
+    "busType": "Optare Solo Solo OM934LA T2100 9.2 6",
+    "capacity": 30,
+    "yearOfManufacture": 2068
+  },
+  "728": {
+    "fleetNumber": "728",
+    "registration": "NK68BZY",
+    "depot": "Deptford",
+    "busType": "Optare Solo Solo OM934LA T2100 9.2 6",
+    "capacity": 30,
+    "yearOfManufacture": 2068
+  },
+  "729": {
+    "fleetNumber": "729",
+    "registration": "NK69FAA",
+    "depot": "Washington",
+    "busType": "Mercedes Sprinter Atlas 516 340 7.3 6",
+    "capacity": 30,
+    "yearOfManufacture": 2069
+  },
+  "730": {
+    "fleetNumber": "730",
+    "registration": "NK69FAF",
+    "depot": "Gateshead Riverside",
+    "busType": "Mercedes Sprinter Atlas 516 340 7.3 6",
+    "capacity": 30,
+    "yearOfManufacture": 2069
+  },
+  "1001": {
+    "fleetNumber": "1001",
+    "registration": "T488TTW",
+    "depot": "Gateshead Riverside",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": null
+  },
+  "1008": {
+    "fleetNumber": "1008",
+    "registration": "EA60SZW",
+    "depot": "Saltmeadows Road Stores",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2060
+  },
+  "1033": {
+    "fleetNumber": "1033",
+    "registration": "NA13EKH",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2013
+  },
+  "1040": {
+    "fleetNumber": "1040",
+    "registration": "GV65CWA",
+    "depot": "Deptford",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2065
+  },
+  "1041": {
+    "fleetNumber": "1041",
+    "registration": "GV65CXF",
+    "depot": "Deptford",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2065
+  },
+  "1042": {
+    "fleetNumber": "1042",
+    "registration": "EY67WTN",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1043": {
+    "fleetNumber": "1043",
+    "registration": "EY67WVC",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1044": {
+    "fleetNumber": "1044",
+    "registration": "EY67WTD",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1045": {
+    "fleetNumber": "1045",
+    "registration": "EY67WTU",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1047": {
+    "fleetNumber": "1047",
+    "registration": "EY67WUP",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1048": {
+    "fleetNumber": "1048",
+    "registration": "EY67WUX",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1049": {
+    "fleetNumber": "1049",
+    "registration": "EY67WVF",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1050": {
+    "fleetNumber": "1050",
+    "registration": "EY67WVK",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1051": {
+    "fleetNumber": "1051",
+    "registration": "EY67WVZ",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1052": {
+    "fleetNumber": "1052",
+    "registration": "EY67WWF",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1053": {
+    "fleetNumber": "1053",
+    "registration": "EY67WWJ",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1054": {
+    "fleetNumber": "1054",
+    "registration": "EY67WWO",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1055": {
+    "fleetNumber": "1055",
+    "registration": "EY67WXR",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1056": {
+    "fleetNumber": "1056",
+    "registration": "EY67WXT",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1057": {
+    "fleetNumber": "1057",
+    "registration": "EY67WXU",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1058": {
+    "fleetNumber": "1058",
+    "registration": "EY67WXS",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1059": {
+    "fleetNumber": "1059",
+    "registration": "EY67WYA",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1061": {
+    "fleetNumber": "1061",
+    "registration": "EY67ZCT",
+    "depot": "Percy Main",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1062": {
+    "fleetNumber": "1062",
+    "registration": "EY67WVM",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1063": {
+    "fleetNumber": "1063",
+    "registration": "EY67WTW",
+    "depot": "Hexham",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1064": {
+    "fleetNumber": "1064",
+    "registration": "EY67WSX",
+    "depot": "Washington",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1065": {
+    "fleetNumber": "1065",
+    "registration": "EY67WVR",
+    "depot": "Consett",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1066": {
+    "fleetNumber": "1066",
+    "registration": "EY67ZCN",
+    "depot": "Deptford",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1067": {
+    "fleetNumber": "1067",
+    "registration": "EY67WUH",
+    "depot": "Gateshead Riverside",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2067
+  },
+  "1101": {
+    "fleetNumber": "1101",
+    "registration": "EK61UDV",
+    "depot": "Hexham",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2061
+  },
+  "1102": {
+    "fleetNumber": "1102",
+    "registration": "EJ14NBF",
+    "depot": "Consett",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2014
+  },
+  "1103": {
+    "fleetNumber": "1103",
+    "registration": "EA66AYU",
+    "depot": "Percy Main",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "1104": {
+    "fleetNumber": "1104",
+    "registration": "EA66AZJ",
+    "depot": "Percy Main",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "1105": {
+    "fleetNumber": "1105",
+    "registration": "EA66AZN",
+    "depot": "Percy Main",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "1106": {
+    "fleetNumber": "1106",
+    "registration": "EK66CVL",
+    "depot": "Consett",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "1107": {
+    "fleetNumber": "1107",
+    "registration": "EK66CWE",
+    "depot": "Gateshead Riverside",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "1108": {
+    "fleetNumber": "1108",
+    "registration": "EK66UGE",
+    "depot": "Deptford",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "1109": {
+    "fleetNumber": "1109",
+    "registration": "EO66BUJ",
+    "depot": "Washington",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "1110": {
+    "fleetNumber": "1110",
+    "registration": "EO66YXS",
+    "depot": "Percy Main",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "1111": {
+    "fleetNumber": "1111",
+    "registration": "EO66YYB",
+    "depot": "Percy Main",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "1112": {
+    "fleetNumber": "1112",
+    "registration": "EX66PKE",
+    "depot": "Percy Main",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "1114": {
+    "fleetNumber": "1114",
+    "registration": "EX66PTO",
+    "depot": "Washington",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "1115": {
+    "fleetNumber": "1115",
+    "registration": "EX66PVU",
+    "depot": "Washington",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "1117": {
+    "fleetNumber": "1117",
+    "registration": "EX66YEB",
+    "depot": "Consett",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "1118": {
+    "fleetNumber": "1118",
+    "registration": "EX66YFT",
+    "depot": "Consett",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "1119": {
+    "fleetNumber": "1119",
+    "registration": "RE13CJZ",
+    "depot": "Washington",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2013
+  },
+  "1120": {
+    "fleetNumber": "1120",
+    "registration": "EX66UYB",
+    "depot": "Washington",
+    "busType": "Ancillary",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "3201": {
+    "fleetNumber": "3201",
+    "registration": "MX07BPY",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+    "capacity": 80,
+    "yearOfManufacture": 2007
+  },
+  "3202": {
+    "fleetNumber": "3202",
+    "registration": "MX07BPZ",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+    "capacity": 80,
+    "yearOfManufacture": 2007
+  },
+  "3941": {
+    "fleetNumber": "3941",
+    "registration": "NK05GZO",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B7TL Eclipse Gemini D7C 6HP500 10.7 3",
+    "capacity": 80,
+    "yearOfManufacture": 2005
+  },
+  "3942": {
+    "fleetNumber": "3942",
+    "registration": "NK05GZP",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B7TL Eclipse Gemini D7C 6HP500 10.7 3",
+    "capacity": 80,
+    "yearOfManufacture": 2005
+  },
+  "3943": {
+    "fleetNumber": "3943",
+    "registration": "NK05GZR",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B7TL Eclipse Gemini D7C 6HP500 10.7 3",
+    "capacity": 80,
+    "yearOfManufacture": 2005
+  },
+  "3962": {
+    "fleetNumber": "3962",
+    "registration": "NK06JXE",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B7TL Eclipse Gemini D7C 6HP500 10.7 3",
+    "capacity": 80,
+    "yearOfManufacture": 2006
+  },
+  "3963": {
+    "fleetNumber": "3963",
+    "registration": "NK06JXD",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B7TL Eclipse Gemini D7C 6HP500 10.7 3",
+    "capacity": 80,
+    "yearOfManufacture": 2006
+  },
+  "3964": {
+    "fleetNumber": "3964",
+    "registration": "NK06JXC",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B7TL Eclipse Gemini D7C 6HP500 10.7 3",
+    "capacity": 80,
+    "yearOfManufacture": 2006
+  },
+  "3965": {
+    "fleetNumber": "3965",
+    "registration": "NK06JXB",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B7TL Eclipse Gemini D7C 6HP500 10.7 3",
+    "capacity": 80,
+    "yearOfManufacture": 2006
+  },
+  "3983": {
+    "fleetNumber": "3983",
+    "registration": "PJ02PZL",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B7TL Vyking D7C D863.3 10.4 3",
+    "capacity": 80,
+    "yearOfManufacture": 2002
+  },
+  "3995": {
+    "fleetNumber": "3995",
+    "registration": "GX03SSZ",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3 OTC",
+    "capacity": 80,
+    "yearOfManufacture": 2003
+  },
+  "3997": {
+    "fleetNumber": "3997",
+    "registration": "REGX591EGK",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B7TL President D7C 5HP502 10 2",
+    "capacity": 80,
+    "yearOfManufacture": null
+  },
+  "3999": {
+    "fleetNumber": "3999",
+    "registration": "X594EGK",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B7TL President D7C 5HP502 10 2",
+    "capacity": 80,
+    "yearOfManufacture": null
+  },
+  "4938": {
+    "fleetNumber": "4938",
+    "registration": "NK51OKX",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2051
+  },
+  "4944": {
+    "fleetNumber": "4944",
+    "registration": "NK51OLH",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2051
+  },
+  "4947": {
+    "fleetNumber": "4947",
+    "registration": "NK51OLN",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2051
+  },
+  "4948": {
+    "fleetNumber": "4948",
+    "registration": "NK51OLO",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2051
+  },
+  "4961": {
+    "fleetNumber": "4961",
+    "registration": "NL52WVS",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2052
+  },
+  "4967": {
+    "fleetNumber": "4967",
+    "registration": "NK53UNT",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2053
+  },
+  "4969": {
+    "fleetNumber": "4969",
+    "registration": "NK53UNV",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2053
+  },
+  "5201": {
+    "fleetNumber": "5201",
+    "registration": "NK54NUU",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2054
+  },
+  "5202": {
+    "fleetNumber": "5202",
+    "registration": "NK54NUV",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2054
+  },
+  "5206": {
+    "fleetNumber": "5206",
+    "registration": "NK54NVA",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2054
+  },
+  "5210": {
+    "fleetNumber": "5210",
+    "registration": "NK54NVE",
+    "depot": "Gateshead Riverside",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2054
+  },
+  "5213": {
+    "fleetNumber": "5213",
+    "registration": "NK54NVH",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2054
+  },
+  "5214": {
+    "fleetNumber": "5214",
+    "registration": "NK54NVJ",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2054
+  },
+  "5215": {
+    "fleetNumber": "5215",
+    "registration": "NK54NVL",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2054
+  },
+  "5216": {
+    "fleetNumber": "5216",
+    "registration": "NK54NVM",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2054
+  },
+  "5217": {
+    "fleetNumber": "5217",
+    "registration": "NK54NVN",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2054
+  },
+  "5221": {
+    "fleetNumber": "5221",
+    "registration": "NK54NVU",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2054
+  },
+  "5222": {
+    "fleetNumber": "5222",
+    "registration": "NK54NVV",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2054
+  },
+  "5224": {
+    "fleetNumber": "5224",
+    "registration": "NK54NVX",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2054
+  },
+  "5227": {
+    "fleetNumber": "5227",
+    "registration": "NK54NWA",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2054
+  },
+  "5228": {
+    "fleetNumber": "5228",
+    "registration": "NK54NWB",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2054
+  },
+  "5230": {
+    "fleetNumber": "5230",
+    "registration": "NK55OLH",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania L94UB Solar DC901 4HP502 12 3",
+    "capacity": 50,
+    "yearOfManufacture": 2055
+  },
+  "5236": {
+    "fleetNumber": "5236",
+    "registration": "NK56KHD",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania CN230UB Omnicity DC916 5HP502 12 4",
+    "capacity": 50,
+    "yearOfManufacture": 2056
+  },
+  "5243": {
+    "fleetNumber": "5243",
+    "registration": "NK56KHM",
+    "depot": "Gateshead Riverside",
+    "busType": "Scania CN230UB Omnicity DC916 5HP502 12 4",
+    "capacity": 50,
+    "yearOfManufacture": 2056
+  },
+  "5244": {
+    "fleetNumber": "5244",
+    "registration": "NK56KHO",
+    "depot": "Gateshead Riverside",
+    "busType": "Scania CN230UB Omnicity DC916 5HP502 12 4",
+    "capacity": 50,
+    "yearOfManufacture": 2056
+  },
+  "5245": {
+    "fleetNumber": "5245",
+    "registration": "NK56KHP",
+    "depot": "Gateshead Riverside",
+    "busType": "Scania CN230UB Omnicity DC916 5HP502 12 4",
+    "capacity": 50,
+    "yearOfManufacture": 2056
+  },
+  "5246": {
+    "fleetNumber": "5246",
+    "registration": "NK56KHR",
+    "depot": "Gateshead Riverside",
+    "busType": "Scania CN230UB Omnicity DC916 5HP502 12 4",
+    "capacity": 50,
+    "yearOfManufacture": 2056
+  },
+  "5247": {
+    "fleetNumber": "5247",
+    "registration": "NK56KHT",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania CN230UB Omnicity DC916 5HP502 12 4",
+    "capacity": 50,
+    "yearOfManufacture": 2056
+  },
+  "5254": {
+    "fleetNumber": "5254",
+    "registration": "NK56KJA",
+    "depot": "Gateshead Riverside",
+    "busType": "Scania CN230UB Omnicity DC916 5HP502 12 4",
+    "capacity": 50,
+    "yearOfManufacture": 2056
+  },
+  "5255": {
+    "fleetNumber": "5255",
+    "registration": "NK56KJE",
+    "depot": "Gateshead Riverside",
+    "busType": "Scania CN230UB Omnicity DC916 5HP502 12 4",
+    "capacity": 50,
+    "yearOfManufacture": 2056
+  },
+  "5257": {
+    "fleetNumber": "5257",
+    "registration": "NK56KJJ",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania CN230UB Omnicity DC916 5HP502 12 4",
+    "capacity": 50,
+    "yearOfManufacture": 2056
+  },
+  "5260": {
+    "fleetNumber": "5260",
+    "registration": "NK56KJU",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania CN230UB Omnicity DC916 5HP502 12 4",
+    "capacity": 50,
+    "yearOfManufacture": 2056
+  },
+  "5262": {
+    "fleetNumber": "5262",
+    "registration": "NK56KJX",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania CN230UB Omnicity DC916 5HP502 12 4",
+    "capacity": 50,
+    "yearOfManufacture": 2056
+  },
+  "5283": {
+    "fleetNumber": "5283",
+    "registration": "NK07KPU",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2007
+  },
+  "5284": {
+    "fleetNumber": "5284",
+    "registration": "NK08CFP",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2008
+  },
+  "5285": {
+    "fleetNumber": "5285",
+    "registration": "NK08CFU",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2008
+  },
+  "5286": {
+    "fleetNumber": "5286",
+    "registration": "NK08CFV",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2008
+  },
+  "5288": {
+    "fleetNumber": "5288",
+    "registration": "NK08CFZ",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2008
+  },
+  "5290": {
+    "fleetNumber": "5290",
+    "registration": "NK08CGF",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2008
+  },
+  "5292": {
+    "fleetNumber": "5292",
+    "registration": "NK08CGO",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2008
+  },
+  "5294": {
+    "fleetNumber": "5294",
+    "registration": "NK08CGV",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2008
+  },
+  "5295": {
+    "fleetNumber": "5295",
+    "registration": "NK08CGX",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2008
+  },
+  "5296": {
+    "fleetNumber": "5296",
+    "registration": "NK08CGY",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2008
+  },
+  "5297": {
+    "fleetNumber": "5297",
+    "registration": "NK08CGZ",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2008
+  },
+  "5304": {
+    "fleetNumber": "5304",
+    "registration": "NK08CHL",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2008
+  },
+  "5324": {
+    "fleetNumber": "5324",
+    "registration": "NK58DWA",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2058
+  },
+  "5325": {
+    "fleetNumber": "5325",
+    "registration": "NK58DWC",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2058
+  },
+  "5326": {
+    "fleetNumber": "5326",
+    "registration": "NK58DWD",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2058
+  },
+  "5337": {
+    "fleetNumber": "5337",
+    "registration": "HF06FUA",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2006
+  },
+  "5338": {
+    "fleetNumber": "5338",
+    "registration": "HF06FUB",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2006
+  },
+  "5358": {
+    "fleetNumber": "5358",
+    "registration": "BX63BCK",
+    "depot": "Washington",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5359": {
+    "fleetNumber": "5359",
+    "registration": "BX63BCO",
+    "depot": "Washington",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5360": {
+    "fleetNumber": "5360",
+    "registration": "BX63BCU",
+    "depot": "Washington",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5361": {
+    "fleetNumber": "5361",
+    "registration": "BX63BCV",
+    "depot": "Washington",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5362": {
+    "fleetNumber": "5362",
+    "registration": "BX63BCY",
+    "depot": "Washington",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5363": {
+    "fleetNumber": "5363",
+    "registration": "BX63BCZ",
+    "depot": "Washington",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5364": {
+    "fleetNumber": "5364",
+    "registration": "BX63BDE",
+    "depot": "Washington",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5365": {
+    "fleetNumber": "5365",
+    "registration": "BX63BDF",
+    "depot": "Washington",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5366": {
+    "fleetNumber": "5366",
+    "registration": "BX63BDO",
+    "depot": "Washington",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5367": {
+    "fleetNumber": "5367",
+    "registration": "BX63BDU",
+    "depot": "Washington",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5368": {
+    "fleetNumber": "5368",
+    "registration": "BX63BDV",
+    "depot": "Washington",
+    "busType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5369": {
+    "fleetNumber": "5369",
+    "registration": "NL63XAZ",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5370": {
+    "fleetNumber": "5370",
+    "registration": "NL63XBA",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5371": {
+    "fleetNumber": "5371",
+    "registration": "NL63XBB",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5372": {
+    "fleetNumber": "5372",
+    "registration": "NL63XBC",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5373": {
+    "fleetNumber": "5373",
+    "registration": "NL63XBD",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5374": {
+    "fleetNumber": "5374",
+    "registration": "NL63XBE",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5375": {
+    "fleetNumber": "5375",
+    "registration": "NL63XBF",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5376": {
+    "fleetNumber": "5376",
+    "registration": "NL63XBG",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5377": {
+    "fleetNumber": "5377",
+    "registration": "NL63YAA",
+    "depot": "Hexham",
+    "busType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5378": {
+    "fleetNumber": "5378",
+    "registration": "NL63YAD",
+    "depot": "Hexham",
+    "busType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5379": {
+    "fleetNumber": "5379",
+    "registration": "NL63YAE",
+    "depot": "Hexham",
+    "busType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5380": {
+    "fleetNumber": "5380",
+    "registration": "NL63YAF",
+    "depot": "Hexham",
+    "busType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5381": {
+    "fleetNumber": "5381",
+    "registration": "NL63YAG",
+    "depot": "Gateshead Riverside",
+    "busType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5382": {
+    "fleetNumber": "5382",
+    "registration": "NL63YAH",
+    "depot": "Gateshead Riverside",
+    "busType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5383": {
+    "fleetNumber": "5383",
+    "registration": "NL63YAJ",
+    "depot": "Gateshead Riverside",
+    "busType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5384": {
+    "fleetNumber": "5384",
+    "registration": "NL63YAK",
+    "depot": "Gateshead Riverside",
+    "busType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5385": {
+    "fleetNumber": "5385",
+    "registration": "NL63YAO",
+    "depot": "Gateshead Riverside",
+    "busType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5386": {
+    "fleetNumber": "5386",
+    "registration": "NL63YAU",
+    "depot": "Gateshead Riverside",
+    "busType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5387": {
+    "fleetNumber": "5387",
+    "registration": "NL63YAV",
+    "depot": "Gateshead Riverside",
+    "busType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5388": {
+    "fleetNumber": "5388",
+    "registration": "NL63YAW",
+    "depot": "Gateshead Riverside",
+    "busType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5389": {
+    "fleetNumber": "5389",
+    "registration": "NL63YAX",
+    "depot": "Gateshead Riverside",
+    "busType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5390": {
+    "fleetNumber": "5390",
+    "registration": "NL63YAY",
+    "depot": "Gateshead Riverside",
+    "busType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5391": {
+    "fleetNumber": "5391",
+    "registration": "NK15EMV",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5392": {
+    "fleetNumber": "5392",
+    "registration": "NK15EMX",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5393": {
+    "fleetNumber": "5393",
+    "registration": "NK15ENC",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5394": {
+    "fleetNumber": "5394",
+    "registration": "NK15ENE",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5395": {
+    "fleetNumber": "5395",
+    "registration": "NK15ENF",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5396": {
+    "fleetNumber": "5396",
+    "registration": "NK15ENH",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5397": {
+    "fleetNumber": "5397",
+    "registration": "NK15ENJ",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5398": {
+    "fleetNumber": "5398",
+    "registration": "NK15ENL",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5399": {
+    "fleetNumber": "5399",
+    "registration": "NK15ENM",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5400": {
+    "fleetNumber": "5400",
+    "registration": "NK15ENN",
+    "depot": "Consett",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5401": {
+    "fleetNumber": "5401",
+    "registration": "NK15ENO",
+    "depot": "Consett",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5402": {
+    "fleetNumber": "5402",
+    "registration": "NK15ENP",
+    "depot": "Consett",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5403": {
+    "fleetNumber": "5403",
+    "registration": "NK15ENR",
+    "depot": "Consett",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5404": {
+    "fleetNumber": "5404",
+    "registration": "NK15ENT",
+    "depot": "Consett",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5405": {
+    "fleetNumber": "5405",
+    "registration": "NK15ENU",
+    "depot": "Consett",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5406": {
+    "fleetNumber": "5406",
+    "registration": "NK15ENV",
+    "depot": "Consett",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5407": {
+    "fleetNumber": "5407",
+    "registration": "NK15ENW",
+    "depot": "Consett",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5408": {
+    "fleetNumber": "5408",
+    "registration": "NK15ENX",
+    "depot": "Consett",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5409": {
+    "fleetNumber": "5409",
+    "registration": "NK15ENY",
+    "depot": "Consett",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5410": {
+    "fleetNumber": "5410",
+    "registration": "NK15EOA",
+    "depot": "Consett",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5411": {
+    "fleetNumber": "5411",
+    "registration": "NK15EOB",
+    "depot": "Consett",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5412": {
+    "fleetNumber": "5412",
+    "registration": "NK15EOC",
+    "depot": "Consett",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5413": {
+    "fleetNumber": "5413",
+    "registration": "NK15EOD",
+    "depot": "Consett",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5414": {
+    "fleetNumber": "5414",
+    "registration": "NK15EOE",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5415": {
+    "fleetNumber": "5415",
+    "registration": "NK15EOF",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5416": {
+    "fleetNumber": "5416",
+    "registration": "NK15EOG",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5417": {
+    "fleetNumber": "5417",
+    "registration": "NK15EOH",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5418": {
+    "fleetNumber": "5418",
+    "registration": "NK15EOJ",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5419": {
+    "fleetNumber": "5419",
+    "registration": "NK15EOL",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2015
+  },
+  "5420": {
+    "fleetNumber": "5420",
+    "registration": "NK16BYA",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5421": {
+    "fleetNumber": "5421",
+    "registration": "NK16BYB",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5422": {
+    "fleetNumber": "5422",
+    "registration": "NK16BYC",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5423": {
+    "fleetNumber": "5423",
+    "registration": "NK16BYD",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5424": {
+    "fleetNumber": "5424",
+    "registration": "NK16BYF",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5425": {
+    "fleetNumber": "5425",
+    "registration": "NK16BYG",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5426": {
+    "fleetNumber": "5426",
+    "registration": "NK16BYH",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5427": {
+    "fleetNumber": "5427",
+    "registration": "NK16BYJ",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5428": {
+    "fleetNumber": "5428",
+    "registration": "NK16BYL",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5429": {
+    "fleetNumber": "5429",
+    "registration": "NK16BYM",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5430": {
+    "fleetNumber": "5430",
+    "registration": "NK16BYN",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5431": {
+    "fleetNumber": "5431",
+    "registration": "NK16BYO",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5432": {
+    "fleetNumber": "5432",
+    "registration": "NK16BYP",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5433": {
+    "fleetNumber": "5433",
+    "registration": "NK16BYR",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5434": {
+    "fleetNumber": "5434",
+    "registration": "NK16BYS",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5435": {
+    "fleetNumber": "5435",
+    "registration": "NK16BYT",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5436": {
+    "fleetNumber": "5436",
+    "registration": "NK16BXZ",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5437": {
+    "fleetNumber": "5437",
+    "registration": "NK16BWY",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5438": {
+    "fleetNumber": "5438",
+    "registration": "NK16BWZ",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5439": {
+    "fleetNumber": "5439",
+    "registration": "NK16AZU",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5440": {
+    "fleetNumber": "5440",
+    "registration": "NK16AZV",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5441": {
+    "fleetNumber": "5441",
+    "registration": "NK16AZW",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5442": {
+    "fleetNumber": "5442",
+    "registration": "NK66EVB",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5443": {
+    "fleetNumber": "5443",
+    "registration": "NK66EVC",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5444": {
+    "fleetNumber": "5444",
+    "registration": "NK66EVD",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5445": {
+    "fleetNumber": "5445",
+    "registration": "NK66EVF",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5446": {
+    "fleetNumber": "5446",
+    "registration": "NK66EVG",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5447": {
+    "fleetNumber": "5447",
+    "registration": "NK66EVH",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5448": {
+    "fleetNumber": "5448",
+    "registration": "NK66EVJ",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5449": {
+    "fleetNumber": "5449",
+    "registration": "NK66EVL",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5450": {
+    "fleetNumber": "5450",
+    "registration": "NK66EVM",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5451": {
+    "fleetNumber": "5451",
+    "registration": "NK66EVN",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5452": {
+    "fleetNumber": "5452",
+    "registration": "NK66EWA",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5453": {
+    "fleetNumber": "5453",
+    "registration": "NK66EWB",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5454": {
+    "fleetNumber": "5454",
+    "registration": "NK66EWC",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5455": {
+    "fleetNumber": "5455",
+    "registration": "NK66EWD",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5456": {
+    "fleetNumber": "5456",
+    "registration": "NK66EWE",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5457": {
+    "fleetNumber": "5457",
+    "registration": "NK66EWF",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5458": {
+    "fleetNumber": "5458",
+    "registration": "NK66EWH",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5459": {
+    "fleetNumber": "5459",
+    "registration": "NK66EWJ",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5460": {
+    "fleetNumber": "5460",
+    "registration": "NK66EWL",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5461": {
+    "fleetNumber": "5461",
+    "registration": "NK66EWM",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5462": {
+    "fleetNumber": "5462",
+    "registration": "NK66EWN",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5463": {
+    "fleetNumber": "5463",
+    "registration": "NK17GHO",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "5464": {
+    "fleetNumber": "5464",
+    "registration": "NK17GHU",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "5465": {
+    "fleetNumber": "5465",
+    "registration": "NK17GHV",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "5466": {
+    "fleetNumber": "5466",
+    "registration": "NK17GHX",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "5467": {
+    "fleetNumber": "5467",
+    "registration": "NK17GHY",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "5468": {
+    "fleetNumber": "5468",
+    "registration": "NK17GHZ",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "5469": {
+    "fleetNumber": "5469",
+    "registration": "NK17GJE",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "5470": {
+    "fleetNumber": "5470",
+    "registration": "NK17GJF",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "5471": {
+    "fleetNumber": "5471",
+    "registration": "NK17GJG",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "5472": {
+    "fleetNumber": "5472",
+    "registration": "NK17GJJ",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "5473": {
+    "fleetNumber": "5473",
+    "registration": "NK17GJO",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "5474": {
+    "fleetNumber": "5474",
+    "registration": "NK17GJU",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "5475": {
+    "fleetNumber": "5475",
+    "registration": "NK17GJV",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "5476": {
+    "fleetNumber": "5476",
+    "registration": "NK17GJX",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "5477": {
+    "fleetNumber": "5477",
+    "registration": "NK17GJY",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "5478": {
+    "fleetNumber": "5478",
+    "registration": "NK17GJZ",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "5479": {
+    "fleetNumber": "5479",
+    "registration": "NK17GKA",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "5480": {
+    "fleetNumber": "5480",
+    "registration": "NK17GKC",
+    "depot": "Percy Main",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "5482": {
+    "fleetNumber": "5482",
+    "registration": "HW07CXS",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Mercedes 0530N Citaro OM906hLA 5HP502 12 4",
+    "capacity": 50,
+    "yearOfManufacture": 2007
+  },
+  "5483": {
+    "fleetNumber": "5483",
+    "registration": "HW07CXT",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Mercedes 0530N Citaro OM906hLA 5HP502 12 4",
+    "capacity": 50,
+    "yearOfManufacture": 2007
+  },
+  "5488": {
+    "fleetNumber": "5488",
+    "registration": "NK69FAU",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+    "capacity": 50,
+    "yearOfManufacture": 2069
+  },
+  "5489": {
+    "fleetNumber": "5489",
+    "registration": "NK69FBA",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+    "capacity": 50,
+    "yearOfManufacture": 2069
+  },
+  "5490": {
+    "fleetNumber": "5490",
+    "registration": "NK69FBB",
+    "depot": "Consett",
+    "busType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+    "capacity": 50,
+    "yearOfManufacture": 2069
+  },
+  "5491": {
+    "fleetNumber": "5491",
+    "registration": "NK69FBC",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+    "capacity": 50,
+    "yearOfManufacture": 2069
+  },
+  "5492": {
+    "fleetNumber": "5492",
+    "registration": "NK69FBD",
+    "depot": "Consett",
+    "busType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+    "capacity": 50,
+    "yearOfManufacture": 2069
+  },
+  "5493": {
+    "fleetNumber": "5493",
+    "registration": "NK69FBE",
+    "depot": "Consett",
+    "busType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+    "capacity": 50,
+    "yearOfManufacture": 2069
+  },
+  "5494": {
+    "fleetNumber": "5494",
+    "registration": "NK69FBF",
+    "depot": "Consett",
+    "busType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+    "capacity": 50,
+    "yearOfManufacture": 2069
+  },
+  "5495": {
+    "fleetNumber": "5495",
+    "registration": "NK69FBG",
+    "depot": "Consett",
+    "busType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+    "capacity": 50,
+    "yearOfManufacture": 2069
+  },
+  "5496": {
+    "fleetNumber": "5496",
+    "registration": "NK69FBJ",
+    "depot": "Consett",
+    "busType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+    "capacity": 50,
+    "yearOfManufacture": 2069
+  },
+  "5497": {
+    "fleetNumber": "5497",
+    "registration": "NK69FBL",
+    "depot": "Consett",
+    "busType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+    "capacity": 50,
+    "yearOfManufacture": 2069
+  },
+  "5498": {
+    "fleetNumber": "5498",
+    "registration": "NK69FBN",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+    "capacity": 50,
+    "yearOfManufacture": 2069
+  },
+  "5499": {
+    "fleetNumber": "5499",
+    "registration": "YH66VMO",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong CB12 E11 ISB6.7 Ecolife 12 6",
+    "capacity": 50,
+    "yearOfManufacture": 2066
+  },
+  "5500": {
+    "fleetNumber": "5500",
+    "registration": "YD70CDZ",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong CB12 E11 ISB6.7 Ecolife 12 6",
+    "capacity": 50,
+    "yearOfManufacture": 2020
+  },
+  "5507": {
+    "fleetNumber": "5507",
+    "registration": "YJ62FFB",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+    "capacity": 50,
+    "yearOfManufacture": 2062
+  },
+  "5508": {
+    "fleetNumber": "5508",
+    "registration": "YJ62FLD",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+    "capacity": 50,
+    "yearOfManufacture": 2062
+  },
+  "5511": {
+    "fleetNumber": "5511",
+    "registration": "SM13NBA",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+    "capacity": 50,
+    "yearOfManufacture": 2013
+  },
+  "5512": {
+    "fleetNumber": "5512",
+    "registration": "SM13NBB",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+    "capacity": 50,
+    "yearOfManufacture": 2013
+  },
+  "5513": {
+    "fleetNumber": "5513",
+    "registration": "SM13NDK",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+    "capacity": 50,
+    "yearOfManufacture": 2013
+  },
+  "5514": {
+    "fleetNumber": "5514",
+    "registration": "SM13NDL",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+    "capacity": 50,
+    "yearOfManufacture": 2013
+  },
+  "5515": {
+    "fleetNumber": "5515",
+    "registration": "SM13NDN",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+    "capacity": 50,
+    "yearOfManufacture": 2013
+  },
+  "5516": {
+    "fleetNumber": "5516",
+    "registration": "SM13NDO",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2013
+  },
+  "5517": {
+    "fleetNumber": "5517",
+    "registration": "SM13NDU",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+    "capacity": 50,
+    "yearOfManufacture": 2013
+  },
+  "5518": {
+    "fleetNumber": "5518",
+    "registration": "SM13NDV",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+    "capacity": 50,
+    "yearOfManufacture": 2013
+  },
+  "5519": {
+    "fleetNumber": "5519",
+    "registration": "SM13NDX",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2013
+  },
+  "5520": {
+    "fleetNumber": "5520",
+    "registration": "SM13NDY",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+    "capacity": 50,
+    "yearOfManufacture": 2013
+  },
+  "5521": {
+    "fleetNumber": "5521",
+    "registration": "SM13NDZ",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+    "capacity": 50,
+    "yearOfManufacture": 2013
+  },
+  "5522": {
+    "fleetNumber": "5522",
+    "registration": "SM13NEF",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2013
+  },
+  "5523": {
+    "fleetNumber": "5523",
+    "registration": "SM13NEN",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+    "capacity": 50,
+    "yearOfManufacture": 2013
+  },
+  "5524": {
+    "fleetNumber": "5524",
+    "registration": "SM13NEY",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+    "capacity": 50,
+    "yearOfManufacture": 2013
+  },
+  "5525": {
+    "fleetNumber": "5525",
+    "registration": "SK63KHF",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5526": {
+    "fleetNumber": "5526",
+    "registration": "SK63KHG",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5527": {
+    "fleetNumber": "5527",
+    "registration": "SK63KHL",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "5528": {
+    "fleetNumber": "5528",
+    "registration": "NK16BYL",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5529": {
+    "fleetNumber": "5529",
+    "registration": "NK16BYM",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5530": {
+    "fleetNumber": "5530",
+    "registration": "NK16BYN",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5531": {
+    "fleetNumber": "5531",
+    "registration": "NK16BYO",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5532": {
+    "fleetNumber": "5532",
+    "registration": "NK16BYP",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5533": {
+    "fleetNumber": "5533",
+    "registration": "NK16BYR",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5534": {
+    "fleetNumber": "5534",
+    "registration": "NK16BYS",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5535": {
+    "fleetNumber": "5535",
+    "registration": "NK16BYT",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5536": {
+    "fleetNumber": "5536",
+    "registration": "NK16BXZ",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5537": {
+    "fleetNumber": "5537",
+    "registration": "NK16BWY",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "5801": {
+    "fleetNumber": "5801",
+    "registration": "NL72ETR",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong E12 E12 12",
+    "capacity": 50,
+    "yearOfManufacture": 2022
+  },
+  "5802": {
+    "fleetNumber": "5802",
+    "registration": "NL72ETT",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong E12 E12 12",
+    "capacity": 50,
+    "yearOfManufacture": 2022
+  },
+  "5803": {
+    "fleetNumber": "5803",
+    "registration": "NL72ETU",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong E12 E12 12",
+    "capacity": 50,
+    "yearOfManufacture": 2022
+  },
+  "5804": {
+    "fleetNumber": "5804",
+    "registration": "NL72ETV",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong E12 E12 12",
+    "capacity": 50,
+    "yearOfManufacture": 2022
+  },
+  "5805": {
+    "fleetNumber": "5805",
+    "registration": "NL72EUA",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong E12 E12 12",
+    "capacity": 50,
+    "yearOfManufacture": 2022
+  },
+  "5806": {
+    "fleetNumber": "5806",
+    "registration": "NL72EUB",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong E12 E12 12",
+    "capacity": 50,
+    "yearOfManufacture": 2022
+  },
+  "5807": {
+    "fleetNumber": "5807",
+    "registration": "NL72EUC",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong E12 E12 12",
+    "capacity": 50,
+    "yearOfManufacture": 2022
+  },
+  "5808": {
+    "fleetNumber": "5808",
+    "registration": "NL72EUD",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong E12 E12 12",
+    "capacity": 50,
+    "yearOfManufacture": 2022
+  },
+  "5809": {
+    "fleetNumber": "5809",
+    "registration": "NL72EUE",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong E12 E12 12",
+    "capacity": 50,
+    "yearOfManufacture": 2022
+  },
+  "6001": {
+    "fleetNumber": "6001",
+    "registration": "NK11BGZ",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2011
+  },
+  "6002": {
+    "fleetNumber": "6002",
+    "registration": "NK11BHA",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2011
+  },
+  "6003": {
+    "fleetNumber": "6003",
+    "registration": "NK11BHD",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2011
+  },
+  "6004": {
+    "fleetNumber": "6004",
+    "registration": "NK11BHE",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2011
+  },
+  "6005": {
+    "fleetNumber": "6005",
+    "registration": "NK11BHF",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2011
+  },
+  "6006": {
+    "fleetNumber": "6006",
+    "registration": "NK11BHJ",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2011
+  },
+  "6007": {
+    "fleetNumber": "6007",
+    "registration": "NK11BHL",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2011
+  },
+  "6010": {
+    "fleetNumber": "6010",
+    "registration": "V310LGC",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B7TL President D7C 5HP500 10 2",
+    "capacity": 80,
+    "yearOfManufacture": null
+  },
+  "6043": {
+    "fleetNumber": "6043",
+    "registration": "NK12GCO",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2012
+  },
+  "6044": {
+    "fleetNumber": "6044",
+    "registration": "NK12GCU",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2012
+  },
+  "6045": {
+    "fleetNumber": "6045",
+    "registration": "NK12GCV",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2012
+  },
+  "6046": {
+    "fleetNumber": "6046",
+    "registration": "NK12GCX",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2012
+  },
+  "6047": {
+    "fleetNumber": "6047",
+    "registration": "NK12GCY",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2012
+  },
+  "6048": {
+    "fleetNumber": "6048",
+    "registration": "NK12GCZ",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2012
+  },
+  "6049": {
+    "fleetNumber": "6049",
+    "registration": "NK12GDA",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2012
+  },
+  "6050": {
+    "fleetNumber": "6050",
+    "registration": "NK12GDE",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2012
+  },
+  "6051": {
+    "fleetNumber": "6051",
+    "registration": "NK12GDF",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2012
+  },
+  "6052": {
+    "fleetNumber": "6052",
+    "registration": "NK12GDJ",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2012
+  },
+  "6053": {
+    "fleetNumber": "6053",
+    "registration": "NK12GDO",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2012
+  },
+  "6054": {
+    "fleetNumber": "6054",
+    "registration": "NK62EKD",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6055": {
+    "fleetNumber": "6055",
+    "registration": "NK62EJF",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6056": {
+    "fleetNumber": "6056",
+    "registration": "NK62CBV",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B5LH Eclipse Gemini 2 D5F AT2412D 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6057": {
+    "fleetNumber": "6057",
+    "registration": "NK62CCV",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B5LH Eclipse Gemini 2 D5F AT2412D 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6058": {
+    "fleetNumber": "6058",
+    "registration": "NK62CCY",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B5LH Eclipse Gemini 2 D5F AT2412D 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6059": {
+    "fleetNumber": "6059",
+    "registration": "NK62CEN",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B5LH Eclipse Gemini 2 D5F AT2412D 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6060": {
+    "fleetNumber": "6060",
+    "registration": "NK62CFN",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B5LH Eclipse Gemini 2 D5F AT2412D 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6061": {
+    "fleetNumber": "6061",
+    "registration": "NK62CJE",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B5LH Eclipse Gemini 2 D5F AT2412D 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6062": {
+    "fleetNumber": "6062",
+    "registration": "NK62CJJ",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B5LH Eclipse Gemini 2 D5F AT2412D 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6063": {
+    "fleetNumber": "6063",
+    "registration": "NK62CKC",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B5LH Eclipse Gemini 2 D5F AT2412D 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6065": {
+    "fleetNumber": "6065",
+    "registration": "NK62CME",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B5LH Eclipse Gemini 2 D5F AT2412D 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6066": {
+    "fleetNumber": "6066",
+    "registration": "NK62CYC",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B5LH Eclipse Gemini 2 D5F AT2412D 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6067": {
+    "fleetNumber": "6067",
+    "registration": "NK62CYE",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B5LH Eclipse Gemini 2 D5F AT2412D 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6068": {
+    "fleetNumber": "6068",
+    "registration": "NK62CYF",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B5LH Eclipse Gemini 2 D5F AT2412D 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6069": {
+    "fleetNumber": "6069",
+    "registration": "NK62CZA",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B5LH Eclipse Gemini 2 D5F AT2412D 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6070": {
+    "fleetNumber": "6070",
+    "registration": "NK62CZL",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B5LH Eclipse Gemini 2 D5F AT2412D 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6071": {
+    "fleetNumber": "6071",
+    "registration": "NK62FAA",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6072": {
+    "fleetNumber": "6072",
+    "registration": "NK62FBA",
+    "depot": "Hexham",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6073": {
+    "fleetNumber": "6073",
+    "registration": "NK62FCC",
+    "depot": "Hexham",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6074": {
+    "fleetNumber": "6074",
+    "registration": "NK62FDM",
+    "depot": "Hexham",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6075": {
+    "fleetNumber": "6075",
+    "registration": "NK62FDN",
+    "depot": "Hexham",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6076": {
+    "fleetNumber": "6076",
+    "registration": "NK62FEU",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6077": {
+    "fleetNumber": "6077",
+    "registration": "NK62FGJ",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6078": {
+    "fleetNumber": "6078",
+    "registration": "NK62FHE",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6079": {
+    "fleetNumber": "6079",
+    "registration": "NK62FHY",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6080": {
+    "fleetNumber": "6080",
+    "registration": "NK62FJE",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6081": {
+    "fleetNumber": "6081",
+    "registration": "NK62FKG",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6082": {
+    "fleetNumber": "6082",
+    "registration": "NK62FLF",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6083": {
+    "fleetNumber": "6083",
+    "registration": "NK13EJO",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2013
+  },
+  "6084": {
+    "fleetNumber": "6084",
+    "registration": "NL63XBS",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6085": {
+    "fleetNumber": "6085",
+    "registration": "NL63YHN",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6086": {
+    "fleetNumber": "6086",
+    "registration": "NL63YHO",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6087": {
+    "fleetNumber": "6087",
+    "registration": "NL63YHP",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6088": {
+    "fleetNumber": "6088",
+    "registration": "NL63YHR",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6089": {
+    "fleetNumber": "6089",
+    "registration": "NL63YHS",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6090": {
+    "fleetNumber": "6090",
+    "registration": "NL63YHT",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6091": {
+    "fleetNumber": "6091",
+    "registration": "NL63YHU",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6092": {
+    "fleetNumber": "6092",
+    "registration": "NL63YHV",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6093": {
+    "fleetNumber": "6093",
+    "registration": "NL63YHW",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6094": {
+    "fleetNumber": "6094",
+    "registration": "NL63YHX",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6095": {
+    "fleetNumber": "6095",
+    "registration": "NL63YHY",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6096": {
+    "fleetNumber": "6096",
+    "registration": "NL63YHZ",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6097": {
+    "fleetNumber": "6097",
+    "registration": "NL63YJA",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6098": {
+    "fleetNumber": "6098",
+    "registration": "NL63YJB",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6099": {
+    "fleetNumber": "6099",
+    "registration": "NL63YJC",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6100": {
+    "fleetNumber": "6100",
+    "registration": "NL63YJD",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6101": {
+    "fleetNumber": "6101",
+    "registration": "NL63YJE",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6102": {
+    "fleetNumber": "6102",
+    "registration": "NL63YJF",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6103": {
+    "fleetNumber": "6103",
+    "registration": "NL63XBT",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6104": {
+    "fleetNumber": "6104",
+    "registration": "NL63YJG",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6105": {
+    "fleetNumber": "6105",
+    "registration": "NL63YJH",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6106": {
+    "fleetNumber": "6106",
+    "registration": "NL63YCJ",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6107": {
+    "fleetNumber": "6107",
+    "registration": "NL63YCK",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6108": {
+    "fleetNumber": "6108",
+    "registration": "NL63YCM",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6109": {
+    "fleetNumber": "6109",
+    "registration": "NL63YCN",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6110": {
+    "fleetNumber": "6110",
+    "registration": "NL63YCO",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6111": {
+    "fleetNumber": "6111",
+    "registration": "NL63XBV",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6112": {
+    "fleetNumber": "6112",
+    "registration": "NL63XBW",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6113": {
+    "fleetNumber": "6113",
+    "registration": "NL63XBX",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6114": {
+    "fleetNumber": "6114",
+    "registration": "NL63XBY",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6115": {
+    "fleetNumber": "6115",
+    "registration": "NL63XBZ",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6116": {
+    "fleetNumber": "6116",
+    "registration": "NL63XCA",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6117": {
+    "fleetNumber": "6117",
+    "registration": "NL63XCB",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2063
+  },
+  "6126": {
+    "fleetNumber": "6126",
+    "registration": "GX03SUY",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3",
+    "capacity": 80,
+    "yearOfManufacture": 2003
+  },
+  "6127": {
+    "fleetNumber": "6127",
+    "registration": "GX03SVA",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3",
+    "capacity": 80,
+    "yearOfManufacture": 2003
+  },
+  "6129": {
+    "fleetNumber": "6129",
+    "registration": "GX03SVD",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3",
+    "capacity": 80,
+    "yearOfManufacture": 2003
+  },
+  "6131": {
+    "fleetNumber": "6131",
+    "registration": "YN04GJE",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3",
+    "capacity": 80,
+    "yearOfManufacture": 2004
+  },
+  "6132": {
+    "fleetNumber": "6132",
+    "registration": "YN04GJF",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3",
+    "capacity": 80,
+    "yearOfManufacture": 2004
+  },
+  "6134": {
+    "fleetNumber": "6134",
+    "registration": "YN04GJU",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3",
+    "capacity": 80,
+    "yearOfManufacture": 2004
+  },
+  "6135": {
+    "fleetNumber": "6135",
+    "registration": "YN04GJV",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3",
+    "capacity": 80,
+    "yearOfManufacture": 2004
+  },
+  "6140": {
+    "fleetNumber": "6140",
+    "registration": "YN04GJJ",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3",
+    "capacity": 80,
+    "yearOfManufacture": 2004
+  },
+  "6141": {
+    "fleetNumber": "6141",
+    "registration": "YN04GJY",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3",
+    "capacity": 80,
+    "yearOfManufacture": 2004
+  },
+  "6142": {
+    "fleetNumber": "6142",
+    "registration": "YN04GJZ",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3",
+    "capacity": 80,
+    "yearOfManufacture": 2004
+  },
+  "6143": {
+    "fleetNumber": "6143",
+    "registration": "YN04GKA",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3",
+    "capacity": 80,
+    "yearOfManufacture": 2004
+  },
+  "6146": {
+    "fleetNumber": "6146",
+    "registration": "YN55NFE",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3",
+    "capacity": 80,
+    "yearOfManufacture": 2055
+  },
+  "6147": {
+    "fleetNumber": "6147",
+    "registration": "YN05GZP",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3",
+    "capacity": 80,
+    "yearOfManufacture": 2005
+  },
+  "6148": {
+    "fleetNumber": "6148",
+    "registration": "YN05GZR",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3",
+    "capacity": 80,
+    "yearOfManufacture": 2005
+  },
+  "6149": {
+    "fleetNumber": "6149",
+    "registration": "LJ62KBY",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6150": {
+    "fleetNumber": "6150",
+    "registration": "LJ62KCU",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6151": {
+    "fleetNumber": "6151",
+    "registration": "LJ62KDV",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6152": {
+    "fleetNumber": "6152",
+    "registration": "LJ62KDZ",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6153": {
+    "fleetNumber": "6153",
+    "registration": "LJ62KLC",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6154": {
+    "fleetNumber": "6154",
+    "registration": "LJ62KLS",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6155": {
+    "fleetNumber": "6155",
+    "registration": "LJ62KOX",
+    "depot": "Washington",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6156": {
+    "fleetNumber": "6156",
+    "registration": "LJ62KXX",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6157": {
+    "fleetNumber": "6157",
+    "registration": "LJ62KXZ",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6158": {
+    "fleetNumber": "6158",
+    "registration": "LJ62KYA",
+    "depot": "Hexham",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6159": {
+    "fleetNumber": "6159",
+    "registration": "LJ62KYG",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6160": {
+    "fleetNumber": "6160",
+    "registration": "LJ62KZD",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6161": {
+    "fleetNumber": "6161",
+    "registration": "LJ62KZP",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2062
+  },
+  "6162": {
+    "fleetNumber": "6162",
+    "registration": "YN04GJK",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3 (SCRT Emissions Upgrade to Euro 5)",
+    "capacity": 80,
+    "yearOfManufacture": 2004
+  },
+  "6163": {
+    "fleetNumber": "6163",
+    "registration": "YN54AOM",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3 (SCRT Emissions Upgrade to Euro 5)",
+    "capacity": 80,
+    "yearOfManufacture": 2054
+  },
+  "6164": {
+    "fleetNumber": "6164",
+    "registration": "YN54AOP",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3 (SCRT Emissions Upgrade to Euro 5)",
+    "capacity": 80,
+    "yearOfManufacture": 2054
+  },
+  "6165": {
+    "fleetNumber": "6165",
+    "registration": "YN54AOR",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3 (SCRT Emissions Upgrade to Euro 5)",
+    "capacity": 80,
+    "yearOfManufacture": 2054
+  },
+  "6166": {
+    "fleetNumber": "6166",
+    "registration": "YN54AOT",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 4HP592 10.8 3 (SCRT Emissions Upgrade to Euro 5)",
+    "capacity": 80,
+    "yearOfManufacture": 2054
+  },
+  "6167": {
+    "fleetNumber": "6167",
+    "registration": "YN56FFG",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 5HP592 12 3",
+    "capacity": 80,
+    "yearOfManufacture": 2056
+  },
+  "6168": {
+    "fleetNumber": "6168",
+    "registration": "YN56FFH",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 5HP592 12 3",
+    "capacity": 80,
+    "yearOfManufacture": 2056
+  },
+  "6169": {
+    "fleetNumber": "6169",
+    "registration": "YN56FFJ",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 5HP592 12 3",
+    "capacity": 80,
+    "yearOfManufacture": 2056
+  },
+  "6171": {
+    "fleetNumber": "6171",
+    "registration": "YN56FFL",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 5HP592 12 3",
+    "capacity": 80,
+    "yearOfManufacture": 2056
+  },
+  "6172": {
+    "fleetNumber": "6172",
+    "registration": "YN57FYP",
+    "depot": "Gateshead Riverside",
+    "busType": "Scania N270UD Omnidekka DC917 4HP592 10.8 4",
+    "capacity": 80,
+    "yearOfManufacture": 2057
+  },
+  "6173": {
+    "fleetNumber": "6173",
+    "registration": "YN57FYF",
+    "depot": "Gateshead Riverside",
+    "busType": "Scania N270UD Omnidekka DC917 4HP592 10.8 4",
+    "capacity": 80,
+    "yearOfManufacture": 2057
+  },
+  "6174": {
+    "fleetNumber": "6174",
+    "registration": "YN57FYG",
+    "depot": "Gateshead Riverside",
+    "busType": "Scania N270UD Omnidekka DC917 4HP592 10.8 4",
+    "capacity": 80,
+    "yearOfManufacture": 2057
+  },
+  "6175": {
+    "fleetNumber": "6175",
+    "registration": "YN57FYH",
+    "depot": "Gateshead Riverside",
+    "busType": "Scania N270UD Omnidekka DC917 4HP592 10.8 4",
+    "capacity": 80,
+    "yearOfManufacture": 2057
+  },
+  "6176": {
+    "fleetNumber": "6176",
+    "registration": "YN56FFS",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania N94UD Omnidekka DC902 5HP592 12 3",
+    "capacity": 80,
+    "yearOfManufacture": 2056
+  },
+  "6177": {
+    "fleetNumber": "6177",
+    "registration": "SN57DFJ",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2057
+  },
+  "6178": {
+    "fleetNumber": "6178",
+    "registration": "SN57DFP",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2057
+  },
+  "6179": {
+    "fleetNumber": "6179",
+    "registration": "SN57DFU",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2057
+  },
+  "6180": {
+    "fleetNumber": "6180",
+    "registration": "SN57DFV",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2057
+  },
+  "6181": {
+    "fleetNumber": "6181",
+    "registration": "SN57DFX",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2057
+  },
+  "6182": {
+    "fleetNumber": "6182",
+    "registration": "SN57DFY",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": 2057
+  },
+  "6183": {
+    "fleetNumber": "6183",
+    "registration": "MX07BRF",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+    "capacity": 80,
+    "yearOfManufacture": 2007
+  },
+  "6184": {
+    "fleetNumber": "6184",
+    "registration": "MX07BRV",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+    "capacity": 80,
+    "yearOfManufacture": 2007
+  },
+  "6185": {
+    "fleetNumber": "6185",
+    "registration": "MX07BRZ",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+    "capacity": 80,
+    "yearOfManufacture": 2007
+  },
+  "6186": {
+    "fleetNumber": "6186",
+    "registration": "MX07BSO",
+    "depot": "Washington",
+    "busType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+    "capacity": 80,
+    "yearOfManufacture": 2007
+  },
+  "6187": {
+    "fleetNumber": "6187",
+    "registration": "MX07BSU",
+    "depot": "Washington",
+    "busType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+    "capacity": 80,
+    "yearOfManufacture": 2007
+  },
+  "6188": {
+    "fleetNumber": "6188",
+    "registration": "GX03SUY",
+    "depot": "Washington",
+    "busType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+    "capacity": 80,
+    "yearOfManufacture": 2003
+  },
+  "6189": {
+    "fleetNumber": "6189",
+    "registration": "MX07BUE",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+    "capacity": 80,
+    "yearOfManufacture": 2007
+  },
+  "6190": {
+    "fleetNumber": "6190",
+    "registration": "MX07BUU",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+    "capacity": 80,
+    "yearOfManufacture": 2007
+  },
+  "6191": {
+    "fleetNumber": "6191",
+    "registration": "MX07BUV",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+    "capacity": 80,
+    "yearOfManufacture": 2007
+  },
+  "6192": {
+    "fleetNumber": "6192",
+    "registration": "MX57HDZ",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+    "capacity": 80,
+    "yearOfManufacture": 2057
+  },
+  "6193": {
+    "fleetNumber": "6193",
+    "registration": "YX08FWE",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini D9B 6AP1200B 10.4 4",
+    "capacity": 80,
+    "yearOfManufacture": 2008
+  },
+  "6194": {
+    "fleetNumber": "6194",
+    "registration": "YX08FWF",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini D9B 6AP1200B 10.4 4",
+    "capacity": 80,
+    "yearOfManufacture": 2008
+  },
+  "6195": {
+    "fleetNumber": "6195",
+    "registration": "YX08FWG",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini D9B 6AP1200B 10.4 4",
+    "capacity": 80,
+    "yearOfManufacture": 2008
+  },
+  "6196": {
+    "fleetNumber": "6196",
+    "registration": "YX08FWH",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini D9B 6AP1200B 10.4 4",
+    "capacity": 80,
+    "yearOfManufacture": 2008
+  },
+  "6197": {
+    "fleetNumber": "6197",
+    "registration": "BG59FXB",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6198": {
+    "fleetNumber": "6198",
+    "registration": "LK59FDM",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6199": {
+    "fleetNumber": "6199",
+    "registration": "LK59FDO",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6200": {
+    "fleetNumber": "6200",
+    "registration": "LX59CYA",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6201": {
+    "fleetNumber": "6201",
+    "registration": "LX59CYC",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6202": {
+    "fleetNumber": "6202",
+    "registration": "LX59CYE",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6203": {
+    "fleetNumber": "6203",
+    "registration": "LX59CYF",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6204": {
+    "fleetNumber": "6204",
+    "registration": "LX59CYP",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6205": {
+    "fleetNumber": "6205",
+    "registration": "LX59CYS",
+    "depot": "Deptford",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6206": {
+    "fleetNumber": "6206",
+    "registration": "LX59CYT",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6207": {
+    "fleetNumber": "6207",
+    "registration": "LX59CYU",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6208": {
+    "fleetNumber": "6208",
+    "registration": "LX59CYV",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6209": {
+    "fleetNumber": "6209",
+    "registration": "LX59CYW",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6210": {
+    "fleetNumber": "6210",
+    "registration": "CU7661",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2076
+  },
+  "6211": {
+    "fleetNumber": "6211",
+    "registration": "CU6860",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2068
+  },
+  "6212": {
+    "fleetNumber": "6212",
+    "registration": "JCN822",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": null
+  },
+  "6213": {
+    "fleetNumber": "6213",
+    "registration": "LX59CZB",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6214": {
+    "fleetNumber": "6214",
+    "registration": "LX59CZC",
+    "depot": "Washington",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6215": {
+    "fleetNumber": "6215",
+    "registration": "LX59CZD",
+    "depot": "Washington",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6216": {
+    "fleetNumber": "6216",
+    "registration": "LX59CZF",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6217": {
+    "fleetNumber": "6217",
+    "registration": "LX59CZG",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6218": {
+    "fleetNumber": "6218",
+    "registration": "LX59CZH",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6219": {
+    "fleetNumber": "6219",
+    "registration": "LX59CZJ",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6220": {
+    "fleetNumber": "6220",
+    "registration": "LX59CZP",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6221": {
+    "fleetNumber": "6221",
+    "registration": "LX59CZR",
+    "depot": "Consett",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6222": {
+    "fleetNumber": "6222",
+    "registration": "LX59CZT",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6223": {
+    "fleetNumber": "6223",
+    "registration": "LX59CZU",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6224": {
+    "fleetNumber": "6224",
+    "registration": "LX59CZV",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6225": {
+    "fleetNumber": "6225",
+    "registration": "LX59DDJ",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2059
+  },
+  "6226": {
+    "fleetNumber": "6226",
+    "registration": "LX60DXM",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2060
+  },
+  "6227": {
+    "fleetNumber": "6227",
+    "registration": "LX60DXO",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2060
+  },
+  "6228": {
+    "fleetNumber": "6228",
+    "registration": "LX60DXP",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2060
+  },
+  "6229": {
+    "fleetNumber": "6229",
+    "registration": "LX60DXR",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2060
+  },
+  "6230": {
+    "fleetNumber": "6230",
+    "registration": "LX60DXS",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2060
+  },
+  "6231": {
+    "fleetNumber": "6231",
+    "registration": "LX60DXT",
+    "depot": "Gateshead Riverside",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2060
+  },
+  "6232": {
+    "fleetNumber": "6232",
+    "registration": "SN61BGF",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2061
+  },
+  "6233": {
+    "fleetNumber": "6233",
+    "registration": "SN61BGK",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2061
+  },
+  "6234": {
+    "fleetNumber": "6234",
+    "registration": "SN61BGO",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2061
+  },
+  "6235": {
+    "fleetNumber": "6235",
+    "registration": "SN61BGU",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2061
+  },
+  "6236": {
+    "fleetNumber": "6236",
+    "registration": "SN61BGV",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2061
+  },
+  "6237": {
+    "fleetNumber": "6237",
+    "registration": "SN61BGX",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2061
+  },
+  "6238": {
+    "fleetNumber": "6238",
+    "registration": "SN61BGY",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2061
+  },
+  "6239": {
+    "fleetNumber": "6239",
+    "registration": "SN61BGZ",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2061
+  },
+  "6240": {
+    "fleetNumber": "6240",
+    "registration": "SN61BHA",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2061
+  },
+  "6301": {
+    "fleetNumber": "6301",
+    "registration": "NK16BXA",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2016
+  },
+  "6302": {
+    "fleetNumber": "6302",
+    "registration": "NK16BXB",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2016
+  },
+  "6303": {
+    "fleetNumber": "6303",
+    "registration": "NK16BXC",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2016
+  },
+  "6304": {
+    "fleetNumber": "6304",
+    "registration": "NK16BXD",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2016
+  },
+  "6305": {
+    "fleetNumber": "6305",
+    "registration": "NK16BXE",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2016
+  },
+  "6306": {
+    "fleetNumber": "6306",
+    "registration": "NK16BXF",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2016
+  },
+  "6307": {
+    "fleetNumber": "6307",
+    "registration": "NK16BXG",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2016
+  },
+  "6308": {
+    "fleetNumber": "6308",
+    "registration": "NK67ECD",
+    "depot": "Deptford",
+    "busType": "Volvo B5TL Eclipse Gemini 2 D5K240 6AP1003B 10.4 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6309": {
+    "fleetNumber": "6309",
+    "registration": "NK67ECE",
+    "depot": "Deptford",
+    "busType": "Volvo B5TL Eclipse Gemini 2 D5K240 6AP1003B 10.4 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6310": {
+    "fleetNumber": "6310",
+    "registration": "NK67EBC",
+    "depot": "Deptford",
+    "busType": "Volvo B5TL Eclipse Gemini 2 D5K240 6AP1003B 10.4 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6311": {
+    "fleetNumber": "6311",
+    "registration": "NK67EBD",
+    "depot": "Deptford",
+    "busType": "Volvo B5TL Eclipse Gemini 2 D5K240 6AP1003B 10.4 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6312": {
+    "fleetNumber": "6312",
+    "registration": "NK67EBF",
+    "depot": "Deptford",
+    "busType": "Volvo B5TL Eclipse Gemini 2 D5K240 6AP1003B 10.4 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6313": {
+    "fleetNumber": "6313",
+    "registration": "NK67EBG",
+    "depot": "Deptford",
+    "busType": "Volvo B5TL Eclipse Gemini 2 D5K240 6AP1003B 10.4 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6314": {
+    "fleetNumber": "6314",
+    "registration": "NK67EBJ",
+    "depot": "Deptford",
+    "busType": "Volvo B5TL Eclipse Gemini 2 D5K240 6AP1003B 10.4 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6315": {
+    "fleetNumber": "6315",
+    "registration": "NK67GMG",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6316": {
+    "fleetNumber": "6316",
+    "registration": "NK67GMO",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6317": {
+    "fleetNumber": "6317",
+    "registration": "NK67GMU",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6318": {
+    "fleetNumber": "6318",
+    "registration": "NK67GMV",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6319": {
+    "fleetNumber": "6319",
+    "registration": "NK67GMX",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6320": {
+    "fleetNumber": "6320",
+    "registration": "NK67GMY",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6321": {
+    "fleetNumber": "6321",
+    "registration": "NK67GMZ",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6322": {
+    "fleetNumber": "6322",
+    "registration": "NK67GNF",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6323": {
+    "fleetNumber": "6323",
+    "registration": "NK67GNJ",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6324": {
+    "fleetNumber": "6324",
+    "registration": "NK67GNN",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6325": {
+    "fleetNumber": "6325",
+    "registration": "NK67GNO",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6326": {
+    "fleetNumber": "6326",
+    "registration": "NK67GNP",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6327": {
+    "fleetNumber": "6327",
+    "registration": "NK67GNU",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6328": {
+    "fleetNumber": "6328",
+    "registration": "NK67GNV",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6329": {
+    "fleetNumber": "6329",
+    "registration": "NK67GNX",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6330": {
+    "fleetNumber": "6330",
+    "registration": "NK67GNY",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6331": {
+    "fleetNumber": "6331",
+    "registration": "NK67GNZ",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6332": {
+    "fleetNumber": "6332",
+    "registration": "NK67GOA",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6333": {
+    "fleetNumber": "6333",
+    "registration": "NK67GOC",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2067
+  },
+  "6336": {
+    "fleetNumber": "6336",
+    "registration": "YX64VOO",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISB4.5 6AP1200B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2064
+  },
+  "6337": {
+    "fleetNumber": "6337",
+    "registration": "YY64GWX",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISB4.5 6AP1200B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2064
+  },
+  "6338": {
+    "fleetNumber": "6338",
+    "registration": "YX69NPA",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2069
+  },
+  "6339": {
+    "fleetNumber": "6339",
+    "registration": "YX69NPC",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2069
+  },
+  "6340": {
+    "fleetNumber": "6340",
+    "registration": "YX69NPD",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2069
+  },
+  "6341": {
+    "fleetNumber": "6341",
+    "registration": "YX20OKA",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6342": {
+    "fleetNumber": "6342",
+    "registration": "YX20OKB",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6343": {
+    "fleetNumber": "6343",
+    "registration": "YX70OKJ",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6344": {
+    "fleetNumber": "6344",
+    "registration": "YX70OKK",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6345": {
+    "fleetNumber": "6345",
+    "registration": "YX20OKE",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6346": {
+    "fleetNumber": "6346",
+    "registration": "YX70OHW",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6347": {
+    "fleetNumber": "6347",
+    "registration": "YX20OKG",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6348": {
+    "fleetNumber": "6348",
+    "registration": "YX70OKL",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6349": {
+    "fleetNumber": "6349",
+    "registration": "YX20OKJ",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6350": {
+    "fleetNumber": "6350",
+    "registration": "YX20OKK",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6351": {
+    "fleetNumber": "6351",
+    "registration": "YX70OHY",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6352": {
+    "fleetNumber": "6352",
+    "registration": "YX70OKM",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6353": {
+    "fleetNumber": "6353",
+    "registration": "YX70OKN",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6354": {
+    "fleetNumber": "6354",
+    "registration": "YX70OKO",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6355": {
+    "fleetNumber": "6355",
+    "registration": "YX70OKP",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6356": {
+    "fleetNumber": "6356",
+    "registration": "NK20ELV",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6357": {
+    "fleetNumber": "6357",
+    "registration": "NK20ELW",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6358": {
+    "fleetNumber": "6358",
+    "registration": "NK20EMF",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6359": {
+    "fleetNumber": "6359",
+    "registration": "NK20EMJ",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6360": {
+    "fleetNumber": "6360",
+    "registration": "NK20EMV",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6361": {
+    "fleetNumber": "6361",
+    "registration": "NK70BYJ",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6362": {
+    "fleetNumber": "6362",
+    "registration": "NK70BYL",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6363": {
+    "fleetNumber": "6363",
+    "registration": "NK70BYN",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6364": {
+    "fleetNumber": "6364",
+    "registration": "NK70BYA",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6365": {
+    "fleetNumber": "6365",
+    "registration": "NK70BYB",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6366": {
+    "fleetNumber": "6366",
+    "registration": "NK70BYC",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6367": {
+    "fleetNumber": "6367",
+    "registration": "NK70BYD",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6368": {
+    "fleetNumber": "6368",
+    "registration": "NK70BYF",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6369": {
+    "fleetNumber": "6369",
+    "registration": "NK70BYG",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6370": {
+    "fleetNumber": "6370",
+    "registration": "NK70BYH",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6371": {
+    "fleetNumber": "6371",
+    "registration": "NK70BYM",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6372": {
+    "fleetNumber": "6372",
+    "registration": "NK70BYO",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6373": {
+    "fleetNumber": "6373",
+    "registration": "NK70BYP",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6374": {
+    "fleetNumber": "6374",
+    "registration": "NK70BYR",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6375": {
+    "fleetNumber": "6375",
+    "registration": "NK70BYT",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6376": {
+    "fleetNumber": "6376",
+    "registration": "NK70BYU",
+    "depot": "Washington",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6377": {
+    "fleetNumber": "6377",
+    "registration": "NK70BYV",
+    "depot": "Gateshead Riverside",
+    "busType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+    "capacity": 80,
+    "yearOfManufacture": 2020
+  },
+  "6666": {
+    "fleetNumber": "6666",
+    "registration": "TESTVEH",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B9R Levante D9B AT2412C 12.5 5",
+    "capacity": 50,
+    "yearOfManufacture": null
+  },
+  "6900": {
+    "fleetNumber": "6900",
+    "registration": "LF52ZNR",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B7TL Eclipse Gemini D7C D863.3E 10.1 3",
+    "capacity": 80,
+    "yearOfManufacture": 2052
+  },
+  "6919": {
+    "fleetNumber": "6919",
+    "registration": "LX06ECD",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B7TL Eclipse Gemini D7C D863.4E 10.1 3",
+    "capacity": 80,
+    "yearOfManufacture": 2006
+  },
+  "6920": {
+    "fleetNumber": "6920",
+    "registration": "LX54GYV",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B7TL President D7C 5HP502 10 3",
+    "capacity": 80,
+    "yearOfManufacture": 2054
+  },
+  "6921": {
+    "fleetNumber": "6921",
+    "registration": "LX54GYW",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B7TL President D7C 5HP502 10 3",
+    "capacity": 80,
+    "yearOfManufacture": 2054
+  },
+  "6935": {
+    "fleetNumber": "6935",
+    "registration": "X508EGK",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B7TL President D7C 5HP502 10 2",
+    "capacity": 80,
+    "yearOfManufacture": null
+  },
+  "6944": {
+    "fleetNumber": "6944",
+    "registration": "LX57CHZ",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2057
+  },
+  "6945": {
+    "fleetNumber": "6945",
+    "registration": "LX57CJE",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2057
+  },
+  "6946": {
+    "fleetNumber": "6946",
+    "registration": "LX57CKF",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2057
+  },
+  "6947": {
+    "fleetNumber": "6947",
+    "registration": "LX57CKG",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2057
+  },
+  "6948": {
+    "fleetNumber": "6948",
+    "registration": "LX57CLY",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2057
+  },
+  "6949": {
+    "fleetNumber": "6949",
+    "registration": "LX08EBU",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2008
+  },
+  "6950": {
+    "fleetNumber": "6950",
+    "registration": "LX08EBV",
+    "depot": "Consett",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2008
+  },
+  "6951": {
+    "fleetNumber": "6951",
+    "registration": "LX08EBZ",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2008
+  },
+  "6952": {
+    "fleetNumber": "6952",
+    "registration": "LX08ECA",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2008
+  },
+  "6953": {
+    "fleetNumber": "6953",
+    "registration": "LX08ECC",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2008
+  },
+  "6954": {
+    "fleetNumber": "6954",
+    "registration": "LX09FAJ",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2009
+  },
+  "6955": {
+    "fleetNumber": "6955",
+    "registration": "LX09FAK",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2009
+  },
+  "6956": {
+    "fleetNumber": "6956",
+    "registration": "LX09FAM",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2009
+  },
+  "6957": {
+    "fleetNumber": "6957",
+    "registration": "LX09FAO",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2009
+  },
+  "6958": {
+    "fleetNumber": "6958",
+    "registration": "LX09FAU",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2009
+  },
+  "6959": {
+    "fleetNumber": "6959",
+    "registration": "SN60BZB",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2060
+  },
+  "6960": {
+    "fleetNumber": "6960",
+    "registration": "SN60BZC",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2060
+  },
+  "6961": {
+    "fleetNumber": "6961",
+    "registration": "SN60BZD",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2060
+  },
+  "6962": {
+    "fleetNumber": "6962",
+    "registration": "SN60BZE",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2060
+  },
+  "6963": {
+    "fleetNumber": "6963",
+    "registration": "SN60BZF",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2060
+  },
+  "6964": {
+    "fleetNumber": "6964",
+    "registration": "SN60BZG",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2060
+  },
+  "6965": {
+    "fleetNumber": "6965",
+    "registration": "SN60BZH",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2060
+  },
+  "6966": {
+    "fleetNumber": "6966",
+    "registration": "SN60BZJ",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2060
+  },
+  "6967": {
+    "fleetNumber": "6967",
+    "registration": "LX06FKN",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Enviro 400 ISBe4 D854.5E 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2006
+  },
+  "6970": {
+    "fleetNumber": "6970",
+    "registration": "LX58CXG",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Olympus ISBe4 5HP502 10.3 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2058
+  },
+  "6972": {
+    "fleetNumber": "6972",
+    "registration": "LX58CXJ",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Olympus ISBe4 5HP502 10.3 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2058
+  },
+  "6973": {
+    "fleetNumber": "6973",
+    "registration": "LX58CXK",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Olympus ISBe4 5HP502 10.3 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2058
+  },
+  "6974": {
+    "fleetNumber": "6974",
+    "registration": "LX58CWP",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Olympus ISBe4 5HP502 10.3 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2058
+  },
+  "6975": {
+    "fleetNumber": "6975",
+    "registration": "LX58CXN",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Olympus ISBe4 5HP502 10.3 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2058
+  },
+  "6976": {
+    "fleetNumber": "6976",
+    "registration": "LX58CXP",
+    "depot": "Gateshead Riverside",
+    "busType": "ADL Enviro 400 Olympus ISBe4 5HP502 10.3 4 (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": 2058
+  },
+  "6993": {
+    "fleetNumber": "6993",
+    "registration": "SNZ1104",
+    "depot": "Percy Main",
+    "busType": "Scania N230UD Enviro 400 DC930 5HP504 10.9 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": null
+  },
+  "6994": {
+    "fleetNumber": "6994",
+    "registration": "NLZ5111",
+    "depot": "Percy Main",
+    "busType": "Scania N230UD Enviro 400 DC930 5HP504 10.9 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+    "capacity": 80,
+    "yearOfManufacture": null
+  },
+  "6995": {
+    "fleetNumber": "6995",
+    "registration": "MIG7113",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": null
+  },
+  "6996": {
+    "fleetNumber": "6996",
+    "registration": "LIG9116",
+    "depot": "Percy Main",
+    "busType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+    "capacity": 80,
+    "yearOfManufacture": null
+  },
+  "6997": {
+    "fleetNumber": "6997",
+    "registration": "LJ51DJZ",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "DAF DB250 Plaxton President ISBe4 DIWA851.3 10.5 6",
+    "capacity": 80,
+    "yearOfManufacture": 2051
+  },
+  "6998": {
+    "fleetNumber": "6998",
+    "registration": "LJ51DKF",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "DAF DB250 Plaxton President ISBe4 DIWA851.3 10.5 6",
+    "capacity": 80,
+    "yearOfManufacture": 2051
+  },
+  "6999": {
+    "fleetNumber": "6999",
+    "registration": "LJ51DKV",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "DAF DB250 Plaxton President ISBe4 DIWA851.3 10.5 6",
+    "capacity": 80,
+    "yearOfManufacture": 2051
+  },
+  "7099": {
+    "fleetNumber": "7099",
+    "registration": "FJ08KMU",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania K340EB Levante DC1210 6HP604 14.2 4",
+    "capacity": 50,
+    "yearOfManufacture": 2008
+  },
+  "7101": {
+    "fleetNumber": "7101",
+    "registration": "FJ08KNV",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Scania K340EB Levante DC1210 6HP604 14.2 4",
+    "capacity": 50,
+    "yearOfManufacture": 2008
+  },
+  "7128": {
+    "fleetNumber": "7128",
+    "registration": "BX16CKL",
+    "depot": "Go North East Coach",
+    "busType": "Volvo B11RT Levante D11K AT2412E 14.3 6",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "7132": {
+    "fleetNumber": "7132",
+    "registration": "BX16CLU",
+    "depot": "Go North East Coach",
+    "busType": "Volvo B11RT Levante D11K AT2412E 14.3 6",
+    "capacity": 50,
+    "yearOfManufacture": 2016
+  },
+  "7135": {
+    "fleetNumber": "7135",
+    "registration": "BV17GVF",
+    "depot": "Go North East Coach",
+    "busType": "Volvo B11RT Levante D11K AT2412E 14.3 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "7136": {
+    "fleetNumber": "7136",
+    "registration": "BV17GVG",
+    "depot": "Go North East Coach",
+    "busType": "Volvo B11RT Levante D11K AT2412E 14.3 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "7137": {
+    "fleetNumber": "7137",
+    "registration": "BV17GVJ",
+    "depot": "Go North East Coach",
+    "busType": "Volvo B11RT Levante D11K AT2412E 14.3 6",
+    "capacity": 50,
+    "yearOfManufacture": 2017
+  },
+  "7138": {
+    "fleetNumber": "7138",
+    "registration": "BM68AHA",
+    "depot": "Go North East Coach",
+    "busType": "Volvo B11RT Levante D11K AT2412E 14.3 6",
+    "capacity": 50,
+    "yearOfManufacture": 2068
+  },
+  "7139": {
+    "fleetNumber": "7139",
+    "registration": "BM68AHC",
+    "depot": "Go North East Coach",
+    "busType": "Volvo B11RT Levante D11K AT2412E 14.3 6",
+    "capacity": 50,
+    "yearOfManufacture": 2068
+  },
+  "7140": {
+    "fleetNumber": "7140",
+    "registration": "BM68AHD",
+    "depot": "Go North East Coach",
+    "busType": "Volvo B11RT Levante D11K AT2412E 14.3 6",
+    "capacity": 50,
+    "yearOfManufacture": 2068
+  },
+  "7141": {
+    "fleetNumber": "7141",
+    "registration": "BM68AHE",
+    "depot": "Go North East Coach",
+    "busType": "Volvo B11RT Levante D11K AT2412E 14.3 6",
+    "capacity": 50,
+    "yearOfManufacture": 2068
+  },
+  "7142": {
+    "fleetNumber": "7142",
+    "registration": "BM68AHF",
+    "depot": "Go North East Coach",
+    "busType": "Volvo B11RT Levante D11K AT2412E 14.3 6",
+    "capacity": 50,
+    "yearOfManufacture": 2068
+  },
+  "7145": {
+    "fleetNumber": "7145",
+    "registration": "BV69KPF",
+    "depot": "Go North East Coach",
+    "busType": "Volvo B11RT Levante D11K AT2412E 14.3 6",
+    "capacity": 50,
+    "yearOfManufacture": 2069
+  },
+  "7146": {
+    "fleetNumber": "7146",
+    "registration": "BV69KPG",
+    "depot": "Go North East Coach",
+    "busType": "Volvo B11RT Levante D11K AT2412E 14.3 6",
+    "capacity": 50,
+    "yearOfManufacture": 2069
+  },
+  "7147": {
+    "fleetNumber": "7147",
+    "registration": "BV69KPJ",
+    "depot": "Go North East Coach",
+    "busType": "Volvo B11RT Levante D11K AT2412E 14.3 6",
+    "capacity": 50,
+    "yearOfManufacture": 2069
+  },
+  "7148": {
+    "fleetNumber": "7148",
+    "registration": "BV69KPK",
+    "depot": "Go North East Coach",
+    "busType": "Volvo B11RT Levante D11K AT2412E 14.3 6",
+    "capacity": 50,
+    "yearOfManufacture": 2069
+  },
+  "7149": {
+    "fleetNumber": "7149",
+    "registration": "BV69KRD",
+    "depot": "Go North East Coach",
+    "busType": "Volvo B11RT Levante D11K AT2412E 14.3 6",
+    "capacity": 50,
+    "yearOfManufacture": 2069
+  },
+  "7152": {
+    "fleetNumber": "7152",
+    "registration": "XL09NCL",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Volvo B11R Elite Interdeck DC11C370 6AP2000B 15 5",
+    "capacity": 50,
+    "yearOfManufacture": 2009
+  },
+  "7158": {
+    "fleetNumber": "7158",
+    "registration": "BX65WAO",
+    "depot": "Go North East Coach",
+    "busType": "Volvo B8R Levante D8K350 At2412E 12.5 6",
+    "capacity": 50,
+    "yearOfManufacture": 2065
+  },
+  "7159": {
+    "fleetNumber": "7159",
+    "registration": "BX65WAU",
+    "depot": "Go North East Coach",
+    "busType": "Volvo B8R Levante D8K350 At2412E 12.5 6",
+    "capacity": 50,
+    "yearOfManufacture": 2065
+  },
+  "7160": {
+    "fleetNumber": "7160",
+    "registration": "BX65WCK",
+    "depot": "Go North East Coach",
+    "busType": "Volvo B8R Levante D8K350 At2412E 12.5 6",
+    "capacity": 50,
+    "yearOfManufacture": 2065
+  },
+  "7161": {
+    "fleetNumber": "7161",
+    "registration": "BV74LNR",
+    "depot": "Go North East Coach",
+    "busType": "Scania KEB6X2 CBRVAR008 GRS895R DC13 14.2 6",
+    "capacity": 50,
+    "yearOfManufacture": 2024
+  },
+  "7162": {
+    "fleetNumber": "7162",
+    "registration": "BV74LNT",
+    "depot": "Go North East Coach",
+    "busType": "Scania KEB6X2 CBRVAR008 GRS895R DC13 14.2 6",
+    "capacity": 50,
+    "yearOfManufacture": 2024
+  },
+  "7163": {
+    "fleetNumber": "7163",
+    "registration": "BV74LNU",
+    "depot": "Go North East Coach",
+    "busType": "Scania KEB6X2 CBRVAR008 GRS895R DC13 14.2 6",
+    "capacity": 50,
+    "yearOfManufacture": 2024
+  },
+  "7164": {
+    "fleetNumber": "7164",
+    "registration": "BV74LNW",
+    "depot": "Go North East Coach",
+    "busType": "Scania KEB6X2 CBRVAR008 GRS895R DC13 14.2 6",
+    "capacity": 50,
+    "yearOfManufacture": 2024
+  },
+  "7165": {
+    "fleetNumber": "7165",
+    "registration": "BV74LNX",
+    "depot": "Go North East Coach",
+    "busType": "Scania KEB6X2 CBRVAR008 GRS895R DC13 14.2 6",
+    "capacity": 50,
+    "yearOfManufacture": 2024
+  },
+  "7166": {
+    "fleetNumber": "7166",
+    "registration": "BV74LNY",
+    "depot": "Go North East Coach",
+    "busType": "Scania KEB6X2 CBRVAR008 GRS895R DC13 14.2 6",
+    "capacity": 50,
+    "yearOfManufacture": 2024
+  },
+  "7167": {
+    "fleetNumber": "7167",
+    "registration": "BV74LOF",
+    "depot": "Go North East Coach",
+    "busType": "Scania KEB6X2 CBRVAR008 GRS895R DC13 14.2 6",
+    "capacity": 50,
+    "yearOfManufacture": 2024
+  },
+  "7168": {
+    "fleetNumber": "7168",
+    "registration": "BV74LOH",
+    "depot": "Go North East Coach",
+    "busType": "Scania KEB6X2 CBRVAR008 GRS895R DC13 14.2 6",
+    "capacity": 50,
+    "yearOfManufacture": 2024
+  },
+  "7169": {
+    "fleetNumber": "7169",
+    "registration": "BV25KWB",
+    "depot": "Go North East Coach",
+    "busType": "Scania KEB6X2 CBRVAR008 GRS895R DC13 14.2 6",
+    "capacity": 50,
+    "yearOfManufacture": 2025
+  },
+  "7170": {
+    "fleetNumber": "7170",
+    "registration": "BV25KWC",
+    "depot": "Go North East Coach",
+    "busType": "Scania KEB6X2 CBRVAR008 GRS895R DC13 14.2 6",
+    "capacity": 50,
+    "yearOfManufacture": 2025
+  },
+  "7171": {
+    "fleetNumber": "7171",
+    "registration": "BV25KWD",
+    "depot": "Go North East Coach",
+    "busType": "Scania KEB6X2 CBRVAR008 GRS895R DC13 14.2 6",
+    "capacity": 50,
+    "yearOfManufacture": 2025
+  },
+  "7172": {
+    "fleetNumber": "7172",
+    "registration": "BV25KWE",
+    "depot": "Go North East Coach",
+    "busType": "Scania KEB6X2 CBRVAR008 GRS895R DC13 14.2 6",
+    "capacity": 50,
+    "yearOfManufacture": 2025
+  },
+  "7173": {
+    "fleetNumber": "7173",
+    "registration": "BV25KWF",
+    "depot": "Go North East Coach",
+    "busType": "Scania KEB6X2 CBRVAR008 GRS895R DC13 14.2 6",
+    "capacity": 50,
+    "yearOfManufacture": 2025
+  },
+  "7174": {
+    "fleetNumber": "7174",
+    "registration": "BV25KWG",
+    "depot": "Go North East Coach",
+    "busType": "Scania KEB6X2 CBRVAR008 GRS895R DC13 14.2 6",
+    "capacity": 50,
+    "yearOfManufacture": 2025
+  },
+  "7175": {
+    "fleetNumber": "7175",
+    "registration": "BV25KWH",
+    "depot": "Go North East Coach",
+    "busType": "Scania KEB6X2 CBRVAR008 GRS895R DC13 14.2 6",
+    "capacity": 50,
+    "yearOfManufacture": 2025
+  },
+  "7176": {
+    "fleetNumber": "7176",
+    "registration": "BV25KWJ",
+    "depot": "Go North East Coach",
+    "busType": "Scania KEB6X2 CBRVAR008 GRS895R DC13 14.2 6",
+    "capacity": 50,
+    "yearOfManufacture": 2025
+  },
+  "8297": {
+    "fleetNumber": "8297",
+    "registration": "NK09FUV",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 4",
+    "capacity": 50,
+    "yearOfManufacture": 2009
+  },
+  "8301": {
+    "fleetNumber": "8301",
+    "registration": "NK09FVB",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 4",
+    "capacity": 50,
+    "yearOfManufacture": 2009
+  },
+  "8305": {
+    "fleetNumber": "8305",
+    "registration": "NK09FVF",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 4",
+    "capacity": 50,
+    "yearOfManufacture": 2009
+  },
+  "8306": {
+    "fleetNumber": "8306",
+    "registration": "NK09FVG",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 4",
+    "capacity": 50,
+    "yearOfManufacture": 2009
+  },
+  "8307": {
+    "fleetNumber": "8307",
+    "registration": "NK09FVH",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 4",
+    "capacity": 50,
+    "yearOfManufacture": 2009
+  },
+  "8308": {
+    "fleetNumber": "8308",
+    "registration": "NK09FVJ",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 4",
+    "capacity": 50,
+    "yearOfManufacture": 2009
+  },
+  "8309": {
+    "fleetNumber": "8309",
+    "registration": "NK09FVL",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 4",
+    "capacity": 50,
+    "yearOfManufacture": 2009
+  },
+  "8310": {
+    "fleetNumber": "8310",
+    "registration": "NK10GNY",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2010
+  },
+  "8311": {
+    "fleetNumber": "8311",
+    "registration": "NK10GNZ",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2010
+  },
+  "8312": {
+    "fleetNumber": "8312",
+    "registration": "NK10GOA",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2010
+  },
+  "8313": {
+    "fleetNumber": "8313",
+    "registration": "NK10GOC",
+    "depot": "Deptford",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2010
+  },
+  "8314": {
+    "fleetNumber": "8314",
+    "registration": "NK10GOE",
+    "depot": "Washington",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2010
+  },
+  "8315": {
+    "fleetNumber": "8315",
+    "registration": "NK10GOH",
+    "depot": "Washington",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2010
+  },
+  "8316": {
+    "fleetNumber": "8316",
+    "registration": "NK10GOJ",
+    "depot": "Gateshead Riverside",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2010
+  },
+  "8317": {
+    "fleetNumber": "8317",
+    "registration": "NK10GOP",
+    "depot": "Gateshead Riverside",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2010
+  },
+  "8318": {
+    "fleetNumber": "8318",
+    "registration": "NK10GOU",
+    "depot": "Gateshead Riverside",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2010
+  },
+  "8319": {
+    "fleetNumber": "8319",
+    "registration": "NK11FXB",
+    "depot": "Washington",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2011
+  },
+  "8320": {
+    "fleetNumber": "8320",
+    "registration": "NK11FXC",
+    "depot": "Percy Main",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2011
+  },
+  "8321": {
+    "fleetNumber": "8321",
+    "registration": "NK11FXD",
+    "depot": "Percy Main",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2011
+  },
+  "8322": {
+    "fleetNumber": "8322",
+    "registration": "NK11FXE",
+    "depot": "Percy Main",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2011
+  },
+  "8323": {
+    "fleetNumber": "8323",
+    "registration": "NK11FXF",
+    "depot": "Percy Main",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2011
+  },
+  "8324": {
+    "fleetNumber": "8324",
+    "registration": "NK11FXG",
+    "depot": "Percy Main",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2011
+  },
+  "8325": {
+    "fleetNumber": "8325",
+    "registration": "NK11FXH",
+    "depot": "Washington",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2011
+  },
+  "8326": {
+    "fleetNumber": "8326",
+    "registration": "NK11GWX",
+    "depot": "Gateshead Riverside",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2011
+  },
+  "8327": {
+    "fleetNumber": "8327",
+    "registration": "NK11GWY",
+    "depot": "Gateshead Riverside",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2011
+  },
+  "8328": {
+    "fleetNumber": "8328",
+    "registration": "NK11HBC",
+    "depot": "Gateshead Riverside",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2011
+  },
+  "8329": {
+    "fleetNumber": "8329",
+    "registration": "NK11HDN",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2011
+  },
+  "8331": {
+    "fleetNumber": "8331",
+    "registration": "NK11HJX",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2011
+  },
+  "8332": {
+    "fleetNumber": "8332",
+    "registration": "NK11HJC",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2011
+  },
+  "8333": {
+    "fleetNumber": "8333",
+    "registration": "NK11HJV",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2011
+  },
+  "8334": {
+    "fleetNumber": "8334",
+    "registration": "NK11HJE",
+    "depot": "Deptford",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2011
+  },
+  "8335": {
+    "fleetNumber": "8335",
+    "registration": "NK11HJF",
+    "depot": "Deptford",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2011
+  },
+  "8336": {
+    "fleetNumber": "8336",
+    "registration": "NK11HJG",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2011
+  },
+  "8337": {
+    "fleetNumber": "8337",
+    "registration": "NK11HKP",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2011
+  },
+  "8338": {
+    "fleetNumber": "8338",
+    "registration": "NK11HKT",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2011
+  },
+  "8339": {
+    "fleetNumber": "8339",
+    "registration": "NL63XBH",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 10.8 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "8340": {
+    "fleetNumber": "8340",
+    "registration": "NL63XBJ",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 10.8 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "8341": {
+    "fleetNumber": "8341",
+    "registration": "NL63XBK",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 10.8 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "8342": {
+    "fleetNumber": "8342",
+    "registration": "NL63XBM",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 10.8 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "8343": {
+    "fleetNumber": "8343",
+    "registration": "NL63XBN",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 10.8 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "8344": {
+    "fleetNumber": "8344",
+    "registration": "NL63XBO",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 10.8 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "8345": {
+    "fleetNumber": "8345",
+    "registration": "NL63XBP",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 10.8 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "8346": {
+    "fleetNumber": "8346",
+    "registration": "NL63XBR",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 10.8 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "8347": {
+    "fleetNumber": "8347",
+    "registration": "YD63UZN",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "8348": {
+    "fleetNumber": "8348",
+    "registration": "SK63GAA",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D823.3E 10.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2063
+  },
+  "8349": {
+    "fleetNumber": "8349",
+    "registration": "WX12GDO",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D823.3E 10.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2012
+  },
+  "8350": {
+    "fleetNumber": "8350",
+    "registration": "WX12GDU",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D823.3E 10.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2012
+  },
+  "8351": {
+    "fleetNumber": "8351",
+    "registration": "WX12GDV",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D823.3E 10.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2012
+  },
+  "8352": {
+    "fleetNumber": "8352",
+    "registration": "WX12GDY",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D823.3E 10.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2012
+  },
+  "8353": {
+    "fleetNumber": "8353",
+    "registration": "WX12GDZ",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D823.3E 10.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2012
+  },
+  "8354": {
+    "fleetNumber": "8354",
+    "registration": "WX12GEJ",
+    "depot": "Deptford",
+    "busType": "Wrightbus Streetlite DF Streetlite ISBe5 D823.3E 10.5 5",
+    "capacity": 50,
+    "yearOfManufacture": 2012
+  },
+  "8801": {
+    "fleetNumber": "8801",
+    "registration": "ND70AFA",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong E10 E10 10.9",
+    "capacity": 50,
+    "yearOfManufacture": 2020
+  },
+  "8802": {
+    "fleetNumber": "8802",
+    "registration": "ND70AET",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong E10 E10 10.9",
+    "capacity": 50,
+    "yearOfManufacture": 2020
+  },
+  "8803": {
+    "fleetNumber": "8803",
+    "registration": "ND70AEU",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong E10 E10 10.9",
+    "capacity": 50,
+    "yearOfManufacture": 2020
+  },
+  "8804": {
+    "fleetNumber": "8804",
+    "registration": "ND70AEV",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong E10 E10 10.9",
+    "capacity": 50,
+    "yearOfManufacture": 2020
+  },
+  "8805": {
+    "fleetNumber": "8805",
+    "registration": "ND70AEW",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong E10 E10 10.9",
+    "capacity": 50,
+    "yearOfManufacture": 2020
+  },
+  "8806": {
+    "fleetNumber": "8806",
+    "registration": "ND70AEX",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong E10 E10 10.9",
+    "capacity": 50,
+    "yearOfManufacture": 2020
+  },
+  "8807": {
+    "fleetNumber": "8807",
+    "registration": "ND70AEY",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong E10 E10 10.9",
+    "capacity": 50,
+    "yearOfManufacture": 2020
+  },
+  "8808": {
+    "fleetNumber": "8808",
+    "registration": "ND70AEZ",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong E10 E10 10.9",
+    "capacity": 50,
+    "yearOfManufacture": 2020
+  },
+  "8809": {
+    "fleetNumber": "8809",
+    "registration": "ND70AFK",
+    "depot": "Gateshead Riverside",
+    "busType": "Yutong E10 E10 10.9",
+    "capacity": 50,
+    "yearOfManufacture": 2020
+  },
+  "9052": {
+    "fleetNumber": "9052",
+    "registration": "KX58BGY",
+    "depot": "Go North East Reserve Fleet",
+    "busType": "ADL Enviro 200 Enviro 200 ISBe4 S2000 8.9 4",
+    "capacity": 50,
+    "yearOfManufacture": 2058
+  }
+}

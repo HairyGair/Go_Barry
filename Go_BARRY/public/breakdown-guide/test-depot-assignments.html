@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Depot Assignment Verification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .depot-test {
+            background: #f5f5f5;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .depot-correct {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+        }
+        .sample-vehicles {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .vehicle-card {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .vehicle-fleet {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .vehicle-depot {
+            color: #28a745;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏢 Depot Assignment Verification</h1>
+    <p>Testing the accuracy of depot assignments for GNE fleet vehicles.</p>
+    
+    <div class="depot-test depot-correct">
+        <h3>✅ Depot Assignment Test Results</h3>
+        <div id="depot-results">Loading...</div>
+    </div>
+    
+    <div class="depot-test">
+        <h3>📊 Depot Distribution</h3>
+        <div id="depot-distribution">Loading...</div>
+    </div>
+    
+    <div class="depot-test">
+        <h3>🚌 Sample Vehicles by Depot</h3>
+        <div id="sample-vehicles" class="sample-vehicles">Loading...</div>
+    </div>
+
+    <!-- Load the fleet database -->
+    <script src="./services/fleetDatabase.js"></script>
+    <script src="./fleet-database-init.js"></script>
+
+    <script>
+        // Test specific fleet numbers to verify depot assignments
+        function testDepotAssignments() {
+            const testCases = [
+                { fleet: '638', expectedDepot: 'Non-operational' }, // Should be Non-operational as it's not in operational ranges
+                { fleet: '3950', expectedDepot: 'Consett' }, // Should be Consett (3941-3965)
+                { fleet: '5220', expectedDepot: 'Deptford' }, // Should be Deptford (5210-5229)
+                { fleet: '5240', expectedDepot: 'Percy Main' }, // Should be Percy Main (5230-5249)
+                { fleet: '5290', expectedDepot: 'Riverside' }, // Should be Riverside (5285-5309)
+                { fleet: '5320', expectedDepot: 'Washington' }, // Should be Washington (5310-5337)
+                { fleet: '5415', expectedDepot: 'Hexham' }, // Should be Hexham (5410-5419)
+                { fleet: '8310', expectedDepot: 'Non-operational' }, // Should be Non-operational (scrapped/stored)
+                { fleet: '8330', expectedDepot: 'Non-operational' } // Should be Non-operational (scrapped/stored)
+            ];
+
+            const results = [];
+            
+            testCases.forEach(test => {
+                if (window.fleetDatabase) {
+                    const actualDepot = window.fleetDatabase.estimateDepot(test.fleet);
+                    const correct = actualDepot === test.expectedDepot;
+                    results.push({
+                        fleet: test.fleet,
+                        expected: test.expectedDepot,
+                        actual: actualDepot,
+                        correct: correct
+                    });
+                }
+            });
+
+            return results;
+        }
+
+        function displayResults() {
+            if (!window.fleetDatabase || !window.fleetDatabase.fleetData) {
+                setTimeout(displayResults, 1000);
+                return;
+            }
+
+            // Test depot assignments
+            const testResults = testDepotAssignments();
+            const resultsDiv = document.getElementById('depot-results');
+            
+            const correctCount = testResults.filter(r => r.correct).length;
+            resultsDiv.innerHTML = `
+                <strong>Test Results: ${correctCount}/${testResults.length} correct</strong><br><br>
+                ${testResults.map(result => `
+                    Fleet ${result.fleet}: Expected <strong>${result.expected}</strong>, Got <strong>${result.actual}</strong> 
+                    ${result.correct ? '✅' : '❌'}
+                `).join('<br>')}
+            `;
+
+            // Calculate depot distribution
+            const fleetData = window.fleetDatabase.fleetData;
+            const depotCounts = {};
+            
+            Object.values(fleetData).forEach(vehicle => {
+                depotCounts[vehicle.depot] = (depotCounts[vehicle.depot] || 0) + 1;
+            });
+
+            const distributionDiv = document.getElementById('depot-distribution');
+            distributionDiv.innerHTML = Object.entries(depotCounts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([depot, count]) => `<strong>${depot}:</strong> ${count} vehicles`)
+                .join('<br>');
+
+            // Show sample vehicles for each depot
+            const samplesDiv = document.getElementById('sample-vehicles');
+            const depotSamples = {};
+            
+            Object.values(fleetData).forEach(vehicle => {
+                if (!depotSamples[vehicle.depot]) {
+                    depotSamples[vehicle.depot] = [];
+                }
+                if (depotSamples[vehicle.depot].length < 3) {
+                    depotSamples[vehicle.depot].push(vehicle);
+                }
+            });
+
+            samplesDiv.innerHTML = Object.entries(depotSamples)
+                .map(([depot, vehicles]) => `
+                    <div class="vehicle-card">
+                        <h4>${depot}</h4>
+                        ${vehicles.map(v => `
+                            <div class="vehicle-fleet">Fleet ${v.fleetNumber}</div>
+                            <div>${v.registration}</div>
+                            <div style="font-size: 0.8em; color: #666;">${v.busType}</div>
+                        `).join('<hr style="margin: 5px 0;">')}
+                    </div>
+                `).join('');
+        }
+
+        // Start testing
+        displayResults();
+    </script>
+</body>
+</html>

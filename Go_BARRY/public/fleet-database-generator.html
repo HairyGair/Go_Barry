@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fleet Database Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #003366;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            background: #e8f4f8;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        button {
+            background: #003366;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #004499;
+        }
+        .file-input {
+            margin: 20px 0;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #003366;
+        }
+        textarea {
+            width: 100%;
+            height: 400px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚌 Go North East Fleet Database Generator</h1>
+        
+        <div class="file-input">
+            <input type="file" id="fileInput" accept=".xlsx,.xls">
+            <button onclick="processFile()">Process Excel File</button>
+        </div>
+        
+        <div id="status"></div>
+        
+        <div id="stats" class="stats" style="display:none;"></div>
+        
+        <div id="output" style="display:none;">
+            <h2>Generated fleet-database.json</h2>
+            <button onclick="downloadJSON()">Download JSON File</button>
+            <button onclick="copyJSON()">Copy to Clipboard</button>
+            <button onclick="saveToBackend()">Save to Backend Directory</button>
+            <div id="copyStatus"></div>
+            <textarea id="jsonOutput" readonly></textarea>
+        </div>
+    </div>
+
+    <script>
+        let fleetData = {};
+        let jsonString = '';
+
+        // Helper function to extract year from registration
+        function extractYear(regNumber) {
+            if (!regNumber) return 2015;
+            
+            const patterns = {
+                'NL74': 2024, 'NL73': 2023, 'YY72': 2022, 'YY22': 2022, 
+                'YX71': 2021, 'YX21': 2021, 'YX70': 2020, 'YX20': 2020,
+                'NK69': 2019, 'NX69': 2019, 'NK19': 2019, 'SN18': 2018,
+                'SN67': 2017, 'SP67': 2017, 'NK66': 2016, 'SP16': 2016,
+                'SN65': 2015, 'SN15': 2015, 'NK64': 2014, 'SN64': 2014,
+                'NK13': 2013, 'NK62': 2012, 'NK61': 2011, 'NK60': 2010,
+                'NK59': 2009, 'NX58': 2008, 'NK57': 2007, 'NK56': 2006,
+                'NK55': 2005, 'NK54': 2004, 'NK53': 2003
+            };
+            
+            for (const [pattern, year] of Object.entries(patterns)) {
+                if (regNumber.toUpperCase().includes(pattern)) return year;
+            }
+            
+            const match = regNumber.match(/^[A-Z]{2}(\d{2})/);
+            if (match) {
+                const yearCode = parseInt(match[1]);
+                if (yearCode >= 51 && yearCode <= 99) {
+                    return 2000 + yearCode - 50;
+                } else if (yearCode >= 1 && yearCode <= 50) {
+                    return 2000 + yearCode;
+                }
+            }
+            
+            return 2015;
+        }
+
+        // Helper function to determine capacity
+        function extractCapacity(busType) {
+            if (!busType) return 50;
+            
+            const typeStr = busType.toLowerCase();
+            
+            if (typeStr.includes('double deck') || typeStr.includes('streetdeck') || 
+                typeStr.includes('enviro400') || typeStr.includes('b9tl') || 
+                typeStr.includes('volvo b7tl')) {
+                return 85;
+            }
+            
+            if (typeStr.includes('omnicity') || typeStr.includes('citaro') || 
+                typeStr.includes('enviro300') || typeStr.includes('eclipse')) {
+                return 75;
+            }
+            
+            if (typeStr.includes('versa') || typeStr.includes('streetlite')) {
+                return 40;
+            }
+            
+            if (typeStr.includes('solo')) {
+                return 30;
+            }
+            
+            if (typeStr.includes('sprinter') || typeStr.includes('minibus')) {
+                return 16;
+            }
+            
+            if (typeStr.includes('coach') || typeStr.includes('levante')) {
+                return 53;
+            }
+            
+            return 50;
+        }
+
+        function processFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showStatus('Please select an Excel file', 'error');
+                return;
+            }
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                    
+                    processFleetData(rawData);
+                    
+                } catch (error) {
+                    showStatus('Error processing file: ' + error.message, 'error');
+                    console.error(error);
+                }
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+
+        function processFleetData(rawData) {
+            fleetData = {};
+            let validRecords = 0;
+            let skippedRecords = 0;
+            
+            // Skip header row
+            for (let i = 1; i < rawData.length; i++) {
+                const row = rawData[i];
+                
+                if (!row || row.length === 0) {
+                    skippedRecords++;
+                    continue;
+                }
+                
+                const fleetNo = row[3]?.toString().trim();
+                const regNumber = row[4]?.toString().trim();
+                
+                if (!fleetNo || !regNumber) {
+                    skippedRecords++;
+                    continue;
+                }
+                
+                const vehicle = {
+                    fleetNumber: fleetNo,
+                    registration: regNumber,
+                    depot: row[1] || row[0] || 'Unknown',
+                    busType: row[5] || 'Unknown',
+                    capacity: extractCapacity(row[5]),
+                    yearOfManufacture: extractYear(regNumber)
+                };
+                
+                fleetData[fleetNo] = vehicle;
+                validRecords++;
+            }
+            
+            // Generate JSON
+            jsonString = JSON.stringify(fleetData, null, 2);
+            
+            // Show results
+            showStatus(`✅ Successfully processed ${validRecords} vehicles (skipped ${skippedRecords} invalid rows)`, 'success');
+            showStats();
+            showOutput();
+        }
+
+        function showStats() {
+            const depotCounts = {};
+            Object.values(fleetData).forEach(v => {
+                depotCounts[v.depot] = (depotCounts[v.depot] || 0) + 1;
+            });
+            
+            const statsDiv = document.getElementById('stats');
+            statsDiv.style.display = 'grid';
+            statsDiv.innerHTML = `
+                <div class="stat-card">
+                    <h3>Total Vehicles</h3>
+                    <div class="stat-value">${Object.keys(fleetData).length}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Depots</h3>
+                    <div class="stat-value">${Object.keys(depotCounts).length}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>JSON Size</h3>
+                    <div class="stat-value">${(jsonString.length / 1024).toFixed(1)} KB</div>
+                </div>
+            `;
+            
+            // Add depot breakdown
+            const depotList = Object.entries(depotCounts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([depot, count]) => `${depot}: ${count}`)
+                .join('<br>');
+            
+            statsDiv.innerHTML += `
+                <div class="stat-card" style="grid-column: span 3;">
+                    <h3>Vehicles by Depot</h3>
+                    <div style="text-align: left; font-size: 14px;">${depotList}</div>
+                </div>
+            `;
+        }
+
+        function showOutput() {
+            const outputDiv = document.getElementById('output');
+            outputDiv.style.display = 'block';
+            document.getElementById('jsonOutput').value = jsonString;
+        }
+
+        function showStatus(message, type = 'status') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+        }
+
+        function downloadJSON() {
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'fleet-database.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function copyJSON() {
+            const textarea = document.getElementById('jsonOutput');
+            textarea.select();
+            document.execCommand('copy');
+            
+            const copyStatus = document.getElementById('copyStatus');
+            copyStatus.textContent = '✅ Copied to clipboard!';
+            copyStatus.style.color = 'green';
+            setTimeout(() => {
+                copyStatus.textContent = '';
+            }, 3000);
+        }
+
+        function saveToBackend() {
+            // This would normally save to the backend directory
+            // For now, just show instructions
+            alert('To save to backend:\n\n1. Copy the JSON content\n2. Create file: /public/backend/data/fleet-database.json\n3. Paste the content and save');
+        }
+    </script>
+</body>
+</html>

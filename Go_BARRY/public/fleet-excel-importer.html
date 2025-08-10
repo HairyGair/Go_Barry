@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fleet Database Excel Importer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #003366;
+            margin-bottom: 10px;
+        }
+        .description {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .upload-area {
+            border: 2px dashed #003366;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .upload-area:hover {
+            background: #e8f4f8;
+            border-color: #004499;
+        }
+        .upload-area.dragover {
+            background: #e8f4f8;
+            border-color: #004499;
+        }
+        .file-input {
+            display: none;
+        }
+        .button {
+            background: #003366;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        .button:hover {
+            background: #004499;
+        }
+        .button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .preview {
+            margin-top: 30px;
+        }
+        .stats {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .stats h3 {
+            margin-top: 0;
+            color: #003366;
+        }
+        .depot-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .depot-item {
+            background: #e8f4f8;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #003366;
+            color: white;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .progress {
+            width: 100%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #003366;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .download-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚌 Fleet Database Excel Importer</h1>
+        <p class="description">Upload your GNE_Fleet_Master.xlsx file to update the fleet database</p>
+        
+        <div class="upload-area" id="uploadArea">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#003366" stroke-width="2">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <p><strong>Drop Excel file here or click to browse</strong></p>
+            <p>Supported formats: .xlsx, .xls</p>
+            <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls">
+        </div>
+        
+        <div id="preview" class="preview" style="display: none;">
+            <h2>📊 Import Preview</h2>
+            <div id="stats" class="stats"></div>
+            <div id="sampleData"></div>
+            <button id="importBtn" class="button">Import to Database</button>
+            <button id="cancelBtn" class="button" style="background: #666;">Cancel</button>
+        </div>
+        
+        <div id="progress" style="display: none;">
+            <h3>Processing...</h3>
+            <div class="progress">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <p id="progressText">Parsing Excel file...</p>
+        </div>
+        
+        <div id="results" style="display: none;"></div>
+        
+        <div class="download-section">
+            <h3>📥 Current Database</h3>
+            <p>Download the current fleet database or view statistics</p>
+            <button onclick="downloadCurrentDatabase()" class="button">Download Current Database</button>
+            <button onclick="viewDatabaseStats()" class="button" style="background: #666;">View Statistics</button>
+        </div>
+    </div>
+
+    <script>
+        // Depot mappings
+        const DEPOT_MAPPINGS = {
+            'PM': 'Percy Main',
+            'Percy Main': 'Percy Main',
+            'CON': 'Consett',
+            'Consett': 'Consett',
+            'DEP': 'Deptford',
+            'Deptford': 'Deptford',
+            'WASH': 'Washington',
+            'Washington': 'Washington',
+            'RIV': 'Gateshead Riverside',
+            'Riverside': 'Gateshead Riverside',
+            'Gateshead Riverside': 'Gateshead Riverside',
+            'HEX': 'Hexham',
+            'Hexham': 'Hexham',
+            'CLS': 'Chester-le-Street',
+            'Chester-le-Street': 'Chester-le-Street',
+            'STAN': 'Stanley',
+            'Stanley': 'Stanley',
+            'Reserve': 'Go North East Reserve Fleet',
+            'Coach': 'Go North East Coach',
+            'Stores': 'Saltmeadows Road Stores'
+        };
+
+        // Default capacities by bus type
+        const CAPACITY_DEFAULTS = {
+            'Solo': 30,
+            'Versa': 40,
+            'StreetLite': 40,
+            'Enviro200': 40,
+            'Citaro': 35,
+            'Enviro400': 85,
+            'B7TL': 85,
+            'B9TL': 85,
+            'Sprinter': 16,
+            'Coach': 53,
+            'E10': 40,
+            'Yutong': 40
+        };
+
+        let parsedData = null;
+        let currentDatabase = null;
+
+        // Setup file upload handlers
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        // Load current database
+        async function loadCurrentDatabase() {
+            try {
+                const response = await fetch('/backend/data/fleet-database.json');
+                currentDatabase = await response.json();
+                console.log(`Loaded ${Object.keys(currentDatabase).length} vehicles from current database`);
+            } catch (error) {
+                console.error('Error loading current database:', error);
+                currentDatabase = {};
+            }
+        }
+
+        loadCurrentDatabase();
+
+        function handleFile(file) {
+            if (!file.name.match(/\.(xlsx|xls)$/)) {
+                alert('Please upload an Excel file (.xlsx or .xls)');
+                return;
+            }
+
+            document.getElementById('preview').style.display = 'none';
+            document.getElementById('progress').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    
+                    // Process the first sheet
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    
+                    // Convert to JSON
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    
+                    // Parse the data
+                    parsedData = parseExcelData(jsonData);
+                    
+                    // Show preview
+                    showPreview(parsedData);
+                    
+                } catch (error) {
+                    console.error('Error parsing file:', error);
+                    document.getElementById('progress').style.display = 'none';
+                    document.getElementById('results').innerHTML = 
+                        '<div class="error">Error parsing Excel file: ' + error.message + '</div>';
+                    document.getElementById('results').style.display = 'block';
+                }
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+
+        function parseExcelData(data) {
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            
+            // Find header row
+            let headerRow = -1;
+            const expectedHeaders = ['fleet', 'registration', 'depot', 'type', 'make', 'model'];
+            
+            for (let i = 0; i < Math.min(10, data.length); i++) {
+                const row = data[i];
+                if (row && row.length > 0) {
+                    const rowStr = row.join(',').toLowerCase();
+                    if (expectedHeaders.some(header => rowStr.includes(header))) {
+                        headerRow = i;
+                        break;
+                    }
+                }
+            }
+            
+            if (headerRow === -1) {
+                throw new Error('Could not find header row in Excel file');
+            }
+            
+            // Get column indices
+            const headers = data[headerRow].map(h => h ? h.toString().toLowerCase() : '');
+            const columns = {
+                fleet: headers.findIndex(h => h.includes('fleet')),
+                registration: headers.findIndex(h => h.includes('reg')),
+                depot: headers.findIndex(h => h.includes('depot')),
+                busType: headers.findIndex(h => h.includes('type') || h.includes('model')),
+                year: headers.findIndex(h => h.includes('year') || h.includes('age')),
+                capacity: headers.findIndex(h => h.includes('capacity') || h.includes('seats'))
+            };
+            
+            const vehicles = [];
+            const totalRows = data.length - headerRow - 1;
+            
+            // Process each row
+            for (let i = headerRow + 1; i < data.length; i++) {
+                const progress = ((i - headerRow) / totalRows) * 100;
+                progressBar.style.width = progress + '%';
+                progressText.textContent = `Processing row ${i - headerRow} of ${totalRows}...`;
+                
+                const row = data[i];
+                if (!row || row.length === 0) continue;
+                
+                const fleetNumber = row[columns.fleet]?.toString().trim();
+                const registration = row[columns.registration]?.toString().trim();
+                
+                if (!fleetNumber || !registration) continue;
+                
+                // Extract year
+                let year = null;
+                if (columns.year !== -1 && row[columns.year]) {
+                    year = parseInt(row[columns.year]);
+                } else {
+                    // Try to extract from registration
+                    const regMatch = registration.match(/[A-Z]{2}(\d{2})[A-Z]{3}/);
+                    if (regMatch) {
+                        const yearPart = parseInt(regMatch[1]);
+                        if (yearPart >= 51 && yearPart <= 99) {
+                            year = 1900 + yearPart;
+                        } else if (yearPart >= 0 && yearPart <= 50) {
+                            year = 2000 + yearPart;
+                        }
+                    }
+                }
+                
+                // Get bus type
+                let busType = 'Unknown';
+                if (columns.busType !== -1 && row[columns.busType]) {
+                    busType = row[columns.busType].toString().trim();
+                }
+                
+                // Get capacity
+                let capacity = 40; // Default
+                for (const [pattern, cap] of Object.entries(CAPACITY_DEFAULTS)) {
+                    if (busType.includes(pattern)) {
+                        capacity = cap;
+                        break;
+                    }
+                }
+                
+                if (columns.capacity !== -1 && row[columns.capacity]) {
+                    const cap = parseInt(row[columns.capacity]);
+                    if (!isNaN(cap) && cap > 0) {
+                        capacity = cap;
+                    }
+                }
+                
+                // Normalize depot
+                let depot = 'Unknown';
+                if (columns.depot !== -1 && row[columns.depot]) {
+                    const depotStr = row[columns.depot].toString().trim();
+                    for (const [key, value] of Object.entries(DEPOT_MAPPINGS)) {
+                        if (depotStr.toLowerCase().includes(key.toLowerCase())) {
+                            depot = value;
+                            break;
+                        }
+                    }
+                    if (depot === 'Unknown') depot = depotStr;
+                }
+                
+                vehicles.push({
+                    fleetNumber: fleetNumber,
+                    registration: registration.toUpperCase(),
+                    depot: depot,
+                    busType: busType,
+                    capacity: capacity,
+                    yearOfManufacture: year || new Date().getFullYear()
+                });
+            }
+            
+            return vehicles;
+        }
+
+        function showPreview(vehicles) {
+            document.getElementById('progress').style.display = 'none';
+            document.getElementById('preview').style.display = 'block';
+            
+            // Calculate statistics
+            const depotCounts = {};
+            vehicles.forEach(v => {
+                depotCounts[v.depot] = (depotCounts[v.depot] || 0) + 1;
+            });
+            
+            // Show stats
+            const statsHtml = `
+                <h3>Import Summary</h3>
+                <p><strong>Total vehicles to import:</strong> ${vehicles.length}</p>
+                <p><strong>Current database vehicles:</strong> ${Object.keys(currentDatabase).length}</p>
+                <h4>Depot Distribution:</h4>
+                <div class="depot-grid">
+                    ${Object.entries(depotCounts)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([depot, count]) => 
+                            `<div class="depot-item"><strong>${depot}:</strong> ${count} vehicles</div>`
+                        ).join('')}
+                </div>
+            `;
+            
+            document.getElementById('stats').innerHTML = statsHtml;
+            
+            // Show sample data
+            const sampleHtml = `
+                <h4>Sample Data (first 10 vehicles):</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fleet #</th>
+                            <th>Registration</th>
+                            <th>Depot</th>
+                            <th>Type</th>
+                            <th>Capacity</th>
+                            <th>Year</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${vehicles.slice(0, 10).map(v => `
+                            <tr>
+                                <td>${v.fleetNumber}</td>
+                                <td>${v.registration}</td>
+                                <td>${v.depot}</td>
+                                <td>${v.busType.substring(0, 30)}${v.busType.length > 30 ? '...' : ''}</td>
+                                <td>${v.capacity}</td>
+                                <td>${v.yearOfManufacture}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            document.getElementById('sampleData').innerHTML = sampleHtml;
+        }
+
+        // Import button handler
+        document.getElementById('importBtn').addEventListener('click', async () => {
+            if (!parsedData) return;
+            
+            // Merge with existing database
+            const updatedDatabase = {...currentDatabase};
+            parsedData.forEach(vehicle => {
+                updatedDatabase[vehicle.fleetNumber] = vehicle;
+            });
+            
+            // Convert to JSON
+            const jsonStr = JSON.stringify(updatedDatabase, null, 2);
+            
+            // Create download link
+            const blob = new Blob([jsonStr], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'fleet-database.json';
+            
+            // Show results
+            document.getElementById('preview').style.display = 'none';
+            document.getElementById('results').innerHTML = `
+                <div class="success">
+                    <h3>✅ Import Complete!</h3>
+                    <p><strong>Total vehicles in database:</strong> ${Object.keys(updatedDatabase).length}</p>
+                    <p><strong>New/Updated vehicles:</strong> ${parsedData.length}</p>
+                    <p>The updated database has been prepared. Click the button below to download it.</p>
+                    <p><strong>Important:</strong> After downloading, place this file at:<br>
+                    <code>/public/backend/data/fleet-database.json</code></p>
+                    <button class="button" onclick="document.getElementById('downloadLink').click()">
+                        Download Updated Database
+                    </button>
+                    <a id="downloadLink" href="${url}" download="fleet-database.json" style="display: none;"></a>
+                </div>
+            `;
+            document.getElementById('results').style.display = 'block';
+            
+            // Auto-click download link
+            setTimeout(() => {
+                a.click();
+            }, 100);
+        });
+
+        // Cancel button handler
+        document.getElementById('cancelBtn').addEventListener('click', () => {
+            document.getElementById('preview').style.display = 'none';
+            parsedData = null;
+        });
+
+        // Download current database
+        async function downloadCurrentDatabase() {
+            const jsonStr = JSON.stringify(currentDatabase, null, 2);
+            const blob = new Blob([jsonStr], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'fleet-database-current.json';
+            a.click();
+        }
+
+        // View database statistics
+        async function viewDatabaseStats() {
+            const vehicles = Object.values(currentDatabase);
+            const depotCounts = {};
+            const typeCounts = {};
+            const yearCounts = {};
+            
+            vehicles.forEach(v => {
+                depotCounts[v.depot] = (depotCounts[v.depot] || 0) + 1;
+                
+                const baseType = v.busType.split(' ')[0];
+                typeCounts[baseType] = (typeCounts[baseType] || 0) + 1;
+                
+                yearCounts[v.yearOfManufacture] = (yearCounts[v.yearOfManufacture] || 0) + 1;
+            });
+            
+            const avgAge = vehicles.reduce((sum, v) => sum + (2025 - v.yearOfManufacture), 0) / vehicles.length;
+            
+            const statsHtml = `
+                <div class="stats">
+                    <h3>Current Fleet Database Statistics</h3>
+                    <p><strong>Total vehicles:</strong> ${vehicles.length}</p>
+                    <p><strong>Average fleet age:</strong> ${avgAge.toFixed(1)} years</p>
+                    
+                    <h4>Vehicles by Depot:</h4>
+                    <div class="depot-grid">
+                        ${Object.entries(depotCounts)
+                            .sort((a, b) => b[1] - a[1])
+                            .map(([depot, count]) => 
+                                `<div class="depot-item"><strong>${depot}:</strong> ${count}</div>`
+                            ).join('')}
+                    </div>
+                    
+                    <h4>Most Common Vehicle Types:</h4>
+                    <div class="depot-grid">
+                        ${Object.entries(typeCounts)
+                            .sort((a, b) => b[1] - a[1])
+                            .slice(0, 10)
+                            .map(([type, count]) => 
+                                `<div class="depot-item"><strong>${type}:</strong> ${count}</div>`
+                            ).join('')}
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('results').innerHTML = statsHtml;
+            document.getElementById('results').style.display = 'block';
+        }
+    </script>
+</body>
+</html>

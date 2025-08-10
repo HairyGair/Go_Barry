@@ -8,6 +8,10 @@ import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import supabaseService from '../services/supabaseService.js';
 
+
+// Fleet database integration
+import fleetDatabase from '../services/fleetDatabaseService.js';
+
 const router = express.Router();
 
 // Depot definitions
@@ -17,7 +21,11 @@ const SEVERITY_LEVELS = ['STOP', 'AMBER', 'CONTINUE', 'PENDING'];
 
 // Helper to determine depot from vehicle ID
 function getDepotFromVehicle(vehicleId) {
-  // Fleet number ranges by depot (example mapping)
+  const vehicle = fleetDatabase.getByFleetNumber(vehicleId);
+  if (vehicle) {
+    return fleetDatabase.getDepotFromFleetNumber(vehicleId);
+  }
+  // Fallback to original logic if vehicle not found
   const fleetNum = parseInt(vehicleId);
   if (fleetNum >= 5200 && fleetNum <= 5499) return 'Washington';
   if (fleetNum >= 5500 && fleetNum <= 5799) return 'Riverside';
@@ -25,7 +33,7 @@ function getDepotFromVehicle(vehicleId) {
   if (fleetNum >= 6300 && fleetNum <= 6599) return 'Consett';
   if (fleetNum >= 6900 && fleetNum <= 7199) return 'Deptford';
   if (fleetNum >= 8300 && fleetNum <= 8399) return 'Hexham';
-  return 'Washington'; // Default
+  return 'Washington';
 }
 
 // Create new breakdown record
@@ -435,5 +443,44 @@ function calculateStageDurations(events) {
 
   return stages;
 }
+
+
+// Vehicle search endpoint
+router.get('/vehicles/search', async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.length < 2) {
+      return res.json({ vehicles: [] });
+    }
+
+    const vehicles = fleetDatabase.searchVehicles(q);
+    res.json({
+      vehicles: vehicles.slice(0, 10) // Limit to 10 results
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to search vehicles' });
+  }
+});
+
+// Vehicle info endpoint
+router.get('/vehicles/:fleetNumber', async (req, res) => {
+  try {
+    const vehicle = fleetDatabase.getByFleetNumber(req.params.fleetNumber);
+    if (!vehicle) {
+      return res.status(404).json({ error: 'Vehicle not found' });
+    }
+
+    res.json({
+      ...vehicle,
+      depot: fleetDatabase.getDepotFromFleetNumber(vehicle.fleetNumber),
+      vehicleTypeCategory: fleetDatabase.getVehicleTypeCategory(vehicle.vehicleType),
+      engineType: fleetDatabase.getEngineType(vehicle.vehicleType),
+      euroRating: fleetDatabase.getEuroRating(vehicle.vehicleType),
+      age: fleetDatabase.getVehicleAge(vehicle.regNo)
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get vehicle info' });
+  }
+});
 
 export default router;

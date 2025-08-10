@@ -4,6 +4,10 @@
 import express from 'express';
 import supabaseService from '../services/supabaseService.js';
 
+
+// Fleet database integration
+import fleetDatabase from '../services/fleetDatabaseService.js';
+
 const router = express.Router();
 
 // Initialize the service
@@ -449,5 +453,38 @@ async function checkForPatterns(breakdownData) {
     console.error('Error checking patterns:', error);
   }
 }
+
+
+// Fleet health dashboard
+router.get('/fleet-health', async (req, res) => {
+  try {
+    const stats = fleetDatabase.getFleetStats();
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get fleet health data' 
+    });
+  }
+});
+
+// Fleet composition analysis
+router.get('/fleet-composition', (req, res) => {
+  try {
+    const stats = fleetDatabase.getFleetStats();
+    res.json({
+      success: true,
+      composition: stats
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get fleet composition' 
+    });
+  }
+});
 
 export default router;

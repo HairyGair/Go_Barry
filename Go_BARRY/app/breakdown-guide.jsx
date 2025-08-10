@@ -1,3 +1,4 @@
+// Fleet lookup component is loaded via WebView in the HTML page
 import React from 'react';
 import { View, StyleSheet, SafeAreaView, Pressable, Text, Platform } from 'react-native';
 import { useRouter } from 'expo-router';

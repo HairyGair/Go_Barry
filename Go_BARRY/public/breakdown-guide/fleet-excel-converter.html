@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fleet Database Converter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .converter-container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .file-input {
+            padding: 15px;
+            border: 2px dashed #007bff;
+            border-radius: 8px;
+            text-align: center;
+            background: #f8f9fa;
+            margin: 20px 0;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .output-area {
+            background: #f8f9fa;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .stats {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .progress {
+            background: #e9ecef;
+            border-radius: 5px;
+            height: 20px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        .progress-bar {
+            background: #28a745;
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="converter-container">
+        <h1>🚌 Fleet Database Excel to JSON Converter</h1>
+        <p>Convert your GNE_Fleet_Master.xlsx file to JSON format for the breakdown guide system.</p>
+        
+        <div class="file-input">
+            <h3>📁 Select Excel File</h3>
+            <input type="file" id="excelFile" accept=".xlsx,.xls" />
+            <p>Choose your GNE_Fleet_Master.xlsx file</p>
+        </div>
+        
+        <div id="processing" style="display: none;">
+            <h3>⚙️ Processing...</h3>
+            <div class="progress">
+                <div id="progressBar" class="progress-bar" style="width: 0%"></div>
+            </div>
+            <p id="processingStatus">Starting conversion...</p>
+        </div>
+        
+        <div id="stats" class="stats" style="display: none;">
+            <h3>📊 Conversion Statistics</h3>
+            <div id="statsContent"></div>
+        </div>
+        
+        <div id="output" style="display: none;">
+            <h3>✅ Conversion Results</h3>
+            <button onclick="downloadJSON()">Download JSON File</button>
+            <button onclick="copyToClipboard()">Copy to Clipboard</button>
+            <button onclick="saveToBreakdownGuide()">Save to Breakdown Guide</button>
+            
+            <h4>Preview (First 50 Vehicles):</h4>
+            <div id="outputArea" class="output-area"></div>
+        </div>
+    </div>
+
+    <script>
+        let convertedData = null;
+        let fullJsonData = null;
+
+        document.getElementById('excelFile').addEventListener('change', handleFile);
+
+        async function handleFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            console.log('📁 File selected:', file.name);
+            document.getElementById('processing').style.display = 'block';
+            document.getElementById('output').style.display = 'none';
+            document.getElementById('stats').style.display = 'none';
+
+            try {
+                updateProgress(10, 'Reading Excel file...');
+                const arrayBuffer = await file.arrayBuffer();
+                
+                updateProgress(25, 'Parsing Excel data...');
+                const workbook = XLSX.read(arrayBuffer, {
+                    cellStyles: true,
+                    cellFormulas: true,
+                    cellDates: true,
+                    cellNF: true,
+                    sheetStubs: true
+                });
+
+                console.log('📊 Workbook loaded. Sheets:', workbook.SheetNames);
+                
+                // Try to find the main fleet sheet
+                let sheetName = workbook.SheetNames[0];
+                
+                // Look for specific sheet names that might contain fleet data
+                const possibleSheetNames = ['Fleet', 'Vehicles', 'Master', 'Data', 'Sheet1'];
+                for (let name of possibleSheetNames) {
+                    if (workbook.SheetNames.find(s => s.toLowerCase().includes(name.toLowerCase()))) {
+                        sheetName = workbook.SheetNames.find(s => s.toLowerCase().includes(name.toLowerCase()));
+                        break;
+                    }
+                }
+
+                console.log('📋 Using sheet:', sheetName);
+                updateProgress(40, `Processing sheet: ${sheetName}...`);
+
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+                    header: 1,
+                    defval: '',
+                    blankrows: false
+                });
+
+                updateProgress(60, 'Analyzing data structure...');
+                console.log('📊 Raw data rows:', jsonData.length);
+
+                if (jsonData.length === 0) {
+                    throw new Error('No data found in Excel file');
+                }
+
+                // Analyze the structure to find column headers
+                const headers = findHeaders(jsonData);
+                console.log('📝 Headers detected:', headers);
+
+                updateProgress(80, 'Converting to fleet database format...');
+                const fleetData = convertToFleetFormat(jsonData, headers);
+
+                updateProgress(95, 'Finalizing conversion...');
+                
+                // Create the final JSON structure
+                fullJsonData = {
+                    metadata: {
+                        createdAt: new Date().toISOString(),
+                        source: file.name,
+                        totalVehicles: fleetData.length,
+                        conversionVersion: '1.0'
+                    },
+                    fleet: fleetData
+                };
+
+                convertedData = fleetData;
+                
+                updateProgress(100, 'Conversion complete!');
+                
+                // Show results
+                showResults();
+                
+            } catch (error) {
+                console.error('❌ Conversion failed:', error);
+                document.getElementById('processingStatus').textContent = `Error: ${error.message}`;
+                document.getElementById('progressBar').style.background = '#dc3545';
+            }
+        }
+
+        function findHeaders(data) {
+            // Look for header row - usually contains fleet number, registration, etc.
+            for (let i = 0; i < Math.min(5, data.length); i++) {
+                const row = data[i];
+                if (row && row.length > 0) {
+                    const rowStr = row.join('').toLowerCase();
+                    if (rowStr.includes('fleet') || rowStr.includes('reg') || rowStr.includes('depot')) {
+                        console.log(`📍 Headers found at row ${i + 1}:`, row);
+                        return {
+                            row: i,
+                            headers: row.map((h, idx) => ({ 
+                                name: h, 
+                                index: idx,
+                                normalizedName: String(h || '').toLowerCase().trim()
+                            }))
+                        };
+                    }
+                }
+            }
+
+            // If no clear headers found, assume first row
+            console.log('⚠️ No clear headers found, using first row');
+            return {
+                row: 0,
+                headers: data[0]?.map((h, idx) => ({ 
+                    name: h, 
+                    index: idx,
+                    normalizedName: String(h || '').toLowerCase().trim()
+                })) || []
+            };
+        }
+
+        function convertToFleetFormat(data, headerInfo) {
+            const headers = headerInfo.headers;
+            const dataStartRow = headerInfo.row + 1;
+            
+            // Map common column names to our standard format
+            const columnMapping = {
+                fleetNumber: findColumn(headers, ['fleet', 'fleet number', 'fleet no', 'vehicle number', 'number']),
+                registration: findColumn(headers, ['reg', 'registration', 'reg no', 'regno', 'plate']),
+                depot: findColumn(headers, ['depot', 'base', 'location', 'home depot', 'garage']),
+                vehicleType: findColumn(headers, ['type', 'vehicle type', 'model', 'vehicle', 'bus type']),
+                manufacturer: findColumn(headers, ['make', 'manufacturer', 'brand']),
+                capacity: findColumn(headers, ['capacity', 'seats', 'seating', 'pax']),
+                year: findColumn(headers, ['year', 'manufacture', 'built', 'age'])
+            };
+
+            console.log('🔗 Column mapping:', columnMapping);
+
+            const fleetData = [];
+            
+            for (let i = dataStartRow; i < data.length; i++) {
+                const row = data[i];
+                if (!row || row.length === 0) continue;
+
+                // Extract fleet number - this is essential
+                const fleetNumber = extractFleetNumber(row, columnMapping.fleetNumber);
+                if (!fleetNumber) continue;
+
+                const vehicle = {
+                    fleetNumber: fleetNumber,
+                    regNo: extractValue(row, columnMapping.registration) || '',
+                    depot: extractValue(row, columnMapping.depot) || estimateDepotFromFleetNumber(fleetNumber),
+                    vehicleType: extractValue(row, columnMapping.vehicleType) || '',
+                    manufacturer: extractValue(row, columnMapping.manufacturer) || '',
+                    capacity: extractValue(row, columnMapping.capacity) || null,
+                    yearOfManufacture: extractValue(row, columnMapping.year) || null
+                };
+
+                // Clean up the data
+                vehicle.depot = cleanDepotName(vehicle.depot);
+                vehicle.vehicleType = cleanVehicleType(vehicle.vehicleType);
+
+                fleetData.push(vehicle);
+            }
+
+            return fleetData.filter(v => v.fleetNumber); // Remove any without fleet numbers
+        }
+
+        function findColumn(headers, searchTerms) {
+            for (let term of searchTerms) {
+                const found = headers.find(h => h.normalizedName.includes(term));
+                if (found) return found.index;
+            }
+            return null;
+        }
+
+        function extractFleetNumber(row, columnIndex) {
+            if (columnIndex === null || columnIndex >= row.length) return null;
+            
+            const value = String(row[columnIndex] || '').trim();
+            
+            // Try to extract numeric fleet number
+            const match = value.match(/(\d{3,4})/);
+            return match ? match[1] : null;
+        }
+
+        function extractValue(row, columnIndex) {
+            if (columnIndex === null || columnIndex >= row.length) return null;
+            return String(row[columnIndex] || '').trim() || null;
+        }
+
+        function estimateDepotFromFleetNumber(fleetNumber) {
+            const num = parseInt(fleetNumber);
+            
+            // Use the same depot estimation logic as the fleet database service
+            if (num >= 638 && num <= 699) return 'Consett';
+            if (num >= 5210 && num <= 5229) return 'Deptford';
+            if (num >= 5230 && num <= 5249) return 'Percy Main';
+            if (num >= 5250 && num <= 5274) return 'Deptford';
+            if (num >= 5275 && num <= 5284) return 'Percy Main';
+            if (num >= 5285 && num <= 5309) return 'Riverside';
+            if (num >= 5310 && num <= 5337) return 'Washington';
+            if (num >= 5338 && num <= 5376) return 'Consett';
+            if (num >= 5377 && num <= 5409) return 'Deptford';
+            if (num >= 5410 && num <= 5419) return 'Hexham';
+            if (num >= 5420 && num <= 5437) return 'Percy Main';
+            if (num >= 5438 && num <= 5452) return 'Riverside';
+            if (num >= 5453 && num <= 5479) return 'Washington';
+            if (num >= 5480 && num <= 5499) return 'Consett';
+            if (num >= 6001 && num <= 6007) return 'Deptford';
+            if (num >= 6008 && num <= 6042) return 'Hexham';
+            if (num >= 6043 && num <= 6048) return 'Percy Main';
+            // ... add more ranges as needed
+            
+            return 'Unknown';
+        }
+
+        function cleanDepotName(depot) {
+            if (!depot) return 'Unknown';
+            
+            const depotMap = {
+                'deptford': 'Deptford',
+                'percy main': 'Percy Main',
+                'consett': 'Consett',
+                'washington': 'Washington',
+                'riverside': 'Riverside',
+                'hexham': 'Hexham'
+            };
+            
+            const normalized = depot.toLowerCase().trim();
+            return depotMap[normalized] || depot;
+        }
+
+        function cleanVehicleType(vehicleType) {
+            if (!vehicleType) return '';
+            return vehicleType.trim();
+        }
+
+        function updateProgress(percentage, status) {
+            document.getElementById('progressBar').style.width = percentage + '%';
+            document.getElementById('processingStatus').textContent = status;
+        }
+
+        function showResults() {
+            document.getElementById('processing').style.display = 'none';
+            document.getElementById('stats').style.display = 'block';
+            document.getElementById('output').style.display = 'block';
+
+            // Show statistics
+            const depotCounts = {};
+            const typeCounts = {};
+            
+            convertedData.forEach(vehicle => {
+                depotCounts[vehicle.depot] = (depotCounts[vehicle.depot] || 0) + 1;
+                if (vehicle.vehicleType) {
+                    typeCounts[vehicle.vehicleType] = (typeCounts[vehicle.vehicleType] || 0) + 1;
+                }
+            });
+
+            const statsHtml = `
+                <div><strong>Total Vehicles:</strong> ${convertedData.length}</div>
+                <div><strong>Depots:</strong> ${Object.keys(depotCounts).length}</div>
+                <div><strong>Vehicle Types:</strong> ${Object.keys(typeCounts).length}</div>
+                <br>
+                <strong>Depot Breakdown:</strong><br>
+                ${Object.entries(depotCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([depot, count]) => `• ${depot}: ${count} vehicles`)
+                    .join('<br>')}
+            `;
+            
+            document.getElementById('statsContent').innerHTML = statsHtml;
+
+            // Show preview
+            const preview = convertedData.slice(0, 50);
+            document.getElementById('outputArea').textContent = JSON.stringify(preview, null, 2);
+        }
+
+        function downloadJSON() {
+            if (!fullJsonData) return;
+
+            const blob = new Blob([JSON.stringify(fullJsonData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'gne-fleet-database.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function copyToClipboard() {
+            if (!fullJsonData) return;
+
+            navigator.clipboard.writeText(JSON.stringify(fullJsonData, null, 2))
+                .then(() => alert('✅ JSON data copied to clipboard!'))
+                .catch(() => alert('❌ Failed to copy to clipboard'));
+        }
+
+        async function saveToBreakdownGuide() {
+            if (!fullJsonData) return;
+
+            try {
+                // This would save directly to the breakdown guide directory
+                // For security reasons, browsers can't write files directly
+                // So we'll provide instructions instead
+                
+                const instructions = `
+To integrate with your breakdown guide system:
+
+1. Save the downloaded JSON file as: 
+   /Users/anthony/Go BARRY App/Go_BARRY/public/gne-fleet-database.json
+
+2. The enhanced fleet selection modal will automatically use this data
+
+3. Restart your breakdown guide application to load the new data
+
+The file contains ${fullJsonData.fleet.length} vehicles with depot assignments.
+                `;
+                
+                alert(instructions);
+                
+            } catch (error) {
+                console.error('Save failed:', error);
+                alert('❌ Direct save failed. Please download and place manually.');
+            }
+        }
+    </script>
+</body>
+</html>
