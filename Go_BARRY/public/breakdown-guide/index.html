@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Go North East - Breakdown Guide App</title>
+    <title>Go North East - Breakdown Guide (No Auth)</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -11,6 +11,10 @@
     <link rel="stylesheet" href="./styles/main.css">
 </head>
 <body class="bg-gray-50">
+    <!-- NO AUTHENTICATION MODE - All auth components disabled -->
+    
+    <!-- Initialize ALL mock systems FIRST before any other scripts -->
+    
     <div id="root"></div>
     <div id="loading" class="fixed inset-0 bg-white flex items-center justify-center z-50">
         <div class="text-center">
@@ -21,39 +25,173 @@
             <div class="animate-pulse w-8 h-8 bg-blue-600 rounded mx-auto"></div>
         </div>
     </div>
-
+    
+    <!-- Create mock authentication system -->
+    <script>
+        // Mock supervisor session - always authenticated
+        window.currentSupervisorSession = {
+            supervisorId: 'AG003',
+            name: 'Anthony Gair',
+            depot: 'Admin',
+            permissions: ['admin'],
+            authenticated: true,
+            loginTime: new Date().toISOString()
+        };
+        
+        // Mock SupervisorBreakdownLogger
+        window.SupervisorBreakdownLogger = {
+            currentSupervisor: window.currentSupervisorSession,
+            currentAssessment: null,
+            setSupervisor: (session) => {
+                console.log('Mock: Set supervisor', session);
+                this.currentSupervisor = session;
+                return true;
+            },
+            startAssessment: (wizardType, fleetNumber, depot) => {
+                console.log('Mock: Start assessment', { wizardType, fleetNumber, depot });
+                window.SupervisorBreakdownLogger.currentAssessment = {
+                    id: 'mock_assessment_' + Date.now(),
+                    wizardType,
+                    fleetNumber,
+                    depot,
+                    startTime: new Date().toISOString()
+                };
+                return true;
+            },
+            completeAssessment: async (assessment) => {
+                console.log('Mock: Complete assessment', assessment);
+                const wizardName = assessment.category || window.SupervisorBreakdownLogger.currentAssessment?.wizardType || 'Unknown';
+                const vehicleInfo = assessment.vehicle?.fleetNumber || assessment.fleetNumber || 'Unknown';
+                const decision = assessment.decision || assessment.safetyDecision || 'Unknown';
+                alert(`Assessment Complete!\n\nWizard: ${wizardName}\nVehicle: ${vehicleInfo}\nDecision: ${decision}`);
+                return { success: true, id: 'mock_' + Date.now() };
+            },
+            logStepProgression: (step, description, responses) => {
+                console.log('Mock: Log step progression', { step, description, responses });
+                return true;
+            },
+            logSafetyDetermination: (wizardType, decision, reason) => {
+                console.log('Mock: Log safety determination', { wizardType, decision, reason });
+                return true;
+            },
+            logAction: (action, data) => {
+                console.log('Mock: Log action', action, data);
+                return true;
+            },
+            getAssessmentHistory: () => [],
+            logAssessment: (data) => console.log('Mock: Log assessment', data)
+        };
+        
+        // Mock BreakdownAnalytics - Complete implementation
+        window.BreakdownAnalytics = {
+            setSupervisor: (session) => {
+                console.log('Mock: Analytics set supervisor', session);
+                return true;
+            },
+            yticssetSupervisor: (session) => {
+                console.log('Mock: Analytics yticssetSupervisor', session);
+                return true;
+            },
+            recordBreakdown: async (category, responses, decision) => {
+                console.log('Mock: Record breakdown', { category, responses, decision });
+                return Promise.resolve({ success: true, id: 'mock_' + Date.now() });
+            },
+            checkPatterns: async (fleetNumber, depot) => {
+                console.log('Mock: Check patterns', { fleetNumber, depot });
+                return Promise.resolve({ patterns: [], riskLevel: 'low' });
+            },
+            detectDepot: (fleetNumber) => {
+                console.log('Mock: Detect depot', fleetNumber);
+                return 'Unknown Depot';
+            },
+            getAllBreakdowns: () => [],
+            getAnalyticsSummary: () => ({
+                totalBreakdowns: 0,
+                vehiclesAffected: 0,
+                stopDecisions: 0,
+                amberDecisions: 0,
+                continueDecisions: 0
+            }),
+            init: () => {
+                console.log('Mock: BreakdownAnalytics init');
+                return true;
+            },
+            isInitialized: () => true,
+            // Add any other functions that might be called
+            logEvent: (event, data) => {
+                console.log('Mock: Log event', event, data);
+                return true;
+            },
+            getStats: () => ({
+                today: 0,
+                week: 0,
+                month: 0
+            })
+        };
+        
+        // Mock breakdown tracker
+        window.breakdownTracker = {
+            supervisorBadge: 'AG003',
+            supervisorName: 'Anthony Gair',
+            init: () => {
+                console.log('Mock: Breakdown tracker init');
+                return true;
+            },
+            startAssessment: (type, fleet, depot) => {
+                console.log('Mock: Start assessment', { type, fleet, depot });
+                return true;
+            },
+            completeAssessment: (data) => {
+                console.log('Mock: Complete assessment', data);
+                return { success: true, id: 'mock_' + Date.now() };
+            },
+            logStep: (step, data) => {
+                console.log('Mock: Log step', step, data);
+                return true;
+            },
+            setSupervisor: (session) => {
+                console.log('Mock: Set supervisor', session);
+                return true;
+            }
+        };
+        
+        // Mock wizard tracker integration
+        window.wizardTrackerIntegration = {
+            createBreakdownFromWizard: async (wizardType, decision, responses, assessmentId) => {
+                console.log('Mock: Create breakdown from wizard', { wizardType, decision, responses, assessmentId });
+                return { success: true, id: 'mock_wizard_' + Date.now() };
+            },
+            init: () => {
+                console.log('Mock: Wizard tracker integration init');
+                return true;
+            }
+        };
+        
+        console.log('✅ NO-AUTH MODE: Mock authentication system loaded');
+        console.log('👤 Auto-authenticated as:', window.currentSupervisorSession.name);
+        
+        // Verify all mocks are available
+        console.log('🔧 Mock status check:');
+        console.log('  • SupervisorBreakdownLogger:', !!window.SupervisorBreakdownLogger);
+        console.log('  • BreakdownAnalytics:', !!window.BreakdownAnalytics);
+        console.log('  • breakdownTracker:', !!window.breakdownTracker);
+        console.log('  • wizardTrackerIntegration:', !!window.wizardTrackerIntegration);
+        console.log('  • currentSupervisorSession:', !!window.currentSupervisorSession);
+    </script>
+    
     <!-- Load common components first -->
     <script src="./components/common/constants.js"></script>
     <script type="text/babel" src="./components/common/icons.js"></script>
-    
-    <!-- Load supervisor authentication and logging -->
-    <script type="text/babel" src="./components/SupervisorLogin.js"></script>
-    <script src="./supervisorBreakdownLogger.js"></script>
-    
-    <!-- Load local authentication fallback for offline mode -->
-    <script src="./local-auth-fallback.js"></script>
-    
-    <!-- Load breakdown analytics integration -->
-    <script src="./breakdown-analytics.js"></script>
-    
-    <!-- Load analytics integration fix to connect logger to analytics -->
-    <script src="./breakdown-analytics-integration.js"></script>
-    
-    <!-- Load dashboard data provider for analytics dashboard -->
-    <script src="./breakdown-dashboard-provider.js"></script>
-    
-    <!-- Load breakdown logging helper -->
-    <script src="../breakdownLogger.js"></script>
     
     <!-- Load fleet database service (non-module for immediate availability) -->
     <script src="./services/fleetDatabase.js"></script>
     <script src="./fleet-database-init.js"></script>
     
     <!-- Load Breakdown Tracker for timed response analytics -->
-    <script src="./components/BreakdownTracker.js"></script>
+    <!-- <script src="./components/BreakdownTracker.js"></script> --> <!-- Disabled: Using mock version above -->
     
     <!-- Load Wizard-Tracker Integration -->
-    <script src="./components/WizardTrackerIntegration.js"></script>
+    <!-- <script src="./components/WizardTrackerIntegration.js"></script> --> <!-- Disabled: Using mock version above -->
     
     <!-- Load Enhanced Fleet Selection Modal -->
     <script type="text/babel" src="./components/EnhancedFleetSelectionModal.js"></script>
@@ -99,7 +237,7 @@
     <script type="text/babel" src="./components/wizards/InteriorExteriorDamageWizard.js"></script>
     
     <!-- Load breakdown analytics integration -->
-    <script src="./components/common/breakdownAnalytics.js"></script>
+    <!-- <script src="./components/common/breakdownAnalytics.js"></script> --> <!-- Disabled: Using mock version above -->
     
     <!-- Load main application -->
     <script type="text/babel" src="./App.js"></script>

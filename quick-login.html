@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Login to Breakdown Guide</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 90%;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .logo {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .logo .go { color: #003d7a; }
+        .logo .ne { color: #ce0e2d; }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .supervisor-grid {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .supervisor-btn {
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: left;
+        }
+        .supervisor-btn:hover {
+            background: #e9ecef;
+            border-color: #adb5bd;
+            transform: translateY(-2px);
+        }
+        .supervisor-btn.admin {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+        .supervisor-btn.admin:hover {
+            background: #ffeaa7;
+        }
+        .badge {
+            font-weight: bold;
+            color: #495057;
+            font-size: 14px;
+        }
+        .name {
+            color: #212529;
+            margin-top: 4px;
+        }
+        .admin-label {
+            display: inline-block;
+            background: #ffc107;
+            color: #333;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-left: 10px;
+            font-weight: bold;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+        .emergency-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 20px;
+        }
+        .emergency-btn:hover {
+            background: #c82333;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <span class="go">Go</span><span class="ne">NorthEast</span>
+        </div>
+        <h1>Quick Login to Breakdown Guide</h1>
+        <p class="subtitle">Select a supervisor account to login immediately</p>
+        
+        <div id="status" class="status"></div>
+        
+        <div class="supervisor-grid">
+            <div class="supervisor-btn admin" onclick="quickLogin('AG003', 'Anthony Gair', true)">
+                <div class="badge">AG003 <span class="admin-label">ADMIN</span></div>
+                <div class="name">Anthony Gair</div>
+            </div>
+            
+            <div class="supervisor-btn" onclick="quickLogin('AW001', 'Alex Woodcock', false)">
+                <div class="badge">AW001</div>
+                <div class="name">Alex Woodcock</div>
+            </div>
+            
+            <div class="supervisor-btn" onclick="quickLogin('AC002', 'Andrew Cowley', false)">
+                <div class="badge">AC002</div>
+                <div class="name">Andrew Cowley</div>
+            </div>
+            
+            <div class="supervisor-btn" onclick="quickLogin('CF004', 'Claire Fiddler', false)">
+                <div class="badge">CF004</div>
+                <div class="name">Claire Fiddler</div>
+            </div>
+            
+            <div class="supervisor-btn" onclick="quickLogin('DH005', 'David Hall', false)">
+                <div class="badge">DH005</div>
+                <div class="name">David Hall</div>
+            </div>
+            
+            <div class="supervisor-btn" onclick="quickLogin('JD006', 'James Daglish', false)">
+                <div class="badge">JD006</div>
+                <div class="name">James Daglish</div>
+            </div>
+            
+            <div class="supervisor-btn" onclick="quickLogin('JP007', 'John Paterson', false)">
+                <div class="badge">JP007</div>
+                <div class="name">John Paterson</div>
+            </div>
+            
+            <div class="supervisor-btn" onclick="quickLogin('SG008', 'Simon Glass', false)">
+                <div class="badge">SG008</div>
+                <div class="name">Simon Glass</div>
+            </div>
+            
+            <div class="supervisor-btn admin" onclick="quickLogin('BP009', 'Barry Perryman', true)">
+                <div class="badge">BP009 <span class="admin-label">ADMIN</span></div>
+                <div class="name">Barry Perryman</div>
+            </div>
+        </div>
+        
+        <button class="emergency-btn" onclick="emergencyLogin()">
+            🚨 Emergency Login (Bypass All Checks)
+        </button>
+        
+        <div class="info">
+            <strong>Note:</strong> This is a development tool to bypass authentication when the backend is offline. 
+            Click any supervisor to login instantly, or use the emergency button to force login.
+        </div>
+    </div>
+    
+    <script>
+        const supervisorMap = {
+            'AW001': 'supervisor001',
+            'AC002': 'supervisor002',
+            'AG003': 'supervisor003',
+            'CF004': 'supervisor004',
+            'DH005': 'supervisor005',
+            'JD006': 'supervisor006',
+            'JP007': 'supervisor007',
+            'SG008': 'supervisor008',
+            'BP009': 'supervisor009'
+        };
+        
+        function quickLogin(badge, name, isAdmin) {
+            const supervisorId = supervisorMap[badge];
+            
+            const session = {
+                supervisorId: supervisorId,
+                supervisorName: name,
+                name: name,
+                badge: badge,
+                depot: 'Quick Login',
+                isAdmin: isAdmin,
+                email: `${badge.toLowerCase()}@gonortheast.co.uk`,
+                token: 'quick-login-' + Date.now(),
+                timestamp: new Date().toISOString()
+            };
+            
+            // Save to localStorage
+            localStorage.setItem('supervisor_session', JSON.stringify(session));
+            
+            // Show success message
+            const status = document.getElementById('status');
+            status.className = 'status success';
+            status.innerHTML = `✅ Logged in as <strong>${name} (${badge})</strong><br>Redirecting to Breakdown Guide...`;
+            
+            // Redirect after 1.5 seconds
+            setTimeout(() => {
+                window.location.href = 'Go_BARRY/public/breakdown-guide/index.html';
+            }, 1500);
+        }
+        
+        function emergencyLogin() {
+            // Force login as Anthony Gair
+            quickLogin('AG003', 'Anthony Gair', true);
+        }
+        
+        // Check if we already have a session
+        const existingSession = localStorage.getItem('supervisor_session');
+        if (existingSession) {
+            try {
+                const session = JSON.parse(existingSession);
+                const status = document.getElementById('status');
+                status.className = 'status success';
+                status.innerHTML = `ℹ️ Already logged in as <strong>${session.name} (${session.badge})</strong><br>
+                    <a href="Go_BARRY/public/breakdown-guide/index.html" style="color: #155724; font-weight: bold;">
+                        Go to Breakdown Guide →
+                    </a>`;
+            } catch (e) {
+                // Invalid session, ignore
+            }
+        }
+    </script>
+</body>
+</html>

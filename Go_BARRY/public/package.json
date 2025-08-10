@@ -1,0 +1,33 @@
+{
+  "name": "go-barry-breakdown-guide",
+  "version": "2.0.0",
+  "type": "module",
+  "description": "Go North East Breakdown Guide - Optimized Build",
+  "main": "src/main.jsx",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "serve": "vite preview --port 3001",
+    "clean": "rm -rf dist/*",
+    "build:analyze": "vite build --mode analyze"
+  },
+  "keywords": [
+    "react",
+    "breakdown-guide",
+    "go-north-east",
+    "diagnostics"
+  ],
+  "author": "Anthony Gair <anthonygair@icloud.com>",
+  "license": "PROPRIETARY",
+  "private": true,
+  "dependencies": {
+    "@headlessui/react": "^2.2.7",
+    "@heroicons/react": "^2.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "vite": "^7.1.1",
+    "zustand": "^5.0.7"
+  }
+}

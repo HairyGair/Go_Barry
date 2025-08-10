@@ -1,0 +1,128 @@
+{
+  "name": "Go North East Breakdown Guide",
+  "short_name": "GO BARRY",
+  "description": "Professional vehicle diagnostic and breakdown management system for Go North East supervisors",
+  "version": "3.0.0",
+  "start_url": "/breakdown-guide/index.html",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#ce0e2d",
+  "background_color": "#ffffff",
+  "scope": "/breakdown-guide/",
+  "categories": ["business", "productivity", "utilities"],
+  "lang": "en-GB",
+  
+  "icons": [
+    {
+      "src": "/gobarry-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/gobarry-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  
+  "screenshots": [
+    {
+      "src": "/screenshots/breakdown-guide-main.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "platform": "wide",
+      "label": "Breakdown Guide Main Interface"
+    },
+    {
+      "src": "/screenshots/wizard-interface.png", 
+      "sizes": "390x844",
+      "type": "image/png",
+      "platform": "narrow",
+      "label": "Diagnostic Wizard Interface"
+    }
+  ],
+  
+  "shortcuts": [
+    {
+      "name": "Emergency Breakdown",
+      "short_name": "Emergency",
+      "description": "Quick access to emergency breakdown procedures",
+      "url": "/breakdown-guide/?wizard=emergency",
+      "icons": [
+        {
+          "src": "/icons/emergency.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Fleet Search",
+      "short_name": "Fleet",
+      "description": "Search fleet database",
+      "url": "/breakdown-guide/?action=fleet-search",
+      "icons": [
+        {
+          "src": "/icons/fleet.png", 
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "short_name": "Analytics",
+      "description": "View breakdown analytics dashboard",
+      "url": "/breakdown-analytics/",
+      "icons": [
+        {
+          "src": "/icons/analytics.png",
+          "sizes": "96x96", 
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  
+  "protocol_handlers": [
+    {
+      "protocol": "gobarry",
+      "url": "/breakdown-guide/?action=%s"
+    }
+  ],
+  
+  "prefer_related_applications": false,
+  
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://gobarry.co.uk/breakdown-guide/"
+    }
+  ],
+  
+  "features": [
+    "offline-breakdown-assessments",
+    "fleet-database-search", 
+    "supervisor-authentication",
+    "real-time-analytics",
+    "background-sync"
+  ],
+  
+  "permissions": [
+    "storage",
+    "background-sync",
+    "geolocation"
+  ],
+  
+  "display_override": ["window-controls-overlay", "minimal-ui"],
+  
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  }
+}

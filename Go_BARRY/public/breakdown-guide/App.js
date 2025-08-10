@@ -5,9 +5,16 @@ const App = function() {
     const { useState, useEffect } = React;
     const { Home } = window.Icons || {};
     
-    // Authentication state
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [supervisorSession, setSupervisorSession] = useState(null);
+    // Authentication state - NO AUTH MODE: Always authenticated
+    const [isAuthenticated, setIsAuthenticated] = useState(true);
+    const [supervisorSession, setSupervisorSession] = useState({
+        supervisorId: 'AG003',
+        name: 'Anthony Gair',
+        depot: 'Admin',
+        permissions: ['admin'],
+        authenticated: true,
+        loginTime: new Date().toISOString()
+    });
     
     // Assessment state
     const [currentWizard, setCurrentWizard] = useState(null);
@@ -19,6 +26,33 @@ const App = function() {
     const [showFleetModal, setShowFleetModal] = useState(false);
     const [pendingWizardType, setPendingWizardType] = useState(null);
     const [selectedVehicle, setSelectedVehicle] = useState(null);
+
+    // NO AUTH MODE: Initialize systems automatically
+    useEffect(() => {
+        console.log('🚀 NO AUTH MODE: Auto-initializing systems...');
+        
+        // Initialize the logger with supervisor session
+        if (window.SupervisorBreakdownLogger) {
+            window.SupervisorBreakdownLogger.setSupervisor(supervisorSession);
+            console.log('✅ SupervisorBreakdownLogger initialized');
+        }
+        
+        // Also update BreakdownAnalytics for compatibility
+        if (window.BreakdownAnalytics) {
+            window.BreakdownAnalytics.setSupervisor(supervisorSession);
+            console.log('✅ BreakdownAnalytics initialized');
+        }
+        
+        // Initialize Breakdown Tracker
+        if (window.breakdownTracker) {
+            window.breakdownTracker.supervisorBadge = supervisorSession.supervisorId;
+            window.breakdownTracker.supervisorName = supervisorSession.name;
+            window.breakdownTracker.init();
+            console.log('✅ BreakdownTracker initialized');
+        }
+        
+        console.log(`✅ NO AUTH MODE: All systems initialized for ${supervisorSession.name}`);
+    }, []);
 
     // Handle successful login
     const handleLoginSuccess = (session) => {
@@ -274,24 +308,30 @@ const App = function() {
         setSelectedVehicle(vehicle);
         
         // Start a new assessment with supervisor tracking
-        if (window.SupervisorBreakdownLogger && supervisorSession) {
-            const assessmentStarted = window.SupervisorBreakdownLogger.startAssessment(
-                pendingWizardType,
-                vehicle.fleetNumber,
-                vehicle.depot
-            );
-            
-            if (assessmentStarted) {
-                setAssessmentId(window.SupervisorBreakdownLogger.currentAssessment.id);
-                setResponses({ 
-                    fleetNumber: vehicle.fleetNumber, 
-                    depot: vehicle.depot,
-                    registration: vehicle.registration,
-                    vehicleType: vehicle.vehicleType,
-                    vehicleDetails: vehicle
-                });
+        try {
+            if (window.SupervisorBreakdownLogger && supervisorSession) {
+                const assessmentStarted = window.SupervisorBreakdownLogger.startAssessment(
+                    pendingWizardType,
+                    vehicle.fleetNumber,
+                    vehicle.depot
+                );
+                
+                if (assessmentStarted && window.SupervisorBreakdownLogger.currentAssessment) {
+                    setAssessmentId(window.SupervisorBreakdownLogger.currentAssessment.id);
+                }
             }
+        } catch (error) {
+            console.warn('⚠️ Supervisor tracking failed, continuing anyway:', error);
         }
+        
+        // Set up basic vehicle responses
+        setResponses({ 
+            fleetNumber: vehicle.fleetNumber, 
+            depot: vehicle.depot,
+            registration: vehicle.registration,
+            vehicleType: vehicle.vehicleType,
+            vehicleDetails: vehicle
+        });
         
         // Start the wizard
         setCurrentWizard(pendingWizardType);
@@ -2210,7 +2250,7 @@ const App = function() {
             </div>
             
             {/* Fleet Selection Modal */}
-            {showFleetModal && (
+            {showFleetModal && window.FleetSelectionModal && (
                 React.createElement(window.FleetSelectionModal, {
                     isVisible: showFleetModal,
                     onClose: handleFleetModalClose,
