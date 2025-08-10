@@ -5,6 +5,11 @@ const App = function() {
     const { useState, useEffect } = React;
     const { Home } = window.Icons || {};
     
+    // Get components from global scope
+    const BreakdownInfoStep = window.BreakdownInfoStep;
+    const SteeringWizard = window.SteeringWizard;
+    const BrakesWizard = window.BrakesWizard;
+    
     // Authentication state - NO AUTH MODE: Always authenticated
     const [isAuthenticated, setIsAuthenticated] = useState(true);
     const [supervisorSession, setSupervisorSession] = useState({
@@ -335,7 +340,7 @@ const App = function() {
         
         // Start the wizard
         setCurrentWizard(pendingWizardType);
-        setCurrentStep(1);
+        setCurrentStep(1); // Start with wizard step 1 for now
         setShowFleetModal(false);
         setPendingWizardType(null);
     };
@@ -2182,7 +2187,7 @@ const App = function() {
                         >
                             <div className="text-center">
                                 <div className="text-4xl mb-3">🚨</div>
-                                <h3 className="text-xl font-bold text-white mb-2">Operations Center</h3>
+                                <h3 className="text-xl font-bold text-white mb-2">Operations Centre</h3>
                                 <p className="text-red-300/80 text-sm">Real-time breakdown monitoring and engineer dispatch</p>
                                 <div className="mt-3 flex flex-wrap gap-2 justify-center">
                                     <span className="text-xs bg-red-500/20 text-red-300 px-2 py-1 rounded-full">Live Tracking</span>

@@ -34,6 +34,19 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                         </div>
                     </div>
 
+                    {/* Location Input */}
+                    <div className="bg-blue-500/10 backdrop-blur-sm rounded-lg p-4 border border-blue-400/30 mb-6">
+                        <h4 className="text-sm font-semibold text-blue-200 mb-3">📍 Current Location</h4>
+                        <input
+                            type="text"
+                            value={responses.location || ''}
+                            onChange={(e) => updateResponse('location', e.target.value)}
+                            placeholder="e.g., Newcastle Central Station, A1 Northbound, Team Valley"
+                            className="w-full px-3 py-2 bg-white/10 border border-white/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-400 text-sm"
+                        />
+                        <p className="text-xs text-blue-300/80 mt-1">Please specify where the vehicle is currently located</p>
+                    </div>
+
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
                         <h3 className="text-lg font-semibold text-white mb-4">Initial Steering System Assessment</h3>
                         <p className="text-gray-300 text-sm mb-4">What steering system condition requires assessment? (ANY of these = critical stop)</p>
@@ -247,7 +260,7 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                     <div className="flex justify-end">
                         <button
                             onClick={onNext}
-                            disabled={!responses.initial_concern}
+                            disabled={!responses.initial_concern || !responses.location}
                             className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             Continue Assessment

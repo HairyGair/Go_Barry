@@ -438,109 +438,99 @@
     </div>
 
     <script>
-        // Configuration
-        const API_BASE = window.location.hostname === 'localhost' 
-            ? 'http://localhost:8080' 
-            : 'https://go-barry.onrender.com';
-        
         // Data store
         let breakdowns = {
             active: [],
             resolved: []
         };
 
-        // Load data from API
-        async function loadFromAPI() {
+        // Load data from localStorage (from breakdown guide)
+        function loadFromLocalStorage() {
             try {
-                // Load active breakdowns
-                const activeResponse = await fetch(`${API_BASE}/api/breakdown-tracker/active`);
-                const activeData = await activeResponse.json();
+                // Load breakdown data from localStorage
+                const stored = localStorage.getItem('gobarry_breakdown_data');
+                const allBreakdowns = stored ? JSON.parse(stored) : [];
                 
-                if (activeData.success) {
-                    breakdowns.active = activeData.breakdowns || [];
-                }
+                // Filter active breakdowns (STOP decisions that aren't resolved)
+                breakdowns.active = allBreakdowns
+                    .filter(b => b.decision === 'STOP' && !b.resolved)
+                    .map(b => ({
+                        id: b.id,
+                        vehicleNumber: b.fleetNumber,
+                        issueType: formatIssueType(b.wizardType),
+                        location: b.location || 'Location not specified',
+                        depot: b.depot,
+                        route: b.route || 'Unknown',
+                        supervisor: b.supervisorName || b.supervisor,
+                        startTime: new Date(b.timestamp).getTime(),
+                        stages: getBreakdownStages(b),
+                        currentStage: getCurrentStage(b),
+                        rawData: b
+                    }));
                 
-                // Load resolved breakdowns (last 24 hours)
-                const resolvedResponse = await fetch(`${API_BASE}/api/breakdown-tracker/resolved?hours=24`);
-                const resolvedData = await resolvedResponse.json();
-                
-                if (resolvedData.success) {
-                    breakdowns.resolved = resolvedData.breakdowns || [];
-                }
+                // Filter resolved breakdowns (last 24 hours)
+                const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
+                breakdowns.resolved = allBreakdowns
+                    .filter(b => b.resolved && new Date(b.resolvedTime).getTime() > twentyFourHoursAgo)
+                    .map(b => ({
+                        vehicleNumber: b.fleetNumber,
+                        issueType: formatIssueType(b.wizardType),
+                        depot: b.depot,
+                        responseTime: calculateResponseTime(b),
+                        resolvedAt: new Date(b.resolvedTime).getTime()
+                    }))
+                    .sort((a, b) => b.resolvedAt - a.resolvedAt);
                 
                 updateAll();
             } catch (error) {
-                console.error('Error loading breakdowns:', error);
-                // Fall back to sample data if API is unavailable
-                initializeSampleData();
+                console.error('Error loading from localStorage:', error);
+                // No fallback to sample data - we want real data only
+                breakdowns.active = [];
+                breakdowns.resolved = [];
+                updateAll();
             }
         }
-
-        // Initialize with sample data for demonstration (fallback only)
-        function initializeSampleData() {
-            breakdowns.active = [
-                {
-                    id: 'BD001',
-                    vehicleNumber: '6333',
-                    issueType: 'Red EBS Light',
-                    location: 'A1 Northbound, Team Valley',
-                    depot: 'Gateshead',
-                    route: '21',
-                    supervisor: 'J.Smith',
-                    startTime: Date.now() - (45 * 60 * 1000), // 45 mins ago
-                    stages: ['received', 'acknowledged', 'decision', 'engineer_dispatched'],
-                    currentStage: 'engineer_dispatched'
-                },
-                {
-                    id: 'BD002',
-                    vehicleNumber: '5412',
-                    issueType: 'Brake Failure',
-                    location: 'Newcastle Central Station',
-                    depot: 'Percy Main',
-                    route: 'X10',
-                    supervisor: 'M.Johnson',
-                    startTime: Date.now() - (22 * 60 * 1000), // 22 mins ago
-                    stages: ['received', 'acknowledged', 'decision'],
-                    currentStage: 'decision'
-                },
-                {
-                    id: 'BD003',
-                    vehicleNumber: '7089',
-                    issueType: 'Oil Warning Light',
-                    location: 'Consett Bus Station',
-                    depot: 'Consett',
-                    route: 'V1',
-                    supervisor: 'P.Wilson',
-                    startTime: Date.now() - (8 * 60 * 1000), // 8 mins ago
-                    stages: ['received', 'acknowledged'],
-                    currentStage: 'acknowledged'
-                }
-            ];
-
-            breakdowns.resolved = [
-                {
-                    vehicleNumber: '4521',
-                    issueType: 'Steering Issues',
-                    depot: 'Washington',
-                    responseTime: 38,
-                    resolvedAt: Date.now() - (2 * 60 * 60 * 1000)
-                },
-                {
-                    vehicleNumber: '6012',
-                    issueType: 'Non-Starter',
-                    depot: 'Hexham',
-                    responseTime: 52,
-                    resolvedAt: Date.now() - (4 * 60 * 60 * 1000)
-                },
-                {
-                    vehicleNumber: '3891',
-                    issueType: 'Doors Not Working',
-                    depot: 'Gateshead',
-                    responseTime: 28,
-                    resolvedAt: Date.now() - (6 * 60 * 60 * 1000)
-                }
-            ];
+        
+        // Format wizard type to readable issue type
+        function formatIssueType(wizardType) {
+            if (!wizardType) return 'Unknown Issue';
+            return wizardType
+                .replace(/_/g, ' ')
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
         }
+        
+        // Get breakdown stages based on data
+        function getBreakdownStages(breakdown) {
+            const stages = ['received'];
+            if (breakdown.acknowledgedTime) stages.push('acknowledged');
+            if (breakdown.decisionTime) stages.push('decision');
+            if (breakdown.engineerDispatchTime) stages.push('engineer_dispatched');
+            if (breakdown.onsiteTime) stages.push('on_site');
+            if (breakdown.resolved) stages.push('resolved');
+            return stages;
+        }
+        
+        // Get current stage
+        function getCurrentStage(breakdown) {
+            if (breakdown.resolved) return 'resolved';
+            if (breakdown.onsiteTime) return 'on_site';
+            if (breakdown.engineerDispatchTime) return 'engineer_dispatched';
+            if (breakdown.decisionTime) return 'decision';
+            if (breakdown.acknowledgedTime) return 'acknowledged';
+            return 'received';
+        }
+        
+        // Calculate response time in minutes
+        function calculateResponseTime(breakdown) {
+            if (!breakdown.resolvedTime) return 0;
+            const start = new Date(breakdown.timestamp).getTime();
+            const end = new Date(breakdown.resolvedTime).getTime();
+            return Math.round((end - start) / (1000 * 60));
+        }
+
+        // NO SAMPLE DATA - using only real data from breakdown guide
 
         // Format time duration
         function formatDuration(milliseconds) {
@@ -770,14 +760,14 @@
             simulateStageProgression();
         }
 
-        // Initialize
-        loadFromAPI();
+        // Initialize with real data only
+        loadFromLocalStorage();
 
         // Update every second for timers
         setInterval(updateAll, 1000);
         
-        // Refresh data from API every 30 seconds
-        setInterval(loadFromAPI, 30000);
+        // Refresh data from localStorage every 30 seconds
+        setInterval(loadFromLocalStorage, 30000);
         
         // Add navigation back to Breakdown Guide
         document.addEventListener('DOMContentLoaded', function() {
@@ -785,7 +775,7 @@
             const header = document.querySelector('.header');
             if (header) {
                 const navButton = document.createElement('a');
-                navButton.href = '/breakdown-guide/';
+                navButton.href = './breakdown-guide/';
                 navButton.style.cssText = `
                     position: absolute;
                     top: 20px;

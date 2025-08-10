@@ -114,19 +114,22 @@
             recordBreakdown: async (category, responses, decision) => {
                 console.log('Mock: Record breakdown', { category, responses, decision });
                 
-                // Create a proper breakdown record
+                // Create a proper breakdown record with enhanced location tracking
                 const breakdown = {
                     id: 'breakdown_' + Date.now(),
                     timestamp: new Date().toISOString(),
                     wizardType: category,
-                    fleetNumber: responses.fleetNumber || 'Unknown',
-                    registration: responses.registration || 'Unknown',
-                    depot: responses.depot || 'Unknown',
-                    vehicleType: responses.vehicleType || 'Unknown',
+                    fleetNumber: responses.fleetNumber || responses.fleet_number || 'Unknown',
+                    registration: responses.registration || responses.vehicle_reg || 'Unknown',
+                    depot: responses.depot || responses.vehicle_depot || 'Unknown',
+                    vehicleType: responses.vehicleType || responses.vehicle_type || 'Bus',
                     decision: decision,
                     safetyLevel: decision === 'STOP' ? 'CRITICAL' : decision === 'AMBER' ? 'WARNING' : 'SAFE',
                     supervisor: window.currentSupervisorSession?.supervisorId || 'Unknown',
                     supervisorName: window.currentSupervisorSession?.name || 'Unknown',
+                    // Enhanced location tracking - check multiple possible fields
+                    location: responses.location || responses.current_location || responses.incident_location || 'Location not specified',
+                    route: responses.route || responses.service_route || responses.route_number || 'Unknown',
                     responses: responses,
                     // Operational tracking fields
                     resolved: false,
@@ -135,7 +138,11 @@
                     engineerDetails: null,
                     resolvedTime: null,
                     resolution: null,
-                    priority: decision === 'STOP' ? 'CRITICAL' : decision === 'AMBER' ? 'HIGH' : 'NORMAL'
+                    priority: decision === 'STOP' ? 'CRITICAL' : decision === 'AMBER' ? 'HIGH' : 'NORMAL',
+                    // Timeline tracking
+                    acknowledgedTime: null,
+                    decisionTime: new Date().toISOString(),
+                    onsiteTime: null
                 };
                 
                 // Add to our persistent data store
@@ -294,6 +301,7 @@
     
     <!-- Load common components -->
     <script type="text/babel" src="./components/common/BreakdownInfoStep.js"></script>
+    <script type="text/babel" src="./components/common/LocationInput.js"></script>
     
     <!-- Load wizard components -->
     <script type="text/babel" src="./components/wizards/SteeringWizard.js"></script>

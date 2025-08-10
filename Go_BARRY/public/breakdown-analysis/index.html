@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Go North East - Breakdown Operations Center</title>
+    <title>Go North East - Breakdown Operations Centre</title>
     <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -204,7 +204,7 @@
             }
         };
 
-        console.log('🚀 Breakdown Operations Center initialized');
+        console.log('🚀 Breakdown Operations Centre initialised');
         console.log('📊 Loading breakdown data...');
         const breakdownData = window.BreakdownAnalytics.breakdownData;
         console.log(`📊 Found ${breakdownData.length} breakdown records`);
@@ -259,8 +259,8 @@
             );
         };
 
-        // Main Breakdown Operations Center
-        const BreakdownOperationsCenter = () => {
+        // Main Breakdown Operations Centre
+        const BreakdownOperationsCentre = () => {
             const [stats, setStats] = useState(null);
             const [activeBreakdowns, setActiveBreakdowns] = useState([]);
             const [offRoadVehicles, setOffRoadVehicles] = useState([]);
@@ -320,7 +320,7 @@
                         <div className="flex items-center justify-between">
                             <div>
                                 <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                                    🚨 Breakdown Operations Center
+                                    🚨 Breakdown Operations Centre
                                 </h1>
                                 <p className="text-gray-600">
                                     Real-time breakdown monitoring and response management
@@ -392,7 +392,7 @@
                         <div className="bg-white rounded-lg shadow overflow-hidden">
                             {activeBreakdowns.length === 0 ? (
                                 <div className="p-8 text-center text-gray-500">
-                                    ✅ No active critical breakdowns
+                                    ✅ No active critical breakdowns - All vehicles operational
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
@@ -454,7 +454,7 @@
                         <div className="bg-white rounded-lg shadow overflow-hidden">
                             {offRoadVehicles.length === 0 ? (
                                 <div className="p-8 text-center text-gray-500">
-                                    ✅ All vehicles operational
+                                    ✅ All vehicles in service - No off-road vehicles
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
@@ -580,7 +580,7 @@
 
         // Render the application
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<BreakdownOperationsCenter />);
+        root.render(<BreakdownOperationsCentre />);
     </script>
 </body>
 </html>

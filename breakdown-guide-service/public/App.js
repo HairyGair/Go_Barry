@@ -85,9 +85,12 @@ const App = function() {
                                      responses.redABSLight;
                 decision = criticalIssues ? 'STOP' : (responses.otherBrakeConcerns === 'yes' ? 'AMBER' : 'CONTINUE');
             } else if (currentWizard === 'steering') {
-                const criticalIssues = responses.excessivePlay === 'yes' || responses.difficultyTurning === 'yes' ||
-                                     responses.steeringNoises === 'yes' || responses.vehiclePulling === 'yes';
-                decision = criticalIssues ? 'STOP' : 'CONTINUE';
+                // Check for critical steering issues based on SteeringWizard responses
+                const criticalIssues = responses.initial_concern !== 'no_issues' || 
+                                     responses.steering_play === 'excessive_play';
+                const warningIssues = responses.initial_concern === 'no_issues' && 
+                                    responses.steering_play === 'moderate_play';
+                decision = criticalIssues ? 'STOP' : (warningIssues ? 'AMBER' : 'CONTINUE');
             } else if (currentWizard === 'oil_warning') {
                 decision = 'STOP'; // Oil warning is always critical
             } else if (currentWizard === 'loose_wheel_nuts') {
@@ -128,9 +131,12 @@ const App = function() {
                                          responses.redABSLight;
                     decision = criticalIssues ? 'STOP' : (responses.otherBrakeConcerns === 'yes' ? 'AMBER' : 'CONTINUE');
                 } else if (currentWizard === 'steering') {
-                    const criticalIssues = responses.excessivePlay === 'yes' || responses.difficultyTurning === 'yes' ||
-                                         responses.steeringNoises === 'yes' || responses.vehiclePulling === 'yes';
-                    decision = criticalIssues ? 'STOP' : 'CONTINUE';
+                    // Check for critical steering issues based on SteeringWizard responses
+                    const criticalIssues = responses.initial_concern !== 'no_issues' || 
+                                         responses.steering_play === 'excessive_play';
+                    const warningIssues = responses.initial_concern === 'no_issues' && 
+                                        responses.steering_play === 'moderate_play';
+                    decision = criticalIssues ? 'STOP' : (warningIssues ? 'AMBER' : 'CONTINUE');
                 } else if (currentWizard === 'oil_warning') {
                     decision = 'STOP'; // Oil warning is always critical
                 } else if (currentWizard === 'loose_wheel_nuts') {

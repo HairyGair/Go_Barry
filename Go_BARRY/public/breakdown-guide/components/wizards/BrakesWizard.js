@@ -20,6 +20,19 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
               </p>
             </div>
 
+            {/* Location Input */}
+            <div className="bg-blue-500/10 backdrop-blur-sm rounded-lg p-4 border border-blue-400/30 mb-6">
+              <h4 className="text-sm font-semibold text-blue-200 mb-3">📍 Current Location</h4>
+              <input
+                type="text"
+                value={responses.location || ''}
+                onChange={(e) => updateResponse('location', e.target.value)}
+                placeholder="e.g., Newcastle Central Station, A1 Northbound, Team Valley"
+                className="w-full px-3 py-2 bg-white/10 border border-white/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-400 text-sm"
+              />
+              <p className="text-xs text-blue-300/80 mt-1">Please specify where the vehicle is currently located</p>
+            </div>
+
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
               <h3 className="text-lg font-semibold text-white mb-4">Is the driver experiencing any of these brake issues?</h3>
               

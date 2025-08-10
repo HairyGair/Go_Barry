@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go North East - Engineering Response Dashboard</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pulse-animation { animation: pulse 2s infinite; }
+        
+        .progress-bar {
+            position: relative;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(90deg, #10b981 0%, #fbbf24 50%, #ef4444 100%);
+            transition: width 1s ease;
+        }
+        
+        .status-received { background: #10b981; }
+        .status-ack { background: #3b82f6; }
+        .status-decision { background: #8b5cf6; }
+        .status-dispatch { background: #f59e0b; }
+        .status-onsite { background: #ec4899; }
+        .status-resolved { background: #6b7280; }
+        
+        .gne-red { color: #ce0e2d; }
+        .gne-navy { color: #003d79; }
+        
+        body {
+            background: linear-gradient(135deg, #1e3a8a 0%, #7e22ce 50%, #be123c 100%);
+            min-height: 100vh;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .breakdown-card {
+            background: linear-gradient(to right, #fef3c7, white);
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .breakdown-card.critical {
+            background: linear-gradient(to right, #fee2e2, white);
+            border-left-color: #dc2626;
+        }
+        
+        .breakdown-card.resolved {
+            background: linear-gradient(to right, #f3f4f6, white);
+            border-left-color: #6b7280;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script>
+        // Enhanced BreakdownAnalytics with timeline tracking
+        window.BreakdownAnalytics = {
+            // Persistent data store using localStorage
+            get breakdownData() {
+                try {
+                    const stored = localStorage.getItem('gobarry_breakdown_data');
+                    return stored ? JSON.parse(stored) : [];
+                } catch (e) {
+                    console.warn('Failed to load breakdown data from localStorage:', e);
+                    return [];
+                }
+            },
+            
+            set breakdownData(data) {
+                try {
+                    localStorage.setItem('gobarry_breakdown_data', JSON.stringify(data));
+                } catch (e) {
+                    console.warn('Failed to save breakdown data to localStorage:', e);
+                }
+            },
+
+            // Get active breakdowns with timeline status
+            getActiveBreakdownsWithTimeline: function() {
+                const activeBreakdowns = this.breakdownData.filter(b => 
+                    b.decision === 'STOP' && !b.resolved
+                );
+                
+                return activeBreakdowns.map(b => {
+                    const timeline = this.calculateTimeline(b);
+                    return {
+                        ...b,
+                        timeline,
+                        currentWait: this.calculateWaitTime(b.timestamp),
+                        progress: this.calculateProgress(timeline)
+                    };
+                });
+            },
+            
+            calculateTimeline: function(breakdown) {
+                const stages = {
+                    received: { 
+                        status: 'Received', 
+                        time: breakdown.timestamp,
+                        completed: true 
+                    },
+                    ack: { 
+                        status: 'Ack', 
+                        time: breakdown.acknowledgedTime || null,
+                        completed: !!breakdown.acknowledgedTime 
+                    },
+                    decision: { 
+                        status: 'Decision', 
+                        time: breakdown.decisionTime || breakdown.timestamp,
+                        completed: true 
+                    },
+                    dispatch: { 
+                        status: 'Dispatch', 
+                        time: breakdown.engineerDispatchTime || null,
+                        completed: !!breakdown.engineerDispatchTime 
+                    },
+                    onsite: { 
+                        status: 'On Site', 
+                        time: breakdown.onsiteTime || null,
+                        completed: !!breakdown.onsiteTime 
+                    },
+                    resolved: { 
+                        status: 'Resolved', 
+                        time: breakdown.resolvedTime || null,
+                        completed: !!breakdown.resolved 
+                    }
+                };
+                
+                return stages;
+            },
+            
+            calculateProgress: function(timeline) {
+                const stages = Object.values(timeline);
+                const completed = stages.filter(s => s.completed).length;
+                return (completed / stages.length) * 100;
+            },
+            
+            calculateWaitTime: function(startTime) {
+                const now = new Date();
+                const start = new Date(startTime);
+                const diffMs = now - start;
+                const totalMins = Math.floor(diffMs / (1000 * 60));
+                const hours = Math.floor(totalMins / 60);
+                const mins = totalMins % 60;
+                
+                return {
+                    total: totalMins,
+                    display: hours > 0 ? `${hours}:${mins.toString().padStart(2, '0')}` : `${mins}`,
+                    urgency: totalMins > 60 ? 'critical' : totalMins > 30 ? 'warning' : 'normal'
+                };
+            },
+
+            getResponseAnalytics: function() {
+                const breakdowns = this.breakdownData;
+                const today = new Date().toDateString();
+                const todayBreakdowns = breakdowns.filter(b => 
+                    new Date(b.timestamp).toDateString() === today
+                );
+                
+                // Calculate longest wait
+                const activeBreakdowns = this.getActiveBreakdownsWithTimeline();
+                const longestWait = activeBreakdowns.length > 0 
+                    ? Math.max(...activeBreakdowns.map(b => b.currentWait.total))
+                    : 0;
+                
+                // Calculate resolution rate
+                const resolved = todayBreakdowns.filter(b => b.resolved).length;
+                const resolutionRate = todayBreakdowns.length > 0 
+                    ? Math.round((resolved / todayBreakdowns.length) * 100)
+                    : 100;
+                
+                return {
+                    longestWait: this.formatMinutes(longestWait),
+                    resolved30: breakdowns.filter(b => {
+                        if (!b.resolvedTime) return false;
+                        const resTime = (new Date(b.resolvedTime) - new Date(b.timestamp)) / (1000 * 60);
+                        return resTime <= 30;
+                    }).length,
+                    resolutionRate,
+                    totalToday: todayBreakdowns.length,
+                    totalDowntime: this.calculateTotalDowntime()
+                };
+            },
+            
+            formatMinutes: function(mins) {
+                const hours = Math.floor(mins / 60);
+                const minutes = mins % 60;
+                return hours > 0 ? `${hours}:${minutes.toString().padStart(2, '0')}` : `${mins}:00`;
+            },
+            
+            calculateTotalDowntime: function() {
+                const today = new Date().toDateString();
+                const todayBreakdowns = this.breakdownData.filter(b => 
+                    new Date(b.timestamp).toDateString() === today
+                );
+                
+                let totalMins = 0;
+                todayBreakdowns.forEach(b => {
+                    const start = new Date(b.timestamp);
+                    const end = b.resolvedTime ? new Date(b.resolvedTime) : new Date();
+                    totalMins += Math.floor((end - start) / (1000 * 60));
+                });
+                
+                const hours = Math.floor(totalMins / 60);
+                const mins = totalMins % 60;
+                return `${hours}:${mins.toString().padStart(2, '0')}:00`;
+            },
+
+            getDepotPerformance: function() {
+                const today = new Date().toDateString();
+                const todayBreakdowns = this.breakdownData.filter(b => 
+                    new Date(b.timestamp).toDateString() === today
+                );
+                
+                const depots = {};
+                todayBreakdowns.forEach(b => {
+                    if (!depots[b.depot]) {
+                        depots[b.depot] = {
+                            total: 0,
+                            resolved: 0,
+                            totalResponseTime: 0,
+                            count: 0
+                        };
+                    }
+                    depots[b.depot].total++;
+                    if (b.resolved) {
+                        depots[b.depot].resolved++;
+                    }
+                    if (b.engineerDispatchTime) {
+                        const responseTime = (new Date(b.engineerDispatchTime) - new Date(b.timestamp)) / (1000 * 60);
+                        depots[b.depot].totalResponseTime += responseTime;
+                        depots[b.depot].count++;
+                    }
+                });
+                
+                const depotPerformance = {};
+                Object.keys(depots).forEach(depot => {
+                    const d = depots[depot];
+                    const avgResponse = d.count > 0 ? Math.round(d.totalResponseTime / d.count) : 0;
+                    depotPerformance[depot] = avgResponse > 0 ? `${avgResponse}m` : '--';
+                });
+                
+                return depotPerformance;
+            },
+
+            getRecentResolutions: function() {
+                const cutoff = new Date();
+                cutoff.setHours(cutoff.getHours() - 24);
+                
+                return this.breakdownData
+                    .filter(b => b.resolved && new Date(b.resolvedTime) > cutoff)
+                    .sort((a, b) => new Date(b.resolvedTime) - new Date(a.resolvedTime))
+                    .slice(0, 5)
+                    .map(b => ({
+                        fleetNumber: b.fleetNumber,
+                        issue: this.formatWizardType(b.wizardType),
+                        depot: b.depot,
+                        responseTime: this.calculateResponseTime(b)
+                    }));
+            },
+            
+            formatWizardType: function(type) {
+                if (!type) return 'Unknown Issue';
+                return type.replace(/_/g, ' ')
+                    .split(' ')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
+            },
+            
+            calculateResponseTime: function(breakdown) {
+                if (!breakdown.resolvedTime) return '--';
+                const mins = Math.round((new Date(breakdown.resolvedTime) - new Date(breakdown.timestamp)) / (1000 * 60));
+                const hours = Math.floor(mins / 60);
+                const minutes = mins % 60;
+                return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+            }
+        };
+
+        console.log('🚀 Engineering Response Dashboard initialised');
+        console.log('📊 Loading breakdown data...');
+        const breakdownData = window.BreakdownAnalytics.breakdownData;
+        console.log(`📊 Found ${breakdownData.length} breakdown records`);
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Timeline Progress Component
+        const TimelineProgress = ({ timeline, progress }) => {
+            const stages = Object.entries(timeline);
+            
+            return (
+                <div className="flex items-center justify-between mt-2 text-xs">
+                    {stages.map(([key, stage], index) => (
+                        <div key={key} className="flex-1 text-center">
+                            <div className={`text-xs ${stage.completed ? 'text-gray-700 font-semibold' : 'text-gray-400'}`}>
+                                {stage.status}
+                            </div>
+                            <div className={`h-2 mx-1 mt-1 rounded ${
+                                stage.completed 
+                                    ? `status-${key}` 
+                                    : 'bg-gray-200'
+                            }`}></div>
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        // Active Breakdown Card
+        const BreakdownCard = ({ breakdown }) => {
+            const getRouteIcon = (route) => {
+                if (route?.includes('X')) return '🚌';
+                if (route?.includes('V')) return '🚌';
+                return '🚌';
+            };
+
+            const getIssueIcon = (wizardType) => {
+                const icons = {
+                    'steering': '🔧',
+                    'brakes': '🛑',
+                    'oil_warning': '⚠️',
+                    'non_starter': '🔋',
+                    'doors': '🚪',
+                    'lights': '💡',
+                    'cooling': '🌡️'
+                };
+                return icons[wizardType] || '⚠️';
+            };
+
+            return (
+                <div className={`breakdown-card p-4 mb-3 rounded-lg ${breakdown.currentWait.urgency === 'critical' ? 'critical' : ''}`}>
+                    <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center space-x-3">
+                            <div className="text-3xl font-bold">{breakdown.fleetNumber}</div>
+                            <div>
+                                <div className="flex items-center space-x-2">
+                                    <span className="text-red-600">{getIssueIcon(breakdown.wizardType)}</span>
+                                    <span className="text-sm text-gray-600">{window.BreakdownAnalytics.formatWizardType(breakdown.wizardType)}</span>
+                                </div>
+                                <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
+                                    <span>{getRouteIcon(breakdown.responses?.route)} Route {breakdown.responses?.route || '21'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className={`text-2xl font-bold ${
+                            breakdown.currentWait.urgency === 'critical' ? 'text-red-600 pulse-animation' : 
+                            breakdown.currentWait.urgency === 'warning' ? 'text-orange-500' : 
+                            'text-green-600'
+                        }`}>
+                            {breakdown.currentWait.display}
+                        </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-4 text-xs text-gray-600 mb-2">
+                        <span>📍 {breakdown.responses?.location || 'A1 Northbound, Team Valley'}</span>
+                        <span>🏢 {breakdown.depot}</span>
+                    </div>
+                    
+                    <TimelineProgress timeline={breakdown.timeline} progress={breakdown.progress} />
+                </div>
+            );
+        };
+
+        // Main Dashboard Component
+        const EngineeringResponseDashboard = () => {
+            const [activeBreakdowns, setActiveBreakdowns] = useState([]);
+            const [responseAnalytics, setResponseAnalytics] = useState(null);
+            const [depotPerformance, setDepotPerformance] = useState({});
+            const [recentResolutions, setRecentResolutions] = useState([]);
+            const [currentTime, setCurrentTime] = useState(new Date());
+
+            // Auto-refresh every 10 seconds
+            useEffect(() => {
+                const loadData = () => {
+                    setActiveBreakdowns(window.BreakdownAnalytics.getActiveBreakdownsWithTimeline());
+                    setResponseAnalytics(window.BreakdownAnalytics.getResponseAnalytics());
+                    setDepotPerformance(window.BreakdownAnalytics.getDepotPerformance());
+                    setRecentResolutions(window.BreakdownAnalytics.getRecentResolutions());
+                    setCurrentTime(new Date());
+                };
+
+                loadData();
+                const interval = setInterval(loadData, 10000);
+                return () => clearInterval(interval);
+            }, []);
+
+            return (
+                <div className="min-h-screen p-6">
+                    {/* Header */}
+                    <div className="card p-6 mb-6">
+                        <div className="flex justify-between items-center">
+                            <div className="flex items-center space-x-4">
+                                <div className="bg-red-600 text-white px-3 py-1 rounded font-bold">
+                                    GNE
+                                </div>
+                                <div>
+                                    <h1 className="text-2xl font-bold">Engineering Response Dashboard</h1>
+                                    <p className="text-sm text-gray-600">Real-time breakdown tracking and response analytics</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                                <div className="text-center">
+                                    <div className="text-2xl font-bold">{activeBreakdowns.length}</div>
+                                    <div className="text-xs text-gray-600 uppercase">Active</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-sm text-gray-600">{responseAnalytics?.resolutionRate || 100}%</div>
+                                    <div className="text-xs text-gray-600 uppercase">Avg Response</div>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-sm text-gray-600">{currentTime.toLocaleTimeString('en-GB')}</div>
+                                    <div className="text-xs text-gray-600 uppercase">Resolved Today</div>
+                                </div>
+                                <button 
+                                    onClick={() => window.location.href = '../breakdown-guide'}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium"
+                                >
+                                    ← Back to Breakdown Guide
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Active Breakdowns */}
+                        <div className="lg:col-span-2">
+                            <div className="card p-6">
+                                <h2 className="text-lg font-bold mb-4 flex items-center">
+                                    🚨 Active Breakdowns 
+                                    <span className="ml-2 text-sm text-gray-500">
+                                        (From Breakdown Guide STOP decisions)
+                                    </span>
+                                </h2>
+                                {activeBreakdowns.length === 0 ? (
+                                    <div className="text-center py-8 text-gray-500">
+                                        ✅ No active breakdowns - All vehicles operational
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {activeBreakdowns.map(breakdown => (
+                                            <BreakdownCard key={breakdown.id} breakdown={breakdown} />
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {/* Recent Resolutions */}
+                            <div className="card p-6 mt-6">
+                                <h2 className="text-lg font-bold mb-4">
+                                    ✅ Recent Resolutions (Last 24 Hours)
+                                </h2>
+                                {recentResolutions.length === 0 ? (
+                                    <div className="text-center py-4 text-gray-500">
+                                        No resolutions in the last 24 hours
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {recentResolutions.map((resolution, index) => (
+                                            <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded">
+                                                <div className="flex items-center space-x-4">
+                                                    <span className="font-bold text-lg">{resolution.fleetNumber}</span>
+                                                    <span className="text-sm text-gray-600">{resolution.issue}</span>
+                                                </div>
+                                                <div className="flex items-center space-x-4 text-sm">
+                                                    <span className="text-blue-600 font-medium">{resolution.responseTime}</span>
+                                                    <span className="text-gray-500">{resolution.depot}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Response Analytics */}
+                        <div className="space-y-6">
+                            <div className="card p-6">
+                                <h2 className="text-lg font-bold mb-4">📊 Response Analytics</h2>
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <div className="text-3xl font-bold text-blue-600">
+                                                {responseAnalytics?.longestWait || '0:00'}
+                                            </div>
+                                            <div className="text-xs text-gray-600">Longest Current Wait</div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-2xl font-bold text-gray-700">
+                                                {responseAnalytics?.resolved30 || 0}%
+                                            </div>
+                                            <div className="text-xs text-gray-600">Resolved < 30 mins</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex justify-between items-center pt-4 border-t">
+                                        <div>
+                                            <div className="text-2xl font-bold">
+                                                {responseAnalytics?.resolutionRate || 100}%
+                                            </div>
+                                            <div className="text-xs text-gray-600">Resolved < 1 hour</div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-2xl font-bold">
+                                                {responseAnalytics?.totalDowntime || '0:00:00'}
+                                            </div>
+                                            <div className="text-xs text-gray-600">Total Downtime Today</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="card p-6">
+                                <h2 className="text-lg font-bold mb-4">🏢 Depot Performance (Today)</h2>
+                                <div className="space-y-3">
+                                    {['Gateshead', 'Percy Main', 'Washington', 'Consett', 'Hexham'].map(depot => (
+                                        <div key={depot} className="flex justify-between items-center">
+                                            <span className="text-sm font-medium">{depot}</span>
+                                            <span className={`text-sm font-bold ${
+                                                depotPerformance[depot] && depotPerformance[depot] !== '--' 
+                                                    ? 'text-green-600' 
+                                                    : 'text-gray-400'
+                                            }`}>
+                                                {depotPerformance[depot] || '--'}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Render the application
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<EngineeringResponseDashboard />);
+    </script>
+</body>
+</html>

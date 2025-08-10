@@ -181,19 +181,29 @@ const BreakdownInfoStep = ({ responses, updateResponse, onNext }) => {
                     />
                 </div>
                 
-                {/* Location */}
+                {/* Location - Enhanced with GPS and common locations */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
-                        <MapPin className="inline w-4 h-4 mr-2" />
-                        Current Location
-                    </label>
-                    <input
-                        type="text"
-                        value={responses.location || ''}
-                        onChange={(e) => updateResponse('location', e.target.value)}
-                        placeholder="e.g., Station Road, Newcastle"
-                        className="w-full px-4 py-2 bg-white/10 border border-white/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-400"
-                    />
+                    {window.LocationInput ? (
+                        <window.LocationInput 
+                            value={responses.location}
+                            onChange={(location) => updateResponse('location', location)}
+                            label="Incident Location"
+                        />
+                    ) : (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-300 mb-2">
+                                <MapPin className="inline w-4 h-4 mr-2" />
+                                Current Location
+                            </label>
+                            <input
+                                type="text"
+                                value={responses.location || ''}
+                                onChange={(e) => updateResponse('location', e.target.value)}
+                                placeholder="e.g., Station Road, Newcastle"
+                                className="w-full px-4 py-2 bg-white/10 border border-white/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-400"
+                            />
+                        </div>
+                    )}
                 </div>
                 
                 {/* Route (Optional) */}

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steering Wizard Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a2e;
+            color: white;
+            padding: 20px;
+        }
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 10px;
+        }
+        .test-case {
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 5px;
+        }
+        .pass { color: #4ade80; }
+        .fail { color: #f87171; }
+        .warning { color: #fbbf24; }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔧 Steering Wizard Test Suite</h1>
+        <p>Testing compliance with SDC Engineering Issues Guide</p>
+        
+        <div class="test-case">
+            <h3>Test Case 1: Critical Steering Issues</h3>
+            <p>Any steering defect should result in STOP decision</p>
+            <button onclick="testCriticalConditions()">Run Test</button>
+            <div id="test1-results"></div>
+        </div>
+        
+        <div class="test-case">
+            <h3>Test Case 2: Excessive Play (≥75mm)</h3>
+            <p>Steering play exceeding DVSA limit should result in STOP</p>
+            <button onclick="testExcessivePlay()">Run Test</button>
+            <div id="test2-results"></div>
+        </div>
+        
+        <div class="test-case">
+            <h3>Test Case 3: Moderate Play (Warning)</h3>
+            <p>Approaching 75mm limit should result in AMBER</p>
+            <button onclick="testModeratePlay()">Run Test</button>
+            <div id="test3-results"></div>
+        </div>
+        
+        <div class="test-case">
+            <h3>Test Case 4: Safe Condition</h3>
+            <p>No issues and minimal play should result in CONTINUE</p>
+            <button onclick="testSafeCondition()">Run Test</button>
+            <div id="test4-results"></div>
+        </div>
+        
+        <div class="test-case">
+            <h3>Full Test Suite</h3>
+            <button onclick="runAllTests()">Run All Tests</button>
+            <div id="all-results" class="results"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Simulate the decision logic from App.js
+        function getSteeringDecision(responses) {
+            const criticalIssues = responses.initial_concern !== 'no_issues' || 
+                                 responses.steering_play === 'excessive_play';
+            const warningIssues = responses.initial_concern === 'no_issues' && 
+                                responses.steering_play === 'moderate_play';
+            return criticalIssues ? 'STOP' : (warningIssues ? 'AMBER' : 'CONTINUE');
+        }
+        
+        function testCriticalConditions() {
+            const conditions = [
+                { initial_concern: 'excessive_play', expected: 'STOP', description: 'Excessive steering wheel play' },
+                { initial_concern: 'difficulty_steering', expected: 'STOP', description: 'Difficulty steering' },
+                { initial_concern: 'stiff_unresponsive', expected: 'STOP', description: 'Steering stiff/unresponsive' },
+                { initial_concern: 'unusual_noises', expected: 'STOP', description: 'Unusual steering noises' },
+                { initial_concern: 'vehicle_pulling', expected: 'STOP', description: 'Vehicle pulling to one side' },
+                { initial_concern: 'visible_damage', expected: 'STOP', description: 'Visible steering damage' },
+                { initial_concern: 'power_steering_issues', expected: 'STOP', description: 'Power steering problems' },
+                { initial_concern: 'warning_light', expected: 'STOP', description: 'Steering warning light' }
+            ];
+            
+            let results = '<h4>Critical Conditions Test Results:</h4>';
+            let allPassed = true;
+            
+            conditions.forEach(test => {
+                const decision = getSteeringDecision(test);
+                const passed = decision === test.expected;
+                allPassed = allPassed && passed;
+                results += `<div class="${passed ? 'pass' : 'fail'}">
+                    ${passed ? '✅' : '❌'} ${test.description}: 
+                    Expected ${test.expected}, Got ${decision}
+                </div>`;
+            });
+            
+            document.getElementById('test1-results').innerHTML = results + 
+                `<div class="${allPassed ? 'pass' : 'fail'}" style="margin-top:10px; font-weight:bold;">
+                    ${allPassed ? '✅ All tests passed!' : '❌ Some tests failed'}
+                </div>`;
+        }
+        
+        function testExcessivePlay() {
+            const test = {
+                initial_concern: 'no_issues',
+                steering_play: 'excessive_play'
+            };
+            
+            const decision = getSteeringDecision(test);
+            const passed = decision === 'STOP';
+            
+            document.getElementById('test2-results').innerHTML = 
+                `<div class="${passed ? 'pass' : 'fail'}">
+                    ${passed ? '✅' : '❌'} Excessive play test: 
+                    Expected STOP, Got ${decision}
+                </div>`;
+        }
+        
+        function testModeratePlay() {
+            const test = {
+                initial_concern: 'no_issues',
+                steering_play: 'moderate_play'
+            };
+            
+            const decision = getSteeringDecision(test);
+            const passed = decision === 'AMBER';
+            
+            document.getElementById('test3-results').innerHTML = 
+                `<div class="${passed ? 'pass' : 'warning'}">
+                    ${passed ? '⚠️' : '❌'} Moderate play test: 
+                    Expected AMBER, Got ${decision}
+                </div>`;
+        }
+        
+        function testSafeCondition() {
+            const test = {
+                initial_concern: 'no_issues',
+                steering_play: 'minimal_play'
+            };
+            
+            const decision = getSteeringDecision(test);
+            const passed = decision === 'CONTINUE';
+            
+            document.getElementById('test4-results').innerHTML = 
+                `<div class="${passed ? 'pass' : 'fail'}">
+                    ${passed ? '✅' : '❌'} Safe condition test: 
+                    Expected CONTINUE, Got ${decision}
+                </div>`;
+        }
+        
+        function runAllTests() {
+            let results = '<h3>Complete Test Suite Results</h3>';
+            let totalTests = 0;
+            let passedTests = 0;
+            
+            // Test all critical conditions
+            const criticalConditions = [
+                'excessive_play', 'difficulty_steering', 'stiff_unresponsive',
+                'unusual_noises', 'vehicle_pulling', 'visible_damage',
+                'power_steering_issues', 'warning_light'
+            ];
+            
+            results += '<h4>Critical Conditions (All should STOP):</h4>';
+            criticalConditions.forEach(condition => {
+                const decision = getSteeringDecision({ initial_concern: condition });
+                const passed = decision === 'STOP';
+                totalTests++;
+                if (passed) passedTests++;
+                results += `<div class="${passed ? 'pass' : 'fail'}">
+                    ${passed ? '✅' : '❌'} ${condition}: ${decision}
+                </div>`;
+            });
+            
+            // Test play conditions
+            results += '<h4>Steering Play Conditions:</h4>';
+            
+            const playTests = [
+                { concern: 'no_issues', play: 'excessive_play', expected: 'STOP' },
+                { concern: 'no_issues', play: 'moderate_play', expected: 'AMBER' },
+                { concern: 'no_issues', play: 'minimal_play', expected: 'CONTINUE' }
+            ];
+            
+            playTests.forEach(test => {
+                const decision = getSteeringDecision({ 
+                    initial_concern: test.concern, 
+                    steering_play: test.play 
+                });
+                const passed = decision === test.expected;
+                totalTests++;
+                if (passed) passedTests++;
+                const icon = test.expected === 'STOP' ? '🛑' : 
+                            test.expected === 'AMBER' ? '⚠️' : '✅';
+                results += `<div class="${passed ? (test.expected === 'AMBER' ? 'warning' : 'pass') : 'fail'}">
+                    ${passed ? icon : '❌'} ${test.play}: Expected ${test.expected}, Got ${decision}
+                </div>`;
+            });
+            
+            // Summary
+            const allPassed = passedTests === totalTests;
+            results += `<div style="margin-top:20px; padding-top:20px; border-top:1px solid rgba(255,255,255,0.2);">
+                <h4>Test Summary:</h4>
+                <div class="${allPassed ? 'pass' : 'fail'}" style="font-size:1.2em; font-weight:bold;">
+                    ${allPassed ? '✅' : '❌'} ${passedTests}/${totalTests} tests passed
+                    ${allPassed ? ' - SDC Compliant!' : ' - Issues detected'}
+                </div>
+            </div>`;
+            
+            document.getElementById('all-results').innerHTML = results;
+        }
+    </script>
+</body>
+</html>
