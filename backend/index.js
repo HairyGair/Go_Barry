@@ -203,9 +203,9 @@ async function registerRoutes() {
   await routeManager.registerRoute(app, '/api/breakdown-analytics', './routes/breakdownAnalyticsAPI.js', 'Breakdown Analytics API');
   console.log('✅ Breakdown Analytics API registered for fleet breakdown pattern monitoring');
   
-  // Breakdown logging system routes - UPDATED to use unified breakdown routes
-  await routeManager.registerRoute(app, '/api/breakdowns', './routes/breakdowns.js', 'Unified Breakdown API');
-  console.log('✅ Unified Breakdown API registered for logging and analytics at /api/breakdowns');
+  // Breakdown logging system routes - Using Enhanced V2 with fixed Supabase
+  await routeManager.registerRoute(app, '/api/breakdowns', './routes/breakdownTrackerV2.js', 'Enhanced Breakdown Tracker V2');
+  console.log('✅ Enhanced Breakdown Tracker V2 registered with sequential IDs at /api/breakdowns');
   
   // Fleet Database API for vehicle information lookup
   await routeManager.registerRoute(app, '/api/fleet-database', './routes/fleetAPI.js', 'Fleet Database API');
@@ -215,9 +215,8 @@ async function registerRoutes() {
   await routeManager.registerRoute(app, '/api/admin-breakdowns', './routes/adminBreakdowns.js', 'Admin Breakdowns');
   console.log('✅ Admin Breakdowns API registered for viewing breakdown logs at /api/admin-breakdowns');
   
-  // Breakdown Tracker API for timed response analytics
-  await routeManager.registerRoute(app, '/api/breakdown-tracker', './routes/breakdownTrackerAPI.js', 'Breakdown Tracker API');
-  console.log('✅ Breakdown Tracker API registered for stage-by-stage breakdown timing at /api/breakdown-tracker');
+  // Note: Main breakdown tracker is at /api/breakdowns using V2
+  // Legacy tracker endpoint kept for backward compatibility if needed
   
   // Fleet Database API for vehicle lookups in Breakdown Guide
   await routeManager.registerRoute(app, '/api/fleet-database', './routes/fleetDatabaseAPI.js', 'Fleet Database API');

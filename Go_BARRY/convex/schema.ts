@@ -91,6 +91,64 @@ export default defineSchema({
     .index("by_timestamp", ["timestamp"])
     .index("by_alert", ["alertId"]),
 
+  // Breakdown tracking system
+  breakdowns: defineTable({
+    // Identifiers
+    breakdownId: v.string(),      // BD-2025-00001 format
+    dailyId: v.number(),           // Daily counter (resets at 1am)
+    
+    // Fleet information
+    fleetNumber: v.string(),
+    depotId: v.string(),
+    routeNumber: v.optional(v.string()),
+    location: v.optional(v.string()),
+    
+    // Supervisor information
+    supervisorBadge: v.string(),
+    supervisorName: v.string(),
+    resolvingSupervisor: v.optional(v.string()),
+    
+    // Status and severity
+    status: v.string(),            // started, diagnosed, in_progress, resolved
+    severity: v.string(),          // STOP, AMBER, CONTINUE, PENDING
+    
+    // Timestamps
+    createdAt: v.number(),
+    diagnosedAt: v.optional(v.number()),
+    resolvedAt: v.optional(v.number()),
+    returnedToServiceAt: v.optional(v.number()),
+    
+    // Wizard tracking
+    wizardType: v.string(),
+    wizardSteps: v.array(v.object({
+      type: v.string(),
+      data: v.any(),
+      timestamp: v.number()
+    })),
+    
+    // Resolution details
+    resolutionNotes: v.optional(v.string()),
+    passengerCloudUsed: v.boolean(),
+    totalDurationMinutes: v.optional(v.number()),
+    
+    // Flags
+    isPriority: v.boolean(),
+    isRepeat: v.boolean(),
+    previousBreakdownId: v.optional(v.string()),
+    autoEscalated: v.boolean(),
+    escalatedAt: v.optional(v.number()),
+    
+    // Archival
+    archived: v.boolean(),
+    archivedAt: v.optional(v.number())
+  })
+    .index("by_breakdown_id", ["breakdownId"])
+    .index("by_status", ["status"])
+    .index("by_fleet", ["fleetNumber"])
+    .index("by_depot", ["depotId"])
+    .index("by_created", ["createdAt"])
+    .index("by_daily", ["dailyId"]),
+
   // Login history for analytics
   loginHistory: defineTable({
     supervisorId: v.string(),
@@ -340,31 +398,6 @@ export default defineSchema({
     timestamp: v.number()
   })
     .index("by_timestamp", ["timestamp"]),
-
-  // Display messages for intelligent forwarding (Phase 2)
-  displayMessages: defineTable({
-    messageId: v.string(),
-    content: v.string(),
-    priority: v.number(), // 0=P0, 1=P1, 2=P2, 3=P3
-    messageType: v.string(),
-    supervisorId: v.string(),
-    supervisorName: v.string(),
-    templateId: v.optional(v.string()),
-    templateVariables: v.optional(v.any()),
-    displayDuration: v.number(),
-    rotationInterval: v.number(),
-    autoTriggered: v.boolean(),
-    source: v.string(), // 'supervisor', 'event', 'roadwork', 'system'
-    displayed: v.boolean(),
-    displayedAt: v.optional(v.number()),
-    displayCount: v.number(),
-    createdAt: v.number(),
-    expiresAt: v.number(),
-  })
-    .index("by_priority", ["priority", "createdAt"])
-    .index("active", ["displayed", "expiresAt"])
-    .index("by_supervisor", ["supervisorId"])
-    .index("by_expiry", ["expiresAt"]),
 
   // Multi-supervisor coordination messages (Phase 4.1)
   coordinationMessages: defineTable({

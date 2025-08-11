@@ -383,6 +383,33 @@
         
         // Start checking for components after a brief delay
         setTimeout(initializeApp, 2000);
+        
+        // Global functions for Passenger Cloud integration
+        window.openPassengerCloud = function() {
+            if (window.SupervisorBreakdownLogger && window.SupervisorBreakdownLogger.breakdownId) {
+                // Log that Passenger Cloud was used
+                fetch(`${window.BACKEND_URL || 'https://go-barry.onrender.com'}/api/breakdowns/step`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        breakdown_id: window.SupervisorBreakdownLogger.breakdownId,
+                        step_type: 'passenger_cloud_opened',
+                        step_data: { timestamp: new Date().toISOString() }
+                    })
+                });
+            }
+            
+            // Open Passenger Cloud
+            window.open('https://gonortheast.passenger-app.com/network/journeys/cancellations', '_blank');
+            window.closePassengerModal();
+        };
+        
+        window.closePassengerModal = function() {
+            const modal = document.getElementById('passenger-cloud-modal');
+            const backdrop = document.getElementById('passenger-cloud-backdrop');
+            if (modal) modal.remove();
+            if (backdrop) backdrop.remove();
+        };
     </script>
 </body>
 </html>

@@ -358,6 +358,44 @@ class SupabaseService {
   }
 
   /**
+   * Get the raw Supabase client for direct access
+   * Returns the service client if available, otherwise the anon client
+   */
+  async getClient() {
+    try {
+      // Ensure initialized
+      if (!this.isInitialized) {
+        await this.initialize();
+      }
+
+      // Return service client if available, otherwise anon client
+      if (this.connectionManager.clients.service) {
+        return this.connectionManager.clients.service;
+      }
+      
+      if (this.connectionManager.clients.anon) {
+        return this.connectionManager.clients.anon;
+      }
+
+      // If no clients available, try to reinitialize
+      await this.connectionManager.initialize();
+      
+      if (this.connectionManager.clients.service) {
+        return this.connectionManager.clients.service;
+      }
+      
+      if (this.connectionManager.clients.anon) {
+        return this.connectionManager.clients.anon;
+      }
+
+      throw new Error('No Supabase client available');
+    } catch (error) {
+      console.error('❌ Error getting Supabase client:', error);
+      return null;
+    }
+  }
+
+  /**
    * Test connection with comprehensive diagnostics
    */
   async testConnection() {

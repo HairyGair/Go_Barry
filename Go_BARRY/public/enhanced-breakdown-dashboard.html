@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Go North East - Engineering Response Dashboard</title>
+    <title>Go North East - Live Breakdown Dashboard</title>
     <style>
         * {
             margin: 0;
@@ -23,8 +23,9 @@
             margin: 0 auto;
         }
 
+        /* Header Styles */
         .header {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.98);
             border-radius: 12px;
             padding: 20px 30px;
             margin-bottom: 20px;
@@ -32,6 +33,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: relative;
         }
 
         .logo {
@@ -41,31 +43,64 @@
         }
 
         .logo h1 {
-            font-size: 24px;
-            color: #1e293b;
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(90deg, #1e3a8a, #dc2626);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        .logo-badge {
-            background: linear-gradient(45deg, #1e3a8a, #dc2626);
-            color: white;
-            padding: 8px 15px;
-            border-radius: 8px;
-            font-weight: bold;
-        }
-
-        .live-stats {
+        .live-indicator {
             display: flex;
-            gap: 30px;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #dc2626;
+            color: white;
+            border-radius: 20px;
+            font-weight: 600;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
         }
 
         .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
             text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
 
         .stat-value {
             font-size: 32px;
             font-weight: bold;
             color: #1e3a8a;
+            display: block;
         }
 
         .stat-label {
@@ -73,726 +108,569 @@
             color: #64748b;
             text-transform: uppercase;
             letter-spacing: 1px;
+            margin-top: 5px;
         }
 
-        .main-grid {
+        /* Filter Buttons */
+        .filter-buttons {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid #e5e7eb;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .filter-btn:hover {
+            border-color: #1e3a8a;
+            background: #f0f9ff;
+        }
+
+        .filter-btn.active {
+            background: #1e3a8a;
+            color: white;
+            border-color: #1e3a8a;
+        }
+
+        /* Breakdown Cards */
+        .breakdown-grid {
             display: grid;
-            grid-template-columns: 1fr 400px;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
             gap: 20px;
         }
 
-        .active-breakdowns {
-            background: rgba(255, 255, 255, 0.95);
+        .breakdown-card {
+            background: white;
             border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            position: relative;
+            transition: transform 0.3s, box-shadow 0.3s;
         }
 
-        .section-title {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 20px;
+        .breakdown-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+
+        .breakdown-card.priority {
+            border-left: 5px solid #f59e0b;
+        }
+
+        .breakdown-card.overdue {
+            border-left: 5px solid #dc2626;
+            animation: pulse-border 2s infinite;
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { border-left-color: #dc2626; }
+            50% { border-left-color: #ef4444; }
+        }
+
+        .breakdown-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .fleet-info {
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
-        .breakdown-list {
-            display: grid;
-            gap: 15px;
-        }
-
-        .breakdown-card {
-            background: #f8fafc;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 15px;
-            position: relative;
-            transition: all 0.3s;
-        }
-
-        .breakdown-card.critical {
-            border-color: #ef4444;
-            background: #fef2f2;
-            animation: pulse 2s infinite;
-        }
-
-        .breakdown-card.warning {
-            border-color: #f59e0b;
-            background: #fffbeb;
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.02); }
-        }
-
-        .vehicle-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .vehicle-number {
+        .fleet-number {
             font-size: 24px;
             font-weight: bold;
             color: #1e293b;
         }
 
-        .timer {
-            font-size: 28px;
-            font-weight: bold;
-            font-family: 'Courier New', monospace;
-            padding: 5px 10px;
-            border-radius: 6px;
-            background: white;
+        .depot-badge {
+            padding: 4px 8px;
+            background: #e0e7ff;
+            color: #3730a3;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
         }
 
-        .timer.ok { color: #10b981; }
-        .timer.warning { color: #f59e0b; }
-        .timer.critical { 
-            color: #ef4444;
-            animation: blink 1s infinite;
+        .repeat-flag {
+            background: #fef3c7;
+            color: #d97706;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
         }
 
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .breakdown-details {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
+        .breakdown-body {
             margin-bottom: 15px;
         }
 
-        .detail {
+        .info-row {
             display: flex;
             align-items: center;
-            gap: 5px;
-            font-size: 14px;
+            gap: 8px;
+            margin-bottom: 8px;
             color: #64748b;
+            font-size: 14px;
         }
 
-        .stage-timeline {
-            display: flex;
-            gap: 5px;
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid #e2e8f0;
+        .info-icon {
+            width: 16px;
+            text-align: center;
         }
 
-        .stage {
-            flex: 1;
-            height: 6px;
-            background: #e2e8f0;
-            border-radius: 3px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stage.completed {
-            background: #10b981;
-        }
-
-        .stage.current {
-            background: linear-gradient(90deg, #10b981 50%, #e2e8f0 50%);
-            animation: progress 2s linear infinite;
-        }
-
-        @keyframes progress {
-            0% { background-position: 0% 0; }
-            100% { background-position: 30px 0; }
-        }
-
-        .stage-labels {
+        .breakdown-timer {
             display: flex;
             justify-content: space-between;
-            margin-top: 5px;
-            font-size: 10px;
-            color: #94a3b8;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px solid #e5e7eb;
         }
 
-        .response-analytics {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        .timer {
+            display: flex;
+            align-items: baseline;
+            gap: 5px;
         }
 
-        .metric-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-
-        .metric-card {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 15px;
-        }
-
-        .metric-value {
+        .timer-value {
             font-size: 28px;
             font-weight: bold;
-            color: #1e3a8a;
+            color: #059669;
         }
 
-        .metric-label {
+        .timer-overdue {
+            color: #dc2626;
+        }
+
+        .timer-label {
             font-size: 12px;
-            color: #64748b;
-            margin-top: 5px;
+            color: #94a3b8;
         }
 
-        .depot-performance {
-            margin-top: 20px;
-        }
-
-        .depot-list {
-            display: grid;
-            gap: 10px;
-        }
-
-        .depot-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            background: #f8fafc;
+        .status-badge {
+            padding: 6px 12px;
             border-radius: 6px;
-        }
-
-        .depot-name {
-            font-weight: 500;
-            color: #1e293b;
-        }
-
-        .depot-time {
-            font-weight: bold;
-            color: #10b981;
-        }
-
-        .recent-resolutions {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 12px;
-            padding: 25px;
-            margin-top: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-
-        .resolution-list {
-            display: grid;
-            gap: 10px;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .resolution-item {
-            display: grid;
-            grid-template-columns: auto 1fr auto auto;
-            gap: 15px;
-            align-items: center;
-            padding: 12px;
-            background: #f8fafc;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-
-        .resolution-vehicle {
-            font-weight: bold;
-            color: #1e293b;
-        }
-
-        .resolution-issue {
-            color: #64748b;
-        }
-
-        .resolution-time {
+            font-size: 12px;
             font-weight: 600;
-            padding: 4px 8px;
-            border-radius: 4px;
-            background: #e0f2fe;
-            color: #0369a1;
         }
 
-        .resolution-depot {
-            color: #94a3b8;
-            font-size: 12px;
+        .status-awaiting {
+            background: #fef3c7;
+            color: #d97706;
         }
 
+        .status-diagnosed {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-escalated {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .breakdown-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-view {
+            background: #e0e7ff;
+            color: #3730a3;
+        }
+
+        .btn-view:hover {
+            background: #c7d2fe;
+        }
+
+        .btn-resolve {
+            background: #059669;
+            color: white;
+        }
+
+        .btn-resolve:hover {
+            background: #047857;
+        }
+
+        /* Empty State */
         .empty-state {
+            background: white;
+            border-radius: 12px;
+            padding: 60px 40px;
             text-align: center;
-            padding: 40px;
-            color: #94a3b8;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
 
         .empty-icon {
             font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .empty-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1e293b;
             margin-bottom: 10px;
         }
 
-        @media (max-width: 1200px) {
-            .main-grid {
-                grid-template-columns: 1fr;
-            }
+        .empty-text {
+            color: #64748b;
         }
 
-        @media (max-width: 768px) {
-            .header {
-                flex-direction: column;
-                gap: 20px;
-            }
+        /* Navigation Button */
+        .nav-btn {
+            position: absolute;
+            top: 50%;
+            right: 30px;
+            transform: translateY(-50%);
+            background: #1e3a8a;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
 
-            .live-stats {
-                width: 100%;
-                justify-content: space-around;
-            }
+        .nav-btn:hover {
+            background: #1e40af;
+        }
 
-            .breakdown-details {
-                grid-template-columns: 1fr;
-            }
+        /* Loading Spinner */
+        .loading {
+            display: flex;
+            justify-content: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #1e3a8a;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
     <div class="dashboard">
+        <!-- Header -->
         <div class="header">
             <div class="logo">
-                <div class="logo-badge">GNE</div>
-                <div>
-                    <h1>Engineering Response Dashboard</h1>
-                    <div style="color: #64748b; font-size: 14px;">Real-time breakdown tracking and response analytics</div>
+                <h1>Live Breakdown Dashboard</h1>
+                <div class="live-indicator">
+                    <div class="live-dot"></div>
+                    <span>LIVE</span>
                 </div>
             </div>
-            <div class="live-stats">
-                <div class="stat-card">
-                    <div class="stat-value" id="activeCount">0</div>
-                    <div class="stat-label">Active</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="avgResponse">--:--</div>
-                    <div class="stat-label">Avg Response</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="todayResolved">0</div>
-                    <div class="stat-label">Resolved Today</div>
-                </div>
+            <a href="./breakdown-guide/" class="nav-btn">← Back to Breakdown Guide</a>
+        </div>
+
+        <!-- Statistics Bar -->
+        <div class="stats-bar">
+            <div class="stat-card">
+                <span class="stat-value" id="totalActive">0</span>
+                <div class="stat-label">Active Breakdowns</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="diagnosedCount">0</span>
+                <div class="stat-label">Diagnosed</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="overdueCount">0</span>
+                <div class="stat-label">Overdue (30m+)</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="todayTotal">0</span>
+                <div class="stat-label">Today's Total</div>
+            </div>
+            <div class="stat-card">
+                <span class="stat-value" id="avgTime">--</span>
+                <div class="stat-label">Avg Resolution</div>
             </div>
         </div>
 
-        <div class="main-grid">
-            <div class="active-breakdowns">
-                <h2 class="section-title">
-                    🚨 Active Breakdowns
-                    <span style="font-size: 14px; color: #64748b; font-weight: normal;">
-                        (From Breakdown Guide STOP decisions)
-                    </span>
-                </h2>
-                <div id="breakdownList" class="breakdown-list">
-                    <!-- Populated by JavaScript -->
-                </div>
-            </div>
-
-            <div>
-                <div class="response-analytics">
-                    <h2 class="section-title">📊 Response Analytics</h2>
-                    <div class="metric-grid">
-                        <div class="metric-card">
-                            <div class="metric-value" id="currentLongest">--:--</div>
-                            <div class="metric-label">Longest Current Wait</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-value" id="within30">--%</div>
-                            <div class="metric-label">Resolved < 30 mins</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-value" id="within60">--%</div>
-                            <div class="metric-label">Resolved < 1 hour</div>
-                        </div>
-                        <div class="metric-card">
-                            <div class="metric-value" id="totalDowntime">--:--</div>
-                            <div class="metric-label">Total Downtime Today</div>
-                        </div>
-                    </div>
-
-                    <div class="depot-performance">
-                        <h3 style="font-size: 16px; margin-bottom: 10px;">Depot Performance (Today)</h3>
-                        <div id="depotList" class="depot-list">
-                            <!-- Populated by JavaScript -->
-                        </div>
-                    </div>
-                </div>
-            </div>
+        <!-- Filter Buttons -->
+        <div class="filter-buttons">
+            <button class="filter-btn active" data-filter="all">All Breakdowns</button>
+            <button class="filter-btn" data-filter="priority">Priority Routes Only</button>
+            <button class="filter-btn" data-filter="overdue">Overdue (30m+)</button>
+            <button class="filter-btn" data-filter="awaiting">Awaiting Diagnosis</button>
+            <button class="filter-btn" data-filter="repeat">Repeat Breakdowns</button>
         </div>
 
-        <div class="recent-resolutions">
-            <h2 class="section-title">✅ Recent Resolutions (Last 24 Hours)</h2>
-            <div id="resolutionList" class="resolution-list">
-                <!-- Populated by JavaScript -->
+        <!-- Breakdown Grid -->
+        <div id="breakdownGrid" class="breakdown-grid">
+            <div class="loading">
+                <div class="spinner"></div>
             </div>
         </div>
     </div>
 
     <script>
-        // Data store
-        let breakdowns = {
-            active: [],
-            resolved: []
-        };
+        const BACKEND_URL = 'https://go-barry.onrender.com';
+        let currentFilter = 'all';
+        let breakdownData = [];
+        let refreshInterval;
 
-        // Load data from localStorage (from breakdown guide)
-        function loadFromLocalStorage() {
+        // Fetch live breakdowns from API
+        async function fetchLiveBreakdowns() {
             try {
-                // Load breakdown data from localStorage
-                const stored = localStorage.getItem('gobarry_breakdown_data');
-                const allBreakdowns = stored ? JSON.parse(stored) : [];
+                const response = await fetch(`${BACKEND_URL}/api/breakdowns/live`);
+                const data = await response.json();
                 
-                // Filter active breakdowns (STOP decisions that aren't resolved)
-                breakdowns.active = allBreakdowns
-                    .filter(b => b.decision === 'STOP' && !b.resolved)
-                    .map(b => ({
-                        id: b.id,
-                        vehicleNumber: b.fleetNumber,
-                        issueType: formatIssueType(b.wizardType),
-                        location: b.location || 'Location not specified',
-                        depot: b.depot,
-                        route: b.route || 'Unknown',
-                        supervisor: b.supervisorName || b.supervisor,
-                        startTime: new Date(b.timestamp).getTime(),
-                        stages: getBreakdownStages(b),
-                        currentStage: getCurrentStage(b),
-                        rawData: b
-                    }));
-                
-                // Filter resolved breakdowns (last 24 hours)
-                const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
-                breakdowns.resolved = allBreakdowns
-                    .filter(b => b.resolved && new Date(b.resolvedTime).getTime() > twentyFourHoursAgo)
-                    .map(b => ({
-                        vehicleNumber: b.fleetNumber,
-                        issueType: formatIssueType(b.wizardType),
-                        depot: b.depot,
-                        responseTime: calculateResponseTime(b),
-                        resolvedAt: new Date(b.resolvedTime).getTime()
-                    }))
-                    .sort((a, b) => b.resolvedAt - a.resolvedAt);
-                
-                updateAll();
+                if (data.success) {
+                    breakdownData = data.breakdowns || [];
+                    updateDashboard();
+                }
             } catch (error) {
-                console.error('Error loading from localStorage:', error);
-                // No fallback to sample data - we want real data only
-                breakdowns.active = [];
-                breakdowns.resolved = [];
-                updateAll();
+                console.error('Error fetching breakdowns:', error);
             }
         }
-        
-        // Format wizard type to readable issue type
-        function formatIssueType(wizardType) {
-            if (!wizardType) return 'Unknown Issue';
-            return wizardType
-                .replace(/_/g, ' ')
-                .split(' ')
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                .join(' ');
-        }
-        
-        // Get breakdown stages based on data
-        function getBreakdownStages(breakdown) {
-            const stages = ['received'];
-            if (breakdown.acknowledgedTime) stages.push('acknowledged');
-            if (breakdown.decisionTime) stages.push('decision');
-            if (breakdown.engineerDispatchTime) stages.push('engineer_dispatched');
-            if (breakdown.onsiteTime) stages.push('on_site');
-            if (breakdown.resolved) stages.push('resolved');
-            return stages;
-        }
-        
-        // Get current stage
-        function getCurrentStage(breakdown) {
-            if (breakdown.resolved) return 'resolved';
-            if (breakdown.onsiteTime) return 'on_site';
-            if (breakdown.engineerDispatchTime) return 'engineer_dispatched';
-            if (breakdown.decisionTime) return 'decision';
-            if (breakdown.acknowledgedTime) return 'acknowledged';
-            return 'received';
-        }
-        
-        // Calculate response time in minutes
-        function calculateResponseTime(breakdown) {
-            if (!breakdown.resolvedTime) return 0;
-            const start = new Date(breakdown.timestamp).getTime();
-            const end = new Date(breakdown.resolvedTime).getTime();
-            return Math.round((end - start) / (1000 * 60));
-        }
 
-        // NO SAMPLE DATA - using only real data from breakdown guide
-
-        // Format time duration
-        function formatDuration(milliseconds) {
-            const totalSeconds = Math.floor(milliseconds / 1000);
-            const hours = Math.floor(totalSeconds / 3600);
-            const minutes = Math.floor((totalSeconds % 3600) / 60);
-            const seconds = totalSeconds % 60;
-            
-            if (hours > 0) {
-                return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        // Fetch today's breakdowns for statistics
+        async function fetchTodayBreakdowns() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/breakdowns/today`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateStatistics(data.breakdowns || []);
+                }
+            } catch (error) {
+                console.error('Error fetching today\'s breakdowns:', error);
             }
-            return `${minutes}:${String(seconds).padStart(2, '0')}`;
         }
 
-        // Get timer severity class
-        function getTimerClass(minutes) {
-            if (minutes < 30) return 'ok';
-            if (minutes < 60) return 'warning';
-            return 'critical';
-        }
-
-        // Get card severity class
-        function getCardClass(minutes) {
-            if (minutes >= 60) return 'critical';
-            if (minutes >= 30) return 'warning';
-            return '';
-        }
-
-        // Render stage indicators
-        function renderStages(stages, currentStage) {
-            const allStages = ['received', 'acknowledged', 'decision', 'engineer_dispatched', 'on_site', 'resolved'];
-            const currentIndex = allStages.indexOf(currentStage);
+        // Update dashboard display
+        function updateDashboard() {
+            const container = document.getElementById('breakdownGrid');
             
-            const stageHtml = allStages.map((stage, index) => {
-                let className = 'stage';
-                if (index < currentIndex) className += ' completed';
-                else if (index === currentIndex) className += ' current';
-                return `<div class="${className}"></div>`;
-            }).join('');
-
-            const labelsHtml = `
-                <span>Received</span>
-                <span>Ack</span>
-                <span>Decision</span>
-                <span>Dispatch</span>
-                <span>On Site</span>
-                <span>Resolved</span>
-            `;
-
-            return `
-                <div class="stage-timeline">${stageHtml}</div>
-                <div class="stage-labels">${labelsHtml}</div>
-            `;
-        }
-
-        // Update active breakdowns display
-        function updateActiveBreakdowns() {
-            const container = document.getElementById('breakdownList');
+            // Filter breakdowns based on current filter
+            let filteredBreakdowns = [...breakdownData];
             
-            if (breakdowns.active.length === 0) {
+            switch(currentFilter) {
+                case 'priority':
+                    filteredBreakdowns = filteredBreakdowns.filter(b => b.is_priority);
+                    break;
+                case 'overdue':
+                    filteredBreakdowns = filteredBreakdowns.filter(b => b.minutes_since_diagnosis > 30);
+                    break;
+                case 'awaiting':
+                    filteredBreakdowns = filteredBreakdowns.filter(b => b.status === 'received' || b.status === 'acknowledged');
+                    break;
+                case 'repeat':
+                    filteredBreakdowns = filteredBreakdowns.filter(b => b.repeat_breakdown);
+                    break;
+            }
+
+            // Update counts
+            document.getElementById('totalActive').textContent = breakdownData.length;
+            document.getElementById('diagnosedCount').textContent = 
+                breakdownData.filter(b => b.status === 'diagnosed').length;
+            document.getElementById('overdueCount').textContent = 
+                breakdownData.filter(b => b.minutes_since_diagnosis > 30).length;
+
+            if (filteredBreakdowns.length === 0) {
                 container.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-icon">✅</div>
-                        <div>No active breakdowns</div>
-                        <div style="font-size: 14px; margin-top: 5px;">All vehicles operational</div>
+                        <div class="empty-title">No Active Breakdowns</div>
+                        <div class="empty-text">All vehicles are currently operational</div>
                     </div>
                 `;
                 return;
             }
 
-            container.innerHTML = breakdowns.active.map(breakdown => {
-                const elapsed = Date.now() - breakdown.startTime;
-                const minutes = Math.floor(elapsed / 60000);
-                
-                return `
-                    <div class="breakdown-card ${getCardClass(minutes)}">
-                        <div class="vehicle-header">
-                            <div class="vehicle-number">${breakdown.vehicleNumber}</div>
-                            <div class="timer ${getTimerClass(minutes)}">${formatDuration(elapsed)}</div>
+            container.innerHTML = filteredBreakdowns.map(breakdown => 
+                createBreakdownCard(breakdown)
+            ).join('');
+        }
+
+        // Create breakdown card HTML
+        function createBreakdownCard(breakdown) {
+            const isOverdue = breakdown.minutes_since_diagnosis > 30;
+            const isPriority = breakdown.is_priority;
+            const cardClass = `breakdown-card ${isOverdue ? 'overdue' : ''} ${isPriority ? 'priority' : ''}`;
+            
+            return `
+                <div class="${cardClass}">
+                    <div class="breakdown-header">
+                        <div class="fleet-info">
+                            <span class="fleet-number">${breakdown.fleet_no}</span>
+                            <span class="depot-badge">${breakdown.depot_id}</span>
+                            ${breakdown.repeat_breakdown ? '<span class="repeat-flag">⚠️ REPEAT</span>' : ''}
                         </div>
-                        <div class="breakdown-details">
-                            <div class="detail">📛 ${breakdown.issueType}</div>
-                            <div class="detail">📍 ${breakdown.location}</div>
-                            <div class="detail">🚌 Route ${breakdown.route}</div>
-                            <div class="detail">🏢 ${breakdown.depot}</div>
+                    </div>
+                    <div class="breakdown-body">
+                        <div class="info-row">
+                            <span class="info-icon">📍</span>
+                            <span>${breakdown.location || 'Location unknown'}</span>
                         </div>
-                        ${renderStages(breakdown.stages, breakdown.currentStage)}
+                        <div class="info-row">
+                            <span class="info-icon">🚌</span>
+                            <span>Route: ${breakdown.route_id || 'N/A'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-icon">👤</span>
+                            <span>Supervisor: ${breakdown.supervisor_badge}</span>
+                        </div>
+                        ${breakdown.diagnosis ? `
+                            <div class="info-row">
+                                <span class="info-icon">🔧</span>
+                                <span>${breakdown.diagnosis}</span>
+                            </div>
+                        ` : ''}
                     </div>
-                `;
-            }).join('');
-        }
-
-        // Update statistics
-        function updateStatistics() {
-            // Active count
-            document.getElementById('activeCount').textContent = breakdowns.active.length;
-
-            // Average response time
-            if (breakdowns.resolved.length > 0) {
-                const avgMinutes = breakdowns.resolved.reduce((sum, b) => sum + b.responseTime, 0) / breakdowns.resolved.length;
-                document.getElementById('avgResponse').textContent = Math.round(avgMinutes) + 'm';
-            }
-
-            // Today resolved
-            const todayStart = new Date().setHours(0,0,0,0);
-            const todayResolved = breakdowns.resolved.filter(b => b.resolvedAt > todayStart);
-            document.getElementById('todayResolved').textContent = todayResolved.length;
-
-            // Current longest wait
-            if (breakdowns.active.length > 0) {
-                const longestWait = Math.max(...breakdowns.active.map(b => Date.now() - b.startTime));
-                document.getElementById('currentLongest').textContent = formatDuration(longestWait);
-            } else {
-                document.getElementById('currentLongest').textContent = '--:--';
-            }
-
-            // Resolution percentages
-            if (todayResolved.length > 0) {
-                const within30 = todayResolved.filter(b => b.responseTime <= 30).length;
-                const within60 = todayResolved.filter(b => b.responseTime <= 60).length;
-                document.getElementById('within30').textContent = Math.round((within30 / todayResolved.length) * 100) + '%';
-                document.getElementById('within60').textContent = Math.round((within60 / todayResolved.length) * 100) + '%';
-            } else {
-                document.getElementById('within30').textContent = '--%';
-                document.getElementById('within60').textContent = '--%';
-            }
-
-            // Total downtime
-            const totalMinutes = todayResolved.reduce((sum, b) => sum + b.responseTime, 0) +
-                breakdowns.active.reduce((sum, b) => sum + Math.floor((Date.now() - b.startTime) / 60000), 0);
-            document.getElementById('totalDowntime').textContent = formatDuration(totalMinutes * 60000);
-
-            // Depot performance
-            updateDepotPerformance();
-
-            // Recent resolutions
-            updateRecentResolutions();
-        }
-
-        // Update depot performance
-        function updateDepotPerformance() {
-            const depotData = {};
-            const allDepots = ['Gateshead', 'Percy Main', 'Washington', 'Consett', 'Hexham'];
-            
-            // Calculate average response time per depot
-            breakdowns.resolved.forEach(b => {
-                if (!depotData[b.depot]) {
-                    depotData[b.depot] = { total: 0, count: 0 };
-                }
-                depotData[b.depot].total += b.responseTime;
-                depotData[b.depot].count++;
-            });
-
-            const container = document.getElementById('depotList');
-            container.innerHTML = allDepots.map(depot => {
-                const data = depotData[depot];
-                const avgTime = data ? Math.round(data.total / data.count) : '--';
-                
-                return `
-                    <div class="depot-row">
-                        <span class="depot-name">${depot}</span>
-                        <span class="depot-time">${avgTime !== '--' ? avgTime + 'm' : '--'}</span>
+                    <div class="breakdown-timer">
+                        ${breakdown.diagnosed_at ? `
+                            <div class="timer">
+                                <span class="timer-value ${isOverdue ? 'timer-overdue' : ''}">${breakdown.minutes_since_diagnosis || 0}</span>
+                                <span class="timer-label">minutes</span>
+                            </div>
+                            <span class="status-badge ${isOverdue ? 'status-escalated' : 'status-diagnosed'}">
+                                ${isOverdue ? 'ESCALATED' : 'DIAGNOSED'}
+                            </span>
+                        ` : `
+                            <span class="status-badge status-awaiting">AWAITING DIAGNOSIS</span>
+                        `}
                     </div>
-                `;
-            }).join('');
-        }
-
-        // Update recent resolutions
-        function updateRecentResolutions() {
-            const container = document.getElementById('resolutionList');
-            
-            if (breakdowns.resolved.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div>No resolutions in the last 24 hours</div>
+                    <div class="breakdown-actions">
+                        <button class="action-btn btn-view" onclick="viewBreakdown('${breakdown.breakdown_id}')">
+                            View Details
+                        </button>
+                        <button class="action-btn btn-resolve" onclick="resolveBreakdown('${breakdown.breakdown_id}')">
+                            Resolve
+                        </button>
                     </div>
-                `;
-                return;
-            }
-
-            const sorted = [...breakdowns.resolved].sort((a, b) => b.resolvedAt - a.resolvedAt);
-            
-            container.innerHTML = sorted.map(resolution => `
-                <div class="resolution-item">
-                    <span class="resolution-vehicle">${resolution.vehicleNumber}</span>
-                    <span class="resolution-issue">${resolution.issueType}</span>
-                    <span class="resolution-time">${resolution.responseTime}m</span>
-                    <span class="resolution-depot">${resolution.depot}</span>
                 </div>
-            `).join('');
+            `;
         }
 
-        // Simulate stage progression (in production, this would come from your API)
-        function simulateStageProgression() {
-            breakdowns.active.forEach(breakdown => {
-                const elapsed = Date.now() - breakdown.startTime;
-                const minutes = Math.floor(elapsed / 60000);
+        // Update statistics from today's data
+        function updateStatistics(todayBreakdowns) {
+            document.getElementById('todayTotal').textContent = todayBreakdowns.length;
+            
+            // Calculate average resolution time
+            const resolved = todayBreakdowns.filter(b => b.resolved_at);
+            if (resolved.length > 0) {
+                const totalMinutes = resolved.reduce((sum, b) => {
+                    const start = new Date(b.created_at);
+                    const end = new Date(b.resolved_at);
+                    return sum + Math.floor((end - start) / 60000);
+                }, 0);
+                const avg = Math.round(totalMinutes / resolved.length);
+                document.getElementById('avgTime').textContent = `${avg}m`;
+            }
+        }
+
+        // View breakdown details
+        function viewBreakdown(breakdownId) {
+            const breakdown = breakdownData.find(b => b.breakdown_id === breakdownId);
+            if (breakdown) {
+                alert(`Breakdown Details:\n\nID: ${breakdown.daily_id}\nFleet: ${breakdown.fleet_no}\nStatus: ${breakdown.status}\nDiagnosis: ${breakdown.diagnosis || 'Pending'}`);
+            }
+        }
+
+        // Resolve breakdown
+        async function resolveBreakdown(breakdownId) {
+            const notes = prompt('Resolution notes:');
+            if (!notes) return;
+            
+            const supervisor = prompt('Your badge number:');
+            if (!supervisor) return;
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/breakdowns/${breakdownId}/resolve`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        resolution_notes: notes,
+                        resolving_supervisor: supervisor,
+                        returned_to_service: true
+                    })
+                });
                 
-                // Auto-progress stages based on time (for demo)
-                if (minutes > 40 && breakdown.currentStage === 'engineer_dispatched') {
-                    breakdown.currentStage = 'on_site';
-                    breakdown.stages.push('on_site');
+                if (response.ok) {
+                    alert('Breakdown resolved successfully');
+                    fetchLiveBreakdowns(); // Refresh
+                } else {
+                    alert('Failed to resolve breakdown. Please try again.');
                 }
-                if (minutes > 50 && breakdown.currentStage === 'on_site') {
-                    // Move to resolved
-                    breakdowns.resolved.push({
-                        vehicleNumber: breakdown.vehicleNumber,
-                        issueType: breakdown.issueType,
-                        depot: breakdown.depot,
-                        responseTime: minutes,
-                        resolvedAt: Date.now()
-                    });
-                    
-                    // Remove from active
-                    const index = breakdowns.active.indexOf(breakdown);
-                    if (index > -1) {
-                        breakdowns.active.splice(index, 1);
-                    }
-                }
+            } catch (error) {
+                console.error('Error resolving breakdown:', error);
+                alert('Error resolving breakdown. Please try again.');
+            }
+        }
+
+        // Setup filter buttons
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Update active state
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Update filter and refresh
+                currentFilter = this.dataset.filter;
+                updateDashboard();
             });
+        });
+
+        // Initialize dashboard
+        function init() {
+            fetchLiveBreakdowns();
+            fetchTodayBreakdowns();
+            
+            // Auto-refresh every 5 seconds
+            refreshInterval = setInterval(() => {
+                fetchLiveBreakdowns();
+            }, 5000);
+            
+            // Refresh statistics every 30 seconds
+            setInterval(() => {
+                fetchTodayBreakdowns();
+            }, 30000);
         }
 
-        // Update all displays
-        function updateAll() {
-            updateActiveBreakdowns();
-            updateStatistics();
-            simulateStageProgression();
-        }
+        // Start the dashboard
+        init();
 
-        // Initialize with real data only
-        loadFromLocalStorage();
-
-        // Update every second for timers
-        setInterval(updateAll, 1000);
-        
-        // Refresh data from localStorage every 30 seconds
-        setInterval(loadFromLocalStorage, 30000);
-        
-        // Add navigation back to Breakdown Guide
-        document.addEventListener('DOMContentLoaded', function() {
-            // Add a button to go back to the guide
-            const header = document.querySelector('.header');
-            if (header) {
-                const navButton = document.createElement('a');
-                navButton.href = './breakdown-guide/';
-                navButton.style.cssText = `
-                    position: absolute;
-                    top: 20px;
-                    right: 20px;
-                    background: #1e3a8a;
-                    color: white;
-                    padding: 10px 20px;
-                    border-radius: 8px;
-                    text-decoration: none;
-                    font-weight: 500;
-                    transition: background 0.3s;
-                `;
-                navButton.textContent = '← Back to Breakdown Guide';
-                navButton.onmouseover = () => navButton.style.background = '#1e40af';
-                navButton.onmouseout = () => navButton.style.background = '#1e3a8a';
-                header.style.position = 'relative';
-                header.appendChild(navButton);
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
             }
         });
     </script>
