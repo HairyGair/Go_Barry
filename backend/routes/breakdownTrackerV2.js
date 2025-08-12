@@ -230,82 +230,95 @@ router.post('/start', async (req, res) => {
       });
     }
 
-    // Validate fleet number
-    if (!fleet_number) {
-      return res.status(400).json({
+    // Get Supabase client
+    const client = await getSupabaseClient();
+    if (!client) {
+      throw new Error('No Supabase client available');
+    }
+
+    // Auto-determine depot if not provided
+    const depot = depot_id || getDepotFromVehicle(fleet_number);
+
+    // Call the Supabase function to create breakdown
+    console.log('Calling create_breakdown with:', {
+      fleet_number: fleet_number || null,
+      supervisor_badge,
+      supervisor_name: supervisor_name || null,
+      location: location || null,
+      depot_id: depot || 'Washington',
+      wizard_type: wizard_type || 'general'
+    });
+
+    const { data: result, error: rpcError } = await client
+      .rpc('create_breakdown', {
+        p_fleet_number: fleet_number || null,
+        p_supervisor_badge: supervisor_badge,
+        p_supervisor_name: supervisor_name || null,
+        p_location: location || null,
+        p_depot_id: depot || 'Washington',
+        p_wizard_type: wizard_type || 'general'
+      });
+
+    if (rpcError) {
+      console.error('RPC Error:', rpcError);
+      return res.status(500).json({ 
         success: false,
-        error: 'Fleet number required'
+        error: 'Failed to create breakdown record',
+        details: rpcError.message
       });
     }
 
-    // Generate IDs
-    const breakdownId = await generateBreakdownId();
-    const dailyId = await getNextDailyId();
-    
+    if (!result || !result.success) {
+      console.error('Unexpected result:', result);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Failed to create breakdown record'
+      });
+    }
+
     // Check for repeat breakdowns
     const repeatCheck = await checkRepeatBreakdown(fleet_number);
     
     // Check if priority route
     const isPriority = await checkPriorityRoute(route_number);
-    
-    // Auto-determine depot if not provided
-    const depot = depot_id || getDepotFromVehicle(fleet_number);
 
-    // Create breakdown record
-    const breakdown = {
-      id: uuidv4(),
-      breakdown_id: breakdownId,
-      daily_id: dailyId,
-      fleet_no: fleet_number,
-      depot_id: depot,
-      route_id: route_number || null,
-      location: location || null,
-      supervisor_badge,
-      supervisor_id: supervisor_name || supervisor_badge,
-      wizard_type: wizard_type || 'general',
-      status: 'started',
-      severity: 'PENDING',
-      created_at: new Date().toISOString(),
-      timestamp: new Date().toISOString(),
-      
-      // New fields
-      is_priority: isPriority,
-      repeat_breakdown: repeatCheck.isRepeat,
-      previous_breakdown_id: repeatCheck.previousBreakdownId,
-      wizard_steps: JSON.stringify([{
-        type: 'wizard_opened',
-        timestamp: new Date().toISOString(),
-        data: { wizard_type, fleet_number }
-      }])
-    };
-
-    // Insert breakdown record
-    const client = await getSupabaseClient();
-    if (!client) {
-      throw new Error('No Supabase client available for insert');
+    // Update the record with additional info if needed
+    if (route_number || isPriority || repeatCheck.isRepeat) {
+      await client
+        .from('breakdowns')
+        .update({
+          route_id: route_number || null,
+          is_priority: isPriority,
+          repeat_breakdown: repeatCheck.isRepeat,
+          previous_breakdown_id: repeatCheck.previousBreakdownId
+        })
+        .eq('breakdown_id', result.breakdown_id);
     }
-    
-    const { data: breakdownData, error: breakdownError } = await client
+
+    // Log initial wizard step
+    await client
       .from('breakdowns')
-      .insert(breakdown)
-      .select()
-      .single();
-
-    if (breakdownError) {
-      console.error('Error creating breakdown:', breakdownError);
-      return res.status(500).json({ 
-        success: false,
-        error: 'Failed to create breakdown record' 
-      });
-    }
+      .update({
+        wizard_steps: JSON.stringify([{
+          type: 'wizard_opened',
+          timestamp: new Date().toISOString(),
+          data: { wizard_type: wizard_type || 'general', fleet_number }
+        }])
+      })
+      .eq('breakdown_id', result.breakdown_id);
 
     res.json({
       success: true,
-      breakdown_id: breakdownId,
-      daily_id: dailyId,
+      breakdown_id: result.breakdown_id,
+      daily_id: result.daily_id,
       message: 'Breakdown started successfully',
       data: {
-        ...breakdownData,
+        breakdown_id: result.breakdown_id,
+        daily_id: result.daily_id,
+        fleet_number,
+        supervisor_badge,
+        supervisor_name,
+        depot_id: depot,
         repeat_warning: repeatCheck.shouldFlag ? 
           `⚠️ Fleet ${fleet_number} has broken down ${repeatCheck.count} times in 7 days` : null
       }
@@ -315,7 +328,8 @@ router.post('/start', async (req, res) => {
     console.error('Error starting breakdown:', error);
     res.status(500).json({ 
       success: false,
-      error: 'Internal server error' 
+      error: 'Internal server error',
+      details: error.message
     });
   }
 });
