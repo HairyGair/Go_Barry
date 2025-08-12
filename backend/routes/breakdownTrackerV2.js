@@ -2,6 +2,15 @@
  * Enhanced Breakdown Tracker API V2
  * Manages breakdown lifecycle with sequential IDs, step tracking, and pattern detection
  * Integrates with breakdown wizard and provides real-time dashboard data
+ * 
+ * STATUS VALUES (Database Constraint):
+ * - received: Initial breakdown report
+ * - acknowledged: SDC has acknowledged the breakdown
+ * - decision: Supervisor has made STOP/AMBER/CONTINUE decision (timer starts)
+ * - dispatched: Engineer dispatched (if needed)
+ * - on_site: Engineer on site
+ * - moving: Vehicle moving (under own power or being recovered)
+ * - cleared: Breakdown resolved, service restored
  */
 
 import express from 'express';
@@ -42,6 +51,355 @@ async function getSupabaseClient() {
     console.error('❌ Failed to initialize Supabase for Breakdown Tracker:', error);
   }
 })();
+
+// Dashboard endpoint
+router.get('/dashboard', (req, res) => {
+  const dashboardHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Go North East - Breakdown Tracker</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f3f4f6;
+        }
+        .header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #dc2626 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            flex: 1;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #1e3a8a;
+        }
+        .stat-label {
+            color: #6b7280;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .container {
+            padding: 20px;
+        }
+        .breakdown-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 15px;
+        }
+        .breakdown-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+        .breakdown-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            padding: 15px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .fleet-number {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1e3a8a;
+        }
+        .depot-badge {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .card-body {
+            padding: 15px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .info-label {
+            color: #6b7280;
+        }
+        .info-value {
+            color: #111827;
+            font-weight: 500;
+        }
+        .card-actions {
+            padding: 15px;
+            background: #f9fafb;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        .btn-success:hover {
+            background: #059669;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .status-received { background: #fef3c7; color: #92400e; }
+        .status-decision { background: #fed7aa; color: #9a3412; }
+        .status-cleared { background: #d1fae5; color: #065f46; }
+        .timer {
+            color: #dc2626;
+            font-weight: bold;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚨 Go North East - Live Breakdown Tracker</h1>
+    </div>
+    
+    <div class="stats">
+        <div class="stat-card">
+            <div class="stat-value" id="total-count">0</div>
+            <div class="stat-label">Active Breakdowns</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="pending-count">0</div>
+            <div class="stat-label">Awaiting Decision</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="decision-count">0</div>
+            <div class="stat-label">Decision Made</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="today-count">0</div>
+            <div class="stat-label">Today's Total</div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div id="breakdown-grid" class="breakdown-grid">
+            <div class="loading">Loading breakdowns...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = window.location.origin;
+        
+        async function loadBreakdowns() {
+            try {
+                const response = await fetch(\`\${API_URL}/api/breakdowns/live\`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayBreakdowns(data.breakdowns);
+                    updateStats(data.breakdowns);
+                }
+            } catch (error) {
+                console.error('Error loading breakdowns:', error);
+                document.getElementById('breakdown-grid').innerHTML = 
+                    '<div class="loading">Error loading breakdowns. Check console.</div>';
+            }
+        }
+        
+        function displayBreakdowns(breakdowns) {
+            const grid = document.getElementById('breakdown-grid');
+            
+            if (breakdowns.length === 0) {
+                grid.innerHTML = '<div class="loading">No active breakdowns 🎉</div>';
+                return;
+            }
+            
+            grid.innerHTML = breakdowns.map(b => \`
+                <div class="breakdown-card">
+                    <div class="card-header">
+                        <span class="fleet-number">Fleet \${b.fleet_number || b.fleet_no || 'Unknown'}</span>
+                        <span class="depot-badge">\${b.depot_id || 'Unknown Depot'}</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="info-row">
+                            <span class="info-label">Breakdown ID:</span>
+                            <span class="info-value">\${b.breakdown_id || 'Pending'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Location:</span>
+                            <span class="info-value">\${b.location || 'Not specified'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Supervisor:</span>
+                            <span class="info-value">\${b.supervisor_name || b.supervisor_badge}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Wizard Type:</span>
+                            <span class="info-value">\${b.wizard_type || 'General'}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Status:</span>
+                            <span class="status-badge status-\${b.status}">\${b.status.toUpperCase()}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Severity:</span>
+                            <span class="info-value">\${b.severity || 'PENDING'}</span>
+                        </div>
+                        \${b.minutes_since_diagnosis ? 
+                            \`<div class="timer">⏱️ \${b.minutes_since_diagnosis} minutes since decision</div>\` : 
+                            ''
+                        }
+                    </div>
+                    <div class="card-actions">
+                        \${b.status === 'received' ? 
+                            \`<button class="btn btn-primary" onclick="makeDecision('\${b.breakdown_id}')">
+                                Make Decision
+                            </button>\` : ''
+                        }
+                        <button class="btn btn-success" onclick="clearBreakdown('\${b.breakdown_id}')">
+                            Clear Breakdown
+                        </button>
+                    </div>
+                </div>
+            \`).join('');
+        }
+        
+        function updateStats(breakdowns) {
+            document.getElementById('total-count').textContent = breakdowns.length;
+            document.getElementById('pending-count').textContent = 
+                breakdowns.filter(b => b.status === 'received').length;
+            document.getElementById('decision-count').textContent = 
+                breakdowns.filter(b => b.status === 'decision').length;
+            
+            // Count today's breakdowns
+            const today = new Date().toDateString();
+            const todayCount = breakdowns.filter(b => 
+                new Date(b.created_at).toDateString() === today
+            ).length;
+            document.getElementById('today-count').textContent = todayCount;
+        }
+        
+        async function makeDecision(breakdownId) {
+            const severity = prompt('Enter severity (STOP/AMBER/CONTINUE):', 'AMBER');
+            if (!severity) return;
+            
+            const diagnosis = prompt('Enter diagnosis:', 'Issue identified');
+            if (!diagnosis) return;
+            
+            try {
+                const response = await fetch(\`\${API_URL}/api/breakdowns/diagnose\`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        breakdown_id: breakdownId,
+                        diagnosis: diagnosis,
+                        severity: severity.toUpperCase()
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert('Decision recorded successfully');
+                    loadBreakdowns();
+                } else {
+                    alert('Error: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error making decision:', error);
+                alert('Failed to make decision');
+            }
+        }
+        
+        async function clearBreakdown(breakdownId) {
+            const notes = prompt('Resolution notes:', 'Issue resolved');
+            if (!notes) return;
+            
+            try {
+                const response = await fetch(\`\${API_URL}/api/breakdowns/\${breakdownId}/resolve\`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        resolution_notes: notes,
+                        resolving_supervisor: 'AG003',
+                        returned_to_service: true
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert('Breakdown cleared successfully');
+                    loadBreakdowns();
+                } else {
+                    alert('Error: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error clearing breakdown:', error);
+                alert('Failed to clear breakdown');
+            }
+        }
+        
+        // Load breakdowns on page load
+        loadBreakdowns();
+        
+        // Auto-refresh every 10 seconds
+        setInterval(loadBreakdowns, 10000);
+    </script>
+</body>
+</html>
+  `;
+  res.send(dashboardHTML);
+});
 
 // Test endpoint
 router.get('/test', (req, res) => {
@@ -367,9 +725,12 @@ router.post('/step', async (req, res) => {
       .single();
 
     if (fetchError || !breakdown) {
+      console.error('Error fetching breakdown:', fetchError);
+      console.error('Breakdown ID:', breakdown_id);
       return res.status(404).json({
         success: false,
-        error: 'Breakdown not found'
+        error: 'Breakdown not found',
+        details: fetchError ? fetchError.message : 'No breakdown found'
       });
     }
 
@@ -451,7 +812,7 @@ router.post('/diagnose', async (req, res) => {
     const { error: updateError } = await client
       .from('breakdowns')
       .update({
-        status: 'diagnosed',
+        status: 'decision',  // Changed from 'diagnosed' to match DB constraint
         diagnosed_at: diagnosedAt,
         severity: severity || 'AMBER',
         passenger_cloud_used: passenger_cloud_required || false,
@@ -461,9 +822,16 @@ router.post('/diagnose', async (req, res) => {
 
     if (updateError) {
       console.error('Error updating diagnosis:', updateError);
+      console.error('Update attempted with:', {
+        breakdown_id,
+        status: 'decision',
+        diagnosed_at: diagnosedAt,
+        severity: severity || 'AMBER'
+      });
       return res.status(500).json({
         success: false,
-        error: 'Failed to update diagnosis'
+        error: 'Failed to update diagnosis',
+        details: updateError.message
       });
     }
 
@@ -492,9 +860,12 @@ router.put('/:breakdown_id/resolve', async (req, res) => {
       returned_to_service
     } = req.body;
 
+    console.log('Resolving breakdown:', breakdown_id);
+    console.log('Request body:', req.body);
+
     const resolvedAt = new Date().toISOString();
 
-    // Calculate total duration if diagnosed_at exists
+    // Get breakdown to check if it exists
     const client = await getSupabaseClient();
     if (!client) {
       return res.status(500).json({
@@ -505,31 +876,28 @@ router.put('/:breakdown_id/resolve', async (req, res) => {
     
     const { data: breakdown, error: fetchError } = await client
       .from('breakdowns')
-      .select('diagnosed_at')
+      .select('breakdown_id')
       .eq('breakdown_id', breakdown_id)
       .single();
 
     if (fetchError || !breakdown) {
+      console.error('Resolve error - fetchError:', fetchError);
+      console.error('Resolve error - breakdown_id:', breakdown_id);
+      console.error('Resolve error - breakdown found:', !!breakdown);
       return res.status(404).json({
         success: false,
-        error: 'Breakdown not found'
+        error: 'Breakdown not found',
+        details: fetchError ? fetchError.message : 'No breakdown found'
       });
     }
 
-    let totalDuration = null;
-    if (breakdown.diagnosed_at) {
-      const diagnosedTime = new Date(breakdown.diagnosed_at);
-      const resolvedTime = new Date(resolvedAt);
-      totalDuration = Math.round((resolvedTime - diagnosedTime) / 60000); // minutes
-    }
-
-    // Update breakdown
+    // Update breakdown (removed total_duration_minutes as it's a generated column)
     const updateData = {
-      status: 'resolved',
+      status: 'cleared',  // Changed from 'resolved' to match DB constraint
       resolved_at: resolvedAt,
       resolution_notes,
       resolving_supervisor: resolving_supervisor || null,
-      total_duration_minutes: totalDuration,
+      // total_duration_minutes is GENERATED - don't update it
       updated_at: resolvedAt
     };
 
@@ -544,16 +912,19 @@ router.put('/:breakdown_id/resolve', async (req, res) => {
 
     if (updateError) {
       console.error('Error resolving breakdown:', updateError);
+      console.error('Update data:', updateData);
+      console.error('Breakdown ID:', breakdown_id);
       return res.status(500).json({
         success: false,
-        error: 'Failed to resolve breakdown'
+        error: 'Failed to resolve breakdown',
+        details: updateError.message
       });
     }
 
     res.json({
       success: true,
       message: 'Breakdown resolved',
-      duration_minutes: totalDuration
+      resolved_at: resolvedAt
     });
 
   } catch (error) {
@@ -576,12 +947,16 @@ router.get('/live', async (req, res) => {
       });
     }
     
+    // First attempt: simple query without complex OR logic
     const { data, error } = await client
       .from('breakdowns')
       .select('*')
-      .in('status', ['started', 'diagnosed', 'in_progress'])
-      .eq('archived', false)
+      .in('status', ['received', 'acknowledged', 'decision', 'dispatched', 'on_site', 'moving'])
+      .neq('status', 'cleared')
       .order('created_at', { ascending: false });
+    
+    // Filter out archived in JavaScript if needed
+    const activeBreakdowns = data ? data.filter(b => b.archived !== true) : [];
 
     if (error) {
       console.error('Error fetching live breakdowns:', error);
@@ -593,13 +968,13 @@ router.get('/live', async (req, res) => {
 
     // Check for auto-escalation (30+ minutes since diagnosis)
     const now = new Date();
-    const breakdownsWithEscalation = data.map(breakdown => {
+    const breakdownsWithEscalation = activeBreakdowns.map(breakdown => {
       if (breakdown.diagnosed_at && !breakdown.auto_escalated) {
         const diagnosedTime = new Date(breakdown.diagnosed_at);
         const minutesSince = Math.round((now - diagnosedTime) / 60000);
         
         if (minutesSince > 30) {
-          // Auto-escalate
+          // Auto-escalate (30+ minutes since decision was made)
           client
             .from('breakdowns')
             .update({
@@ -627,7 +1002,7 @@ router.get('/live', async (req, res) => {
     res.json({
       success: true,
       breakdowns: breakdownsWithEscalation,
-      total: data.length
+      total: breakdownsWithEscalation.length
     });
 
   } catch (error) {
@@ -819,7 +1194,7 @@ cron.schedule('0 2 * * *', async () => {
         archived_at: new Date().toISOString()
       })
       .eq('archived', false)
-      .eq('status', 'resolved')
+      .eq('status', 'cleared')  // Changed from 'resolved' to match DB constraint
       .lt('resolved_at', thirtyDaysAgo.toISOString());
 
     if (error) {
