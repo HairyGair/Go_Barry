@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Breakdown Tracker Integration Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-success { background-color: #10b981; }
+        .status-error { background-color: #ef4444; }
+        .status-warning { background-color: #f59e0b; }
+        .status-pending { background-color: #6b7280; }
+        
+        .test-result {
+            margin: 8px 0;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+        .test-success { background-color: #f0fdf4; border-color: #10b981; }
+        .test-error { background-color: #fef2f2; border-color: #ef4444; }
+        .test-warning { background-color: #fffbeb; border-color: #f59e0b; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 mb-4">🔧 Breakdown Tracker Integration Test</h1>
+            <p class="text-gray-600 mb-6">
+                Testing the connection between the Breakdown Guide frontend and Supabase backend API.
+                This validates the sequence fix and API integration.
+            </p>
+            
+            <div class="flex space-x-4 mb-6">
+                <button id="runTests" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
+                    🧪 Run Integration Tests
+                </button>
+                <button id="clearResults" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">
+                    Clear Results
+                </button>
+                <button id="testSequence" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">
+                    Test Sequence Fix
+                </button>
+            </div>
+        </div>
+
+        <!-- Test Results Container -->
+        <div id="testResults" class="space-y-4">
+            <!-- Results will be inserted here -->
+        </div>
+
+        <!-- API Response Log -->
+        <div id="apiLog" class="mt-6 bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm hidden">
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-white font-bold">API Response Log</h3>
+                <button id="clearLog" class="text-gray-400 hover:text-white">Clear</button>
+            </div>
+            <div id="logContent" class="max-h-64 overflow-y-auto">
+                <!-- Log entries will appear here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin.includes('localhost') ? 
+            'http://localhost:5000' : 
+            'https://go-barry.onrender.com';
+
+        let testCount = 0;
+
+        function addTestResult(title, status, message, details = null) {
+            const container = document.getElementById('testResults');
+            const testId = `test-${++testCount}`;
+            
+            const statusClass = {
+                'success': 'test-success',
+                'error': 'test-error', 
+                'warning': 'test-warning'
+            }[status] || 'test-warning';
+            
+            const statusIndicator = {
+                'success': 'status-success',
+                'error': 'status-error',
+                'warning': 'status-warning'
+            }[status] || 'status-pending';
+
+            const result = document.createElement('div');
+            result.className = `test-result ${statusClass}`;
+            result.id = testId;
+            result.innerHTML = `
+                <div class="flex items-center mb-2">
+                    <span class="status-indicator ${statusIndicator}"></span>
+                    <span class="font-semibold">${title}</span>
+                </div>
+                <div class="text-sm text-gray-700 mb-2">${message}</div>
+                ${details ? `
+                    <details class="text-xs">
+                        <summary class="cursor-pointer text-gray-500 hover:text-gray-700">Show Details</summary>
+                        <pre class="mt-2 p-2 bg-gray-100 rounded overflow-x-auto">${details}</pre>
+                    </details>
+                ` : ''}
+            `;
+            
+            container.appendChild(result);
+            result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function logApiResponse(endpoint, response, error = null) {
+            const logContainer = document.getElementById('logContent');
+            const apiLogSection = document.getElementById('apiLog');
+            apiLogSection.classList.remove('hidden');
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = 'mb-2 p-2 border-l-2 border-gray-600';
+            
+            if (error) {
+                logEntry.innerHTML = `
+                    <div class="text-red-400">[${timestamp}] ERROR ${endpoint}</div>
+                    <div class="text-gray-300 text-xs">${error}</div>
+                `;
+            } else {
+                logEntry.innerHTML = `
+                    <div class="text-green-400">[${timestamp}] ${endpoint}</div>
+                    <div class="text-gray-300 text-xs">${JSON.stringify(response, null, 2)}</div>
+                `;
+            }
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        async function testBackendConnectivity() {
+            try {
+                addTestResult('Backend Connectivity', 'warning', 'Testing connection to Go BARRY backend...');
+                
+                const response = await fetch(`${API_BASE}/api/breakdown-tracker-v2/test`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                logApiResponse('GET /api/breakdown-tracker-v2/test', data);
+                
+                addTestResult('Backend Connectivity', 'success', 
+                    `✅ Backend is responding: "${data.message}"`,
+                    `Response: ${JSON.stringify(data, null, 2)}`
+                );
+                
+                return true;
+            } catch (error) {
+                logApiResponse('GET /api/breakdown-tracker-v2/test', null, error.message);
+                addTestResult('Backend Connectivity', 'error', 
+                    `❌ Backend connection failed: ${error.message}`,
+                    `API Base: ${API_BASE}\nError: ${error.stack}`
+                );
+                return false;
+            }
+        }
+
+        async function testBreakdownCreation() {
+            try {
+                addTestResult('Breakdown Creation', 'warning', 'Testing breakdown record creation...');
+                
+                const testData = {
+                    fleet_number: 'TEST-' + Date.now(),
+                    supervisor_badge: 'AG003',
+                    supervisor_name: 'Integration Test',
+                    location: 'Test Location - Integration Validation',
+                    depot_id: 'Washington',
+                    route_number: 'X10',
+                    wizard_type: 'integration_test'
+                };
+                
+                const response = await fetch(`${API_BASE}/api/breakdown-tracker-v2/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                const result = await response.json();
+                logApiResponse('POST /api/breakdown-tracker-v2/start', result);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${result.error || 'Unknown error'}`);
+                }
+                
+                if (result.success) {
+                    addTestResult('Breakdown Creation', 'success', 
+                        `✅ Breakdown created successfully: ${result.breakdown_id}`,
+                        `Fleet: ${testData.fleet_number}\nBreakdown ID: ${result.breakdown_id}\nDaily ID: ${result.daily_id}\nResponse: ${JSON.stringify(result, null, 2)}`
+                    );
+                    
+                    // Store for cleanup
+                    window.testBreakdownId = result.breakdown_id;
+                    return result.breakdown_id;
+                } else {
+                    throw new Error(result.error || 'Unknown error');
+                }
+            } catch (error) {
+                logApiResponse('POST /api/breakdown-tracker-v2/start', null, error.message);
+                addTestResult('Breakdown Creation', 'error', 
+                    `❌ Breakdown creation failed: ${error.message}`,
+                    `Error: ${error.stack}`
+                );
+                return null;
+            }
+        }
+
+        async function testSequenceGeneration() {
+            try {
+                addTestResult('Sequence Generation', 'warning', 'Testing multiple ID generation for sequence collision...');
+                
+                const breakdownIds = [];
+                const promises = [];
+                
+                // Create 3 breakdowns rapidly to test sequence
+                for (let i = 0; i < 3; i++) {
+                    const testData = {
+                        fleet_number: `SEQ-TEST-${i + 1}-${Date.now()}`,
+                        supervisor_badge: 'AG003',
+                        supervisor_name: 'Sequence Test',
+                        location: `Test Location ${i + 1}`,
+                        wizard_type: 'sequence_test'
+                    };
+                    
+                    promises.push(
+                        fetch(`${API_BASE}/api/breakdown-tracker-v2/start`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(testData)
+                        }).then(r => r.json())
+                    );
+                }
+                
+                const results = await Promise.all(promises);
+                
+                // Check for unique IDs
+                const ids = results.filter(r => r.success).map(r => r.breakdown_id);
+                const uniqueIds = [...new Set(ids)];
+                
+                if (ids.length === uniqueIds.length && ids.length === 3) {
+                    addTestResult('Sequence Generation', 'success', 
+                        `✅ All ${ids.length} breakdown IDs are unique - no sequence collision`,
+                        `Generated IDs:\n${ids.map((id, i) => `${i + 1}. ${id}`).join('\n')}`
+                    );
+                } else {
+                    addTestResult('Sequence Generation', 'error', 
+                        `❌ Sequence collision detected! Expected 3 unique IDs, got ${uniqueIds.length}`,
+                        `All IDs: ${JSON.stringify(ids, null, 2)}\nUnique IDs: ${JSON.stringify(uniqueIds, null, 2)}`
+                    );
+                }
+                
+                return ids;
+            } catch (error) {
+                logApiResponse('Sequence Test', null, error.message);
+                addTestResult('Sequence Generation', 'error', 
+                    `❌ Sequence test failed: ${error.message}`,
+                    `Error: ${error.stack}`
+                );
+                return [];
+            }
+        }
+
+        async function testTodaysBreakdowns() {
+            try {
+                addTestResult('Today\'s Breakdowns', 'warning', 'Fetching today\'s breakdown data...');
+                
+                const response = await fetch(`${API_BASE}/api/breakdown-tracker-v2/today`);
+                const result = await response.json();
+                
+                logApiResponse('GET /api/breakdown-tracker-v2/today', result);
+                
+                if (result.success) {
+                    addTestResult('Today\'s Breakdowns', 'success', 
+                        `✅ Retrieved ${result.total} breakdown records for today`,
+                        `Total: ${result.total}\nSample data: ${JSON.stringify(result.breakdowns.slice(0, 3), null, 2)}`
+                    );
+                } else {
+                    throw new Error(result.error || 'Failed to fetch data');
+                }
+            } catch (error) {
+                logApiResponse('GET /api/breakdown-tracker-v2/today', null, error.message);
+                addTestResult('Today\'s Breakdowns', 'error', 
+                    `❌ Failed to fetch today's breakdowns: ${error.message}`
+                );
+            }
+        }
+
+        async function runAllTests() {
+            document.getElementById('testResults').innerHTML = '';
+            document.getElementById('logContent').innerHTML = '';
+            
+            addTestResult('Test Suite Started', 'warning', `Running integration tests against ${API_BASE}`);
+            
+            // Test 1: Backend connectivity
+            const backendOk = await testBackendConnectivity();
+            if (!backendOk) {
+                addTestResult('Test Suite Failed', 'error', 'Cannot proceed - backend is not accessible');
+                return;
+            }
+            
+            // Test 2: Create breakdown
+            await testBreakdownCreation();
+            
+            // Test 3: Sequence generation
+            await testSequenceGeneration();
+            
+            // Test 4: Today's breakdowns
+            await testTodaysBreakdowns();
+            
+            addTestResult('Integration Test Complete', 'success', 
+                '🎉 All integration tests completed! Check individual results above.'
+            );
+        }
+
+        async function testSequenceFixOnly() {
+            document.getElementById('testResults').innerHTML = '';
+            document.getElementById('logContent').innerHTML = '';
+            
+            addTestResult('Sequence Fix Test', 'warning', 'Testing only the sequence collision fix...');
+            
+            const backendOk = await testBackendConnectivity();
+            if (!backendOk) return;
+            
+            await testSequenceGeneration();
+        }
+
+        // Event Listeners
+        document.getElementById('runTests').addEventListener('click', runAllTests);
+        document.getElementById('testSequence').addEventListener('click', testSequenceFixOnly);
+        
+        document.getElementById('clearResults').addEventListener('click', () => {
+            document.getElementById('testResults').innerHTML = '';
+        });
+        
+        document.getElementById('clearLog').addEventListener('click', () => {
+            document.getElementById('logContent').innerHTML = '';
+        });
+
+        // Auto-run tests on load
+        window.addEventListener('load', () => {
+            addTestResult('Test Page Loaded', 'success', 
+                'Integration test page is ready. Click "Run Integration Tests" to begin validation.'
+            );
+        });
+    </script>
+</body>
+</html>
