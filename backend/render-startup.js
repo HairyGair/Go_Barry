@@ -69,8 +69,10 @@ const corsOptions = {
     const allowedOrigins = [
       'https://www.gobarry.co.uk',
       'https://gobarry.co.uk',
+      'https://breakdowns.gobarry.co.uk',
       'http://www.gobarry.co.uk',
       'http://gobarry.co.uk',
+      'http://breakdowns.gobarry.co.uk',
       'http://localhost:8081',
       'http://localhost:8082',
       'http://localhost:3000',
@@ -200,6 +202,7 @@ app.use((req, res, next) => {
     [
       'https://gobarry.co.uk', 
       'https://www.gobarry.co.uk', 
+      'https://breakdowns.gobarry.co.uk',
       'https://go-barry.onrender.com',
       'http://localhost:3000',
       'http://localhost:3001',
