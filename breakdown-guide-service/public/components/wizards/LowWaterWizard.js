@@ -25,7 +25,150 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                     </div>
 
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
-                        <h3 className="text-lg font-semibold text-white mb-4">Step 1: Check for Leaks</h3>
+                        <h3 className="text-lg font-semibold text-white mb-4">Step 1: Check Warning Light Color</h3>
+                        <p className="text-gray-300 text-sm mb-4">CRITICAL: First, we need to check if there's a low water warning light and what color it is. This determines immediate safety actions.</p>
+                        
+                        <div className="bg-red-500/20 rounded-lg p-4 border border-red-400/30 mb-4">
+                            <div className="flex items-start space-x-3">
+                                <AlertTriangle className="w-6 h-6 text-red-400 mt-1" />
+                                <div>
+                                    <h4 className="font-semibold text-red-200">Critical Safety Check</h4>
+                                    <p className="text-sm text-red-300/90 mt-1">
+                                        A RED low water light means IMMEDIATE STOP - the vehicle cannot continue.
+                                        An AMBER light allows continuation to the nearest terminus for repair.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div className="space-y-3">
+                            <button
+                                onClick={() => updateResponse('warning_light', 'no_light')}
+                                className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+                                    responses.warning_light === 'no_light'
+                                        ? 'border-green-400 bg-green-400/20 text-green-200'
+                                        : 'border-white/30 bg-white/10 text-white hover:border-green-400/50'
+                                }`}
+                            >
+                                <div className="flex items-center space-x-3">
+                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                        responses.warning_light === 'no_light' ? 'border-green-400 bg-green-400' : 'border-white/50'
+                                    }`}>
+                                        {responses.warning_light === 'no_light' && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                                    </div>
+                                    <div>
+                                        <span className="font-medium">✅ No warning light illuminated</span>
+                                        <p className="text-sm text-gray-300 mt-1">No low water warning light showing on dashboard</p>
+                                    </div>
+                                </div>
+                            </button>
+                            
+                            <button
+                                onClick={() => updateResponse('warning_light', 'amber_light')}
+                                className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+                                    responses.warning_light === 'amber_light'
+                                        ? 'border-yellow-400 bg-yellow-400/20 text-yellow-200'
+                                        : 'border-white/30 bg-white/10 text-white hover:border-yellow-400/50'
+                                }`}
+                            >
+                                <div className="flex items-center space-x-3">
+                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                        responses.warning_light === 'amber_light' ? 'border-yellow-400 bg-yellow-400' : 'border-white/50'
+                                    }`}>
+                                        {responses.warning_light === 'amber_light' && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                                    </div>
+                                    <div>
+                                        <span className="font-medium">🟡 AMBER warning light</span>
+                                        <p className="text-sm text-gray-300 mt-1">Amber low water light - can continue to nearest terminus</p>
+                                    </div>
+                                </div>
+                            </button>
+                            
+                            <button
+                                onClick={() => updateResponse('warning_light', 'red_light')}
+                                className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+                                    responses.warning_light === 'red_light'
+                                        ? 'border-red-400 bg-red-400/20 text-red-200'
+                                        : 'border-white/30 bg-white/10 text-white hover:border-red-400/50'
+                                }`}
+                            >
+                                <div className="flex items-center space-x-3">
+                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                        responses.warning_light === 'red_light' ? 'border-red-400 bg-red-400' : 'border-white/50'
+                                    }`}>
+                                        {responses.warning_light === 'red_light' && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                                    </div>
+                                    <div>
+                                        <span className="font-medium">🔴 RED warning light</span>
+                                        <p className="text-sm text-gray-300 mt-1">Red low water light - MUST STOP IMMEDIATELY</p>
+                                    </div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    {responses.warning_light === 'red_light' && (
+                        <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
+                            <h3 className="text-lg font-semibold text-red-200 mb-4">🚨 IMMEDIATE ACTION REQUIRED</h3>
+                            <p className="text-red-300/80 text-sm mb-4">
+                                RED low water light indicates a critical safety issue. The vehicle MUST stop immediately.
+                            </p>
+                            <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
+                                <li>Instruct driver to stop in a safe location immediately</li>
+                                <li>Do NOT continue driving</li>
+                                <li>Await engineering assistance</li>
+                                <li>Record defect in Go-Check system</li>
+                            </ul>
+                        </div>
+                    )}
+
+                    {responses.warning_light === 'amber_light' && (
+                        <div className="bg-yellow-500/20 backdrop-blur-sm rounded-lg p-6 border border-yellow-400/30">
+                            <h3 className="text-lg font-semibold text-yellow-200 mb-4">⚠️ AMBER Light Guidance</h3>
+                            <p className="text-yellow-300/80 text-sm mb-4">
+                                AMBER low water light allows continuation to the nearest terminus where engineers can top up the coolant.
+                            </p>
+                            <ul className="list-disc list-inside space-y-1 text-yellow-300/90 text-sm">
+                                <li>Vehicle can continue to nearest terminus</li>
+                                <li>Arrange for engineer to meet at terminus</li>
+                                <li>Top up coolant at terminus</li>
+                                <li>Monitor temperature closely during journey</li>
+                            </ul>
+                        </div>
+                    )}
+
+                    <div className="flex justify-end">
+                        <button
+                            onClick={responses.warning_light === 'red_light' ? onComplete : onNext}
+                            disabled={!responses.warning_light}
+                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            {responses.warning_light === 'red_light' ? 'Complete Assessment' : 'Continue Assessment'}
+                        </button>
+                    </div>
+                </div>
+            );
+
+        case 2:
+            return (
+                <div className="space-y-6">
+                    <div className="text-center">
+                        <div className="mx-auto w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mb-4">
+                            <Droplets className="w-8 h-8 text-blue-400" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-white mb-2">💧 Low Water Assessment</h2>
+                        <p className="text-gray-300">Step 2: Check for water leaks to determine the severity of the issue.</p>
+                    </div>
+                    
+                    <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-6 border border-blue-400/30">
+                        <h3 className="text-lg font-semibold text-blue-200 mb-4">📋 Previous Assessment</h3>
+                        <p className="text-blue-300/80 text-sm leading-relaxed">
+                            Warning Light: {responses.warning_light === 'amber_light' ? '🟡 AMBER - Can continue to terminus' : '✅ No light - Less urgent'}
+                        </p>
+                    </div>
+
+                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
+                        <h3 className="text-lg font-semibold text-white mb-4">Step 2: Check for Leaks</h3>
                         <p className="text-gray-300 text-sm mb-4">First, we need to determine if there are any visible water leaks. Ask the driver to safely inspect for visible signs of water leaks around the vehicle.</p>
                         
                         <div className="bg-yellow-500/20 rounded-lg p-4 border border-yellow-400/30 mb-4">
@@ -153,7 +296,7 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                 </div>
             );
 
-        case 2:
+        case 3:
             return (
                 <div className="space-y-6">
                     <div className="text-center">
@@ -161,7 +304,7 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                             <AlertTriangle className="w-8 h-8 text-orange-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🔊 Water Buzzer Status Check</h2>
-                        <p className="text-gray-300">Step 2: Determine if the water buzzer is sounding - this affects the urgency of the situation.</p>
+                        <p className="text-gray-300">Step 3: Determine if the water buzzer is sounding - this affects the urgency of the situation.</p>
                     </div>
                     
                     <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-6 border border-blue-400/30">
@@ -259,7 +402,7 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                 </div>
             );
 
-        case 3:
+        case 4:
             return (
                 <div className="space-y-6">
                     <div className="text-center">
@@ -267,7 +410,7 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                             <FileText className="w-8 h-8 text-blue-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">📋 Recent Water Top-Up History</h2>
-                        <p className="text-gray-300">Step 3: Confirm recent water top-up history to determine next action.</p>
+                        <p className="text-gray-300">Step 4: Confirm recent water top-up history to determine next action.</p>
                     </div>
                     
                     <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-6 border border-blue-400/30">
@@ -400,9 +543,28 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                 </div>
             );
 
-        case 4:
+        case 5:
             // Decision logic based on SDC guide
             const generateDecision = () => {
+                // CRITICAL: Check warning light first
+                if (responses.warning_light === 'red_light') {
+                    return {
+                        action: 'stop_immediately',
+                        priority: 'critical',
+                        message: 'STOP IMMEDIATELY - Red Warning Light',
+                        details: 'Red low water light indicates critical safety issue. Vehicle must stop immediately and await engineering assistance.'
+                    };
+                }
+                
+                if (responses.warning_light === 'amber_light') {
+                    return {
+                        action: 'continue_to_terminus',
+                        priority: 'medium',
+                        message: 'Continue to nearest terminus - Amber Warning Light',
+                        details: 'Amber low water light allows continuation to nearest terminus where engineers can top up coolant. Monitor temperature closely.'
+                    };
+                }
+                
                 // Step 1: Check for leaks first
                 if (responses.leak_check === 'leak_found') {
                     if (responses.leak_severity === 'minor_short_distance') {
@@ -485,6 +647,10 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
                         <h3 className="text-lg font-semibold text-white mb-4">Assessment Summary</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span className="font-medium text-gray-300">Warning Light:</span> 
+                                <span className="text-white ml-2">{responses.warning_light?.replace(/_/g, ' ')}</span>
+                            </div>
                             <div>
                                 <span className="font-medium text-gray-300">Leak Status:</span> 
                                 <span className="text-white ml-2">{responses.leak_check?.replace(/_/g, ' ')}</span>

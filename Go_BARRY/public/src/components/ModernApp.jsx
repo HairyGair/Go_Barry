@@ -97,8 +97,12 @@ export const ModernApp = () => {
   }
 
   // Handle vehicle selection
-  const handleVehicleSelect = (vehicle) => {
-    selectVehicleForWizard(vehicle)
+  const handleVehicleSelect = async (vehicle) => {
+    try {
+      await selectVehicleForWizard(vehicle)
+    } catch (error) {
+      console.error('Error starting wizard:', error)
+    }
   }
 
   // Render current wizard

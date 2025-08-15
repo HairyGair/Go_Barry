@@ -1,0 +1,41 @@
+/**
+ * Go North East - Executive Dashboard Styles
+ * CSS Stylesheet for Breakdown Management System
+ * 
+ * Copyright (c) 2025 Anthony Gair. All rights reserved.
+ * 
+ * This software and associated documentation files (the "Software") are the
+ * exclusive property of Anthony Gair. No part of this Software may be used,
+ * copied, modified, merged, published, distributed, sublicensed, or sold
+ * without the express written permission of Anthony Gair.
+ * 
+ * Author: Anthony Gair
+ * Created: 2025
+ * 
+ * For licensing inquiries, contact: anthony@gobarry.co.uk
+ */
+
+/* Go North East - Executive Dashboard Styles */
+/* This CSS file prevents MIME type loading errors */
+
+/* Basic styles are inline in the HTML file */
+/* Additional styles can be added here if needed */
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* Loading state */
+.loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+/* Additional utility classes can be added here */
+.text-center {
+    text-align: center;
+}
+
+.hidden {
+    display: none;
+}

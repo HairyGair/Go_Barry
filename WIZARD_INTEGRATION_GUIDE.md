@@ -1,169 +1,267 @@
-# Wizard Integration Example - Adding Breakdown Tracking
+# Wizard Integration Guide for Breakdown Tracking
+**For Developers Adding Tracking to Wizards**
 
-## Example: Integrating Tracking into demisters-heaters-wizard.js
+## Quick Integration Steps
 
-### 1. At Wizard Initialization
-Add this when the wizard component first loads:
+### 1. When Starting a Wizard
+
+In your main App.js or wizard initialization, start the breakdown tracking:
 
 ```javascript
-// At the top of the wizard component
-React.useEffect(() => {
-    // Start tracking when wizard loads
-    if (window.SupervisorBreakdownLogger && currentStep === 1) {
-        const fleetNumber = window.currentVehicle?.fleetNumber || 'Unknown';
-        const depot = window.currentVehicle?.depot || 'Unknown';
-        
-        window.SupervisorBreakdownLogger.startAssessment(
-            'demisters_heaters',
+// When user selects a wizard and enters fleet info
+const startWizard = async (wizardType, fleetNumber, depot) => {
+    // Start tracking with the new system
+    if (window.BreakdownTracker) {
+        await window.BreakdownTracker.startBreakdownTracking(
+            fleetNumber,
+            supervisorSession.supervisorId,
+            supervisorSession.supervisorName,
+            depot,
+            wizardType
+        );
+    }
+    
+    // Also use the existing logger
+    if (window.SupervisorBreakdownLogger) {
+        await window.SupervisorBreakdownLogger.startAssessment(
+            wizardType,
             fleetNumber,
             depot
         );
     }
-}, []);
+};
 ```
 
-### 2. Track Each Step Response
-Modify the updateResponse function to log steps:
+### 2. When User Makes a Choice/Response
+
+Track each significant user action:
 
 ```javascript
-// When user selects an answer
-const handleResponse = (field, value) => {
-    // Original update
-    updateResponse(field, value);
+// In your wizard component
+const handleResponseUpdate = (key, value) => {
+    // Update local state
+    updateResponse(key, value);
     
-    // Log the step
-    if (window.SupervisorBreakdownLogger) {
-        window.SupervisorBreakdownLogger.logWizardStep('question_answered', {
+    // Log to breakdown tracker
+    if (window.BreakdownTracker) {
+        window.BreakdownTracker.logStep('response_updated', {
+            field: key,
+            value: value,
             step: currentStep,
-            question: field,
-            answer: value,
             timestamp: new Date().toISOString()
         });
+    }
+    
+    // Also log with existing logger
+    if (window.SupervisorBreakdownLogger) {
+        window.SupervisorBreakdownLogger.logWizardStep(
+            'response_updated',
+            { field: key, value: value }
+        );
     }
 };
 ```
 
-### 3. Track Navigation Between Steps
-When moving to next step:
+### 3. When Moving Between Steps
+
+Track navigation:
 
 ```javascript
 const handleNext = () => {
     // Log step completion
-    if (window.SupervisorBreakdownLogger) {
-        window.SupervisorBreakdownLogger.logWizardStep('step_completed', {
-            stepNumber: currentStep,
-            responses: responses
+    if (window.BreakdownTracker) {
+        window.BreakdownTracker.logStep(`step_${currentStep}_completed`, {
+            responses: responses,
+            nextStep: currentStep + 1
         });
     }
     
-    // Original next function
-    onNext();
+    // Move to next step
+    setCurrentStep(prev => prev + 1);
 };
 ```
 
-### 4. Complete Diagnosis at Final Step
-When the wizard reaches a decision:
+### 4. When Completing the Wizard
+
+Complete the diagnosis with appropriate severity:
 
 ```javascript
-const handleComplete = (decision, diagnosis) => {
-    // Determine severity based on decision
-    let severity = 'AMBER';
-    if (decision === 'STOP') severity = 'STOP';
-    else if (decision === 'CONTINUE') severity = 'CONTINUE';
+const handleComplete = async () => {
+    // Determine severity based on responses
+    let severity = 'CONTINUE';
+    let diagnosis = '';
     
-    // Complete the breakdown tracking
+    // Example for steering wizard
+    if (wizardType === 'steering') {
+        if (responses.excessive_play || responses.difficulty_steering) {
+            severity = 'STOP';
+            diagnosis = 'Critical steering issue - vehicle must stop immediately';
+        } else if (responses.minor_play) {
+            severity = 'AMBER';
+            diagnosis = 'Minor steering concern - proceed to depot with caution';
+        } else {
+            severity = 'CONTINUE';
+            diagnosis = 'Steering system operating normally';
+        }
+    }
+    
+    // Complete tracking
+    if (window.BreakdownTracker) {
+        await window.BreakdownTracker.completeDiagnosis(
+            severity,
+            diagnosis,
+            severity === 'STOP' // passenger_cloud_required
+        );
+    }
+    
+    // Also complete with existing logger
     if (window.SupervisorBreakdownLogger) {
-        window.SupervisorBreakdownLogger.completeWizardDiagnosis(
+        await window.SupervisorBreakdownLogger.completeWizardDiagnosis(
             severity,
             diagnosis
         );
     }
     
-    // Original complete function
-    onComplete({
-        decision: decision,
-        diagnosis: diagnosis,
-        responses: responses
-    });
+    // Navigate to completion screen
+    onComplete();
 };
 ```
 
-## Full Example for Critical Decision Points
+## Severity Guidelines
 
-### When Driver Vision is Affected (STOP Decision):
+### STOP (Red) - Vehicle Must Stop Immediately
+- Brake failure or severe issues
+- Steering system defects
+- Oil warning light
+- Loose wheel nuts
+- Safety-critical failures
+
+### AMBER (Yellow) - Proceed with Caution
+- Minor defects that allow continuation to depot
+- Reduced capability but safe to continue
+- Non-critical warning lights
+- Comfort issues that don't affect safety
+
+### CONTINUE (Green) - Safe to Continue
+- No significant issues found
+- Minor cosmetic damage
+- Issues that don't affect operation
+- Successfully resolved problems
+
+## Example: Complete SteeringWizard Integration
+
 ```javascript
-if (responses.primary_issue === 'vision_affected') {
-    // This is a STOP decision
-    handleComplete(
-        'STOP',
-        'Driver vision impaired by demisting failure - vehicle must not continue in service'
-    );
-}
+const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
+    
+    // Enhanced response handler with tracking
+    const handleResponseUpdate = (key, value) => {
+        updateResponse(key, value);
+        
+        // Track the response
+        if (window.BreakdownTracker) {
+            window.BreakdownTracker.logStep('steering_assessment', {
+                question: key,
+                answer: value,
+                step: currentStep
+            });
+        }
+    };
+    
+    // Enhanced next handler
+    const handleNextWithTracking = () => {
+        // Log step completion
+        if (window.SupervisorBreakdownLogger) {
+            window.SupervisorBreakdownLogger.logWizardStep(
+                `steering_step_${currentStep}`,
+                { responses: responses }
+            );
+        }
+        onNext();
+    };
+    
+    // Enhanced completion
+    const handleCompleteWithDiagnosis = async () => {
+        // Determine severity for steering issues
+        const hasCriticalIssue = 
+            responses.initial_concern === 'excessive_play' ||
+            responses.initial_concern === 'difficulty_steering' ||
+            responses.steering_play === 'excessive' ||
+            responses.unusual_noises === 'yes' ||
+            responses.vehicle_pulling === 'severe';
+        
+        const severity = hasCriticalIssue ? 'STOP' : 'AMBER';
+        const diagnosis = hasCriticalIssue 
+            ? 'Critical steering defect detected - vehicle must stop immediately'
+            : 'Minor steering concern - proceed to depot for inspection';
+        
+        // Complete diagnosis tracking
+        if (window.BreakdownTracker) {
+            await window.BreakdownTracker.completeDiagnosis(
+                severity,
+                diagnosis,
+                hasCriticalIssue
+            );
+        }
+        
+        onComplete();
+    };
+    
+    // Rest of wizard implementation...
+};
 ```
 
-### When Demisters Not Working But Vision OK (AMBER):
-```javascript
-if (responses.demisters_working === 'no' && responses.vision_ok === 'yes') {
-    // This is an AMBER decision
-    handleComplete(
-        'AMBER',
-        'Demisters not functioning but vision currently clear - proceed to depot for repair'
-    );
-}
-```
+## Testing Your Integration
 
-### When Temperature Below 16°C (AMBER):
-```javascript
-if (responses.temperature < 16 && responses.heaters_working === 'partial') {
-    // This is an AMBER decision
-    handleComplete(
-        'AMBER',
-        'Saloon temperature below 16°C - arrange changeover as soon as possible'
-    );
-}
-```
+1. **Check Browser Console**:
+   - Look for "Breakdown tracking started" message
+   - Verify step logging messages
+   - Check for any errors
 
-### When Everything Working (CONTINUE):
-```javascript
-if (responses.demisters_working === 'yes' && responses.temperature >= 16) {
-    // This is a CONTINUE decision
-    handleComplete(
-        'CONTINUE',
-        'Demisters and heaters functioning normally - continue in service'
-    );
-}
-```
+2. **Verify in Dashboard**:
+   - Open the breakdown dashboard
+   - Confirm your breakdown appears
+   - Check that timer starts after diagnosis
+   - Verify severity is correct
 
-## Testing the Integration
+3. **Test Passenger Cloud Modal**:
+   - Complete wizard with STOP decision
+   - Verify modal appears
+   - Test both buttons
 
-1. **Open the breakdown guide**
-2. **Start the demisters/heaters wizard**
-3. **Complete the assessment**
-4. **Check that:**
-   - Passenger Cloud modal appears after diagnosis
-   - Breakdown appears in the dashboard
-   - Timer starts counting from diagnosis
-   - All steps are logged
+## Available Global Objects
 
-## Pattern for All Wizards
+### window.BreakdownTracker
+- `startBreakdownTracking(fleet, badge, name, depot, wizard)`
+- `logStep(type, data)`
+- `completeDiagnosis(severity, diagnosis, passengerCloudRequired)`
+- `getBreakdownStatus()`
+- `clearSession()`
 
-This same pattern applies to all 26 wizards:
-- **Brakes**: Track pressure tests, leak checks
-- **Steering**: Track play measurements, power steering checks
-- **Oil Warning**: Track leak inspections, pressure readings
-- **Doors**: Track jam status, safety checks
-- **Suspension**: Track height measurements, air pressure
+### window.SupervisorBreakdownLogger
+- `startAssessment(wizard, fleet, depot)`
+- `logWizardStep(type, data)`
+- `completeWizardDiagnosis(severity, resolution)`
+- `logAction(type, details)`
+- `logDecision(type, value, reason)`
 
-Each wizard should:
-1. Call `startAssessment()` when loaded
-2. Call `logWizardStep()` for each user interaction
-3. Call `completeWizardDiagnosis()` with final decision
-4. Let the system handle Passenger Cloud and dashboard updates
+## Common Issues and Solutions
 
-## Benefits of Full Integration
+### Issue: Breakdown ID not being tracked
+**Solution**: Ensure you call `startBreakdownTracking` before any step logging
 
-✅ **Complete Audit Trail**: Every decision documented
-✅ **Pattern Detection**: System identifies repeat issues
-✅ **Response Timing**: Measure diagnosis speed
-✅ **Compliance Ready**: Full DVSA documentation
-✅ **Performance Metrics**: Track supervisor efficiency
+### Issue: Passenger Cloud modal not appearing
+**Solution**: Check that severity is set to 'STOP' or 'RED' in `completeDiagnosis`
+
+### Issue: Steps not appearing in backend
+**Solution**: Verify backend is running and check network tab for API calls
+
+### Issue: Timer not starting
+**Solution**: Ensure `completeDiagnosis` is called with valid severity
+
+## Support
+
+For help with integration:
+1. Check existing wizard implementations
+2. Review the test script: `test-breakdown-frontend.sh`
+3. Check backend logs for API errors
+4. Verify supervisor is logged in

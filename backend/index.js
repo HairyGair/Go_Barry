@@ -211,6 +211,10 @@ async function registerRoutes() {
   await routeManager.registerRoute(app, '/api/breakdown-tracker-v2', './routes/breakdownTrackerV2.js', 'Breakdown Tracker V2 API');
   console.log('✅ Breakdown Tracker V2 API registered for integration testing at /api/breakdown-tracker-v2');
   
+  // Fleet Intelligence API for predictive analytics and cost tracking
+  await routeManager.registerRoute(app, '/api/fleet-intelligence', './routes/fleetIntelligenceAPI.js', 'Fleet Intelligence API');
+  console.log('✅ Fleet Intelligence API registered for predictive analytics and health monitoring');
+  
   // Fleet Database API for vehicle information lookup
   await routeManager.registerRoute(app, '/api/fleet-database', './routes/fleetAPI.js', 'Fleet Database API');
   console.log('✅ Fleet Database API registered for vehicle info lookup at /api/fleet-database');

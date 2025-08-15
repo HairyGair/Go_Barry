@@ -15,6 +15,8 @@
             this.assessmentStartTime = null;
             this.actionLog = [];
             this.syncInterval = null;
+            this.breakdownId = null;  // Track the breakdown ID from the new system
+            this.dailyId = null;      // Track the daily ID
             
             // Initialize sync interval for offline logs
             this.startSyncInterval();
@@ -26,16 +28,49 @@
             console.log(`Logger initialized for supervisor: ${session.supervisorId}`);
         }
         
-        // Start a new assessment
-        startAssessment(wizardType, fleetNumber, depot) {
+        // Start a new assessment with breakdown tracking
+        async startAssessment(wizardType, fleetNumber, depot) {
             if (!this.supervisor) {
                 console.error('No supervisor logged in');
                 return false;
             }
             
+            // Call new API to start breakdown
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/breakdowns/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        fleet_number: fleetNumber,
+                        supervisor_badge: this.supervisor.supervisorId,
+                        supervisor_name: this.supervisor.supervisorName,
+                        location: await this.getCurrentLocation(),
+                        depot_id: depot,
+                        wizard_type: wizardType
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    this.breakdownId = data.breakdown_id;
+                    this.dailyId = data.daily_id;
+                    
+                    // Show repeat warning if applicable
+                    if (data.data && data.data.repeat_warning) {
+                        alert(data.data.repeat_warning);
+                    }
+                }
+            } catch (error) {
+                console.error('Error starting breakdown:', error);
+            }
+            
             this.assessmentStartTime = new Date();
             this.currentAssessment = {
                 id: `assessment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                breakdown_id: this.breakdownId,
+                daily_id: this.dailyId,
                 supervisorId: this.supervisor.supervisorId,
                 supervisorName: this.supervisor.supervisorName,
                 supervisorDepot: this.supervisor.depot,
@@ -52,7 +87,8 @@
             this.logAction('ASSESSMENT_START', {
                 wizardType: wizardType,
                 fleetNumber: fleetNumber,
-                depot: depot
+                depot: depot,
+                breakdownId: this.breakdownId
             });
             
             return true;
@@ -103,6 +139,121 @@
                 reason: reason,
                 isCritical: this.isCriticalDecision(decisionType, value)
             });
+        }
+        
+        // New method for logging wizard steps to breakdown tracker
+        async logWizardStep(stepType, stepData) {
+            if (!this.breakdownId) return;
+            
+            try {
+                await fetch(`${BACKEND_URL}/api/breakdowns/step`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        breakdown_id: this.breakdownId,
+                        step_type: stepType,
+                        step_data: stepData,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+            } catch (error) {
+                console.error('Error logging step:', error);
+            }
+            
+            // Also log through the original system
+            this.logAction('WIZARD_STEP', {
+                stepType: stepType,
+                stepData: stepData
+            });
+        }
+        
+        // Method for diagnosis completion with severity tracking
+        async completeWizardDiagnosis(severity, resolution) {
+            if (!this.breakdownId) return;
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/breakdowns/diagnose`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        breakdown_id: this.breakdownId,
+                        diagnosis: resolution,
+                        severity: severity || 'AMBER',
+                        passenger_cloud_required: false // Will be set by button click
+                    })
+                });
+                
+                if (response.ok) {
+                    // Show Passenger Cloud option
+                    this.showPassengerCloudOption();
+                }
+            } catch (error) {
+                console.error('Error completing diagnosis:', error);
+            }
+        }
+        
+        // Show Passenger Cloud integration modal
+        showPassengerCloudOption() {
+            const modalHTML = `
+                <div id="passenger-cloud-modal" style="
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: white;
+                    padding: 30px;
+                    border-radius: 10px;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                    z-index: 10000;
+                ">
+                    <h3>Journey Cancellation Required?</h3>
+                    <p>Does this breakdown require journey cancellation in Passenger Cloud?</p>
+                    <div style="margin-top: 20px;">
+                        <button onclick="window.openPassengerCloud()" style="
+                            background: #dc2626;
+                            color: white;
+                            padding: 10px 20px;
+                            border: none;
+                            border-radius: 5px;
+                            margin-right: 10px;
+                            cursor: pointer;
+                        ">Yes - Open Passenger Cloud</button>
+                        <button onclick="window.closePassengerModal()" style="
+                            background: #059669;
+                            color: white;
+                            padding: 10px 20px;
+                            border: none;
+                            border-radius: 5px;
+                            cursor: pointer;
+                        ">No - Continue</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+        
+        // Helper function for location
+        async getCurrentLocation() {
+            // Try to get location if available
+            if (navigator.geolocation) {
+                return new Promise((resolve) => {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            resolve(`${position.coords.latitude},${position.coords.longitude}`);
+                        },
+                        () => {
+                            resolve('Location unavailable');
+                        },
+                        { timeout: 5000 }
+                    );
+                });
+            }
+            return 'Location unavailable';
         }
         
         // Log safety-critical determinations

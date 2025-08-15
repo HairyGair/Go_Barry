@@ -20,9 +20,10 @@ const App = function() {
         setSupervisorSession(session);
         setIsAuthenticated(true);
         
-        // Initialize the logger with supervisor session
+        // Initialize the breakdown logger with supervisor session
         if (window.SupervisorBreakdownLogger) {
-            window.SupervisorBreakdownLogger.setSupervisor(session);
+            window.breakdownLogger = new window.SupervisorBreakdownLogger();
+            window.breakdownLogger.setSupervisor(session);
         }
         
         // Also update BreakdownAnalytics for compatibility
@@ -31,14 +32,15 @@ const App = function() {
         }
         
         console.log(`Supervisor ${session.supervisorId} authenticated successfully`);
+        console.log('Breakdown tracking system ready');
     };
 
     const updateResponse = (key, value) => {
         setResponses(prev => ({ ...prev, [key]: value }));
         
         // Log every response change
-        if (window.SupervisorBreakdownLogger && assessmentId) {
-            window.SupervisorBreakdownLogger.logAction('RESPONSE_UPDATED', {
+        if (window.breakdownLogger && assessmentId) {
+            window.breakdownLogger.logAction('RESPONSE_UPDATED', {
                 field: key,
                 value: value,
                 step: currentStep,
@@ -51,20 +53,30 @@ const App = function() {
 
     const handleNext = () => {
         // Log step completion before moving to next
-        if (window.SupervisorBreakdownLogger && assessmentId) {
-            window.SupervisorBreakdownLogger.logStepProgression(
+        if (window.breakdownLogger && assessmentId) {
+            window.breakdownLogger.logStepProgression(
                 currentStep,
                 `Step ${currentStep} of ${currentWizard}`,
                 responses
             );
         }
+        
+        // Also log to new breakdown tracker
+        if (window.BreakdownTracker) {
+            window.BreakdownTracker.logStep(`step_${currentStep}_completed`, {
+                wizard: currentWizard,
+                responses: responses,
+                nextStep: currentStep + 1
+            });
+        }
+        
         setCurrentStep(prev => prev + 1);
     };
 
     const handlePrevious = () => {
         // Log navigation back
-        if (window.SupervisorBreakdownLogger && assessmentId) {
-            window.SupervisorBreakdownLogger.logAction('NAVIGATION_BACK', {
+        if (window.breakdownLogger && assessmentId) {
+            window.breakdownLogger.logAction('NAVIGATION_BACK', {
                 fromStep: currentStep,
                 toStep: currentStep - 1
             });
@@ -74,7 +86,7 @@ const App = function() {
 
     const handleComplete = async () => {
         // Complete assessment with enhanced logging
-        if (window.SupervisorBreakdownLogger && assessmentId) {
+        if (window.breakdownLogger && assessmentId) {
             // Determine the decision based on wizard responses
             let decision = 'CONTINUE';
             
@@ -98,7 +110,16 @@ const App = function() {
             }
             
             // Log the final decision
-            window.SupervisorBreakdownLogger.logSafetyDetermination(
+            if (window.BreakdownTracker) {
+                await window.BreakdownTracker.completeDiagnosis(
+                    decision,
+                    `${currentWizard} assessment completed with decision: ${decision}`,
+                    decision === 'STOP' || decision === 'RED'
+                );
+            }
+            
+            // Continue with existing logging
+            window.breakdownLogger.logSafetyDetermination(
                 currentWizard,
                 decision,
                 decision === 'STOP' ? 'Vehicle must not continue' : 
@@ -106,7 +127,7 @@ const App = function() {
             );
             
             // Complete the assessment with supervisor details
-            const result = await window.SupervisorBreakdownLogger.completeAssessment(
+            const result = await window.breakdownLogger.completeAssessment(
                 decision,
                 responses
             );
@@ -179,21 +200,37 @@ const App = function() {
         setResponses({});
     };
 
-    const handleWizardSelect = (wizardType) => {
+    const handleWizardSelect = async (wizardType) => {
         // Start a new assessment with supervisor tracking
-        if (window.SupervisorBreakdownLogger && supervisorSession) {
+        if (window.breakdownLogger && supervisorSession) {
             const fleetNumber = prompt('Enter Fleet Number (e.g., 6301):');
             const depot = prompt('Enter Depot (e.g., Riverside):') || supervisorSession.depot;
             
             if (fleetNumber) {
-                const assessmentStarted = window.SupervisorBreakdownLogger.startAssessment(
+                // Start with the new breakdown tracker
+                if (window.BreakdownTracker) {
+                    const trackingResult = await window.BreakdownTracker.startBreakdownTracking(
+                        fleetNumber,
+                        supervisorSession.supervisorId,
+                        supervisorSession.supervisorName,
+                        depot,
+                        wizardType
+                    );
+                    
+                    if (trackingResult && trackingResult.success) {
+                        console.log(`Breakdown tracking started: ${trackingResult.breakdown_id}`);
+                    }
+                }
+                
+                // Also use the existing logger (which now also calls the API)
+                const assessmentStarted = await window.breakdownLogger.startAssessment(
                     wizardType,
                     fleetNumber,
                     depot
                 );
                 
                 if (assessmentStarted) {
-                    setAssessmentId(window.SupervisorBreakdownLogger.currentAssessment.id);
+                    setAssessmentId(window.breakdownLogger.currentAssessment.id);
                     setResponses({ fleetNumber, depot });
                 }
             } else {
@@ -208,8 +245,8 @@ const App = function() {
 
     const handleBackToMenu = () => {
         // Log assessment cancellation if active
-        if (window.SupervisorBreakdownLogger && assessmentId && currentWizard) {
-            window.SupervisorBreakdownLogger.logAction('ASSESSMENT_CANCELLED', {
+        if (window.breakdownLogger && assessmentId && currentWizard) {
+            window.breakdownLogger.logAction('ASSESSMENT_CANCELLED', {
                 wizard: currentWizard,
                 atStep: currentStep,
                 reason: 'User returned to menu'

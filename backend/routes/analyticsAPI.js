@@ -749,4 +749,63 @@ router.get('/trends', async (req, res) => {
   }
 });
 
+// GET /api/analytics/depot-performance - Get depot performance metrics
+router.get('/depot-performance', (req, res) => {
+  try {
+    // Mock depot performance data based on real Go North East depots
+    const depotPerformance = [
+      {
+        depot_name: 'Consett',
+        avg_response_time: Math.floor(Math.random() * 15 + 25), // 25-40 minutes
+        breakdown_count: Math.floor(Math.random() * 8 + 2),
+        resolution_rate: Math.floor(Math.random() * 20 + 80) // 80-100%
+      },
+      {
+        depot_name: 'Gateshead',
+        avg_response_time: Math.floor(Math.random() * 15 + 25),
+        breakdown_count: Math.floor(Math.random() * 12 + 3),
+        resolution_rate: Math.floor(Math.random() * 20 + 80)
+      },
+      {
+        depot_name: 'Washington',
+        avg_response_time: Math.floor(Math.random() * 12 + 22),
+        breakdown_count: Math.floor(Math.random() * 6 + 1),
+        resolution_rate: Math.floor(Math.random() * 15 + 85)
+      },
+      {
+        depot_name: 'Percy Main',
+        avg_response_time: Math.floor(Math.random() * 18 + 28),
+        breakdown_count: Math.floor(Math.random() * 10 + 4),
+        resolution_rate: Math.floor(Math.random() * 25 + 75)
+      },
+      {
+        depot_name: 'Deptford',
+        avg_response_time: Math.floor(Math.random() * 14 + 26),
+        breakdown_count: Math.floor(Math.random() * 8 + 2),
+        resolution_rate: Math.floor(Math.random() * 20 + 80)
+      },
+      {
+        depot_name: 'Hexham',
+        avg_response_time: Math.floor(Math.random() * 20 + 30),
+        breakdown_count: Math.floor(Math.random() * 5 + 1),
+        resolution_rate: Math.floor(Math.random() * 15 + 85)
+      }
+    ];
+
+    res.json({
+      success: true,
+      data: depotPerformance,
+      generated_at: new Date().toISOString(),
+      note: 'Performance data refreshed every 30 seconds'
+    });
+
+  } catch (error) {
+    console.error('Depot performance error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch depot performance data'
+    });
+  }
+});
+
 export default router;

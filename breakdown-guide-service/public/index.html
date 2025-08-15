@@ -29,12 +29,41 @@
     <!-- Load supervisor authentication and logging -->
     <script type="text/babel" src="./components/SupervisorLogin.js"></script>
     <script src="./supervisorBreakdownLogger.js"></script>
+    <script src="./breakdown-tracking-helper.js"></script>
     
     <!-- Load breakdown analytics integration -->
     <script src="./breakdown-analytics.js"></script>
     
     <!-- Load breakdown logging helper -->
     <script src="../breakdownLogger.js"></script>
+    
+    <!-- Global functions for Passenger Cloud integration -->
+    <script>
+        // Global functions for Passenger Cloud
+        window.openPassengerCloud = function() {
+            if (window.breakdownLogger && window.breakdownLogger.breakdownId) {
+                // Log that Passenger Cloud was used
+                fetch(`${window.BACKEND_URL || 'https://go-barry.onrender.com'}/api/breakdowns/step`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        breakdown_id: window.breakdownLogger.breakdownId,
+                        step_type: 'passenger_cloud_opened',
+                        step_data: { timestamp: new Date().toISOString() }
+                    })
+                });
+            }
+            
+            // Open Passenger Cloud
+            window.open('https://gonortheast.passenger-app.com/network/journeys/cancellations', '_blank');
+            window.closePassengerModal();
+        };
+        
+        window.closePassengerModal = function() {
+            const modal = document.getElementById('passenger-cloud-modal');
+            if (modal) modal.remove();
+        };
+    </script>
     
     <!-- Load common components -->
     <script type="text/babel" src="./components/common/BreakdownInfoStep.js"></script>

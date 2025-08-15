@@ -12,7 +12,7 @@ export const useWizardStore = create((set, get) => ({
   assessmentHistory: [],
 
   // Wizard management
-  startWizard: (wizardType, vehicle) => {
+  startWizard: async (wizardType, vehicle) => {
     const assessmentId = `assessment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     
     set({
@@ -25,14 +25,13 @@ export const useWizardStore = create((set, get) => ({
       pendingWizardType: null
     })
 
-    // Initialize breakdown tracker
-    if (window.breakdownTracker) {
-      window.breakdownTracker.startAssessment(assessmentId, {
-        category: wizardType,
-        fleetNumber: vehicle?.fleetNumber,
-        depot: vehicle?.depot,
-        supervisor: get().getCurrentSupervisor()?.supervisorId
-      })
+    // Initialize breakdown tracker with SupervisorBreakdownLogger
+    if (window.SupervisorBreakdownLogger) {
+      await window.SupervisorBreakdownLogger.startAssessment(
+        wizardType,
+        vehicle?.fleetNumber,
+        vehicle?.depot
+      )
     }
 
     return assessmentId
@@ -45,10 +44,10 @@ export const useWizardStore = create((set, get) => ({
     })
   },
 
-  selectVehicleForWizard: (vehicle) => {
+  selectVehicleForWizard: async (vehicle) => {
     const { pendingWizardType } = get()
     if (pendingWizardType) {
-      get().startWizard(pendingWizardType, vehicle)
+      await get().startWizard(pendingWizardType, vehicle)
     }
   },
 
@@ -77,7 +76,7 @@ export const useWizardStore = create((set, get) => ({
   },
 
   // Response management
-  updateResponse: (key, value) => {
+  updateResponse: async (key, value) => {
     set(state => ({
       responses: {
         ...state.responses,
@@ -86,8 +85,12 @@ export const useWizardStore = create((set, get) => ({
     }))
 
     // Update breakdown tracker
-    if (window.breakdownTracker && get().assessmentId) {
-      window.breakdownTracker.updateAssessment(get().assessmentId, key, value)
+    if (window.SupervisorBreakdownLogger) {
+      await window.SupervisorBreakdownLogger.logWizardStep('response_update', {
+        question: key,
+        answer: value,
+        step: get().currentStep
+      })
     }
   },
 
@@ -121,14 +124,15 @@ export const useWizardStore = create((set, get) => ({
         supervisor: get().getCurrentSupervisor()
       }
 
-      // Log to SupervisorBreakdownLogger
+      // Complete breakdown diagnosis in the tracker
       if (window.SupervisorBreakdownLogger) {
-        await window.SupervisorBreakdownLogger.completeAssessment(assessment)
-      }
-
-      // Complete breakdown tracker
-      if (window.breakdownTracker) {
-        window.breakdownTracker.completeAssessment(assessmentId, decision)
+        await window.SupervisorBreakdownLogger.completeWizardDiagnosis(
+          decision === 'STOP' ? 'RED' : decision === 'CONTINUE' ? 'GREEN' : 'AMBER',
+          summary || `${currentWizard} assessment completed with ${decision} decision`
+        )
+        
+        // Also complete the assessment for logging
+        await window.SupervisorBreakdownLogger.completeAssessment(decision, responses)
       }
 
       // Add to history
@@ -152,9 +156,12 @@ export const useWizardStore = create((set, get) => ({
   cancelWizard: () => {
     const { assessmentId } = get()
     
-    // Cancel breakdown tracker
-    if (window.breakdownTracker && assessmentId) {
-      window.breakdownTracker.cancelAssessment(assessmentId)
+    // Log cancellation
+    if (window.SupervisorBreakdownLogger && assessmentId) {
+      window.SupervisorBreakdownLogger.logAction('ASSESSMENT_CANCELLED', {
+        assessmentId: assessmentId,
+        reason: 'User cancelled'
+      })
     }
 
     set({
