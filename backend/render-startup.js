@@ -58,6 +58,10 @@ import { createServer } from 'http';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
+// Initialize production log filtering for cleaner Render logs
+import logFilter from './middleware/productionLogFilter.js';
+logFilter.logStartup();
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -101,6 +105,9 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Add production log filtering middleware
+app.use(logFilter.middleware());
 
 // Add compression for all responses > 1KB
 app.use(compression({

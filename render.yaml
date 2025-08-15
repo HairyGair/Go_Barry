@@ -17,30 +17,18 @@ services:
         value: 10000
       - key: NODE_OPTIONS
         value: --max-old-space-size=1536
+      - key: QUIET_LOGS
+        value: true
+      - key: LOG_LEVEL
+        value: INFO
+      - key: ENABLE_HEALTH_LOGS
+        value: false
+      - key: ENABLE_MEMORY_LOGS
+        value: false
       - fromGroup: go-barry-env
     healthCheckPath: /health
     autoDeploy: true
     
-  # Breakdown Guide Service (Separate logs)
-  - type: web
-    name: go-barry-breakdown-guide
-    runtime: node
-    region: oregon
-    plan: free
-    buildCommand: |
-      cd breakdown-guide-service && 
-      npm ci --production &&
-      npm run copy-files
-    startCommand: cd breakdown-guide-service && npm start
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        value: 10000
-      - key: BACKEND_URL
-        value: https://go-barry.onrender.com
-    healthCheckPath: /health
-    autoDeploy: true
 
 # Environment variable groups for shared secrets
 envVarGroups:
@@ -49,6 +37,8 @@ envVarGroups:
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
         sync: false
       - key: TOMTOM_API_KEY
         sync: false
