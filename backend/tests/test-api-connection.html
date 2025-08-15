@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Breakdown API Connection Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .test-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .test-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #444;
+        }
+        .status {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .status.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status.testing {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .result-box {
+            margin-top: 10px;
+            padding: 15px;
+            background: white;
+            border: 1px solid #d0d0d0;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .result-box.error {
+            background: #fef2f2;
+            border-color: #ef4444;
+        }
+        .result-box.success {
+            background: #f0fdf4;
+            border-color: #22c55e;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .summary {
+            margin-top: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea15, #764ba215);
+            border-radius: 8px;
+            border: 2px solid #667eea30;
+        }
+        .summary h3 {
+            margin-top: 0;
+            color: #5a67d8;
+        }
+        .endpoint-url {
+            color: #6b7280;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+        .breakdown-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .breakdown-card.priority {
+            border-left: 4px solid #ef4444;
+        }
+        .breakdown-card.repeat {
+            border-left: 4px solid #f59e0b;
+        }
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #667eea;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.8s linear infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Go North East - Breakdown API Test Suite</h1>
+        <p style="color: #666;">Testing connection to breakdown tracking system V2</p>
+        
+        <!-- Test Configuration -->
+        <div class="test-section">
+            <div class="test-header">
+                <div class="test-title">📋 Configuration</div>
+            </div>
+            <div>
+                <label>Backend URL: </label>
+                <select id="backendUrl" style="padding: 5px; border-radius: 3px;">
+                    <option value="https://go-barry.onrender.com">Production (go-barry.onrender.com)</option>
+                    <option value="http://localhost:3001">Local (localhost:3001)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Test 1: Basic Connection -->
+        <div class="test-section">
+            <div class="test-header">
+                <div class="test-title">1️⃣ Basic API Connection</div>
+                <span id="status-1" class="status pending">Pending</span>
+            </div>
+            <div class="endpoint-url">/api/health-extended</div>
+            <div id="result-1" class="result-box" style="display: none;"></div>
+        </div>
+
+        <!-- Test 2: Live Breakdowns -->
+        <div class="test-section">
+            <div class="test-header">
+                <div class="test-title">2️⃣ Fetch Live Breakdowns</div>
+                <span id="status-2" class="status pending">Pending</span>
+            </div>
+            <div class="endpoint-url">/api/breakdowns/live</div>
+            <div id="result-2" class="result-box" style="display: none;"></div>
+        </div>
+
+        <!-- Test 3: Today's Breakdowns -->
+        <div class="test-section">
+            <div class="test-header">
+                <div class="test-title">3️⃣ Today's Breakdowns</div>
+                <span id="status-3" class="status pending">Pending</span>
+            </div>
+            <div class="endpoint-url">/api/breakdowns/today</div>
+            <div id="result-3" class="result-box" style="display: none;"></div>
+        </div>
+
+        <!-- Test 4: Start New Breakdown -->
+        <div class="test-section">
+            <div class="test-header">
+                <div class="test-title">4️⃣ Create Test Breakdown</div>
+                <span id="status-4" class="status pending">Pending</span>
+            </div>
+            <div class="endpoint-url">POST /api/breakdowns/start</div>
+            <div style="margin: 10px 0;">
+                <label>Fleet Number: </label>
+                <input type="text" id="fleetNumber" value="6301" style="padding: 5px; margin: 0 10px;">
+                <label>Supervisor Badge: </label>
+                <select id="supervisorBadge" style="padding: 5px; margin: 0 10px;">
+                    <option value="AG003">AG003 - Anthony Gair</option>
+                    <option value="AW001">AW001</option>
+                    <option value="AC002">AC002</option>
+                    <option value="CF004">CF004</option>
+                    <option value="DH005">DH005</option>
+                    <option value="JD006">JD006</option>
+                    <option value="JP007">JP007</option>
+                    <option value="SG008">SG008</option>
+                    <option value="BP009">BP009</option>
+                </select>
+                <button onclick="createTestBreakdown()">Create Test Breakdown</button>
+            </div>
+            <div id="result-4" class="result-box" style="display: none;"></div>
+        </div>
+
+        <!-- Test 5: Live Dashboard View -->
+        <div class="test-section">
+            <div class="test-header">
+                <div class="test-title">5️⃣ Live Dashboard Preview</div>
+                <span id="status-5" class="status pending">Ready</span>
+            </div>
+            <button onclick="loadLiveDashboard()">Load Live Dashboard</button>
+            <div id="dashboard-preview" style="margin-top: 15px;"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button onclick="runAllTests()">
+                🚀 Run All Tests
+            </button>
+            <button onclick="clearResults()">
+                🗑️ Clear Results
+            </button>
+            <button onclick="window.location.reload()">
+                🔄 Refresh Page
+            </button>
+        </div>
+
+        <!-- Summary -->
+        <div class="summary" id="summary" style="display: none;">
+            <h3>📊 Test Summary</h3>
+            <div id="summary-content"></div>
+        </div>
+    </div>
+
+    <script>
+        let testResults = {};
+        
+        function getBackendUrl() {
+            return document.getElementById('backendUrl').value;
+        }
+
+        async function testConnection() {
+            const testId = '1';
+            updateStatus(testId, 'testing', 'Testing...');
+            
+            try {
+                const response = await fetch(`${getBackendUrl()}/api/health-extended`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    updateStatus(testId, 'success', 'Connected');
+                    showResult(testId, 'success', `✅ API is healthy!\n\n${JSON.stringify(data, null, 2)}`);
+                    testResults.connection = true;
+                } else {
+                    throw new Error('API returned error status');
+                }
+            } catch (error) {
+                updateStatus(testId, 'error', 'Failed');
+                showResult(testId, 'error', `❌ Connection failed!\n\nError: ${error.message}\n\nMake sure the backend is running.`);
+                testResults.connection = false;
+            }
+        }
+
+        async function testLiveBreakdowns() {
+            const testId = '2';
+            updateStatus(testId, 'testing', 'Testing...');
+            
+            try {
+                const response = await fetch(`${getBackendUrl()}/api/breakdowns/live`);
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const count = data.breakdowns ? data.breakdowns.length : 0;
+                    updateStatus(testId, 'success', `Found ${count} active`);
+                    
+                    let resultText = `✅ Successfully fetched live breakdowns!\n\n`;
+                    resultText += `Active Breakdowns: ${count}\n\n`;
+                    
+                    if (count > 0) {
+                        resultText += 'Breakdown Details:\n';
+                        data.breakdowns.forEach((bd, i) => {
+                            resultText += `\n${i + 1}. Fleet ${bd.fleet_no} (${bd.breakdown_id})\n`;
+                            resultText += `   Status: ${bd.status}\n`;
+                            resultText += `   Supervisor: ${bd.supervisor_badge}\n`;
+                            resultText += `   Time: ${bd.created_at}\n`;
+                            if (bd.minutes_since_diagnosis) {
+                                resultText += `   ⏱️ ${bd.minutes_since_diagnosis} minutes since diagnosis\n`;
+                            }
+                        });
+                    } else {
+                        resultText += 'No active breakdowns (this is normal if none are in progress)';
+                    }
+                    
+                    showResult(testId, 'success', resultText);
+                    testResults.liveBreakdowns = true;
+                } else {
+                    throw new Error(data.error || 'Failed to fetch breakdowns');
+                }
+            } catch (error) {
+                updateStatus(testId, 'error', 'Failed');
+                showResult(testId, 'error', `❌ Failed to fetch live breakdowns!\n\nError: ${error.message}`);
+                testResults.liveBreakdowns = false;
+            }
+        }
+
+        async function testTodayBreakdowns() {
+            const testId = '3';
+            updateStatus(testId, 'testing', 'Testing...');
+            
+            try {
+                const response = await fetch(`${getBackendUrl()}/api/breakdowns/today`);
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const count = data.breakdowns ? data.breakdowns.length : 0;
+                    updateStatus(testId, 'success', `${count} today`);
+                    showResult(testId, 'success', `✅ Today's breakdowns: ${count}\n\n${JSON.stringify(data, null, 2)}`);
+                    testResults.todayBreakdowns = true;
+                } else {
+                    throw new Error(data.error || 'Failed to fetch today\'s breakdowns');
+                }
+            } catch (error) {
+                updateStatus(testId, 'error', 'Failed');
+                showResult(testId, 'error', `❌ Failed to fetch today's breakdowns!\n\nError: ${error.message}`);
+                testResults.todayBreakdowns = false;
+            }
+        }
+
+        async function createTestBreakdown() {
+            const testId = '4';
+            updateStatus(testId, 'testing', 'Creating...');
+            
+            const fleetNumber = document.getElementById('fleetNumber').value;
+            const supervisorBadge = document.getElementById('supervisorBadge').value;
+            
+            try {
+                const response = await fetch(`${getBackendUrl()}/api/breakdowns/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        fleet_number: fleetNumber,
+                        supervisor_badge: supervisorBadge,
+                        supervisor_name: supervisorBadge,
+                        location: 'Test Location - Newcastle Central',
+                        depot_id: 'WAS',
+                        wizard_type: 'test_wizard'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    updateStatus(testId, 'success', 'Created!');
+                    showResult(testId, 'success', `✅ Test breakdown created!\n\nBreakdown ID: ${data.breakdown_id}\nDaily ID: ${data.daily_id}\n\n${JSON.stringify(data, null, 2)}`);
+                    testResults.createBreakdown = true;
+                    
+                    // Refresh live breakdowns after creating
+                    setTimeout(() => {
+                        testLiveBreakdowns();
+                        loadLiveDashboard();
+                    }, 1000);
+                } else {
+                    throw new Error(data.error || 'Failed to create breakdown');
+                }
+            } catch (error) {
+                updateStatus(testId, 'error', 'Failed');
+                showResult(testId, 'error', `❌ Failed to create test breakdown!\n\nError: ${error.message}`);
+                testResults.createBreakdown = false;
+            }
+        }
+
+        async function loadLiveDashboard() {
+            const container = document.getElementById('dashboard-preview');
+            updateStatus('5', 'testing', 'Loading...');
+            
+            try {
+                const response = await fetch(`${getBackendUrl()}/api/breakdowns/live`);
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    const breakdowns = data.breakdowns || [];
+                    
+                    if (breakdowns.length === 0) {
+                        container.innerHTML = '<p style="color: #666; padding: 20px; text-align: center;">No active breakdowns</p>';
+                    } else {
+                        container.innerHTML = breakdowns.map(bd => `
+                            <div class="breakdown-card ${bd.is_priority ? 'priority' : ''} ${bd.repeat_breakdown ? 'repeat' : ''}">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                    <strong>Fleet ${bd.fleet_no}</strong>
+                                    <span style="color: #666;">${bd.breakdown_id}</span>
+                                </div>
+                                <div style="color: #666; font-size: 14px;">
+                                    <div>📍 ${bd.location || 'Location unknown'}</div>
+                                    <div>👤 ${bd.supervisor_badge} | 🏢 ${bd.depot_id || 'N/A'}</div>
+                                    <div>🚌 Route: ${bd.route_id || 'N/A'}</div>
+                                    <div>📊 Status: <strong>${bd.status}</strong></div>
+                                    ${bd.minutes_since_diagnosis ? `<div>⏱️ <strong>${bd.minutes_since_diagnosis} minutes</strong> since diagnosis</div>` : ''}
+                                    ${bd.repeat_breakdown ? '<div>⚠️ <strong>REPEAT BREAKDOWN</strong></div>' : ''}
+                                    ${bd.is_priority ? '<div>🔴 <strong>PRIORITY ROUTE</strong></div>' : ''}
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                    
+                    updateStatus('5', 'success', `${breakdowns.length} active`);
+                } else {
+                    throw new Error(data.error || 'Failed to load dashboard');
+                }
+            } catch (error) {
+                container.innerHTML = `<p style="color: red;">Failed to load dashboard: ${error.message}</p>`;
+                updateStatus('5', 'error', 'Failed');
+            }
+        }
+
+        function updateStatus(testId, status, text) {
+            const statusEl = document.getElementById(`status-${testId}`);
+            statusEl.className = `status ${status}`;
+            statusEl.textContent = text;
+            
+            if (status === 'testing') {
+                statusEl.innerHTML = text + '<span class="loading"></span>';
+            }
+        }
+
+        function showResult(testId, type, content) {
+            const resultEl = document.getElementById(`result-${testId}`);
+            resultEl.style.display = 'block';
+            resultEl.className = `result-box ${type}`;
+            resultEl.textContent = content;
+        }
+
+        async function runAllTests() {
+            console.log('Starting all tests...');
+            testResults = {};
+            
+            await testConnection();
+            
+            if (testResults.connection) {
+                await testLiveBreakdowns();
+                await testTodayBreakdowns();
+            }
+            
+            showSummary();
+        }
+
+        function showSummary() {
+            const summaryEl = document.getElementById('summary');
+            const contentEl = document.getElementById('summary-content');
+            
+            summaryEl.style.display = 'block';
+            
+            let passed = 0;
+            let failed = 0;
+            
+            for (const [test, result] of Object.entries(testResults)) {
+                if (result) passed++;
+                else failed++;
+            }
+            
+            let summaryHTML = `
+                <p>✅ Passed: ${passed}</p>
+                <p>❌ Failed: ${failed}</p>
+            `;
+            
+            if (failed === 0 && passed > 0) {
+                summaryHTML += `<p style="color: green; font-weight: bold;">🎉 All tests passed! The API is working correctly.</p>`;
+                summaryHTML += `<p>Next step: Update your dashboard HTML to connect to these endpoints.</p>`;
+            } else if (testResults.connection === false) {
+                summaryHTML += `<p style="color: red; font-weight: bold;">⚠️ Cannot connect to backend!</p>`;
+                summaryHTML += `<p>Please ensure the backend server is running at ${getBackendUrl()}</p>`;
+            } else {
+                summaryHTML += `<p style="color: orange; font-weight: bold;">⚠️ Some tests failed. Check the results above.</p>`;
+            }
+            
+            contentEl.innerHTML = summaryHTML;
+        }
+
+        function clearResults() {
+            for (let i = 1; i <= 5; i++) {
+                document.getElementById(`status-${i}`).className = 'status pending';
+                document.getElementById(`status-${i}`).textContent = 'Pending';
+                document.getElementById(`result-${i}`).style.display = 'none';
+            }
+            document.getElementById('summary').style.display = 'none';
+            document.getElementById('dashboard-preview').innerHTML = '';
+            testResults = {};
+        }
+
+        // Auto-run connection test on load
+        window.addEventListener('load', () => {
+            console.log('Breakdown API Test Suite loaded');
+            console.log('Click "Run All Tests" to begin testing');
+        });
+    </script>
+</body>
+</html>

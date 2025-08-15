@@ -31,8 +31,36 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="./styles/main.css">
+    <style>
+        .home-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1001;
+            background: rgba(0, 59, 92, 0.9);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .home-button:hover {
+            background: rgba(0, 59, 92, 1);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            color: white;
+            text-decoration: none;
+        }
+    </style>
 </head>
 <body class="bg-gray-50">
+    <!-- Home Button -->
+    <a href="../" class="home-button">🏠 Executive Dashboard</a>
+    
     <!-- NO AUTHENTICATION MODE - All auth components disabled -->
     
     <!-- Initialize ALL mock systems FIRST before any other scripts -->
@@ -50,6 +78,9 @@
     
     <!-- Load Supervisor Breakdown Logger (Breakdown Tracker Integration) FIRST -->
     <script src="./supervisorBreakdownLogger.js"></script>
+    
+    <!-- Load Breakdown Tracking Helper for Enhanced Integration -->
+    <script src="./public/breakdown-tracking-helper.js"></script>
     
     <!-- Configure Backend URL for Breakdown Tracker -->
     <script>

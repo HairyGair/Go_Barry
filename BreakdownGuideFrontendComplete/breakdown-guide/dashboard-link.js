@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
                 
                 dashboardButton.innerHTML = `
-                    <a href="../enhanced-breakdown-dashboard.html" 
+                    <a href="../dashboard/" 
                        target="_blank"
                        id="dashboard-link-button"
                        style="
@@ -122,7 +122,7 @@ async function checkActiveBreakdowns() {
             `;
             
             badge.onclick = () => {
-                window.open('../enhanced-breakdown-dashboard.html', '_blank');
+                window.open('../dashboard/', '_blank');
             };
             
             // Add pulse animation if not already present
