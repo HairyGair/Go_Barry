@@ -77,6 +77,7 @@ const corsOptions = {
       'http://www.gobarry.co.uk',
       'http://gobarry.co.uk',
       'http://breakdowns.gobarry.co.uk',
+      // Development origins
       'http://localhost:8081',
       'http://localhost:8082',
       'http://localhost:3000',
@@ -85,15 +86,52 @@ const corsOptions = {
       'http://localhost:19006',
       'http://localhost:8080',
       'http://localhost:5173',
-      'http://localhost:4173'
+      'http://localhost:4173',
+      // Static hosting origins
+      'https://app.netlify.com',
+      'https://deploy-preview-*--*.netlify.app',
+      'https://*.netlify.app',
+      'https://*.vercel.app',
+      'https://*.github.io',
+      // Allow file:// for local testing
+      null
     ];
     
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
     
-    // For development, be more permissive with localhost origins
-    if (allowedOrigins.indexOf(origin) !== -1 || 
-        (process.env.NODE_ENV !== 'production' && origin && origin.includes('localhost'))) {
+    // Check exact matches first
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    
+    // Check wildcard patterns
+    const isAllowedPattern = allowedOrigins.some(allowedOrigin => {
+      if (typeof allowedOrigin !== 'string') return false;
+      
+      // Handle netlify wildcard patterns
+      if (allowedOrigin.includes('*')) {
+        const pattern = allowedOrigin.replace(/\*/g, '.*');
+        const regex = new RegExp(`^${pattern}$`);
+        return regex.test(origin);
+      }
+      
+      // Handle common hosting patterns
+      if (origin.includes('.netlify.app') && allowedOrigin.includes('.netlify.app')) return true;
+      if (origin.includes('.vercel.app') && allowedOrigin.includes('.vercel.app')) return true;
+      if (origin.includes('.github.io') && allowedOrigin.includes('.github.io')) return true;
+      
+      return false;
+    });
+    
+    // Allow localhost in development
+    const isLocalhost = origin && (
+      origin.includes('localhost') || 
+      origin.includes('127.0.0.1') ||
+      origin.includes('file://')
+    );
+    
+    if (isAllowedPattern || (process.env.NODE_ENV !== 'production' && isLocalhost)) {
       callback(null, true);
     } else {
       console.warn(`⚠️ CORS request blocked from origin: ${origin}`);

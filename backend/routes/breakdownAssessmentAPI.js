@@ -2,7 +2,7 @@
 // Logs all breakdown assessments with complete supervisor tracking
 
 import express from 'express';
-import { supabase } from '../services/supabaseService.js';
+import supabaseService from '../services/supabaseService.js';
 import jwt from 'jsonwebtoken';
 
 const router = express.Router();
@@ -339,7 +339,7 @@ async function createAssessmentTable() {
     `;
     
     try {
-        await supabase.rpc('exec_sql', { sql: createTableSQL });
+        await supabaseService.getClient().rpc('exec_sql', { sql: createTableSQL });
         console.log('Created breakdown_assessments table');
     } catch (error) {
         console.error('Error creating table:', error);
@@ -365,7 +365,7 @@ async function createActionLogsTable() {
     `;
     
     try {
-        await supabase.rpc('exec_sql', { sql: createTableSQL });
+        await supabaseService.getClient().rpc('exec_sql', { sql: createTableSQL });
         console.log('Created breakdown_action_logs table');
     } catch (error) {
         console.error('Error creating action logs table:', error);

@@ -1295,4 +1295,141 @@ cron.schedule('0 2 * * *', async () => {
   }
 });
 
+// GET /api/breakdowns/active - Get active breakdowns
+router.get('/active', async (req, res) => {
+  try {
+    const client = await getSupabaseClient();
+    if (!client) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database connection unavailable',
+        breakdowns: []
+      });
+    }
+    
+    const { data: breakdowns, error } = await client
+      .from('breakdowns')
+      .select('*')
+      .in('status', ['received', 'acknowledged', 'decision', 'dispatched', 'on_site', 'moving'])
+      .neq('archived', true)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching active breakdowns:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch active breakdowns',
+        breakdowns: []
+      });
+    }
+    
+    res.json({
+      success: true,
+      breakdowns: breakdowns || [],
+      count: breakdowns?.length || 0
+    });
+    
+  } catch (error) {
+    console.error('Error fetching active breakdowns:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      breakdowns: []
+    });
+  }
+});
+
+// GET /api/breakdowns/overdue - Get overdue breakdowns
+router.get('/overdue', async (req, res) => {
+  try {
+    const client = await getSupabaseClient();
+    if (!client) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database connection unavailable',
+        breakdowns: []
+      });
+    }
+    
+    // Breakdowns older than 1 hour without resolution
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    
+    const { data: breakdowns, error } = await client
+      .from('breakdowns')
+      .select('*')
+      .neq('status', 'cleared')
+      .neq('archived', true)
+      .lt('created_at', oneHourAgo.toISOString())
+      .order('created_at', { ascending: true });
+    
+    if (error) {
+      console.error('Error fetching overdue breakdowns:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch overdue breakdowns',
+        breakdowns: []
+      });
+    }
+    
+    res.json({
+      success: true,
+      breakdowns: breakdowns || [],
+      count: breakdowns?.length || 0
+    });
+    
+  } catch (error) {
+    console.error('Error fetching overdue breakdowns:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      breakdowns: []
+    });
+  }
+});
+
+// GET /api/breakdowns/critical - Get critical breakdowns
+router.get('/critical', async (req, res) => {
+  try {
+    const client = await getSupabaseClient();
+    if (!client) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database connection unavailable',
+        breakdowns: []
+      });
+    }
+    
+    const { data: breakdowns, error } = await client
+      .from('breakdowns')
+      .select('*')
+      .eq('severity', 'STOP')
+      .neq('status', 'cleared')
+      .neq('archived', true)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching critical breakdowns:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch critical breakdowns',
+        breakdowns: []
+      });
+    }
+    
+    res.json({
+      success: true,
+      breakdowns: breakdowns || [],
+      count: breakdowns?.length || 0
+    });
+    
+  } catch (error) {
+    console.error('Error fetching critical breakdowns:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      breakdowns: []
+    });
+  }
+});
+
 export default router;

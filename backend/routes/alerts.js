@@ -1,6 +1,6 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import supabaseClient from '../services/supabaseHelper.js';
+import { getSupabaseClient } from '../services/supabaseHelper.js';
 
 const router = express.Router();
 
