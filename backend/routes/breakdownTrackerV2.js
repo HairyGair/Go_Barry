@@ -947,16 +947,18 @@ router.get('/live', async (req, res) => {
       });
     }
     
-    // First attempt: simple query without complex OR logic
+    // Simple query - just get all breakdowns that aren't cleared
     const { data, error } = await client
       .from('breakdowns')
       .select('*')
-      .in('status', ['received', 'acknowledged', 'decision', 'dispatched', 'on_site', 'moving'])
       .neq('status', 'cleared')
       .order('created_at', { ascending: false });
     
-    // Filter out archived in JavaScript if needed
-    const activeBreakdowns = data ? data.filter(b => b.archived !== true) : [];
+    // Filter out archived and ensure status is valid in JavaScript
+    const activeBreakdowns = data ? data.filter(b => 
+      b.archived !== true && 
+      b.status !== 'cleared'
+    ) : [];
 
     if (error) {
       console.error('Error fetching live breakdowns:', error);
