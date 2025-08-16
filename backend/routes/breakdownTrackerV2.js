@@ -947,26 +947,29 @@ router.get('/live', async (req, res) => {
       });
     }
     
-    // Simple query - just get all breakdowns that aren't cleared
+    // Simplest possible query - just get ALL breakdowns first
     const { data, error } = await client
       .from('breakdowns')
       .select('*')
-      .neq('status', 'cleared')
-      .order('created_at', { ascending: false });
+      .limit(100);
     
-    // Filter out archived and ensure status is valid in JavaScript
-    const activeBreakdowns = data ? data.filter(b => 
-      b.archived !== true && 
-      b.status !== 'cleared'
-    ) : [];
-
     if (error) {
       console.error('Error fetching live breakdowns:', error);
+      console.error('Error details:', JSON.stringify(error, null, 2));
       return res.status(500).json({
         success: false,
-        error: 'Failed to fetch breakdowns'
+        error: 'Failed to fetch breakdowns',
+        details: error.message,
+        hint: error.hint,
+        code: error.code
       });
     }
+    
+    // Now filter in JavaScript (safer for handling NULLs and complex conditions)
+    const activeBreakdowns = (data || []).filter(b => {
+      // Keep if status is not 'cleared' and not archived
+      return b.status !== 'cleared' && b.archived !== true;
+    });
 
     // Check for auto-escalation (30+ minutes since diagnosis)
     const now = new Date();
@@ -1461,6 +1464,47 @@ router.get('/debug/env', async (req, res) => {
         hasSupabaseService: !!process.env.SUPABASE_SERVICE_KEY,
         hasSupabaseRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
       }
+    });
+  }
+});
+
+// DEBUG: Test basic query
+router.get('/debug/test-query', async (req, res) => {
+  try {
+    const client = await getSupabaseClient();
+    
+    // Test 1: Basic select
+    const { data: test1, error: error1 } = await client
+      .from('breakdowns')
+      .select('id, fleet_no, status')
+      .limit(5);
+    
+    // Test 2: Count
+    const { count, error: error2 } = await client
+      .from('breakdowns')
+      .select('*', { count: 'exact', head: true });
+    
+    res.json({
+      success: true,
+      tests: {
+        basicSelect: { 
+          success: !error1, 
+          error: error1?.message,
+          rowCount: test1?.length || 0,
+          sample: test1?.[0] 
+        },
+        count: { 
+          success: !error2, 
+          total: count,
+          error: error2?.message 
+        },
+        clientStatus: !!client
+      }
+    });
+  } catch (error) {
+    res.json({
+      success: false,
+      error: error.message
     });
   }
 });
