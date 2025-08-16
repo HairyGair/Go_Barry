@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard Connection Test</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f3f4f6;
+        }
+        h1 {
+            color: #1e3a8a;
+            border-bottom: 3px solid #dc2626;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: #1e3a8a;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1e40af;
+        }
+        .breakdown-preview {
+            background: #f9fafb;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+        }
+        .breakdown-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .fleet-number {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1e3a8a;
+        }
+        .breakdown-detail {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .label {
+            color: #6b7280;
+            display: inline-block;
+            width: 150px;
+        }
+        .value {
+            color: #111827;
+            font-weight: 500;
+        }
+        pre {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Dashboard Connection Test</h1>
+    
+    <div class="test-section">
+        <h2>1. Backend Connection Test</h2>
+        <button onclick="testConnection()">Test Backend Connection</button>
+        <div id="connection-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Live Breakdowns API Test</h2>
+        <button onclick="testLiveAPI()">Test /api/breakdowns/live</button>
+        <div id="api-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Breakdown Data Preview</h2>
+        <button onclick="previewBreakdowns()">Show Formatted Breakdowns</button>
+        <div id="preview-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Create Test Breakdown</h2>
+        <button onclick="createTestBreakdown()">Create Test Breakdown</button>
+        <div id="create-result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. Full Dashboard Test</h2>
+        <button onclick="runAllTests()">Run All Tests</button>
+        <button onclick="openDashboard()">Open Live Dashboard</button>
+        <div id="full-result"></div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'https://go-barry.onrender.com';
+
+        // Test basic connection
+        async function testConnection() {
+            const resultDiv = document.getElementById('connection-result');
+            resultDiv.innerHTML = '<div class="info">Testing connection...</div>';
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/health-extended`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">✅ Backend is ONLINE</div>
+                        <div class="info">Server: ${data.server || 'Running'}</div>
+                        <div class="info">Database: ${data.database?.status || 'Connected'}</div>
+                    `;
+                } else {
+                    throw new Error('Server responded with error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Connection failed: ${error.message}</div>`;
+            }
+        }
+
+        // Test live breakdowns API
+        async function testLiveAPI() {
+            const resultDiv = document.getElementById('api-result');
+            resultDiv.innerHTML = '<div class="info">Fetching live breakdowns...</div>';
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/breakdowns/live`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const count = data.breakdowns ? data.breakdowns.length : 0;
+                    resultDiv.innerHTML = `
+                        <div class="success">✅ API Working: Found ${count} active breakdown(s)</div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ API returned error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ API call failed: ${error.message}</div>`;
+            }
+        }
+
+        // Preview breakdowns in formatted view
+        async function previewBreakdowns() {
+            const resultDiv = document.getElementById('preview-result');
+            resultDiv.innerHTML = '<div class="info">Loading breakdowns...</div>';
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/breakdowns/live`);
+                const data = await response.json();
+                
+                if (data.success && data.breakdowns && data.breakdowns.length > 0) {
+                    let html = `<div class="success">✅ Showing ${data.breakdowns.length} breakdown(s):</div>`;
+                    
+                    data.breakdowns.forEach(breakdown => {
+                        const isOverdue = breakdown.minutes_since_diagnosis > 30;
+                        html += `
+                            <div class="breakdown-preview">
+                                <div class="breakdown-header">
+                                    <span class="fleet-number">Fleet ${breakdown.fleet_no}</span>
+                                    <span style="color: ${isOverdue ? '#ef4444' : '#f59e0b'}">
+                                        ${breakdown.minutes_since_diagnosis || 0} mins
+                                    </span>
+                                </div>
+                                <div class="breakdown-detail">
+                                    <span class="label">Daily ID:</span>
+                                    <span class="value">${breakdown.daily_id || 'N/A'}</span>
+                                </div>
+                                <div class="breakdown-detail">
+                                    <span class="label">Depot:</span>
+                                    <span class="value">${breakdown.depot_id || 'N/A'}</span>
+                                </div>
+                                <div class="breakdown-detail">
+                                    <span class="label">Location:</span>
+                                    <span class="value">${breakdown.location || 'Unknown'}</span>
+                                </div>
+                                <div class="breakdown-detail">
+                                    <span class="label">Severity:</span>
+                                    <span class="value" style="color: ${getSeverityColor(breakdown.severity)}">
+                                        ${breakdown.severity || 'UNKNOWN'}
+                                    </span>
+                                </div>
+                                <div class="breakdown-detail">
+                                    <span class="label">Status:</span>
+                                    <span class="value">${breakdown.status}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML = '<div class="info">No active breakdowns found</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Failed to preview: ${error.message}</div>`;
+            }
+        }
+
+        // Create a test breakdown
+        async function createTestBreakdown() {
+            const resultDiv = document.getElementById('create-result');
+            const fleetNumber = prompt('Enter fleet number (e.g., 6301):');
+            if (!fleetNumber) return;
+            
+            const supervisorBadge = prompt('Enter supervisor badge (e.g., AG003):');
+            if (!supervisorBadge) return;
+            
+            resultDiv.innerHTML = '<div class="info">Creating test breakdown...</div>';
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/breakdowns/start`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        fleet_number: fleetNumber,
+                        supervisor_badge: supervisorBadge,
+                        supervisor_name: 'Test Supervisor',
+                        location: 'Test Location',
+                        depot_id: 'WAL',
+                        wizard_type: 'test'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="success">✅ Test breakdown created!</div>
+                        <div class="info">Breakdown ID: ${data.breakdown_id}</div>
+                        <div class="info">Daily ID: ${data.daily_id}</div>
+                    `;
+                    
+                    // Refresh the preview
+                    setTimeout(() => previewBreakdowns(), 1000);
+                } else {
+                    resultDiv.innerHTML = `<div class="error">❌ Failed: ${data.error}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        // Run all tests
+        async function runAllTests() {
+            const resultDiv = document.getElementById('full-result');
+            resultDiv.innerHTML = '<div class="info">Running all tests...</div>';
+            
+            await testConnection();
+            await new Promise(r => setTimeout(r, 500));
+            
+            await testLiveAPI();
+            await new Promise(r => setTimeout(r, 500));
+            
+            await previewBreakdowns();
+            
+            resultDiv.innerHTML = '<div class="success">✅ All tests complete! Check results above.</div>';
+        }
+
+        // Open the live dashboard
+        function openDashboard() {
+            window.open('../dashboard/breakdown-dashboard-enhanced.html', '_blank');
+        }
+
+        // Helper function for severity colors
+        function getSeverityColor(severity) {
+            switch(severity) {
+                case 'STOP':
+                case 'RED':
+                    return '#dc2626';
+                case 'AMBER':
+                    return '#f59e0b';
+                case 'CONTINUE':
+                case 'GREEN':
+                    return '#10b981';
+                default:
+                    return '#6b7280';
+            }
+        }
+
+        // Auto-run connection test on load
+        window.addEventListener('load', () => {
+            testConnection();
+        });
+    </script>
+</body>
+</html>

@@ -1,18 +1,25 @@
 services:
   - type: web
-    name: barry-backend
-    env: node
+    name: go-barry
+    runtime: node
+    region: oregon
+    plan: starter # This is the $7/month plan
     buildCommand: npm install
-    startCommand: npm run start
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
-      - key: NODE_OPTIONS
-        value: --max-old-space-size=2048 --optimize-for-size
       - key: PORT
-        value: 10000
-      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
-        value: true
-      - key: DURHAM_SCRAPER_ENABLED
-        value: false
-    autoDeploy: false
+        value: 3001
+      - key: SUPABASE_URL
+        value: https://haountnghecfrsoniubq.supabase.co
+      - key: SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhb3VudG5naGVjZnJzb25pdWJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc2NzgxNDksImV4cCI6MjA2MzI1NDE0OX0.xtjxeGkxG3cx67IvpI4XxEpWewLG9Bh6bfyQenfTILs
+      - key: SUPABASE_SERVICE_KEY
+        sync: false # You'll add this manually in Render dashboard for security
+      - key: WHAT3WORDS_API_KEY
+        value: UA0764K8
+      - key: GOOGLE_ROADS_API_KEY
+        value: AIzaSyBhBN_kVOnIRTKXYhzrDwpr8kvb0Uy0IY8
+    healthCheckPath: /api/health-extended
+    autoDeploy: false # Set to true if you want automatic deploys from GitHub

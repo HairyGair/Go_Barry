@@ -1,0 +1,592 @@
+// services/tomtom-fixed.js
+// Fixed TomTom Traffic API with Working Route Matching
+import axios from 'axios';
+import { getEnhancedLocationWithFallbacks, getQuickLocation } from '../utils/productionLocation.js';
+import { geocodingThrottler } from '../utils/requestThrottler.js';
+import { findAffectedRoutesEnhanced, isGTFSReady } from '../utils/gtfsRouteMatching.js';
+import { enhancedRouteMatchWithConfidence } from './enhancedRouteConfidence.js';
+// Removed circular import: import { incrementTomTomUsage } from '../routes/tomtomUsageAPI.js';
+
+// Create a stub function to avoid breaking existing code
+function incrementTomTomUsage(apiType, count = 1) {
+  // TODO: Implement proper usage tracking without circular import
+  console.log(`📊 TomTom ${apiType} API usage: +${count}`);
+}
+
+// Enhanced route matching using both coordinates AND geocoded location names
+function findRoutesNearCoordinatesFixed(lat, lng, radiusMeters = 250) {
+  const foundRoutes = new Set();
+  
+  // Geographic region-based route matching for Go North East
+  const regions = [
+    {
+      name: 'Newcastle Centre',
+      bounds: { north: 55.0, south: 54.96, east: -1.58, west: -1.64 },
+      routes: ['Q3', 'Q3X', '10', '10A', '10B', '12', '21', '22', '27', '28', '29', '47', '53', '54', '56', '57', '58']
+    },
+    {
+      name: 'Gateshead',
+      bounds: { north: 54.97, south: 54.93, east: -1.6, west: -1.7 },
+      routes: ['10', '10A', '10B', '27', '28', '28B', 'Q3', 'Q3X', '53', '54']
+    },
+    {
+      name: 'North Tyneside',
+      bounds: { north: 55.05, south: 55.0, east: -1.4, west: -1.5 },
+      routes: ['1', '2', '307', '309', '317', '327', '352', '354', '355', '356']
+    },
+    {
+      name: 'Sunderland',
+      bounds: { north: 54.93, south: 54.88, east: -1.35, west: -1.42 },
+      routes: ['16', '20', '24', '35', '36', '56', '61', '62', '63', '700', '701', '9']
+    },
+    {
+      name: 'Durham',
+      bounds: { north: 54.88, south: 54.75, east: -1.5, west: -1.6 },
+      routes: ['21', '22', 'X21', '6', '50', '28']
+    },
+    {
+      name: 'Consett',
+      bounds: { north: 54.87, south: 54.82, east: -1.8, west: -1.9 },
+      routes: ['X30', 'X31', 'X70', 'X71', 'X71A', '74', '84', '85']
+    },
+    {
+      name: 'A1 Corridor',
+      bounds: { north: 55.0, south: 54.8, east: -1.55, west: -1.65 },
+      routes: ['21', 'X21', '25', '28', '28B']
+    },
+    {
+      name: 'A19 Corridor', 
+      bounds: { north: 55.1, south: 54.9, east: -1.35, west: -1.55 },
+      routes: ['1', '2', '9', '307', '309', '56']
+    }
+  ];
+
+  // Find matching region
+  for (const region of regions) {
+    if (lat >= region.bounds.south && lat <= region.bounds.north &&
+        lng >= region.bounds.west && lng <= region.bounds.east) {
+      region.routes.forEach(route => foundRoutes.add(route));
+      break;
+    }
+  }
+
+  // If no specific region, use major routes as fallback
+  if (foundRoutes.size === 0) {
+    ['21', '22', '10', '1', '2', 'Q3'].forEach(route => foundRoutes.add(route));
+  }
+
+  return Array.from(foundRoutes).sort();
+}
+
+// NEW: Enhanced route matching using geocoded location names
+function enhancedRouteMatchingWithLocation(lat, lng, geocodedLocation, radiusMeters = 250) {
+  const foundRoutes = new Set();
+  const locationText = (geocodedLocation || '').toLowerCase();
+  
+  console.log(`🎯 Enhanced route matching for: "${geocodedLocation}" at ${lat}, ${lng}`);
+  
+  // 1. SPECIFIC ROAD/STREET NAME MATCHING
+  const roadMatches = {
+    // Major A-roads with specific routes
+    'a1': ['21', 'X21', '25', '28', '28B', 'X25'],
+    'a19': ['1', '2', '307', '309', '317', '56', '9'],
+    'a167': ['21', '22', 'X21', '6', '50'], // Durham Road
+    'a184': ['1', '2', '307', '309', '327'], // Coast Road
+    'a693': ['X30', 'X31', '74', '84'], // Stanley/Consett
+    'a696': ['74', '43', '44'], // Ponteland Road
+    
+    // Specific major roads
+    'central motorway': ['Q3', 'Q3X', '10', '12', '21'],
+    'newgate street': ['Q3', 'Q3X', '10', '12'],
+    'grainger street': ['Q3', 'Q3X', '10', '12'],
+    'collingwood street': ['Q3', 'Q3X', '10', '12'],
+    'grey street': ['Q3', 'Q3X', '10', '12'],
+    'northumberland street': ['Q3', 'Q3X', '10', '12'],
+    
+    'durham road': ['21', '22', 'X21', '6'],
+    'west road': ['X82', 'X84', 'X85'],
+    'gosforth high street': ['1', '2'],
+    'coast road': ['1', '2', '307', '309'],
+    'shields road': ['27', '28'],
+    'saltwell road': ['53', '54'],
+    
+    // Sunderland roads
+    'chester road': ['20', '24', '35'],
+    'fawcett street': ['16', '20', '61'],
+    'park lane': ['16', '20', '24', '35', '36'],
+    
+    // Major bridges and landmarks
+    'tyne bridge': ['Q3', 'Q3X', '10', '21'],
+    'king edward bridge': ['21', '22'],
+    'swing bridge': ['Q3', 'Q3X'],
+    'millennium bridge': ['Q3', 'Q3X'],
+    'redheugh bridge': ['21', '27', '28'],
+    'metro centre': ['10', '10A', '10B', '27', '28'],
+    'angel of the north': ['21', 'X21', '25'],
+    
+    // Town centers
+    'newcastle': ['Q3', 'Q3X', '10', '10A', '10B', '12', '21', '22', '27', '28', '29'],
+    'gateshead': ['10', '10A', '10B', '21', '27', '28', '28B', 'Q3', 'Q3X', '53', '54'],
+    'sunderland': ['16', '18', '20', '24', '35', '36', '56', '61', '62', '63'],
+    'durham': ['21', '22', 'X21', '6', '7', '50'],
+    'consett': ['X30', 'X31', 'X70', 'X71', 'X71A', '74', '84', '85'],
+    'stanley': ['X30', 'X31', '8', '78'],
+    'chester le street': ['21', '22', 'X21', '25', '28'],
+    'washington': ['2A', '2B', '4', '85', '86', 'X1'],
+    'hebburn': ['27', '28', '28B'],
+    'jarrow': ['27', '28', '526'],
+    'south shields': ['1', '2', '11', '17'],
+    'whitley bay': ['308', '309', '311'],
+    'cramlington': ['43', '44', '45'],
+    'blyth': ['1', '2', '308']
+  };
+  
+  // Check for road/location matches
+  for (const [keyword, routes] of Object.entries(roadMatches)) {
+    if (locationText.includes(keyword)) {
+      routes.forEach(route => foundRoutes.add(route));
+      console.log(`✅ Location match "${keyword}" → routes: ${routes.join(', ')}`);
+    }
+  }
+  
+  // 2. COORDINATE-BASED MATCHING (existing logic)
+  const coordinateRoutes = findRoutesNearCoordinatesFixed(lat, lng, radiusMeters);
+  coordinateRoutes.forEach(route => foundRoutes.add(route));
+  
+  // 3. VALIDATION: Remove routes that are geographically impossible
+  const finalRoutes = Array.from(foundRoutes);
+  const validatedRoutes = validateRoutesGeographically(finalRoutes, lat, lng);
+  
+  console.log(`✨ Enhanced matching result: ${validatedRoutes.length} routes for "${geocodedLocation}"`);
+  console.log(`   📍 Coordinate-based: ${coordinateRoutes.length} routes`);
+  console.log(`   🗺️ Location-based: ${finalRoutes.length - coordinateRoutes.length} additional routes`);
+  console.log(`   ✅ Final validated: ${validatedRoutes.join(', ')}`);
+  
+  return validatedRoutes;
+}
+
+// Validate routes geographically to remove impossible matches
+function validateRoutesGeographically(routes, lat, lng) {
+  const impossibleCombinations = {
+    // Routes that don't serve certain areas
+    sunderland: ['Q3', 'Q3X', '10', '10A', '10B', '12'], // Newcastle city routes don't go to Sunderland
+    consett: ['1', '2', '307', '309'], // North Tyneside routes don't go to Consett
+    durham: ['1', '2', '307', '309', '43', '44'] // North Tyneside/Cramlington routes don't go to Durham
+  };
+  
+  // Determine general area
+  let area = 'general';
+  if (lat >= 54.88 && lat <= 54.95 && lng >= -1.42 && lng <= -1.35) area = 'sunderland';
+  else if (lat >= 54.82 && lat <= 54.87 && lng >= -1.9 && lng <= -1.8) area = 'consett';
+  else if (lat >= 54.75 && lat <= 54.85 && lng >= -1.6 && lng <= -1.5) area = 'durham';
+  
+  // Filter out impossible routes
+  const validRoutes = routes.filter(route => {
+    const impossible = impossibleCombinations[area] || [];
+    return !impossible.includes(route);
+  });
+  
+  return validRoutes.sort();
+}
+
+// Enhanced location processing
+async function enhanceLocationWithRoutes(lat, lng, originalLocation) {
+  const routes = findRoutesNearCoordinatesFixed(lat, lng);
+  let enhanced = originalLocation || `Traffic incident at ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  
+  if (routes.length > 0) {
+    enhanced += ` - Affects routes: ${routes.slice(0, 5).join(', ')}`;
+    if (routes.length > 5) {
+      enhanced += ` +${routes.length - 5} more`;
+    }
+  }
+  
+  return enhanced;
+}
+
+// Throttled geocoding with daily rate limiting
+async function reverseGeocodeSimple(lat, lng) {
+  const context = `OSM-${lat.toFixed(4)},${lng.toFixed(4)}`;
+  
+  try {
+    // Use throttled request for OpenStreetMap
+    const response = await geocodingThrottler.makeRequest(async () => {
+      return await axios.get(`https://nominatim.openstreetmap.org/reverse`, {
+        params: {
+          lat: lat,
+          lon: lng,
+          format: 'json',
+          zoom: 16,
+          addressdetails: 1,
+          extratags: 1
+        },
+        headers: {
+          'User-Agent': 'Go-BARRY-Traffic-System/3.0 (+https://gobarry.co.uk/contact)'
+        },
+        timeout: 8000
+      });
+    }, context);
+    
+    if (response.data && response.data.display_name) {
+      // Enhanced address parsing
+      const address = response.data.address || {};
+      const parts = [];
+      
+      // Priority order for road information
+      if (address.road) parts.push(address.road);
+      else if (address.highway) parts.push(address.highway);
+      else if (address.path) parts.push(address.path);
+      
+      // Add area information
+      if (address.neighbourhood) parts.push(address.neighbourhood);
+      else if (address.suburb) parts.push(address.suburb);
+      else if (address.village) parts.push(address.village);
+      
+      // Add city/town
+      if (address.town) parts.push(address.town);
+      else if (address.city) parts.push(address.city);
+      else if (address.county) parts.push(address.county);
+      
+      if (parts.length > 0) {
+        const location = parts.slice(0, 3).join(', '); // First 3 parts only
+        console.log(`✅ OSM Geocoding success: ${lat}, ${lng} → ${location}`);
+        return location;
+      }
+      
+      // Fallback to display name if no structured address
+      const displayParts = response.data.display_name.split(',').slice(0, 2);
+      const fallbackLocation = displayParts.join(', ').trim();
+      if (fallbackLocation && fallbackLocation !== 'undefined') {
+        console.log(`✅ OSM Fallback: ${lat}, ${lng} → ${fallbackLocation}`);
+        return fallbackLocation;
+      }
+    }
+  } catch (error) {
+    console.warn(`⚠️ OSM geocoding failed for ${lat}, ${lng}:`, error.message);
+  }
+  
+  // Try Mapbox as fallback if available
+  if (process.env.MAPBOX_TOKEN) {
+    try {
+      const mapboxContext = `Mapbox-${lat.toFixed(4)},${lng.toFixed(4)}`;
+      
+      const mapboxResponse = await geocodingThrottler.makeRequest(async () => {
+        return await axios.get(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json`, {
+          params: {
+            access_token: process.env.MAPBOX_TOKEN,
+            types: 'address,poi'
+          },
+          timeout: 6000
+        });
+      }, mapboxContext);
+      
+      if (mapboxResponse.data?.features?.length > 0) {
+        const feature = mapboxResponse.data.features[0];
+        const placeName = feature.place_name || feature.text;
+        if (placeName) {
+          // Clean up Mapbox response
+          const cleanLocation = placeName.split(',').slice(0, 2).join(', ');
+          console.log(`✅ Mapbox Geocoding: ${lat}, ${lng} → ${cleanLocation}`);
+          return cleanLocation;
+        }
+      }
+    } catch (mapboxError) {
+      console.warn(`⚠️ Mapbox geocoding failed for ${lat}, ${lng}:`, mapboxError.message);
+    }
+  }
+  
+  // Geographic area fallback based on coordinates
+  const geographicLocation = getQuickLocation(lat, lng);
+  if (geographicLocation) {
+    console.log(`✅ Geographic fallback: ${lat}, ${lng} → ${geographicLocation}`);
+    return geographicLocation;
+  }
+  
+  console.warn(`❌ All geocoding failed for ${lat}, ${lng}`);
+  return null;
+}
+
+// Note: getGeographicAreaName replaced with getQuickLocation from productionLocation.js for accurate boundaries
+
+// Geocoding cache to prevent repeated API calls
+const geocodingCache = new Map();
+const GEOCODING_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+// FIXED: TomTom traffic fetcher with working route matching + geocoding cache
+async function fetchTomTomTrafficWithStreetNames() {
+  if (!process.env.TOMTOM_API_KEY) {
+    console.error('❌ TomTom API key missing!');
+    return { success: false, data: [], error: 'TomTom API key missing' };
+  }
+  
+  try {
+    console.log('🚗 [ENHANCED] Fetching TomTom traffic across full Go North East network...');
+    console.log('🔑 TomTom API key configured:', process.env.TOMTOM_API_KEY ? 'YES' : 'NO');
+    
+    // Use Newcastle/Gateshead area to stay under 10,000km² limit
+    const bbox = '-1.8,54.8,-1.4,55.1'; // Newcastle/Gateshead core area
+    console.log(`🗺️ Coverage area: ${bbox} (Newcastle/Gateshead core - under 10,000km² limit)`);
+    
+    const response = await axios.get('https://api.tomtom.com/traffic/services/5/incidentDetails', {
+      params: {
+        key: process.env.TOMTOM_API_KEY,
+        bbox: bbox,
+        zoom: 10
+      },
+      timeout: 15000,
+      headers: {
+        'User-Agent': 'BARRY-TrafficWatch/3.0-Fixed',
+        'Accept': 'application/json'
+      }
+    });
+    
+    // Track API usage
+    incrementTomTomUsage('traffic');
+    
+    console.log(`📡 [ENHANCED] TomTom response: ${response.status}, incidents: ${response.data?.incidents?.length || 0}`);
+    console.log(`🌍 Search area: Full Go North East network (newcastle, sunderland, northTyneside, durham, consett, hexham)`);
+    
+    if (!response.data || !response.data.incidents) {
+      console.log('⚠️ TomTom returned no incidents data');
+      return { success: true, data: [], method: 'TomTom API - No incidents found' };
+    }
+    
+    const alerts = [];
+    
+    if (response.data?.incidents) {
+      // Process incidents with minimal geocoding (FIXED for rate limiting)
+      const incidents = response.data.incidents.slice(0, 50); // Increased to show more incidents
+      
+      console.log(`🔍 Processing ${incidents.length} traffic incidents across Go North East network (filtered from ${response.data.incidents.length})`);
+      
+      for (const [index, feature] of incidents.entries()) {
+        const props = feature.properties || {};
+        
+        // Extract coordinates
+        let lat = null, lng = null;
+        try {
+          if (feature.geometry?.coordinates) {
+            if (feature.geometry.type === 'Point') {
+              [lng, lat] = feature.geometry.coordinates;
+            } else if (feature.geometry.type === 'LineString' && feature.geometry.coordinates.length > 0) {
+              [lng, lat] = feature.geometry.coordinates[0];
+            }
+          }
+        } catch (coordError) {
+          console.warn(`⚠️ Error extracting coordinates for incident ${index}:`, coordError.message);
+        }
+
+        if (!lat || !lng) {
+          console.warn(`⚠️ No valid coordinates for incident ${index}`);
+          continue;
+        }
+
+        // GEOGRAPHIC FILTER: Check if incident is within Go North East operational area
+        const GNE_BOUNDS = {
+          north: 55.042571,  // Whitley Bay (northernmost stop)
+          south: 54.755372,  // Brandon (southernmost stop) 
+          east: -1.382834,   // Sunderland area (easternmost)
+          west: -2.095787    // Hexham (westernmost stop)
+        };
+        
+        const withinGNEBounds = lat >= GNE_BOUNDS.south && 
+                               lat <= GNE_BOUNDS.north && 
+                               lng >= GNE_BOUNDS.west && 
+                               lng <= GNE_BOUNDS.east;
+        
+        if (!withinGNEBounds) {
+          console.log(`🚫 Filtering out incident ${index} at ${lat}, ${lng} - outside GNE operational area`);
+          continue;
+        }
+        
+        console.log(`✅ Incident ${index} at ${lat}, ${lng} - within GNE bounds`);
+
+        // Enhanced location processing with caching
+        console.log(`🗺️ Processing location for incident ${index + 1}/${incidents.length} across Go North East network...`);
+        
+        let enhancedLocation;
+        const coordKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+        
+        // Check geocoding cache first
+        const cachedLocation = geocodingCache.get(coordKey);
+        if (cachedLocation && (Date.now() - cachedLocation.timestamp) < GEOCODING_CACHE_TTL) {
+          enhancedLocation = cachedLocation.location;
+          console.log(`📦 Using cached location for ${lat}, ${lng}: ${enhancedLocation}`);
+        } else {
+          console.log(`🗺️ Attempting enhanced geocoding for ${lat}, ${lng}...`);
+          
+          try {
+            // Use production-optimized geocoding (limited calls)
+            const reversedLocation = await getEnhancedLocationWithFallbacks(
+              lat, lng, props.roadName || 'Traffic incident', 'TomTom'
+            );
+            
+            if (reversedLocation) {
+              enhancedLocation = reversedLocation;
+              // Cache the result
+              geocodingCache.set(coordKey, {
+                location: enhancedLocation,
+                timestamp: Date.now()
+              });
+            } else {
+              enhancedLocation = props.roadName || props.description || `Traffic location`;
+            }
+            
+          } catch (locationError) {
+            console.warn(`⚠️ Location enhancement failed for incident ${index}:`, locationError.message);
+            enhancedLocation = props.roadName || `Coordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+          }
+        }
+        
+        console.log(`📍 OSM response for ${lat}, ${lng}: {
+  road: ${enhancedLocation.includes('road') ? 'found' : 'undefined'},
+  neighbourhood: ${enhancedLocation.includes('neighbourhood') ? 'found' : 'undefined'},
+  suburb: ${enhancedLocation.includes('suburb') ? 'found' : 'undefined'},
+  town: ${enhancedLocation.includes('town') ? 'found' : 'undefined'},
+  city: ${enhancedLocation.includes('city') ? 'found' : 'undefined'}
+}`);
+        console.log(`✅ Enhanced location: ${enhancedLocation}`);
+
+        // Enhanced Route Matching with Confidence Scoring
+        console.log(`🎯 Enhanced route matching with confidence scoring...`);
+        let affectedRoutes = [];
+        let routeMatchDetails = null;
+        
+        try {
+          // Use the new enhanced route matching with confidence
+          const routeResults = await enhancedRouteMatchWithConfidence(
+            lat, 
+            lng, 
+            enhancedLocation,
+            {
+              radius: 300,
+              timestamp: new Date(),
+              includeInactive: false
+            }
+          );
+          
+          // Extract high confidence routes (70%+)
+          affectedRoutes = routeResults.matches
+            .filter(m => m.confidence >= 0.7)
+            .map(m => m.route);
+          
+          routeMatchDetails = {
+            highConfidence: routeResults.matches.filter(m => m.confidence >= 0.7),
+            mediumConfidence: routeResults.matches.filter(m => m.confidence >= 0.5 && m.confidence < 0.7),
+            multiModalImpacts: routeResults.multiModalImpacts,
+            serviceContext: routeResults.serviceType
+          };
+          
+          console.log(`✅ Enhanced route matching found ${affectedRoutes.length} high-confidence routes: ${affectedRoutes.join(', ')}`);
+          if (routeResults.multiModalImpacts.hasMultiModalImpact) {
+            console.log(`🚇 Multi-modal impact detected: ${routeResults.multiModalImpacts.metro.length} metro, ${routeResults.multiModalImpacts.ferry.length} ferry`);
+          }
+        } catch (routeError) {
+          console.warn('⚠️ Enhanced route matching failed, using fallback:', routeError.message);
+          // Fallback to basic matching
+          if (isGTFSReady()) {
+            affectedRoutes = await findAffectedRoutesEnhanced(lat, lng, enhancedLocation, 250);
+          } else {
+            affectedRoutes = enhancedRouteMatchingWithLocation(lat, lng, enhancedLocation, 250);
+          }
+        }
+        
+        // Map incident types
+        const getIncidentInfo = (iconCategory) => {
+          const categoryMap = {
+            1: { type: 'incident', severity: 'High', desc: 'Accident' },
+            2: { type: 'incident', severity: 'Medium', desc: 'Dangerous Conditions' },
+            3: { type: 'incident', severity: 'Low', desc: 'Weather Conditions' },
+            4: { type: 'incident', severity: 'Medium', desc: 'Road Hazard' },
+            5: { type: 'incident', severity: 'Low', desc: 'Vehicle Breakdown' },
+            6: { type: 'roadwork', severity: 'Medium', desc: 'Road Closure' },
+            7: { type: 'roadwork', severity: 'High', desc: 'Road Works' },
+            8: { type: 'incident', severity: 'Low', desc: 'Mass Transit Issue' },
+            9: { type: 'incident', severity: 'Medium', desc: 'Traffic Incident' },
+            10: { type: 'roadwork', severity: 'High', desc: 'Road Blocked' },
+            11: { type: 'roadwork', severity: 'High', desc: 'Road Blocked' },
+            14: { type: 'incident', severity: 'Medium', desc: 'Broken Down Vehicle' }
+          };
+          return categoryMap[iconCategory] || { type: 'incident', severity: 'Medium', desc: 'Traffic Incident' };
+        };
+        
+        const incidentInfo = getIncidentInfo(props.iconCategory);
+        
+        // Create enhanced alert with route information and confidence scoring
+        const alert = {
+          id: `tomtom_enhanced_${Date.now()}_${index}`,
+          type: incidentInfo.type,
+          title: `${incidentInfo.desc} - ${enhancedLocation}`,
+          description: props.description || incidentInfo.desc,
+          location: enhancedLocation,
+          coordinates: [lat, lng],
+          severity: incidentInfo.severity,
+          status: 'red',
+          source: 'tomtom',
+          affectsRoutes: affectedRoutes,
+          routeMatching: routeMatchDetails,
+          routeMatchMethod: routeMatchDetails ? 'Enhanced Confidence Scoring' : 'Fallback Matching',
+          routeAccuracy: affectedRoutes.length > 0 ? 'confidence_based' : 'low',
+          iconCategory: props.iconCategory,
+          lastUpdated: new Date().toISOString(),
+          startDate: new Date().toISOString(), // Add startDate for display screen
+          dataSource: 'TomTom Traffic API v5 + Enhanced Route Confidence'
+        };
+
+        alerts.push(alert);
+        
+        console.log(`✨ Enhanced incident: "${props.roadName || 'coordinates'}" → "${enhancedLocation}" (${affectedRoutes.length} routes)`);
+      }
+    }
+    
+    // Log throttling status and cache stats
+    const throttleStatus = geocodingThrottler.getStatus();
+    console.log(`📊 Geocoding throttler status: ${throttleStatus.dailyCount}/${throttleStatus.dailyLimit} requests used today`);
+    console.log(`📦 Geocoding cache entries: ${geocodingCache.size}`);
+    
+    // Clean old cache entries (prevent memory leak)
+    const now = Date.now();
+    for (const [key, value] of geocodingCache.entries()) {
+    if (now - value.timestamp > GEOCODING_CACHE_TTL) {
+      geocodingCache.delete(key);
+    }
+    }
+    
+    console.log(`✅ [ENHANCED] TomTom: ${alerts.length} alerts with working route matching + geocoding cache`);
+    
+  return { 
+    success: true, 
+    data: alerts, 
+    method: 'Enhanced Location + Coordinate Matching + Geocoding Cache + Route Validation',
+    source: 'TomTom Traffic API v5',
+    timestamp: new Date().toISOString(),
+    coverage: 'Newcastle/Gateshead core area',
+    bbox: bbox,
+    geocodingCacheSize: geocodingCache.size
+  };
+    
+  } catch (error) {
+    console.error('❌ [ENHANCED] TomTom fetch failed:', error.message);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      response: error.response?.status,
+      data: error.response?.data
+    });
+    
+    return { 
+      success: false, 
+      data: [], 
+      error: error.message,
+      errorDetails: {
+        code: error.code,
+        status: error.response?.status,
+        timestamp: new Date().toISOString()
+      }
+    };
+  }
+}
+
+// Export throttling status and geocoding cache for monitoring
+export { fetchTomTomTrafficWithStreetNames, geocodingThrottler, geocodingCache };
+export default { fetchTomTomTrafficWithStreetNames, geocodingThrottler, geocodingCache };

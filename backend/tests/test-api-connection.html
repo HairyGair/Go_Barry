@@ -167,9 +167,12 @@
             <div>
                 <label>Backend URL: </label>
                 <select id="backendUrl" style="padding: 5px; border-radius: 3px;">
-                    <option value="https://go-barry.onrender.com">Production (go-barry.onrender.com)</option>
                     <option value="http://localhost:3001">Local (localhost:3001)</option>
+                    <option value="https://go-barry.onrender.com">Production (go-barry.onrender.com)</option>
                 </select>
+            </div>
+            <div style="margin-top: 10px; padding: 10px; background: #fef3c7; border-radius: 5px; color: #92400e;">
+                <strong>Note:</strong> Use Local backend for testing. Production may have CORS restrictions.
             </div>
         </div>
 
@@ -507,12 +510,22 @@
 
         function clearResults() {
             for (let i = 1; i <= 5; i++) {
-                document.getElementById(`status-${i}`).className = 'status pending';
-                document.getElementById(`status-${i}`).textContent = 'Pending';
-                document.getElementById(`result-${i}`).style.display = 'none';
+                const statusEl = document.getElementById(`status-${i}`);
+                const resultEl = document.getElementById(`result-${i}`);
+                if (statusEl) {
+                    statusEl.className = 'status pending';
+                    statusEl.textContent = 'Pending';
+                }
+                if (resultEl) {
+                    resultEl.style.display = 'none';
+                }
             }
-            document.getElementById('summary').style.display = 'none';
-            document.getElementById('dashboard-preview').innerHTML = '';
+            const summaryEl = document.getElementById('summary');
+            if (summaryEl) summaryEl.style.display = 'none';
+            
+            const dashboardEl = document.getElementById('dashboard-preview');
+            if (dashboardEl) dashboardEl.innerHTML = '';
+            
             testResults = {};
         }
 

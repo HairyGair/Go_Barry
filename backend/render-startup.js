@@ -257,18 +257,28 @@ app.use((req, res, next) => {
       'http://localhost:19000',
       'http://localhost:19006',
       'http://localhost:5173',
-      'http://localhost:4173'
+      'http://localhost:4173',
+      'http://localhost:5500',
+      'http://localhost:8000',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001',
+      'http://127.0.0.1:8080',
+      'http://127.0.0.1:8081',
+      'http://127.0.0.1:8082',
+      'http://127.0.0.1:5173',
+      'http://127.0.0.1:5500',
+      'http://127.0.0.1:8000'
     ];
   
   const origin = req.headers.origin;
   
   // Always allow requests from allowed origins or no origin (server-to-server)
-  // For development, allow any localhost origin
+  // For development, allow any localhost or 127.0.0.1 origin
   if (!origin || allowedOrigins.includes(origin) || origin.includes('gobarry.co.uk') ||
-      (process.env.NODE_ENV !== 'production' && origin && origin.includes('localhost'))) {
+      (process.env.NODE_ENV !== 'production' && origin && (origin.includes('localhost') || origin.includes('127.0.0.1')))) {
     res.header('Access-Control-Allow-Origin', origin || '*');
     // Only log non-standard origins to reduce noise
-    if (origin && !origin.includes('localhost') && !origin.includes('gobarry.co.uk')) {
+    if (origin && !origin.includes('localhost') && !origin.includes('127.0.0.1') && !origin.includes('gobarry.co.uk')) {
       console.log(`✅ CORS: Allowed origin: ${origin}`);
     }
   } else {

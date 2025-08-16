@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Diagnostic - Breakdown Tables</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .sql-box {
+            background: #f4f4f4;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+        }
+        .instruction {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .warning {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .success {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #5a67d8;
+        }
+        code {
+            background: #f0f0f0;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Breakdown Database Diagnostic</h1>
+        
+        <div class="warning">
+            <strong>⚠️ Issue Detected:</strong> Your backend is returning 500 errors on breakdown endpoints. This usually means the database tables haven't been created yet.
+        </div>
+
+        <h2>Step 1: Check if Tables Exist</h2>
+        <div class="instruction">
+            <strong>Run this query in Supabase SQL Editor to check if the breakdown tables exist:</strong>
+        </div>
+        
+        <div class="sql-box">
+-- Check if breakdowns table exists and show its structure
+SELECT 
+    column_name, 
+    data_type, 
+    is_nullable,
+    column_default
+FROM information_schema.columns
+WHERE table_name = 'breakdowns'
+ORDER BY ordinal_position;
+
+-- Check if priority_services table exists
+SELECT EXISTS (
+    SELECT FROM information_schema.tables 
+    WHERE table_name = 'priority_services'
+) as priority_services_exists;
+
+-- Count existing breakdowns
+SELECT COUNT(*) as breakdown_count FROM breakdowns;
+        </div>
+
+        <h2>Step 2: If Tables Don't Exist - Run Migration</h2>
+        <div class="instruction">
+            <strong>If the above query returns no results, you need to run the migration. Copy and paste this entire script into Supabase SQL Editor:</strong>
+        </div>
+        
+        <div class="sql-box">
+-- Breakdown Tracking System V2 Migration
+-- Created: January 2025
+-- This adds all necessary columns to support the new tracking system
+
+-- First, check if breakdowns table exists, if not create it
+CREATE TABLE IF NOT EXISTS breakdowns (
+    id SERIAL PRIMARY KEY,
+    breakdown_id VARCHAR(20) UNIQUE NOT NULL,
+    daily_id INTEGER NOT NULL DEFAULT 1,
+    fleet_no VARCHAR(10) NOT NULL,
+    depot_id VARCHAR(10),
+    route_id VARCHAR(20),
+    location TEXT,
+    status VARCHAR(50) DEFAULT 'pending',
+    severity VARCHAR(20),
+    supervisor_badge VARCHAR(10) NOT NULL,
+    supervisor_name VARCHAR(100),
+    wizard_type VARCHAR(50),
+    wizard_path TEXT,
+    diagnosis TEXT,
+    diagnosed_at TIMESTAMP,
+    diagnosed_by VARCHAR(10),
+    resolution_notes TEXT,
+    resolved_at TIMESTAMP,
+    resolving_supervisor VARCHAR(10),
+    minutes_to_resolve INTEGER,
+    is_repeat BOOLEAN DEFAULT FALSE,
+    repeat_count INTEGER DEFAULT 0,
+    is_priority BOOLEAN DEFAULT FALSE,
+    escalated BOOLEAN DEFAULT FALSE,
+    escalated_at TIMESTAMP,
+    passenger_cloud_used BOOLEAN DEFAULT FALSE,
+    returned_to_service BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add any missing columns to existing table (safe to run multiple times)
+DO $$ 
+BEGIN
+    -- Add breakdown_id if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='breakdowns' AND column_name='breakdown_id') THEN
+        ALTER TABLE breakdowns ADD COLUMN breakdown_id VARCHAR(20) UNIQUE;
+        UPDATE breakdowns SET breakdown_id = 'BD-2025-' || LPAD(id::text, 5, '0') WHERE breakdown_id IS NULL;
+        ALTER TABLE breakdowns ALTER COLUMN breakdown_id SET NOT NULL;
+    END IF;
+    
+    -- Add daily_id if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='breakdowns' AND column_name='daily_id') THEN
+        ALTER TABLE breakdowns ADD COLUMN daily_id INTEGER NOT NULL DEFAULT 1;
+    END IF;
+    
+    -- Add depot_id if it doesn't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='breakdowns' AND column_name='depot_id') THEN
+        ALTER TABLE breakdowns ADD COLUMN depot_id VARCHAR(10);
+    END IF;
+    
+    -- Add wizard columns
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='breakdowns' AND column_name='wizard_type') THEN
+        ALTER TABLE breakdowns ADD COLUMN wizard_type VARCHAR(50);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='breakdowns' AND column_name='wizard_path') THEN
+        ALTER TABLE breakdowns ADD COLUMN wizard_path TEXT;
+    END IF;
+    
+    -- Add diagnosis columns
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='breakdowns' AND column_name='diagnosis') THEN
+        ALTER TABLE breakdowns ADD COLUMN diagnosis TEXT;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='breakdowns' AND column_name='diagnosed_at') THEN
+        ALTER TABLE breakdowns ADD COLUMN diagnosed_at TIMESTAMP;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='breakdowns' AND column_name='diagnosed_by') THEN
+        ALTER TABLE breakdowns ADD COLUMN diagnosed_by VARCHAR(10);
+    END IF;
+    
+    -- Add resolution columns
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='breakdowns' AND column_name='resolution_notes') THEN
+        ALTER TABLE breakdowns ADD COLUMN resolution_notes TEXT;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='breakdowns' AND column_name='resolved_at') THEN
+        ALTER TABLE breakdowns ADD COLUMN resolved_at TIMESTAMP;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='breakdowns' AND column_name='resolving_supervisor') THEN
+        ALTER TABLE breakdowns ADD COLUMN resolving_supervisor VARCHAR(10);
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='breakdowns' AND column_name='minutes_to_resolve') THEN
+        ALTER TABLE breakdowns ADD COLUMN minutes_to_resolve INTEGER;
+    END IF;
+    
+    -- Add tracking columns
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='breakdowns' AND column_name='is_repeat') THEN
+        ALTER TABLE breakdowns ADD COLUMN is_repeat BOOLEAN DEFAULT FALSE;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='breakdowns' AND column_name='repeat_count') THEN
+        ALTER TABLE breakdowns ADD COLUMN repeat_count INTEGER DEFAULT 0;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='breakdowns' AND column_name='is_priority') THEN
+        ALTER TABLE breakdowns ADD COLUMN is_priority BOOLEAN DEFAULT FALSE;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='breakdowns' AND column_name='escalated') THEN
+        ALTER TABLE breakdowns ADD COLUMN escalated BOOLEAN DEFAULT FALSE;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='breakdowns' AND column_name='escalated_at') THEN
+        ALTER TABLE breakdowns ADD COLUMN escalated_at TIMESTAMP;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='breakdowns' AND column_name='passenger_cloud_used') THEN
+        ALTER TABLE breakdowns ADD COLUMN passenger_cloud_used BOOLEAN DEFAULT FALSE;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='breakdowns' AND column_name='returned_to_service') THEN
+        ALTER TABLE breakdowns ADD COLUMN returned_to_service BOOLEAN DEFAULT TRUE;
+    END IF;
+END $$;
+
+-- Create priority services table
+CREATE TABLE IF NOT EXISTS priority_services (
+    id SERIAL PRIMARY KEY,
+    route_number VARCHAR(20) NOT NULL UNIQUE,
+    priority_level VARCHAR(50) DEFAULT 'high',
+    color_code VARCHAR(7) DEFAULT '#FF0000',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert default priority routes if they don't exist
+INSERT INTO priority_services (route_number, priority_level, color_code) 
+VALUES 
+    ('X10', 'critical', '#FF0000'),
+    ('X21', 'critical', '#FF0000')
+ON CONFLICT (route_number) DO NOTHING;
+
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS idx_breakdowns_fleet_no ON breakdowns(fleet_no);
+CREATE INDEX IF NOT EXISTS idx_breakdowns_status ON breakdowns(status);
+CREATE INDEX IF NOT EXISTS idx_breakdowns_created_at ON breakdowns(created_at);
+CREATE INDEX IF NOT EXISTS idx_breakdowns_depot_id ON breakdowns(depot_id);
+CREATE INDEX IF NOT EXISTS idx_breakdowns_daily_id ON breakdowns(daily_id);
+
+-- Create a view for active breakdowns
+CREATE OR REPLACE VIEW active_breakdowns AS
+SELECT 
+    b.*,
+    CASE 
+        WHEN b.diagnosed_at IS NOT NULL THEN 
+            EXTRACT(EPOCH FROM (NOW() - b.diagnosed_at)) / 60
+        ELSE NULL
+    END as minutes_since_diagnosis,
+    ps.priority_level IS NOT NULL as is_priority_route
+FROM breakdowns b
+LEFT JOIN priority_services ps ON b.route_id = ps.route_number
+WHERE b.status NOT IN ('resolved', 'cancelled')
+ORDER BY b.created_at DESC;
+
+-- Success message
+SELECT 'Migration completed successfully!' as status;
+        </div>
+
+        <h2>Step 3: Verify Migration Success</h2>
+        <div class="instruction">
+            <strong>After running the migration, run this query to verify everything is set up correctly:</strong>
+        </div>
+        
+        <div class="sql-box">
+-- Verify all tables and columns exist
+SELECT 
+    'breakdowns table' as component,
+    COUNT(*) as column_count,
+    CASE WHEN COUNT(*) >= 25 THEN '✅ Ready' ELSE '❌ Missing columns' END as status
+FROM information_schema.columns
+WHERE table_name = 'breakdowns'
+UNION ALL
+SELECT 
+    'priority_services table' as component,
+    COUNT(*) as count,
+    CASE WHEN COUNT(*) > 0 THEN '✅ Ready' ELSE '❌ Not found' END as status
+FROM priority_services
+UNION ALL
+SELECT 
+    'active_breakdowns view' as component,
+    1 as count,
+    CASE WHEN EXISTS (SELECT FROM information_schema.views WHERE table_name = 'active_breakdowns') 
+        THEN '✅ Ready' ELSE '❌ Not found' END as status;
+        </div>
+
+        <h2>Step 4: Test Backend Again</h2>
+        <div class="success">
+            <strong>✅ After running the migration:</strong>
+            <ol>
+                <li>Go back to the API test page</li>
+                <li>Click "Run All Tests" again</li>
+                <li>You should now see successful connections!</li>
+            </ol>
+        </div>
+
+        <h2>Alternative Issue: Backend Not Using V2</h2>
+        <div class="warning">
+            <strong>If tables exist but still getting errors:</strong>
+            <p>The backend might not be using the V2 routes. Check <code>/backend/index.js</code> and ensure it's using:</p>
+        </div>
+        
+        <div class="sql-box">
+// This should be in your backend/index.js file:
+await routeManager.registerRoute(app, '/api/breakdowns', './routes/breakdownTrackerV2.js', 'Enhanced Breakdown Tracker');
+        </div>
+
+        <div class="instruction">
+            <strong>Quick Commands:</strong><br>
+            <button onclick="copyToClipboard(document.querySelectorAll('.sql-box')[0].textContent)">📋 Copy Check Query</button>
+            <button onclick="copyToClipboard(document.querySelectorAll('.sql-box')[1].textContent)">📋 Copy Migration Script</button>
+            <button onclick="copyToClipboard(document.querySelectorAll('.sql-box')[2].textContent)">📋 Copy Verification Query</button>
+        </div>
+    </div>
+
+    <script>
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
+    </script>
+</body>
+</html>

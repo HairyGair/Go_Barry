@@ -22,12 +22,45 @@
             align-items: center;
             gap: 10px;
         }
+        .connection-status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .connection-status.online {
+            background: rgba(16, 185, 129, 0.2);
+            color: white;
+        }
+        .connection-status.offline {
+            background: rgba(239, 68, 68, 0.2);
+            color: white;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        .status-dot.online {
+            background: #10b981;
+        }
+        .status-dot.offline {
+            background: #ef4444;
+        }
         .filters {
             display: flex;
             gap: 10px;
             padding: 20px;
             background: white;
             border-bottom: 1px solid #e5e7eb;
+            flex-wrap: wrap;
         }
         .filter-btn {
             padding: 8px 16px;
@@ -46,7 +79,8 @@
             border-color: #1e3a8a;
         }
         .stats {
-            display: flex;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
             padding: 20px;
         }
@@ -55,7 +89,6 @@
             padding: 15px 20px;
             border-radius: 8px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            flex: 1;
         }
         .stat-value {
             font-size: 32px;
@@ -85,6 +118,11 @@
         }
         .breakdown-card.overdue {
             border: 2px solid #ef4444;
+            animation: attention 2s ease-in-out infinite;
+        }
+        @keyframes attention {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.01); }
         }
         .breakdown-card.priority {
             border: 2px solid #f59e0b;
@@ -148,6 +186,7 @@
         }
         .timer-overdue .timer-value {
             color: #ef4444;
+            animation: pulse 1s infinite;
         }
         .timer-label {
             font-size: 12px;
@@ -206,6 +245,11 @@
             border-radius: 4px;
             font-size: 11px;
             font-weight: bold;
+            animation: blink 2s infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
         }
         .auto-refresh {
             position: fixed;
@@ -217,6 +261,7 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
             font-size: 12px;
             color: #6b7280;
+            z-index: 1000;
         }
         .pulse {
             display: inline-block;
@@ -228,24 +273,73 @@
             margin-right: 8px;
         }
         @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); }
+            100% { opacity: 1; transform: scale(1); }
         }
         .no-breakdowns {
             text-align: center;
             padding: 60px 20px;
             color: #6b7280;
+            background: white;
+            border-radius: 8px;
+            margin: 20px;
         }
         .no-breakdowns-icon {
             font-size: 48px;
             margin-bottom: 20px;
+        }
+        .error-message {
+            background: #fef2f2;
+            color: #dc2626;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px;
+            border: 1px solid #fecaca;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #1e3a8a;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .debug-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            font-size: 11px;
+            color: #6b7280;
+            z-index: 1000;
+            max-width: 200px;
+        }
+        .debug-info {
+            margin: 5px 0;
         }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>🚌 Live Breakdown Dashboard</h1>
+        <div id="connection-status" class="connection-status offline">
+            <span class="status-dot offline"></span>
+            <span id="status-text">Connecting...</span>
+        </div>
     </div>
 
     <div class="filters">
@@ -258,24 +352,29 @@
 
     <div class="stats">
         <div class="stat-card">
-            <div class="stat-value" id="stat-total">0</div>
+            <div class="stat-value" id="stat-total">-</div>
             <div class="stat-label">Active Breakdowns</div>
         </div>
         <div class="stat-card">
-            <div class="stat-value" id="stat-diagnosed">0</div>
+            <div class="stat-value" id="stat-diagnosed">-</div>
             <div class="stat-label">Awaiting Resolution</div>
         </div>
         <div class="stat-card">
-            <div class="stat-value" id="stat-overdue">0</div>
+            <div class="stat-value" id="stat-overdue">-</div>
             <div class="stat-label">Overdue (30+ mins)</div>
         </div>
         <div class="stat-card">
-            <div class="stat-value" id="stat-priority">0</div>
+            <div class="stat-value" id="stat-priority">-</div>
             <div class="stat-label">Priority Routes</div>
         </div>
     </div>
 
     <div class="container">
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Loading breakdowns...</p>
+        </div>
+        <div id="error-message" class="error-message" style="display: none;"></div>
         <div id="breakdown-list" class="breakdown-grid">
             <!-- Breakdowns will be populated here -->
         </div>
@@ -288,42 +387,119 @@
 
     <div class="auto-refresh">
         <span class="pulse"></span>
-        Auto-refreshing every 5 seconds
+        <span id="refresh-text">Auto-refresh: 5s</span>
+    </div>
+
+    <div class="debug-panel">
+        <div class="debug-info">Last Update: <span id="last-update">Never</span></div>
+        <div class="debug-info">Total Fetched: <span id="total-fetched">0</span></div>
+        <div class="debug-info">Filter: <span id="current-filter">all</span></div>
+        <div class="debug-info">Badge: <span id="debug-badge">None</span></div>
     </div>
 
     <script>
+        // Configuration
         const BACKEND_URL = 'https://go-barry.onrender.com';
+        const REFRESH_INTERVAL = 5000; // 5 seconds
+        
+        // State
         let currentFilter = 'all';
         let supervisorBadge = localStorage.getItem('supervisor_badge') || '';
         let allBreakdowns = [];
+        let isOnline = false;
+        let refreshTimer = null;
+        let countdown = 5;
 
-        // Filter buttons
-        document.querySelectorAll('.filter-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
-                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                this.classList.add('active');
-                currentFilter = this.dataset.filter;
-                renderBreakdowns();
-            });
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Dashboard initialized');
+            setupFilterButtons();
+            checkSupervisorBadge();
+            startAutoRefresh();
+            fetchLiveBreakdowns(); // Initial fetch
+            updateDebugInfo();
         });
+
+        // Setup filter buttons
+        function setupFilterButtons() {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentFilter = this.dataset.filter;
+                    document.getElementById('current-filter').textContent = currentFilter;
+                    renderBreakdowns();
+                });
+            });
+        }
+
+        // Check supervisor badge
+        function checkSupervisorBadge() {
+            if (!supervisorBadge) {
+                const badge = prompt('Enter your supervisor badge number (e.g., AG003):');
+                if (badge) {
+                    supervisorBadge = badge.toUpperCase();
+                    localStorage.setItem('supervisor_badge', supervisorBadge);
+                }
+            }
+            document.getElementById('debug-badge').textContent = supervisorBadge || 'None';
+        }
 
         // Fetch live breakdowns
         async function fetchLiveBreakdowns() {
+            console.log('Fetching breakdowns...');
+            const loadingDiv = document.getElementById('loading');
+            const errorDiv = document.getElementById('error-message');
+            
+            // Show loading only on first fetch
+            if (allBreakdowns.length === 0) {
+                loadingDiv.style.display = 'block';
+            }
+            errorDiv.style.display = 'none';
+            
             try {
-                const response = await fetch(`${BACKEND_URL}/api/breakdowns/live`);
+                const response = await fetch(`${BACKEND_URL}/api/breakdowns/live`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    mode: 'cors'
+                });
+                
+                console.log('Response status:', response.status);
                 const data = await response.json();
+                console.log('Data received:', data);
                 
                 if (data.success) {
                     allBreakdowns = data.breakdowns || [];
+                    console.log(`Found ${allBreakdowns.length} breakdowns`);
+                    updateConnectionStatus(true);
                     renderBreakdowns();
+                    document.getElementById('total-fetched').textContent = allBreakdowns.length;
+                } else {
+                    throw new Error(data.error || 'Unknown error');
                 }
             } catch (error) {
                 console.error('Error fetching breakdowns:', error);
+                updateConnectionStatus(false);
+                
+                if (allBreakdowns.length === 0) {
+                    errorDiv.innerHTML = `
+                        <strong>Connection Error:</strong> ${error.message}<br>
+                        <small>Check if the backend is running at ${BACKEND_URL}</small>
+                    `;
+                    errorDiv.style.display = 'block';
+                }
+            } finally {
+                loadingDiv.style.display = 'none';
+                updateLastUpdateTime();
             }
         }
 
         // Render breakdowns based on filter
         function renderBreakdowns() {
+            console.log('Rendering breakdowns with filter:', currentFilter);
             let breakdowns = [...allBreakdowns];
             
             // Apply filters
@@ -334,7 +510,9 @@
                     }
                     break;
                 case 'critical':
-                    breakdowns = breakdowns.filter(b => b.severity === 'STOP' || b.severity === 'RED');
+                    breakdowns = breakdowns.filter(b => 
+                        b.severity === 'STOP' || b.severity === 'RED'
+                    );
                     break;
                 case 'overdue':
                     breakdowns = breakdowns.filter(b => b.minutes_since_diagnosis > 30);
@@ -343,6 +521,8 @@
                     breakdowns = breakdowns.filter(b => b.is_priority);
                     break;
             }
+            
+            console.log(`Showing ${breakdowns.length} filtered breakdowns`);
             
             const container = document.getElementById('breakdown-list');
             const noBreakdowns = document.getElementById('no-breakdowns');
@@ -368,7 +548,7 @@
             return `
                 <div class="${cardClass}">
                     <div class="card-header">
-                        <span class="fleet-number">${breakdown.fleet_no}</span>
+                        <span class="fleet-number">Fleet ${breakdown.fleet_no}</span>
                         <div style="display: flex; gap: 8px; align-items: center;">
                             ${breakdown.repeat_breakdown ? '<span class="repeat-flag">⚠️ REPEAT</span>' : ''}
                             <span class="depot-badge">${breakdown.depot_id || 'N/A'}</span>
@@ -376,8 +556,8 @@
                     </div>
                     <div class="card-body">
                         <div class="info-row">
-                            <span class="info-label">Daily ID:</span>
-                            <span class="info-value">${breakdown.daily_id || 'N/A'}</span>
+                            <span class="info-label">ID:</span>
+                            <span class="info-value">${breakdown.breakdown_id || breakdown.daily_id || 'N/A'}</span>
                         </div>
                         <div class="info-row">
                             <span class="info-label">Location:</span>
@@ -389,11 +569,13 @@
                         </div>
                         <div class="info-row">
                             <span class="info-label">Supervisor:</span>
-                            <span class="info-value">${breakdown.supervisor_badge}</span>
+                            <span class="info-value">${breakdown.supervisor_badge || 'Unknown'}</span>
                         </div>
                         <div class="info-row">
                             <span class="info-label">Severity:</span>
-                            <span class="info-value" style="color: ${getSeverityColor(breakdown.severity)}">${breakdown.severity || 'UNKNOWN'}</span>
+                            <span class="info-value" style="color: ${getSeverityColor(breakdown.severity)}">
+                                ${breakdown.severity || 'UNKNOWN'}
+                            </span>
                         </div>
                     </div>
                     <div class="breakdown-timer">
@@ -407,7 +589,7 @@
                         `}
                     </div>
                     <div class="breakdown-actions">
-                        <button class="btn btn-view" onclick="viewBreakdown('${breakdown.breakdown_id}')">View Details</button>
+                        <button class="btn btn-view" onclick="viewBreakdown('${breakdown.breakdown_id}')">View</button>
                         <button class="btn btn-resolve" onclick="resolveBreakdown('${breakdown.breakdown_id}')">Resolve</button>
                     </div>
                 </div>
@@ -416,7 +598,7 @@
 
         // Get severity color
         function getSeverityColor(severity) {
-            switch(severity) {
+            switch(severity?.toUpperCase()) {
                 case 'STOP':
                 case 'RED':
                     return '#dc2626';
@@ -433,32 +615,43 @@
         // Update statistics
         function updateStats(breakdowns) {
             document.getElementById('stat-total').textContent = breakdowns.length;
-            document.getElementById('stat-diagnosed').textContent = breakdowns.filter(b => b.diagnosed_at).length;
-            document.getElementById('stat-overdue').textContent = breakdowns.filter(b => b.minutes_since_diagnosis > 30).length;
-            document.getElementById('stat-priority').textContent = breakdowns.filter(b => b.is_priority).length;
+            document.getElementById('stat-diagnosed').textContent = 
+                breakdowns.filter(b => b.diagnosed_at).length;
+            document.getElementById('stat-overdue').textContent = 
+                breakdowns.filter(b => b.minutes_since_diagnosis > 30).length;
+            document.getElementById('stat-priority').textContent = 
+                breakdowns.filter(b => b.is_priority).length;
         }
 
         // View breakdown details
-        async function viewBreakdown(breakdownId) {
+        window.viewBreakdown = async function(breakdownId) {
             try {
                 const response = await fetch(`${BACKEND_URL}/api/breakdowns/${breakdownId}`);
                 const data = await response.json();
                 
                 if (data.success) {
-                    // You can expand this to show a modal with full details
-                    alert(`Breakdown Details:\n${JSON.stringify(data.breakdown, null, 2)}`);
+                    const breakdown = data.breakdown;
+                    alert(`Breakdown Details:
+ID: ${breakdown.breakdown_id}
+Fleet: ${breakdown.fleet_no}
+Location: ${breakdown.location || 'Unknown'}
+Severity: ${breakdown.severity || 'Unknown'}
+Status: ${breakdown.status}
+Created: ${new Date(breakdown.created_at).toLocaleString()}
+${breakdown.diagnosis ? `Diagnosis: ${breakdown.diagnosis}` : 'Not yet diagnosed'}`);
                 }
             } catch (error) {
                 console.error('Error viewing breakdown:', error);
+                alert('Failed to load breakdown details');
             }
         }
 
         // Resolve breakdown
-        async function resolveBreakdown(breakdownId) {
+        window.resolveBreakdown = async function(breakdownId) {
             const notes = prompt('Resolution notes:');
             if (!notes) return;
             
-            const supervisor = prompt('Your badge number:') || supervisorBadge;
+            const supervisor = prompt('Your badge number:', supervisorBadge) || supervisorBadge;
             if (!supervisor) return;
             
             try {
@@ -485,19 +678,59 @@
             }
         }
 
-        // Check if supervisor badge is stored
-        if (!supervisorBadge) {
-            supervisorBadge = prompt('Enter your supervisor badge number (e.g., AG003):');
-            if (supervisorBadge) {
-                localStorage.setItem('supervisor_badge', supervisorBadge);
+        // Update connection status
+        function updateConnectionStatus(online) {
+            isOnline = online;
+            const statusDiv = document.getElementById('connection-status');
+            const statusDot = statusDiv.querySelector('.status-dot');
+            const statusText = document.getElementById('status-text');
+            
+            if (online) {
+                statusDiv.classList.remove('offline');
+                statusDiv.classList.add('online');
+                statusDot.classList.remove('offline');
+                statusDot.classList.add('online');
+                statusText.textContent = 'Connected';
+            } else {
+                statusDiv.classList.remove('online');
+                statusDiv.classList.add('offline');
+                statusDot.classList.remove('online');
+                statusDot.classList.add('offline');
+                statusText.textContent = 'Disconnected';
             }
         }
 
-        // Auto-refresh every 5 seconds
-        setInterval(fetchLiveBreakdowns, 5000);
+        // Update last update time
+        function updateLastUpdateTime() {
+            const now = new Date().toLocaleTimeString();
+            document.getElementById('last-update').textContent = now;
+        }
 
-        // Initial load
-        fetchLiveBreakdowns();
+        // Update debug info
+        function updateDebugInfo() {
+            document.getElementById('debug-badge').textContent = supervisorBadge || 'None';
+            document.getElementById('current-filter').textContent = currentFilter;
+        }
+
+        // Start auto-refresh
+        function startAutoRefresh() {
+            // Clear any existing timer
+            if (refreshTimer) clearInterval(refreshTimer);
+            
+            // Set up countdown and refresh
+            refreshTimer = setInterval(() => {
+                countdown--;
+                document.getElementById('refresh-text').textContent = `Auto-refresh: ${countdown}s`;
+                
+                if (countdown <= 0) {
+                    countdown = 5;
+                    fetchLiveBreakdowns();
+                }
+            }, 1000);
+        }
+
+        // Initial console log
+        console.log('Dashboard loaded. Backend URL:', BACKEND_URL);
     </script>
 </body>
 </html>

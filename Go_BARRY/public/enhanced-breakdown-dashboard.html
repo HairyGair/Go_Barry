@@ -440,7 +440,13 @@
     </div>
 
     <script>
-        const BACKEND_URL = 'https://go-barry.onrender.com';
+        // Auto-detect backend URL - use local if available, otherwise production
+        const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3001'
+            : 'https://go-barry.onrender.com';
+        
+        console.log('Using backend URL:', BACKEND_URL);
+        
         let currentFilter = 'all';
         let breakdownData = [];
         let refreshInterval;
@@ -499,7 +505,7 @@
             // Update counts
             document.getElementById('totalActive').textContent = breakdownData.length;
             document.getElementById('diagnosedCount').textContent = 
-                breakdownData.filter(b => b.status === 'diagnosed').length;
+                breakdownData.filter(b => b.status === 'decision' || b.status === 'diagnosed').length;
             document.getElementById('overdueCount').textContent = 
                 breakdownData.filter(b => b.minutes_since_diagnosis > 30).length;
 
@@ -536,6 +542,10 @@
                     </div>
                     <div class="breakdown-body">
                         <div class="info-row">
+                            <span class="info-icon">🆔</span>
+                            <span>ID: ${breakdown.breakdown_id || breakdown.daily_id || 'Pending'}</span>
+                        </div>
+                        <div class="info-row">
                             <span class="info-icon">📍</span>
                             <span>${breakdown.location || 'Location unknown'}</span>
                         </div>
@@ -545,7 +555,7 @@
                         </div>
                         <div class="info-row">
                             <span class="info-icon">👤</span>
-                            <span>Supervisor: ${breakdown.supervisor_badge}</span>
+                            <span>Supervisor: ${breakdown.supervisor_badge} ${breakdown.supervisor_name ? `- ${breakdown.supervisor_name}` : ''}</span>
                         </div>
                         ${breakdown.diagnosis ? `
                             <div class="info-row">
