@@ -1,0 +1,245 @@
+/* SDC Dashboard Specific Styles */
+
+/* Header Stats */
+.sdc-header-stats {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  padding: 20px;
+  background: rgba(255,255,255,0.1);
+  margin-top: -30px;
+  position: relative;
+  z-index: 10;
+}
+
+.sdc-header-stat {
+  text-align: center;
+  color: white;
+}
+
+.sdc-header-stat-value {
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.sdc-header-stat-label {
+  font-size: 12px;
+  opacity: 0.9;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Quick Actions */
+.sdc-quick-actions {
+  background: white;
+  padding: 15px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.sdc-quick-actions-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.sdc-quick-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.sdc-quick-btn.emergency {
+  background: #dc2626;
+  color: white;
+}
+
+.sdc-quick-btn.emergency:hover {
+  background: #b91c1c;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+.sdc-quick-btn.primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.sdc-quick-btn.primary:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.sdc-quick-btn.secondary {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.sdc-quick-btn.secondary:hover {
+  background: #e5e7eb;
+  transform: translateY(-1px);
+}
+
+/* Main Content */
+.sdc-main-content {
+  max-width: 1400px;
+  margin: 20px auto;
+  padding: 0 20px;
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 20px;
+}
+
+/* Active Breakdowns Section */
+.sdc-active-breakdowns {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.sdc-section-header {
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  padding: 15px 20px;
+  border-bottom: 2px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sdc-section-title {
+  font-size: 18px;
+  font-weight: bold;
+  color: #1e3a8a;
+}
+
+.sdc-inline-filter {
+  background: transparent;
+  padding: 0;
+  border: none;
+}
+
+.sdc-inline-filter .filters {
+  gap: 5px;
+}
+
+.sdc-inline-filter .filter-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.sdc-breakdown-list {
+  padding: 15px;
+  max-height: calc(100vh - 400px);
+  overflow-y: auto;
+}
+
+.sdc-breakdown-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sdc-breakdown-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.sdc-breakdown-list::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+.sdc-breakdown-list::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+/* Side Panel */
+.sdc-side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Live Indicator Container */
+.sdc-live-indicator {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 999;
+}
+
+/* Loading & Empty States */
+.sdc-loading {
+  text-align: center;
+  padding: 40px;
+  color: #6b7280;
+}
+
+.sdc-empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #6b7280;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .sdc-main-content {
+    grid-template-columns: 1fr;
+  }
+
+  .sdc-side-panel {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .sdc-header-stats {
+    gap: 20px;
+    padding: 15px;
+    margin-top: -20px;
+  }
+
+  .sdc-header-stat-value {
+    font-size: 24px;
+  }
+
+  .sdc-header-stat-label {
+    font-size: 10px;
+  }
+
+  .sdc-quick-actions-content {
+    gap: 8px;
+  }
+
+  .sdc-quick-btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .sdc-main-content {
+    padding: 0 10px;
+  }
+
+  .sdc-side-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .sdc-live-indicator {
+    bottom: 70px;
+  }
+}
