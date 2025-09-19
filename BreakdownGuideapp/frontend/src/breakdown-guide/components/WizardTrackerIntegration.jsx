@@ -64,22 +64,129 @@ class WizardTrackerIntegration {
 
   // Get supervisor information
   getSupervisorInfo() {
-    const supervisorBadge = localStorage.getItem('supervisorBadge') || 
-                           window.supervisorSession?.supervisorId || 
+    const supervisorBadge = localStorage.getItem('supervisorBadge') ||
+                           window.supervisorSession?.supervisorId ||
                            'UNKNOWN';
-    
-    const supervisorName = localStorage.getItem('supervisorName') || 
-                          window.supervisorSession?.name || 
+
+    const supervisorName = localStorage.getItem('supervisorName') ||
+                          window.supervisorSession?.name ||
                           supervisorBadge;
 
     return { supervisorBadge, supervisorName };
+  }
+
+  // Map wizard type to issue category
+  getIssueCategoryFromWizard(wizardType) {
+    const categoryMap = {
+      'SteeringWizard': 'Steering System',
+      'BrakesWizard': 'Braking System',
+      'BatteryWizard': 'Electrical System',
+      'CoolingSystemWizard': 'Engine Cooling',
+      'GearboxWizard': 'Transmission',
+      'ExteriorLightsWizard': 'Lighting System',
+      'InteriorLightsWizard': 'Interior Systems',
+      'DoorsWizard': 'Door Systems',
+      'WheelchairRampWizard': 'Accessibility Equipment',
+      'PunctureWizard': 'Wheel/Tire Issues',
+      'SuspensionWizard': 'Suspension System',
+      'ExcessiveSmokeWizard': 'Engine Issues',
+      'NonStarterWizard': 'Starting System',
+      'CuttingOutFuelWizard': 'Fuel System',
+      'OilWarningLightWizard': 'Engine Lubrication',
+      'WarningLightsWizard': 'Dashboard Warning Systems',
+      'WipersScreenwashWizard': 'Windscreen Systems',
+      'DemistersHeatersWizard': 'Climate Control',
+      'ABSLightWizard': 'ABS System',
+      'DestinationDisplayWizard': 'Passenger Information Systems',
+      'BuzzersWizard': 'Audio Systems',
+      'default': 'General Assessment'
+    };
+
+    return categoryMap[wizardType] || categoryMap['default'];
+  }
+
+  // Generate issue description based on wizard type and responses
+  generateIssueDescription(wizardType, decision, responses) {
+    const wizardName = wizardType.replace('Wizard', '');
+    const responseSummary = this.summarizeResponses(responses);
+
+    let description = `${wizardName} assessment completed with ${decision} decision.`;
+
+    if (responseSummary) {
+      description += ` Key findings: ${responseSummary}`;
+    }
+
+    return description;
+  }
+
+  // Summarize wizard responses for issue description
+  summarizeResponses(responses) {
+    if (!responses || typeof responses !== 'object') {
+      return '';
+    }
+
+    const summary = [];
+
+    // Extract key information from responses
+    Object.entries(responses).forEach(([key, value]) => {
+      if (key.toLowerCase().includes('symptom') && value) {
+        summary.push(value);
+      } else if (key.toLowerCase().includes('problem') && value) {
+        summary.push(value);
+      } else if (key.toLowerCase().includes('issue') && value) {
+        summary.push(value);
+      } else if (value === true || value === 'yes') {
+        summary.push(key.replace(/([A-Z])/g, ' $1').toLowerCase());
+      }
+    });
+
+    return summary.slice(0, 3).join(', '); // Limit to first 3 key findings
+  }
+
+  // Determine if engineering is required based on wizard type and responses
+  requiresEngineering(wizardType, responses) {
+    // Critical systems that typically require engineering
+    const engineeringWizards = [
+      'SteeringWizard',
+      'BrakesWizard',
+      'SuspensionWizard',
+      'GearboxWizard',
+      'CoolingSystemWizard',
+      'ExcessiveSmokeWizard'
+    ];
+
+    if (engineeringWizards.includes(wizardType)) {
+      return true;
+    }
+
+    // Check responses for engineering indicators
+    if (responses && typeof responses === 'object') {
+      const responseValues = Object.values(responses);
+      const responseKeys = Object.keys(responses);
+
+      // Look for indicators that suggest engineering is needed
+      for (let i = 0; i < responseKeys.length; i++) {
+        const key = responseKeys[i].toLowerCase();
+        const value = responseValues[i];
+
+        if ((key.includes('severe') || key.includes('major') || key.includes('complete')) && value) {
+          return true;
+        }
+
+        if (typeof value === 'string' && value.toLowerCase().includes('engineering')) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   // Create breakdown record after wizard completion
   async createBreakdownFromWizard(wizardType, decision, responses = {}, assessmentId = null) {
     try {
       const severity = this.mapDecisionToSeverity(decision, wizardType);
-      
+
       // Only create tracker records for STOP and AMBER decisions
       // CONTINUE decisions don't need breakdown tracking
       if (severity === 'CONTINUE') {
@@ -90,21 +197,46 @@ class WizardTrackerIntegration {
       const vehicleInfo = this.getVehicleInfo();
       const { supervisorBadge, supervisorName } = this.getSupervisorInfo();
 
-      // Create the breakdown record
+      // Determine issue category and description based on wizard type
+      const issueCategory = this.getIssueCategoryFromWizard(wizardType);
+      const issueDescription = this.generateIssueDescription(wizardType, decision, responses);
+
+      // Create the breakdown record using new API
       const breakdownData = {
-        vehicle_id: vehicleInfo.vehicle_id,
-        route_id: vehicleInfo.route_id,
+        // Wizard information
+        wizard_type: wizardType,
+        wizard_decision: severity,
+        wizard_assessment_data: {
+          responses,
+          assessment_id: assessmentId,
+          completed_at: new Date().toISOString(),
+          original_decision: decision
+        },
+
+        // Vehicle and location
+        fleet_number: vehicleInfo.vehicle_id,
         location: vehicleInfo.location,
+        location_coords: vehicleInfo.location_coords || null,
+        w3w_location: vehicleInfo.w3w_location || null,
+
+        // Supervisor information
         supervisor_badge: supervisorBadge,
         supervisor_name: supervisorName,
-        wizard_type: wizardType,
-        assessment_id: assessmentId,
-        initial_notes: `${wizardType} assessment completed with ${severity} decision`
+
+        // Issue details
+        issue_category: issueCategory,
+        issue_description: issueDescription,
+        severity: severity,
+
+        // Additional context
+        priority_level: severity === 'STOP' ? 1 : (severity === 'AMBER' ? 2 : 3),
+        engineering_required: severity === 'STOP' || this.requiresEngineering(wizardType, responses),
+        replacement_vehicle_required: severity === 'STOP'
       };
 
       console.log(`[WIZARD-TRACKER] Creating breakdown record for ${wizardType} assessment:`, breakdownData);
 
-      const response = await fetch(`${this.apiBase}/api/breakdown-tracker/create`, {
+      const response = await fetch(`${this.apiBase}/api/breakdowns/from-wizard`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -118,13 +250,11 @@ class WizardTrackerIntegration {
         const breakdownId = result.breakdown_id;
         console.log(`[WIZARD-TRACKER] Breakdown record created: ${breakdownId}`);
 
-        // Immediately record the decision
-        await this.recordDecision(breakdownId, severity, decision, responses, supervisorBadge, supervisorName);
-
         return {
           breakdownId,
           severity,
-          success: true
+          success: true,
+          breakdown: result.breakdown
         };
       } else {
         console.error('[WIZARD-TRACKER] Failed to create breakdown record:', result);
@@ -137,46 +267,6 @@ class WizardTrackerIntegration {
     }
   }
 
-  // Record the assessment decision in the tracker
-  async recordDecision(breakdownId, severity, decision, responses, supervisorBadge, supervisorName) {
-    try {
-      const decisionData = {
-        event_type: 'decision',
-        by_badge: supervisorBadge,
-        by_name: supervisorName,
-        notes: `Assessment decision: ${decision}`,
-        metadata: {
-          severity: severity,
-          original_decision: decision,
-          wizard_responses: responses,
-          assessment_method: 'breakdown_guide_wizard'
-        },
-        severity: severity
-      };
-
-      const response = await fetch(`${this.apiBase}/api/breakdown-tracker/${breakdownId}/event`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(decisionData)
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        console.log(`[WIZARD-TRACKER] Decision recorded for breakdown ${breakdownId}`);
-      } else {
-        console.error('[WIZARD-TRACKER] Failed to record decision:', result);
-      }
-
-      return result;
-
-    } catch (error) {
-      console.error('[WIZARD-TRACKER] Error recording decision:', error);
-      return { success: false, error: error.message };
-    }
-  }
 
   // Enhanced completion handler that integrates with existing logging
   async handleWizardCompletion(wizardType, decision, responses, assessmentId, originalOnComplete) {
@@ -188,9 +278,9 @@ class WizardTrackerIntegration {
 
       // Then create breakdown tracker record if needed
       const trackerResult = await this.createBreakdownFromWizard(
-        wizardType, 
-        decision, 
-        responses, 
+        wizardType,
+        decision,
+        responses,
         assessmentId
       );
 
@@ -208,7 +298,7 @@ class WizardTrackerIntegration {
       } else if (trackerResult?.error) {
         // Log error but don't block user workflow
         console.warn('[WIZARD-TRACKER] Tracker logging failed but assessment completed:', trackerResult.error);
-        
+
         this.showTrackerNotification(
           '⚠️ Assessment completed but breakdown tracking failed',
           'warning'

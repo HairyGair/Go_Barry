@@ -2,6 +2,133 @@
 
 All notable changes to the Go North East Breakdown Guide project will be documented in this file.
 
+## [1.6.0] - 2025-09-17
+
+### Added - Advanced Header Features
+
+#### User Profile Section
+- Added user avatar with initials
+- Dropdown menu showing user details, depot, and role
+- Supervisor-specific stats (Today's assessments, Active, Resolved)
+- Quick access to profile, settings, and sign out
+
+#### Status Bar
+- Top status bar showing system health and information
+- Real-time connection status indicator
+- System version display
+- Current depot and date/time information
+
+#### Breadcrumb Navigation
+- Automatic breadcrumb generation based on current route
+- Improves navigation context throughout the app
+- Clickable breadcrumbs for easy navigation
+
+#### Quick Stats Badges
+- Supervisor-specific active breakdown count on Live Dashboard
+- Real-time updates every minute
+- Visual indicator for immediate awareness
+
+#### Keyboard Shortcuts Indicator
+- Dedicated button showing available shortcuts (⌘)
+- Modal popup with all keyboard shortcuts (Alt+1-5, H, Q)
+- Improves discoverability of power user features
+
+#### Dark/Light Mode Toggle
+- Theme switcher button in header
+- Persists user preference in localStorage
+- Smooth transitions between themes
+- Updates all UI elements including logo brightness
+
+#### Mega Menu Navigation
+- Hover-activated dropdown menus for main navigation items
+- Quick access to sub-sections without clicking
+- Improves navigation efficiency
+
+### Changed
+- Header height adjusted to accommodate new features
+- Improved responsive behavior for all new components
+- Better organization of header elements
+
+## [1.5.3] - 2025-09-17
+
+### Changed - Header Layout Optimization
+- Moved logo to far left for better space utilization
+- Reduced header height from 80px to 70px for more content space
+- Optimized navigation to display all items on one line
+- Added shorter labels for medium-sized screens
+- Renamed "Engineering" to "Fleet Intelligence" for clarity
+- Streamlined status section with compact design
+- Improved responsive behavior with better breakpoints
+
+### Improved
+- Better space efficiency with optimized padding and gaps
+- Cleaner visual hierarchy with simplified layout
+- Enhanced mobile experience with progressive label shortening
+- Smoother transitions between screen sizes
+
+## [1.5.2] - 2025-09-17
+
+### Added - Professional Unified Header
+- Created new AppHeader component in `/src/shared/AppHeader.jsx`
+- Professional, high-end design with modern aesthetics
+- Real-time connection status indicator
+- Live time and date display
+- Consistent navigation across all sections
+- Emergency report button with pulsing animation
+- Responsive mobile menu
+
+### Changed - Header Implementation
+- Replaced old header in breakdown guide App.jsx with new AppHeader
+- Updated DashboardLayout to use new AppHeader for all dashboards
+- Removed duplicate navigation code from DashboardLayout
+- Added 'with-header' CSS class for proper spacing
+- Improved visual hierarchy and professional appearance
+
+### Removed
+- Old header sections from breakdown guide
+- Duplicate navigation bars from dashboards
+- Redundant CSS styles from DashboardLayout
+- Unused dashboard configuration code
+
+## [1.5.1] - 2025-09-17
+
+### Changed - UI Cleanup
+- Removed supervisor info section from breakdown guide header
+- Cleaned up header to focus on essential navigation elements
+- Commented out related CSS styles for the removed supervisor section
+- Improved header visual hierarchy
+
+## [1.5.0] - 2025-09-17
+
+### Added - Authentication System Documentation
+
+#### Authentication Implementation ✅
+- Complete Supabase authentication system already in place
+- Email/password login with SupervisorLogin component
+- Session management with 24-hour "Remember me" option
+- NO AUTH mode for testing (currently enabled)
+- Role-based access control (supervisor/admin)
+- Automatic session refresh and expiry handling
+
+#### Documentation Created
+- **ENABLE_AUTH_QUICK.md** - Quick setup guide for enabling auth
+- **AUTHENTICATION_GUIDE.md** - Detailed authentication instructions
+- **AUTHENTICATION_COMPLETE.md** - Complete system documentation
+- **test-auth.js** - Authentication testing script
+- **.env.auth-enabled** - Pre-configured environment file
+
+#### Technical Details
+- Authentication toggles with single environment variable (VITE_ENABLE_AUTH)
+- Supabase integration fully configured and tested
+- Supervisor profiles stored in Supabase supervisors table
+- Backend auth endpoints ready at /api/auth
+- Session persistence in localStorage with expiry checking
+
+### Changed
+- Updated README.md with authentication status
+- Updated CURRENT_STATUS.md to reflect auth implementation
+- NO AUTH mode remains default for immediate testing
+
 ## [1.5.0] - 2025-09-16
 
 ### Added - Dashboard React Migration (Phase 5 Complete)

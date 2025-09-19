@@ -51,6 +51,54 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/fleet/vehicles - Search vehicles (alias for main endpoint)
+router.get('/vehicles', async (req, res) => {
+  try {
+    const { search, depot, type, page = 1, limit = 100 } = req.query;
+    const offset = (page - 1) * limit;
+
+    let query = supabase
+      .from('fleet_vehicles')
+      .select('*')
+      .order('fleet_number');
+
+    // Apply search filter
+    if (search) {
+      query = query.or(`fleet_number.ilike.%${search}%,registration.ilike.%${search}%,depot.ilike.%${search}%`);
+    }
+
+    // Apply depot filter
+    if (depot) {
+      query = query.eq('depot', depot);
+    }
+
+    // Apply vehicle type filter
+    if (type) {
+      query = query.eq('type', type);
+    }
+
+    // Apply pagination
+    query = query.range(offset, offset + limit - 1);
+
+    const { data, error, count } = await query;
+
+    if (error) throw error;
+
+    res.json({
+      data,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: count,
+        pages: Math.ceil(count / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching fleet vehicles:', error);
+    res.status(500).json({ error: 'Failed to fetch fleet vehicles' });
+  }
+});
+
 // GET /api/fleet/search/:term - Quick search vehicles
 router.get('/search/:term', async (req, res) => {
   try {
@@ -69,6 +117,28 @@ router.get('/search/:term', async (req, res) => {
   } catch (error) {
     console.error('Error searching fleet vehicles:', error);
     res.status(500).json({ error: 'Failed to search fleet vehicles' });
+  }
+});
+
+// GET /api/fleet/vehicle/:fleetNumber - Get specific vehicle by fleet number  
+router.get('/vehicle/:fleetNumber', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('fleet_vehicles')
+      .select('*')
+      .eq('fleet_number', req.params.fleetNumber)
+      .single();
+
+    if (error) throw error;
+
+    if (!data) {
+      return res.status(404).json({ error: 'Vehicle not found' });
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching vehicle:', error);
+    res.status(500).json({ error: 'Failed to fetch vehicle' });
   }
 });
 

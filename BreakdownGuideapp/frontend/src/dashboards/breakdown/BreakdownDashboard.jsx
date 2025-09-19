@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
 import StatsCard from '../components/StatsCard';
-import LiveIndicator from '../components/LiveIndicator';
+
 import FilterBar from '../components/FilterBar';
 import BreakdownCard from './BreakdownCard';
 import EngineeringStats from './EngineeringStats';
@@ -16,25 +16,17 @@ const BreakdownDashboard = () => {
     unassigned: 0,
     onsite: 0,
     slaRisk: 0,
-    avgResponseTime: 24,
-    slaCompliance: 87,
-    engineersActive: '12/18',
-    todayResolved: 27,
-    slaBreaches: 2
+    avgResponseTime: 0,
+    slaCompliance: 0,
+    engineersActive: '0/0',
+    todayResolved: 0,
+    slaBreaches: 0
   });
-  const [lastUpdate, setLastUpdate] = useState(new Date());
+
   const [depotStats, setDepotStats] = useState([]);
 
-  // Engineering teams mock data (would come from backend)
-  const engineeringTeams = {
-    'Washington': { available: 3, total: 5, avgResponse: 22, sla: 95 },
-    'WAS': { available: 3, total: 5, avgResponse: 22, sla: 95 },
-    'Riverside': { available: 1, total: 4, avgResponse: 28, sla: 87 },
-    'Percy Main': { available: 3, total: 4, avgResponse: 19, sla: 98 },
-    'Consett': { available: 0, total: 4, avgResponse: 34, sla: 76 },
-    'Deptford': { available: 1, total: 3, avgResponse: 25, sla: 91 },
-    'Hexham': { available: 2, total: 2, avgResponse: 31, sla: 83 }
-  };
+  // Engineering teams data will come from backend
+  const [engineeringTeams, setEngineeringTeams] = useState({});
 
   // Filter options
   const filters = [
@@ -46,26 +38,44 @@ const BreakdownDashboard = () => {
     { value: 'priority', label: 'Priority Routes', icon: '⭐' }
   ];
 
-  // Initialize depot stats
+  // Fetch depot stats from backend
   useEffect(() => {
-    const depotData = Object.entries(engineeringTeams).map(([name, data]) => ({
-      name,
-      avgResponse: data.avgResponse,
-      sla: data.sla,
-      activeEngineers: data.available,
-      totalEngineers: data.total
-    }));
-    setDepotStats(depotData);
+    const fetchDepotStats = async () => {
+      try {
+        const response = await fetch(`${apiConfig.baseUrl}/api/engineering/depot-stats`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setEngineeringTeams(data.teams || {});
+            const depotData = Object.entries(data.teams || {}).map(([name, data]) => ({
+              name,
+              avgResponse: data.avgResponse || 0,
+              sla: data.sla || 0,
+              activeEngineers: data.available || 0,
+              totalEngineers: data.total || 0
+            }));
+            setDepotStats(depotData);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching depot stats:', error);
+        setDepotStats([]);
+      }
+    };
+    
+    fetchDepotStats();
+    const interval = setInterval(fetchDepotStats, 60000); // Update every minute
+    return () => clearInterval(interval);
   }, []);
 
-  // Enhance breakdown data with timeline and mock data
+  // Enhance breakdown data with timeline from backend
   const enhanceBreakdownData = (breakdowns) => {
     return breakdowns.map(b => {
       const created = new Date(b.created_at);
       const now = new Date();
       const elapsed = Math.floor((now - created) / 60000); // minutes
       
-      // Mock timeline data (would come from backend)
+      // Timeline data should come from backend - using defaults for now
       const timeline = {
         reported: created.toISOString(),
         acknowledged: elapsed > 2 ? new Date(created.getTime() + 2 * 60000).toISOString() : null,
@@ -83,14 +93,10 @@ const BreakdownDashboard = () => {
       else if (timeline.dispatched) currentStage = 'dispatched';
       else if (timeline.acknowledged) currentStage = 'acknowledged';
       
-      // Mock engineer assignment
-      const engineerAssigned = elapsed > 10 ? {
-        team: `${b.depot_id || 'Washington'} Engineering`,
-        engineer: `John Smith (JS00${Math.floor(Math.random() * 9) + 1})`,
-        eta: elapsed > 30 ? null : `${30 - elapsed} mins`
-      } : null;
+      // Engineer assignment from backend data
+      const engineerAssigned = b.engineer_assigned || null;
       
-      // Mock activity feed
+      // Build activity feed from timeline
       const activities = [];
       const formatTime = (date) => date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
       
@@ -136,27 +142,41 @@ const BreakdownDashboard = () => {
   // Fetch live breakdowns
   useEffect(() => {
     const fetchBreakdowns = async () => {
+      console.log('Fetching breakdowns from:', `${apiConfig.baseUrl}/api/breakdowns/live`);
       setLoading(true);
       try {
         const response = await fetch(`${apiConfig.baseUrl}/api/breakdowns/live`);
+        console.log('Response status:', response.status);
+        
         if (response.ok) {
           const data = await response.json();
+          console.log('Response data:', data);
+          
           if (data.success) {
             const enhanced = enhanceBreakdownData(data.breakdowns || []);
             setBreakdowns(enhanced);
             updateStats(enhanced);
-            setLastUpdate(new Date());
+          } else {
+            console.log('API returned success: false');
+            setBreakdowns([]);
+            updateStats([]);
           }
+        } else {
+          console.error('API response not ok:', response.status, response.statusText);
+          setBreakdowns([]);
+          updateStats([]);
         }
       } catch (error) {
         console.error('Error fetching breakdowns:', error);
+        setBreakdowns([]);
+        updateStats([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchBreakdowns();
-    const interval = setInterval(fetchBreakdowns, 5000);
+    const interval = setInterval(fetchBreakdowns, 30000); // Changed to 30 seconds to reduce console spam
     return () => clearInterval(interval);
   }, []);
 
@@ -383,11 +403,11 @@ const BreakdownDashboard = () => {
       <div className="quick-stats-bar">
         <div className="quick-stat">
           <span className="quick-stat-label">Next Available Engineer:</span>
-          <span className="quick-stat-value">10:45</span>
+          <span className="quick-stat-value">{stats.nextEngineer || '--:--'}</span>
         </div>
         <div className="quick-stat">
           <span className="quick-stat-label">Avg Wait Time:</span>
-          <span className="quick-stat-value">18 mins</span>
+          <span className="quick-stat-value">{stats.avgWaitTime ? `${stats.avgWaitTime} mins` : '--'}</span>
         </div>
         <div className="quick-stat">
           <span className="quick-stat-label">Today's Resolved:</span>
@@ -399,186 +419,9 @@ const BreakdownDashboard = () => {
         </div>
       </div>
 
-      {/* Auto-refresh indicator */}
-      <div className="auto-refresh">
-        <LiveIndicator 
-          status="online"
-          updateInterval={5}
-          lastUpdate={lastUpdate}
-        />
-      </div>
 
-      <style jsx>{`
-        .header-stats {
-          display: flex;
-          justify-content: center;
-          gap: 30px;
-          padding: 15px;
-          background: rgba(255,255,255,0.1);
-          margin-top: -20px;
-          position: relative;
-          z-index: 10;
-        }
 
-        .header-stat {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-size: 14px;
-          color: white;
-        }
 
-        .header-stat strong {
-          font-size: 16px;
-          font-weight: 600;
-        }
-
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 20px;
-          padding: 20px;
-        }
-
-        .container {
-          padding: 20px;
-        }
-
-        .breakdown-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
-          gap: 20px;
-        }
-
-        .loading {
-          text-align: center;
-          padding: 40px;
-          color: #6b7280;
-        }
-
-        .spinner {
-          border: 3px solid #f3f4f6;
-          border-top: 3px solid #1e3a8a;
-          border-radius: 50%;
-          width: 40px;
-          height: 40px;
-          animation: spin 1s linear infinite;
-          margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-
-        .empty-state {
-          text-align: center;
-          padding: 60px;
-          color: #6b7280;
-          background: white;
-          border-radius: 12px;
-          margin: 20px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .quick-stats-bar {
-          position: fixed;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          background: white;
-          border-top: 2px solid #e5e7eb;
-          padding: 10px 20px;
-          display: flex;
-          justify-content: space-around;
-          align-items: center;
-          box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-          z-index: 1000;
-        }
-
-        .quick-stat {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-        }
-
-        .quick-stat-label {
-          font-size: 12px;
-          color: #6b7280;
-        }
-
-        .quick-stat-value {
-          font-size: 18px;
-          font-weight: bold;
-          color: #1e3a8a;
-        }
-
-        .auto-refresh {
-          position: fixed;
-          bottom: 70px;
-          right: 20px;
-          background: white;
-          padding: 10px 15px;
-          border-radius: 8px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-          z-index: 999;
-        }
-
-        @media (max-width: 768px) {
-          .header-stats {
-            display: none;
-          }
-
-          .stats-grid {
-            padding: 10px;
-            gap: 10px;
-          }
-
-          .breakdown-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .quick-stats-bar {
-            flex-direction: column;
-            gap: 10px;
-            padding: 15px;
-            bottom: 60px; /* Account for mobile nav */
-          }
-
-          .quick-stat {
-            width: 100%;
-            justify-content: space-between;
-          }
-
-          .auto-refresh {
-            bottom: 200px; /* Adjusted for mobile */
-            right: 10px;
-          }
-        }
-
-        /* Notification animations */
-        @keyframes slideDown {
-          from {
-            transform: translateX(-50%) translateY(-100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(-50%) translateY(0);
-            opacity: 1;
-          }
-        }
-
-        @keyframes slideUp {
-          from {
-            transform: translateX(-50%) translateY(0);
-            opacity: 1;
-          }
-          to {
-            transform: translateX(-50%) translateY(-100%);
-            opacity: 0;
-          }
-        }
-      `}</style>
     </DashboardLayout>
   );
 };

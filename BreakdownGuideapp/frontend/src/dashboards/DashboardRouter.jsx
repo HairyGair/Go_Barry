@@ -6,6 +6,8 @@ import BreakdownDashboard from './breakdown/BreakdownDashboard';
 import EngineeringDashboard from './engineering/EngineeringDashboard';
 import ManagementDashboard from './management/ManagementDashboard';
 import SDCDashboard from './sdc/SDCDashboard';
+import DashboardDebug from './DashboardDebug';
+import TestDashboard from './TestDashboard';
 
 const DashboardRouter = () => {
   return (
@@ -15,6 +17,8 @@ const DashboardRouter = () => {
       <Route path="/engineering" element={<EngineeringDashboard />} />
       <Route path="/management" element={<ManagementDashboard />} />
       <Route path="/sdc" element={<SDCDashboard />} />
+      <Route path="/debug" element={<DashboardDebug />} />
+      <Route path="/test" element={<TestDashboard />} />
     </Routes>
   );
 };

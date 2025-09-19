@@ -1,0 +1,66 @@
+/* Engineering Dashboard Override Styles */
+
+/* Remove any gradient backgrounds */
+.engineering-dashboard .dashboard-header,
+.engineering-dashboard-header {
+  background-image: none !important;
+  background: var(--bg-secondary) !important;
+  background-color: var(--bg-secondary) !important;
+}
+
+/* Ensure consistent dark theme */
+.engineering-dashboard {
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+/* Override any gradient classes that might exist */
+.gradient-bg,
+.gradient-header,
+.bg-gradient {
+  background-image: none !important;
+  background: var(--bg-secondary) !important;
+}
+
+/* Performance metrics cards */
+.performance-metrics .metric-card {
+  background: var(--bg-secondary) !important;
+  background-image: none !important;
+  border: 1px solid var(--border) !important;
+}
+
+/* Connection bar */
+.engineering-dashboard .connection-bar {
+  background: var(--bg-tertiary) !important;
+  background-image: none !important;
+}
+
+/* Remove any legacy gradient styles */
+[class*="gradient"],
+[style*="gradient"] {
+  background-image: none !important;
+}
+
+/* Specific overrides for any possible gradient classes */
+.bg-gradient-to-r,
+.bg-gradient-to-l,
+.bg-gradient-to-t,
+.bg-gradient-to-b,
+.bg-gradient-to-br,
+.bg-gradient-to-bl,
+.bg-gradient-to-tr,
+.bg-gradient-to-tl,
+.from-purple-600,
+.to-red-500,
+.from-purple-500,
+.to-pink-500 {
+  background-image: none !important;
+  background: var(--bg-secondary) !important;
+}
+
+/* Force dark theme on all dashboard elements */
+.engineering-dashboard * {
+  --tw-gradient-from: transparent !important;
+  --tw-gradient-to: transparent !important;
+  --tw-gradient-stops: transparent !important;
+}

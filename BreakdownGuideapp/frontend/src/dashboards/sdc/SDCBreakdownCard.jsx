@@ -99,19 +99,31 @@ const SDCBreakdownCard = ({
           <span className="info-value">{breakdown.location || 'Unknown'}</span>
         </div>
         <div className="info-item">
-          <span className="info-label">Route</span>
-          <span className={`info-value ${breakdown.isPriority ? 'route-priority' : ''}`}>
-            {breakdown.route_id || 'N/A'}
-          </span>
+          <span className="info-label">Issue Type</span>
+          <span className="info-value">{breakdown.issue_type || breakdown.wizard_type?.replace('Wizard', '') || 'General'}</span>
         </div>
         <div className="info-item">
           <span className="info-label">Depot</span>
-          <span className="info-value">{breakdown.depot_display || 'Unknown'}</span>
+          <span className="info-value">{breakdown.depot_display || breakdown.depot_id || 'Unknown'}</span>
         </div>
         <div className="info-item">
           <span className="info-label">Supervisor</span>
-          <span className="info-value">{breakdown.supervisor_badge || 'N/A'}</span>
+          <span className="info-value">{breakdown.supervisor_badge || breakdown.supervisor_name || 'N/A'}</span>
         </div>
+        {breakdown.duration_text && (
+          <div className="info-item full-width">
+            <span className="info-label">Duration</span>
+            <span className="info-value duration-highlight">{breakdown.duration_text}</span>
+          </div>
+        )}
+        {(breakdown.wizard_decision || breakdown.severity) && (
+          <div className="info-item full-width">
+            <span className="info-label">Assessment Result</span>
+            <span className={`info-value severity-${(breakdown.wizard_decision || breakdown.severity || '').toLowerCase()}`}>
+              {breakdown.wizard_decision || breakdown.severity}
+            </span>
+          </div>
+        )}
       </div>
       
       <div className="breakdown-actions">
@@ -480,10 +492,16 @@ const SDCBreakdownCard = ({
           flex-direction: column;
         }
 
+        .info-item.full-width {
+          grid-column: 1 / -1;
+        }
+
         .info-label {
           font-size: 11px;
           color: #6b7280;
           text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 4px;
         }
 
         .info-value {
@@ -495,6 +513,48 @@ const SDCBreakdownCard = ({
         .info-value.route-priority {
           color: #dc2626;
           font-weight: bold;
+        }
+
+        .info-value.duration-highlight {
+          background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
+          color: #3b82f6;
+          padding: 4px 8px;
+          border-radius: 6px;
+          font-weight: 600;
+          border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .info-value.severity-stop {
+          background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+          color: #dc2626;
+          padding: 4px 8px;
+          border-radius: 6px;
+          font-weight: 600;
+          border: 1px solid rgba(220, 38, 38, 0.2);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .info-value.severity-amber {
+          background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05));
+          color: #f59e0b;
+          padding: 4px 8px;
+          border-radius: 6px;
+          font-weight: 600;
+          border: 1px solid rgba(245, 158, 11, 0.2);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .info-value.severity-continue {
+          background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+          color: #10b981;
+          padding: 4px 8px;
+          border-radius: 6px;
+          font-weight: 600;
+          border: 1px solid rgba(16, 185, 129, 0.2);
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
         
         .breakdown-actions {

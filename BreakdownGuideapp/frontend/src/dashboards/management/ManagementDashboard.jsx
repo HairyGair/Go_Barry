@@ -48,158 +48,24 @@ const ManagementDashboard = () => {
         fleetRes.json()
       ]);
 
-      setKpiData(kpiJson.data || generateMockKPIs());
-      setTrendData(trendJson.data || generateMockTrends());
-      setDepotData(depotJson.data || generateMockDepotData());
-      setFleetHealth(fleetJson.data || generateMockFleetHealth());
+      setKpiData(kpiJson.data || null);
+      setTrendData(trendJson.data || null);
+      setDepotData(depotJson.data || null);
+      setFleetHealth(fleetJson.data || null);
       
       setLoading(false);
       setError(null);
     } catch (error) {
       console.error('Error fetching data:', error);
-      // Use mock data on error
-      setKpiData(generateMockKPIs());
-      setTrendData(generateMockTrends());
-      setDepotData(generateMockDepotData());
-      setFleetHealth(generateMockFleetHealth());
+      // Clear data on error
+      setKpiData(null);
+      setTrendData(null);
+      setDepotData(null);
+      setFleetHealth(null);
       setLoading(false);
-      setError('Using demo data - API connection unavailable');
+      setError('Failed to load data - API connection unavailable');
     }
   }, [selectedPeriod]);
-
-  // Generate mock KPI data
-  const generateMockKPIs = () => {
-    return {
-      mtbf: {
-        value: 1247,
-        unit: 'hours',
-        trend: 12.5,
-        target: 1200,
-        status: 'good'
-      },
-      slaCompliance: {
-        value: 94.2,
-        unit: '%',
-        trend: -2.3,
-        target: 95,
-        status: 'warning'
-      },
-      avgResponseTime: {
-        value: 28,
-        unit: 'minutes',
-        trend: -8.1,
-        target: 30,
-        status: 'good'
-      },
-      fleetAvailability: {
-        value: 96.8,
-        unit: '%',
-        trend: 0.5,
-        target: 95,
-        status: 'good'
-      },
-      breakdownsToday: {
-        value: 12,
-        unit: 'incidents',
-        trend: -25,
-        previousValue: 16,
-        status: 'normal'
-      },
-      engineerUtilization: {
-        value: 78,
-        unit: '%',
-        trend: 5.2,
-        target: 80,
-        status: 'normal'
-      }
-    };
-  };
-
-  // Generate mock trend data
-  const generateMockTrends = () => {
-    const generateDataPoints = (baseValue, variance, points) => {
-      return Array.from({ length: points }, (_, i) => {
-        const randomVariance = (Math.random() - 0.5) * variance;
-        return Math.round(baseValue + randomVariance + (i * 0.5));
-      });
-    };
-
-    return {
-      breakdowns: {
-        labels: getTimeLabels(selectedPeriod),
-        datasets: [
-          {
-            label: 'Total Breakdowns',
-            data: generateDataPoints(15, 5, getDataPoints(selectedPeriod)),
-            color: '#3b82f6'
-          },
-          {
-            label: 'Critical Breakdowns',
-            data: generateDataPoints(3, 2, getDataPoints(selectedPeriod)),
-            color: '#ef4444'
-          }
-        ]
-      },
-      responseTime: {
-        labels: getTimeLabels(selectedPeriod),
-        datasets: [
-          {
-            label: 'Average Response (mins)',
-            data: generateDataPoints(28, 8, getDataPoints(selectedPeriod)),
-            color: '#10b981',
-            target: 30
-          }
-        ]
-      },
-      slaCompliance: {
-        labels: getTimeLabels(selectedPeriod),
-        datasets: [
-          {
-            label: 'SLA Compliance %',
-            data: generateDataPoints(94, 5, getDataPoints(selectedPeriod)),
-            color: '#f59e0b',
-            target: 95
-          }
-        ]
-      }
-    };
-  };
-
-  // Generate mock depot comparison data
-  const generateMockDepotData = () => {
-    const depots = ['Washington', 'Riverside', 'Percy Main', 'Consett', 'Deptford', 'Hexham'];
-    return depots.map(depot => ({
-      depot,
-      breakdowns: Math.floor(Math.random() * 20) + 5,
-      avgResponse: Math.floor(Math.random() * 15) + 20,
-      slaCompliance: Math.floor(Math.random() * 15) + 85,
-      engineerEfficiency: Math.floor(Math.random() * 20) + 70,
-      fleetSize: Math.floor(Math.random() * 50) + 80,
-      performance: Math.random() > 0.5 ? 'good' : Math.random() > 0.5 ? 'warning' : 'critical'
-    }));
-  };
-
-  // Generate mock fleet health data
-  const generateMockFleetHealth = () => {
-    return {
-      totalVehicles: 759,
-      operational: 732,
-      inMaintenance: 18,
-      breakdown: 9,
-      categories: [
-        { type: 'Single Decker', total: 432, operational: 418, percentage: 96.8 },
-        { type: 'Double Decker', total: 287, operational: 276, percentage: 96.2 },
-        { type: 'Coach', total: 40, operational: 38, percentage: 95.0 }
-      ],
-      topIssues: [
-        { issue: 'Brake System', count: 23, trend: 'up' },
-        { issue: 'Engine Issues', count: 18, trend: 'down' },
-        { issue: 'Electrical', count: 15, trend: 'stable' },
-        { issue: 'Doors', count: 12, trend: 'down' },
-        { issue: 'Suspension', count: 8, trend: 'up' }
-      ]
-    };
-  };
 
   // Get time labels based on period
   const getTimeLabels = (period) => {

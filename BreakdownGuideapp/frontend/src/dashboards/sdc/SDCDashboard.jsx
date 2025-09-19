@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout.jsx';
 import FilterBar from '../components/FilterBar.jsx';
-import LiveIndicator from '../components/LiveIndicator.jsx';
+
 import SDCBreakdownCard from './SDCBreakdownCard.jsx';
 import PriorityAlerts from './PriorityAlerts.jsx';
 import StatusWidget from './StatusWidget.jsx';
@@ -16,7 +16,7 @@ const SDCDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
   const [recentDecisions, setRecentDecisions] = useState([]);
-  const [lastUpdate, setLastUpdate] = useState(new Date());
+
   const [headerStats, setHeaderStats] = useState({
     active: 0,
     critical: 0,
@@ -95,7 +95,7 @@ const SDCDashboard = () => {
             const processed = processBreakdowns(data.breakdowns || []);
             setBreakdowns(processed);
             updateStatistics(processed);
-            setLastUpdate(new Date());
+
           }
         }
       } catch (error) {
@@ -300,12 +300,7 @@ const SDCDashboard = () => {
           <div className="map-container">
             <div className="map-header">
               <h3>🗺️ Breakdown Locations</h3>
-              <LiveIndicator 
-                status="online"
-                updateInterval={5}
-                lastUpdate={lastUpdate}
-                size="small"
-              />
+
             </div>
             <div className="map-placeholder">
               <BreakdownMap breakdowns={breakdowns} />

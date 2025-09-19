@@ -2,26 +2,15 @@
 // Integrates with Supabase authentication system
 
 import React, { useState, useEffect } from 'react';
+import { authHelpers, supabaseHelpers } from '../../services/supabase-client.js';
+import SupabaseDebug from './SupabaseDebug.jsx';
 
 const SupervisorLogin = ({ onLoginSuccess }) => {
-    const [selectedSupervisor, setSelectedSupervisor] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
-    
-    // List of all 9 Go North East supervisors with supervisor IDs
-    const supervisors = [
-        { supervisorId: 'supervisor001', badge: 'AW001', name: 'Alex Woodcock' },
-        { supervisorId: 'supervisor002', badge: 'AC002', name: 'Andrew Cowley' },
-        { supervisorId: 'supervisor003', badge: 'AG003', name: 'Anthony Gair', isAdmin: true },
-        { supervisorId: 'supervisor004', badge: 'CF004', name: 'Claire Fiddler' },
-        { supervisorId: 'supervisor005', badge: 'DH005', name: 'David Hall' },
-        { supervisorId: 'supervisor006', badge: 'JD006', name: 'James Daglish' },
-        { supervisorId: 'supervisor007', badge: 'JP007', name: 'John Paterson' },
-        { supervisorId: 'supervisor008', badge: 'SG008', name: 'Simon Glass' },
-        { supervisorId: 'supervisor009', badge: 'BP009', name: 'Barry Perryman', isAdmin: true }
-    ];
     
     // Check for existing session on mount
     useEffect(() => {
@@ -48,10 +37,14 @@ const SupervisorLogin = ({ onLoginSuccess }) => {
     
     const handleLogin = async (e) => {
         e.preventDefault();
-        console.log('handleLogin called with:', { selectedSupervisor, password: password ? '***' : 'empty' });
         
-        if (!selectedSupervisor) {
-            setError('Please select a supervisor');
+        // Validation
+        if (!email) {
+            setError('Please enter your email address');
+            return;
+        }
+        if (!password) {
+            setError('Please enter your password');
             return;
         }
         
@@ -59,17 +52,25 @@ const SupervisorLogin = ({ onLoginSuccess }) => {
         setError('');
         
         try {
-            // Find selected supervisor details
-            const supervisor = supervisors.find(s => s.supervisorId === selectedSupervisor);
+            // Authenticate with email and password
+            const authResult = await authHelpers.signInWithPassword(email, password);
             
-            // NO AUTH MODE - Create session without authentication
+            if (!authResult.supervisor) {
+                throw new Error('Supervisor profile not found');
+            }
+            
+            // Create session data
             const session = {
-                supervisorId: supervisor.supervisorId,
-                badge: supervisor.badge,
-                name: supervisor.name,
-                isAdmin: supervisor.isAdmin || false,
+                id: authResult.supervisor.id,
+                supervisorId: authResult.supervisor.id, // Keep for backward compatibility
+                name: authResult.supervisor.name,
+                email: authResult.supervisor.email,
+                depot: authResult.supervisor.depot,
+                role: authResult.supervisor.role,
+                isAdmin: authResult.supervisor.role === 'admin',
                 timestamp: new Date().toISOString(),
-                authenticated: true
+                authenticated: true,
+                supabaseSession: authResult.session
             };
             
             // Save session if remember me is checked
@@ -82,7 +83,15 @@ const SupervisorLogin = ({ onLoginSuccess }) => {
             
         } catch (err) {
             console.error('Login error:', err);
-            setError('Login failed. Please try again.');
+            
+            // Handle specific error types
+            if (err.message === 'Invalid login credentials') {
+                setError('Invalid email or password. Please try again.');
+            } else if (err.message === 'Supervisor profile not found') {
+                setError('Your account is not set up as a supervisor. Please contact your manager.');
+            } else {
+                setError(err.message || 'Login failed. Please try again.');
+            }
         } finally {
             setLoading(false);
         }
@@ -90,6 +99,7 @@ const SupervisorLogin = ({ onLoginSuccess }) => {
     
     return (
         <div className="supervisor-login-container">
+            <SupabaseDebug />
             <div className="login-card">
                 <div className="login-header">
                     <h1>Go North East</h1>
@@ -99,22 +109,17 @@ const SupervisorLogin = ({ onLoginSuccess }) => {
                 
                 <form onSubmit={handleLogin} className="login-form">
                     <div className="form-group">
-                        <label htmlFor="supervisor">Select Supervisor</label>
-                        <select
-                            id="supervisor"
-                            value={selectedSupervisor}
-                            onChange={(e) => setSelectedSupervisor(e.target.value)}
+                        <label htmlFor="email">Email Address</label>
+                        <input
+                            type="email"
+                            id="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             className="form-control"
+                            placeholder="Enter your Go North East email"
                             required
-                        >
-                            <option value="">-- Select Your Name --</option>
-                            {supervisors.map(supervisor => (
-                                <option key={supervisor.supervisorId} value={supervisor.supervisorId}>
-                                    {supervisor.badge} - {supervisor.name}
-                                    {supervisor.isAdmin && ' (Admin)'}
-                                </option>
-                            ))}
-                        </select>
+                            autoComplete="email"
+                        />
                     </div>
                     
                     <div className="form-group">
@@ -125,7 +130,9 @@ const SupervisorLogin = ({ onLoginSuccess }) => {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             className="form-control"
-                            placeholder="Enter your password (optional in NO AUTH mode)"
+                            placeholder="Enter your password"
+                            required
+                            autoComplete="current-password"
                         />
                     </div>
                     
@@ -149,9 +156,9 @@ const SupervisorLogin = ({ onLoginSuccess }) => {
                     <button 
                         type="submit" 
                         className="btn btn-primary btn-login"
-                        disabled={loading || !selectedSupervisor}
+                        disabled={loading || !email || !password}
                     >
-                        {loading ? 'Logging in...' : 'Login'}
+                        {loading ? 'Signing in...' : 'Sign In'}
                     </button>
                 </form>
                 
@@ -160,7 +167,10 @@ const SupervisorLogin = ({ onLoginSuccess }) => {
                         🔒 Secure System - All activities are logged for safety compliance
                     </p>
                     <p className="version-info">
-                        Version 2.0 - NO AUTH MODE
+                        Version 2.2 - Email Authentication
+                    </p>
+                    <p className="support-info">
+                        Need help? Contact IT Support
                     </p>
                 </div>
             </div>

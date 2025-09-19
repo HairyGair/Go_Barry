@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiConfig } from '../../breakdown-guide/components/common/constants';
+import { theme } from '@styles/theme';
 
 const EngineerModal = ({ breakdownId, depotId, onAssign, onClose }) => {
   const [engineers, setEngineers] = useState([]);
@@ -108,16 +109,16 @@ const EngineerModal = ({ breakdownId, depotId, onAssign, onClose }) => {
         </div>
       </div>
 
-      <style>{`
+      <style jsx>{`
         .modal {
           display: none;
           position: fixed;
-          z-index: 1000;
+          z-index: var(--z-modal);
           left: 0;
           top: 0;
           width: 100%;
           height: 100%;
-          background: rgba(0, 0, 0, 0.5);
+          background: var(--bg-overlay);
           align-items: center;
           justify-content: center;
           animation: fadeIn 0.3s ease-out;
@@ -133,16 +134,17 @@ const EngineerModal = ({ breakdownId, depotId, onAssign, onClose }) => {
         }
         
         .modal-content {
-          background: white;
+          background: var(--bg-secondary);
           padding: 0;
-          border-radius: 12px;
+          border-radius: var(--radius-lg);
+          border: 1px solid var(--border);
           width: 90%;
           max-width: 600px;
           max-height: 80vh;
           display: flex;
           flex-direction: column;
           animation: slideUp 0.3s ease-out;
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+          box-shadow: var(--shadow-xl);
         }
         
         @keyframes slideUp {
@@ -161,15 +163,15 @@ const EngineerModal = ({ breakdownId, depotId, onAssign, onClose }) => {
           justify-content: space-between;
           align-items: center;
           padding: 20px;
-          border-bottom: 1px solid #e5e7eb;
-          background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
-          border-radius: 12px 12px 0 0;
+          border-bottom: 1px solid var(--border);
+          background: var(--bg-tertiary);
+          border-radius: var(--radius-lg) var(--radius-lg) 0 0;
         }
         
         .modal-title {
           font-size: 20px;
           font-weight: bold;
-          color: #1e3a8a;
+          color: var(--text-primary);
         }
         
         .close-btn {
@@ -177,19 +179,19 @@ const EngineerModal = ({ breakdownId, depotId, onAssign, onClose }) => {
           border: none;
           font-size: 24px;
           cursor: pointer;
-          color: #6b7280;
+          color: var(--text-secondary);
           width: 32px;
           height: 32px;
           display: flex;
           align-items: center;
           justify-content: center;
-          border-radius: 6px;
-          transition: all 0.2s;
+          border-radius: var(--radius-sm);
+          transition: all var(--transition-fast);
         }
         
         .close-btn:hover {
-          background: #f3f4f6;
-          color: #374151;
+          background: var(--bg-hover);
+          color: var(--text-primary);
         }
         
         .modal-body {
@@ -201,12 +203,12 @@ const EngineerModal = ({ breakdownId, depotId, onAssign, onClose }) => {
         .loading {
           text-align: center;
           padding: 40px;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
         
         .spinner {
-          border: 3px solid #f3f4f6;
-          border-top: 3px solid #1e3a8a;
+          border: 3px solid var(--bg-tertiary);
+          border-top: 3px solid var(--color-primary);
           border-radius: 50%;
           width: 40px;
           height: 40px;
@@ -222,23 +224,25 @@ const EngineerModal = ({ breakdownId, depotId, onAssign, onClose }) => {
         .error-state {
           text-align: center;
           padding: 40px;
-          color: #ef4444;
+          color: var(--color-danger);
         }
         
         .retry-btn {
           margin-top: 15px;
           padding: 8px 20px;
-          background: #ef4444;
+          background: var(--color-danger);
           color: white;
           border: none;
-          border-radius: 6px;
+          border-radius: var(--radius-sm);
           cursor: pointer;
           font-weight: 600;
-          transition: all 0.2s;
+          transition: all var(--transition-fast);
         }
         
         .retry-btn:hover {
-          background: #dc2626;
+          background: #bb2d3b;
+          transform: translateY(-1px);
+          box-shadow: var(--shadow-sm);
         }
         
         .engineer-select-list {
@@ -249,29 +253,23 @@ const EngineerModal = ({ breakdownId, depotId, onAssign, onClose }) => {
         
         .engineer-option {
           padding: 15px;
-          border: 2px solid #e5e7eb;
-          border-radius: 8px;
+          border: 1px solid var(--border);
+          background: var(--bg-primary);
+          border-radius: var(--radius-md);
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all var(--transition-fast);
         }
         
-        .engineer-option:hover {
-          border-color: #3b82f6;
-          background: #f0f9ff;
+        .engineer-option:hover:not(.unavailable) {
+          border-color: var(--color-primary);
+          background: var(--bg-tertiary);
           transform: translateY(-2px);
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+          box-shadow: var(--shadow-md);
         }
         
         .engineer-option.unavailable {
           opacity: 0.5;
           cursor: not-allowed;
-        }
-        
-        .engineer-option.unavailable:hover {
-          border-color: #e5e7eb;
-          background: white;
-          transform: none;
-          box-shadow: none;
         }
         
         .engineer-option-header {
@@ -283,25 +281,26 @@ const EngineerModal = ({ breakdownId, depotId, onAssign, onClose }) => {
         
         .engineer-option-name {
           font-weight: bold;
-          color: #1e3a8a;
+          color: var(--text-primary);
           font-size: 16px;
         }
         
         .engineer-option-status {
           padding: 3px 10px;
-          border-radius: 4px;
+          border-radius: var(--radius-full);
           font-size: 12px;
           font-weight: 600;
+          text-transform: uppercase;
         }
         
         .engineer-option-status.available {
-          background: #dcfce7;
-          color: #16a34a;
+          background: rgba(40, 167, 69, 0.2);
+          color: var(--color-success);
         }
         
         .engineer-option-status.busy {
-          background: #fee2e2;
-          color: #dc2626;
+          background: rgba(220, 53, 69, 0.2);
+          color: var(--color-danger);
         }
         
         .engineer-option-details {
@@ -309,7 +308,7 @@ const EngineerModal = ({ breakdownId, depotId, onAssign, onClose }) => {
           grid-template-columns: 1fr auto;
           gap: 10px;
           font-size: 13px;
-          color: #6b7280;
+          color: var(--text-secondary);
         }
         
         .engineer-skills {
@@ -326,14 +325,28 @@ const EngineerModal = ({ breakdownId, depotId, onAssign, onClose }) => {
         }
         
         .no-engineers p {
-          color: #6b7280;
+          color: var(--text-secondary);
           margin: 10px 0;
         }
         
         .suggestion {
           font-size: 14px;
-          color: #9ca3af;
+          color: var(--text-muted);
           font-style: italic;
+        }
+        
+        /* Custom scrollbar */
+        .modal-body::-webkit-scrollbar {
+          width: 8px;
+        }
+        
+        .modal-body::-webkit-scrollbar-track {
+          background: var(--bg-primary);
+        }
+        
+        .modal-body::-webkit-scrollbar-thumb {
+          background: var(--bg-tertiary);
+          border-radius: var(--radius-sm);
         }
         
         @media (max-width: 640px) {

@@ -28,29 +28,7 @@
             align-items: center;
             gap: 10px;
         }
-        .connection-status {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .connection-status.online {
-            background: rgba(16, 185, 129, 0.2);
-            color: white;
-        }
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-        .status-dot.online { background: #10b981; }
+
         
         /* Engineering Performance Panel */
         .engineering-panel {
@@ -615,10 +593,7 @@
                 <strong id="engineers-active">12/18</strong>
             </div>
         </div>
-        <div id="connection-status" class="connection-status online">
-            <span class="status-dot online"></span>
-            <span>Connected</span>
-        </div>
+
     </div>
 
     <!-- Engineering Performance Panel -->

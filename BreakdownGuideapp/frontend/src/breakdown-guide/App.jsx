@@ -21,12 +21,16 @@ import { Routes, Route, useNavigate } from 'react-router-dom';
 // Import styles
 import './styles/main.css';
 import './styles/tailwind.css';
+import './styles/fullwidth-override.css';  // Full width enhancements
 
-// Import supervisorBreakdownLogger
+// Import shared components
+import AppHeader from '../shared/AppHeader.jsx';
+
+// Import supervisorBreakdownLogger and Supabase auth
 import { supervisorBreakdownLogger } from './supervisorBreakdownLogger.js';
+import { authHelpers } from '../services/supabase-client.js';
 
 // Import components
-import SupervisorLogin from './components/SupervisorLogin.jsx';
 import FleetSelectionModal from './components/FleetSelectionModal.jsx';
 import BreakdownInfoStep from './components/common/BreakdownInfoStep.jsx';
 import LocationDisplay from './components/common/LocationDisplay.jsx';
@@ -70,10 +74,6 @@ import DestinationDisplayWizard from './components/wizards/DestinationDisplayWiz
 // Import diagnostic flows (from src/data)
 import { wizards } from '@data/diagnostic-flows-complete.js';
 
-// Import styles if they exist
-import './styles/main.css';
-import './styles/tailwind.css';
-
 // Map wizard types to components
 const wizardComponents = {
     'steering': SteeringWizard,
@@ -115,16 +115,9 @@ const wizardComponents = {
 const App = () => {
     const navigate = useNavigate();
     
-    // NO AUTH MODE: Always authenticated
-    const [isAuthenticated, setIsAuthenticated] = useState(true);
-    const [supervisorSession, setSupervisorSession] = useState({
-        supervisorId: 'AG003',
-        name: 'Anthony Gair',
-        depot: 'Admin',
-        permissions: ['admin'],
-        authenticated: true,
-        loginTime: new Date().toISOString()
-    });
+    // Get authentication state from parent app via session storage/context
+    const [supervisorSession, setSupervisorSession] = useState(null);
+    const [authLoading, setAuthLoading] = useState(true);
     
     // Assessment state
     const [currentWizard, setCurrentWizard] = useState(null);
@@ -141,21 +134,56 @@ const App = () => {
     const [assessmentDecision, setAssessmentDecision] = useState(null);
     const [assessmentNotes, setAssessmentNotes] = useState('');
     
-    // Initialize supervisor logger on mount
+    // Check for authentication from parent app
     useEffect(() => {
-        if (isAuthenticated && supervisorSession) {
+        const checkAuth = async () => {
+            try {
+                // First check if we have a session from the parent app
+                const savedSession = localStorage.getItem('supervisor_session');
+                if (savedSession) {
+                    const session = JSON.parse(savedSession);
+                    setSupervisorSession(session);
+                    setAuthLoading(false);
+                    return;
+                }
+                
+                // Otherwise check Supabase directly
+                const { session, supervisor } = await authHelpers.getCurrentSession();
+                
+                if (session && supervisor) {
+                    const sessionData = {
+                        id: supervisor.id,
+                        supervisorId: supervisor.id,
+                        name: supervisor.name,
+                        email: supervisor.email,
+                        depot: supervisor.depot,
+                        role: supervisor.role,
+                        isAdmin: supervisor.role === 'admin',
+                        timestamp: new Date().toISOString(),
+                        authenticated: true,
+                        supabaseSession: session
+                    };
+                    setSupervisorSession(sessionData);
+                }
+            } catch (error) {
+                console.error('Auth check error:', error);
+            } finally {
+                setAuthLoading(false);
+            }
+        };
+        
+        checkAuth();
+    }, []);
+    
+    // Initialize supervisor logger when authenticated
+    useEffect(() => {
+        if (supervisorSession) {
             supervisorBreakdownLogger.init({
-                NO_AUTH_MODE: true,
+                NO_AUTH_MODE: false,
                 supervisorData: supervisorSession
             });
         }
-    }, [isAuthenticated, supervisorSession]);
-    
-    // Handle login (currently bypassed in NO AUTH mode)
-    const handleLogin = (session) => {
-        setSupervisorSession(session);
-        setIsAuthenticated(true);
-    };
+    }, [supervisorSession]);
     
     // Start assessment flow
     const startAssessment = (wizardType) => {
@@ -189,93 +217,59 @@ const App = () => {
         }
     };
     
-    // Handle wizard step completion
-    const handleStepComplete = async (stepData) => {
-        // Log the step
-        await supervisorBreakdownLogger.logAssessmentStep({
-            breakdownId: assessmentId,
-            wizardName: currentWizard,
-            stepNumber: currentStep,
-            question: stepData.question,
-            answer: stepData.answer,
-            decision: stepData.decision
-        });
-        
-        // Update responses
-        setResponses({
-            ...responses,
-            [`step_${currentStep}`]: stepData
-        });
-        
-        if (stepData.decision) {
-            // Assessment complete
-            await supervisorBreakdownLogger.completeAssessment({
-                breakdownId: assessmentId,
-                decision: stepData.decision,
-                notes: stepData.notes
-            });
-            
-            // Reset state
-            setCurrentWizard(null);
-            setAssessmentId(null);
-            setResponses({});
-            setCurrentStep(1);
-        } else {
-            // Move to next step
-            setCurrentStep(currentStep + 1);
-        }
-    };
-    
     // Render wizard component
     const renderWizard = () => {
         
         // Show summary if assessment is complete
         if (showSummary && assessmentDecision) {
             return (
-                <div className="min-h-screen bg-gray-900 p-4">
-                    <AssessmentSummary
-                        assessmentData={{
-                            breakdownId: assessmentId,
-                            responses: responses,
-                            notes: assessmentNotes,
-                            location: supervisorBreakdownLogger.getCurrentBreakdown()?.location
-                        }}
-                        vehicle={selectedVehicle}
-                        supervisor={supervisorSession}
-                        decision={assessmentDecision}
-                        wizardType={wizards[currentWizard]?.title || currentWizard}
-                        onPrint={() => {
-                            // TODO: Implement print functionality
-                            window.print();
-                        }}
-                        onEmail={() => {
-                            // TODO: Implement email functionality
-                            const summary = document.querySelector('.assessment-summary');
-                            if (summary) {
-                                const emailBody = encodeURIComponent(summary.innerText);
-                                window.location.href = `mailto:?subject=Breakdown Assessment Summary&body=${emailBody}`;
-                            }
-                        }}
-                        onComplete={async () => {
-                            // Complete the assessment in the system
-                            await supervisorBreakdownLogger.completeAssessment({
+                <>
+                    <AppHeader />
+                    <div className="min-h-screen bg-gray-900">
+                    <div className="main-content">
+                        <AssessmentSummary
+                            assessmentData={{
                                 breakdownId: assessmentId,
-                                decision: assessmentDecision,
-                                notes: assessmentNotes
-                            });
-                            
-                            // Reset all state
-                            setCurrentWizard(null);
-                            setAssessmentId(null);
-                            setResponses({});
-                            setCurrentStep(1);
-                            setSelectedVehicle(null);
-                            setShowSummary(false);
-                            setAssessmentDecision(null);
-                            setAssessmentNotes('');
-                        }}
-                    />
+                                responses: responses,
+                                notes: assessmentNotes,
+                                location: supervisorBreakdownLogger.getCurrentBreakdown()?.location
+                            }}
+                            vehicle={selectedVehicle}
+                            supervisor={supervisorSession}
+                            decision={assessmentDecision}
+                            wizardType={wizards[currentWizard]?.title || currentWizard}
+                            onPrint={() => {
+                                window.print();
+                            }}
+                            onEmail={() => {
+                                const summary = document.querySelector('.assessment-summary');
+                                if (summary) {
+                                    const emailBody = encodeURIComponent(summary.innerText);
+                                    window.location.href = `mailto:?subject=Breakdown Assessment Summary&body=${emailBody}`;
+                                }
+                            }}
+                            onComplete={async () => {
+                                // Complete the assessment in the system
+                                await supervisorBreakdownLogger.completeAssessment({
+                                    breakdownId: assessmentId,
+                                    decision: assessmentDecision,
+                                    notes: assessmentNotes
+                                });
+                                
+                                // Reset all state
+                                setCurrentWizard(null);
+                                setAssessmentId(null);
+                                setResponses({});
+                                setCurrentStep(1);
+                                setSelectedVehicle(null);
+                                setShowSummary(false);
+                                setAssessmentDecision(null);
+                                setAssessmentNotes('');
+                            }}
+                        />
+                    </div>
                 </div>
+                </>
             );
         }
         
@@ -288,105 +282,64 @@ const App = () => {
         }
         
         return (
-            <div className="min-h-screen bg-gray-900 p-4">
-                {/* Location Display */}
-                <LocationDisplay 
-                    vehicle={{
-                        ...selectedVehicle,
-                        assessmentId: assessmentId
-                    }} 
-                    location={supervisorBreakdownLogger.getCurrentBreakdown()?.location}
-                />
-                
-                {/* Debug info */}
-                <div className="bg-yellow-500 text-black p-2 mb-4">
-                    Debug: Step {currentStep} | Wizard: {currentWizard}
-                    <button 
-                        onClick={() => {
-                            console.log('DEBUG: Manual step increment');
-                            setCurrentStep(currentStep + 1);
+            <>
+                <AppHeader />
+                <div className="min-h-screen bg-gray-900">
+                    <div className="main-content">
+                        {/* Location Display */}
+                        <LocationDisplay 
+                        vehicle={{
+                            ...selectedVehicle,
+                            assessmentId: assessmentId
+                        }} 
+                        location={supervisorBreakdownLogger.getCurrentBreakdown()?.location}
+                    />
+                    
+                    <WizardComponent
+                        key={`wizard-${currentWizard}-step-${currentStep}`}
+                        vehicle={selectedVehicle}
+                        assessmentId={assessmentId}
+                        currentStep={currentStep}
+                        responses={responses}
+                        updateResponse={(key, value) => {
+                            setResponses({ ...responses, [key]: value });
                         }}
-                        className="ml-4 bg-black text-white px-2 py-1"
-                    >
-                        Force Next Step
-                    </button>
+                        onNext={() => {
+                            console.log('App.jsx - onNext called, currentStep:', currentStep);
+                            const nextStep = currentStep + 1;
+                            console.log('App.jsx - setting currentStep to:', nextStep);
+                            setCurrentStep(nextStep);
+                        }}
+                        onPrevious={() => setCurrentStep(Math.max(1, currentStep - 1))}
+                        onComplete={async (decision, notes) => {
+                            // Store decision and notes for summary
+                            setAssessmentDecision((decision || responses.decision || 'CONTINUE').toUpperCase());
+                            setAssessmentNotes(notes || responses.notes || '');
+                            
+                            // Show summary instead of completing immediately
+                            setShowSummary(true);
+                        }}
+                        onCancel={() => {
+                            setCurrentWizard(null);
+                            setAssessmentId(null);
+                            setResponses({});
+                            setCurrentStep(1);
+                            setSelectedVehicle(null);
+                            setShowSummary(false);
+                            setAssessmentDecision(null);
+                            setAssessmentNotes('');
+                        }}
+                    />
+                    </div>
                 </div>
-                
-                <WizardComponent
-                    key={`wizard-${currentWizard}-step-${currentStep}`}
-                    vehicle={selectedVehicle}
-                    assessmentId={assessmentId}
-                    currentStep={currentStep}
-                    responses={responses}
-                    updateResponse={(key, value) => {
-                        setResponses({ ...responses, [key]: value });
-                    }}
-                    onNext={() => {
-                        console.log('App.jsx - onNext called, currentStep:', currentStep);
-                        const nextStep = currentStep + 1;
-                        console.log('App.jsx - setting currentStep to:', nextStep);
-                        setCurrentStep(nextStep);
-                    }}
-                    onPrevious={() => setCurrentStep(Math.max(1, currentStep - 1))}
-                    onComplete={async (decision, notes) => {
-                        // Store decision and notes for summary
-                        setAssessmentDecision((decision || responses.decision || 'CONTINUE').toUpperCase());
-                        setAssessmentNotes(notes || responses.notes || '');
-                        
-                        // Show summary instead of completing immediately
-                        setShowSummary(true);
-                    }}
-                    onCancel={() => {
-                        setCurrentWizard(null);
-                        setAssessmentId(null);
-                        setResponses({});
-                        setCurrentStep(1);
-                        setSelectedVehicle(null);
-                        setShowSummary(false);
-                        setAssessmentDecision(null);
-                        setAssessmentNotes('');
-                    }}
-                />
-            </div>
+            </>
         );
     };
     
     // Main dashboard view
     const Dashboard = () => (
         <div className="breakdown-guide-container">
-            <header className="app-header-enhanced">
-                <div className="header-brand">
-                    <img src="/gne-logo-horizontal-colour.png" alt="Go North East" className="header-logo" />
-                    <div className="header-title">
-                        <h1>Breakdown Assessment Guide</h1>
-                        <p className="header-subtitle">Safety-first vehicle defect management</p>
-                    </div>
-                </div>
-                <div className="header-info-enhanced">
-                    <div className="info-item">
-                        <span className="info-label">Supervisor</span>
-                        <span className="info-value">{supervisorSession.name}</span>
-                    </div>
-                    <div className="info-item">
-                        <span className="info-label">Depot</span>
-                        <span className="info-value">{supervisorSession.depot}</span>
-                    </div>
-                    <div className="header-actions">
-                        <button 
-                            onClick={() => window.open('https://goahead.tranzaura.com/Safety/Main#/', '_blank')}
-                            className="tranzaura-button"
-                        >
-                            🔧 Tranzaura
-                        </button>
-                        <button 
-                            onClick={() => navigate('/breakdown-guide/dashboard')}
-                            className="dashboard-button"
-                        >
-                            📊 Live Dashboard
-                        </button>
-                    </div>
-                </div>
-            </header>
+            <AppHeader />
             
             <main className="main-content">
                 <div className="dashboard-stats">
@@ -413,8 +366,9 @@ const App = () => {
                     </div>
                 </div>
                 
-                <h2 className="section-title">Select Assessment Type</h2>
-                <div className="wizard-grid-enhanced">
+                <div className="assessment-grid-container">
+                    <h2 className="section-title">Select Assessment Type</h2>
+                    <div className="wizard-grid-enhanced">
                     {Object.entries(wizards).map(([key, wizard]) => {
                         // Map wizard types to available PNG icons
                         const iconMapping = {
@@ -494,14 +448,39 @@ const App = () => {
                             </button>
                         );
                     })}
+                    </div>
                 </div>
             </main>
         </div>
     );
     
-    // NO AUTH MODE: Skip login
-    if (!isAuthenticated) {
-        return <SupervisorLogin onLogin={handleLogin} />;
+    // Show loading while checking authentication
+    if (authLoading) {
+        return (
+            <div className="auth-loading">
+                <div className="loading-container">
+                    <div className="loading-spinner"></div>
+                    <p>Loading...</p>
+                </div>
+            </div>
+        );
+    }
+    
+    // Redirect to main app if not authenticated
+    if (!supervisorSession) {
+        return (
+            <div className="auth-loading">
+                <div className="loading-container">
+                    <p>Authentication required. Please login from the main app.</p>
+                    <button 
+                        onClick={() => window.location.href = '/'}
+                        className="btn btn-primary"
+                    >
+                        Go to Login
+                    </button>
+                </div>
+            </div>
+        );
     }
     
     return (

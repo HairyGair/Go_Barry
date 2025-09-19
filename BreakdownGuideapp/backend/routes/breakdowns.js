@@ -64,38 +64,96 @@ router.get('/active', async (req, res) => {
 // GET /api/breakdowns/live - Get active breakdowns for dashboards
 router.get('/live', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('breakdowns')
-      .select(`
-        id,
-        breakdown_id,
-        fleet_number,
-        status,
-        location,
-        description,
-        priority,
-        supervisor_id,
-        assessment_decision,
-        created_at,
-        updated_at
-      `)
-      .in('status', ['active', 'pending', 'in_progress', 'critical'])
+    // Use the enhanced view that includes all relevant data
+    const { data: breakdowns, error } = await supabase
+      .from('sdc_dashboard_breakdowns')
+      .select('*')
+      .order('priority_level', { ascending: true })
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
+    // Additional processing for dashboard compatibility
+    const formattedBreakdowns = breakdowns.map(b => {
+      const elapsedMinutes = b.elapsed_minutes || 0;
+      const elapsedHours = Math.floor(elapsedMinutes / 60);
+      const remainingMinutes = Math.floor(elapsedMinutes % 60);
+
+      let durationText = '';
+      if (elapsedHours > 0) {
+        durationText = `${elapsedHours}h ${remainingMinutes}m`;
+      } else {
+        durationText = `${remainingMinutes}m`;
+      }
+
+      return {
+        // Core identifiers
+        breakdown_id: b.breakdown_id,
+        id: b.breakdown_id,
+
+        // Vehicle information
+        fleet_no: b.fleet_no,
+        fleet_number: b.fleet_no,
+        registration: b.registration,
+        depot_id: b.depot,
+
+        // Location and issue information
+        location: b.location,
+        issue_type: b.issue_category,
+        issue_description: b.issue_description,
+
+        // Status and severity
+        status: b.status,
+        severity: b.severity,
+        wizard_decision: b.wizard_decision,
+        criticality: b.criticality,
+
+        // Timing information
+        created_at: b.created_at,
+        updated_at: b.updated_at,
+        elapsed_minutes: elapsedMinutes,
+        duration_text: durationText,
+
+        // Route and priority
+        route_id: null, // Will be added if we have route data
+        is_priority: b.priority_level <= 2,
+        priority_level: b.priority_level,
+
+        // Supervisor information
+        supervisor_badge: b.supervisor_badge,
+        supervisor_name: b.supervisor_name,
+
+        // Dashboard card information
+        card_title: b.card_title,
+        status_color: b.status_color,
+        requires_immediate_action: b.requires_immediate_action,
+
+        // Legacy compatibility fields
+        driver_name: null,
+        driver_phone: null,
+        passenger_count: null,
+        received_at: b.created_at,
+        acknowledged_at: null,
+        decision_at: null,
+        dispatched_at: null,
+        on_site_at: null,
+        cleared_at: null
+      };
+    });
+
     res.json({
       success: true,
-      data,
+      breakdowns: formattedBreakdowns,
       timestamp: new Date().toISOString(),
-      count: data.length
+      count: formattedBreakdowns.length
     });
   } catch (error) {
     console.error('Error fetching live breakdowns:', error);
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       error: 'Failed to fetch live breakdowns',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      breakdowns: [] // Return empty array for graceful degradation
     });
   }
 });
@@ -386,6 +444,329 @@ router.post('/id-generator/validate', async (req, res) => {
   } catch (error) {
     console.error('Error validating breakdown ID:', error);
     res.status(500).json({ error: 'Failed to validate breakdown ID' });
+  }
+});
+
+// PUT /api/breakdowns/:id/resolve - Resolve a breakdown
+router.put('/:id/resolve', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { resolution_notes, resolving_supervisor, returned_to_service } = req.body;
+
+    // Update the breakdown using breakdown_id
+    const { data, error } = await supabase
+      .from('breakdowns')
+      .update({
+        status: 'cleared',
+        cleared_at: new Date().toISOString(),
+        resolution_notes,
+        updated_at: new Date().toISOString()
+      })
+      .eq('breakdown_id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        error: 'Breakdown not found'
+      });
+    }
+
+    // Create an event log
+    const { error: eventError } = await supabase
+      .from('breakdown_events')
+      .insert({
+        breakdown_id: data.id,
+        event_type: 'resolved',
+        event_data: {
+          resolution_notes,
+          resolving_supervisor,
+          returned_to_service,
+          resolved_at: new Date().toISOString()
+        }
+      });
+
+    if (eventError) console.error('Error creating event:', eventError);
+
+    res.json({
+      success: true,
+      breakdown: data,
+      message: 'Breakdown resolved successfully'
+    });
+  } catch (error) {
+    console.error('Error resolving breakdown:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to resolve breakdown'
+    });
+  }
+});
+
+// =====================================================
+// WIZARD INTEGRATION ENDPOINTS
+// =====================================================
+
+// POST /api/breakdowns/from-wizard - Create breakdown from wizard assessment
+router.post('/from-wizard', async (req, res) => {
+  try {
+    const {
+      // Wizard information
+      wizard_type,
+      wizard_decision,
+      wizard_assessment_data,
+
+      // Vehicle and location
+      fleet_number,
+      location,
+      location_coords,
+      w3w_location,
+
+      // Supervisor information
+      supervisor_badge,
+      supervisor_name,
+
+      // Issue details
+      issue_category,
+      issue_description,
+      severity,
+
+      // Additional context
+      priority_level = 3,
+      engineering_required = false,
+      replacement_vehicle_required = false
+    } = req.body;
+
+    // Generate unique breakdown ID
+    const idResult = await breakdownIdGenerator.generateId();
+
+    // Determine severity if not provided
+    const determinedSeverity = severity || wizard_decision || 'AMBER';
+
+    // Determine priority based on severity and wizard decision
+    const determinedPriority = priority_level || (
+      determinedSeverity === 'STOP' ? 1 :
+      determinedSeverity === 'AMBER' ? 2 : 3
+    );
+
+    // Create the breakdown record
+    const breakdownData = {
+      breakdown_id: idResult.id,
+
+      // Wizard data
+      wizard_type,
+      wizard_decision: wizard_decision || determinedSeverity,
+      wizard_assessment_data,
+      wizard_started_at: new Date().toISOString(),
+      wizard_completed_at: new Date().toISOString(),
+
+      // Vehicle and location
+      fleet_number,
+      location_description: location,
+      w3w_location,
+
+      // Supervisor
+      reported_by_badge: supervisor_badge,
+      reported_by_name: supervisor_name,
+
+      // Issue details
+      issue_category: issue_category || 'General Assessment',
+      issue_description: issue_description || `${wizard_type} assessment completed with ${wizard_decision} decision`,
+      severity: determinedSeverity,
+
+      // Status and priority
+      status: 'received',
+      priority_level: determinedPriority,
+      breakdown_source: 'wizard',
+
+      // Requirements
+      engineering_required,
+      replacement_vehicle_required,
+
+      // Timing
+      created_at: new Date().toISOString(),
+      received_at: new Date().toISOString(),
+      last_update_at: new Date().toISOString()
+    };
+
+    // Add coordinates if provided
+    if (location_coords && location_coords.lat && location_coords.lng) {
+      breakdownData.latitude = location_coords.lat;
+      breakdownData.longitude = location_coords.lng;
+    }
+
+    const { data, error } = await supabase
+      .from('breakdowns')
+      .insert(breakdownData)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Create initial event log
+    await supabase
+      .from('breakdown_events')
+      .insert({
+        breakdown_id: data.id,
+        event_type: 'wizard_assessment_completed',
+        event_data: {
+          wizard_type,
+          wizard_decision,
+          assessment_data: wizard_assessment_data,
+          supervisor_badge,
+          supervisor_name
+        }
+      });
+
+    res.status(201).json({
+      success: true,
+      breakdown_id: data.breakdown_id,
+      breakdown: data,
+      message: 'Breakdown created from wizard assessment'
+    });
+
+  } catch (error) {
+    console.error('Error creating breakdown from wizard:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create breakdown from wizard assessment',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// GET /api/breakdowns/dashboard/cards - Get breakdown cards for dashboards
+router.get('/dashboard/cards', async (req, res) => {
+  try {
+    const { dashboard = 'sdc' } = req.query;
+
+    let visibilityField;
+    switch (dashboard) {
+      case 'sdc':
+        visibilityField = 'visible_on_sdc';
+        break;
+      case 'engineering':
+        visibilityField = 'visible_on_engineering';
+        break;
+      case 'management':
+        visibilityField = 'visible_on_management';
+        break;
+      default:
+        visibilityField = 'visible_on_sdc';
+    }
+
+    const { data: cards, error } = await supabase
+      .from('breakdown_dashboard_cards')
+      .select(`
+        *,
+        breakdowns!breakdown_id (
+          breakdown_id,
+          status,
+          severity,
+          created_at,
+          updated_at,
+          wizard_type,
+          wizard_decision
+        )
+      `)
+      .eq(visibilityField, true)
+      .order('priority_level', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Format cards for dashboard consumption
+    const formattedCards = cards.map(card => ({
+      id: card.id,
+      breakdown_id: card.breakdown_id,
+
+      // Card display
+      title: card.card_title,
+      subtitle: card.card_subtitle,
+      status_color: card.status_color,
+      priority_level: card.priority_level,
+
+      // Key information
+      fleet_number: card.fleet_number,
+      location: card.location_display,
+      issue_summary: card.issue_summary,
+      duration_text: card.duration_text,
+      severity_display: card.severity_display,
+
+      // Action indicators
+      requires_immediate_action: card.requires_immediate_action,
+      engineering_dispatched: card.engineering_dispatched,
+      replacement_vehicle_sent: card.replacement_vehicle_sent,
+      service_resumed: card.service_resumed,
+
+      // Breakdown data
+      breakdown_status: card.breakdowns?.status,
+      wizard_type: card.breakdowns?.wizard_type,
+      wizard_decision: card.breakdowns?.wizard_decision,
+
+      // Metadata
+      last_refreshed: card.last_refreshed_at,
+      created_at: card.created_at
+    }));
+
+    res.json({
+      success: true,
+      cards: formattedCards,
+      dashboard: dashboard,
+      count: formattedCards.length,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error fetching dashboard cards:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch dashboard cards',
+      cards: []
+    });
+  }
+});
+
+// POST /api/breakdowns/:breakdown_id/update-card - Update breakdown card
+router.post('/:breakdown_id/update-card', async (req, res) => {
+  try {
+    const { breakdown_id } = req.params;
+    const cardUpdates = req.body;
+
+    const { data, error } = await supabase
+      .from('breakdown_dashboard_cards')
+      .update({
+        ...cardUpdates,
+        last_refreshed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('breakdown_id', breakdown_id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        error: 'Breakdown card not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      card: data,
+      message: 'Breakdown card updated successfully'
+    });
+
+  } catch (error) {
+    console.error('Error updating breakdown card:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update breakdown card'
+    });
   }
 });
 

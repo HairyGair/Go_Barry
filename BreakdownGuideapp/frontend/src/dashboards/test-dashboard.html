@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Test</title>
+</head>
+<body>
+    <h1>Dashboard Debug Test</h1>
+    
+    <div id="auth-status"></div>
+    <div id="api-status"></div>
+    <div id="route-status"></div>
+    
+    <script>
+        // Check authentication
+        const session = localStorage.getItem('supervisor_session');
+        document.getElementById('auth-status').innerHTML = `
+            <h2>Authentication Status:</h2>
+            <p>${session ? '✅ Authenticated' : '❌ Not Authenticated'}</p>
+            ${session ? `<pre>${JSON.stringify(JSON.parse(session), null, 2)}</pre>` : '<p>Please login first</p>'}
+        `;
+        
+        // Check API
+        const apiUrl = 'https://breakdown-guide.onrender.com/api/breakdowns/live';
+        document.getElementById('api-status').innerHTML = `
+            <h2>API Status:</h2>
+            <p>Testing: ${apiUrl}</p>
+        `;
+        
+        fetch(apiUrl)
+            .then(res => {
+                document.getElementById('api-status').innerHTML += `
+                    <p>Response Status: ${res.status} ${res.statusText}</p>
+                `;
+                return res.json();
+            })
+            .then(data => {
+                document.getElementById('api-status').innerHTML += `
+                    <p>✅ API Connected</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            })
+            .catch(err => {
+                document.getElementById('api-status').innerHTML += `
+                    <p>❌ API Error: ${err.message}</p>
+                `;
+            });
+            
+        // Check route
+        document.getElementById('route-status').innerHTML = `
+            <h2>Route Status:</h2>
+            <p>Current URL: ${window.location.href}</p>
+            <p>Dashboard should be at: <a href="/dashboards/breakdown">/dashboards/breakdown</a></p>
+        `;
+    </script>
+</body>
+</html>

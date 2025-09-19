@@ -19,7 +19,7 @@ const LiveDashboard = () => {
   const [loading, setLoading] = useState(true);
   
   const refreshInterval = useRef(null);
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://breakdown-guide.onrender.com';
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
   // Fetch live breakdown data
   const fetchLiveBreakdowns = useCallback(async () => {

@@ -1,0 +1,56 @@
+/* Theme Comparison for Engineering Dashboard */
+
+/* ❌ OLD STYLE (From Screenshot) */
+.old-style-example {
+  /* Gradient background (purple to red) */
+  background: linear-gradient(135deg, #8b5cf6, #ef4444);
+  color: white;
+  /* Lighter cards */
+  --card-bg: #f3f4f6;
+  /* Different color scheme */
+}
+
+/* ✅ NEW STYLE (Dark Theme) */
+.new-style-example {
+  /* Solid dark backgrounds */
+  background: var(--bg-secondary);  /* #1a1a1a */
+  color: var(--text-primary);       /* #ffffff */
+  
+  /* Dark cards with borders */
+  --card-bg: var(--bg-secondary);   /* #1a1a1a */
+  --card-border: var(--border);     /* #333333 */
+  
+  /* Go North East red accents */
+  --accent: var(--color-primary);   /* #e4251b */
+}
+
+/* Applied Theme Colors */
+:root {
+  /* Backgrounds */
+  --bg-primary: #121212;      /* Main dark background */
+  --bg-secondary: #1a1a1a;    /* Card backgrounds */
+  --bg-tertiary: #242424;     /* Elevated surfaces */
+  
+  /* Brand Colors */
+  --color-primary: #e4251b;   /* Go North East Red */
+  
+  /* Status Colors */
+  --color-success: #28a745;   /* Green */
+  --color-warning: #ffc107;   /* Amber */
+  --color-danger: #dc3545;    /* Red */
+  
+  /* Text Colors */
+  --text-primary: #ffffff;    /* White */
+  --text-secondary: #a0a0a0;  /* Gray */
+  
+  /* Borders */
+  --border: #333333;          /* Subtle borders */
+}
+
+/* Key Changes Applied:
+   1. Removed all gradients
+   2. Applied solid dark backgrounds
+   3. Used Go North East red for accents
+   4. Consistent with other dashboards
+   5. Professional dark theme throughout
+*/

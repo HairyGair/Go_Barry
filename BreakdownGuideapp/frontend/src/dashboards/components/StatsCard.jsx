@@ -1,105 +1,163 @@
 import React from 'react';
+import { theme } from '@styles/theme';
 
 const StatsCard = ({ 
   value, 
   label, 
   change = null, 
-  trend = 'neutral', 
+  trend = null, 
   icon = null,
-  colorScheme = 'blue'
+  variant = 'default'
 }) => {
-  // Color schemes
-  const colorSchemes = {
-    blue: 'border-blue-500',
-    red: 'border-red-500',
-    green: 'border-green-500',
-    amber: 'border-amber-500',
-    gray: 'border-gray-500'
+  // Variant styles
+  const getVariantStyles = () => {
+    switch (variant) {
+      case 'danger':
+        return {
+          borderColor: theme.colors.danger,
+          iconBackground: `rgba(220, 53, 69, 0.1)`,
+          valueColor: theme.colors.danger
+        };
+      case 'warning':
+        return {
+          borderColor: theme.colors.warning,
+          iconBackground: `rgba(255, 193, 7, 0.1)`,
+          valueColor: theme.colors.warning
+        };
+      case 'success':
+        return {
+          borderColor: theme.colors.success,
+          iconBackground: `rgba(40, 167, 69, 0.1)`,
+          valueColor: theme.colors.success
+        };
+      case 'info':
+        return {
+          borderColor: theme.colors.info,
+          iconBackground: `rgba(23, 162, 184, 0.1)`,
+          valueColor: theme.colors.info
+        };
+      default:
+        return {
+          borderColor: theme.colors.border,
+          iconBackground: theme.colors.bgTertiary,
+          valueColor: theme.colors.textPrimary
+        };
+    }
   };
 
-  const getTrendClass = () => {
-    if (trend === 'positive') return 'stat-change positive';
-    if (trend === 'negative') return 'stat-change negative';
-    return 'stat-change';
-  };
+  const variantStyles = getVariantStyles();
 
   return (
-    <div className={`stat-card ${colorSchemes[colorScheme]}`}>
+    <div 
+      className="stat-card"
+      style={{ borderLeftColor: variantStyles.borderColor }}
+    >
       <div className="stat-content">
-        {icon && <div className="stat-icon">{icon}</div>}
-        <div className="stat-value">{value}</div>
-        <div className="stat-label">{label}</div>
+        {icon && (
+          <div 
+            className="stat-icon"
+            style={{ background: variantStyles.iconBackground }}
+          >
+            {icon}
+          </div>
+        )}
+        <div className="stat-details">
+          <div 
+            className="stat-value"
+            style={{ color: variantStyles.valueColor }}
+          >
+            {value}
+          </div>
+          <div className="stat-label">{label}</div>
+        </div>
       </div>
       {change !== null && (
-        <div className={getTrendClass()}>
-          {trend === 'positive' ? '+' : ''}{change}
+        <div className={`stat-change ${trend}`}>
+          {trend === 'positive' && '↑ '}
+          {trend === 'negative' && '↓ '}
+          {change}
         </div>
       )}
 
       <style jsx>{`
         .stat-card {
-          background: white;
-          padding: 15px 20px;
-          border-radius: 8px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-          position: relative;
-          overflow: hidden;
+          background: var(--bg-secondary);
+          border: 1px solid var(--border);
           border-left: 4px solid;
+          border-radius: var(--radius-md);
+          padding: var(--spacing-lg);
+          transition: all var(--transition-normal);
+          height: 100%;
         }
-
-        .stat-card::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 3px;
-          background: linear-gradient(90deg, #3b82f6, #1e3a8a);
+        
+        .stat-card:hover {
+          transform: translateY(-2px);
+          box-shadow: var(--shadow-md);
+          border-color: var(--border-hover);
         }
-
+        
         .stat-content {
           display: flex;
-          flex-direction: column;
-          align-items: flex-start;
+          align-items: center;
+          gap: var(--spacing-md);
         }
-
+        
         .stat-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: var(--radius-md);
+          display: flex;
+          align-items: center;
+          justify-content: center;
           font-size: 24px;
-          margin-bottom: 8px;
-          opacity: 0.8;
+          flex-shrink: 0;
         }
-
+        
+        .stat-details {
+          flex: 1;
+        }
+        
         .stat-value {
-          font-size: 32px;
-          font-weight: bold;
-          color: #1e3a8a;
+          font-size: 28px;
+          font-weight: 700;
+          line-height: 1.2;
         }
-
+        
         .stat-label {
-          color: #6b7280;
           font-size: 14px;
-          margin-top: 5px;
+          color: var(--text-secondary);
+          margin-top: 4px;
         }
-
+        
         .stat-change {
-          position: absolute;
-          top: 15px;
-          right: 15px;
-          font-size: 12px;
-          padding: 2px 6px;
-          border-radius: 4px;
-          background: #e5e7eb;
-          color: #6b7280;
+          margin-top: var(--spacing-md);
+          padding-top: var(--spacing-md);
+          border-top: 1px solid var(--border);
+          font-size: 14px;
+          color: var(--text-secondary);
+          display: flex;
+          align-items: center;
+          gap: 4px;
         }
-
+        
         .stat-change.positive {
-          background: #dcfce7;
-          color: #16a34a;
+          color: var(--color-success);
         }
-
+        
         .stat-change.negative {
-          background: #fee2e2;
-          color: #dc2626;
+          color: var(--color-danger);
+        }
+        
+        @media (max-width: 768px) {
+          .stat-value {
+            font-size: 24px;
+          }
+          
+          .stat-icon {
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+          }
         }
       `}</style>
     </div>

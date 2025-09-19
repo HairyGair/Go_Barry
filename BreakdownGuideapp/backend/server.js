@@ -82,7 +82,9 @@ app.get('/health', async (req, res) => {
         breakdowns: '/api/breakdowns',
         fleet: '/api/fleet',
         auth: '/api/auth',
-        wizards: '/api/wizards'
+        wizards: '/api/wizards',
+        engineering: '/api/engineering',
+        analytics: '/api/analytics'
       }
     });
   } catch (err) {
@@ -104,12 +106,16 @@ import breakdownRoutes from './routes/breakdowns.js';
 import fleetRoutes from './routes/fleet.js';
 import authRoutes from './routes/auth.js';
 import wizardRoutes from './routes/wizards.js';
+import engineeringRoutes from './routes/engineering.js';
+import analyticsRoutes from './routes/analytics.js';
 
 // API Routes
 app.use('/api/breakdowns', breakdownRoutes);
 app.use('/api/fleet', fleetRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/wizards', wizardRoutes);
+app.use('/api/engineering', engineeringRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -185,6 +191,17 @@ app.listen(PORT, async () => {
   console.log(`   GET    http://localhost:${PORT}/api/fleet/vehicle/:fleetNumber - Get vehicle`);
   console.log(`   POST   http://localhost:${PORT}/api/auth/login - Supervisor login`);
   console.log(`   POST   http://localhost:${PORT}/api/auth/verify - Verify session`);
+  console.log('\n   📊 Engineering Routes:');
+  console.log(`   GET    http://localhost:${PORT}/api/engineering/depot-stats - Depot statistics`);
+  console.log(`   GET    http://localhost:${PORT}/api/engineering/engineers - All engineers`);
+  console.log(`   GET    http://localhost:${PORT}/api/engineering/metrics - Performance metrics`);
+  console.log(`   POST   http://localhost:${PORT}/api/engineering/assign - Assign engineer`);
+  console.log(`   POST   http://localhost:${PORT}/api/engineering/auto-assign - Auto-assign`);
+  console.log('\n   📈 Analytics Routes:');
+  console.log(`   GET    http://localhost:${PORT}/api/analytics/kpis - Key performance indicators`);
+  console.log(`   GET    http://localhost:${PORT}/api/analytics/trends - Performance trends`);
+  console.log(`   GET    http://localhost:${PORT}/api/analytics/depot-comparison - Compare depots`);
+  console.log(`   GET    http://localhost:${PORT}/api/analytics/fleet-health - Fleet health`);
   console.log('\n✅ Server ready for connections');
 });
 

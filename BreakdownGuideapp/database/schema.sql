@@ -11,9 +11,9 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- =====================================================
 CREATE TABLE supervisors (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    badge_number VARCHAR(10) UNIQUE NOT NULL, -- e.g., 'AG003'
+    badge_number VARCHAR(10), -- Optional legacy field
     name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) UNIQUE,
+    email VARCHAR(255) UNIQUE NOT NULL, -- Required for authentication
     phone VARCHAR(20),
     depot VARCHAR(50),
     role VARCHAR(50) DEFAULT 'supervisor',
@@ -325,8 +325,8 @@ GROUP BY v.id;
 -- =====================================================
 
 -- Insert test supervisor
-INSERT INTO supervisors (badge_number, name, email, depot) VALUES
-    ('AG003', 'Anthony Gair', 'anthony.gair@gonortheast.co.uk', 'WAS');
+INSERT INTO supervisors (name, email, depot) VALUES
+    ('Anthony Gair', 'anthony.gair@gonortheast.co.uk', 'WAS');
 
 -- Insert sample vehicles
 INSERT INTO vehicles (fleet_number, registration, make, model, year, depot) 

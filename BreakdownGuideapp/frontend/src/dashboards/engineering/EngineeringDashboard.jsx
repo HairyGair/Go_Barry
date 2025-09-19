@@ -3,6 +3,7 @@ import DashboardLayout from '../components/DashboardLayout';
 import StatsCard from '../components/StatsCard';
 import FilterBar from '../components/FilterBar';
 import { apiConfig } from '../../breakdown-guide/components/common/constants';
+import { theme } from '@styles/theme';
 import EngineeringCard from './EngineeringCard';
 import DepotStats from './DepotStats';
 import EngineerModal from './EngineerModal';
@@ -21,7 +22,8 @@ const EngineeringDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [notification, setNotification] = useState(null);
-  const [showTestData, setShowTestData] = useState(false);
+  const [isConnected, setIsConnected] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
 
   // Filter options
   const filterOptions = [
@@ -29,7 +31,7 @@ const EngineeringDashboard = () => {
     { value: 'unassigned', label: 'Unassigned' },
     { value: 'dispatched', label: 'Dispatched' },
     { value: 'on-site', label: 'On Site' },
-    { value: 'overdue', label: 'Overdue (>30m)' },
+    { value: 'overdue', label: 'SLA Risk' },
     { value: 'priority', label: 'Priority Routes' }
   ];
 
@@ -43,41 +45,39 @@ const EngineeringDashboard = () => {
         fetch(`${apiConfig.baseUrl}/api/engineering/metrics`)
       ]);
 
-      const [breakdownsData, engineersData, metricsData] = await Promise.all([
-        breakdownsRes.json(),
-        engineersRes.json(),
-        metricsRes.json()
-      ]);
+      if (breakdownsRes.ok && engineersRes.ok && metricsRes.ok) {
+        const [breakdownsData, engineersData, metricsData] = await Promise.all([
+          breakdownsRes.json(),
+          engineersRes.json(),
+          metricsRes.json()
+        ]);
 
-      // Enhance breakdown data
-      const enhancedBreakdowns = await enhanceBreakdownData(breakdownsData.breakdowns || []);
-      
-      setAllBreakdowns(enhancedBreakdowns);
-      setAllEngineers(engineersData.engineers || []);
-      setEngineeringMetrics(metricsData.metrics || {});
-      setLoading(false);
-      setError(null);
+        // Enhance breakdown data
+        const enhancedBreakdowns = await enhanceBreakdownData(breakdownsData.breakdowns || []);
+        
+        setAllBreakdowns(enhancedBreakdowns);
+        setAllEngineers(engineersData.engineers || []);
+        setEngineeringMetrics(metricsData.metrics || {});
+        setIsConnected(true);
+        setLastUpdate(new Date());
+        setLoading(false);
+        setError(null);
+      } else {
+        throw new Error('Failed to fetch data');
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
-      setError('Failed to fetch data');
+      setError('Failed to connect to server');
+      setIsConnected(false);
       setLoading(false);
     }
-  }, [showTestData]);
+  }, []);
 
   // Enhance breakdown data with assignments
   const enhanceBreakdownData = async (breakdowns) => {
-    // Filter out test data unless checkbox is checked
-    let filteredBreakdowns = breakdowns;
-    if (!showTestData) {
-      filteredBreakdowns = breakdowns.filter(b => 
-        !b.fleet_no.toUpperCase().includes('TEST')
-      );
-    }
-    
-    // Enhance each breakdown with assignment data
     const enhancedBreakdowns = [];
     
-    for (const breakdown of filteredBreakdowns) {
+    for (const breakdown of breakdowns) {
       try {
         const assignmentRes = await fetch(
           `${apiConfig.baseUrl}/api/engineering/breakdown/${breakdown.breakdown_id}/assignments`
@@ -357,168 +357,448 @@ const EngineeringDashboard = () => {
   const stats = getStats();
 
   return (
-    <DashboardLayout title="⚙️ Engineering Response Live" activeTab="engineering">
-      {/* Header Stats */}
-      <div className="header-stats">
-        <div className="header-stat">
-          <span>⏱️ Avg Response:</span>
-          <strong>{stats.avgResponse ? `${stats.avgResponse} mins` : '--'}</strong>
-        </div>
-        <div className="header-stat">
-          <span>✅ SLA Compliance:</span>
-          <strong>{stats.slaCompliance}%</strong>
-        </div>
-        <div className="header-stat">
-          <span>👷 Engineers Active:</span>
-          <strong>{stats.busyEngineers}/{stats.totalEngineers}</strong>
-        </div>
-      </div>
-
-      {/* Engineering Performance Panel */}
-      <DepotStats 
-        engineers={allEngineers} 
-        metrics={engineeringMetrics}
-      />
-
-      {/* Filters */}
-      <div className="filters-section">
-        <FilterBar
-          filters={filterOptions}
-          activeFilter={currentFilter}
-          onFilterChange={setCurrentFilter}
-        />
-        <div className="test-data-toggle">
-          <label>
-            <input 
-              type="checkbox" 
-              checked={showTestData}
-              onChange={(e) => setShowTestData(e.target.checked)}
+    <DashboardLayout title="🔧 Engineering Response Dashboard" activeTab="engineering">
+      <div 
+        className="engineering-dashboard"
+        style={{
+          backgroundColor: theme.colors.bgPrimary,
+          color: theme.colors.textPrimary,
+          minHeight: 'calc(100vh - 180px)',
+        }}
+      >
+        {/* Connection Status Bar */}
+        <div 
+          className="connection-bar"
+          style={{
+            backgroundColor: theme.colors.bgTertiary,
+            borderBottom: `1px solid ${theme.colors.border}`,
+            padding: '10px 20px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div 
+              className={`connection-dot ${isConnected ? 'connected' : 'disconnected'}`}
+              style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: isConnected ? theme.colors.success : theme.colors.danger,
+                animation: isConnected ? 'pulse 2s infinite' : 'none',
+              }}
             />
-            Show Test Data
-          </label>
+            <span style={{ color: theme.colors.textSecondary, fontSize: '14px' }}>
+              {isConnected ? 'Live' : 'Disconnected'} • {lastUpdate.toLocaleTimeString()}
+            </span>
+          </div>
+          <span style={{ color: theme.colors.textMuted, fontSize: '12px' }}>
+            Auto-refresh: {REFRESH_INTERVAL / 1000}s
+          </span>
         </div>
-      </div>
 
-      {/* Statistics Cards */}
-      <div className="stats-grid">
-        <StatsCard
-          value={stats.total}
-          label="Active Breakdowns"
-          trend={null}
-        />
-        <StatsCard
-          value={stats.unassigned}
-          label="Awaiting Engineer"
-          variant={stats.unassigned > 5 ? 'danger' : stats.unassigned > 2 ? 'warning' : 'default'}
-          trend={null}
-        />
-        <StatsCard
-          value={stats.onsite}
-          label="Engineers On Site"
-          trend={null}
-        />
-        <StatsCard
-          value={stats.overdue}
-          label="Overdue (>30m)"
-          variant={stats.overdue > 3 ? 'danger' : stats.overdue > 1 ? 'warning' : 'default'}
-          trend={null}
-        />
-      </div>
+        {/* Main Content Container */}
+        <div style={{ padding: '20px' }}>
+          {/* Header Stats Cards */}
+          <div 
+            className="performance-metrics"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+              gap: '20px',
+              marginBottom: '30px',
+            }}
+          >
+            <div 
+              className="metric-card"
+              style={{
+                backgroundColor: theme.colors.bgSecondary,
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: theme.radius.lg,
+                padding: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '15px',
+                transition: theme.transitions.normal,
+                cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = theme.colors.bgTertiary;
+                e.currentTarget.style.borderColor = theme.colors.borderHover;
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = theme.shadows.md;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = theme.colors.bgSecondary;
+                e.currentTarget.style.borderColor = theme.colors.border;
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <div 
+                className="metric-icon"
+                style={{
+                  fontSize: '32px',
+                  width: '60px',
+                  height: '60px',
+                  borderRadius: theme.radius.md,
+                  backgroundColor: `${theme.colors.primary}20`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                ⏱️
+              </div>
+              <div>
+                <div style={{ color: theme.colors.textSecondary, fontSize: '12px', marginBottom: '4px' }}>
+                  AVG RESPONSE TIME
+                </div>
+                <div style={{ fontSize: '24px', fontWeight: '700', color: theme.colors.textPrimary }}>
+                  {stats.avgResponse ? `${stats.avgResponse} mins` : '--'}
+                </div>
+              </div>
+            </div>
 
-      {/* Breakdown List */}
-      <div className="breakdown-list">
-        {loading ? (
-          <div className="loading">
-            <div className="spinner"></div>
-            <p>Loading breakdown data...</p>
-          </div>
-        ) : error ? (
-          <div className="error-message">
-            <p>⚠️ {error}</p>
-            <button onClick={fetchAllData} className="retry-button">Retry</button>
-          </div>
-        ) : filteredBreakdowns.length === 0 ? (
-          <div className="no-data">
-            <div className="no-data-icon">✅</div>
-            <div className="no-data-title">No Active Breakdowns</div>
-            <div className="no-data-text">
-              {currentFilter === 'all' ? 
-                'All vehicles are operational' : 
-                `No breakdowns match the "${currentFilter}" filter`}
+            <div 
+              className="metric-card"
+              style={{
+                backgroundColor: theme.colors.bgSecondary,
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: theme.radius.lg,
+                padding: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '15px',
+                transition: theme.transitions.normal,
+                cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = theme.colors.bgTertiary;
+                e.currentTarget.style.borderColor = theme.colors.borderHover;
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = theme.shadows.md;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = theme.colors.bgSecondary;
+                e.currentTarget.style.borderColor = theme.colors.border;
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <div 
+                className="metric-icon"
+                style={{
+                  fontSize: '32px',
+                  width: '60px',
+                  height: '60px',
+                  borderRadius: theme.radius.md,
+                  backgroundColor: `${theme.colors.success}20`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                ✅
+              </div>
+              <div>
+                <div style={{ color: theme.colors.textSecondary, fontSize: '12px', marginBottom: '4px' }}>
+                  SLA COMPLIANCE
+                </div>
+                <div 
+                  style={{ 
+                    fontSize: '24px', 
+                    fontWeight: '700', 
+                    color: stats.slaCompliance >= 90 ? theme.colors.success : 
+                           stats.slaCompliance >= 70 ? theme.colors.warning : 
+                           theme.colors.danger 
+                  }}
+                >
+                  {stats.slaCompliance}%
+                </div>
+              </div>
+            </div>
+
+            <div 
+              className="metric-card"
+              style={{
+                backgroundColor: theme.colors.bgSecondary,
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: theme.radius.lg,
+                padding: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '15px',
+                transition: theme.transitions.normal,
+                cursor: 'pointer',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = theme.colors.bgTertiary;
+                e.currentTarget.style.borderColor = theme.colors.borderHover;
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = theme.shadows.md;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = theme.colors.bgSecondary;
+                e.currentTarget.style.borderColor = theme.colors.border;
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <div 
+                className="metric-icon"
+                style={{
+                  fontSize: '32px',
+                  width: '60px',
+                  height: '60px',
+                  borderRadius: theme.radius.md,
+                  backgroundColor: `${theme.colors.info}20`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                👷
+              </div>
+              <div>
+                <div style={{ color: theme.colors.textSecondary, fontSize: '12px', marginBottom: '4px' }}>
+                  ACTIVE ENGINEERS
+                </div>
+                <div style={{ fontSize: '24px', fontWeight: '700', color: theme.colors.textPrimary }}>
+                  {stats.busyEngineers}/{stats.totalEngineers}
+                </div>
+              </div>
             </div>
           </div>
-        ) : (
-          <div className="breakdown-grid">
-            {filteredBreakdowns.map(breakdown => (
-              <EngineeringCard
-                key={breakdown.breakdown_id}
-                breakdown={breakdown}
-                onShowEngineerModal={handleShowEngineerModal}
-                onAutoAssign={handleAutoAssign}
-                onUpdateStatus={handleUpdateStatus}
-              />
-            ))}
+
+          {/* Engineering Team Performance Section */}
+          <div 
+            className="depot-performance-section"
+            style={{
+              backgroundColor: theme.colors.bgSecondary,
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: theme.radius.lg,
+              padding: '20px',
+              marginBottom: '30px',
+            }}
+          >
+            <h3 style={{ 
+              color: theme.colors.textPrimary, 
+              fontSize: '18px', 
+              fontWeight: '600',
+              marginBottom: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+            }}>
+              ⚙️ Engineering Team Performance <span style={{ color: theme.colors.textSecondary, fontSize: '14px', fontWeight: '400' }}>(Today)</span>
+            </h3>
+            <DepotStats 
+              engineers={allEngineers} 
+              metrics={engineeringMetrics}
+            />
+          </div>
+
+          {/* Filters Section */}
+          <div style={{ marginBottom: '20px' }}>
+            <FilterBar
+              filters={filterOptions}
+              activeFilter={currentFilter}
+              onFilterChange={setCurrentFilter}
+            />
+          </div>
+
+          {/* Statistics Cards */}
+          <div className="stats-grid">
+            <StatsCard
+              icon="🚌"
+              value={stats.total}
+              label="Active Breakdowns"
+              trend={null}
+            />
+            <StatsCard
+              icon="⏳"
+              value={stats.unassigned}
+              label="Awaiting Engineer"
+              variant={stats.unassigned > 5 ? 'danger' : stats.unassigned > 2 ? 'warning' : 'default'}
+              trend={null}
+            />
+            <StatsCard
+              icon="🔧"
+              value={stats.onsite}
+              label="Engineers On Site"
+              trend={null}
+            />
+            <StatsCard
+              icon="⚠️"
+              value={stats.overdue}
+              label="SLA at Risk"
+              variant={stats.overdue > 3 ? 'danger' : stats.overdue > 1 ? 'warning' : 'default'}
+              trend={null}
+            />
+          </div>
+
+          {/* Breakdown List */}
+          <div className="breakdown-list" style={{ marginTop: '30px' }}>
+            {loading ? (
+              <div className="theme-card" style={{ textAlign: 'center', padding: '60px' }}>
+                <div className="theme-loading" style={{ margin: '0 auto 20px' }}></div>
+                <p style={{ color: theme.colors.textSecondary }}>Loading breakdown data...</p>
+              </div>
+            ) : error ? (
+              <div className="theme-card" style={{
+                textAlign: 'center',
+                padding: '40px',
+                border: `1px solid ${theme.colors.danger}`,
+              }}>
+                <p style={{ color: theme.colors.danger, marginBottom: '20px' }}>⚠️ {error}</p>
+                <button 
+                  onClick={fetchAllData} 
+                  className="theme-btn theme-btn-danger"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : filteredBreakdowns.length === 0 ? (
+              <div className="theme-card" style={{ 
+                textAlign: 'center', 
+                padding: '60px',
+                backgroundColor: theme.colors.bgSecondary,
+              }}>
+                <div style={{ fontSize: '48px', marginBottom: '20px', opacity: 0.8 }}>
+                  ✅
+                </div>
+                <div style={{ 
+                  fontSize: '20px', 
+                  fontWeight: '600',
+                  color: theme.colors.textPrimary,
+                  marginBottom: '10px'
+                }}>
+                  No breakdowns matching the selected filter.
+                </div>
+                <div style={{ color: theme.colors.textSecondary, fontSize: '16px' }}>
+                  {currentFilter === 'all' ? 
+                    'All vehicles are operational' : 
+                    `Try selecting a different filter to view breakdowns`}
+                </div>
+              </div>
+            ) : (
+              <div className="breakdown-grid">
+                {filteredBreakdowns.map(breakdown => (
+                  <EngineeringCard
+                    key={breakdown.breakdown_id}
+                    breakdown={breakdown}
+                    onShowEngineerModal={handleShowEngineerModal}
+                    onAutoAssign={handleAutoAssign}
+                    onUpdateStatus={handleUpdateStatus}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Engineer Selection Modal */}
+        {showEngineerModal && (
+          <EngineerModal
+            breakdownId={selectedBreakdownId?.breakdownId}
+            depotId={selectedBreakdownId?.depotId}
+            onAssign={handleAssignEngineer}
+            onClose={() => setShowEngineerModal(false)}
+          />
+        )}
+
+        {/* Notification */}
+        {notification && (
+          <div 
+            className="notification"
+            style={{
+              position: 'fixed',
+              top: '20px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              padding: '15px 30px',
+              borderRadius: theme.radius.md,
+              boxShadow: theme.shadows.lg,
+              zIndex: theme.zIndex.tooltip,
+              fontWeight: '500',
+              animation: 'slideDown 0.3s ease-out',
+              backgroundColor: notification.type === 'success' ? theme.colors.success : theme.colors.danger,
+              color: 'white',
+            }}
+          >
+            {notification.type === 'success' ? '✅ ' : '❌ '}
+            {notification.message}
           </div>
         )}
+
+        {/* Quick Stats Footer */}
+        <div 
+          className="quick-stats-footer"
+          style={{
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: theme.colors.bgSecondary,
+            borderTop: `2px solid ${theme.colors.border}`,
+            padding: '15px 20px',
+            display: 'flex',
+            justifyContent: 'space-around',
+            alignItems: 'center',
+            boxShadow: '0 -2px 10px rgba(0,0,0,0.3)',
+            zIndex: theme.zIndex.fixed,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ color: theme.colors.textSecondary, fontSize: '12px' }}>Next Available Engineer:</span>
+            <span style={{ color: theme.colors.textPrimary, fontSize: '16px', fontWeight: '600' }}>
+              {allEngineers.find(e => e.status === 'available')?.name || '--:--'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ color: theme.colors.textSecondary, fontSize: '12px' }}>Avg Wait Time:</span>
+            <span style={{ color: theme.colors.textPrimary, fontSize: '16px', fontWeight: '600' }}>
+              {stats.avgResponse ? `${stats.avgResponse}m` : '--'}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ color: theme.colors.textSecondary, fontSize: '12px' }}>Today's Resolved:</span>
+            <span style={{ color: theme.colors.success, fontSize: '16px', fontWeight: '600' }}>
+              {engineeringMetrics.totalResolved || 0}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ color: theme.colors.textSecondary, fontSize: '12px' }}>SLA Breaches:</span>
+            <span 
+              style={{ 
+                color: engineeringMetrics.slaBreaches > 0 ? theme.colors.danger : theme.colors.success, 
+                fontSize: '16px', 
+                fontWeight: '600' 
+              }}
+            >
+              {engineeringMetrics.slaBreaches || 0}
+            </span>
+          </div>
+        </div>
       </div>
 
-      {/* Engineer Selection Modal */}
-      {showEngineerModal && (
-        <EngineerModal
-          breakdownId={selectedBreakdownId?.breakdownId}
-          depotId={selectedBreakdownId?.depotId}
-          onAssign={handleAssignEngineer}
-          onClose={() => setShowEngineerModal(false)}
-        />
-      )}
-
-      {/* Notification */}
-      {notification && (
-        <div className={`notification ${notification.type}`}>
-          {notification.type === 'success' ? '✅ ' : '❌ '}
-          {notification.message}
-        </div>
-      )}
-
-      <style>{`
-        .header-stats {
-          display: flex;
-          gap: 30px;
-          margin-bottom: 20px;
-          font-size: 14px;
+      <style jsx>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
         }
 
-        .header-stat {
-          display: flex;
-          align-items: center;
-          gap: 8px;
+        @keyframes slideDown {
+          from { transform: translateX(-50%) translateY(-100%); opacity: 0; }
+          to { transform: translateX(-50%) translateY(0); opacity: 1; }
         }
 
-        .header-stat strong {
-          font-size: 18px;
-          color: #1e3a8a;
-        }
-
-        .filters-section {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 20px;
+        .breakdown-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
           gap: 20px;
-        }
-
-        .test-data-toggle {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 16px;
-          background: #f3f4f6;
-          border-radius: 6px;
-          font-size: 13px;
-        }
-
-        .test-data-toggle input {
-          cursor: pointer;
         }
 
         .stats-grid {
@@ -528,125 +808,35 @@ const EngineeringDashboard = () => {
           margin-bottom: 30px;
         }
 
-        .breakdown-list {
-          margin-top: 20px;
-        }
-
-        .loading {
-          text-align: center;
-          padding: 60px;
-          color: #6b7280;
-        }
-
-        .spinner {
-          border: 3px solid #f3f4f6;
-          border-top: 3px solid #1e3a8a;
-          border-radius: 50%;
-          width: 40px;
-          height: 40px;
-          animation: spin 1s linear infinite;
-          margin: 0 auto 20px;
-        }
-
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-
-        .error-message {
-          text-align: center;
-          padding: 40px;
-          background: #fee2e2;
-          border-radius: 8px;
-          margin: 20px 0;
-        }
-
-        .retry-button {
-          margin-top: 10px;
-          padding: 8px 20px;
-          background: #dc2626;
-          color: white;
-          border: none;
-          border-radius: 6px;
-          cursor: pointer;
-          font-weight: 600;
-        }
-
-        .retry-button:hover {
-          background: #b91c1c;
-        }
-
-        .no-data {
-          text-align: center;
-          padding: 60px 20px;
-          background: white;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-
-        .no-data-icon {
-          font-size: 48px;
-          margin-bottom: 20px;
-        }
-
-        .no-data-title {
-          font-size: 24px;
-          font-weight: bold;
-          color: #1e3a8a;
-          margin-bottom: 10px;
-        }
-
-        .no-data-text {
-          color: #6b7280;
-          font-size: 16px;
-        }
-
-        .breakdown-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
-          gap: 20px;
-        }
-
-        .notification {
-          position: fixed;
-          top: 20px;
-          left: 50%;
-          transform: translateX(-50%);
-          padding: 15px 30px;
-          border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-          z-index: 10000;
-          font-weight: 500;
-          animation: slideDown 0.3s ease-out;
-        }
-
-        .notification.success {
-          background: #10b981;
-          color: white;
-        }
-
-        .notification.error {
-          background: #ef4444;
-          color: white;
-        }
-
-        @keyframes slideDown {
-          from { transform: translateX(-50%) translateY(-100%); }
-          to { transform: translateX(-50%) translateY(0); }
-        }
-
+        /* Responsive Design */
         @media (max-width: 768px) {
-          .header-stats {
-            flex-wrap: wrap;
-            gap: 15px;
-          }
-
-          .filters-section {
-            flex-direction: column;
+          .performance-metrics {
+            grid-template-columns: 1fr !important;
           }
 
           .breakdown-grid {
             grid-template-columns: 1fr;
+          }
+
+          .stats-grid {
+            grid-template-columns: 1fr 1fr;
+          }
+
+          .quick-stats-footer {
+            flex-direction: column;
+            gap: 10px;
+            padding-bottom: 70px !important;
+          }
+
+          .quick-stats-footer > div {
+            width: 100%;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+          }
+
+          .quick-stats-footer > div:last-child {
+            border-bottom: none;
           }
         }
       `}</style>

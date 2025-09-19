@@ -3,6 +3,47 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme support for Tailwind components */
+@layer base {
+  :root[data-theme="dark"] {
+    --tw-bg-opacity: 1;
+    --tw-text-opacity: 1;
+  }
+  
+  :root[data-theme="light"] {
+    --tw-bg-opacity: 1;
+    --tw-text-opacity: 1;
+  }
+  
+  [data-theme="light"] .bg-gray-900 {
+    @apply bg-gray-100;
+  }
+  
+  [data-theme="light"] .bg-gray-800 {
+    @apply bg-gray-200;
+  }
+  
+  [data-theme="light"] .bg-gray-700 {
+    @apply bg-gray-300;
+  }
+  
+  [data-theme="light"] .text-white {
+    @apply text-gray-900;
+  }
+  
+  [data-theme="light"] .text-gray-300 {
+    @apply text-gray-700;
+  }
+  
+  [data-theme="light"] .text-gray-400 {
+    @apply text-gray-600;
+  }
+  
+  [data-theme="light"] .border-gray-700 {
+    @apply border-gray-300;
+  }
+}
+
 /* Custom styles for Breakdown Guide */
 .breakdown-guide-container {
   @apply max-w-7xl mx-auto px-4 py-8;

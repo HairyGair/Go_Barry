@@ -1,4 +1,5 @@
 import React from 'react';
+import { theme, getStatusColor } from '@styles/theme';
 
 const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdateStatus }) => {
   const { assignment, totalElapsed, waitTime, timeStatus, currentStage, isPriority } = breakdown;
@@ -104,14 +105,14 @@ const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdat
       
       {/* Engineering Assignment */}
       {engineer ? (
-        <div className="engineering-assignment">
+        <div className="engineering-assignment assigned">
           <div className="assignment-info">
             <span className="team-badge">{formatDepotName(engineer.depot_id)} Engineering</span>
             <span className="engineer-name">{engineer.name} ({engineer.badge_number})</span>
             <span className="engineer-phone">📞 {engineer.phone || 'No phone'}</span>
           </div>
           {assignment.status !== 'on_site' && assignment.status !== 'repairing' ? (
-            <span className="response-eta">Status: {formatStatus(assignment.status)}</span>
+            <span className="response-eta">{formatStatus(assignment.status)}</span>
           ) : (
             <span className="response-eta on-site">On Site</span>
           )}
@@ -150,13 +151,13 @@ const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdat
         {!assignment ? (
           <>
             <button 
-              className="btn btn-dispatch" 
+              className="theme-btn theme-btn-primary" 
               onClick={() => onShowEngineerModal(breakdown.breakdown_id, breakdown.depot_id)}
             >
               📞 Assign Engineer
             </button>
             <button 
-              className="btn btn-auto-assign" 
+              className="theme-btn theme-btn-secondary" 
               onClick={() => onAutoAssign(breakdown.breakdown_id, breakdown.depot_id)}
             >
               🤖 Auto-Assign
@@ -165,13 +166,13 @@ const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdat
         ) : assignment.status !== 'on_site' && assignment.status !== 'repairing' ? (
           <>
             <button 
-              className="btn btn-update" 
+              className="theme-btn theme-btn-primary" 
               onClick={() => onUpdateStatus(assignment.assignment_id, 'dispatched')}
             >
               🚗 Mark Dispatched
             </button>
             <button 
-              className="btn btn-update" 
+              className="theme-btn theme-btn-secondary" 
               onClick={() => onUpdateStatus(assignment.assignment_id, 'on_site')}
             >
               📍 Mark On Site
@@ -180,7 +181,7 @@ const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdat
         ) : assignment.status === 'on_site' ? (
           <>
             <button 
-              className="btn btn-update" 
+              className="theme-btn theme-btn-primary" 
               onClick={() => onUpdateStatus(assignment.assignment_id, 'repairing')}
             >
               🔧 Start Repair
@@ -201,7 +202,7 @@ const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdat
               ✅ Complete Repair
             </button>
             <button 
-              className="btn btn-update" 
+              className="theme-btn theme-btn-secondary" 
               onClick={() => onShowEngineerModal(breakdown.breakdown_id, breakdown.depot_id)}
             >
               📝 Request Update
@@ -210,40 +211,44 @@ const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdat
         )}
       </div>
 
-      <style>{`
+      <style jsx>{`
         .breakdown-card {
-          background: white;
-          border-radius: 12px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          background: var(--bg-secondary);
+          border-radius: var(--radius-lg);
+          box-shadow: var(--shadow-md);
           overflow: hidden;
-          transition: all 0.3s;
+          transition: all var(--transition-normal);
           position: relative;
-          border: 2px solid transparent;
+          border: 1px solid var(--border);
+        }
+        
+        .breakdown-card:hover {
+          border-color: var(--border-hover);
+          box-shadow: var(--shadow-lg);
+          transform: translateY(-2px);
         }
         
         .breakdown-card.overdue {
-          border: 2px solid #ef4444;
-          background: #fef2f2;
+          border: 2px solid var(--color-danger);
           animation: pulse-border 2s infinite;
         }
         
         .breakdown-card.warning {
-          border: 2px solid #f59e0b;
-          background: #fffbeb;
+          border: 2px solid var(--color-warning);
         }
         
         .breakdown-card.priority {
-          border-top: 4px solid #dc2626;
+          border-top: 4px solid var(--color-primary);
         }
         
         @keyframes pulse-border {
           0%, 100% { 
-            border-color: #ef4444;
-            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+            border-color: var(--color-danger);
+            box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4);
           }
           50% { 
-            border-color: #dc2626;
-            box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+            border-color: var(--color-primary);
+            box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
           }
         }
         
@@ -251,14 +256,15 @@ const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdat
           position: absolute;
           top: 10px;
           right: 10px;
-          background: #ef4444;
+          background: var(--color-danger);
           color: white;
           padding: 4px 12px;
-          border-radius: 20px;
+          border-radius: var(--radius-full);
           font-size: 11px;
           font-weight: bold;
           animation: blink 2s infinite;
           z-index: 10;
+          text-transform: uppercase;
         }
         
         @keyframes blink {
@@ -268,8 +274,8 @@ const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdat
         
         .card-header {
           padding: 15px;
-          background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
-          border-bottom: 2px solid #e5e7eb;
+          background: var(--bg-tertiary);
+          border-bottom: 1px solid var(--border);
         }
         
         .card-header-top {
@@ -282,7 +288,7 @@ const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdat
         .fleet-number {
           font-size: 22px;
           font-weight: bold;
-          color: #1e3a8a;
+          color: var(--text-primary);
         }
         
         .card-badges {
@@ -292,36 +298,37 @@ const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdat
         }
         
         .depot-badge {
-          background: #dbeafe;
-          color: #1e40af;
+          background: rgba(30, 64, 175, 0.2);
+          color: var(--color-info);
           padding: 4px 8px;
-          border-radius: 4px;
+          border-radius: var(--radius-sm);
           font-size: 12px;
           font-weight: 600;
         }
         
         .priority-badge {
-          background: #fef3c7;
-          color: #d97706;
+          background: rgba(255, 152, 0, 0.2);
+          color: var(--color-amber);
           padding: 4px 8px;
-          border-radius: 4px;
+          border-radius: var(--radius-sm);
           font-size: 12px;
           font-weight: 600;
         }
         
         .repeat-flag {
-          background: #fee2e2;
-          color: #dc2626;
+          background: rgba(220, 53, 69, 0.2);
+          color: var(--color-danger);
           padding: 4px 8px;
-          border-radius: 4px;
+          border-radius: var(--radius-sm);
           font-size: 11px;
           font-weight: bold;
+          text-transform: uppercase;
         }
         
         .progress-timeline {
           padding: 10px 15px;
-          background: #f9fafb;
-          border-bottom: 1px solid #e5e7eb;
+          background: var(--bg-primary);
+          border-bottom: 1px solid var(--border);
         }
         
         .timeline-track {
@@ -344,19 +351,21 @@ const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdat
           top: 50%;
           left: 50%;
           transform: translate(-50%, -50%);
-          width: 24px;
-          height: 24px;
+          width: 20px;
+          height: 20px;
           border-radius: 50%;
-          background: #e5e7eb;
-          border: 2px solid white;
+          background: var(--bg-tertiary);
+          border: 2px solid var(--border);
         }
         
         .timeline-step.completed::before {
-          background: #10b981;
+          background: var(--color-success);
+          border-color: var(--color-success);
         }
         
         .timeline-step.current::before {
-          background: #f59e0b;
+          background: var(--color-warning);
+          border-color: var(--color-warning);
           animation: pulse 2s infinite;
         }
         
@@ -366,10 +375,10 @@ const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdat
           top: 50%;
           left: 50%;
           transform: translate(-50%, -50%);
-          width: 32px;
-          height: 32px;
+          width: 28px;
+          height: 28px;
           border-radius: 50%;
-          border: 2px solid #f59e0b;
+          border: 2px solid var(--color-warning);
           animation: pulse-ring 1.5s infinite;
         }
         
@@ -385,14 +394,10 @@ const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdat
         
         .timeline-label {
           font-size: 10px;
-          color: #6b7280;
+          color: var(--text-secondary);
           margin-top: 20px;
-        }
-        
-        .timeline-time {
-          font-size: 9px;
-          color: #9ca3af;
-          margin-top: 2px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
         }
         
         .timeline-line {
@@ -401,7 +406,7 @@ const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdat
           left: 0;
           right: 0;
           height: 2px;
-          background: #e5e7eb;
+          background: var(--border);
           z-index: 1;
         }
         
@@ -410,21 +415,25 @@ const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdat
           top: 0;
           left: 0;
           height: 100%;
-          background: #10b981;
-          transition: width 0.3s;
+          background: var(--color-success);
+          transition: width var(--transition-normal);
         }
         
         .engineering-assignment {
           padding: 12px 15px;
-          background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
-          border-bottom: 1px solid #e5e7eb;
+          background: var(--bg-primary);
+          border-bottom: 1px solid var(--border);
           display: flex;
           justify-content: space-between;
           align-items: center;
         }
         
+        .engineering-assignment.assigned {
+          background: rgba(40, 167, 69, 0.1);
+        }
+        
         .engineering-assignment.unassigned {
-          background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+          background: rgba(220, 53, 69, 0.1);
         }
         
         .assignment-info {
@@ -436,31 +445,33 @@ const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdat
         .team-badge {
           font-size: 13px;
           font-weight: 600;
-          color: #065f46;
+          color: var(--text-primary);
         }
         
         .engineer-name {
           font-size: 12px;
-          color: #047857;
+          color: var(--text-secondary);
         }
         
         .engineer-phone {
           font-size: 11px;
-          color: #059669;
+          color: var(--text-secondary);
         }
         
         .response-eta {
-          background: white;
+          background: var(--bg-tertiary);
           padding: 4px 8px;
-          border-radius: 4px;
+          border-radius: var(--radius-sm);
           font-size: 12px;
           font-weight: bold;
-          color: #dc2626;
+          color: var(--color-warning);
+          border: 1px solid var(--border);
         }
         
         .response-eta.on-site {
-          background: #dcfce7;
-          color: #16a34a;
+          background: rgba(40, 167, 69, 0.2);
+          color: var(--color-success);
+          border-color: var(--color-success);
         }
         
         .card-body {
@@ -474,103 +485,101 @@ const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdat
         }
         
         .timer-box {
-          background: #f9fafb;
+          background: var(--bg-primary);
           padding: 10px;
-          border-radius: 6px;
+          border-radius: var(--radius-md);
           text-align: center;
-          border-left: 3px solid #3b82f6;
+          border: 1px solid var(--border);
+          border-left: 3px solid var(--color-info);
         }
         
         .timer-box.critical {
-          border-left-color: #ef4444;
-          background: #fef2f2;
+          border-left-color: var(--color-danger);
+          background: rgba(220, 53, 69, 0.1);
         }
         
         .timer-box.warning {
-          border-left-color: #f59e0b;
-          background: #fffbeb;
+          border-left-color: var(--color-warning);
+          background: rgba(255, 193, 7, 0.1);
         }
         
         .timer-value {
           font-size: 24px;
           font-weight: bold;
-          color: #1e3a8a;
+          color: var(--text-primary);
         }
         
         .timer-box.critical .timer-value {
-          color: #dc2626;
+          color: var(--color-danger);
         }
         
         .timer-box.warning .timer-value {
-          color: #f59e0b;
+          color: var(--color-warning);
         }
         
         .timer-label {
           font-size: 10px;
-          color: #6b7280;
+          color: var(--text-secondary);
           text-transform: uppercase;
           margin-top: 2px;
+          letter-spacing: 0.05em;
         }
         
         .card-actions {
           padding: 15px;
-          background: #f9fafb;
-          border-top: 2px solid #e5e7eb;
+          background: var(--bg-tertiary);
+          border-top: 1px solid var(--border);
           display: grid;
           grid-template-columns: repeat(2, 1fr);
           gap: 8px;
         }
         
         .btn {
-          padding: 10px;
+          padding: var(--spacing-sm) var(--spacing-md);
           border: none;
-          border-radius: 6px;
+          border-radius: var(--radius-sm);
           cursor: pointer;
           font-size: 13px;
           font-weight: 600;
-          transition: all 0.2s;
+          transition: all var(--transition-fast);
           display: flex;
           align-items: center;
           justify-content: center;
           gap: 6px;
         }
         
-        .btn-dispatch {
-          background: #f59e0b;
-          color: white;
-        }
-        
-        .btn-dispatch:hover {
-          background: #d97706;
-        }
-        
         .btn-auto-assign {
-          background: #8b5cf6;
-          color: white;
+          background: var(--bg-primary);
+          color: var(--text-primary);
+          border: 1px solid var(--border);
           padding: 4px 12px;
           font-size: 12px;
         }
         
         .btn-auto-assign:hover {
-          background: #7c3aed;
-        }
-        
-        .btn-update {
-          background: #3b82f6;
-          color: white;
-        }
-        
-        .btn-update:hover {
-          background: #2563eb;
+          background: var(--bg-hover);
+          border-color: var(--border-hover);
         }
         
         .btn-resolve {
-          background: #10b981;
+          background: var(--color-success);
           color: white;
+          padding: var(--spacing-sm) var(--spacing-md);
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          font-size: 13px;
+          font-weight: 600;
+          transition: all var(--transition-fast);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
         }
         
         .btn-resolve:hover {
           background: #059669;
+          transform: translateY(-1px);
+          box-shadow: var(--shadow-sm);
         }
 
         @media (max-width: 640px) {

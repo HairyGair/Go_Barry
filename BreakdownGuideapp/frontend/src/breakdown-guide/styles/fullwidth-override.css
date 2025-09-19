@@ -1,0 +1,194 @@
+/* Full Width Enhancement Styles for Breakdown Guide */
+
+/* Override the default max-width constraints */
+.breakdown-guide-container {
+  max-width: 100% !important;
+  padding-left: 40px !important;
+  padding-right: 40px !important;
+}
+
+/* For ultra-wide monitors, add some reasonable max-width */
+@media (min-width: 2400px) {
+  .breakdown-guide-container {
+    max-width: 2400px !important;
+    margin: 0 auto !important;
+  }
+}
+
+/* Make the header full width */
+.app-header-enhanced {
+  margin-left: -40px !important;
+  margin-right: -40px !important;
+  padding-left: 40px !important;
+  padding-right: 40px !important;
+}
+
+/* Navigation bar full width */
+.header-nav-bar {
+  margin-left: -40px !important;
+  margin-right: -40px !important;
+  padding-left: 40px !important;
+  padding-right: 40px !important;
+}
+
+.nav-links {
+  max-width: 100% !important;
+}
+
+/* Dashboard stats - more columns on wider screens */
+@media (min-width: 1800px) {
+  .dashboard-stats {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+}
+
+@media (min-width: 2200px) {
+  .dashboard-stats {
+    grid-template-columns: repeat(5, 1fr) !important;
+  }
+}
+
+/* Assessment grid - optimized for wider screens */
+.wizard-grid-enhanced {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)) !important;
+  gap: 24px !important;
+}
+
+@media (min-width: 1800px) {
+  .wizard-grid-enhanced {
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)) !important;
+  }
+}
+
+@media (min-width: 2200px) {
+  .wizard-grid-enhanced {
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)) !important;
+    gap: 28px !important;
+  }
+}
+
+/* Section container full width optimization */
+.assessment-grid-container {
+  padding: 32px !important;
+}
+
+.section-title {
+  padding-left: 32px !important;
+  padding-right: 32px !important;
+}
+
+/* Modal wider on larger screens */
+@media (min-width: 1400px) {
+  .modal-content {
+    max-width: 900px !important;
+  }
+}
+
+@media (min-width: 1800px) {
+  .modal-content {
+    max-width: 1000px !important;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 1400px) {
+  .breakdown-guide-container {
+    padding-left: 30px !important;
+    padding-right: 30px !important;
+  }
+  
+  .app-header-enhanced,
+  .header-nav-bar {
+    margin-left: -30px !important;
+    margin-right: -30px !important;
+    padding-left: 30px !important;
+    padding-right: 30px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .breakdown-guide-container {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
+  
+  .app-header-enhanced,
+  .header-nav-bar {
+    margin-left: -20px !important;
+    margin-right: -20px !important;
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
+  
+  .assessment-grid-container {
+    padding: 20px !important;
+  }
+  
+  .section-title {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .breakdown-guide-container {
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+  }
+  
+  .app-header-enhanced,
+  .header-nav-bar {
+    margin-left: -15px !important;
+    margin-right: -15px !important;
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+  }
+  
+  .assessment-grid-container {
+    padding: 15px !important;
+  }
+  
+  .wizard-grid-enhanced {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Better spacing for larger screens */
+@media (min-width: 1400px) {
+  .main-content {
+    gap: 40px !important;
+  }
+  
+  .stat-card {
+    padding: 28px !important;
+  }
+  
+  .wizard-card-enhanced {
+    padding: 28px !important;
+  }
+}
+
+/* Ensure cards don't get too wide */
+.wizard-card-enhanced {
+  max-width: 450px;
+  margin: 0 auto;
+}
+
+@media (min-width: 1800px) {
+  .wizard-card-enhanced {
+    max-width: none;
+  }
+}
+
+/* Dashboard stats optimization for ultra-wide */
+.dashboard-stats {
+  max-width: 100%;
+}
+
+/* Prevent content from being too stretched on ultra-wide monitors */
+@media (min-width: 3000px) {
+  .breakdown-guide-container {
+    max-width: 2800px !important;
+    margin: 0 auto !important;
+  }
+}

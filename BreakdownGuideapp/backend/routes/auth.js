@@ -132,6 +132,47 @@ router.post('/logout', async (req, res) => {
   }
 });
 
+// POST /api/auth/verify - Verify session (alias for validate)
+router.post('/verify', async (req, res) => {
+  try {
+    const { session_token, username } = req.body;
+    
+    if (!username) {
+      return res.status(400).json({ error: 'Username is required for verification' });
+    }
+
+    // Verify user exists and is active
+    const { data: supervisor, error } = await supabase
+      .from('users')
+      .select('id, username, full_name, role, is_active')
+      .eq('username', username)
+      .eq('role', 'supervisor')
+      .eq('is_active', true)
+      .single();
+
+    if (error || !supervisor) {
+      return res.status(401).json({ 
+        valid: false, 
+        error: 'Invalid session' 
+      });
+    }
+
+    res.json({
+      valid: true,
+      user: {
+        id: supervisor.id,
+        username: supervisor.username,
+        full_name: supervisor.full_name,
+        role: supervisor.role
+      },
+      message: 'Session verified'
+    });
+  } catch (error) {
+    console.error('Error verifying session:', error);
+    res.status(500).json({ error: 'Session verification failed' });
+  }
+});
+
 // GET /api/auth/validate - Validate session/token
 router.get('/validate', async (req, res) => {
   try {

@@ -19,12 +19,25 @@ npm run dev
 
 ✅ **The app should now be running at http://localhost:3000**
 
+## 🎯 NO AUTH Mode - Automatic Login!
+
+**As of January 17, 2025, the app runs in NO AUTH mode:**
+- **No login required** - You're automatically logged in as "Anthony Gair"
+- **Depot**: Washington
+- **Role**: Supervisor (Admin)
+- **All features available** immediately
+
+### To Access:
+1. Open http://localhost:3000/breakdown-guide
+2. You're already logged in!
+3. Start using any wizard immediately
+
 ## 📋 Testing Checklist
 
 ### Basic Functionality Test
 1. **Open** http://localhost:3000 in your browser
 2. **Navigate** to breakdown guide (click 'Report Breakdown' or go to `/breakdown-guide`)
-3. **Login** - Select any supervisor and login (any password or none)
+3. **Already logged in!** - NO AUTH mode bypasses login automatically
 4. **Select Vehicle** - Click 'Select Vehicle' and choose a bus
 5. **Test Assessment** - Click on any wizard (e.g., 'Steering') to test
 6. **Complete Assessment** - Go through all steps and observe decision outcome

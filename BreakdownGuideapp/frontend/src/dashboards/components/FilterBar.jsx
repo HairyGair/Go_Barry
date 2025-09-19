@@ -1,4 +1,5 @@
 import React from 'react';
+import { theme } from '@styles/theme';
 
 const FilterBar = ({ 
   filters, 
@@ -26,147 +27,94 @@ const FilterBar = ({
         ))}
       </div>
 
-      <style>{`
+      <style jsx>{`
         .filter-bar {
-          background: white;
-          border-bottom: 1px solid #e5e7eb;
-          padding: 15px 20px;
+          background: var(--bg-secondary);
+          padding: var(--spacing-sm);
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border);
         }
-
+        
         .filters {
           display: flex;
-          gap: 10px;
+          gap: var(--spacing-sm);
           flex-wrap: wrap;
-          align-items: center;
         }
-
+        
         .filter-btn {
+          background: var(--bg-primary);
+          color: var(--text-secondary);
+          border: 1px solid var(--border);
+          padding: var(--spacing-sm) var(--spacing-md);
+          border-radius: var(--radius-sm);
+          cursor: pointer;
           display: flex;
           align-items: center;
-          gap: 6px;
-          padding: 8px 16px;
-          border: 1px solid #d1d5db;
-          background: white;
-          border-radius: 6px;
-          cursor: pointer;
-          transition: all 0.2s ease;
+          gap: var(--spacing-xs);
           font-size: 14px;
           font-weight: 500;
-          color: #4b5563;
+          transition: all var(--transition-fast);
           white-space: nowrap;
         }
-
+        
         .filter-btn:hover {
-          background: #f9fafb;
-          border-color: #9ca3af;
+          background: var(--bg-hover);
+          color: var(--text-primary);
+          border-color: var(--border-hover);
           transform: translateY(-1px);
-          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
-
+        
         .filter-btn.active {
-          background: #1e3a8a;
+          background: var(--color-primary);
           color: white;
-          border-color: #1e3a8a;
-          box-shadow: 0 2px 8px rgba(30, 58, 138, 0.3);
+          border-color: var(--color-primary);
         }
-
+        
         .filter-btn.active:hover {
-          background: #1e3a8a;
-          border-color: #1e3a8a;
+          background: var(--color-primary-dark);
+          border-color: var(--color-primary-dark);
         }
-
+        
         .filter-icon {
           font-size: 16px;
-          display: inline-flex;
-          align-items: center;
         }
-
+        
         .filter-label {
           font-weight: 500;
         }
-
+        
         .filter-count {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-width: 20px;
-          height: 20px;
-          padding: 0 6px;
-          background: #e5e7eb;
-          border-radius: 10px;
-          font-size: 11px;
+          background: var(--bg-tertiary);
+          color: var(--text-primary);
+          padding: 2px 8px;
+          border-radius: var(--radius-full);
+          font-size: 12px;
           font-weight: 600;
-          margin-left: 4px;
+          margin-left: var(--spacing-xs);
         }
-
+        
         .filter-btn.active .filter-count {
-          background: rgba(255,255,255,0.2);
+          background: rgba(255, 255, 255, 0.2);
           color: white;
         }
-
-        /* Add some special styles for specific filter types */
-        .filter-btn[data-filter="sla-risk"],
-        .filter-btn[data-filter="critical"] {
-          border-color: #fee2e2;
-        }
-
-        .filter-btn[data-filter="sla-risk"]:hover,
-        .filter-btn[data-filter="critical"]:hover {
-          background: #fef2f2;
-          border-color: #fecaca;
-        }
-
-        .filter-btn[data-filter="priority"] {
-          border-color: #fef3c7;
-        }
-
-        .filter-btn[data-filter="priority"]:hover {
-          background: #fefce8;
-          border-color: #fde68a;
-        }
-
-        /* Mobile responsiveness */
-        @media (max-width: 640px) {
+        
+        @media (max-width: 768px) {
           .filter-bar {
-            padding: 10px 15px;
+            padding: var(--spacing-xs);
           }
-
+          
           .filters {
-            gap: 6px;
+            gap: var(--spacing-xs);
           }
-
+          
           .filter-btn {
-            padding: 6px 12px;
+            padding: var(--spacing-xs) var(--spacing-sm);
             font-size: 13px;
           }
-
+          
           .filter-icon {
-            font-size: 14px;
+            display: none;
           }
-        }
-
-        /* Animation for filter changes */
-        .filter-btn {
-          position: relative;
-          overflow: hidden;
-        }
-
-        .filter-btn::after {
-          content: '';
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          width: 0;
-          height: 0;
-          border-radius: 50%;
-          background: rgba(30, 58, 138, 0.1);
-          transform: translate(-50%, -50%);
-          transition: width 0.3s, height 0.3s;
-        }
-
-        .filter-btn:active::after {
-          width: 100%;
-          height: 100%;
         }
       `}</style>
     </div>

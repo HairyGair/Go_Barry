@@ -3,15 +3,72 @@ import { createClient } from '@supabase/supabase-js'
 
 // Get environment variables
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://oieliubbvvdzhzvikzal.supabase.co'
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9pZWxpdWJidnZkemh6dmlremFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1NTA5OTUsImV4cCI6MjA3MTEyNjk5NX0.L0qUXBFOnzxoXt-ChhMAW8zqgprUXFdvqR2dxJ1GTU8'
 
 // Create Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Production table mapping:
 // vehicles → fleet_vehicles
-// supervisors → users  
+// supervisors → supervisors (email authentication only)
 // assessment_logs → wizard_progress
+
+// Authentication helpers
+export const authHelpers = {
+  // Sign in with email/password
+  async signInWithPassword(email, password) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
+    
+    if (error) throw error
+    
+    // Get supervisor details after successful auth
+    if (data.user) {
+      const supervisor = await this.getSupervisorByEmail(data.user.email)
+      return { user: data.user, supervisor, session: data.session }
+    }
+    
+    return data
+  },
+
+  // Get current session
+  async getCurrentSession() {
+    const { data: { session }, error } = await supabase.auth.getSession()
+    if (error) throw error
+    
+    if (session) {
+      const supervisor = await this.getSupervisorByEmail(session.user.email)
+      return { session, supervisor }
+    }
+    
+    return { session: null, supervisor: null }
+  },
+
+  // Get supervisor by email
+  async getSupervisorByEmail(email) {
+    const { data, error } = await supabase
+      .from('supervisors')
+      .select('*')
+      .eq('email', email)
+      .single()
+    
+    if (error && error.code !== 'PGRST116') throw error // PGRST116 = not found
+    return data
+  },
+
+  // Sign out
+  async signOut() {
+    const { error } = await supabase.auth.signOut()
+    if (error) throw error
+  },
+
+  // Listen to auth changes
+  onAuthStateChange(callback) {
+    return supabase.auth.onAuthStateChange(callback)
+  }
+}
 
 // Helper functions for common operations
 export const supabaseHelpers = {
@@ -95,12 +152,12 @@ export const supabaseHelpers = {
     return data
   },
 
-  // User operations (updated table name: supervisors → users)
-  async getUser(userId) {
+  // Supervisor operations
+  async getSupervisor(supervisorId) {
     const { data, error } = await supabase
-      .from('users')
+      .from('supervisors')
       .select('*')
-      .eq('id', userId)
+      .eq('id', supervisorId)
       .single()
     
     if (error) throw error
@@ -109,9 +166,8 @@ export const supabaseHelpers = {
 
   async getAllSupervisors() {
     const { data, error } = await supabase
-      .from('users')
+      .from('supervisors')
       .select('*')
-      .eq('role', 'supervisor')
       .order('name')
     
     if (error) throw error

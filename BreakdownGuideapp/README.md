@@ -4,6 +4,19 @@
 
 The Go North East Breakdown Guide is fully functional with all 33 SDC-compliant assessment wizards operational!
 
+### 🎨 Latest Updates (v1.6.0 - September 2025)
+
+**Professional Header Enhancements**
+- **User Profile System** - Personalized avatar, stats, and quick access menu
+- **Dark/Light Mode** - Toggle between themes with persistent preferences
+- **Breadcrumb Navigation** - Always know where you are in the app
+- **Live Stats Badges** - See active breakdowns at a glance
+- **Keyboard Shortcuts** - Power user features (Alt+1-5 for navigation)
+- **Status Bar** - Real-time system health and connection monitoring
+- **Mega Menus** - Quick access to subsections on hover
+
+See [HEADER_ENHANCEMENTS.md](./HEADER_ENHANCEMENTS.md) for full details.
+
 ### 🚀 Quick Start
 
 ```bash
@@ -18,6 +31,14 @@ npm run dev
 ```
 
 Then open http://localhost:3000 in your browser.
+
+### 🔐 Authentication
+
+**Status**: ✅ Fully implemented (currently in NO AUTH mode for testing)
+
+**To Enable**: Change `VITE_ENABLE_AUTH=true` in `.env` file
+
+See [ENABLE_AUTH_QUICK.md](./frontend/ENABLE_AUTH_QUICK.md) for setup instructions.
 
 ### 📋 What's Included
 
