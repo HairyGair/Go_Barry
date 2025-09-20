@@ -53,7 +53,12 @@ async function verifySupabaseConnection() {
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://localhost:8081', 'http://localhost:19006'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 app.use(morgan('combined'));
 
@@ -108,6 +113,7 @@ import authRoutes from './routes/auth.js';
 import wizardRoutes from './routes/wizards.js';
 import engineeringRoutes from './routes/engineering.js';
 import analyticsRoutes from './routes/analytics.js';
+import activityRoutes from './routes/activity.js';
 
 // API Routes
 app.use('/api/breakdowns', breakdownRoutes);
@@ -116,6 +122,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/wizards', wizardRoutes);
 app.use('/api/engineering', engineeringRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/activity', activityRoutes);
 
 // 404 handler
 app.use((req, res) => {
