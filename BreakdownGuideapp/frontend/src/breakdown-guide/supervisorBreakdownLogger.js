@@ -31,8 +31,9 @@ class SupervisorBreakdownLogger {
         this.syncInterval = null;
         this.breakdownId = null;  // Track the breakdown ID from the new system
         this.dailyId = null;      // Track the daily ID
+        this.assessmentId = null; // Track the current assessment ID
         this.currentBreakdown = null; // Track current breakdown data
-        
+
         // Initialize sync interval for offline logs
         this.startSyncInterval();
     }
@@ -50,184 +51,164 @@ class SupervisorBreakdownLogger {
         console.log(`Logger initialised for supervisor: ${session.supervisorId}`);
     }
     
-    // Start a new breakdown
+    // Start a new breakdown assessment (now just tracks session, actual breakdown created on completion)
     async startBreakdown(data) {
         if (!this.supervisor) {
             console.error('No supervisor session active');
             return null;
         }
-        
-        // Generate a temporary breakdown ID for offline mode
-        const generateOfflineId = () => {
+
+        // Generate a temporary assessment ID for tracking
+        const generateAssessmentId = () => {
             const now = new Date();
-            const year = now.getFullYear();
-            const random = Math.floor(Math.random() * 10000).toString().padStart(5, '0');
-            return `BD-${year}-${random}`;
+            const timestamp = now.getTime();
+            return `ASSESS-${timestamp}`;
         };
-        
-        // Store current breakdown data
+
+        // Store current breakdown data INCLUDING location
         this.currentBreakdown = {
             ...data,
+            location: data.location || null,
             supervisor: this.supervisor,
             startTime: new Date()
         };
-        
+
+        // Generate assessment tracking ID
+        this.assessmentId = generateAssessmentId();
+        this.assessmentStartTime = new Date();
+
+        console.log('🔥 Starting breakdown assessment:', {
+            assessmentId: this.assessmentId,
+            vehicle: data.vehicle?.fleetNumber,
+            location: this.currentBreakdown.location,
+            supervisor: this.supervisor?.name
+        });
+
+        // Log the assessment start
+        this.logAction({
+            type: 'ASSESSMENT_STARTED',
+            assessmentId: this.assessmentId,
+            vehicle: data.vehicle,
+            issueCategory: data.issueCategory,
+            location: data.location
+        });
+
+        return this.assessmentId;
+    }
+    
+    // Log assessment step (now just tracks locally, full data sent on completion)
+    async logAssessmentStep(data) {
+        if (!this.assessmentId) {
+            console.error('No active assessment');
+            return;
+        }
+
+        // Log locally for tracking
+        this.logAction({
+            type: 'ASSESSMENT_STEP',
+            assessmentId: this.assessmentId,
+            ...data
+        });
+
+        console.log('📝 Assessment step logged:', data);
+    }
+    
+    // Complete assessment - Updated to use /from-wizard endpoint
+    async completeAssessment(data) {
+        if (!this.currentBreakdown) {
+            console.error('No active breakdown data');
+            return;
+        }
+
+        const duration = new Date() - this.assessmentStartTime;
+
+        // Prepare data for the /from-wizard endpoint
+        const wizardData = {
+            // Wizard information
+            wizard_type: data.wizardType || 'General Assessment',
+            wizard_decision: data.decision,
+            wizard_assessment_data: data.assessmentData || {},
+
+            // Vehicle and location
+            fleet_number: this.currentBreakdown.vehicle?.fleetNumber,
+            location: this.currentBreakdown.location?.description || this.currentBreakdown.location?.address,
+            location_coords: this.currentBreakdown.location?.coords,
+            w3w_location: this.currentBreakdown.location?.what3words,
+
+            // Supervisor information
+            supervisor_badge: this.supervisor?.supervisorId,
+            supervisor_name: this.supervisor?.name,
+
+            // Issue details
+            issue_category: this.currentBreakdown.issueCategory || data.issueCategory,
+            issue_description: data.notes || data.description,
+            severity: data.decision,
+
+            // Additional context
+            priority_level: data.decision === 'STOP' ? 1 : data.decision === 'AMBER' ? 2 : 3,
+            engineering_required: data.decision === 'STOP',
+            replacement_vehicle_required: data.decision === 'STOP'
+        };
+
+        console.log('🚀 Sending wizard completion data to dashboard:', wizardData);
+
         try {
-            const response = await fetch(`${BACKEND_URL}/api/breakdowns/v3/start`, {
+            const response = await fetch(`${BACKEND_URL}/api/breakdowns/from-wizard`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    vehicleId: data.vehicle.id,
-                    fleetNumber: data.vehicle.fleetNumber,
-                    registration: data.vehicle.registration,
-                    supervisorId: this.supervisor.supervisorId,
-                    issueCategory: data.issueCategory,
-                    location: data.location || {},
-                    driverName: data.driverName,
-                    driverPhone: data.driverPhone,
-                    depot: data.vehicle.depot || this.supervisor.depot
-                })
+                body: JSON.stringify(wizardData)
             });
-            
+
             const result = await response.json();
-            
+
             if (result.success) {
-                this.breakdownId = result.breakdownId;
-                this.dailyId = result.dailyId;
-                this.assessmentStartTime = new Date();
-                
+                console.log('✅ Wizard data successfully sent to dashboard!', result);
+
                 // Log locally
                 this.logAction({
-                    type: 'BREAKDOWN_STARTED',
-                    breakdownId: this.breakdownId,
-                    dailyId: this.dailyId,
-                    vehicle: data.vehicle,
-                    issueCategory: data.issueCategory
-                });
-                
-                return this.breakdownId;
-            }
-        } catch (error) {
-            console.warn('Failed to start breakdown via API, using offline mode:', error);
-            
-            // OFFLINE MODE: Generate local breakdown ID
-            this.breakdownId = generateOfflineId();
-            this.dailyId = this.breakdownId; // Use same ID for simplicity
-            this.assessmentStartTime = new Date();
-            
-            // Store for offline sync
-            this.storePendingAction({
-                type: 'START_BREAKDOWN',
-                data,
-                timestamp: new Date().toISOString()
-            });
-            
-            // Log the offline breakdown start
-            this.logAction({
-                type: 'BREAKDOWN_STARTED_OFFLINE',
-                breakdownId: this.breakdownId,
-                dailyId: this.dailyId,
-                vehicle: data.vehicle,
-                issueCategory: data.issueCategory
-            });
-            
-            // Return the offline breakdown ID
-            return this.breakdownId;
-        }
-        
-        return null;
-    }
-    
-    // Log assessment step
-    async logAssessmentStep(data) {
-        if (!this.breakdownId) {
-            console.error('No active breakdown');
-            return;
-        }
-        
-        try {
-            await fetch(`${BACKEND_URL}/api/breakdowns/v3/step`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    breakdownId: this.breakdownId,
-                    ...data
-                })
-            });
-            
-            // Log locally
-            this.logAction({
-                type: 'ASSESSMENT_STEP',
-                ...data
-            });
-        } catch (error) {
-            console.error('Failed to log step:', error);
-            this.storePendingAction({
-                type: 'LOG_STEP',
-                data: { breakdownId: this.breakdownId, ...data },
-                timestamp: new Date().toISOString()
-            });
-        }
-    }
-    
-    // Complete assessment
-    async completeAssessment(data) {
-        if (!this.breakdownId) {
-            console.error('No active breakdown');
-            return;
-        }
-        
-        const duration = new Date() - this.assessmentStartTime;
-        
-        try {
-            await fetch(`${BACKEND_URL}/api/breakdowns/v3/complete`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    breakdownId: this.breakdownId,
+                    type: 'ASSESSMENT_COMPLETED',
                     decision: data.decision,
-                    notes: data.notes,
-                    duration: Math.floor(duration / 1000), // seconds
-                    completedBy: this.supervisor.supervisorId
-                })
-            });
-            
-            // Log locally
-            this.logAction({
-                type: 'ASSESSMENT_COMPLETED',
-                decision: data.decision,
-                duration: duration
-            });
-            
-            // Reset state
-            this.breakdownId = null;
-            this.dailyId = null;
-            this.assessmentStartTime = null;
-            
+                    duration: duration,
+                    dashboardIntegration: 'success',
+                    breakdownId: result.breakdown?.breakdown_id
+                });
+
+                // Reset state
+                this.breakdownId = result.breakdown?.breakdown_id;
+                this.currentBreakdown = null;
+                this.assessmentStartTime = null;
+
+                return result;
+            } else {
+                throw new Error(result.error || 'Failed to create breakdown record');
+            }
+
         } catch (error) {
-            console.error('Failed to complete assessment:', error);
+            console.error('❌ Failed to send wizard data to dashboard:', error);
+
+            // Store for retry
             this.storePendingAction({
-                type: 'COMPLETE_ASSESSMENT',
-                data: { 
-                    breakdownId: this.breakdownId, 
-                    ...data,
-                    duration 
-                },
+                type: 'COMPLETE_WIZARD_ASSESSMENT',
+                data: wizardData,
                 timestamp: new Date().toISOString()
             });
+
+            // Log locally
+            this.logAction({
+                type: 'ASSESSMENT_COMPLETED_OFFLINE',
+                decision: data.decision,
+                duration: duration,
+                dashboardIntegration: 'failed',
+                error: error.message
+            });
+
+            throw error;
         }
     }
     
-    // Get current breakdown data
-    getCurrentBreakdown() {
-        return this.currentBreakdown;
-    }
+
     
     // Log action locally
     logAction(action) {
@@ -326,6 +307,7 @@ class SupervisorBreakdownLogger {
     
     // Get current breakdown data
     getCurrentBreakdown() {
+        console.log('getCurrentBreakdown called, returning:', this.currentBreakdown);
         return this.currentBreakdown;
     }
     
