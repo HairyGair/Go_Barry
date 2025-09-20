@@ -51,22 +51,41 @@ async function verifySupabaseConnection() {
   }
 }
 
-// Middleware
-app.use(helmet());
-app.use(cors({
-  origin: [
+// Parse allowed origins from environment variable
+const getAllowedOrigins = () => {
+  const envOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : [];
+  const defaultOrigins = [
     'http://localhost:3000',
     'http://localhost:8081',
     'http://localhost:19006',
+    'http://localhost:5173',
     'https://dashboard.render.com',
     'https://breakdown-guide.onrender.com',
+    'https://go-barry.onrender.com',
+    'https://gobarry.co.uk',
+    'https://www.gobarry.co.uk',
+    'https://breakdowns.gobarry.co.uk',
+    'https://www.breakdowns.gobarry.co.uk'
+  ];
+
+  const regexOrigins = [
     /\.onrender\.com$/,
     /\.render\.com$/,
+    /\.gobarry\.co\.uk$/,
     /localhost:\d+$/
-  ],
+  ];
+
+  return [...new Set([...defaultOrigins, ...envOrigins]), ...regexOrigins];
+};
+
+// Middleware
+app.use(helmet());
+app.use(cors({
+  origin: getAllowedOrigins(),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  exposedHeaders: ['Content-Length', 'X-Kuma-Revision']
 }));
 app.use(express.json());
 app.use(morgan('combined'));
