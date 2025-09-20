@@ -149,7 +149,14 @@ export async function fetchDashboardData() {
             }
 
             const time = formatTimeFromTimestamp(breakdown.created_at);
-            let message = `${breakdown.supervisor_name || 'Supervisor'} reported ${breakdown.issue_category || 'breakdown'} on ${breakdown.fleet_no || 'vehicle'}`;
+
+            // Enhanced message for wizard assessments
+            let message;
+            if (breakdown.breakdown_source === 'wizard' && breakdown.wizard_type) {
+              message = `${breakdown.supervisor_name || 'Supervisor'} completed ${breakdown.wizard_type} wizard assessment for ${breakdown.fleet_no || 'vehicle'} - Decision: ${breakdown.severity}`;
+            } else {
+              message = `${breakdown.supervisor_name || 'Supervisor'} reported ${breakdown.issue_category || 'breakdown'} on ${breakdown.fleet_no || 'vehicle'}`;
+            }
 
             if (breakdown.location || breakdown.location_description) {
               message += ` at ${breakdown.location || breakdown.location_description}`;
@@ -164,8 +171,12 @@ export async function fetchDashboardData() {
               depot: breakdown.depot_id || 'Unknown',
               decision: breakdown.wizard_decision || breakdown.severity,
               severity,
-              source: 'breakdowns-fallback',
-              priority: 1
+              source: breakdown.breakdown_source === 'wizard' ? 'wizard-assessment' : 'breakdowns-fallback',
+              priority: 1,
+              // Additional wizard metadata
+              wizardType: breakdown.wizard_type,
+              wizardResponses: breakdown.wizard_responses,
+              isWizardAssessment: breakdown.breakdown_source === 'wizard'
             };
           });
 
