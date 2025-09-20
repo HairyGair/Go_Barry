@@ -54,7 +54,16 @@ async function verifySupabaseConnection() {
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:8081', 'http://localhost:19006'],
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:8081',
+    'http://localhost:19006',
+    'https://dashboard.render.com',
+    'https://breakdown-guide.onrender.com',
+    /\.onrender\.com$/,
+    /\.render\.com$/,
+    /localhost:\d+$/
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
