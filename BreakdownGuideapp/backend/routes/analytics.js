@@ -52,13 +52,24 @@ router.get('/kpis', async (req, res) => {
 
     if (previousError) throw previousError;
 
-    // Get fleet data
-    const { data: vehicles, error: fleetError } = await supabase
-      .from('vehicles')
-      .select('*')
-      .eq('is_active', true);
+    // Get fleet data - fallback if table doesn't exist or column missing
+    let vehicles = [];
+    try {
+      const { data: vehicleData, error: fleetError } = await supabase
+        .from('fleet_vehicles')
+        .select('*');
 
-    if (fleetError) throw fleetError;
+      if (fleetError) {
+        console.warn('Fleet error:', fleetError.message);
+        vehicles = [];
+      } else {
+        vehicles = vehicleData || [];
+      }
+    } catch (err) {
+      console.warn('Fleet vehicles table not accessible:', err.message);
+      // Use fallback fleet data
+      vehicles = [];
+    }
 
     // Calculate KPIs
     const totalVehicles = vehicles.length;
@@ -360,11 +371,19 @@ router.get('/depot-comparison', async (req, res) => {
       if (breakdownError) throw breakdownError;
 
       // Get vehicles for this depot
-      const { data: vehicles, error: vehicleError } = await supabase
-        .from('vehicles')
-        .select('*')
-        .eq('depot', depot.code)
-        .eq('is_active', true);
+      let vehicles = [];
+      try {
+        const { data: vehicleData, error: vehicleError } = await supabase
+          .from('fleet_vehicles')
+          .select('*')
+          .eq('depot', depot.code);
+
+        if (vehicleError) throw vehicleError;
+        vehicles = vehicleData || [];
+      } catch (err) {
+        console.warn('Fleet vehicles table not accessible for depot:', err.message);
+        vehicles = [];
+      }
 
       if (vehicleError) throw vehicleError;
 
@@ -430,10 +449,18 @@ router.get('/depot-comparison', async (req, res) => {
 router.get('/fleet-health', async (req, res) => {
   try {
     // Get all vehicles
-    const { data: vehicles, error: vehicleError } = await supabase
-      .from('vehicles')
-      .select('*')
-      .eq('is_active', true);
+    let vehicles = [];
+    try {
+      const { data: vehicleData, error: vehicleError } = await supabase
+        .from('fleet_vehicles')
+        .select('*');
+
+      if (vehicleError) throw vehicleError;
+      vehicles = vehicleData || [];
+    } catch (err) {
+      console.warn('Fleet vehicles table not accessible:', err.message);
+      vehicles = [];
+    }
 
     if (vehicleError) throw vehicleError;
 
@@ -518,5 +545,188 @@ router.get('/fleet-health', async (req, res) => {
     });
   }
 });
+
+// GET /api/reports/tracerit - Get Tracerit report data
+router.get('/tracerit', async (req, res) => {
+  try {
+    const { period = 'today', depot, format = 'standard' } = req.query;
+
+    // Calculate date range
+    let startDate = new Date();
+    let endDate = new Date();
+
+    switch (period) {
+      case 'today':
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case 'yesterday':
+        startDate.setDate(startDate.getDate() - 1);
+        startDate.setHours(0, 0, 0, 0);
+        endDate.setDate(endDate.getDate() - 1);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      case 'week':
+        startDate.setDate(startDate.getDate() - 7);
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case 'month':
+        startDate.setMonth(startDate.getMonth() - 1);
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      default:
+        startDate.setHours(0, 0, 0, 0);
+    }
+
+    // Get breakdowns for the period
+    let query = supabase
+      .from('breakdowns')
+      .select('*')
+      .gte('created_at', startDate.toISOString())
+      .lte('created_at', endDate.toISOString())
+      .order('created_at', { ascending: false });
+
+    if (depot) {
+      query = query.eq('depot', depot);
+    }
+
+    const { data: breakdowns, error } = await query;
+    if (error) throw error;
+
+    // Format for Tracerit report
+    const reportData = breakdowns.map(b => ({
+      // Tracerit required fields
+      incidentNumber: b.breakdown_id,
+      vehicleNumber: b.fleet_no || 'Unknown',
+      registration: b.registration || 'Unknown',
+      depot: b.depot || 'Unknown',
+      dateReported: new Date(b.created_at).toISOString(),
+      timeReported: new Date(b.created_at).toTimeString().substring(0, 8),
+
+      // Location information
+      location: b.location_description || b.location || 'Not specified',
+      gridReference: b.location_coords ?
+        `${b.location_coords.lat},${b.location_coords.lng}` : '',
+      w3wLocation: b.w3w_location || '',
+
+      // Issue details
+      issueCategory: b.issue_category || 'General',
+      issueDescription: b.description || 'No description',
+      severity: b.severity || 'AMBER',
+      wizardAssessment: b.wizard_decision || '',
+
+      // Supervisor information
+      reportedBy: b.supervisor_name || 'Unknown',
+      supervisorBadge: b.supervisor_badge || '',
+
+      // Engineer information
+      engineerDispatched: b.dispatched_at ? 'Yes' : 'No',
+      dispatchTime: b.dispatched_at ?
+        new Date(b.dispatched_at).toTimeString().substring(0, 8) : '',
+      onSiteTime: b.on_site_at ?
+        new Date(b.on_site_at).toTimeString().substring(0, 8) : '',
+      resolvedTime: b.cleared_at ?
+        new Date(b.cleared_at).toTimeString().substring(0, 8) : '',
+
+      // Status and timings
+      status: b.status,
+      totalDowntime: b.cleared_at && b.created_at ?
+        Math.round((new Date(b.cleared_at) - new Date(b.created_at)) / 60000) : null,
+      responseTime: b.acknowledged_at && b.received_at ?
+        Math.round((new Date(b.acknowledged_at) - new Date(b.received_at)) / 60000) : null,
+      repairTime: b.cleared_at && b.dispatched_at ?
+        Math.round((new Date(b.cleared_at) - new Date(b.dispatched_at)) / 60000) : null,
+
+      // Additional fields
+      passengerCount: b.passenger_count || 0,
+      replacementVehicle: b.replacement_vehicle_required ? 'Yes' : 'No',
+      engineeringRequired: b.engineering_required ? 'Yes' : 'No',
+      notes: b.resolution_notes || ''
+    }));
+
+    // Calculate summary statistics
+    const summary = {
+      totalIncidents: reportData.length,
+      byStatus: {
+        active: reportData.filter(r => r.status === 'active').length,
+        resolved: reportData.filter(r => r.status === 'cleared').length,
+        inProgress: reportData.filter(r => ['dispatched', 'on_site'].includes(r.status)).length
+      },
+      bySeverity: {
+        critical: reportData.filter(r => r.severity === 'STOP').length,
+        warning: reportData.filter(r => r.severity === 'AMBER').length,
+        normal: reportData.filter(r => r.severity === 'CONTINUE').length
+      },
+      averages: {
+        responseTime: calculateAverage(reportData.map(r => r.responseTime).filter(Boolean)),
+        repairTime: calculateAverage(reportData.map(r => r.repairTime).filter(Boolean)),
+        downtime: calculateAverage(reportData.map(r => r.totalDowntime).filter(Boolean))
+      },
+      topIssues: getTopIssues(reportData),
+      affectedDepots: [...new Set(reportData.map(r => r.depot))].filter(Boolean)
+    };
+
+    // Format response based on requested format
+    if (format === 'csv') {
+      // Convert to CSV format (headers + data)
+      const csvHeaders = Object.keys(reportData[0] || {}).join(',');
+      const csvData = reportData.map(row =>
+        Object.values(row).map(val =>
+          typeof val === 'string' && val.includes(',') ? `"${val}"` : val
+        ).join(',')
+      ).join('\n');
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition',
+        `attachment; filename="tracerit-report-${period}-${Date.now()}.csv"`);
+      res.send(`${csvHeaders}\n${csvData}`);
+    } else {
+      // Standard JSON response
+      res.json({
+        success: true,
+        report: {
+          metadata: {
+            period,
+            depot: depot || 'All Depots',
+            generatedAt: new Date().toISOString(),
+            dateRange: {
+              from: startDate.toISOString(),
+              to: endDate.toISOString()
+            }
+          },
+          summary,
+          data: reportData
+        },
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('Error generating Tracerit report:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate Tracerit report'
+    });
+  }
+});
+
+// Helper function to calculate average
+function calculateAverage(numbers) {
+  if (!numbers || numbers.length === 0) return 0;
+  const sum = numbers.reduce((a, b) => a + b, 0);
+  return Math.round(sum / numbers.length);
+}
+
+// Helper function to get top issues
+function getTopIssues(reportData, limit = 5) {
+  const issueCounts = {};
+  reportData.forEach(r => {
+    const issue = r.issueCategory;
+    issueCounts[issue] = (issueCounts[issue] || 0) + 1;
+  });
+
+  return Object.entries(issueCounts)
+    .map(([issue, count]) => ({ issue, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}
 
 export default router;

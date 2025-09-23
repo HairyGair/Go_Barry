@@ -64,18 +64,19 @@ router.get('/active', async (req, res) => {
 // GET /api/breakdowns/live - Get active breakdowns for dashboards
 router.get('/live', async (req, res) => {
   try {
-    // Use the enhanced view that includes all relevant data
+    // Query from breakdowns table only (joins will be added once foreign keys are set up)
     const { data: breakdowns, error } = await supabase
-      .from('sdc_dashboard_breakdowns')
+      .from('breakdowns')
       .select('*')
-      .order('priority_level', { ascending: true })
+      .in('status', ['active', 'pending', 'in_progress', 'received', 'acknowledged', 'decision', 'dispatched', 'on_site', 'moving'])
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
     // Additional processing for dashboard compatibility
     const formattedBreakdowns = breakdowns.map(b => {
-      const elapsedMinutes = b.elapsed_minutes || 0;
+      // Calculate elapsed minutes from created_at
+      const elapsedMinutes = Math.floor((new Date() - new Date(b.created_at)) / (1000 * 60));
       const elapsedHours = Math.floor(elapsedMinutes / 60);
       const remainingMinutes = Math.floor(elapsedMinutes % 60);
 
@@ -85,6 +86,23 @@ router.get('/live', async (req, res) => {
       } else {
         durationText = `${remainingMinutes}m`;
       }
+
+      // Vehicle and supervisor data will come from the breakdown record itself
+
+      // Determine priority level and status color
+      const priorityLevel = b.priority_level || (
+        b.severity === 'STOP' ? 1 :
+        b.severity === 'AMBER' ? 2 : 3
+      );
+
+      const statusColor = b.status_color || (
+        b.severity === 'STOP' ? 'red' :
+        b.severity === 'AMBER' ? 'orange' :
+        b.severity === 'CONTINUE' ? 'green' : 'gray'
+      );
+
+      const cardTitle = b.card_title ||
+        `${b.fleet_no || 'Unknown'} - ${b.issue_category || 'Assessment Required'}`;
 
       return {
         // Core identifiers
@@ -98,15 +116,15 @@ router.get('/live', async (req, res) => {
         depot_id: b.depot,
 
         // Location and issue information
-        location: b.location,
+        location: b.location_description || b.location || 'Location TBC',
         issue_type: b.issue_category,
-        issue_description: b.issue_description,
+        issue_description: b.description,
 
         // Status and severity
         status: b.status,
         severity: b.severity,
         wizard_decision: b.wizard_decision,
-        criticality: b.criticality,
+        criticality: b.criticality || b.severity,
 
         // Timing information
         created_at: b.created_at,
@@ -115,29 +133,29 @@ router.get('/live', async (req, res) => {
         duration_text: durationText,
 
         // Route and priority
-        route_id: null, // Will be added if we have route data
-        is_priority: b.priority_level <= 2,
-        priority_level: b.priority_level,
+        route_id: b.route || null,
+        is_priority: priorityLevel <= 2,
+        priority_level: priorityLevel,
 
         // Supervisor information
         supervisor_badge: b.supervisor_badge,
         supervisor_name: b.supervisor_name,
 
         // Dashboard card information
-        card_title: b.card_title,
-        status_color: b.status_color,
-        requires_immediate_action: b.requires_immediate_action,
+        card_title: cardTitle,
+        status_color: statusColor,
+        requires_immediate_action: b.requires_immediate_action || (b.severity === 'STOP') || (priorityLevel <= 2),
 
         // Legacy compatibility fields
-        driver_name: null,
-        driver_phone: null,
-        passenger_count: null,
-        received_at: b.created_at,
-        acknowledged_at: null,
-        decision_at: null,
-        dispatched_at: null,
-        on_site_at: null,
-        cleared_at: null
+        driver_name: b.driver_name,
+        driver_phone: b.driver_phone,
+        passenger_count: b.passenger_count,
+        received_at: b.received_at || b.created_at,
+        acknowledged_at: b.acknowledged_at,
+        decision_at: b.decision_at,
+        dispatched_at: b.dispatched_at,
+        on_site_at: b.on_site_at,
+        cleared_at: b.cleared_at
       };
     });
 
@@ -155,6 +173,52 @@ router.get('/live', async (req, res) => {
       timestamp: new Date().toISOString(),
       breakdowns: [] // Return empty array for graceful degradation
     });
+  }
+});
+
+// GET /api/breakdowns/stats - Get breakdown statistics (moved before :id route)
+router.get('/stats', async (req, res) => {
+  try {
+    const { period = 'today' } = req.query;
+    let startDate;
+
+    switch (period) {
+      case 'today':
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case 'week':
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case 'month':
+        startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 1);
+        break;
+      default:
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+    }
+
+    const { data, error } = await supabase
+      .from('breakdowns')
+      .select('status')
+      .gte('created_at', startDate.toISOString());
+
+    if (error) throw error;
+
+    const stats = {
+      total: data.length,
+      active: data.filter(b => b.status === 'active').length,
+      pending: data.filter(b => b.status === 'pending').length,
+      resolved: data.filter(b => b.status === 'resolved').length,
+      in_progress: data.filter(b => b.status === 'in_progress').length
+    };
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching breakdown stats:', error);
+    res.status(500).json({ error: 'Failed to fetch breakdown statistics' });
   }
 });
 
@@ -190,13 +254,7 @@ router.post('/', async (req, res) => {
       ...req.body,
       breakdown_id: idResult.id,
       created_at: new Date().toISOString(),
-      status: req.body.status || 'active',
-      generation_metadata: {
-        sequence: idResult.sequence,
-        date: idResult.date,
-        timestamp: idResult.timestamp,
-        fallback: idResult.fallback || false
-      }
+      status: req.body.status || 'received'
     };
 
     const { data, error } = await supabase
@@ -209,11 +267,7 @@ router.post('/', async (req, res) => {
 
     res.status(201).json({
       ...data,
-      id_generation: {
-        breakdown_id: idResult.id,
-        sequence_number: idResult.sequence,
-        generation_date: idResult.date
-      }
+      breakdown_id: idResult.id
     });
   } catch (error) {
     console.error('Error creating breakdown:', error);
@@ -278,51 +332,6 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
-// GET /api/breakdowns/stats - Get breakdown statistics (alias)
-router.get('/stats', async (req, res) => {
-  try {
-    const { period = 'today' } = req.query;
-    let startDate;
-
-    switch (period) {
-      case 'today':
-        startDate = new Date();
-        startDate.setHours(0, 0, 0, 0);
-        break;
-      case 'week':
-        startDate = new Date();
-        startDate.setDate(startDate.getDate() - 7);
-        break;
-      case 'month':
-        startDate = new Date();
-        startDate.setMonth(startDate.getMonth() - 1);
-        break;
-      default:
-        startDate = new Date();
-        startDate.setHours(0, 0, 0, 0);
-    }
-
-    const { data, error } = await supabase
-      .from('breakdowns')
-      .select('status')
-      .gte('created_at', startDate.toISOString());
-
-    if (error) throw error;
-
-    const stats = {
-      total: data.length,
-      active: data.filter(b => b.status === 'active').length,
-      pending: data.filter(b => b.status === 'pending').length,
-      resolved: data.filter(b => b.status === 'resolved').length,
-      in_progress: data.filter(b => b.status === 'in_progress').length
-    };
-
-    res.json(stats);
-  } catch (error) {
-    console.error('Error fetching breakdown stats:', error);
-    res.status(500).json({ error: 'Failed to fetch breakdown statistics' });
-  }
-});
 
 // GET /api/breakdowns/stats/summary - Get breakdown statistics
 router.get('/stats/summary', async (req, res) => {
@@ -505,6 +514,234 @@ router.put('/:id/resolve', async (req, res) => {
   }
 });
 
+// POST /api/breakdowns/:id/dispatch - Dispatch engineer to breakdown
+router.post('/:id/dispatch', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      engineer_id,
+      engineer_name,
+      estimated_arrival_minutes,
+      dispatch_notes,
+      dispatching_supervisor
+    } = req.body;
+
+    // Update breakdown status to dispatched
+    const { data: breakdown, error: updateError } = await supabase
+      .from('breakdowns')
+      .update({
+        status: 'dispatched',
+        dispatched_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('breakdown_id', id)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    if (!breakdown) {
+      return res.status(404).json({
+        success: false,
+        error: 'Breakdown not found'
+      });
+    }
+
+    // Create event log for dispatch
+    const { error: eventError } = await supabase
+      .from('breakdown_events')
+      .insert({
+        breakdown_id: breakdown.id,
+        event_type: 'engineer_dispatched',
+        event_data: {
+          engineer_id,
+          engineer_name,
+          estimated_arrival_minutes,
+          dispatch_notes,
+          dispatching_supervisor,
+          dispatched_at: new Date().toISOString()
+        }
+      });
+
+    if (eventError) console.error('Error creating dispatch event:', eventError);
+
+    // Calculate ETA
+    const eta = new Date();
+    eta.setMinutes(eta.getMinutes() + (estimated_arrival_minutes || 30));
+
+    res.json({
+      success: true,
+      breakdown: {
+        ...breakdown,
+        engineer_assigned: {
+          id: engineer_id,
+          name: engineer_name,
+          eta: eta.toISOString(),
+          estimated_minutes: estimated_arrival_minutes || 30
+        }
+      },
+      message: 'Engineer dispatched successfully'
+    });
+  } catch (error) {
+    console.error('Error dispatching engineer:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to dispatch engineer'
+    });
+  }
+});
+
+// GET /api/breakdowns/:id/activities - Get activity log for specific breakdown
+router.get('/:id/activities', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { limit = 50, offset = 0 } = req.query;
+
+    // First get the breakdown to verify it exists
+    const { data: breakdown, error: breakdownError } = await supabase
+      .from('breakdowns')
+      .select('id, breakdown_id')
+      .eq('breakdown_id', id)
+      .single();
+
+    if (breakdownError || !breakdown) {
+      return res.status(404).json({
+        success: false,
+        error: 'Breakdown not found'
+      });
+    }
+
+    // Get all events for this breakdown
+    const { data: events, error: eventsError } = await supabase
+      .from('breakdown_events')
+      .select('*')
+      .eq('breakdown_id', breakdown.id)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (eventsError) throw eventsError;
+
+    // Format activities
+    const activities = events.map(event => ({
+      id: event.id,
+      type: event.event_type,
+      timestamp: event.created_at,
+      description: formatEventDescription(event),
+      data: event.event_data,
+      user: event.event_data?.supervisor_name || event.event_data?.dispatching_supervisor || 'System'
+    }));
+
+    res.json({
+      success: true,
+      breakdown_id: id,
+      activities,
+      count: activities.length,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching breakdown activities:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch breakdown activities'
+    });
+  }
+});
+
+// POST /api/breakdowns/:id/activities - Add activity entry to breakdown
+router.post('/:id/activities', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      activity_type,
+      description,
+      user_name,
+      metadata
+    } = req.body;
+
+    // Verify breakdown exists
+    const { data: breakdown, error: breakdownError } = await supabase
+      .from('breakdowns')
+      .select('id, breakdown_id')
+      .eq('breakdown_id', id)
+      .single();
+
+    if (breakdownError || !breakdown) {
+      return res.status(404).json({
+        success: false,
+        error: 'Breakdown not found'
+      });
+    }
+
+    // Create activity event
+    const { data: event, error: eventError } = await supabase
+      .from('breakdown_events')
+      .insert({
+        breakdown_id: breakdown.id,
+        event_type: activity_type || 'comment',
+        event_data: {
+          description,
+          user_name,
+          metadata,
+          created_at: new Date().toISOString()
+        }
+      })
+      .select()
+      .single();
+
+    if (eventError) throw eventError;
+
+    res.status(201).json({
+      success: true,
+      activity: {
+        id: event.id,
+        type: event.event_type,
+        timestamp: event.created_at,
+        description,
+        user: user_name,
+        data: event.event_data
+      },
+      message: 'Activity added successfully'
+    });
+  } catch (error) {
+    console.error('Error adding activity:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add activity'
+    });
+  }
+});
+
+// Helper function to format event descriptions
+function formatEventDescription(event) {
+  const data = event.event_data || {};
+
+  switch (event.event_type) {
+    case 'wizard_assessment_completed':
+      return `${data.wizard_type || 'Breakdown'} assessment completed - Decision: ${data.wizard_decision || 'N/A'}`;
+
+    case 'engineer_assigned':
+      return `Engineer ${data.engineer_name || 'assigned'} - ETA: ${data.estimated_arrival_minutes || 'N/A'} minutes`;
+
+    case 'engineer_dispatched':
+      return `Engineer ${data.engineer_name || 'dispatched'} to site`;
+
+    case 'engineer_on_site':
+      return `Engineer arrived on site`;
+
+    case 'resolved':
+      return `Breakdown resolved - ${data.resolution_notes || 'No notes'}`;
+
+    case 'status_change':
+      return `Status changed from ${data.old_status || 'N/A'} to ${data.new_status || 'N/A'}`;
+
+    case 'comment':
+      return data.description || 'Comment added';
+
+    default:
+      return data.description || event.event_type.replace(/_/g, ' ');
+  }
+}
+
 // =====================================================
 // WIZARD INTEGRATION ENDPOINTS
 // =====================================================
@@ -530,7 +767,7 @@ router.post('/from-wizard', async (req, res) => {
 
       // Issue details
       issue_category,
-      issue_description,
+      issue_description, // Frontend sends this but we'll map to description
       severity,
 
       // Additional context
@@ -551,51 +788,34 @@ router.post('/from-wizard', async (req, res) => {
       determinedSeverity === 'AMBER' ? 2 : 3
     );
 
-    // Create the breakdown record
+    // Create the breakdown record with only fields that exist in the database
     const breakdownData = {
       breakdown_id: idResult.id,
-
-      // Wizard data
-      wizard_type,
-      wizard_decision: wizard_decision || determinedSeverity,
-      wizard_assessment_data,
-      wizard_started_at: new Date().toISOString(),
-      wizard_completed_at: new Date().toISOString(),
-
-      // Vehicle and location
-      fleet_number,
-      location_description: location,
-      w3w_location,
-
-      // Supervisor
-      reported_by_badge: supervisor_badge,
-      reported_by_name: supervisor_name,
-
-      // Issue details
-      issue_category: issue_category || 'General Assessment',
-      issue_description: issue_description || `${wizard_type} assessment completed with ${wizard_decision} decision`,
+      fleet_no: fleet_number,
+      supervisor_badge: supervisor_badge,
+      supervisor_name: supervisor_name,
+      location: location,
+      issue_category: issue_category,
+      description: issue_description || 'Wizard assessment completed',
+      status: 'active',
       severity: determinedSeverity,
-
-      // Status and priority
-      status: 'received',
-      priority_level: determinedPriority,
+      wizard_decision: wizard_decision,
+      wizard_type: wizard_type,
+      wizard_assessment_data: wizard_assessment_data || {},
       breakdown_source: 'wizard',
-
-      // Requirements
-      engineering_required,
-      replacement_vehicle_required,
-
-      // Timing
-      created_at: new Date().toISOString(),
-      received_at: new Date().toISOString(),
-      last_update_at: new Date().toISOString()
+      priority_level: determinedPriority,
+      engineering_required: engineering_required,
+      replacement_vehicle_required: replacement_vehicle_required,
+      created_at: new Date().toISOString()
     };
 
     // Add coordinates if provided
     if (location_coords && location_coords.lat && location_coords.lng) {
-      breakdownData.latitude = location_coords.lat;
-      breakdownData.longitude = location_coords.lng;
+      breakdownData.location_lat = location_coords.lat;
+      breakdownData.location_lng = location_coords.lng;
     }
+
+    console.log('🔍 Attempting to insert breakdown data:', JSON.stringify(breakdownData, null, 2));
 
     const { data, error } = await supabase
       .from('breakdowns')
@@ -603,7 +823,11 @@ router.post('/from-wizard', async (req, res) => {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Database insert error:', error);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
+      throw error;
+    }
 
     // Create initial event log
     await supabase

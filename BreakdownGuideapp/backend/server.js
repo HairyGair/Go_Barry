@@ -142,6 +142,7 @@ import wizardRoutes from './routes/wizards.js';
 import engineeringRoutes from './routes/engineering.js';
 import analyticsRoutes from './routes/analytics.js';
 import activityRoutes from './routes/activity.js';
+import supervisorRoutes from './routes/supervisors.js';
 
 // API Routes
 app.use('/api/breakdowns', breakdownRoutes);
@@ -150,7 +151,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/wizards', wizardRoutes);
 app.use('/api/engineering', engineeringRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/reports', analyticsRoutes); // Reports also use analytics routes
 app.use('/api/activity', activityRoutes);
+app.use('/api/supervisors', supervisorRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -237,7 +240,7 @@ app.listen(PORT, async () => {
   console.log(`   GET    http://localhost:${PORT}/api/analytics/trends - Performance trends`);
   console.log(`   GET    http://localhost:${PORT}/api/analytics/depot-comparison - Compare depots`);
   console.log(`   GET    http://localhost:${PORT}/api/analytics/fleet-health - Fleet health`);
-  console.log('\n✅ Server ready for connections');
+  console.log('\n✅ Server ready for connections with supervisors route');
 });
 
 export { app, supabase };

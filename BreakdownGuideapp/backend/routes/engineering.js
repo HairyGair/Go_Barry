@@ -444,7 +444,7 @@ router.put('/assignment/:id/status', async (req, res) => {
 router.get('/breakdown/:id/assignments', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Get breakdown details
     const { data: breakdown, error } = await supabase
       .from('breakdowns')
@@ -455,9 +455,9 @@ router.get('/breakdown/:id/assignments', async (req, res) => {
     if (error) throw error;
 
     if (!breakdown) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Breakdown not found' 
+      return res.status(404).json({
+        success: false,
+        error: 'Breakdown not found'
       });
     }
 
@@ -493,9 +493,364 @@ router.get('/breakdown/:id/assignments', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching breakdown assignments:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to fetch breakdown assignments' 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch breakdown assignments'
+    });
+  }
+});
+
+// GET /api/engineering/performance - Get overall engineering performance stats
+router.get('/performance', async (req, res) => {
+  try {
+    const { period = 'today', depot } = req.query;
+
+    // Calculate date range
+    let startDate = new Date();
+    switch (period) {
+      case 'week':
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case 'month':
+        startDate.setMonth(startDate.getMonth() - 1);
+        break;
+      case 'quarter':
+        startDate.setMonth(startDate.getMonth() - 3);
+        break;
+      default: // today
+        startDate.setHours(0, 0, 0, 0);
+    }
+
+    // Build query
+    let query = supabase
+      .from('breakdowns')
+      .select('*')
+      .gte('created_at', startDate.toISOString());
+
+    if (depot) {
+      query = query.eq('depot', depot);
+    }
+
+    const { data: breakdowns, error } = await query;
+    if (error) throw error;
+
+    // Calculate performance metrics
+    const totalBreakdowns = breakdowns.length;
+    const resolvedBreakdowns = breakdowns.filter(b => b.status === 'cleared').length;
+    const activeBreakdowns = breakdowns.filter(b =>
+      ['active', 'pending', 'in_progress', 'dispatched', 'on_site'].includes(b.status)
+    ).length;
+
+    // Response time calculations
+    let totalResponseTime = 0;
+    let totalRepairTime = 0;
+    let responseCount = 0;
+    let repairCount = 0;
+    let firstTimeFixCount = 0;
+
+    breakdowns.forEach(b => {
+      // Response time (received to acknowledged)
+      if (b.acknowledged_at && b.received_at) {
+        const responseTime = (new Date(b.acknowledged_at) - new Date(b.received_at)) / 60000;
+        totalResponseTime += responseTime;
+        responseCount++;
+      }
+
+      // Repair time (dispatched to cleared)
+      if (b.cleared_at && b.dispatched_at) {
+        const repairTime = (new Date(b.cleared_at) - new Date(b.dispatched_at)) / 60000;
+        totalRepairTime += repairTime;
+        repairCount++;
+
+        // Assume first-time fix if resolved within 2 hours
+        if (repairTime <= 120) {
+          firstTimeFixCount++;
+        }
+      }
+    });
+
+    const avgResponseTime = responseCount > 0 ? Math.round(totalResponseTime / responseCount) : 0;
+    const avgRepairTime = repairCount > 0 ? Math.round(totalRepairTime / repairCount) : 0;
+    const firstTimeFixRate = repairCount > 0
+      ? Math.round((firstTimeFixCount / repairCount) * 100) : 0;
+
+    // Breakdown by severity
+    const bySeverity = {
+      critical: breakdowns.filter(b => b.severity === 'STOP').length,
+      warning: breakdowns.filter(b => b.severity === 'AMBER').length,
+      normal: breakdowns.filter(b => b.severity === 'CONTINUE').length
+    };
+
+    // Top issue categories
+    const issueCounts = {};
+    breakdowns.forEach(b => {
+      const issue = b.issue_category || 'Other';
+      issueCounts[issue] = (issueCounts[issue] || 0) + 1;
+    });
+
+    const topIssues = Object.entries(issueCounts)
+      .map(([issue, count]) => ({ issue, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    res.json({
+      success: true,
+      performance: {
+        period,
+        depot: depot || 'All Depots',
+        totalBreakdowns,
+        resolvedBreakdowns,
+        activeBreakdowns,
+        resolutionRate: totalBreakdowns > 0
+          ? Math.round((resolvedBreakdowns / totalBreakdowns) * 100) : 0,
+        avgResponseTime: `${avgResponseTime} minutes`,
+        avgRepairTime: `${avgRepairTime} minutes`,
+        firstTimeFixRate: `${firstTimeFixRate}%`,
+        bySeverity,
+        topIssues,
+        engineerProductivity: {
+          breakdownsPerEngineer: Math.round(totalBreakdowns / 10), // Simulated
+          avgJobsPerDay: Math.round(totalBreakdowns / 7) // Simulated
+        }
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching performance data:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch performance data'
+    });
+  }
+});
+
+// GET /api/engineering/sla - Get SLA compliance data
+router.get('/sla', async (req, res) => {
+  try {
+    const { period = 'today', depot } = req.query;
+
+    // Calculate date range
+    let startDate = new Date();
+    switch (period) {
+      case 'week':
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case 'month':
+        startDate.setMonth(startDate.getMonth() - 1);
+        break;
+      case 'quarter':
+        startDate.setMonth(startDate.getMonth() - 3);
+        break;
+      default: // today
+        startDate.setHours(0, 0, 0, 0);
+    }
+
+    // Get breakdowns for SLA analysis
+    let query = supabase
+      .from('breakdowns')
+      .select('*')
+      .gte('created_at', startDate.toISOString());
+
+    if (depot) {
+      query = query.eq('depot', depot);
+    }
+
+    const { data: breakdowns, error } = await query;
+    if (error) throw error;
+
+    // Define SLA targets (in minutes)
+    const slaTargets = {
+      STOP: 30,      // Critical - 30 minutes response
+      AMBER: 60,     // Warning - 60 minutes response
+      CONTINUE: 120  // Normal - 120 minutes response
+    };
+
+    // Calculate SLA compliance
+    let totalWithSLA = 0;
+    let slaMet = 0;
+    let slaBreached = 0;
+    const slaDetails = {
+      critical: { total: 0, met: 0, breached: 0 },
+      warning: { total: 0, met: 0, breached: 0 },
+      normal: { total: 0, met: 0, breached: 0 }
+    };
+
+    breakdowns.forEach(b => {
+      if (!b.acknowledged_at || !b.received_at) return;
+
+      const responseMinutes = (new Date(b.acknowledged_at) - new Date(b.received_at)) / 60000;
+      const target = slaTargets[b.severity] || slaTargets.CONTINUE;
+
+      totalWithSLA++;
+
+      const severityKey = b.severity === 'STOP' ? 'critical' :
+                         b.severity === 'AMBER' ? 'warning' : 'normal';
+
+      slaDetails[severityKey].total++;
+
+      if (responseMinutes <= target) {
+        slaMet++;
+        slaDetails[severityKey].met++;
+      } else {
+        slaBreached++;
+        slaDetails[severityKey].breached++;
+      }
+    });
+
+    const overallCompliance = totalWithSLA > 0
+      ? Math.round((slaMet / totalWithSLA) * 100) : 100;
+
+    // Calculate compliance by severity
+    const complianceBySeverity = {
+      critical: slaDetails.critical.total > 0
+        ? Math.round((slaDetails.critical.met / slaDetails.critical.total) * 100) : 100,
+      warning: slaDetails.warning.total > 0
+        ? Math.round((slaDetails.warning.met / slaDetails.warning.total) * 100) : 100,
+      normal: slaDetails.normal.total > 0
+        ? Math.round((slaDetails.normal.met / slaDetails.normal.total) * 100) : 100
+    };
+
+    // Response time distribution
+    const responseTimeRanges = {
+      under15: 0,
+      '15to30': 0,
+      '30to60': 0,
+      '60to120': 0,
+      over120: 0
+    };
+
+    breakdowns.forEach(b => {
+      if (!b.acknowledged_at || !b.received_at) return;
+      const responseMinutes = (new Date(b.acknowledged_at) - new Date(b.received_at)) / 60000;
+
+      if (responseMinutes < 15) responseTimeRanges.under15++;
+      else if (responseMinutes <= 30) responseTimeRanges['15to30']++;
+      else if (responseMinutes <= 60) responseTimeRanges['30to60']++;
+      else if (responseMinutes <= 120) responseTimeRanges['60to120']++;
+      else responseTimeRanges.over120++;
+    });
+
+    res.json({
+      success: true,
+      sla: {
+        period,
+        depot: depot || 'All Depots',
+        overallCompliance: `${overallCompliance}%`,
+        totalBreakdowns: breakdowns.length,
+        breakdownsWithSLA: totalWithSLA,
+        slaMet,
+        slaBreached,
+        complianceBySeverity,
+        slaDetails,
+        responseTimeDistribution: responseTimeRanges,
+        targets: {
+          critical: '30 minutes',
+          warning: '60 minutes',
+          normal: '120 minutes'
+        },
+        status: overallCompliance >= 95 ? 'good' :
+                overallCompliance >= 90 ? 'warning' : 'critical'
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching SLA data:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch SLA compliance data'
+    });
+  }
+});
+
+// GET /api/engineering/teams - Get team availability and status
+router.get('/teams', async (req, res) => {
+  try {
+    // Get all depots
+    const { data: depots, error: depotError } = await supabase
+      .from('depots')
+      .select('*')
+      .eq('is_active', true);
+
+    if (depotError) throw depotError;
+
+    // Get team data for each depot
+    const teams = [];
+
+    for (const depot of depots) {
+      // Get active breakdowns for this depot
+      const { data: activeBreakdowns, error: breakdownError } = await supabase
+        .from('breakdowns')
+        .select('*')
+        .eq('depot', depot.code)
+        .in('status', ['active', 'pending', 'in_progress', 'dispatched', 'on_site']);
+
+      if (breakdownError) throw breakdownError;
+
+      // Simulated engineer data (would come from engineers table in production)
+      const engineerData = {
+        'WAS': { total: 5, available: 3, onSite: 2, onBreak: 0 },
+        'NCL': { total: 4, available: 2, onSite: 2, onBreak: 0 },
+        'CON': { total: 3, available: 1, onSite: 1, onBreak: 1 },
+        'HEX': { total: 2, available: 1, onSite: 1, onBreak: 0 },
+        'GTS': { total: 3, available: 2, onSite: 1, onBreak: 0 },
+        'DAR': { total: 4, available: 2, onSite: 1, onBreak: 1 }
+      };
+
+      const engineers = engineerData[depot.code] || { total: 2, available: 1, onSite: 1, onBreak: 0 };
+
+      teams.push({
+        depot: depot.name,
+        depotCode: depot.code,
+        status: engineers.available > 0 ? 'operational' : 'limited',
+        engineers: {
+          total: engineers.total,
+          available: engineers.available,
+          onSite: engineers.onSite,
+          onBreak: engineers.onBreak
+        },
+        workload: {
+          activeBreakdowns: activeBreakdowns.length,
+          criticalBreakdowns: activeBreakdowns.filter(b => b.severity === 'STOP').length,
+          avgPerEngineer: engineers.total > 0
+            ? Math.round(activeBreakdowns.length / engineers.total * 10) / 10 : 0
+        },
+        capacity: engineers.available > activeBreakdowns.length ? 'good' :
+                 engineers.available >= activeBreakdowns.length / 2 ? 'moderate' : 'strained'
+      });
+    }
+
+    // Calculate totals
+    const totals = teams.reduce((acc, team) => ({
+      totalEngineers: acc.totalEngineers + team.engineers.total,
+      availableEngineers: acc.availableEngineers + team.engineers.available,
+      onSiteEngineers: acc.onSiteEngineers + team.engineers.onSite,
+      totalBreakdowns: acc.totalBreakdowns + team.workload.activeBreakdowns,
+      criticalBreakdowns: acc.criticalBreakdowns + team.workload.criticalBreakdowns
+    }), {
+      totalEngineers: 0,
+      availableEngineers: 0,
+      onSiteEngineers: 0,
+      totalBreakdowns: 0,
+      criticalBreakdowns: 0
+    });
+
+    res.json({
+      success: true,
+      teams,
+      summary: {
+        ...totals,
+        overallCapacity: totals.availableEngineers > totals.totalBreakdowns ? 'good' :
+                        totals.availableEngineers >= totals.totalBreakdowns / 2 ? 'moderate' : 'strained',
+        avgUtilization: totals.totalEngineers > 0
+          ? Math.round((totals.onSiteEngineers / totals.totalEngineers) * 100) : 0
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching teams data:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch teams data'
     });
   }
 });
