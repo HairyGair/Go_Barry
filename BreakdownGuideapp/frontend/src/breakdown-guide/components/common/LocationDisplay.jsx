@@ -1,4 +1,4 @@
-// Enhanced Location Display Component with Interactive Map
+// Enhanced Location Display Component with Interactive Map - DEBUG VERSION
 import React, { useState, useEffect } from 'react';
 import * as Icons from './icons.jsx';
 
@@ -7,11 +7,31 @@ const LocationDisplay = ({ vehicle, location }) => {
     const [mapError, setMapError] = useState(false);
     const [address, setAddress] = useState('');
     
-    if (!vehicle || !location) return null;
+    console.log('LocationDisplay component rendered');
+    console.log('Vehicle:', vehicle);
+    console.log('Location:', location);
+    
+    // Always show something for debugging
+    if (!vehicle) {
+        return (
+            <div className="bg-red-800 rounded-lg p-4 mb-6 border border-red-700">
+                <p className="text-white">LocationDisplay: No vehicle data provided</p>
+            </div>
+        );
+    }
+    
+    if (!location) {
+        return (
+            <div className="bg-yellow-800 rounded-lg p-4 mb-6 border border-yellow-700">
+                <p className="text-white">LocationDisplay: No location data provided</p>
+                <p className="text-sm text-gray-300 mt-2">Vehicle: {vehicle.fleetNumber} - {vehicle.regNo}</p>
+            </div>
+        );
+    }
     
     // Reverse geocode to get address
     useEffect(() => {
-        if (location.lat && location.lng && location.type === 'ticketer') {
+        if (location && location.lat && location.lng && location.type === 'ticketer') {
             // Try to get address from coordinates
             fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.lat}&lon=${location.lng}`)
                 .then(res => res.json())
@@ -47,23 +67,15 @@ const LocationDisplay = ({ vehicle, location }) => {
         return null;
     };
     
-    // Create a static map image URL
-    const getStaticMapUrl = () => {
-        if (location.lat && location.lng) {
-            // Using MapBox static API (free tier available) or OSM static
-            // For now, using a tile service that doesn't require API key
-            const zoom = 15;
-            const width = 600;
-            const height = 300;
-            
-            // Using OpenStreetMap tile server for static image
-            return `https://staticmap.openstreetmap.de/staticmap.php?center=${location.lat},${location.lng}&zoom=${zoom}&size=${width}x${height}&markers=${location.lat},${location.lng},red-pushpin`;
-        }
-        return null;
-    };
-    
     return (
         <div className="bg-gray-800 rounded-lg overflow-hidden mb-6 border border-gray-700">
+            {/* Debug info */}
+            <div className="bg-blue-800 p-2 text-xs text-white">
+                <p>DEBUG: LocationDisplay is rendering</p>
+                <p>Location type: {location.type}</p>
+                {location.lat && <p>Lat: {location.lat}, Lng: {location.lng}</p>}
+            </div>
+            
             {/* Interactive Map Display - Full Width */}
             {location.lat && location.lng && !mapError && (
                 <div className="relative w-full h-64 bg-gray-900">
@@ -82,15 +94,10 @@ const LocationDisplay = ({ vehicle, location }) => {
                         <div className="relative transform -translate-y-8">
                             {/* Shadow */}
                             <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-16 h-4 bg-black/20 rounded-full blur-md" />
-                            {/* Bus Marker Image */}
-                            <img 
-                                src="/bus-marker.svg" 
-                                alt="Bus Location" 
-                                className="w-16 h-16"
-                                style={{ 
-                                    filter: 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.7))'
-                                }}
-                            />
+                            {/* Bus Marker - Using emoji as fallback */}
+                            <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center text-2xl shadow-lg">
+                                🚌
+                            </div>
                         </div>
                     </div>
                     
@@ -127,7 +134,7 @@ const LocationDisplay = ({ vehicle, location }) => {
             )}
             
             {/* Fallback for map error or no coordinates */}
-            {(mapError || !location.lat || !location.lng) && (
+            {(mapError || !location.lat || !location.lng) && location.type !== 'skip' && (
                 <div className="relative w-full h-64 bg-gray-900 flex items-center justify-center">
                     <div className="text-center">
                         <MapPin className="w-16 h-16 text-gray-600 mx-auto mb-3" />
@@ -147,10 +154,10 @@ const LocationDisplay = ({ vehicle, location }) => {
                     <div>
                         <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Vehicle</h4>
                         <div className="text-white font-semibold text-lg">
-                            {vehicle.fleetNumber} - {vehicle.regNo}
+                            {vehicle.fleetNumber} - {vehicle.regNo || 'No Reg'}
                         </div>
                         <div className="text-sm text-gray-400">
-                            {vehicle.depot} • {vehicle.vehicleType}
+                            {vehicle.depot || 'Unknown Depot'} • {vehicle.vehicleType || 'Unknown Type'}
                         </div>
                     </div>
                     

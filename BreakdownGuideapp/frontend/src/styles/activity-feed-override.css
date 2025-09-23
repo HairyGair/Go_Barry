@@ -1,0 +1,17 @@
+/* =====================================
+   LIVE ACTIVITY FEED - CLEANUP
+   ===================================== */
+
+/* Remove all old floating widget styles */
+.activity-feed:not(.live-activity-feed) {
+  display: none !important;
+}
+
+/* Ensure the embedded feed takes full width */
+.activity-feed-sidebar .live-activity-feed.embedded {
+  width: 100% !important;
+  position: relative !important;
+  right: auto !important;
+  top: auto !important;
+  max-width: 100% !important;
+}

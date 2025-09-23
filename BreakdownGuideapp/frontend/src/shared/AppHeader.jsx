@@ -212,8 +212,19 @@ const AppHeader = ({ variant = 'full' }) => {
         <div className="status-bar-content">
           <div className="status-left">
 
-            <span className="system-info">
-              Go North East Breakdown Management System v1.5.3
+            <span className="system-info" style={{ display: 'flex', alignItems: 'center' }}>
+              <img 
+                src="/gne-logo.png" 
+                alt="GNE" 
+                style={{ 
+                  height: '16px', 
+                  width: 'auto', 
+                  marginRight: '8px', 
+                  verticalAlign: 'middle',
+                  opacity: theme === 'dark' ? '0.9' : '0.8'
+                }}
+              />
+              Breakdown Management System v1.5.3
             </span>
           </div>
           <div className="status-right">

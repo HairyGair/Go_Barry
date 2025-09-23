@@ -2,6 +2,57 @@
 
 All notable changes to the Go North East Breakdown Guide project will be documented in this file.
 
+## [1.6.1] - 2025-09-21
+
+### Fixed - Login Page Error Loops & Activity Feed Glitches
+
+#### Login Issue
+- Homepage was stuck in continuous error loops trying to fetch dashboard data
+- Polling manager was starting before authentication, causing constant re-renders
+- Login form was unusable due to interface constantly refreshing
+
+#### Activity Feed Glitches
+- Activity feed was flickering and re-rendering unnecessarily
+- Hover effects causing layout shifts
+- Excessive console logging impacting performance
+- Unnecessary 60-second timer causing re-renders without updates
+- Cache conflicts between embedded and standalone modes
+
+#### Solutions Applied
+- Modified HomePage component to only start polling after successful authentication
+- Added authentication checks before displaying stats and activity feed
+- Changed initial loading state to false
+- Removed ApiDiagnostic component that was making unnecessary health checks
+- Rewrote LiveActivityFeed component for better performance
+- Removed unnecessary animations and transitions
+- Fixed React key warnings with proper unique key generation
+
+### Changed
+- **App.jsx**: Updated HomePage component with proper authentication checks
+- **Polling behavior**: Now only starts after successful login
+- **UI visibility**: Stats and activity feed only render when authenticated
+- **Error handling**: Improved circuit breaker pattern in fetchDashboardData
+- **LiveActivityFeed.jsx**: Complete rewrite for performance
+  - Removed console logging
+  - Eliminated 60-second refresh timer
+  - Simplified caching logic
+  - Added memoization with useMemo
+  - Fixed unique key generation
+- **LiveActivityFeed.css**: Optimized animations and transitions
+  - Removed transform on hover that caused layout shifts
+  - Reduced transition durations for snappier feel
+  - Added GPU acceleration hints
+  - Disabled animations for embedded mode
+
+### Technical Details
+- Fixed polling useEffect to depend on isAuthenticated state
+- Added cleanup when user is not authenticated
+- Created emergency-stop.js utility for manual polling control
+- Moved ApiDiagnostic.jsx to backup to prevent health check loops
+- Used React.useMemo to prevent unnecessary recalculations
+- Added translateZ(0) for GPU acceleration
+- Implemented proper flex-shrink to prevent layout recalculation
+
 ## [1.6.0] - 2025-09-17
 
 ### Added - Advanced Header Features

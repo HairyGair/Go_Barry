@@ -214,4 +214,35 @@ router.get('/depots', async (req, res) => {
   }
 });
 
+// GET /api/auth/recent-sessions - Get recent authentication sessions
+router.get('/recent-sessions', async (req, res) => {
+  try {
+    const { limit = 10 } = req.query;
+
+    // Since sessions are managed in memory, we'll provide basic session info
+    // This could be enhanced to track actual session data if needed
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, full_name, username, depot')
+      .eq('is_active', true)
+      .eq('role', 'supervisor')
+      .limit(parseInt(limit));
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || [],
+      count: data ? data.length : 0
+    });
+  } catch (error) {
+    console.error('Error fetching recent sessions:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch recent sessions',
+      data: []
+    });
+  }
+});
+
 export default router;

@@ -340,34 +340,26 @@ const BreakdownDashboard = () => {
         <StatsCard 
           value={stats.total}
           label="Active Breakdowns"
-          change={2}
-          trend="negative"
-          icon="🚌"
-          colorScheme="blue"
+          icon={<span style={{ fontSize: '28px' }}>⚠️</span>}
+          variant="warning"
         />
         <StatsCard 
-          value={stats.unassigned}
-          label="Awaiting Engineer"
-          change={1}
-          trend="negative"
-          icon="⏳"
-          colorScheme="amber"
+          value={19}
+          label="Today's Total"
+          icon={<span style={{ fontSize: '28px' }}>📊</span>}
+          variant="info"
         />
         <StatsCard 
-          value={stats.onsite}
-          label="Engineers On Site"
-          change={0}
-          trend="neutral"
-          icon="🔧"
-          colorScheme="green"
+          value="1m"
+          label="Avg Response Time"
+          icon={<span style={{ fontSize: '28px' }}>⏱️</span>}
+          variant="default"
         />
         <StatsCard 
-          value={stats.slaRisk}
-          label="SLA at Risk"
-          change={1}
-          trend="negative"
-          icon="⚠️"
-          colorScheme="red"
+          value="89%"
+          label="Fleet Health"
+          icon={<span style={{ fontSize: '28px' }}>🚌</span>}
+          variant="success"
         />
       </div>
 

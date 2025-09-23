@@ -9,6 +9,7 @@ import StatusWidget from './StatusWidget.jsx';
 import RecentDecisions from './RecentDecisions.jsx';
 import BreakdownMap from './BreakdownMap.jsx';
 import { apiConfig } from '../../breakdown-guide/components/common/constants.js';
+import { pollingManager } from '../../utils/pollingManager.js';
 
 const SDCDashboard = () => {
   const navigate = useNavigate();
@@ -85,8 +86,9 @@ const SDCDashboard = () => {
   // Fetch breakdowns
   useEffect(() => {
     const fetchBreakdowns = async () => {
+      console.log('🔍 SDCDashboard: fetchBreakdowns called at', new Date().toISOString());
       setLoading(true);
-      
+
       try {
         const response = await fetch(`${apiConfig.baseUrl}/api/breakdowns/live`);
         if (response.ok) {
@@ -108,9 +110,11 @@ const SDCDashboard = () => {
       }
     };
 
-    fetchBreakdowns();
-    const interval = setInterval(fetchBreakdowns, 5000);
-    return () => clearInterval(interval);
+    pollingManager.startPolling('sdc-dashboard', fetchBreakdowns, 30000);
+
+    return () => {
+      pollingManager.stopPolling('sdc-dashboard');
+    };
   }, []);
 
   // Update statistics

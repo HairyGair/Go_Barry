@@ -335,8 +335,24 @@ ${new Date().toISOString()}
             {/* Complete Assessment Button */}
             <div className="flex justify-center pt-6 border-t border-white/20">
                 <button
-                    onClick={onComplete}
-                    className="flex items-center px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    type="button"
+                    onMouseDown={() => console.log('🔥 Button mousedown event')}
+                    onMouseUp={() => console.log('🔥 Button mouseup event')}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        console.log('🔥 AssessmentSummary Complete Assessment button clicked!');
+                        console.log('onComplete function:', onComplete);
+                        console.log('Event:', e);
+                        if (onComplete) {
+                            console.log('🚀 Calling onComplete...');
+                            onComplete();
+                        } else {
+                            console.error('❌ onComplete function is not defined!');
+                        }
+                    }}
+                    className="flex items-center px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer"
+                    style={{pointerEvents: 'auto'}}
                 >
                     <CheckCircle className="w-5 h-5 mr-2" />
                     Complete Assessment

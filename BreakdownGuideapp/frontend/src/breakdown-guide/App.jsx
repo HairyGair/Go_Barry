@@ -133,6 +133,7 @@ const App = () => {
     const [showSummary, setShowSummary] = useState(false);
     const [assessmentDecision, setAssessmentDecision] = useState(null);
     const [assessmentNotes, setAssessmentNotes] = useState('');
+    const [breakdownLocation, setBreakdownLocation] = useState(null);
     
     // Check for authentication from parent app
     useEffect(() => {
@@ -195,11 +196,16 @@ const App = () => {
     const handleFleetSelection = async (vehicleWithLocation) => {
         // Extract location from the vehicle object if present
         const vehicle = { ...vehicleWithLocation };
-        const location = vehicle.location || {};
+        const location = vehicle.location || null;
         delete vehicle.location; // Remove location from vehicle object
+        
+        console.log('handleFleetSelection - vehicle:', vehicle);
+        console.log('handleFleetSelection - location:', location);
+        console.log('handleFleetSelection - location type:', location?.type);
         
         setSelectedVehicle(vehicle);
         setShowFleetModal(false);
+        setBreakdownLocation(location); // Store location in state
         
         if (pendingWizardType) {
             // Start the breakdown with location data
@@ -249,13 +255,31 @@ const App = () => {
                                 }
                             }}
                             onComplete={async () => {
-                                // Complete the assessment in the system
-                                await supervisorBreakdownLogger.completeAssessment({
+                                console.log('🔥 Completing wizard assessment with full data...');
+
+                                // Complete the assessment with ALL required data
+                                const result = await supervisorBreakdownLogger.completeAssessment({
                                     breakdownId: assessmentId,
                                     decision: assessmentDecision,
-                                    notes: assessmentNotes
+                                    notes: assessmentNotes,
+                                    wizardType: wizards[currentWizard]?.title || currentWizard,
+                                    issueCategory: currentWizard,
+                                    assessmentData: {
+                                        responses: responses,
+                                        steps: Object.entries(responses).map(([key, value]) => ({
+                                            question: key,
+                                            answer: value
+                                        }))
+                                    },
+                                    description: `${wizards[currentWizard]?.title || currentWizard} assessment completed with decision: ${assessmentDecision}`
                                 });
-                                
+
+                                if (result && result.success) {
+                                    console.log('✅ Wizard data successfully sent to dashboard!');
+                                } else {
+                                    console.error('❌ Failed to send wizard data to dashboard');
+                                }
+
                                 // Reset all state
                                 setCurrentWizard(null);
                                 setAssessmentId(null);
@@ -265,6 +289,7 @@ const App = () => {
                                 setShowSummary(false);
                                 setAssessmentDecision(null);
                                 setAssessmentNotes('');
+                                setBreakdownLocation(null);
                             }}
                         />
                     </div>
@@ -287,13 +312,15 @@ const App = () => {
                 <div className="min-h-screen bg-gray-900">
                     <div className="main-content">
                         {/* Location Display */}
-                        <LocationDisplay 
-                        vehicle={{
-                            ...selectedVehicle,
-                            assessmentId: assessmentId
-                        }} 
-                        location={supervisorBreakdownLogger.getCurrentBreakdown()?.location}
-                    />
+                        {breakdownLocation && (
+                            <LocationDisplay 
+                                vehicle={{
+                                    ...selectedVehicle,
+                                    assessmentId: assessmentId
+                                }} 
+                                location={breakdownLocation}
+                            />
+                        )}
                     
                     <WizardComponent
                         key={`wizard-${currentWizard}-step-${currentStep}`}
@@ -328,6 +355,8 @@ const App = () => {
                             setShowSummary(false);
                             setAssessmentDecision(null);
                             setAssessmentNotes('');
+                            setBreakdownLocation(null); // Clear location
+                            supervisorBreakdownLogger.currentBreakdown = null; // Clear current breakdown
                         }}
                     />
                     </div>

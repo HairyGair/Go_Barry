@@ -22,7 +22,6 @@ const EngineeringDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [notification, setNotification] = useState(null);
-  const [isConnected, setIsConnected] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(new Date());
 
   // Filter options
@@ -58,7 +57,6 @@ const EngineeringDashboard = () => {
         setAllBreakdowns(enhancedBreakdowns);
         setAllEngineers(engineersData.engineers || []);
         setEngineeringMetrics(metricsData.metrics || {});
-        setIsConnected(true);
         setLastUpdate(new Date());
         setLoading(false);
         setError(null);
@@ -68,7 +66,6 @@ const EngineeringDashboard = () => {
     } catch (error) {
       console.error('Error fetching data:', error);
       setError('Failed to connect to server');
-      setIsConnected(false);
       setLoading(false);
     }
   }, []);
@@ -366,9 +363,9 @@ const EngineeringDashboard = () => {
           minHeight: 'calc(100vh - 180px)',
         }}
       >
-        {/* Connection Status Bar */}
-        <div 
-          className="connection-bar"
+        {/* Status Bar */}
+        <div
+          className="status-bar"
           style={{
             backgroundColor: theme.colors.bgTertiary,
             borderBottom: `1px solid ${theme.colors.border}`,
@@ -379,18 +376,8 @@ const EngineeringDashboard = () => {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div 
-              className={`connection-dot ${isConnected ? 'connected' : 'disconnected'}`}
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor: isConnected ? theme.colors.success : theme.colors.danger,
-                animation: isConnected ? 'pulse 2s infinite' : 'none',
-              }}
-            />
             <span style={{ color: theme.colors.textSecondary, fontSize: '14px' }}>
-              {isConnected ? 'Live' : 'Disconnected'} • {lastUpdate.toLocaleTimeString()}
+              Last Update: {lastUpdate.toLocaleTimeString()}
             </span>
           </div>
           <span style={{ color: theme.colors.textMuted, fontSize: '12px' }}>

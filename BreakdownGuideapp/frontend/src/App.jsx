@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import './App.css'
 
 // Import authentication helpers
@@ -16,6 +16,10 @@ import { DashboardRouter } from './dashboards'
 
 // Import NotificationPanel
 import NotificationPanel from './components/NotificationPanel.jsx'
+// Import LiveActivityFeed
+import LiveActivityFeed from './components/LiveActivityFeed.jsx'
+// Import dashboard data fetcher
+import { fetchDashboardData } from './utils/fetchDashboardData.js'
 
 const BreakdownGuide = () => {
   return <BreakdownGuideApp />
@@ -128,7 +132,72 @@ const Navigation = ({ isAuthenticated, supervisorSession, onSignOut, onLoginSucc
   )
 }
 
-// Home Page Component
+// Create a global singleton for homepage data updates
+if (!window.homepageDataManager) {
+  window.homepageDataManager = {
+    callbacks: new Set(),
+    isPolling: false,
+    lastData: null,
+    
+    subscribe(callback) {
+      this.callbacks.add(callback)
+      // Send last data if available
+      if (this.lastData) {
+        callback(this.lastData)
+      }
+      // Start polling if not already started
+      if (!this.isPolling) {
+        this.startPolling()
+      }
+    },
+    
+    unsubscribe(callback) {
+      this.callbacks.delete(callback)
+      // Stop polling if no more subscribers
+      if (this.callbacks.size === 0) {
+        this.stopPolling()
+      }
+    },
+    
+    async fetchData() {
+      try {
+        const data = await fetchDashboardData()
+        this.lastData = data
+        // Notify all subscribers
+        this.callbacks.forEach(cb => cb(data))
+      } catch (error) {
+        console.error('Homepage data fetch error:', error)
+      }
+    },
+    
+    startPolling() {
+      if (this.isPolling) return
+      this.isPolling = true
+      console.log('🔄 Starting homepage data polling')
+      
+      // Initial fetch
+      this.fetchData()
+      
+      // Set up interval
+      this.intervalId = setInterval(() => {
+        this.fetchData()
+      }, 30000)
+    },
+    
+    stopPolling() {
+      if (!this.isPolling) return
+      this.isPolling = false
+      console.log('🛑 Stopping homepage data polling')
+      
+      if (this.intervalId) {
+        clearInterval(this.intervalId)
+        this.intervalId = null
+      }
+    }
+  }
+}
+
+// Home Page Component - Using global data manager
 const HomePage = ({ isAuthenticated, supervisorSession, onStatsChange }) => {
   const [stats, setStats] = useState({
     activeBreakdowns: 0,
@@ -137,14 +206,38 @@ const HomePage = ({ isAuthenticated, supervisorSession, onStatsChange }) => {
     fleetHealth: 0
   })
   const [activityFeed, setActivityFeed] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   
-  // Fetch real-time data - always fetch, not just when authenticated
+  // Subscribe to global data updates when authenticated
   useEffect(() => {
-    fetchDashboardData()
-    const interval = setInterval(fetchDashboardData, 30000) // Refresh every 30 seconds
-    return () => clearInterval(interval)
-  }, [])
+    if (isAuthenticated) {
+      const handleDataUpdate = (data) => {
+        if (data) {
+          setStats(data.stats)
+          setActivityFeed(data.activityFeed)
+          setLoading(false)
+        }
+      }
+      
+      // Subscribe to updates
+      window.homepageDataManager.subscribe(handleDataUpdate)
+      
+      return () => {
+        // Unsubscribe on cleanup
+        window.homepageDataManager.unsubscribe(handleDataUpdate)
+      }
+    } else {
+      // Reset stats when not authenticated
+      setStats({
+        activeBreakdowns: 0,
+        todayTotal: 0,
+        avgResponseTime: 0,
+        fleetHealth: 0
+      })
+      setActivityFeed([])
+      setLoading(false)
+    }
+  }, [isAuthenticated])
   
   // Notify parent component when stats change
   useEffect(() => {
@@ -153,86 +246,70 @@ const HomePage = ({ isAuthenticated, supervisorSession, onStatsChange }) => {
     }
   }, [stats.activeBreakdowns, onStatsChange])
   
-  const fetchDashboardData = async () => {
-    try {
-      // Simulate fetching real data - replace with actual API calls
-      const today = new Date()
-      const startOfDay = new Date(today.setHours(0,0,0,0))
-      
-      // In production, these would be actual API calls:
-      // const { data: activeBreakdowns } = await supabase.from('breakdowns').select('*').eq('status', 'active')
-      // const { data: todayBreakdowns } = await supabase.from('breakdowns').select('*').gte('created_at', startOfDay)
-      
-      // TODO: Replace with real API call - for now, set to 0 for accurate display
-      setStats({
-        activeBreakdowns: 0, // Set to 0 to reflect reality
-        todayTotal: Math.floor(Math.random() * 20) + 5,
-        avgResponseTime: Math.floor(Math.random() * 15) + 8,
-        fleetHealth: Math.floor(Math.random() * 10) + 85
-      })
-      
-      // Simulate activity feed with more realistic data
-      setActivityFeed([
-        { id: 1, type: 'breakdown', message: 'Breakdown reported - Fleet #6932 at Washington', time: '2 mins ago', severity: 'high', depot: 'Washington' },
-        { id: 2, type: 'engineer', message: 'Engineer dispatched to Chester-le-Street', time: '5 mins ago', severity: 'normal', depot: 'Chester-le-Street' },
-        { id: 3, type: 'complete', message: 'Assessment completed - Fleet #5847', time: '12 mins ago', severity: 'success', decision: 'AMBER' },
-        { id: 4, type: 'alert', message: 'Heavy traffic on A1 - expect delays', time: '15 mins ago', severity: 'warning' },
-        { id: 5, type: 'breakdown', message: 'Non-starter - Fleet #7123 at Percy Main', time: '18 mins ago', severity: 'high', depot: 'Percy Main' },
-        { id: 6, type: 'engineer', message: 'Engineering attendance complete - Fleet #5021', time: '22 mins ago', severity: 'success' },
-        { id: 7, type: 'breakdown', message: 'Steering issue - Fleet #6549 at Riverside', time: '25 mins ago', severity: 'high', depot: 'Riverside' },
-        { id: 8, type: 'complete', message: 'Changeover completed - Fleet #8234', time: '30 mins ago', severity: 'normal' }
-      ])
-      
-      setLoading(false)
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error)
-      setLoading(false)
-    }
-  }
+
+  
+  // Memoize the supervisor name to prevent re-renders
+  const supervisorName = useMemo(() => {
+    return supervisorSession?.name || ''
+  }, [supervisorSession?.name])
   
   return (
     <div className="home-page">
       <div className="main-content-grid">
         <div className="content-area">
           <div className="hero">
-            <h1>Go North East Breakdown Management System</h1>
+            <h1 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img 
+                src="/gne-logo-horizontal-colour.png" 
+                alt="Go North East" 
+                style={{ 
+                  height: '50px', 
+                  width: 'auto', 
+                  marginRight: '20px', 
+                  verticalAlign: 'middle'
+                }}
+              />
+              Breakdown Management System
+            </h1>
             <p>Ensuring passenger safety through structured assessment and rapid response</p>
-            {isAuthenticated && supervisorSession && (
-              <div className="welcome-banner">
-                👋 Welcome back, <strong>{supervisorSession.name}</strong>
+            {isAuthenticated && supervisorName && (
+              <div className="welcome-banner" key="welcome-banner">
+                👋 Welcome back, <strong>{supervisorName}</strong>
               </div>
             )}
           </div>
           
-          <div className="quick-stats">
-            <div className={`stat-card ${stats.activeBreakdowns > 0 ? 'has-active' : ''}`}>
-              <div className="stat-icon">⚠️</div>
-              <h3>Active Breakdowns</h3>
-              <div className="stat-value">{loading ? '...' : stats.activeBreakdowns}</div>
-              {stats.activeBreakdowns > 0 && <div className="stat-indicator active"></div>}
+          {isAuthenticated && (
+            <div className="quick-stats">
+              <div className={`stat-card ${stats.activeBreakdowns > 0 ? 'has-active' : ''}`}>
+                <div className="stat-icon">⚠️</div>
+                <div className="stat-label">Active Breakdowns</div>
+                <div className="stat-value">{loading ? '...' : stats.activeBreakdowns}</div>
+                {stats.activeBreakdowns > 0 && <div className="stat-indicator active"></div>}
+              </div>
+              <div className="stat-card">
+                <div className="stat-icon">📊</div>
+                <div className="stat-label">Today's Total</div>
+                <div className="stat-value">{loading ? '...' : stats.todayTotal}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-icon">⏱️</div>
+                <h3>Avg Response Time</h3>
+                <div className="stat-value">{loading ? '...' : stats.avgResponseTime > 0 ? `${stats.avgResponseTime} min` : '--'}</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-icon">🚌</div>
+                <div className="stat-label">Fleet Health</div>
+                <div className="stat-value">{loading ? '...' : `${stats.fleetHealth}%`}</div>
+              </div>
             </div>
-            <div className="stat-card">
-              <div className="stat-icon">📊</div>
-              <h3>Today's Total</h3>
-              <div className="stat-value">{loading ? '...' : stats.todayTotal}</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon">⏱️</div>
-              <h3>Avg Response Time</h3>
-              <div className="stat-value">{loading ? '...' : `${stats.avgResponseTime} min`}</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-icon">🚌</div>
-              <h3>Fleet Health</h3>
-              <div className="stat-value">{loading ? '...' : `${stats.fleetHealth}%`}</div>
-            </div>
-          </div>
+          )}
           
           {isAuthenticated ? (
             <>
               <div className="quick-action-buttons">
                 <Link to="/breakdown-guide" className="quick-action-btn emergency">
-                  <img src="/icons/steering.png" alt="" className="btn-icon" onerror="this.style.display='none'" />
+                  <img src="/icons/steering.png" alt="" className="btn-icon" />
                   <span>🚨 Report Breakdown</span>
                 </Link>
                 <Link to="/dashboards/sdc" className="quick-action-btn">
@@ -304,40 +381,11 @@ const HomePage = ({ isAuthenticated, supervisorSession, onStatsChange }) => {
           )}
         </div>
         
-        <aside className="activity-feed-sidebar">
-          <div className="activity-feed">
-            <h3>Live Activity Feed</h3>
-            <div className="activity-list">
-              {activityFeed.slice(0, isAuthenticated ? 8 : 5).map(item => (
-                <div key={item.id} className={`activity-item ${item.severity}`}>
-                  <div className="activity-icon">
-                    {item.type === 'breakdown' && '🚨'}
-                    {item.type === 'engineer' && '🔧'}
-                    {item.type === 'complete' && '✅'}
-                    {item.type === 'alert' && '⚠️'}
-                  </div>
-                  <div className="activity-content">
-                    <p>{item.message}</p>
-                    <div className="activity-meta">
-                      <span className="activity-time">{item.time}</span>
-                      {item.depot && <span className="activity-depot">• {item.depot}</span>}
-                      {item.decision && <span className={`activity-decision ${item.decision.toLowerCase()}`}>• {item.decision}</span>}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {isAuthenticated ? (
-              <Link to="/dashboards/breakdown" className="view-all-activity">
-                View All Activity →
-              </Link>
-            ) : (
-              <div className="activity-login-prompt">
-                <p>Sign in to see full activity feed and access all features</p>
-              </div>
-            )}
-          </div>
-        </aside>
+        {isAuthenticated && (
+          <aside className="activity-feed-sidebar">
+            <LiveActivityFeed embedded={true} isOpen={true} activities={activityFeed} />
+          </aside>
+        )}
       </div>
     </div>
   )
@@ -623,9 +671,6 @@ function App() {
               </a>
             </div>
             <div className="footer-status">
-              <span className={`connection-status ${isOnline ? 'online' : 'offline'}`}>
-                {isOnline ? '🟢 Connected' : '🔴 Offline'}
-              </span>
               <span className="shift-info">
                 {getCurrentShift()}
               </span>

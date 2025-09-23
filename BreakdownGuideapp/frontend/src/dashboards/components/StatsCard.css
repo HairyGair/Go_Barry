@@ -1,0 +1,132 @@
+/* StatsCard Component Styles */
+
+.stat-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-left: 4px solid;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-lg);
+  transition: all var(--transition-normal);
+  height: 100%;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-hover);
+}
+
+.stat-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.stat-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 52px;
+}
+
+/* Critical alignment fixes */
+.stat-value-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1;
+  min-height: 40px;
+}
+
+.stat-value-number {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  height: 36px;
+}
+
+.stat-value-unit {
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1;
+  opacity: 0.8;
+  display: flex;
+  align-items: center;
+  height: 36px;
+  padding-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.stat-change {
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stat-change.positive {
+  color: var(--color-success);
+}
+
+.stat-change.negative {
+  color: var(--color-danger);
+}
+
+@media (max-width: 768px) {
+  .stat-value-number {
+    font-size: 28px;
+    height: 28px;
+  }
+  
+  .stat-value-unit {
+    font-size: 16px;
+    height: 28px;
+    padding-bottom: 2px;
+  }
+  
+  .stat-value-wrapper {
+    min-height: 32px;
+  }
+  
+  .stat-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+  
+  .stat-label {
+    font-size: 12px;
+    margin-top: 2px;
+  }
+  
+  .stat-details {
+    min-height: 44px;
+  }
+}

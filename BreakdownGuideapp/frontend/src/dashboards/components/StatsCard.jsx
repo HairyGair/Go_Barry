@@ -1,5 +1,6 @@
 import React from 'react';
 import { theme } from '@styles/theme';
+import './StatsCard.css';
 
 const StatsCard = ({ 
   value, 
@@ -7,8 +8,28 @@ const StatsCard = ({
   change = null, 
   trend = null, 
   icon = null,
-  variant = 'default'
+  variant = 'default',
+  unit = null // Optional unit to display separately
 }) => {
+  // Parse value to separate number and unit if not provided separately
+  const parseValue = (val) => {
+    if (unit) {
+      return { number: val, unit: unit };
+    }
+    
+    // Try to parse common patterns like "19", "1m", "89%"
+    const match = String(val).match(/^([0-9.,]+)\s*([a-zA-Z%]+)?$/);
+    if (match) {
+      return {
+        number: match[1],
+        unit: match[2] || ''
+      };
+    }
+    return { number: val, unit: '' };
+  };
+  
+  const { number, unit: displayUnit } = parseValue(value);
+  
   // Variant styles
   const getVariantStyles = () => {
     switch (variant) {
@@ -63,10 +84,11 @@ const StatsCard = ({
         )}
         <div className="stat-details">
           <div 
-            className="stat-value"
+            className="stat-value-wrapper"
             style={{ color: variantStyles.valueColor }}
           >
-            {value}
+            <span className="stat-value-number">{number}</span>
+            {displayUnit && <span className="stat-value-unit">{displayUnit}</span>}
           </div>
           <div className="stat-label">{label}</div>
         </div>
@@ -78,88 +100,6 @@ const StatsCard = ({
           {change}
         </div>
       )}
-
-      <style jsx>{`
-        .stat-card {
-          background: var(--bg-secondary);
-          border: 1px solid var(--border);
-          border-left: 4px solid;
-          border-radius: var(--radius-md);
-          padding: var(--spacing-lg);
-          transition: all var(--transition-normal);
-          height: 100%;
-        }
-        
-        .stat-card:hover {
-          transform: translateY(-2px);
-          box-shadow: var(--shadow-md);
-          border-color: var(--border-hover);
-        }
-        
-        .stat-content {
-          display: flex;
-          align-items: center;
-          gap: var(--spacing-md);
-        }
-        
-        .stat-icon {
-          width: 48px;
-          height: 48px;
-          border-radius: var(--radius-md);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 24px;
-          flex-shrink: 0;
-        }
-        
-        .stat-details {
-          flex: 1;
-        }
-        
-        .stat-value {
-          font-size: 28px;
-          font-weight: 700;
-          line-height: 1.2;
-        }
-        
-        .stat-label {
-          font-size: 14px;
-          color: var(--text-secondary);
-          margin-top: 4px;
-        }
-        
-        .stat-change {
-          margin-top: var(--spacing-md);
-          padding-top: var(--spacing-md);
-          border-top: 1px solid var(--border);
-          font-size: 14px;
-          color: var(--text-secondary);
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-        
-        .stat-change.positive {
-          color: var(--color-success);
-        }
-        
-        .stat-change.negative {
-          color: var(--color-danger);
-        }
-        
-        @media (max-width: 768px) {
-          .stat-value {
-            font-size: 24px;
-          }
-          
-          .stat-icon {
-            width: 40px;
-            height: 40px;
-            font-size: 20px;
-          }
-        }
-      `}</style>
     </div>
   );
 };

@@ -48,14 +48,33 @@ class SupervisorBreakdownLogger {
     // Set the current supervisor session
     setSupervisor(session) {
         this.supervisor = session;
-        console.log(`Logger initialised for supervisor: ${session.supervisorId}`);
+        console.log(`🔧 Logger initialised for supervisor: ${session?.supervisorId || session?.id}`, session);
     }
     
     // Start a new breakdown assessment (now just tracks session, actual breakdown created on completion)
     async startBreakdown(data) {
+        console.log('🔍 startBreakdown called with data:', data);
+        console.log('🔍 Current supervisor state:', this.supervisor);
+
         if (!this.supervisor) {
-            console.error('No supervisor session active');
-            return null;
+            console.error('❌ No supervisor session active');
+            console.log('🔍 Checking localStorage for supervisor_session...');
+            const sessionData = localStorage.getItem('supervisor_session');
+            console.log('🔍 localStorage supervisor_session:', sessionData);
+            if (sessionData) {
+                try {
+                    const session = JSON.parse(sessionData);
+                    console.log('🔧 Found session in localStorage, setting supervisor:', session);
+                    this.setSupervisor(session);
+                } catch (error) {
+                    console.error('🔥 Error parsing supervisor session from localStorage:', error);
+                }
+            }
+
+            if (!this.supervisor) {
+                console.error('❌ Still no supervisor session active after checking localStorage');
+                return null;
+            }
         }
 
         // Generate a temporary assessment ID for tracking
@@ -115,8 +134,28 @@ class SupervisorBreakdownLogger {
     
     // Complete assessment - Updated to use /from-wizard endpoint
     async completeAssessment(data) {
+        console.log('🔍 completeAssessment called with data:', data);
+        console.log('🔍 Current breakdown state:', this.currentBreakdown);
+        console.log('🔍 Current supervisor state:', this.supervisor);
+
+        // Try to recover supervisor session if missing
+        if (!this.supervisor) {
+            console.error('❌ No supervisor session in completeAssessment');
+            console.log('🔍 Checking localStorage for supervisor_session...');
+            const sessionData = localStorage.getItem('supervisor_session');
+            if (sessionData) {
+                try {
+                    const session = JSON.parse(sessionData);
+                    console.log('🔧 Found session in localStorage, setting supervisor:', session);
+                    this.setSupervisor(session);
+                } catch (error) {
+                    console.error('🔥 Error parsing supervisor session from localStorage:', error);
+                }
+            }
+        }
+
         if (!this.currentBreakdown) {
-            console.error('No active breakdown data');
+            console.error('❌ No active breakdown data');
             return;
         }
 
@@ -131,8 +170,14 @@ class SupervisorBreakdownLogger {
 
             // Vehicle and location
             fleet_number: this.currentBreakdown.vehicle?.fleetNumber,
-            location: this.currentBreakdown.location?.description || this.currentBreakdown.location?.address,
-            location_coords: this.currentBreakdown.location?.coords,
+            location: this.currentBreakdown.location?.description ||
+                     this.currentBreakdown.location?.address ||
+                     this.currentBreakdown.location?.coordinates ||
+                     `${this.currentBreakdown.location?.lat}, ${this.currentBreakdown.location?.lng}` ||
+                     'Location not specified',
+            location_coords: this.currentBreakdown.location?.coords ||
+                           (this.currentBreakdown.location?.lat && this.currentBreakdown.location?.lng ?
+                            `${this.currentBreakdown.location.lat}, ${this.currentBreakdown.location.lng}` : null),
             w3w_location: this.currentBreakdown.location?.what3words,
 
             // Supervisor information
@@ -141,7 +186,7 @@ class SupervisorBreakdownLogger {
 
             // Issue details
             issue_category: this.currentBreakdown.issueCategory || data.issueCategory,
-            issue_description: data.notes || data.description,
+            // issue_description: data.notes || data.description || 'No description provided', // Temporarily disabled until DB column added
             severity: data.decision,
 
             // Additional context
@@ -151,6 +196,7 @@ class SupervisorBreakdownLogger {
         };
 
         console.log('🚀 Sending wizard completion data to dashboard:', wizardData);
+        console.log('🔗 Backend URL:', BACKEND_URL);
 
         try {
             const response = await fetch(`${BACKEND_URL}/api/breakdowns/from-wizard`, {
