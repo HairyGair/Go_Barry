@@ -22,16 +22,19 @@ import { Routes, Route, useNavigate } from 'react-router-dom';
 import './styles/main.css';
 import './styles/tailwind.css';
 import './styles/fullwidth-override.css';  // Full width enhancements
+import './styles/RouteSelection.css';  // Route selection and new component styles
 
 // Import shared components
 import AppHeader from '../shared/AppHeader.jsx';
 
-// Import supervisorBreakdownLogger and Supabase auth
+// Import supervisorBreakdownLogger and authentication
 import { supervisorBreakdownLogger } from './supervisorBreakdownLogger.js';
-import { authHelpers } from '../services/supabase-client.js';
+import enhancedAuthService from '../services/enhanced-auth-service.js';
+import SupabaseLogin from './components/SupabaseLogin.jsx';
 
 // Import components
 import FleetSelectionModal from './components/FleetSelectionModal.jsx';
+import LocationModal from './components/LocationModal.jsx';
 import BreakdownInfoStep from './components/common/BreakdownInfoStep.jsx';
 import LocationDisplay from './components/common/LocationDisplay.jsx';
 import AssessmentSummary from './components/common/AssessmentSummary.jsx';
@@ -70,6 +73,9 @@ import WheelchairRampWizard from './components/wizards/WheelchairRampWizard.jsx'
 import WingMirrorsWizard from './components/wizards/WingMirrorsWizard.jsx';
 import WipersScreenwashWizard from './components/wizards/WipersScreenwashWizard.jsx';
 import DestinationDisplayWizard from './components/wizards/DestinationDisplayWizard.jsx';
+import Step3InitialAssessment from './components/Step3InitialAssessment.jsx';
+import Step5IssueDetails from './components/Step5IssueDetails.jsx';
+import Step7Submit from './components/Step7Submit.jsx';
 
 // Import diagnostic flows (from src/data)
 import { wizards } from '@data/diagnostic-flows-complete.js';
@@ -109,7 +115,14 @@ const wizardComponents = {
     'wheelchair-ramp': WheelchairRampWizard,  // Keep for backward compatibility
     'wing-mirrors': WingMirrorsWizard,
     'wipers-screenwash': WipersScreenwashWizard,
-    'destination-display': DestinationDisplayWizard
+    'destination-display': DestinationDisplayWizard,
+    'initial-assessment': Step3InitialAssessment,
+    'step3-initial-assessment': Step3InitialAssessment,
+    'issue-details': Step5IssueDetails,
+    'step5-issue-details': Step5IssueDetails,
+    'submit': Step7Submit,
+    'step7-submit': Step7Submit,
+    'final-submission': Step7Submit
 };
 
 const App = () => {
@@ -134,37 +147,18 @@ const App = () => {
     const [assessmentDecision, setAssessmentDecision] = useState(null);
     const [assessmentNotes, setAssessmentNotes] = useState('');
     const [breakdownLocation, setBreakdownLocation] = useState(null);
+
+    // Route information state
+    const [selectedRoute, setSelectedRoute] = useState('');
+    const [routeName, setRouteName] = useState('');
     
-    // Check for authentication from parent app
+    // Check for authentication using enhanced auth service
     useEffect(() => {
         const checkAuth = async () => {
             try {
-                // First check if we have a session from the parent app
-                const savedSession = localStorage.getItem('supervisor_session');
-                if (savedSession) {
-                    const session = JSON.parse(savedSession);
+                const { success, session } = await enhancedAuthService.getCurrentSession();
+                if (success && session) {
                     setSupervisorSession(session);
-                    setAuthLoading(false);
-                    return;
-                }
-                
-                // Otherwise check Supabase directly
-                const { session, supervisor } = await authHelpers.getCurrentSession();
-                
-                if (session && supervisor) {
-                    const sessionData = {
-                        id: supervisor.id,
-                        supervisorId: supervisor.id,
-                        name: supervisor.name,
-                        email: supervisor.email,
-                        depot: supervisor.depot,
-                        role: supervisor.role,
-                        isAdmin: supervisor.role === 'admin',
-                        timestamp: new Date().toISOString(),
-                        authenticated: true,
-                        supabaseSession: session
-                    };
-                    setSupervisorSession(sessionData);
                 }
             } catch (error) {
                 console.error('Auth check error:', error);
@@ -172,15 +166,21 @@ const App = () => {
                 setAuthLoading(false);
             }
         };
-        
+
         checkAuth();
+
+        // Listen for session changes
+        const removeListener = enhancedAuthService.addSessionListener((session) => {
+            setSupervisorSession(session);
+        });
+
+        return removeListener;
     }, []);
     
     // Initialize supervisor logger when authenticated
     useEffect(() => {
         if (supervisorSession) {
             supervisorBreakdownLogger.init({
-                NO_AUTH_MODE: false,
                 supervisorData: supervisorSession
             });
         }
@@ -194,27 +194,40 @@ const App = () => {
     
     // Handle fleet selection
     const handleFleetSelection = async (vehicleWithLocation) => {
-        // Extract location from the vehicle object if present
+        // Extract location and route from the vehicle object if present
         const vehicle = { ...vehicleWithLocation };
         const location = vehicle.location || null;
-        delete vehicle.location; // Remove location from vehicle object
-        
+        const route = vehicle.route || '';
+        const routeDisplayName = vehicle.routeName || route;
+
+        // Clean vehicle object - remove location and route data
+        delete vehicle.location;
+        delete vehicle.route;
+        delete vehicle.routeName;
+
         console.log('handleFleetSelection - vehicle:', vehicle);
         console.log('handleFleetSelection - location:', location);
         console.log('handleFleetSelection - location type:', location?.type);
-        
+        console.log('handleFleetSelection - route:', route);
+        console.log('handleFleetSelection - routeName:', routeDisplayName);
+
+        // Update state with vehicle, location, and route data
         setSelectedVehicle(vehicle);
+        setBreakdownLocation(location);
+        setSelectedRoute(route);
+        setRouteName(routeDisplayName);
         setShowFleetModal(false);
-        setBreakdownLocation(location); // Store location in state
         
         if (pendingWizardType) {
-            // Start the breakdown with location data
+            // Start the breakdown with location and route data
             const breakdownId = await supervisorBreakdownLogger.startBreakdown({
                 vehicle,
                 issueCategory: pendingWizardType,
                 driverName: '',
                 driverPhone: '',
-                location: location
+                location: location,
+                route: route,
+                routeName: routeDisplayName
             });
             
             setAssessmentId(breakdownId);
@@ -238,12 +251,18 @@ const App = () => {
                                 breakdownId: assessmentId,
                                 responses: responses,
                                 notes: assessmentNotes,
-                                location: supervisorBreakdownLogger.getCurrentBreakdown()?.location
+                                location: supervisorBreakdownLogger.getCurrentBreakdown()?.location,
+                                route: selectedRoute,
+                                routeName: routeName
                             }}
                             vehicle={selectedVehicle}
                             supervisor={supervisorSession}
                             decision={assessmentDecision}
                             wizardType={wizards[currentWizard]?.title || currentWizard}
+                            routeInfo={{
+                                route: selectedRoute,
+                                routeName: routeName
+                            }}
                             onPrint={() => {
                                 window.print();
                             }}
@@ -257,27 +276,44 @@ const App = () => {
                             onComplete={async () => {
                                 console.log('🔥 Completing wizard assessment with full data...');
 
-                                // Complete the assessment with ALL required data
+                                // Complete the assessment with ALL required data including route info
                                 const result = await supervisorBreakdownLogger.completeAssessment({
                                     breakdownId: assessmentId,
                                     decision: assessmentDecision,
                                     notes: assessmentNotes,
                                     wizardType: wizards[currentWizard]?.title || currentWizard,
                                     issueCategory: currentWizard,
+                                    fleet_number: selectedVehicle?.fleetNumber,
+                                    route: selectedRoute,
+                                    routeName: routeName,
                                     assessmentData: {
                                         responses: responses,
+                                        route: selectedRoute,
+                                        routeName: routeName,
                                         steps: Object.entries(responses).map(([key, value]) => ({
                                             question: key,
                                             answer: value
                                         }))
                                     },
-                                    description: `${wizards[currentWizard]?.title || currentWizard} assessment completed with decision: ${assessmentDecision}`
+                                    description: `${wizards[currentWizard]?.title || currentWizard} assessment completed with decision: ${assessmentDecision}${selectedRoute ? ` on route ${selectedRoute}` : ''}`
                                 });
 
                                 if (result && result.success) {
                                     console.log('✅ Wizard data successfully sent to dashboard!');
-                                } else {
-                                    console.error('❌ Failed to send wizard data to dashboard');
+                                    
+                                    // Trigger activity feed refresh in parent app
+                                    if (window.homepageDataManager) {
+                                        console.log('🔄 Triggering activity feed refresh...');
+                                        window.homepageDataManager.fetchData();
+                                    }
+                                    
+                                    // Show success message
+                                    const message = result.offline 
+                                        ? 'Assessment saved locally and will sync automatically' 
+                                        : 'Assessment completed and sent to dashboard';
+                                    console.log('✅', message);
+                                } else if (result) {
+                                    console.warn('⚠️ Assessment saved but not synced:', result.message);
                                 }
 
                                 // Reset all state
@@ -313,12 +349,16 @@ const App = () => {
                     <div className="main-content">
                         {/* Location Display */}
                         {breakdownLocation && (
-                            <LocationDisplay 
+                            <LocationDisplay
                                 vehicle={{
                                     ...selectedVehicle,
                                     assessmentId: assessmentId
-                                }} 
+                                }}
                                 location={breakdownLocation}
+                                routeInfo={{
+                                    route: selectedRoute,
+                                    routeName: routeName
+                                }}
                             />
                         )}
                     
@@ -328,6 +368,10 @@ const App = () => {
                         assessmentId={assessmentId}
                         currentStep={currentStep}
                         responses={responses}
+                        routeInfo={{
+                            route: selectedRoute,
+                            routeName: routeName
+                        }}
                         updateResponse={(key, value) => {
                             setResponses({ ...responses, [key]: value });
                         }}
@@ -342,7 +386,7 @@ const App = () => {
                             // Store decision and notes for summary
                             setAssessmentDecision((decision || responses.decision || 'CONTINUE').toUpperCase());
                             setAssessmentNotes(notes || responses.notes || '');
-                            
+
                             // Show summary instead of completing immediately
                             setShowSummary(true);
                         }}
@@ -356,6 +400,8 @@ const App = () => {
                             setAssessmentDecision(null);
                             setAssessmentNotes('');
                             setBreakdownLocation(null); // Clear location
+                            setSelectedRoute(''); // Clear route
+                            setRouteName(''); // Clear route name
                             supervisorBreakdownLogger.currentBreakdown = null; // Clear current breakdown
                         }}
                     />
@@ -495,20 +541,15 @@ const App = () => {
         );
     }
     
-    // Redirect to main app if not authenticated
+    // Show login screen if not authenticated
     if (!supervisorSession) {
         return (
-            <div className="auth-loading">
-                <div className="loading-container">
-                    <p>Authentication required. Please login from the main app.</p>
-                    <button 
-                        onClick={() => window.location.href = '/'}
-                        className="btn btn-primary"
-                    >
-                        Go to Login
-                    </button>
-                </div>
-            </div>
+            <SupabaseLogin
+                onLoginSuccess={(session) => {
+                    console.log('Login successful:', session);
+                    setSupervisorSession(session);
+                }}
+            />
         );
     }
     

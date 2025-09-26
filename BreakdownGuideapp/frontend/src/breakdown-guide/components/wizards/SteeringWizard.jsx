@@ -3,15 +3,257 @@
 // Follows SDC Engineering Issues Guide v1.3 - Steering Section (Page 8)
 // DVSA Compliance: Categorisation of Vehicle Defects
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import * as Icons from '../common/icons.jsx';
 import constants from '../common/constants.js';
+import locationService from '../../../utils/locationService.js';
 
 const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
-    const { AlertTriangle, ArrowLeft, ArrowRight, Home, CheckCircle, XCircle, FileText, Shield, AlertCircle } = Icons;
-    
+    const { AlertTriangle, ArrowLeft, ArrowRight, Home, CheckCircle, XCircle, FileText, Shield, AlertCircle, Users } = Icons;
+
+    // Location state management
+    const [locationStatus, setLocationStatus] = useState('idle'); // 'idle', 'detecting', 'success', 'error'
+    const [locationName, setLocationName] = useState('');
+    const [coordinates, setCoordinates] = useState(null);
+
+    // Auto-detect location when wizard loads
+    useEffect(() => {
+        if (currentStep === 1 && !coordinates) {
+            detectLocation();
+        }
+    }, [currentStep]);
+
+    const detectLocation = async () => {
+        if (!navigator.geolocation) {
+            setLocationStatus('error');
+            setLocationName('GPS not available');
+            return;
+        }
+
+        setLocationStatus('detecting');
+
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                try {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+
+                    setCoordinates({ lat, lng });
+
+                    // Use our location service to get a readable name
+                    const readableName = await locationService.getLocationName(lat, lng);
+                    setLocationName(readableName);
+                    setLocationStatus('success');
+
+                    // Store in responses for later use
+                    updateResponse('currentLocation', {
+                        name: readableName,
+                        coordinates: { lat, lng },
+                        accuracy: position.coords.accuracy,
+                        timestamp: new Date().toISOString()
+                    });
+
+                } catch (error) {
+                    console.error('Error getting location name:', error);
+                    setLocationName(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+                    setLocationStatus('success');
+                }
+            },
+            (error) => {
+                console.error('Geolocation error:', error);
+                setLocationStatus('error');
+                setLocationName('Location access denied');
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 300000 // 5 minutes
+            }
+        );
+    };
+
     switch (currentStep) {
         case 1:
+            return (
+                <div className="space-y-6">
+                    <div className="text-center">
+                        <div className="mx-auto w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center mb-4">
+                            <Users className="w-8 h-8 text-purple-400" />
+                        </div>
+                        <h2 className="text-2xl font-bold text-white mb-2">🚌 Passenger Status Assessment</h2>
+                        <p className="text-gray-300">Essential safety information before steering system diagnosis</p>
+                    </div>
+
+                    <div className="bg-purple-500/20 backdrop-blur-sm rounded-lg p-6 border border-purple-400/30">
+                        <div className="flex items-start gap-3">
+                            <AlertTriangle className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" />
+                            <div>
+                                <h4 className="font-semibold text-purple-200 mb-1">Passenger Safety Priority</h4>
+                                <p className="text-purple-200/80 text-sm">
+                                    Understanding passenger status is critical for steering system emergencies. This information helps prioritize emergency response and evacuation planning if needed.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
+                        <h3 className="text-lg font-semibold text-white mb-4">Are there passengers currently on board?</h3>
+
+                        <div className="space-y-3">
+                            <button
+                                onClick={() => updateResponse('passengersOnBoard', true)}
+                                className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+                                    responses.passengersOnBoard === true
+                                        ? 'border-orange-500 bg-orange-500/20 text-orange-200'
+                                        : 'border-white/30 bg-white/10 text-white hover:border-orange-500/50'
+                                }`}
+                            >
+                                <div className="flex items-center space-x-3">
+                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                        responses.passengersOnBoard === true ? 'border-orange-500 bg-orange-500' : 'border-white/50'
+                                    }`}>
+                                        {responses.passengersOnBoard === true && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Users className="w-4 h-4 text-orange-400" />
+                                        <span>Yes - Passengers on board</span>
+                                    </div>
+                                </div>
+                            </button>
+
+                            <button
+                                onClick={() => updateResponse('passengersOnBoard', false)}
+                                className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+                                    responses.passengersOnBoard === false
+                                        ? 'border-green-500 bg-green-500/20 text-green-200'
+                                        : 'border-white/30 bg-white/10 text-white hover:border-green-500/50'
+                                }`}
+                            >
+                                <div className="flex items-center space-x-3">
+                                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                                        responses.passengersOnBoard === false ? 'border-green-500 bg-green-500' : 'border-white/50'
+                                    }`}>
+                                        {responses.passengersOnBoard === false && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <CheckCircle className="w-4 h-4 text-green-400" />
+                                        <span>No - Vehicle empty</span>
+                                    </div>
+                                </div>
+                            </button>
+                        </div>
+
+                        {/* Passenger Count Input */}
+                        {responses.passengersOnBoard === true && (
+                            <div className="passenger-count-input fade-in bg-gray-700/30 backdrop-blur-sm rounded-lg p-4 border border-purple-500/30 mt-4">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <Users className="w-5 h-5 text-purple-400" />
+                                    <h4 className="font-semibold text-white">Passenger Count</h4>
+                                </div>
+                                <div className="space-y-3">
+                                    <label className="block text-sm text-gray-300">
+                                        Approximate passenger count:
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="100"
+                                        value={responses.passengerCount || ''}
+                                        onChange={(e) => updateResponse('passengerCount', e.target.value)}
+                                        placeholder="Enter number"
+                                        className="count-input w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-colors"
+                                    />
+                                    <p className="text-gray-500 text-xs">
+                                        Optional: Helps prioritize emergency response and evacuation planning if needed.
+                                    </p>
+                                    {(!responses.passengerCount || responses.passengerCount === '') ? (
+                                        <div className="flex items-center gap-2 mt-2 text-yellow-400 text-xs">
+                                            <AlertTriangle className="w-3 h-3" />
+                                            <span>Consider providing approximate passenger count for better emergency planning</span>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2 mt-2 text-green-400 text-xs">
+                                            <CheckCircle className="w-3 h-3" />
+                                            <span>Passenger count recorded - emergency response can be prioritized accordingly</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Passenger Safety Notice */}
+                        {responses.passengersOnBoard === true && (
+                            <div className="bg-orange-500/20 backdrop-blur-sm rounded-lg p-4 border border-orange-400/30 mt-4">
+                                <div className="flex items-start gap-3">
+                                    <AlertTriangle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                        <h4 className="font-semibold text-orange-200 mb-1">⚠️ Critical Steering Scenarios with Passengers</h4>
+                                        <p className="text-orange-200/80 text-sm">
+                                            If steering system defects are identified, immediate vehicle shutdown is required. Passenger evacuation may be necessary. Ensure passenger safety is the absolute priority.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Current Location Detection */}
+                    <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-4 border border-blue-400/30">
+                        <div className="flex items-start gap-3">
+                            <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                                locationStatus === 'success' ? 'bg-green-500' :
+                                locationStatus === 'detecting' ? 'bg-yellow-500 animate-pulse' :
+                                locationStatus === 'error' ? 'bg-red-500' : 'bg-gray-500'
+                            }`}>
+                                {locationStatus === 'success' && <CheckCircle className="w-3 h-3 text-white" />}
+                                {locationStatus === 'detecting' && <div className="w-2 h-2 bg-white rounded-full" />}
+                                {locationStatus === 'error' && <XCircle className="w-3 h-3 text-white" />}
+                            </div>
+                            <div className="flex-1">
+                                <h4 className="font-semibold text-blue-200 mb-1">📍 Current Location</h4>
+                                <p className="text-blue-200/80 text-sm">
+                                    {locationStatus === 'detecting' && 'Detecting current location...'}
+                                    {locationStatus === 'success' && `Location: ${locationName}`}
+                                    {locationStatus === 'error' && 'Unable to detect location - GPS may be disabled'}
+                                    {locationStatus === 'idle' && 'Location detection starting...'}
+                                </p>
+                                {coordinates && locationStatus === 'success' && (
+                                    <p className="text-blue-300/60 text-xs mt-1">
+                                        Coordinates: {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
+                                    </p>
+                                )}
+                            </div>
+                            {locationStatus === 'error' && (
+                                <button
+                                    onClick={detectLocation}
+                                    className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-500 transition-colors"
+                                >
+                                    Retry
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex justify-between">
+                        <button
+                            onClick={onPrevious}
+                            disabled={true}
+                            className="px-6 py-3 bg-gray-600 text-gray-400 rounded-lg cursor-not-allowed transition-colors"
+                        >
+                            Previous
+                        </button>
+                        <button
+                            onClick={onNext}
+                            disabled={responses.passengersOnBoard === null || responses.passengersOnBoard === undefined}
+                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Continue to Steering Assessment
+                        </button>
+                    </div>
+                </div>
+            );
+
+        case 2:
             return (
                 <div className="space-y-6">
                     <div className="text-center">
@@ -46,8 +288,8 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                     </button>
                 </div>
             );
-            
-        case 2:
+
+        case 3:
             return (
                 <div className="space-y-6">
                     <h2 className="text-2xl font-bold text-white">Driver Reporting - Steering Assessment</h2>
@@ -64,7 +306,7 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                     <div className="space-y-3">
                         <button 
                             onClick={() => {
-                                updateResponse(currentStep, 'no');
+                                updateResponse(3, 'no');
                                 onNext();
                             }}
                             className="w-full bg-gray-800/50 backdrop-blur-sm hover:bg-gray-700/50 text-white font-medium py-4 px-6 rounded-lg border border-gray-600/50 transition-all duration-200 text-left flex items-center justify-between group"
@@ -81,7 +323,7 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                         
                         <button 
                             onClick={() => {
-                                updateResponse(currentStep, 'yes');
+                                updateResponse(3, 'yes');
                                 onNext();
                             }}
                             className="w-full bg-red-900/30 backdrop-blur-sm hover:bg-red-900/50 text-white font-medium py-4 px-6 rounded-lg border border-red-600/50 transition-all duration-200 text-left flex items-center justify-between group"
@@ -106,8 +348,8 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                 </div>
             );
             
-        case 3:
-            if (responses[2] === 'yes') {
+        case 4:
+            if (responses[3] === 'yes') {
                 // IMMEDIATE STOP DECISION
                 return (
                     <div className="space-y-6">
@@ -208,7 +450,7 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                         
                         <div className="space-y-3">
                             <button 
-                                onClick={() => { updateResponse(currentStep, 'pass'); onNext(); }}
+                                onClick={() => { updateResponse(4, 'pass'); onNext(); }}
                                 className="w-full bg-green-900/30 backdrop-blur-sm hover:bg-green-900/50 text-white font-medium py-4 px-6 rounded-lg border border-green-600/50 transition-all duration-200 text-left flex items-center justify-between group"
                             >
                                 <div className="flex items-center gap-3">
@@ -222,7 +464,7 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                             </button>
                             
                             <button 
-                                onClick={() => { updateResponse(currentStep, 'fail'); onNext(); }}
+                                onClick={() => { updateResponse(4, 'fail'); onNext(); }}
                                 className="w-full bg-red-900/30 backdrop-blur-sm hover:bg-red-900/50 text-white font-medium py-4 px-6 rounded-lg border border-red-600/50 transition-all duration-200 text-left flex items-center justify-between group"
                             >
                                 <div className="flex items-center gap-3">
@@ -246,8 +488,8 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                 );
             }
             
-        case 4:
-            if (responses[3] === 'fail') {
+        case 5:
+            if (responses[4] === 'fail') {
                 // IMMEDIATE STOP for any physical defect
                 return (
                     <div className="space-y-6">

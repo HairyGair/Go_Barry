@@ -1,35 +1,158 @@
 {
-  "name": "breakdown-guide-frontend",
-  "private": true,
-  "version": "1.0.0",
+  "name": "gne-breakdown-management-system",
+  "version": "1.5.4",
   "type": "module",
+  "description": "Go North East Breakdown Management System - A comprehensive web application for managing vehicle breakdowns, supervisor response, and fleet intelligence",
+  "private": true,
+  "author": {
+    "name": "Go North East Digital Team",
+    "email": "digital@gonortheast.co.uk"
+  },
+  "contributors": [
+    {
+      "name": "Anthony Gair",
+      "email": "anthony.gair@gonortheast.co.uk",
+      "role": "Lead Developer"
+    },
+    {
+      "name": "Barry Perryman",
+      "role": "Operations Manager"
+    }
+  ],
+  "homepage": "https://breakdown.gonortheast.co.uk",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gonortheast/breakdown-guide-app.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gonortheast/breakdown-guide-app/issues",
+    "email": "support@gonortheast.co.uk"
+  },
+  "license": "PROPRIETARY",
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=7.0.0"
+  },
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && echo 'Upload dist/ folder to cPanel'"
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint src --ext js,jsx --fix",
+    "format": "prettier --write \"src/**/*.{js,jsx,css,md}\"",
+    "format:check": "prettier --check \"src/**/*.{js,jsx,css,md}\"",
+    "analyze": "vite-bundle-visualizer",
+    "clean": "rm -rf dist node_modules/.vite",
+    "reinstall": "rm -rf node_modules package-lock.json && npm install",
+    "predeploy": "npm run build",
+    "deploy": "vercel --prod",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "type-check": "tsc --noEmit",
+    "prepare": "husky install"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.38.4",
-    "axios": "^1.6.2",
-    "clsx": "^2.0.0",
-    "date-fns": "^2.30.0",
-    "lucide-react": "^0.294.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-hot-toast": "^2.4.1",
-    "react-router-dom": "^6.21.1",
-    "recharts": "^2.10.3",
+    "@hookform/resolvers": "^3.3.0",
+    "@supabase/supabase-js": "^2.39.0",
+    "@tanstack/react-table": "^8.11.0",
+    "axios": "^1.6.0",
+    "classnames": "^2.5.0",
+    "date-fns": "^3.0.0",
+    "framer-motion": "^10.18.0",
     "leaflet": "^1.9.4",
-    "react-leaflet": "^4.2.1"
+    "lodash": "^4.17.21",
+    "lucide-react": "^0.544.0",
+    "react": "^18.2.0",
+    "react-datepicker": "^4.25.0",
+    "react-dom": "^18.2.0",
+    "react-dropzone": "^14.2.3",
+    "react-helmet-async": "^2.0.4",
+    "react-hook-form": "^7.48.0",
+    "react-hot-toast": "^2.4.1",
+    "react-icons": "^4.12.0",
+    "react-intersection-observer": "^9.5.3",
+    "react-leaflet": "^4.2.1",
+    "react-modal": "^3.16.1",
+    "react-query": "^3.39.3",
+    "react-router-dom": "^6.21.0",
+    "react-select": "^5.8.0",
+    "react-tooltip": "^5.25.0",
+    "react-use": "^17.4.2",
+    "recharts": "^2.10.0",
+    "socket.io-client": "^4.6.0",
+    "uuid": "^9.0.1",
+    "web-push": "^3.6.6",
+    "workbox-window": "^7.0.0",
+    "yup": "^1.3.0"
   },
   "devDependencies": {
+    "@storybook/addon-essentials": "^7.6.0",
+    "@storybook/react-vite": "^7.6.0",
+    "@testing-library/jest-dom": "^6.1.5",
+    "@testing-library/react": "^14.1.2",
+    "@testing-library/user-event": "^14.5.1",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
-    "@vitejs/plugin-react": "^5.0.2",
+    "@vitejs/plugin-react": "^4.7.0",
+    "@vitest/ui": "^1.0.4",
     "autoprefixer": "^10.4.16",
+    "eslint": "^8.55.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
     "postcss": "^8.4.32",
-    "tailwindcss": "^3.3.6",
-    "vite": "^5.0.8"
-  }
+    "prettier": "^3.1.1",
+    "sass": "^1.69.5",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.8",
+    "vite-bundle-visualizer": "^1.0.0",
+    "vite-plugin-imagemin": "^0.6.1",
+    "vite-plugin-pwa": "^0.17.0",
+    "vitest": "^1.0.4"
+  },
+  "lint-staged": {
+    "*.{js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{css,scss,md}": [
+      "prettier --write"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "keywords": [
+    "breakdown",
+    "management",
+    "fleet",
+    "transportation",
+    "bus",
+    "sla",
+    "emergency",
+    "response",
+    "supervisor",
+    "dashboard",
+    "real-time",
+    "notifications",
+    "react",
+    "vite",
+    "pwa"
+  ]
 }

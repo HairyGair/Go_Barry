@@ -7,15 +7,26 @@ const router = express.Router();
 router.get('/supervisors', async (req, res) => {
   try {
     const { data, error } = await supabase
-      .from('users')
-      .select('id, username, full_name, email, role, department, depot, is_active')
-      .eq('role', 'supervisor')
+      .from('supervisors')
+      .select('id, name, email, role, depot, is_active')
       .eq('is_active', true)
-      .order('full_name');
+      .order('name');
 
     if (error) throw error;
 
-    res.json(data);
+    // Map to match frontend expectations
+    const supervisors = (data || []).map(supervisor => ({
+      id: supervisor.id,
+      username: supervisor.name,
+      full_name: supervisor.name,
+      name: supervisor.name,
+      email: supervisor.email,
+      role: supervisor.role || 'supervisor',
+      depot: supervisor.depot,
+      is_active: supervisor.is_active
+    }));
+
+    res.json(supervisors);
   } catch (error) {
     console.error('Error fetching supervisors:', error);
     res.status(500).json({ error: 'Failed to fetch supervisors' });
@@ -67,68 +78,116 @@ router.get('/supervisor/:username', async (req, res) => {
   }
 });
 
-// POST /api/auth/login - Basic login for supervisors
+// POST /api/auth/login - Supabase authentication login
 router.post('/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { email, password } = req.body;
 
-    if (!username) {
-      return res.status(400).json({ error: 'Username is required' });
+    // Validate required fields
+    if (!email || !password) {
+      return res.status(400).json({
+        error: 'Email and password are required',
+        code: 'MISSING_CREDENTIALS'
+      });
     }
 
-    // Find supervisor by username
-    const { data: supervisor, error } = await supabase
-      .from('users')
+    // Attempt Supabase authentication
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase().trim(),
+      password: password
+    });
+
+    if (error || !data.user) {
+      // Log failed attempt with generic response
+      console.warn(`Failed login attempt for email: ${email}`);
+
+      return res.status(401).json({
+        error: 'Invalid credentials. Please check your email and password.',
+        code: 'AUTH_FAILED'
+      });
+    }
+
+    // Check if user is authorized supervisor
+    const { data: supervisor, error: supervisorError } = await supabase
+      .from('supervisors')
       .select('*')
-      .eq('username', username)
-      .eq('role', 'supervisor')
-      .eq('is_active', true)
+      .eq('email', email.toLowerCase())
       .single();
 
-    if (error || !supervisor) {
-      return res.status(401).json({ error: 'Invalid username' });
+    if (supervisorError || !supervisor) {
+      // User authenticated with Supabase but not authorized in our system
+      console.warn(`Unauthorized authenticated user: ${email}`);
+
+      // Sign them out of Supabase
+      await supabase.auth.signOut();
+
+      return res.status(401).json({
+        error: 'Invalid credentials. Please check your email and password.',
+        code: 'AUTH_FAILED'
+      });
     }
 
-    // For development, allow login without password validation
-    // In production, implement proper password hashing/checking
-    if (process.env.NODE_ENV === 'production' && password) {
-      // TODO: Implement password validation
-      // For now, accept any password in production for backward compatibility
-    }
-
-    // Create session data (in production, use proper JWT or session management)
+    // Successful authentication
     const sessionData = {
-      user_id: supervisor.id,
-      username: supervisor.username,
-      full_name: supervisor.full_name,
+      user_id: data.user.id,
+      supervisorId: supervisor.id,
+      username: supervisor.name,
+      full_name: supervisor.name,
+      name: supervisor.name,
       email: supervisor.email,
       depot: supervisor.depot,
       role: supervisor.role,
-      login_time: new Date().toISOString()
+      login_time: new Date().toISOString(),
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+      expires_at: data.session.expires_at
     };
+
+    // Log successful authentication
+    console.log(`✅ Successful login: ${supervisor.name} (${supervisor.email})`);
 
     res.json({
       success: true,
       user: sessionData,
+      session: data.session,
       message: 'Login successful'
     });
   } catch (error) {
-    console.error('Error during login:', error);
-    res.status(500).json({ error: 'Login failed' });
+    console.error('Login error:', error);
+    res.status(500).json({
+      error: 'Authentication failed. Please try again.',
+      code: 'AUTH_ERROR'
+    });
   }
 });
 
 // POST /api/auth/logout - Logout endpoint
 router.post('/logout', async (req, res) => {
   try {
-    // In a full implementation, invalidate the session/token here
+    // Extract token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut(token);
+      if (error) {
+        console.warn('Supabase logout error:', error.message);
+      }
+    }
+
+    console.log('👋 User logged out successfully');
+
     res.json({
       success: true,
       message: 'Logout successful'
     });
   } catch (error) {
     console.error('Error during logout:', error);
-    res.status(500).json({ error: 'Logout failed' });
+    res.status(500).json({
+      error: 'Logout failed',
+      code: 'LOGOUT_ERROR'
+    });
   }
 });
 

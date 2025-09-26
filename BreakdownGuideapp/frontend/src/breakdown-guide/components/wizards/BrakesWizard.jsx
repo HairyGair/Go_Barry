@@ -1,14 +1,259 @@
 // Brakes Wizard Component
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import * as Icons from '../common/icons.jsx';
 import constants from '../common/constants.js';
+import locationService from '../../../utils/locationService.js';
 
 function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) {
-  const { AlertTriangle, ArrowLeft, ArrowRight, Home, CheckCircle, XCircle, FileText, Shield, AlertCircle, Wrench, Info } = Icons;
+  const { AlertTriangle, ArrowLeft, ArrowRight, Home, CheckCircle, XCircle, FileText, Shield, AlertCircle, Wrench, Info, Users } = Icons;
+
+  // Location state management
+  const [locationStatus, setLocationStatus] = useState('idle'); // 'idle', 'detecting', 'success', 'error'
+  const [locationName, setLocationName] = useState('');
+  const [coordinates, setCoordinates] = useState(null);
+
+  console.log('BrakesWizard - Current Step:', currentStep);
+  console.log('BrakesWizard - Responses:', responses);
+
+  // Auto-detect location when wizard loads
+  useEffect(() => {
+    if (currentStep === 1 && !coordinates) {
+      detectLocation();
+    }
+  }, [currentStep]);
+
+  const detectLocation = async () => {
+    if (!navigator.geolocation) {
+      setLocationStatus('error');
+      setLocationName('GPS not available');
+      return;
+    }
+
+    setLocationStatus('detecting');
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+
+          setCoordinates({ lat, lng });
+
+          // Use our location service to get a readable name
+          const readableName = await locationService.getLocationName(lat, lng);
+          setLocationName(readableName);
+          setLocationStatus('success');
+
+          // Store in responses for later use
+          updateResponse('currentLocation', {
+            name: readableName,
+            coordinates: { lat, lng },
+            accuracy: position.coords.accuracy,
+            timestamp: new Date().toISOString()
+          });
+
+        } catch (error) {
+          console.error('Error getting location name:', error);
+          setLocationName(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+          setLocationStatus('success');
+        }
+      },
+      (error) => {
+        console.error('Geolocation error:', error);
+        setLocationStatus('error');
+        setLocationName('Location access denied');
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 300000 // 5 minutes
+      }
+    );
+  };
   
   const renderStep = () => {
     switch (currentStep) {
       case 1:
+        return (
+          <div className="space-y-6">
+            <div className="text-center">
+              <div className="mx-auto w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center mb-4">
+                <Users className="w-8 h-8 text-purple-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">🚌 Passenger Status Assessment</h2>
+              <p className="text-gray-300">Essential safety information before brake system diagnosis</p>
+            </div>
+
+            <div className="bg-purple-500/20 backdrop-blur-sm rounded-lg p-6 border border-purple-400/30">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold text-purple-200 mb-1">Passenger Safety Priority</h4>
+                  <p className="text-purple-200/80 text-sm">
+                    Understanding passenger status is critical for brake system emergencies. This information helps prioritize emergency response and evacuation planning if needed.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
+              <h3 className="text-lg font-semibold text-white mb-4">Are there passengers currently on board?</h3>
+
+              <div className="space-y-3">
+                <button
+                  onClick={() => updateResponse('passengersOnBoard', true)}
+                  className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+                    responses.passengersOnBoard === true
+                      ? 'border-orange-500 bg-orange-500/20 text-orange-200'
+                      : 'border-white/30 bg-white/10 text-white hover:border-orange-500/50'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      responses.passengersOnBoard === true ? 'border-orange-500 bg-orange-500' : 'border-white/50'
+                    }`}>
+                      {responses.passengersOnBoard === true && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4 text-orange-400" />
+                      <span>Yes - Passengers on board</span>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => updateResponse('passengersOnBoard', false)}
+                  className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+                    responses.passengersOnBoard === false
+                      ? 'border-green-500 bg-green-500/20 text-green-200'
+                      : 'border-white/30 bg-white/10 text-white hover:border-green-500/50'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                      responses.passengersOnBoard === false ? 'border-green-500 bg-green-500' : 'border-white/50'
+                    }`}>
+                      {responses.passengersOnBoard === false && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-400" />
+                      <span>No - Vehicle empty</span>
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              {/* Passenger Count Input */}
+              {responses.passengersOnBoard === true && (
+                <div className="passenger-count-input fade-in bg-gray-700/30 backdrop-blur-sm rounded-lg p-4 border border-purple-500/30 mt-4">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Users className="w-5 h-5 text-purple-400" />
+                    <h4 className="font-semibold text-white">Passenger Count</h4>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="block text-sm text-gray-300">
+                      Approximate passenger count:
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={responses.passengerCount || ''}
+                      onChange={(e) => updateResponse('passengerCount', e.target.value)}
+                      placeholder="Enter number"
+                      className="count-input w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-colors"
+                    />
+                    <p className="text-gray-500 text-xs">
+                      Optional: Helps prioritize emergency response and evacuation planning if needed.
+                    </p>
+                    {(!responses.passengerCount || responses.passengerCount === '') ? (
+                      <div className="flex items-center gap-2 mt-2 text-yellow-400 text-xs">
+                        <AlertTriangle className="w-3 h-3" />
+                        <span>Consider providing approximate passenger count for better emergency planning</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 mt-2 text-green-400 text-xs">
+                        <CheckCircle className="w-3 h-3" />
+                        <span>Passenger count recorded - emergency response can be prioritized accordingly</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Passenger Safety Notice */}
+              {responses.passengersOnBoard === true && (
+                <div className="bg-orange-500/20 backdrop-blur-sm rounded-lg p-4 border border-orange-400/30 mt-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-orange-200 mb-1">⚠️ Critical Brake Scenarios with Passengers</h4>
+                      <p className="text-orange-200/80 text-sm">
+                        If critical brake issues are identified, passenger evacuation may be required. Ensure passenger safety is the absolute priority during brake system assessment.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Current Location Detection */}
+            <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-4 border border-blue-400/30">
+              <div className="flex items-start gap-3">
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                  locationStatus === 'success' ? 'bg-green-500' :
+                  locationStatus === 'detecting' ? 'bg-yellow-500 animate-pulse' :
+                  locationStatus === 'error' ? 'bg-red-500' : 'bg-gray-500'
+                }`}>
+                  {locationStatus === 'success' && <CheckCircle className="w-3 h-3 text-white" />}
+                  {locationStatus === 'detecting' && <div className="w-2 h-2 bg-white rounded-full" />}
+                  {locationStatus === 'error' && <XCircle className="w-3 h-3 text-white" />}
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-blue-200 mb-1">📍 Current Location</h4>
+                  <p className="text-blue-200/80 text-sm">
+                    {locationStatus === 'detecting' && 'Detecting current location...'}
+                    {locationStatus === 'success' && `Location: ${locationName}`}
+                    {locationStatus === 'error' && 'Unable to detect location - GPS may be disabled'}
+                    {locationStatus === 'idle' && 'Location detection starting...'}
+                  </p>
+                  {coordinates && locationStatus === 'success' && (
+                    <p className="text-blue-300/60 text-xs mt-1">
+                      Coordinates: {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
+                    </p>
+                  )}
+                </div>
+                {locationStatus === 'error' && (
+                  <button
+                    onClick={detectLocation}
+                    className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-500 transition-colors"
+                  >
+                    Retry
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-between">
+              <button
+                onClick={onPrevious}
+                disabled={true}
+                className="px-6 py-3 bg-gray-600 text-gray-400 rounded-lg cursor-not-allowed transition-colors"
+              >
+                Previous
+              </button>
+              <button
+                onClick={onNext}
+                disabled={responses.passengersOnBoard === null || responses.passengersOnBoard === undefined}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Continue to Brake Assessment
+              </button>
+            </div>
+          </div>
+        );
+
+      case 2:
         return (
           <div className="space-y-6">
             <div className="text-center">
@@ -169,9 +414,9 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
           </div>
         );
 
-      case 2:
-        const hasCriticalIssue = responses.brakeToFloor || responses.delayedBraking || 
-                                responses.unusualNoises || responses.brakeLeaks || 
+      case 3:
+        const hasCriticalIssue = responses.brakeToFloor || responses.delayedBraking ||
+                                responses.unusualNoises || responses.brakeLeaks ||
                                 responses.brakesGrabbing || responses.redABSLight;
         
         return (
@@ -219,7 +464,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                   
                   <div className="space-y-3">
                     <button
-                      onClick={() => { updateResponse('otherBrakeConcerns', 'yes'); onNext(); }}
+                      onClick={() => { updateResponse('otherBrakeConcerns', 'yes'); }}
                       className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
                         responses.otherBrakeConcerns === 'yes'
                           ? 'border-amber-400 bg-amber-400/20 text-amber-200'
@@ -237,7 +482,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                     </button>
                     
                     <button
-                      onClick={() => { updateResponse('otherBrakeConcerns', 'no'); onNext(); }}
+                      onClick={() => { updateResponse('otherBrakeConcerns', 'no'); }}
                       className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
                         responses.otherBrakeConcerns === 'no'
                           ? 'border-green-400 bg-green-400/20 text-green-200'
@@ -276,9 +521,9 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
           </div>
         );
 
-      case 3:
-        const needsImmediate = responses.brakeToFloor || responses.delayedBraking || 
-                              responses.unusualNoises || responses.brakeLeaks || 
+      case 4:
+        const needsImmediate = responses.brakeToFloor || responses.delayedBraking ||
+                              responses.unusualNoises || responses.brakeLeaks ||
                               responses.brakesGrabbing || responses.redABSLight;
         
         return (
@@ -384,18 +629,21 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                 Previous
               </button>
               <button
-                onClick={onNext}
+                onClick={() => {
+                  console.log('BrakesWizard Step 3 - Continue clicked, moving to step 4');
+                  onNext();
+                }}
                 className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
               >
-                Continue
+                Continue to Summary
               </button>
             </div>
           </div>
         );
 
-      case 4:
-        const criticalIssues = responses.brakeToFloor || responses.delayedBraking || 
-                              responses.unusualNoises || responses.brakeLeaks || 
+      case 5:
+        const criticalIssues = responses.brakeToFloor || responses.delayedBraking ||
+                              responses.unusualNoises || responses.brakeLeaks ||
                               responses.brakesGrabbing || responses.redABSLight;
 
         return (
@@ -483,8 +731,33 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
               </button>
               <button
                 onClick={() => {
-                  console.log('🔥 BrakesWizard completing assessment...', { criticalIssues, responses });
-                  onComplete();
+                  // Determine the final decision based on assessment
+                  const finalDecision = criticalIssues ? 'STOP' : 
+                                       (responses.otherBrakeConcerns === 'yes' ? 'AMBER' : 'CONTINUE');
+                  
+                  // Compile notes about the assessment
+                  const notes = {
+                    issuesIdentified: {
+                      brakeToFloor: responses.brakeToFloor,
+                      delayedBraking: responses.delayedBraking,
+                      unusualNoises: responses.unusualNoises,
+                      brakeLeaks: responses.brakeLeaks,
+                      brakesGrabbing: responses.brakesGrabbing,
+                      redABSLight: responses.redABSLight,
+                      noBrakeIssues: responses.noBrakeIssues,
+                      otherConcerns: responses.otherBrakeConcerns
+                    },
+                    criticalIssues: criticalIssues,
+                    actionTaken: criticalIssues ? 'Vehicle stopped - Awaiting engineering' :
+                                 (responses.otherBrakeConcerns === 'yes' ? 'Changeover arranged' : 'Continue in service'),
+                    epMorrisCode: 'BDBR',
+                    urgentNotification: (responses.brakeToFloor || responses.delayedBraking)
+                  };
+                  
+                  console.log('🔥 BrakesWizard completing assessment...', { finalDecision, notes });
+                  
+                  // Pass decision and notes to onComplete
+                  onComplete(finalDecision, notes);
                 }}
                 className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors"
               >

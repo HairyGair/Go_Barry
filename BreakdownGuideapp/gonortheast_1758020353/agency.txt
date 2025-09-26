@@ -1,0 +1,3 @@
+agency_id,agency_name,agency_url,agency_timezone,agency_lang,agency_phone,agency_fare_url
+ANUM,"Arriva Northumbria Limited",https://www.ANUM.co.uk,Europe/London,en,,
+GNE,"Go North East",https://www.GNE.co.uk,Europe/London,en,,

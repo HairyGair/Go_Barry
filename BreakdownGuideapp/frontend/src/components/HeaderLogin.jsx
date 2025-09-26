@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { authHelpers, supabase } from '../services/supabase-client.js';
+import { apiConfig } from '../breakdown-guide/components/common/constants.js';
 
 // Hardcoded supervisor list as fallback
 const FALLBACK_SUPERVISORS = [
-  { id: '6a56f4cd-e6cf-4122-a97d-fecaa85df76a', name: 'Anthony Gair', email: 'anthony.gair@gonortheast.co.uk' },
+  { id: '32f1b875-c214-4b96-88ff-5639fcfd908d', name: 'Anthony Gair', email: 'anthony.gair@gonortheast.co.uk' },
   { id: '39df73b1-41d3-4b6d-a1ce-dec1ce79b1af', name: 'Barry Perryman', email: 'barry.perryman@gonortheast.co.uk' },
   { id: '80de4f3e-ecf9-44d9-ba17-8f0443ae1570', name: 'Alex Woodcock', email: 'alex.woodcock@gonortheast.co.uk' },
   { id: '1ba16aee-9941-4978-87f9-d42085bb8623', name: 'Andrew Cowley', email: 'andrew.cowley@gonortheast.co.uk' },
@@ -31,45 +32,55 @@ const HeaderLogin = ({ onLoginSuccess }) => {
   const loadSupervisors = async () => {
     try {
       setLoadingSupervisors(true);
-      setError(''); // Clear any previous errors
-      
-      // Check if we should use fallback data
-      const shouldUseFallback = localStorage.getItem('use_fallback_supervisors') === 'true';
-      
-      if (shouldUseFallback) {
-        console.log('Using fallback supervisor data');
-        setSupervisors(FALLBACK_SUPERVISORS);
-        setUseFallback(true);
-        return;
+      setError('');
+
+      // Try to load supervisors from backend API first
+      console.log('🔍 Loading supervisors from backend API...');
+      const response = await fetch(`${apiConfig.baseUrl}/api/auth/supervisors`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        const supervisorData = await response.json();
+        if (supervisorData && supervisorData.length > 0) {
+          console.log('✅ Loaded supervisors from backend:', supervisorData);
+          setSupervisors(supervisorData.map(s => ({
+            id: s.id,
+            name: s.full_name || s.name,
+            email: s.email
+          })));
+          setUseFallback(false);
+          return;
+        }
       }
-      
-      // Try to load from Supabase
+
+      console.log('⚠️ Backend API failed, trying Supabase...');
+
+      // Fallback to Supabase
       let { data, error } = await supabase
         .from('supervisors')
         .select('id, name, email')
         .order('name');
-      
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
-      }
-      
-      if (!data || data.length === 0) {
-        console.warn('No supervisors found in database, using fallback');
-        setSupervisors(FALLBACK_SUPERVISORS);
-        setUseFallback(true);
-        localStorage.setItem('use_fallback_supervisors', 'true');
-      } else {
-        console.log('Loaded supervisors from database:', data);
+
+      if (!error && data && data.length > 0) {
+        console.log('✅ Loaded supervisors from Supabase:', data);
         setSupervisors(data);
         setUseFallback(false);
+        return;
       }
+
+      // Final fallback to hardcoded list
+      console.log('⚠️ All sources failed, using hardcoded supervisor list');
+      setSupervisors(FALLBACK_SUPERVISORS);
+      setUseFallback(true);
+      setError('Using offline supervisor list');
+
     } catch (err) {
       console.error('Error loading supervisors:', err);
       setError('Using offline supervisor list');
       setSupervisors(FALLBACK_SUPERVISORS);
       setUseFallback(true);
-      localStorage.setItem('use_fallback_supervisors', 'true');
     } finally {
       setLoadingSupervisors(false);
     }
@@ -91,6 +102,40 @@ const HeaderLogin = ({ onLoginSuccess }) => {
     setError('');
     
     try {
+      // Try backend API login first
+      console.log('🔐 Attempting backend API login...');
+      const response = await fetch(`${apiConfig.baseUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: selectedEmail })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.user) {
+          console.log('✅ Backend API login successful:', result.user);
+          const session = {
+            id: result.user.user_id,
+            supervisorId: result.user.supervisorId,
+            name: result.user.name,
+            email: result.user.email,
+            depot: result.user.depot || 'SDC',
+            role: result.user.role || 'supervisor',
+            isAdmin: result.user.role === 'admin',
+            timestamp: new Date().toISOString(),
+            authenticated: true,
+            backendAuth: true
+          };
+
+          setSelectedEmail('');
+          setPassword('');
+          onLoginSuccess(session);
+          return;
+        }
+      }
+
+      console.log('⚠️ Backend API login failed, trying fallback mode...');
+
       // If using fallback, simulate login for testing
       if (useFallback) {
         const supervisor = supervisors.find(s => s.email === selectedEmail);
@@ -107,23 +152,24 @@ const HeaderLogin = ({ onLoginSuccess }) => {
             authenticated: true,
             fallbackMode: true
           };
-          
+
           setSelectedEmail('');
           setPassword('');
           onLoginSuccess(session);
           return;
         } else {
-          throw new Error('Invalid login credentials');
+          throw new Error('Invalid login credentials (hint: testpassword)');
         }
       }
-      
-      // Try Supabase authentication
+
+      // Last resort: Try Supabase authentication
+      console.log('⚠️ Trying Supabase authentication as last resort...');
       const authResult = await authHelpers.signInWithPassword(selectedEmail, password);
-      
+
       if (!authResult.supervisor) {
         throw new Error('Supervisor profile not found');
       }
-      
+
       const session = {
         id: authResult.supervisor.id,
         supervisorId: authResult.supervisor.id,
@@ -136,11 +182,11 @@ const HeaderLogin = ({ onLoginSuccess }) => {
         authenticated: true,
         supabaseSession: authResult.session
       };
-      
+
       // Clear form
       setSelectedEmail('');
       setPassword('');
-      
+
       onLoginSuccess(session);
       
     } catch (err) {

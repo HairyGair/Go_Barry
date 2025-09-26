@@ -1,6 +1,9 @@
-// Fleet Selection Modal - Enhanced Version with Location Capture
+// Fleet Selection Modal - Enhanced Version with Route Selection and Storage Integration
 import React, { useState, useEffect } from 'react';
 import * as Icons from './common/icons.jsx';
+import storageService from '../../services/storageService.js';
+import { useFrequentRoutes, useRecentFleetNumbers, useBreakdownDraft } from '../../hooks/useStorage.js';
+import routeHelpers from '../../data/routes.js';
 
 const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) => {
     const { Search, MapPin, Building, CheckCircle, XCircle, AlertCircle } = Icons;
@@ -14,6 +17,18 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
     const [ticketerCoords, setTicketerCoords] = useState('');
     const [error, setError] = useState('');
     const [showTicketerModal, setShowTicketerModal] = useState(false);
+
+    // Route selection state
+    const [selectedRoute, setSelectedRoute] = useState('');
+    const [routeName, setRouteName] = useState('');
+    const [routeSearch, setRouteSearch] = useState('');
+    const [showRouteSearch, setShowRouteSearch] = useState(false);
+    const [routeSearchResults, setRouteSearchResults] = useState([]);
+
+    // Storage hooks
+    const { topRoutes, updateRoute } = useFrequentRoutes();
+    const { recentFleetNumbers, saveFleetNumber } = useRecentFleetNumbers();
+    const { saveDraft, clearDraft, hasDraft, draft } = useBreakdownDraft();
     
     // Fleet database
     const [fleetData, setFleetData] = useState(null);
@@ -87,17 +102,58 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
         }
     }, [isOpen]);
     
-    // Reset modal when opened
+    // Reset modal when opened and load draft if available
     useEffect(() => {
         if (isOpen) {
-            setCurrentStep('fleet');
-            setSelectedVehicle(null);
-            setSelectedLocation(null);
-            setSearchQuery('');
+            // Check for draft and resume if available
+            if (hasDraft && draft) {
+                setSearchQuery(draft.fleetNumber || '');
+                setSelectedRoute(draft.route || '');
+                setRouteName(draft.routeName || '');
+
+                // If draft has fleet data, set it
+                if (draft.fleetData) {
+                    setSelectedVehicle(draft.fleetData);
+                    setCurrentStep('route');
+                } else {
+                    setCurrentStep('fleet');
+                }
+            } else {
+                setCurrentStep('fleet');
+                setSelectedVehicle(null);
+                setSelectedLocation(null);
+                setSearchQuery('');
+                setSelectedRoute('');
+                setRouteName('');
+                setRouteSearch('');
+            }
             setTicketerCoords('');
             setError('');
+            setShowRouteSearch(false);
         }
-    }, [isOpen]);
+    }, [isOpen, hasDraft, draft]);
+
+    // Auto-save draft on changes
+    useEffect(() => {
+        if (isOpen && (searchQuery || selectedRoute || selectedVehicle)) {
+            const draftData = {
+                wizardType,
+                fleetNumber: searchQuery,
+                fleetData: selectedVehicle,
+                route: selectedRoute,
+                routeName,
+                timestamp: new Date().toISOString(),
+                step: currentStep
+            };
+
+            // Debounce the save to avoid excessive writes
+            const saveTimer = setTimeout(() => {
+                saveDraft(draftData);
+            }, 1000);
+
+            return () => clearTimeout(saveTimer);
+        }
+    }, [searchQuery, selectedRoute, selectedVehicle, routeName, currentStep, isOpen, wizardType, saveDraft]);
     
     // Search fleet
     useEffect(() => {
@@ -125,6 +181,21 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
         
         return () => clearTimeout(searchTimeout);
     }, [searchQuery, fleetData]);
+
+    // Search routes
+    useEffect(() => {
+        if (routeSearch.length < 2) {
+            setRouteSearchResults([]);
+            return;
+        }
+
+        const searchTimeout = setTimeout(() => {
+            const results = routeHelpers.search(routeSearch);
+            setRouteSearchResults(results.slice(0, 10));
+        }, 200);
+
+        return () => clearTimeout(searchTimeout);
+    }, [routeSearch]);
     
     // Get simplified vehicle type
     const getSimplifiedVehicleType = (vehicleType) => {
@@ -139,6 +210,36 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
     // Handle vehicle selection
     const handleVehicleSelect = (vehicle) => {
         setSelectedVehicle(vehicle);
+        saveFleetNumber(vehicle.fleetNumber); // Save to recent fleet numbers
+        setCurrentStep('route'); // Go to route selection first
+    };
+
+    // Handle route selection
+    const handleRouteSelect = (route) => {
+        setSelectedRoute(route.routeShortName);
+        setRouteName(route.displayName || route.routeShortName);
+        updateRoute(route.routeShortName, route.displayName); // Update frequent routes
+        setShowRouteSearch(false);
+        setRouteSearch('');
+
+        // Track route usage
+        storageService.trackRouteUsage(route.routeShortName, 'fleet_selection');
+    };
+
+    // Handle quick route button click
+    const handleQuickRouteClick = (routeShortName) => {
+        const routeData = routeHelpers.findByShortName(routeShortName);
+        if (routeData && routeData.length > 0) {
+            handleRouteSelect(routeData[0]);
+        }
+    };
+
+    // Proceed to location step
+    const proceedToLocation = () => {
+        if (!selectedRoute) {
+            setError('Please select a route before continuing');
+            return;
+        }
         setCurrentStep('location');
     };
     
@@ -176,9 +277,11 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                 description: `Ticketer Location (${lat.toFixed(6)}, ${lng.toFixed(6)})`
             });
             
-            // Complete the selection
+            // Complete the selection with route data
             onSelectVehicle({
                 ...selectedVehicle,
+                route: selectedRoute,
+                routeName: routeName,
                 location: {
                     type: 'ticketer',
                     lat,
@@ -186,7 +289,10 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                     coordinates: ticketerCoords
                 }
             });
-            
+
+            // Clear draft on successful completion
+            clearDraft();
+
             setShowTicketerModal(false);
             onClose();
         } else {
@@ -205,25 +311,35 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
         
         onSelectVehicle({
             ...selectedVehicle,
+            route: selectedRoute,
+            routeName: routeName,
             location: {
                 type: 'depot',
                 name: depotName,
                 ...depot
             }
         });
-        
+
+        // Clear draft on successful completion
+        clearDraft();
+
         onClose();
     };
     
     const handleSkipLocation = () => {
         onSelectVehicle({
             ...selectedVehicle,
+            route: selectedRoute,
+            routeName: routeName,
             location: {
                 type: 'skip',
                 description: 'Location to be added later'
             }
         });
-        
+
+        // Clear draft on successful completion
+        clearDraft();
+
         onClose();
     };
     
@@ -243,7 +359,8 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                         </button>
                         
                         <h2 className="text-2xl font-bold text-white">
-                            {currentStep === 'fleet' ? 'Select Vehicle' : 
+                            {currentStep === 'fleet' ? 'Select Vehicle' :
+                             currentStep === 'route' ? 'Select Route' :
                              currentStep === 'location' ? 'Vehicle Location' :
                              currentStep === 'depot' ? 'Select Depot' : 'Select Vehicle'}
                         </h2>
@@ -270,7 +387,13 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                         placeholder="Search by fleet number, registration, or depot..."
                                         className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors"
                                         autoFocus
+                                        list="recent-fleet-numbers"
                                     />
+                                    <datalist id="recent-fleet-numbers">
+                                        {recentFleetNumbers.map(fleetNumber => (
+                                            <option key={fleetNumber} value={fleetNumber} />
+                                        ))}
+                                    </datalist>
                                 </div>
                                 
                                 {/* Loading State */}
@@ -334,11 +457,12 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                 )}
                             </>
                         )}
-                        
-                        {/* Location Selection Step */}
-                        {currentStep === 'location' && selectedVehicle && (
-                            <div className="space-y-4">
-                                <div className="bg-gray-800 rounded-lg p-4 mb-6">
+
+                        {/* Route Selection Step */}
+                        {currentStep === 'route' && selectedVehicle && (
+                            <div className="space-y-6">
+                                {/* Selected Vehicle Info */}
+                                <div className="bg-gray-800 rounded-lg p-4 border border-gray-600">
                                     <div className="font-semibold text-white">Selected Vehicle</div>
                                     <div className="text-gray-300 mt-1">
                                         {selectedVehicle.fleetNumber} - {selectedVehicle.regNo}
@@ -346,6 +470,177 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                     <div className="text-sm text-gray-400">
                                         {selectedVehicle.depot} • {getSimplifiedVehicleType(selectedVehicle.vehicleType)}
                                     </div>
+                                </div>
+
+                                <h3 className="text-lg font-semibold text-white">Which route was the vehicle operating?</h3>
+
+                                {/* Show error if any */}
+                                {error && (
+                                    <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-3 text-red-400 text-sm">
+                                        {error}
+                                    </div>
+                                )}
+
+                                {/* Quick Route Buttons (Top 6) */}
+                                {topRoutes && topRoutes.length > 0 && (
+                                    <div className="space-y-3">
+                                        <p className="text-sm text-gray-400">Frequently Used Routes</p>
+                                        <div className="grid grid-cols-3 gap-3">
+                                            {topRoutes.map(routeShortName => {
+                                                const routeInfo = routeHelpers.findByShortName(routeShortName);
+                                                const route = routeInfo && routeInfo.length > 0 ? routeInfo[0] : null;
+                                                return (
+                                                    <button
+                                                        key={routeShortName}
+                                                        onClick={() => handleQuickRouteClick(routeShortName)}
+                                                        className={`p-3 rounded-lg border transition-all text-center font-semibold ${
+                                                            selectedRoute === routeShortName
+                                                                ? 'bg-blue-600 border-blue-500 text-white'
+                                                                : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700 hover:border-gray-500'
+                                                        }`}
+                                                    >
+                                                        <div className="text-lg">{routeShortName}</div>
+                                                        {route?.isExpress && (
+                                                            <div className="text-xs text-blue-300">Express</div>
+                                                        )}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Search for Other Routes */}
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-sm text-gray-400">Other Routes</p>
+                                        <button
+                                            onClick={() => setShowRouteSearch(!showRouteSearch)}
+                                            className="text-blue-400 hover:text-blue-300 text-sm transition-colors"
+                                        >
+                                            {showRouteSearch ? 'Hide Search' : 'Search Routes'}
+                                        </button>
+                                    </div>
+
+                                    {showRouteSearch && (
+                                        <div className="space-y-3">
+                                            <div className="relative">
+                                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                    <Search className="h-5 w-5 text-gray-400" />
+                                                </div>
+                                                <input
+                                                    type="text"
+                                                    value={routeSearch}
+                                                    onChange={(e) => setRouteSearch(e.target.value)}
+                                                    placeholder="Search routes (e.g., X10, 21, Quayside)..."
+                                                    className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors"
+                                                />
+                                            </div>
+
+                                            {/* Route Search Results */}
+                                            {routeSearchResults.length > 0 && (
+                                                <div className="max-h-48 overflow-y-auto space-y-2">
+                                                    {routeSearchResults.map((route) => (
+                                                        <button
+                                                            key={route.routeId}
+                                                            onClick={() => handleRouteSelect(route)}
+                                                            className={`w-full p-3 text-left rounded-lg border transition-all ${
+                                                                selectedRoute === route.routeShortName
+                                                                    ? 'bg-blue-600 border-blue-500 text-white'
+                                                                    : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700'
+                                                            }`}
+                                                        >
+                                                            <div className="flex items-center justify-between">
+                                                                <div>
+                                                                    <div className="font-semibold flex items-center gap-2">
+                                                                        <span className={`px-2 py-1 rounded text-xs font-bold`}
+                                                                              style={{
+                                                                                  backgroundColor: `#${route.routeColor}`,
+                                                                                  color: `#${route.routeTextColor}`
+                                                                              }}>
+                                                                            {route.routeShortName}
+                                                                        </span>
+                                                                        <span>{route.displayName}</span>
+                                                                        {route.isExpress && <span className="text-red-400">⚡</span>}
+                                                                    </div>
+                                                                    <div className="text-sm text-gray-400 mt-1">
+                                                                        {route.agency} • {route.category} • {route.depot}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {routeSearch.length >= 2 && routeSearchResults.length === 0 && (
+                                                <div className="text-center py-4 text-gray-400">
+                                                    <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                                    <p>No routes found for "{routeSearch}"</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Selected Route Display */}
+                                {selectedRoute && (
+                                    <div className="bg-green-500/20 border border-green-500/30 rounded-lg p-4">
+                                        <div className="flex items-center gap-3">
+                                            <CheckCircle className="w-6 h-6 text-green-400" />
+                                            <div>
+                                                <div className="font-semibold text-green-400">
+                                                    Route Selected: {selectedRoute}
+                                                </div>
+                                                <div className="text-sm text-green-300">
+                                                    {routeName}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Navigation Buttons */}
+                                <div className="flex gap-3 pt-4">
+                                    <button
+                                        onClick={() => setCurrentStep('fleet')}
+                                        className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+                                    >
+                                        ← Back to Fleet
+                                    </button>
+                                    <button
+                                        onClick={proceedToLocation}
+                                        disabled={!selectedRoute}
+                                        className={`flex-1 px-4 py-3 rounded-lg transition-colors font-semibold ${
+                                            selectedRoute
+                                                ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                                                : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                                        }`}
+                                    >
+                                        Continue to Location →
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Location Selection Step */}
+                        {currentStep === 'location' && selectedVehicle && (
+                            <div className="space-y-4">
+                                <div className="bg-gray-800 rounded-lg p-4 mb-6 border border-gray-600">
+                                    <div className="font-semibold text-white">Selected Vehicle</div>
+                                    <div className="text-gray-300 mt-1">
+                                        {selectedVehicle.fleetNumber} - {selectedVehicle.regNo}
+                                    </div>
+                                    <div className="text-sm text-gray-400">
+                                        {selectedVehicle.depot} • {getSimplifiedVehicleType(selectedVehicle.vehicleType)}
+                                    </div>
+                                    {/* Show selected route */}
+                                    {selectedRoute && (
+                                        <div className="mt-3 pt-3 border-t border-gray-600">
+                                            <div className="font-semibold text-green-400">Route: {selectedRoute}</div>
+                                            <div className="text-sm text-green-300">{routeName}</div>
+                                        </div>
+                                    )}
                                 </div>
                                 
                                 <h3 className="text-lg font-semibold text-white mb-4">Where is the vehicle?</h3>
@@ -406,9 +701,19 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                         </div>
                                     </button>
                                 </div>
+
+                                {/* Navigation */}
+                                <div className="pt-4 border-t border-gray-600">
+                                    <button
+                                        onClick={() => setCurrentStep('route')}
+                                        className="text-gray-400 hover:text-white transition-colors flex items-center gap-2"
+                                    >
+                                        ← Back to Route Selection
+                                    </button>
+                                </div>
                             </div>
                         )}
-                        
+
                         {/* Depot Selection Step */}
                         {currentStep === 'depot' && (
                             <>

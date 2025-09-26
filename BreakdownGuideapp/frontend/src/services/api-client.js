@@ -2,7 +2,7 @@
 // Connects to production Supabase via backend API
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://breakdown-guide.onrender.com';
-const ENABLE_MOCK_DATA = import.meta.env.VITE_ENABLE_MOCK_DATA === 'true';
+// Mock data system removed - using real API data only
 
 // API Client class
 class APIClient {
@@ -36,10 +36,7 @@ class APIClient {
     } catch (error) {
       console.error(`API request failed: ${endpoint}`, error);
       
-      // If API fails and mock data is enabled, use fallback
-      if (ENABLE_MOCK_DATA) {
-        return this.getMockData(endpoint);
-      }
+      // Mock data removed - no fallbacks
       
       throw error;
     }
@@ -79,52 +76,7 @@ class APIClient {
     return this.request(endpoint, { method: 'DELETE' });
   }
 
-  // Mock data fallback for development
-  getMockData(endpoint) {
-    console.warn(`Using mock data for: ${endpoint}`);
-    
-    if (endpoint.includes('/fleet')) {
-      return {
-        data: [
-          {
-            fleet_number: '6001',
-            registration: 'NK10 ABC',
-            depot: 'Riverside',
-            type: 'Single Deck',
-            status: 'active'
-          }
-        ]
-      };
-    }
-    
-    if (endpoint.includes('/breakdowns')) {
-      return {
-        data: [
-          {
-            id: 1,
-            breakdown_id: 'BD-2025-00001',
-            fleet_number: '6001',
-            status: 'active',
-            created_at: new Date().toISOString()
-          }
-        ]
-      };
-    }
-    
-    if (endpoint.includes('/supervisors')) {
-      return [
-        {
-          id: 1,
-          supervisor_id: 'AG003',
-          name: 'Anthony Gair',
-          depot: 'Riverside',
-          role: 'supervisor'
-        }
-      ];
-    }
-    
-    return { data: [] };
-  }
+  // Mock data functions removed - system now uses real API data exclusively
 }
 
 // Create and export API client instance

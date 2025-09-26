@@ -5,7 +5,7 @@ import VehicleHistoryPanel from './VehicleHistoryPanel';
 import AssessmentAnalytics from './AssessmentAnalytics';
 import EngineeringMetrics from './EngineeringMetrics';
 import SupervisorActivity from './SupervisorActivity';
-import { MapPin, Activity, AlertTriangle, Users, Clock, TrendingUp, Calendar, RefreshCw } from 'lucide-react';
+import { FaMapMarkerAlt as MapPin, FaChartBar as Activity, FaExclamationTriangle as AlertTriangle, FaUsers as Users, FaClock as Clock, FaArrowUp as TrendingUp, FaCalendar as Calendar, FaSyncAlt as RefreshCw } from 'react-icons/fa';
 
 const LiveDashboard = () => {
   // State management

@@ -64,8 +64,58 @@ function formatTimeAgo(timestamp) {
   });
 }
 
-// Fetch activities from all sources
+// Fetch activities from unified activities table (new approach)
 export async function fetchAllActivities(limit = 50) {
+  try {
+    console.log('🔍 Fetching activities from unified activities table...');
+
+    // Try to fetch from the new unified activities endpoint first
+    try {
+      const response = await fetch(`${apiConfig.baseUrl}/api/activity/feed?limit=${limit}`, {
+        signal: AbortSignal.timeout(8000)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Successfully fetched from unified activities table:', data.count, 'activities');
+
+        return {
+          activities: data.activities || [],
+          sources: {
+            unified_activities: true,
+            breakdowns: false, // Legacy source disabled
+            assessments: false,
+            engineering: false,
+            decisions: false,
+            audit: false
+          },
+          total: data.count || 0,
+          timestamp: data.timestamp || new Date().toISOString(),
+          source: 'unified_activities_table'
+        };
+      }
+    } catch (unifiedError) {
+      console.log('⚠️ Unified activities endpoint not available, falling back to legacy:', unifiedError.message);
+    }
+
+    // Fallback to legacy approach if unified endpoint fails
+    console.log('🔄 Falling back to legacy breakdown activities...');
+    return await fetchLegacyActivities(limit);
+
+  } catch (error) {
+    console.error('❌ Error in fetchAllActivities:', error);
+    return {
+      activities: [],
+      sources: { error: true },
+      total: 0,
+      timestamp: new Date().toISOString(),
+      source: 'error_no_fallback'
+    };
+  }
+}
+
+// Legacy method (kept as fallback)
+export async function fetchLegacyActivities(limit = 50) {
   const activities = [];
   const sources = {
     breakdowns: false,
@@ -76,26 +126,10 @@ export async function fetchAllActivities(limit = 50) {
   };
 
   try {
-    // Fetch from multiple endpoints in parallel
+    // For now, just fetch live breakdowns which we know works
     const requests = await Promise.allSettled([
-      // Recent breakdowns
-      fetch(`${apiConfig.baseUrl}/api/breakdowns/recent?limit=30`, {
-        signal: AbortSignal.timeout(5000)
-      }),
-      // Recent assessments
-      fetch(`${apiConfig.baseUrl}/api/assessments/recent?limit=30`, {
-        signal: AbortSignal.timeout(5000)
-      }),
-      // Engineering activities
-      fetch(`${apiConfig.baseUrl}/api/engineering/activities?limit=30`, {
-        signal: AbortSignal.timeout(5000)
-      }),
-      // SDC decisions
-      fetch(`${apiConfig.baseUrl}/api/sdc/activities?limit=30`, {
-        signal: AbortSignal.timeout(5000)
-      }),
-      // Audit logs
-      fetch(`${apiConfig.baseUrl}/api/audit/recent?limit=30`, {
+      // Live breakdowns (only working endpoint)
+      fetch(`${apiConfig.baseUrl}/api/breakdowns/live`, {
         signal: AbortSignal.timeout(5000)
       })
     ]);
@@ -105,29 +139,80 @@ export async function fetchAllActivities(limit = 50) {
       const data = await requests[0].value.json();
       sources.breakdowns = true;
       
-      if (data.breakdowns) {
+      console.log('🔍 Activity aggregator received data:', data);
+      console.log('🔍 Number of breakdowns:', data.breakdowns?.length);
+      
+      if (data.breakdowns && data.breakdowns.length > 0) {
+        console.log('🔍 Processing breakdowns for activities...');
         data.breakdowns.forEach(breakdown => {
-          activities.push({
-            id: `breakdown-${breakdown.id}`,
-            type: 'BREAKDOWN_REPORTED',
-            icon: ACTIVITY_TYPES.BREAKDOWN_REPORTED.icon,
-            message: `${breakdown.supervisor_name || 'Supervisor'} reported ${breakdown.issue_category || 'breakdown'} on ${breakdown.fleet_no}`,
-            time: formatTimeAgo(breakdown.created_at),
-            timestamp: breakdown.created_at,
-            depot: breakdown.depot || 'SDC',
-            decision: breakdown.severity,
-            severity: ACTIVITY_TYPES.BREAKDOWN_REPORTED.severity(breakdown),
-            priority: ACTIVITY_TYPES.BREAKDOWN_REPORTED.priority,
-            metadata: {
-              breakdownId: breakdown.id,
-              fleetNo: breakdown.fleet_no,
-              location: breakdown.location
-            }
-          });
+          // Get the breakdown ID (could be 'id' or 'breakdown_id')
+          const breakdownId = breakdown.breakdown_id || breakdown.id;
+          const fleetNumber = breakdown.fleet_no || breakdown.fleet_number || 'Unknown';
+          const supervisorName = breakdown.supervisor_name || breakdown.supervisor || 'Supervisor';
+
+          // Check if this is a wizard assessment or regular breakdown
+          // A wizard assessment has wizard_decision, wizard_type, or breakdown_source === 'wizard'
+          const isWizardAssessment = !!(breakdown.wizard_decision ||
+                                    breakdown.breakdown_source === 'wizard' ||
+                                    breakdown.wizard_type);
+
+          console.log(`🔍 Processing breakdown ID ${breakdownId}: fleet=${fleetNumber}, isWizard=${isWizardAssessment}, decision=${breakdown.wizard_decision}, type=${breakdown.wizard_type}`);
+
+          if (isWizardAssessment) {
+            // Create assessment activity
+            const decision = breakdown.wizard_decision || breakdown.severity || 'CONTINUE';
+            const decisionIcon = decision === 'STOP' ? '🛑' :
+                                decision === 'AMBER' ? '⚡' : '✅';
+
+            // Get the assessment type from wizard_type, issue_type, or issue_category
+            const assessmentType = breakdown.wizard_type || breakdown.issue_type || breakdown.issue_category || 'General';
+            const formattedType = assessmentType.charAt(0).toUpperCase() + assessmentType.slice(1).replace(/-/g, ' ');
+
+            activities.push({
+              id: `assessment-${breakdownId}`,
+              type: 'ASSESSMENT_COMPLETED',
+              icon: decisionIcon,
+              message: `${supervisorName} completed ${formattedType} assessment for ${fleetNumber} - Result: ${decision}`,
+              time: formatTimeAgo(breakdown.created_at),
+              timestamp: breakdown.created_at,
+              depot: breakdown.depot || 'SDC',
+              decision: decision,
+              severity: decision === 'STOP' ? 'critical' :
+                       decision === 'AMBER' ? 'warning' : 'success',
+              priority: 2,
+              metadata: {
+                wizardType: breakdown.wizard_type,
+                fleetNo: fleetNumber,
+                location: breakdown.location || breakdown.location_description,
+                breakdownId: breakdownId
+              }
+            });
+          } else {
+            // Create breakdown reported activity
+            activities.push({
+              id: `breakdown-${breakdownId}`,
+              type: 'BREAKDOWN_REPORTED',
+              icon: ACTIVITY_TYPES.BREAKDOWN_REPORTED.icon,
+              message: `${supervisorName} reported ${breakdown.issue_category || 'breakdown'} on ${fleetNumber}`,
+              time: formatTimeAgo(breakdown.created_at),
+              timestamp: breakdown.created_at,
+              depot: breakdown.depot || 'SDC',
+              decision: breakdown.severity,
+              severity: ACTIVITY_TYPES.BREAKDOWN_REPORTED.severity(breakdown),
+              priority: ACTIVITY_TYPES.BREAKDOWN_REPORTED.priority,
+              metadata: {
+                breakdownId: breakdownId,
+                fleetNo: fleetNumber,
+                location: breakdown.location || breakdown.location_description
+              }
+            });
+          }
         });
       }
     }
 
+    // Skip other endpoints for now since they don't exist yet
+    /*
     // Process assessments
     if (requests[1].status === 'fulfilled' && requests[1].value.ok) {
       const data = await requests[1].value.json();
@@ -272,9 +357,10 @@ export async function fetchAllActivities(limit = 50) {
         });
       }
     }
+    */
 
   } catch (error) {
-    console.error('Error fetching activities:', error);
+    console.error('Error fetching legacy activities:', error);
   }
 
   // Sort activities by timestamp and priority
@@ -286,145 +372,221 @@ export async function fetchAllActivities(limit = 50) {
     return timeDiff;
   });
 
+  // Log the results
+  console.log(`📦 Legacy activity aggregator returning ${activities.length} activities`);
+  if (activities.length > 0) {
+    console.log('🎆 First activity:', activities[0]);
+  }
+
   // Return limited number of activities
   return {
     activities: activities.slice(0, limit),
     sources,
     total: activities.length,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    source: 'legacy_breakdowns'
   };
 }
 
-// Get mock activities for testing
-export function getMockActivities() {
-  const now = new Date();
-  const activities = [
-    {
-      id: 'mock-1',
-      type: 'BREAKDOWN_REPORTED',
-      icon: '🚨',
-      message: 'John Smith reported steering issue on 6098',
-      time: '2m ago',
-      timestamp: new Date(now - 2 * 60000).toISOString(),
-      depot: 'Washington',
-      decision: 'STOP',
-      severity: 'critical',
-      priority: 1
-    },
-    {
-      id: 'mock-2',
-      type: 'ENGINEER_ASSIGNED',
-      icon: '👷',
-      message: 'Mike Johnson assigned to 6098',
-      time: '5m ago',
-      timestamp: new Date(now - 5 * 60000).toISOString(),
-      depot: 'Washington',
-      severity: 'normal',
-      priority: 3
-    },
-    {
-      id: 'mock-3',
-      type: 'ASSESSMENT_COMPLETED',
-      icon: '⚡',
-      message: 'Sarah Wilson completed ABS Light assessment - AMBER',
-      time: '12m ago',
-      timestamp: new Date(now - 12 * 60000).toISOString(),
-      depot: 'Percy Main',
-      decision: 'AMBER',
-      severity: 'warning',
-      priority: 2
-    },
-    {
-      id: 'mock-4',
-      type: 'BREAKDOWN_RESOLVED',
-      icon: '✅',
-      message: 'Tom Davis resolved breakdown on 5342',
-      time: '18m ago',
-      timestamp: new Date(now - 18 * 60000).toISOString(),
-      depot: 'Riverside',
-      severity: 'success',
-      priority: 2
-    },
-    {
-      id: 'mock-5',
-      type: 'SDC_DECISION',
-      icon: '📋',
-      message: 'Emma Brown approved changeover for 7234',
-      time: '25m ago',
-      timestamp: new Date(now - 25 * 60000).toISOString(),
-      depot: 'SDC',
-      severity: 'normal',
-      priority: 4
-    },
-    {
-      id: 'mock-6',
-      type: 'ENGINEER_ON_SITE',
-      icon: '📍',
-      message: 'Alex Turner arrived on site for 6789',
-      time: '32m ago',
-      timestamp: new Date(now - 32 * 60000).toISOString(),
-      depot: 'Consett',
-      severity: 'normal',
-      priority: 3
-    },
-    {
-      id: 'mock-7',
-      type: 'CHANGEOVER_REQUESTED',
-      icon: '🔄',
-      message: 'Lisa Anderson requested changeover for 5123 at Eldon Square',
-      time: '45m ago',
-      timestamp: new Date(now - 45 * 60000).toISOString(),
-      depot: 'Percy Main',
-      severity: 'warning',
-      priority: 3
-    },
-    {
-      id: 'mock-8',
-      type: 'BREAKDOWN_REPORTED',
-      icon: '🚨',
-      message: 'David Clark reported brake issue on 8234',
-      time: '1h ago',
-      timestamp: new Date(now - 60 * 60000).toISOString(),
-      depot: 'Riverside',
-      decision: 'AMBER',
-      severity: 'warning',
-      priority: 2
-    },
-    {
-      id: 'mock-9',
-      type: 'VEHICLE_RECOVERED',
-      icon: '🚛',
-      message: '6098 recovered to Washington depot',
-      time: '1h ago',
-      timestamp: new Date(now - 65 * 60000).toISOString(),
-      depot: 'Washington',
-      severity: 'normal',
-      priority: 3
-    },
-    {
-      id: 'mock-10',
-      type: 'ASSESSMENT_COMPLETED',
-      icon: '✅',
-      message: 'Rachel Green completed Oil Warning assessment - CONTINUE',
-      time: '2h ago',
-      timestamp: new Date(now - 120 * 60000).toISOString(),
-      depot: 'Consett',
-      decision: 'CONTINUE',
-      severity: 'success',
-      priority: 3
+// Direct API call to unified activities endpoint
+export async function fetchUnifiedActivities(options = {}) {
+  const {
+    limit = 50,
+    offset = 0,
+    depot,
+    actor_id,
+    activity_type,
+    severity,
+    source
+  } = options;
+
+  try {
+    const params = new URLSearchParams();
+    params.append('limit', limit.toString());
+    params.append('offset', offset.toString());
+
+    if (depot) params.append('depot', depot);
+    if (actor_id) params.append('actor_id', actor_id);
+    if (activity_type) params.append('activity_type', activity_type);
+    if (severity) params.append('severity', severity);
+    if (source) params.append('source', source);
+
+    const response = await fetch(`${apiConfig.baseUrl}/api/activity/feed?${params.toString()}`, {
+      signal: AbortSignal.timeout(10000)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Activity API responded with ${response.status}: ${response.statusText}`);
     }
-  ];
 
-  return {
-    activities,
-    sources: {
-      breakdowns: true,
-      assessments: true,
-      engineering: true,
-      decisions: true,
-      audit: true
-    },
-    total: activities.length,
-    timestamp: new Date().toISOString()
-  };
+    const data = await response.json();
+
+    return {
+      success: true,
+      activities: data.activities || [],
+      count: data.count || 0,
+      timestamp: data.timestamp,
+      metadata: data.metadata,
+      source: 'unified_activities_api'
+    };
+  } catch (error) {
+    console.error('❌ Failed to fetch unified activities:', error);
+    return {
+      success: false,
+      error: error.message,
+      activities: [],
+      count: 0,
+      source: 'error'
+    };
+  }
 }
+
+// Live activities endpoint (for real-time polling)
+export async function fetchLiveActivities(since = null, limit = 25) {
+  try {
+    const params = new URLSearchParams();
+    params.append('limit', limit.toString());
+    if (since) params.append('since', since);
+
+    const response = await fetch(`${apiConfig.baseUrl}/api/activity/live?${params.toString()}`, {
+      signal: AbortSignal.timeout(8000)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Live activity API responded with ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      success: true,
+      activities: data.activities || [],
+      count: data.count || 0,
+      since: data.since,
+      timestamp: data.timestamp,
+      source: 'live_activities_api'
+    };
+  } catch (error) {
+    console.error('❌ Failed to fetch live activities:', error);
+    return {
+      success: false,
+      error: error.message,
+      activities: [],
+      count: 0,
+      source: 'error'
+    };
+  }
+}
+
+// Search activities
+export async function searchActivities(searchTerm, options = {}) {
+  const { limit = 20, offset = 0 } = options;
+
+  try {
+    const params = new URLSearchParams();
+    params.append('q', searchTerm);
+    params.append('limit', limit.toString());
+    params.append('offset', offset.toString());
+
+    const response = await fetch(`${apiConfig.baseUrl}/api/activity/search?${params.toString()}`, {
+      signal: AbortSignal.timeout(10000)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Activity search API responded with ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      success: true,
+      activities: data.activities || [],
+      count: data.count || 0,
+      searchTerm: data.searchTerm,
+      source: 'activity_search_api'
+    };
+  } catch (error) {
+    console.error('❌ Failed to search activities:', error);
+    return {
+      success: false,
+      error: error.message,
+      activities: [],
+      count: 0,
+      searchTerm,
+      source: 'error'
+    };
+  }
+}
+
+// Get activity statistics
+export async function getActivityStats(options = {}) {
+  const { period = '24h', depot, actor_id } = options;
+
+  try {
+    const params = new URLSearchParams();
+    params.append('period', period);
+    if (depot) params.append('depot', depot);
+    if (actor_id) params.append('actor_id', actor_id);
+
+    const response = await fetch(`${apiConfig.baseUrl}/api/activity/stats?${params.toString()}`, {
+      signal: AbortSignal.timeout(8000)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Activity stats API responded with ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      success: true,
+      stats: data.stats,
+      timestamp: data.timestamp,
+      source: 'activity_stats_api'
+    };
+  } catch (error) {
+    console.error('❌ Failed to get activity stats:', error);
+    return {
+      success: false,
+      error: error.message,
+      stats: null,
+      source: 'error'
+    };
+  }
+}
+
+// Log new activity
+export async function logActivity(activityData) {
+  try {
+    const response = await fetch(`${apiConfig.baseUrl}/api/activity/log`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(activityData),
+      signal: AbortSignal.timeout(8000)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Activity logging API responded with ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    return {
+      success: true,
+      activity: data.activity,
+      timestamp: data.timestamp,
+      source: 'activity_log_api'
+    };
+  } catch (error) {
+    console.error('❌ Failed to log activity:', error);
+    return {
+      success: false,
+      error: error.message,
+      source: 'error'
+    };
+  }
+}
+
+// Mock activities function removed - now using unified activities system exclusively

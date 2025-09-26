@@ -1,6 +1,6 @@
 // Fetch dashboard data utility function
 import { apiConfig } from '../breakdown-guide/components/common/constants.js';
-import { fetchAllActivities, getMockActivities } from '../api/activityAggregator.js';
+import { fetchAllActivities } from '../api/activityAggregator.js';
 
 // Circuit breaker state
 if (!window.dashboardCircuitBreaker) {
@@ -57,6 +57,118 @@ function recordSuccess() {
   }
   breaker.failureCount = 0;
   breaker.isOpen = false;
+}
+
+// Create a stable singleton for homepage data updates
+if (!window.homepageDataManager) {
+  window.homepageDataManager = {
+    callbacks: new Set(),
+    isPolling: false,
+    intervalId: null,
+    lastData: null,
+    pollCount: 0,
+    
+    subscribe(callback) {
+      // Prevent duplicate subscriptions
+      if (this.callbacks.has(callback)) {
+        return;
+      }
+      
+      this.callbacks.add(callback);
+      
+      // Send last data if available
+      if (this.lastData) {
+        callback(this.lastData);
+      }
+      
+      // Start polling if not already started and we have subscribers
+      if (!this.isPolling && this.callbacks.size > 0) {
+        this.startPolling();
+      }
+    },
+    
+    unsubscribe(callback) {
+      this.callbacks.delete(callback);
+      
+      // Stop polling only if no more subscribers and polling is active
+      if (this.callbacks.size === 0 && this.isPolling) {
+        this.stopPolling();
+      }
+    },
+    
+    async fetchData() {
+      try {
+        const data = await fetchDashboardData();
+        this.lastData = data;
+        
+        // Notify all subscribers
+        this.callbacks.forEach(cb => {
+          try {
+            cb(data);
+          } catch (error) {
+            console.error('Error in data callback:', error);
+          }
+        });
+      } catch (error) {
+        console.error('Homepage data fetch error:', error);
+        
+        // Send cached data if available
+        if (this.lastData) {
+          this.callbacks.forEach(cb => {
+            try {
+              cb(this.lastData);
+            } catch (error) {
+              console.error('Error in data callback:', error);
+            }
+          });
+        }
+      }
+    },
+    
+    startPolling() {
+      // Prevent multiple polling instances
+      if (this.isPolling || this.intervalId) {
+        return;
+      }
+      
+      this.isPolling = true;
+      this.pollCount++;
+      console.log(`🔄 Starting homepage data polling (instance #${this.pollCount})`);
+      
+      // Initial fetch
+      this.fetchData();
+      
+      // Set up interval - 30 seconds
+      this.intervalId = setInterval(() => {
+        if (this.callbacks.size > 0) {
+          this.fetchData();
+        }
+      }, 30000);
+    },
+    
+    stopPolling() {
+      if (!this.isPolling || !this.intervalId) {
+        return;
+      }
+      
+      this.isPolling = false;
+      console.log(`🛑 Stopping homepage data polling (instance #${this.pollCount})`);
+      
+      if (this.intervalId) {
+        clearInterval(this.intervalId);
+        this.intervalId = null;
+      }
+    },
+    
+    // Force reset (for debugging)
+    reset() {
+      this.stopPolling();
+      this.callbacks.clear();
+      this.lastData = null;
+      this.pollCount = 0;
+      console.log('🔄 Homepage data manager reset');
+    }
+  };
 }
 
 export async function fetchDashboardData() {
@@ -117,9 +229,15 @@ export async function fetchDashboardData() {
           activityData = await fetchAllActivities(25);
           console.log('✅ Fetched activities from multiple sources:', activityData.sources);
         } catch (e) {
-          // Fall back to mock data if API fails
-          console.log('⚠️ Using mock activity data');
-          activityData = getMockActivities();
+          // No fallback - return empty data if unified API fails
+          console.log('⚠️ Activity API failed, no fallback:', e.message);
+          activityData = {
+            activities: [],
+            sources: { error: true },
+            total: 0,
+            timestamp: new Date().toISOString(),
+            source: 'error_no_fallback'
+          };
         }
 
         // Calculate stats
@@ -155,7 +273,7 @@ export async function fetchDashboardData() {
         // Use activity feed if available
         if (activityData.activities && activityData.activities.length > 0) {
           activities = activityData.activities.slice(0, 25);
-        } else if (breakdownsData.breakdowns) {
+        } else if (breakdownsData.breakdowns && breakdownsData.breakdowns.length > 0) {
           // Fallback to breakdown data
           activities = breakdownsData.breakdowns
             .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
@@ -274,3 +392,6 @@ function formatTimeFromTimestamp(timestamp) {
     });
   }
 }
+
+// Export the manager for debugging
+export const dataManager = window.homepageDataManager;

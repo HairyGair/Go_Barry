@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
 import StatsCard from '../components/StatsCard';
-
 import FilterBar from '../components/FilterBar';
 import BreakdownCard from './BreakdownCard';
 import EngineeringStats from './EngineeringStats';
@@ -24,8 +23,6 @@ const BreakdownDashboard = () => {
   });
 
   const [depotStats, setDepotStats] = useState([]);
-
-  // Engineering teams data will come from backend
   const [engineeringTeams, setEngineeringTeams] = useState({});
 
   // Filter options
@@ -38,382 +35,365 @@ const BreakdownDashboard = () => {
     { value: 'priority', label: 'Priority Routes', icon: '⭐' }
   ];
 
-  // Fetch depot stats from backend
-  useEffect(() => {
-    const fetchDepotStats = async () => {
-      try {
-        const response = await fetch(`${apiConfig.baseUrl}/api/engineering/depot-stats`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success) {
-            setEngineeringTeams(data.teams || {});
-            const depotData = Object.entries(data.teams || {}).map(([name, data]) => ({
-              name,
-              avgResponse: data.avgResponse || 0,
-              sla: data.sla || 0,
-              activeEngineers: data.available || 0,
-              totalEngineers: data.total || 0
-            }));
-            setDepotStats(depotData);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching depot stats:', error);
-        setDepotStats([]);
+  // Fetch real breakdown data from backend
+  const fetchBreakdowns = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch breakdowns from the real API
+      const response = await fetch(`${apiConfig.baseUrl}/api/breakdowns/active`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch breakdowns');
       }
-    };
-    
+      
+      const data = await response.json();
+      console.log('📊 Fetched real breakdowns:', data);
+      
+      if (data.success && Array.isArray(data.breakdowns)) {
+        // Process real breakdowns - no mock data!
+        const processedBreakdowns = data.breakdowns.map(b => {
+          // Use real data from backend
+          return {
+            id: b.breakdown_id || b.id,
+            breakdown_id: b.breakdown_id,
+            daily_id: b.daily_id,
+            fleet_number: b.fleet_number,
+            location: b.location,
+            issue_category: b.issue_category,
+            severity: b.severity || b.wizard_decision,
+            status: b.status || 'active',
+            created_at: b.created_at,
+            updated_at: b.updated_at,
+            
+            // Engineer assignment (if exists)
+            engineer_assigned: b.engineer_assigned || null,
+            engineer_name: b.engineer_name || null,
+            engineer_eta: b.engineer_eta || null,
+            engineer_status: b.engineer_status || null,
+            
+            // Timeline from backend
+            timeline: b.timeline || {
+              reported: b.created_at,
+              acknowledged: b.acknowledged_at || null,
+              dispatched: b.dispatched_at || null,
+              onSite: b.on_site_at || null,
+              fixing: b.fixing_at || null,
+              resolved: b.resolved_at || null
+            },
+            
+            // Activity feed from backend
+            activities: b.activities || b.activity_feed || [],
+            
+            // Supervisor info
+            supervisor_name: b.supervisor_name,
+            supervisor_badge: b.supervisor_badge,
+            
+            // Wizard data
+            wizard_type: b.wizard_type,
+            wizard_decision: b.wizard_decision || b.severity,
+            wizard_assessment_data: b.wizard_assessment_data || {}
+          };
+        });
+        
+        setBreakdowns(processedBreakdowns);
+        
+        // Calculate real stats
+        const activeBreakdowns = processedBreakdowns.filter(b => b.status !== 'resolved');
+        const unassignedCount = activeBreakdowns.filter(b => !b.engineer_assigned).length;
+        const onSiteCount = activeBreakdowns.filter(b => b.engineer_status === 'on_site').length;
+        
+        // Calculate SLA risk (breakdowns over 45 minutes without engineer)
+        const slaRiskCount = activeBreakdowns.filter(b => {
+          if (b.engineer_assigned) return false;
+          const created = new Date(b.created_at);
+          const now = new Date();
+          const elapsedMinutes = (now - created) / 60000;
+          return elapsedMinutes > 45;
+        }).length;
+        
+        // Calculate today's resolved
+        const today = new Date().setHours(0,0,0,0);
+        const todayResolvedCount = processedBreakdowns.filter(b => {
+          if (!b.timeline?.resolved) return false;
+          const resolvedDate = new Date(b.timeline.resolved).setHours(0,0,0,0);
+          return resolvedDate === today;
+        }).length;
+        
+        setStats({
+          total: activeBreakdowns.length,
+          unassigned: unassignedCount,
+          onsite: onSiteCount,
+          slaRisk: slaRiskCount,
+          avgResponseTime: data.avg_response_time || 0,
+          slaCompliance: data.sla_compliance || 0,
+          engineersActive: data.engineers_active || '0/0',
+          todayResolved: todayResolvedCount,
+          slaBreaches: data.sla_breaches || 0
+        });
+      } else {
+        setBreakdowns([]);
+      }
+    } catch (error) {
+      console.error('Error fetching breakdowns:', error);
+      setBreakdowns([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch depot stats from backend
+  const fetchDepotStats = async () => {
+    try {
+      const response = await fetch(`${apiConfig.baseUrl}/api/engineering/depot-stats`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setEngineeringTeams(data.teams || {});
+          const depotData = Object.entries(data.teams || {}).map(([name, data]) => ({
+            name,
+            avgResponse: data.avgResponse || 0,
+            sla: data.sla || 0,
+            activeEngineers: data.available || 0,
+            totalEngineers: data.total || 0
+          }));
+          setDepotStats(depotData);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching depot stats:', error);
+      setDepotStats([]);
+    }
+  };
+
+  // Initial fetch and auto-refresh
+  useEffect(() => {
+    fetchBreakdowns();
     fetchDepotStats();
-    const interval = setInterval(fetchDepotStats, 60000); // Update every minute
-    return () => clearInterval(interval);
+    
+    // Auto-refresh every 5 seconds for real-time updates
+    const interval = setInterval(() => {
+      fetchBreakdowns();
+    }, 5000);
+    
+    // Depot stats refresh every minute
+    const depotInterval = setInterval(() => {
+      fetchDepotStats();
+    }, 60000);
+    
+    return () => {
+      clearInterval(interval);
+      clearInterval(depotInterval);
+    };
   }, []);
 
-  // Enhance breakdown data with timeline from backend
-  const enhanceBreakdownData = (breakdowns) => {
-    return breakdowns.map(b => {
+  // Filter breakdowns based on active filter
+  const filteredBreakdowns = breakdowns.filter(b => {
+    if (activeFilter === 'all') return true;
+    if (activeFilter === 'unassigned') return !b.engineer_assigned;
+    if (activeFilter === 'dispatched') return b.engineer_status === 'dispatched';
+    if (activeFilter === 'on-site') return b.engineer_status === 'on_site';
+    if (activeFilter === 'sla-risk') {
       const created = new Date(b.created_at);
       const now = new Date();
-      const elapsed = Math.floor((now - created) / 60000); // minutes
-      
-      // Timeline data should come from backend - using defaults for now
-      const timeline = {
-        reported: created.toISOString(),
-        acknowledged: elapsed > 2 ? new Date(created.getTime() + 2 * 60000).toISOString() : null,
-        dispatched: elapsed > 10 ? new Date(created.getTime() + 10 * 60000).toISOString() : null,
-        onSite: elapsed > 30 ? new Date(created.getTime() + 30 * 60000).toISOString() : null,
-        fixing: elapsed > 35 ? new Date(created.getTime() + 35 * 60000).toISOString() : null,
-        resolved: null
-      };
-      
-      // Determine current stage
-      let currentStage = 'reported';
-      if (timeline.resolved) currentStage = 'resolved';
-      else if (timeline.fixing) currentStage = 'fixing';
-      else if (timeline.onSite) currentStage = 'onSite';
-      else if (timeline.dispatched) currentStage = 'dispatched';
-      else if (timeline.acknowledged) currentStage = 'acknowledged';
-      
-      // Engineer assignment from backend data
-      const engineerAssigned = b.engineer_assigned || null;
-      
-      // Build activity feed from timeline
-      const activities = [];
-      const formatTime = (date) => date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-      
-      activities.push({ time: formatTime(created), text: 'Breakdown reported by driver' });
-      if (timeline.acknowledged) {
-        activities.push({ 
-          time: formatTime(new Date(timeline.acknowledged)), 
-          text: `SDC acknowledged (${b.supervisor_badge})` 
-        });
-      }
-      if (timeline.dispatched) {
-        activities.push({ 
-          time: formatTime(new Date(timeline.dispatched)), 
-          text: 'Engineering dispatched' 
-        });
-      }
-      if (timeline.onSite) {
-        activities.push({ 
-          time: formatTime(new Date(timeline.onSite)), 
-          text: 'Engineer on site' 
-        });
-      }
-      if (timeline.fixing) {
-        activities.push({ 
-          time: formatTime(new Date(timeline.fixing)), 
-          text: 'Repairs in progress' 
-        });
-      }
-      
-      return {
-        ...b,
-        timeline,
-        currentStage,
-        engineerAssigned,
-        activities,
-        totalElapsed: elapsed,
-        slaStatus: elapsed > 60 ? 'breach' : elapsed > 45 ? 'warning' : 'ok',
-        severity: b.severity || 'AMBER' // Default severity if not provided
-      };
-    });
-  };
-
-  // Fetch live breakdowns
-  useEffect(() => {
-    const fetchBreakdowns = async () => {
-      console.log('Fetching breakdowns from:', `${apiConfig.baseUrl}/api/breakdowns/live`);
-      setLoading(true);
-      try {
-        const response = await fetch(`${apiConfig.baseUrl}/api/breakdowns/live`);
-        console.log('Response status:', response.status);
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('Response data:', data);
-          
-          if (data.success) {
-            const enhanced = enhanceBreakdownData(data.breakdowns || []);
-            setBreakdowns(enhanced);
-            updateStats(enhanced);
-          } else {
-            console.log('API returned success: false');
-            setBreakdowns([]);
-            updateStats([]);
-          }
-        } else {
-          console.error('API response not ok:', response.status, response.statusText);
-          setBreakdowns([]);
-          updateStats([]);
-        }
-      } catch (error) {
-        console.error('Error fetching breakdowns:', error);
-        setBreakdowns([]);
-        updateStats([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBreakdowns();
-    const interval = setInterval(fetchBreakdowns, 30000); // Changed to 30 seconds to reduce console spam
-    return () => clearInterval(interval);
-  }, []);
-
-  // Update statistics
-  const updateStats = (breakdownsList) => {
-    const unassigned = breakdownsList.filter(b => !b.engineerAssigned).length;
-    const onsite = breakdownsList.filter(b => 
-      b.currentStage === 'onSite' || b.currentStage === 'fixing'
-    ).length;
-    const slaRisk = breakdownsList.filter(b => b.slaStatus !== 'ok').length;
-    
-    setStats(prev => ({
-      ...prev,
-      total: breakdownsList.length,
-      unassigned,
-      onsite,
-      slaRisk
-    }));
-  };
-
-  // Filter breakdowns
-  const getFilteredBreakdowns = () => {
-    switch(activeFilter) {
-      case 'unassigned':
-        return breakdowns.filter(b => !b.engineerAssigned);
-      case 'dispatched':
-        return breakdowns.filter(b => b.currentStage === 'dispatched');
-      case 'on-site':
-        return breakdowns.filter(b => b.currentStage === 'onSite' || b.currentStage === 'fixing');
-      case 'sla-risk':
-        return breakdowns.filter(b => b.slaStatus !== 'ok');
-      case 'priority':
-        return breakdowns.filter(b => b.is_priority);
-      default:
-        return breakdowns;
+      const elapsedMinutes = (now - created) / 60000;
+      return elapsedMinutes > 45 && !b.timeline?.resolved;
     }
-  };
-
-  // Action handlers
-  const handleDispatchEngineer = async (breakdownId) => {
-    alert(`Dispatching engineer to breakdown ${breakdownId}`);
-    // TODO: Implement API call
-  };
-
-  const handleUpdateStatus = (breakdownId) => {
-    const status = prompt('Enter new status:');
-    if (status) {
-      alert(`Status updated for ${breakdownId}: ${status}`);
-      // TODO: Implement API call
+    if (activeFilter === 'priority') {
+      const priorityRoutes = ['X10', 'X21', '21', '56', '1'];
+      return priorityRoutes.some(route => 
+        b.location?.toLowerCase().includes(route.toLowerCase())
+      );
     }
-  };
+    return true;
+  });
 
-  const handleEscalate = (breakdownId) => {
-    if (confirm('Escalate this breakdown to management?')) {
-      alert(`Breakdown ${breakdownId} escalated to management`);
-      // TODO: Implement API call
-    }
-  };
-
-  const handleResolve = async (breakdown) => {
-    const notes = prompt('Resolution notes:');
-    if (!notes) return;
-    
-    const supervisor = prompt('Your badge number:', 'AG003') || 'AG003';
-    
+  const handleAssignEngineer = async (breakdownId, engineerId) => {
     try {
-      const response = await fetch(`${apiConfig.baseUrl}/api/breakdowns/${breakdown.breakdown_id}/resolve`, {
-        method: 'PUT',
+      const response = await fetch(`${apiConfig.baseUrl}/api/engineering/assign`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          resolution_notes: notes,
-          resolving_supervisor: supervisor,
-          returned_to_service: confirm('Has the vehicle returned to service?')
+        body: JSON.stringify({ 
+          breakdown_id: breakdownId, 
+          engineer_id: engineerId 
         })
       });
       
       if (response.ok) {
-        // Remove from local state immediately
-        setBreakdowns(prev => prev.filter(b => b.breakdown_id !== breakdown.breakdown_id));
-        setStats(prev => ({
-          ...prev,
-          total: Math.max(0, prev.total - 1),
-          todayResolved: prev.todayResolved + 1
-        }));
-        showNotification('Breakdown resolved successfully', 'success');
-      } else {
-        const error = await response.json();
-        showNotification(`Failed to resolve: ${error.error || 'Unknown error'}`, 'error');
+        // Refresh data to show the assignment
+        fetchBreakdowns();
       }
     } catch (error) {
-      console.error('Error resolving breakdown:', error);
-      showNotification('Network error - please try again', 'error');
+      console.error('Error assigning engineer:', error);
     }
   };
 
-  const handleRequestETA = (breakdownId) => {
-    alert(`Requesting ETA update for breakdown ${breakdownId}`);
-    // TODO: Implement API call
+  const handleResolve = async (breakdownId) => {
+    try {
+      const response = await fetch(`${apiConfig.baseUrl}/api/breakdowns/${breakdownId}/resolve`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          resolved_at: new Date().toISOString(),
+          status: 'resolved'
+        })
+      });
+      
+      if (response.ok) {
+        // Refresh data to show resolution
+        fetchBreakdowns();
+      }
+    } catch (error) {
+      console.error('Error resolving breakdown:', error);
+    }
   };
-
-  // Show notification
-  const showNotification = (message, type = 'info') => {
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.textContent = type === 'success' ? '✅ ' + message : '❌ ' + message;
-    notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: ${type === 'success' ? '#10b981' : '#ef4444'};
-      color: white;
-      padding: 15px 30px;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      z-index: 10000;
-      font-weight: 500;
-      animation: slideDown 0.3s ease-out;
-    `;
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-      notification.style.animation = 'slideUp 0.3s ease-out';
-      setTimeout(() => notification.remove(), 300);
-    }, 3000);
-  };
-
-  const filteredBreakdowns = getFilteredBreakdowns();
 
   return (
-    <DashboardLayout title="🚨 Engineering Response Dashboard" activeTab="breakdown">
-      {/* Header Stats */}
-      <div className="header-stats">
-        <div className="header-stat">
-          <span>⏱️ Avg Response Time:</span>
-          <strong>{stats.avgResponseTime} mins</strong>
-        </div>
-        <div className="header-stat">
-          <span>✅ SLA Compliance:</span>
-          <strong>{stats.slaCompliance}%</strong>
-        </div>
-        <div className="header-stat">
-          <span>👷 Engineers Active:</span>
-          <strong>{stats.engineersActive}</strong>
-        </div>
+    <DashboardLayout title="Breakdown Dashboard" icon="🔧">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <StatsCard
+          title="Active Breakdowns"
+          value={stats.total}
+          change={stats.unassigned > 0 ? `${stats.unassigned} unassigned` : 'All assigned'}
+          trend={stats.unassigned > 0 ? 'warning' : 'success'}
+        />
+        <StatsCard
+          title="Engineers On Site"
+          value={stats.onsite}
+          change={stats.engineersActive}
+          trend="neutral"
+        />
+        <StatsCard
+          title="SLA Risk"
+          value={stats.slaRisk}
+          change={stats.slaRisk > 0 ? 'Action needed' : 'Within target'}
+          trend={stats.slaRisk > 0 ? 'danger' : 'success'}
+        />
+        <StatsCard
+          title="Resolved Today"
+          value={stats.todayResolved}
+          change={`${stats.slaCompliance}% SLA compliance`}
+          trend={stats.slaCompliance >= 95 ? 'success' : 'warning'}
+        />
       </div>
 
-      {/* Engineering Performance Panel */}
-      <EngineeringStats depots={depotStats} />
-
-      {/* Filters */}
-      <FilterBar 
+      {/* Filter Bar */}
+      <FilterBar
         filters={filters}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
-        showCount={false}
       />
 
-      {/* Statistics */}
-      <div className="stats-grid">
-        <StatsCard 
-          value={stats.total}
-          label="Active Breakdowns"
-          icon={<span style={{ fontSize: '28px' }}>⚠️</span>}
-          variant="warning"
-        />
-        <StatsCard 
-          value={19}
-          label="Today's Total"
-          icon={<span style={{ fontSize: '28px' }}>📊</span>}
-          variant="info"
-        />
-        <StatsCard 
-          value="1m"
-          label="Avg Response Time"
-          icon={<span style={{ fontSize: '28px' }}>⏱️</span>}
-          variant="default"
-        />
-        <StatsCard 
-          value="89%"
-          label="Fleet Health"
-          icon={<span style={{ fontSize: '28px' }}>🚌</span>}
-          variant="success"
-        />
-      </div>
-
-      {/* Breakdown List */}
-      <div className="container">
+      {/* Breakdown Cards */}
+      <div className="breakdown-list">
         {loading ? (
-          <div className="loading">
-            <div className="spinner"></div>
-            <p>Loading breakdowns...</p>
+          <div className="text-center py-8">
+            <div className="spinner-border" role="status">
+              <span className="sr-only">Loading real breakdowns...</span>
+            </div>
+            <p className="mt-2">Fetching live breakdown data...</p>
           </div>
-        ) : filteredBreakdowns.length > 0 ? (
-          <div className="breakdown-grid">
-            {filteredBreakdowns.map(breakdown => (
-              <BreakdownCard
-                key={breakdown.breakdown_id}
-                breakdown={breakdown}
-                onDispatch={handleDispatchEngineer}
-                onUpdate={handleUpdateStatus}
-                onEscalate={handleEscalate}
-                onResolve={handleResolve}
-                onRequestETA={handleRequestETA}
-              />
-            ))}
+        ) : filteredBreakdowns.length === 0 ? (
+          <div className="no-breakdowns-message">
+            <p>No active breakdowns matching filter</p>
+            <small>Complete an assessment to see real breakdowns appear here</small>
           </div>
         ) : (
-          <div className="empty-state">
-            <p>No breakdowns matching the selected filter.</p>
-          </div>
+          filteredBreakdowns.map(breakdown => (
+            <BreakdownCard
+              key={breakdown.breakdown_id}
+              breakdown={breakdown}
+              onAssignEngineer={handleAssignEngineer}
+              onResolve={handleResolve}
+              engineeringTeams={engineeringTeams}
+            />
+          ))
         )}
       </div>
 
-      {/* Quick Stats Bar */}
-      <div className="quick-stats-bar">
-        <div className="quick-stat">
-          <span className="quick-stat-label">Next Available Engineer:</span>
-          <span className="quick-stat-value">{stats.nextEngineer || '--:--'}</span>
-        </div>
-        <div className="quick-stat">
-          <span className="quick-stat-label">Avg Wait Time:</span>
-          <span className="quick-stat-value">{stats.avgWaitTime ? `${stats.avgWaitTime} mins` : '--'}</span>
-        </div>
-        <div className="quick-stat">
-          <span className="quick-stat-label">Today's Resolved:</span>
-          <span className="quick-stat-value">{stats.todayResolved}</span>
-        </div>
-        <div className="quick-stat">
-          <span className="quick-stat-label">SLA Breaches:</span>
-          <span className="quick-stat-value" style={{ color: '#dc2626' }}>{stats.slaBreaches}</span>
-        </div>
+      {/* Engineering Stats */}
+      {depotStats.length > 0 && (
+        <EngineeringStats depotStats={depotStats} />
+      )}
+
+      {/* Real-time indicator */}
+      <div className="dashboard-footer">
+        <span className="live-indicator">
+          <span className="pulse"></span>
+          Live Data - Auto-refreshing every 5 seconds
+        </span>
+        <span className="last-update">
+          Last update: {new Date().toLocaleTimeString()}
+        </span>
       </div>
 
+      <style jsx>{`
+        .breakdown-list {
+          margin-top: 20px;
+          min-height: 400px;
+        }
 
+        .no-breakdowns-message {
+          text-align: center;
+          padding: 60px 20px;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 8px;
+          border: 1px dashed rgba(255, 255, 255, 0.2);
+        }
 
+        .no-breakdowns-message p {
+          font-size: 18px;
+          color: #aaa;
+          margin-bottom: 8px;
+        }
 
+        .no-breakdowns-message small {
+          color: #888;
+        }
+
+        .dashboard-footer {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 30px;
+          padding: 20px;
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 8px;
+        }
+
+        .live-indicator {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #4ade80;
+          font-size: 14px;
+        }
+
+        .pulse {
+          width: 8px;
+          height: 8px;
+          background: #4ade80;
+          border-radius: 50%;
+          animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+          0% {
+            box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+          }
+          70% {
+            box-shadow: 0 0 0 10px rgba(74, 222, 128, 0);
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
+          }
+        }
+
+        .last-update {
+          color: #888;
+          font-size: 12px;
+        }
+      `}</style>
     </DashboardLayout>
   );
 };

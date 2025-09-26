@@ -4,6 +4,19 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
+import { activityLogger } from './services/activityLogger.js';
+import {
+  rateLimitLogin,
+  clearLoginAttempts,
+  verifyToken,
+  requireSupervisor,
+  requireAdmin,
+  authenticateUser,
+  authenticateSupervisor,
+  authenticateAdmin,
+  healthCheck,
+  logSecurityEvent
+} from './middleware/authMiddleware.js';
 
 // Load environment variables
 dotenv.config();
@@ -25,6 +38,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 console.log('✅ Supabase client initialized');
+
+// Initialize activity logger with supabase client
+activityLogger.setSupabaseClient(supabase);
 
 // Verify Supabase connection on startup
 async function verifySupabaseConnection() {
@@ -59,6 +75,7 @@ const getAllowedOrigins = () => {
     'http://localhost:8081',
     'http://localhost:19006',
     'http://localhost:5173',
+    'http://192.168.1.132:3000',  // Network IP for local development
     'https://dashboard.render.com',
     'https://breakdown-guide.onrender.com',
     'https://go-barry.onrender.com',
@@ -144,16 +161,22 @@ import analyticsRoutes from './routes/analytics.js';
 import activityRoutes from './routes/activity.js';
 import supervisorRoutes from './routes/supervisors.js';
 
-// API Routes
-app.use('/api/breakdowns', breakdownRoutes);
-app.use('/api/fleet', fleetRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/wizards', wizardRoutes);
-app.use('/api/engineering', engineeringRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/reports', analyticsRoutes); // Reports also use analytics routes
-app.use('/api/activity', activityRoutes);
-app.use('/api/supervisors', supervisorRoutes);
+// Public routes (no authentication required)
+app.get('/health', healthCheck);
+app.get('/api/health', healthCheck);
+
+// Authentication routes (with rate limiting)
+app.use('/api/auth', rateLimitLogin, authRoutes);
+
+// Protected routes (require supervisor authentication)
+app.use('/api/breakdowns', authenticateSupervisor, breakdownRoutes);
+app.use('/api/fleet', authenticateSupervisor, fleetRoutes);
+app.use('/api/wizards', authenticateSupervisor, wizardRoutes);
+app.use('/api/engineering', authenticateSupervisor, engineeringRoutes);
+app.use('/api/analytics', authenticateSupervisor, analyticsRoutes);
+app.use('/api/reports', authenticateSupervisor, analyticsRoutes); // Reports also use analytics routes
+app.use('/api/activity', authenticateSupervisor, activityRoutes);
+app.use('/api/supervisors', authenticateSupervisor, supervisorRoutes);
 
 // 404 handler
 app.use((req, res) => {

@@ -1,10 +1,76 @@
 import express from 'express';
 import { supabase } from '../server.js';
+import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
 
 const router = express.Router();
 
-// GET /api/activity/feed - Get activity feed for all supervisors
+// GET /api/activity/feed - Get unified activity feed from activities table
 router.get('/feed', async (req, res) => {
+  try {
+    const { limit = 50, offset = 0, depot, actor_id, activity_type, severity, source } = req.query;
+
+    // Use the new activity logger service
+    const result = await activityLogger.getRecentActivities(parseInt(limit), parseInt(offset), {
+      depot,
+      actorId: actor_id,
+      activityType: activity_type,
+      severity,
+      source
+    });
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        error: result.error,
+        activities: []
+      });
+    }
+
+    // Format activities for frontend compatibility
+    const formattedActivities = result.activities.map(activity => ({
+      id: activity.id,
+      type: activity.activity_type,
+      icon: activity.icon,
+      message: activity.message,
+      time: formatTimeAgo(activity.created_at),
+      timestamp: activity.created_at,
+      depot: activity.depot,
+      supervisor: activity.actor_name,
+      supervisor_badge: activity.actor_id,
+      decision: activity.metadata?.decision,
+      severity: activity.severity,
+      breakdown_id: activity.entity_id,
+      fleet_no: activity.entity_details?.fleetNo,
+      location: activity.entity_details?.location,
+      source: activity.source,
+      priority: activity.priority,
+      actor_type: activity.actor_type,
+      metadata: activity.metadata
+    }));
+
+    res.json({
+      success: true,
+      activities: formattedActivities,
+      count: result.count,
+      timestamp: new Date().toISOString(),
+      metadata: {
+        source: 'unified_activities_table',
+        filters: { depot, actor_id, activity_type, severity, source }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching unified activity feed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch activity feed',
+      activities: []
+    });
+  }
+});
+
+// GET /api/activity/feed/legacy - Legacy activity feed from breakdowns table (fallback)
+router.get('/feed/legacy', async (req, res) => {
   try {
     const { limit = 20, offset = 0, depot } = req.query;
     
@@ -104,8 +170,70 @@ router.get('/feed', async (req, res) => {
   }
 });
 
-// GET /api/activity/live - Get live activity stream (polling endpoint)
+// GET /api/activity/live - Get live activity stream from unified activities table
 router.get('/live', async (req, res) => {
+  try {
+    const { since, limit = 25 } = req.query;
+    const sinceTime = since || new Date(Date.now() - 5 * 60 * 1000).toISOString(); // Last 5 minutes by default
+
+    // Get activities from unified table since the specified time
+    const { data: activities, error } = await supabase
+      .from('activities')
+      .select('*')
+      .gte('created_at', sinceTime)
+      .order('created_at', { ascending: false })
+      .limit(parseInt(limit));
+
+    if (error) throw error;
+
+    // Format activities for frontend
+    const formattedActivities = (activities || []).map(activity => ({
+      id: activity.id,
+      type: activity.activity_type,
+      icon: activity.icon,
+      message: activity.message,
+      time: formatTimeAgo(activity.created_at),
+      timestamp: activity.created_at,
+      depot: activity.depot,
+      supervisor: activity.actor_name,
+      supervisor_badge: activity.actor_id,
+      decision: activity.metadata?.decision,
+      severity: activity.severity,
+      priority: activity.priority,
+      source: activity.source,
+      metadata: activity.metadata,
+      data: {
+        breakdown_id: activity.entity_id,
+        fleet_no: activity.entity_details?.fleetNo,
+        location: activity.entity_details?.location,
+        issue_type: activity.entity_details?.issueCategory
+      }
+    }));
+
+    res.json({
+      success: true,
+      activities: formattedActivities,
+      count: formattedActivities.length,
+      since: sinceTime,
+      timestamp: new Date().toISOString(),
+      metadata: {
+        source: 'unified_activities_table',
+        real_time_ready: true
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching live activities:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch live activities',
+      activities: []
+    });
+  }
+});
+
+// GET /api/activity/live/legacy - Legacy live activity stream (fallback)
+router.get('/live/legacy', async (req, res) => {
   try {
     const { since } = req.query;
     const sinceTime = since || new Date(Date.now() - 5 * 60 * 1000).toISOString(); // Last 5 minutes by default
@@ -517,6 +645,289 @@ function formatGuideActivityMessage(breakdown) {
   }
 
   return message;
+}
+
+// POST /api/activity/log - Log a new activity
+router.post('/log', async (req, res) => {
+  try {
+    const {
+      activityType,
+      action,
+      actorType,
+      actorId,
+      actorName,
+      entityType,
+      entityId,
+      entityDetails = {},
+      depot,
+      severity = 'info',
+      priority = 5,
+      source,
+      sourceUrl,
+      metadata = {},
+      icon,
+      message
+    } = req.body;
+
+    // Validate required fields
+    if (!activityType || !action || !actorType) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: activityType, action, actorType'
+      });
+    }
+
+    const result = await activityLogger.logActivity({
+      activityType,
+      action,
+      actorType,
+      actorId,
+      actorName,
+      entityType,
+      entityId,
+      entityDetails,
+      depot,
+      severity,
+      priority,
+      source,
+      sourceUrl,
+      metadata,
+      icon,
+      message
+    });
+
+    if (result) {
+      res.json({
+        success: true,
+        activity: result,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: 'Failed to log activity'
+      });
+    }
+
+  } catch (error) {
+    console.error('Error logging activity:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// POST /api/activity/batch - Log multiple activities in batch
+router.post('/batch', async (req, res) => {
+  try {
+    const { activities } = req.body;
+
+    if (!Array.isArray(activities) || activities.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'activities must be a non-empty array'
+      });
+    }
+
+    const results = await activityLogger.logActivities(activities);
+
+    res.json({
+      success: true,
+      activities: results,
+      count: results.length,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error batch logging activities:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET /api/activity/search - Search activities
+router.get('/search', async (req, res) => {
+  try {
+    const { q: searchTerm, limit = 20, offset = 0 } = req.query;
+
+    if (!searchTerm) {
+      return res.status(400).json({
+        success: false,
+        error: 'Search term (q) is required'
+      });
+    }
+
+    const result = await activityLogger.searchActivities(searchTerm, parseInt(limit), parseInt(offset));
+
+    res.json({
+      success: result.success,
+      activities: result.activities || [],
+      count: result.count || 0,
+      searchTerm: result.searchTerm,
+      error: result.error
+    });
+
+  } catch (error) {
+    console.error('Error searching activities:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET /api/activity/stats - Get activity statistics
+router.get('/stats', async (req, res) => {
+  try {
+    const { period = '24h', depot, actor_id } = req.query;
+
+    let timeFilter;
+    switch (period) {
+      case '1h':
+        timeFilter = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+        break;
+      case '24h':
+        timeFilter = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        break;
+      case '7d':
+        timeFilter = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        break;
+      default:
+        timeFilter = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    }
+
+    let query = supabase
+      .from('activities')
+      .select('activity_type, severity, actor_type, depot, created_at')
+      .gte('created_at', timeFilter);
+
+    if (depot) {
+      query = query.eq('depot', depot);
+    }
+    if (actor_id) {
+      query = query.eq('actor_id', actor_id);
+    }
+
+    const { data: activities, error } = await query;
+
+    if (error) throw error;
+
+    // Calculate statistics
+    const stats = {
+      total: activities.length,
+      byType: {},
+      bySeverity: { critical: 0, warning: 0, normal: 0, success: 0, info: 0 },
+      byActorType: {},
+      byDepot: {},
+      byHour: Array(24).fill(0),
+      period,
+      timeFilter
+    };
+
+    activities.forEach(activity => {
+      // By type
+      stats.byType[activity.activity_type] = (stats.byType[activity.activity_type] || 0) + 1;
+
+      // By severity
+      stats.bySeverity[activity.severity] = (stats.bySeverity[activity.severity] || 0) + 1;
+
+      // By actor type
+      stats.byActorType[activity.actor_type] = (stats.byActorType[activity.actor_type] || 0) + 1;
+
+      // By depot
+      if (activity.depot) {
+        stats.byDepot[activity.depot] = (stats.byDepot[activity.depot] || 0) + 1;
+      }
+
+      // By hour
+      const hour = new Date(activity.created_at).getHours();
+      stats.byHour[hour]++;
+    });
+
+    res.json({
+      success: true,
+      stats,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error fetching activity stats:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// DELETE /api/activity/:id - Delete a specific activity (for cleanup)
+router.delete('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Activity ID is required'
+      });
+    }
+
+    const { data, error } = await supabase
+      .from('activities')
+      .delete()
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return res.status(404).json({
+          success: false,
+          error: 'Activity not found'
+        });
+      }
+      throw error;
+    }
+
+    res.json({
+      success: true,
+      message: `Activity ${id} deleted successfully`,
+      deleted_activity: data
+    });
+
+  } catch (error) {
+    console.error('Error deleting activity:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Helper function to format time ago
+function formatTimeAgo(timestamp) {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+
+  if (diffMins < 1) {
+    return 'Just now';
+  } else if (diffMins < 60) {
+    return `${diffMins}m ago`;
+  } else if (diffMins < 1440) {
+    const hours = Math.floor(diffMins / 60);
+    return `${hours}h ago`;
+  } else {
+    return date.toLocaleString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
 }
 
 export default router;

@@ -1,29 +1,30 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import path from 'path'
+import { fileURLToPath, URL } from 'node:url'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
-      '@components': path.resolve(__dirname, './src/components'),
-      '@breakdown-guide': path.resolve(__dirname, './src/breakdown-guide'),
-      '@dashboards': path.resolve(__dirname, './src/dashboards'),
-      '@services': path.resolve(__dirname, './src/services'),
-      '@data': path.resolve(__dirname, './src/data'),
-      '@utils': path.resolve(__dirname, './src/utils'),
-      '@styles': path.resolve(__dirname, './src/styles')
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@components': fileURLToPath(new URL('./src/components', import.meta.url)),
+      '@breakdown-guide': fileURLToPath(new URL('./src/breakdown-guide', import.meta.url)),
+      '@dashboards': fileURLToPath(new URL('./src/dashboards', import.meta.url)),
+      '@services': fileURLToPath(new URL('./src/services', import.meta.url)),
+      '@data': fileURLToPath(new URL('./src/data', import.meta.url)),
+      '@utils': fileURLToPath(new URL('./src/utils', import.meta.url)),
+      '@styles': fileURLToPath(new URL('./src/styles', import.meta.url))
     }
   },
   server: {
+    host: true,
     port: 3000,
     proxy: {
       '/api': {
-        target: 'https://breakdown-guide.onrender.com',
+        target: 'http://localhost:3001',
         changeOrigin: true,
-        secure: true
+        secure: false
       }
     }
   },

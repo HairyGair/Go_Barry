@@ -12,7 +12,5 @@ import './styles/activity-feed-override.css'  // Override activity feed widget s
 import './styles/integrated-layout.css'  // Integrated layout improvements
 
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
+  <App />
 )

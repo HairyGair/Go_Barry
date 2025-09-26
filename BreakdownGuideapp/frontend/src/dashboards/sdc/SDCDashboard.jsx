@@ -1,925 +1,466 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import DashboardLayout from '../components/DashboardLayout.jsx';
-import FilterBar from '../components/FilterBar.jsx';
-
-import SDCBreakdownCard from './SDCBreakdownCard.jsx';
-import PriorityAlerts from './PriorityAlerts.jsx';
-import StatusWidget from './StatusWidget.jsx';
-import RecentDecisions from './RecentDecisions.jsx';
-import BreakdownMap from './BreakdownMap.jsx';
-import { apiConfig } from '../../breakdown-guide/components/common/constants.js';
-import { pollingManager } from '../../utils/pollingManager.js';
+import DashboardLayout from '../components/DashboardLayout';
+import StatsCard from '../components/StatsCard';
+import FilterBar from '../components/FilterBar';
+import SDCBreakdownCard from './SDCBreakdownCard';
+import PriorityAlerts from './PriorityAlerts';
+import StatusWidget from './StatusWidget';
+import RecentDecisions from './RecentDecisions';
+import { apiConfig } from '../../breakdown-guide/components/common/constants';
 
 const SDCDashboard = () => {
-  const navigate = useNavigate();
   const [breakdowns, setBreakdowns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [priorityAlerts, setPriorityAlerts] = useState([]);
   const [recentDecisions, setRecentDecisions] = useState([]);
-
-  const [headerStats, setHeaderStats] = useState({
-    active: 0,
+  const [stats, setStats] = useState({
+    total: 0,
     critical: 0,
     pending: 0,
-    avgResponse: '--'
+    dispatched: 0
   });
-
-  // Priority routes configuration
-  const PRIORITY_ROUTES = ['X10', 'X21', '21', '56', '1'];
 
   // Filter options
   const filters = [
-    { value: 'all', label: 'All' },
-    { value: 'critical', label: 'Critical' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'priority', label: 'Priority Routes' }
+    { value: 'all', label: 'All Breakdowns', icon: '📋' },
+    { value: 'critical', label: 'Critical', icon: '🚨' },
+    { value: 'pending', label: 'Pending Decision', icon: '⏳' },
+    { value: 'priority-routes', label: 'Priority Routes', icon: '⭐' }
   ];
 
-  // Format depot names
-  const formatDepot = (depot) => {
-    const names = {
-      'WASHINGTON': 'Washington',
-      'WAS': 'Washington',
-      'RIVERSIDE': 'Riverside',
-      'PERCY_MAIN': 'Percy Main',
-      'CONSETT': 'Consett',
-      'DEPTFORD': 'Deptford',
-      'HEXHAM': 'Hexham'
-    };
-    return names[depot] || depot || 'Unknown';
-  };
+  // Priority routes
+  const PRIORITY_ROUTES = ['X10', 'X21', '21', '56', '1'];
 
-  // Process breakdowns
-  const processBreakdowns = (rawBreakdowns) => {
-    return rawBreakdowns.map(b => {
-      const created = new Date(b.created_at);
-      const now = new Date();
-      const elapsed = Math.floor((now - created) / 60000);
-      
-      // Determine criticality
-      let criticality = 'normal';
-      if (elapsed > 30 || b.severity === 'STOP' || b.severity === 'RED') {
-        criticality = 'critical';
-      } else if (elapsed > 15 || b.severity === 'AMBER' || PRIORITY_ROUTES.includes(b.route_id)) {
-        criticality = 'warning';
-      }
-      
-      // Determine current stage
-      let currentStage = 'received';
-      if (b.status === 'cleared' || b.status === 'resolved') currentStage = 'resolved';
-      else if (b.status === 'dispatched' || b.status === 'on_site') currentStage = 'engineering';
-      else if (b.status === 'decision') currentStage = 'decision';
-      else if (b.status === 'acknowledged') currentStage = 'acknowledged';
-      
-      return {
-        ...b,
-        elapsed,
-        criticality,
-        currentStage,
-        isPriority: PRIORITY_ROUTES.includes(b.route_id),
-        depot_display: formatDepot(b.depot_id)
-      };
-    });
-  };
-
-  // Fetch breakdowns
-  useEffect(() => {
-    const fetchBreakdowns = async () => {
-      console.log('🔍 SDCDashboard: fetchBreakdowns called at', new Date().toISOString());
+  // Fetch real breakdowns from backend
+  const fetchBreakdowns = async () => {
+    try {
       setLoading(true);
-
-      try {
-        const response = await fetch(`${apiConfig.baseUrl}/api/breakdowns/live`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success) {
-            const processed = processBreakdowns(data.breakdowns || []);
-            setBreakdowns(processed);
-            updateStatistics(processed);
-
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching breakdowns:', error);
-        // Show empty state on error
-        setBreakdowns([]);
-        updateStatistics([]);
-      } finally {
-        setLoading(false);
+      const response = await fetch(`${apiConfig.baseUrl}/api/breakdowns/active`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch breakdowns');
       }
-    };
+      
+      const data = await response.json();
+      console.log('📊 SDC fetched real breakdowns:', data);
+      
+      if (data.success && Array.isArray(data.breakdowns)) {
+        // Process real breakdowns for SDC view
+        const processedBreakdowns = data.breakdowns.map(b => ({
+          id: b.breakdown_id || b.id,
+          breakdown_id: b.breakdown_id,
+          daily_id: b.daily_id,
+          fleet_number: b.fleet_number,
+          location: b.location,
+          issue_category: b.issue_category,
+          severity: b.severity || b.wizard_decision,
+          status: b.status || 'active',
+          created_at: b.created_at,
+          
+          // SDC-specific fields
+          isCritical: b.severity === 'STOP' || b.wizard_decision === 'STOP',
+          isPending: !b.acknowledged_at,
+          isDispatched: b.engineer_assigned || b.dispatched_at,
+          isPriorityRoute: PRIORITY_ROUTES.some(route => 
+            b.location?.includes(route)
+          ),
+          
+          // Timeline for SDC stages
+          timeline: {
+            received: b.created_at,
+            acknowledged: b.acknowledged_at || null,
+            decision: b.decision_at || b.dispatched_at || null,
+            engineering: b.engineer_assigned ? b.dispatched_at : null
+          },
+          
+          // Supervisor info
+          supervisor_name: b.supervisor_name,
+          supervisor_badge: b.supervisor_badge,
+          
+          // Engineering assignment
+          engineer_assigned: b.engineer_assigned,
+          engineer_name: b.engineer_name,
+          
+          // Decision data
+          decision: b.wizard_decision || b.severity,
+          decision_notes: b.decision_notes || '',
+          
+          // Activities
+          activities: b.activities || []
+        }));
+        
+        setBreakdowns(processedBreakdowns);
+        
+        // Calculate statistics
+        const activeBreakdowns = processedBreakdowns.filter(b => b.status !== 'resolved');
+        const criticalCount = activeBreakdowns.filter(b => b.isCritical).length;
+        const pendingCount = activeBreakdowns.filter(b => b.isPending).length;
+        const dispatchedCount = activeBreakdowns.filter(b => b.isDispatched).length;
+        
+        setStats({
+          total: activeBreakdowns.length,
+          critical: criticalCount,
+          pending: pendingCount,
+          dispatched: dispatchedCount
+        });
+        
+        // Generate priority alerts for critical situations
+        const alerts = [];
+        
+        // Check for multiple critical breakdowns on priority routes
+        const criticalPriorityBreakdowns = activeBreakdowns.filter(
+          b => b.isCritical && b.isPriorityRoute
+        );
+        
+        if (criticalPriorityBreakdowns.length >= 2) {
+          alerts.push({
+            id: 'critical-priority',
+            type: 'critical',
+            message: `${criticalPriorityBreakdowns.length} critical breakdowns on priority routes`,
+            breakdowns: criticalPriorityBreakdowns
+          });
+        }
+        
+        // Check for unacknowledged critical breakdowns over 10 minutes old
+        const unacknowledgedCritical = activeBreakdowns.filter(b => {
+          if (!b.isCritical || b.timeline.acknowledged) return false;
+          const age = (Date.now() - new Date(b.created_at)) / 60000;
+          return age > 10;
+        });
+        
+        if (unacknowledgedCritical.length > 0) {
+          alerts.push({
+            id: 'unack-critical',
+            type: 'warning',
+            message: `${unacknowledgedCritical.length} critical breakdown${unacknowledgedCritical.length > 1 ? 's' : ''} awaiting acknowledgement`,
+            breakdowns: unacknowledgedCritical
+          });
+        }
+        
+        setPriorityAlerts(alerts);
+        
+        // Extract recent decisions for activity feed
+        const decisions = processedBreakdowns
+          .filter(b => b.decision && b.timeline.decision)
+          .sort((a, b) => new Date(b.timeline.decision) - new Date(a.timeline.decision))
+          .slice(0, 5)
+          .map(b => ({
+            id: b.breakdown_id,
+            time: b.timeline.decision,
+            fleet: b.fleet_number,
+            decision: b.decision,
+            notes: b.decision_notes,
+            supervisor: b.supervisor_name
+          }));
+        
+        setRecentDecisions(decisions);
+        
+      } else {
+        setBreakdowns([]);
+        setPriorityAlerts([]);
+        setRecentDecisions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching breakdowns:', error);
+      setBreakdowns([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    pollingManager.startPolling('sdc-dashboard', fetchBreakdowns, 30000);
-
-    return () => {
-      pollingManager.stopPolling('sdc-dashboard');
-    };
+  // Fetch data on mount and set up auto-refresh
+  useEffect(() => {
+    fetchBreakdowns();
+    
+    // Auto-refresh every 5 seconds for real-time updates
+    const interval = setInterval(fetchBreakdowns, 5000);
+    
+    return () => clearInterval(interval);
   }, []);
 
-  // Update statistics
-  const updateStatistics = (breakdownsList) => {
-    const active = breakdownsList.length;
-    const critical = breakdownsList.filter(b => b.criticality === 'critical').length;
-    const pending = breakdownsList.filter(b => 
-      b.currentStage === 'received' || b.currentStage === 'acknowledged'
-    ).length;
-    const avgResponse = active > 0 
-      ? Math.round(breakdownsList.reduce((sum, b) => sum + b.elapsed, 0) / active)
-      : 0;
-    
-    setHeaderStats({
-      active,
-      critical,
-      pending,
-      avgResponse: avgResponse ? `${avgResponse}m` : '--'
-    });
-  };
-
-  // Filter breakdowns
-  const getFilteredBreakdowns = () => {
-    switch(activeFilter) {
-      case 'critical':
-        return breakdowns.filter(b => b.criticality === 'critical');
-      case 'pending':
-        return breakdowns.filter(b => 
-          b.currentStage === 'received' || b.currentStage === 'acknowledged'
-        );
-      case 'priority':
-        return breakdowns.filter(b => b.isPriority);
-      default:
-        return breakdowns;
-    }
-  };
-
-  // Action handlers
-  const handleAcknowledge = async (breakdownId) => {
-    alert(`Acknowledging breakdown ${breakdownId}`);
-    recordDecision(breakdownId, 'ACKNOWLEDGED');
-    // TODO: Implement API call
-  };
-
-  const handleMakeDecision = (breakdownId) => {
-    const decision = prompt('Enter decision (STOP/AMBER/CONTINUE):');
-    if (decision) {
-      alert(`Decision recorded: ${decision}`);
-      recordDecision(breakdownId, decision.toUpperCase());
-      // TODO: Implement API call
-    }
-  };
-
-  const handleRequestEngineering = (breakdownId) => {
-    navigate(`/dashboards/engineering?breakdown=${breakdownId}`);
-  };
-
-  // Record decision
-  const recordDecision = (breakdownId, decision) => {
-    const breakdown = breakdowns.find(b => b.breakdown_id === breakdownId);
-    if (breakdown) {
-      const decisionRecord = {
-        time: new Date().toLocaleTimeString('en-GB', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
-        }),
-        fleet: breakdown.fleet_no,
-        decision: decision
-      };
-      
-      setRecentDecisions(prev => {
-        const updated = [decisionRecord, ...prev];
-        return updated.slice(0, 5); // Keep only last 5
-      });
-    }
-  };
+  // Filter breakdowns based on active filter
+  const filteredBreakdowns = breakdowns.filter(b => {
+    if (activeFilter === 'all') return true;
+    if (activeFilter === 'critical') return b.isCritical;
+    if (activeFilter === 'pending') return b.isPending;
+    if (activeFilter === 'priority-routes') return b.isPriorityRoute;
+    return true;
+  });
 
   // Quick action handlers
-  const reportEmergency = () => {
-    window.location.href = '/breakdown-guide?emergency=true';
+  const handleEmergencyBreakdown = () => {
+    window.location.href = '/breakdown-guide';
   };
 
-  const openBreakdownWizard = () => {
-    navigate('/breakdown-guide');
+  const handleNewBreakdown = () => {
+    window.location.href = '/breakdown-guide';
   };
 
-  const openPassengerCloud = () => {
-    window.open('https://gonortheast.passenger-app.com/network/journeys/cancellations', '_blank');
+  const handleRequestEngineering = async (breakdownId) => {
+    try {
+      const response = await fetch(`${apiConfig.baseUrl}/api/sdc/request-engineering`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ breakdown_id: breakdownId })
+      });
+      
+      if (response.ok) {
+        fetchBreakdowns(); // Refresh data
+      }
+    } catch (error) {
+      console.error('Error requesting engineering:', error);
+    }
   };
 
-  const refreshData = () => {
-    window.location.reload();
+  const handleAcknowledge = async (breakdownId) => {
+    try {
+      const response = await fetch(`${apiConfig.baseUrl}/api/sdc/acknowledge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          breakdown_id: breakdownId,
+          acknowledged_at: new Date().toISOString()
+        })
+      });
+      
+      if (response.ok) {
+        fetchBreakdowns(); // Refresh data
+      }
+    } catch (error) {
+      console.error('Error acknowledging breakdown:', error);
+    }
   };
 
-  const filteredBreakdowns = getFilteredBreakdowns();
+  const handleMakeDecision = async (breakdownId, decision) => {
+    try {
+      const response = await fetch(`${apiConfig.baseUrl}/api/sdc/decision`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          breakdown_id: breakdownId,
+          decision: decision,
+          decision_at: new Date().toISOString()
+        })
+      });
+      
+      if (response.ok) {
+        fetchBreakdowns(); // Refresh data
+      }
+    } catch (error) {
+      console.error('Error making decision:', error);
+    }
+  };
 
   return (
-    <DashboardLayout title="📍 SDC Operations Control" activeTab="sdc">
-      {/* Background Pattern */}
-      <div className="background-pattern"></div>
-      
-      {/* Main Dashboard Container */}
-      <div className="dashboard-container">
-        {/* Left Column - Breakdowns List */}
-        <div className="left-column">
-          {/* Header Stats */}
-          <div className="header-stats">
-            <div className="header-stat">
-              <div className="header-stat-value">{headerStats.active}</div>
-              <div className="header-stat-label">Active</div>
-            </div>
-            <div className="header-stat">
-              <div className="header-stat-value">{headerStats.critical}</div>
-              <div className="header-stat-label">Critical</div>
-            </div>
-            <div className="header-stat">
-              <div className="header-stat-value">{headerStats.pending}</div>
-              <div className="header-stat-label">Pending</div>
-            </div>
-            <div className="header-stat">
-              <div className="header-stat-value">{headerStats.avgResponse}</div>
-              <div className="header-stat-label">Avg Response</div>
-            </div>
-          </div>
+    <DashboardLayout title="SDC Operations Centre" icon="🎯">
+      {/* Priority Alerts */}
+      {priorityAlerts.length > 0 && (
+        <PriorityAlerts alerts={priorityAlerts} />
+      )}
 
-          {/* Priority Alert */}
-          <PriorityAlerts breakdowns={breakdowns} />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+        <StatsCard
+          title="Active Breakdowns"
+          value={stats.total}
+          change={stats.critical > 0 ? `${stats.critical} critical` : 'No critical'}
+          trend={stats.critical > 0 ? 'danger' : 'success'}
+        />
+        <StatsCard
+          title="Critical"
+          value={stats.critical}
+          change={stats.critical > 2 ? 'High volume' : 'Normal'}
+          trend={stats.critical > 2 ? 'danger' : 'neutral'}
+        />
+        <StatsCard
+          title="Pending Decision"
+          value={stats.pending}
+          change={stats.pending > 0 ? 'Action needed' : 'All acknowledged'}
+          trend={stats.pending > 0 ? 'warning' : 'success'}
+        />
+        <StatsCard
+          title="Dispatched"
+          value={stats.dispatched}
+          change="Engineers assigned"
+          trend="success"
+        />
+      </div>
 
-          {/* Active Breakdowns Section */}
-          <div className="active-breakdowns">
-            <div className="section-header">
-              <h2 className="section-title">Active Breakdowns</h2>
-              <FilterBar 
-                filters={filters}
-                activeFilter={activeFilter}
-                onFilterChange={setActiveFilter}
-                showCount={false}
-                className="inline-filter"
-              />
-            </div>
-            
-            <div className="breakdown-list">
-              {loading ? (
-                <div className="loading-skeleton">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="skeleton-card">
-                      <div className="skeleton-header">
-                        <div></div>
-                        <div></div>
-                      </div>
-                      <div className="skeleton-content">
-                        <div className="skeleton-line"></div>
-                        <div className="skeleton-line"></div>
-                        <div className="skeleton-line"></div>
-                      </div>
-                      <div className="skeleton-footer">
-                        <div className="skeleton-button"></div>
-                        <div className="skeleton-button"></div>
-                      </div>
-                    </div>
-                  ))}
+      {/* Quick Actions Bar */}
+      <div className="quick-actions-bar">
+        <button onClick={handleEmergencyBreakdown} className="action-btn emergency">
+          🚨 Emergency Breakdown
+        </button>
+        <button onClick={handleNewBreakdown} className="action-btn">
+          ➕ New Breakdown
+        </button>
+        <button onClick={() => fetchBreakdowns()} className="action-btn">
+          🔄 Refresh
+        </button>
+      </div>
+
+      {/* Filter Bar */}
+      <FilterBar
+        filters={filters}
+        activeFilter={activeFilter}
+        onFilterChange={setActiveFilter}
+      />
+
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+        {/* Breakdown List - 2/3 width */}
+        <div className="lg:col-span-2">
+          <div className="breakdown-list">
+            {loading ? (
+              <div className="text-center py-8">
+                <div className="spinner-border" role="status">
+                  <span className="sr-only">Loading real SDC data...</span>
                 </div>
-              ) : filteredBreakdowns.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">📋</div>
-                  <p>No active breakdowns matching filter</p>
-                </div>
-              ) : (
-                filteredBreakdowns.map((breakdown, index) => (
-                  <SDCBreakdownCard
-                    key={breakdown.breakdown_id}
-                    breakdown={breakdown}
-                    onAcknowledge={handleAcknowledge}
-                    onMakeDecision={handleMakeDecision}
-                    onRequestEngineering={handleRequestEngineering}
-                    animationDelay={index * 0.1}
-                  />
-                ))
-              )}
-            </div>
+                <p className="mt-2">Fetching live breakdowns...</p>
+              </div>
+            ) : filteredBreakdowns.length === 0 ? (
+              <div className="no-breakdowns">
+                <p>No breakdowns matching filter</p>
+                <small>Real-time data from assessments</small>
+              </div>
+            ) : (
+              filteredBreakdowns.map(breakdown => (
+                <SDCBreakdownCard
+                  key={breakdown.breakdown_id}
+                  breakdown={breakdown}
+                  onAcknowledge={() => handleAcknowledge(breakdown.breakdown_id)}
+                  onMakeDecision={(decision) => handleMakeDecision(breakdown.breakdown_id, decision)}
+                  onRequestEngineering={() => handleRequestEngineering(breakdown.breakdown_id)}
+                />
+              ))
+            )}
           </div>
         </div>
 
-        {/* Right Column */}
-        <div className="right-column">
-          {/* Map Section */}
-          <div className="map-container">
-            <div className="map-header">
-              <h3>🗺️ Breakdown Locations</h3>
-
-            </div>
-            <div className="map-placeholder">
-              <BreakdownMap breakdowns={breakdowns} />
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="quick-actions">
-            <button className="quick-btn emergency" onClick={reportEmergency}>
-              🚨 Emergency
-            </button>
-            <button className="quick-btn primary" onClick={openBreakdownWizard}>
-              📝 New
-            </button>
-            <button className="quick-btn primary" onClick={handleRequestEngineering}>
-              🔧 Engineering
-            </button>
-            <button className="quick-btn secondary" onClick={openPassengerCloud}>
-              ☁️ Passenger
-            </button>
-            <button className="quick-btn secondary" onClick={refreshData}>
-              🔄 Refresh
-            </button>
-          </div>
-
-          {/* Status Widget */}
-          <StatusWidget breakdowns={breakdowns} />
-
-          {/* Recent Decisions */}
+        {/* Sidebar - 1/3 width */}
+        <div>
+          <StatusWidget stats={stats} />
           <RecentDecisions decisions={recentDecisions} />
         </div>
       </div>
 
+      {/* Real-time indicator */}
+      <div className="dashboard-footer">
+        <span className="live-indicator">
+          <span className="pulse"></span>
+          SDC Live Data - Real breakdowns from assessments
+        </span>
+        <span className="last-update">
+          Auto-refreshing every 5 seconds
+        </span>
+      </div>
+
       <style jsx>{`
-        .background-pattern {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: 
-            radial-gradient(circle at 20% 80%, rgba(219, 39, 119, 0.02) 0%, transparent 50%),
-            radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.02) 0%, transparent 50%),
-            radial-gradient(circle at 40% 40%, rgba(16, 185, 129, 0.01) 0%, transparent 50%),
-            linear-gradient(180deg, #fafbfc 0%, #f0f4f8 100%);
-          pointer-events: none;
-          z-index: -1;
-        }
-        
-        .background-pattern::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background-image: 
-            repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(0,0,0,0.015) 35px, rgba(0,0,0,0.015) 70px);
-        }
-        .dashboard-container {
-          max-width: 100%;
-          margin: 0;
-          padding: 20px;
-          display: grid;
-          grid-template-columns: 1fr minmax(400px, 450px);
-          gap: 20px;
-          height: calc(100vh - 120px);
-          overflow: hidden;
-        }
-
-        .left-column {
+        .quick-actions-bar {
           display: flex;
-          flex-direction: column;
-          gap: 16px;
-          min-height: 0;
-          overflow-y: auto;
+          gap: 10px;
+          margin-bottom: 20px;
+          padding: 15px;
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 8px;
         }
 
-        .right-column {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-          min-height: 0;
-          overflow-y: auto;
-        }
-
-        .header-stats {
-          display: flex;
-          gap: 20px;
-          padding: 20px;
-          background: 
-            linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.95) 100%),
-            radial-gradient(circle at 70% 70%, rgba(59, 130, 246, 0.02) 0%, transparent 50%);
-          backdrop-filter: blur(10px);
-          border-radius: 16px;
-          box-shadow: 
-            0 4px 20px rgba(0,0,0,0.04),
-            0 2px 8px rgba(0,0,0,0.02),
-            inset 0 2px 0 rgba(255,255,255,0.7);
-          border: 1px solid rgba(255,255,255,0.9);
-        }
-
-        .header-stat {
-          flex: 1;
-          text-align: center;
-          position: relative;
-        }
-
-        .header-stat::after {
-          content: '';
-          position: absolute;
-          right: 0;
-          top: 50%;
-          transform: translateY(-50%);
-          width: 1px;
-          height: 30px;
-          background: linear-gradient(to bottom, transparent, #e5e7eb, transparent);
-        }
-
-        .header-stat:last-child::after {
-          display: none;
-        }
-
-        .header-stat-value {
-          font-size: 28px;
-          font-weight: 800;
-          margin-bottom: 2px;
-          color: #0f172a;
-          letter-spacing: -0.5px;
-          font-variant-numeric: tabular-nums;
-        }
-
-        .header-stat:nth-child(2) .header-stat-value {
-          background: linear-gradient(135deg, #ef4444, #dc2626);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-
-        .header-stat:nth-child(3) .header-stat-value {
-          background: linear-gradient(135deg, #fbbf24, #f59e0b);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-
-        .header-stat:nth-child(4) .header-stat-value {
-          background: linear-gradient(135deg, #60a5fa, #3b82f6);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-        }
-
-        .header-stat-label {
-          font-size: 11px;
-          color: #64748b;
+        .action-btn {
+          padding: 10px 20px;
+          background: rgba(59, 130, 246, 0.1);
+          border: 1px solid rgba(59, 130, 246, 0.3);
+          border-radius: 6px;
+          color: #60a5fa;
           font-weight: 500;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .map-container {
-          background: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.95) 100%);
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255,255,255,0.8);
-          border-radius: 16px;
-          padding: 20px;
-          box-shadow: 
-            0 8px 32px rgba(0,0,0,0.08),
-            0 2px 8px rgba(0,0,0,0.04),
-            inset 0 1px 0 rgba(255,255,255,0.5);
-        }
-
-        .map-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 16px;
-        }
-
-        .map-header h3 {
-          font-size: 16px;
-          font-weight: 700;
-          color: #1e293b;
-          margin: 0;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-
-        .map-placeholder {
-          height: 280px;
-          border-radius: 16px;
-          position: relative;
-          overflow: hidden;
-          border: 1px solid rgba(226,232,240,0.3);
-          box-shadow: 
-            0 1px 3px rgba(0,0,0,0.05),
-            inset 0 1px 0 rgba(255,255,255,0.5);
-          background: #f8fafc;
-        }
-        
-
-
-        .quick-actions {
-          background: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.95) 100%);
-          padding: 16px;
-          box-shadow: 
-            0 4px 20px rgba(0,0,0,0.06),
-            0 1px 3px rgba(0,0,0,0.08),
-            inset 0 1px 0 rgba(255,255,255,0.7);
-          border-radius: 16px;
-          border: 1px solid rgba(255,255,255,0.8);
-          display: grid;
-          grid-template-columns: repeat(5, 1fr);
-          gap: 10px;
-        }
-
-        .quick-btn {
-          padding: 14px 8px;
-          border: 1px solid transparent;
-          border-radius: 12px;
-          font-weight: 600;
           cursor: pointer;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          font-size: 11px;
-          white-space: nowrap;
-          text-align: center;
-          position: relative;
-          overflow: hidden;
-        }
-        
-        .quick-btn::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100%;
-          height: 100%;
-          background: radial-gradient(circle at center, rgba(255,255,255,0.3) 0%, transparent 70%);
-          opacity: 0;
-          transition: opacity 0.3s;
-        }
-        
-        .quick-btn:hover::before {
-          opacity: 1;
+          transition: all 0.2s;
         }
 
-        .quick-btn.emergency {
-          background: linear-gradient(135deg, #ef4444, #dc2626);
-          color: white;
-          border-color: rgba(220, 38, 38, 0.2);
-          box-shadow: 
-            0 2px 8px rgba(220, 38, 38, 0.2),
-            inset 0 1px 0 rgba(255,255,255,0.2);
-        }
-
-        .quick-btn.emergency:hover {
-          transform: translateY(-2px) scale(1.02);
-          box-shadow: 
-            0 8px 20px rgba(220, 38, 38, 0.35),
-            inset 0 1px 0 rgba(255,255,255,0.3);
-          border-color: rgba(220, 38, 38, 0.3);
-        }
-
-        .quick-btn.primary {
-          background: linear-gradient(135deg, #60a5fa, #3b82f6);
-          color: white;
-          border-color: rgba(59, 130, 246, 0.2);
-          box-shadow: 
-            0 2px 8px rgba(59, 130, 246, 0.2),
-            inset 0 1px 0 rgba(255,255,255,0.2);
-        }
-
-        .quick-btn.primary:hover {
-          transform: translateY(-2px);
-          box-shadow: 
-            0 6px 16px rgba(59, 130, 246, 0.3),
-            inset 0 1px 0 rgba(255,255,255,0.3);
-          border-color: rgba(59, 130, 246, 0.3);
-        }
-
-        .quick-btn.secondary {
-          background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(243,244,246,0.9));
-          color: #4b5563;
-          border: 1px solid rgba(229,231,235,0.8);
-          box-shadow: 
-            0 1px 3px rgba(0,0,0,0.05),
-            inset 0 1px 0 rgba(255,255,255,0.8);
-        }
-
-        .quick-btn.secondary:hover {
-          background: linear-gradient(135deg, #ffffff, #f9fafb);
+        .action-btn:hover {
+          background: rgba(59, 130, 246, 0.2);
           transform: translateY(-1px);
-          box-shadow: 
-            0 4px 12px rgba(0,0,0,0.08),
-            inset 0 1px 0 rgba(255,255,255,0.9);
-          border-color: rgba(209,213,219,0.9);
         }
 
-        .active-breakdowns {
-          background: linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.95) 100%);
-          backdrop-filter: blur(10px);
-          border: 1px solid rgba(255,255,255,0.7);
-          border-radius: 16px;
-          box-shadow: 
-            0 8px 32px rgba(0,0,0,0.08),
-            0 2px 8px rgba(0,0,0,0.04),
-            inset 0 1px 0 rgba(255,255,255,0.5);
-          overflow: hidden;
-          position: relative;
-          display: flex;
-          flex-direction: column;
-          flex: 1;
-          min-height: 0;
+        .action-btn.emergency {
+          background: rgba(239, 68, 68, 0.2);
+          border-color: rgba(239, 68, 68, 0.5);
+          color: #f87171;
+          animation: pulse-red 2s infinite;
         }
 
-        .active-breakdowns::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(219, 39, 119, 0.2), transparent);
-          animation: shimmer 3s infinite;
-        }
-
-        @keyframes shimmer {
-          0% { transform: translateX(-100%); }
-          100% { transform: translateX(100%); }
-        }
-
-        .section-header {
-          background: 
-            linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%),
-            radial-gradient(circle at 10% 50%, rgba(59, 130, 246, 0.03) 0%, transparent 30%);
-          padding: 20px 24px;
-          border-bottom: 1px solid rgba(226,232,240,0.6);
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          position: relative;
-        }
-        
-        .section-header::after {
-          content: '';
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.2), transparent);
-          animation: shimmer 4s infinite;
-        }
-
-        .section-title {
-          font-size: 19px;
-          font-weight: 800;
-          color: #0f172a;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          margin: 0;
-          letter-spacing: -0.02em;
-        }
-
-        .section-title::before {
-          content: '📋';
-          font-size: 22px;
-          filter: brightness(1.1) contrast(1.1);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 36px;
-          height: 36px;
-          background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
-          border-radius: 10px;
-        }
-
-        .inline-filter {
-          background: transparent;
-          padding: 0;
-          border: none;
-        }
-
-        .inline-filter :global(.filters) {
-          gap: 5px;
-        }
-
-        .inline-filter :global(.filter-btn) {
-          padding: 6px 12px;
-          font-size: 13px;
+        @keyframes pulse-red {
+          0%, 100% {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+          }
+          50% {
+            box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+          }
         }
 
         .breakdown-list {
-          padding: 20px;
-          overflow-y: auto;
-          flex: 1;
-          min-height: 0;
-          position: relative;
-        }
-        
-        .breakdown-list::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 20px;
-          right: 20px;
-          height: 40px;
-          background: linear-gradient(to bottom, rgba(248,250,252,1), transparent);
-          pointer-events: none;
-          z-index: 1;
-        }
-        
-        .breakdown-list::after {
-          content: '';
-          position: absolute;
-          bottom: 0;
-          left: 20px;
-          right: 20px;
-          height: 40px;
-          background: linear-gradient(to top, rgba(248,250,252,1), transparent);
-          pointer-events: none;
-          z-index: 1;
+          min-height: 400px;
         }
 
-        .breakdown-list::-webkit-scrollbar {
-          width: 6px;
-        }
-
-        .breakdown-list::-webkit-scrollbar-track {
-          background: #f1f1f1;
-        }
-
-        .breakdown-list::-webkit-scrollbar-thumb {
-          background: #888;
-          border-radius: 3px;
-        }
-
-        .breakdown-list::-webkit-scrollbar-thumb:hover {
-          background: #666;
-        }
-
-        .loading-skeleton {
-          display: flex;
-          flex-direction: column;
-          gap: 20px;
-        }
-
-        .skeleton-card {
-          background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%);
-          border: 1px solid rgba(255,255,255,0.8);
-          border-radius: 16px;
-          padding: 20px;
-          animation: skeletonPulse 1.5s infinite;
-        }
-
-        .skeleton-header {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 20px;
-        }
-
-        .skeleton-header > div:first-child {
-          width: 120px;
-          height: 32px;
-          background: rgba(226,232,240,0.5);
-          border-radius: 8px;
-        }
-
-        .skeleton-header > div:last-child {
-          width: 60px;
-          height: 60px;
-          background: rgba(226,232,240,0.5);
-          border-radius: 50%;
-        }
-
-        .skeleton-content {
-          display: flex;
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .skeleton-line {
-          height: 16px;
-          background: rgba(226,232,240,0.5);
-          border-radius: 4px;
-        }
-
-        .skeleton-line:nth-child(1) { width: 80%; }
-        .skeleton-line:nth-child(2) { width: 60%; }
-        .skeleton-line:nth-child(3) { width: 70%; }
-
-        .skeleton-footer {
-          margin-top: 16px;
-          display: flex;
-          gap: 8px;
-        }
-
-        .skeleton-button {
-          width: 100px;
-          height: 36px;
-          background: rgba(226,232,240,0.5);
-          border-radius: 8px;
-        }
-
-        @keyframes skeletonPulse {
-          0%, 100% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.7;
-          }
-        }
-
-        .empty-state {
+        .no-breakdowns {
           text-align: center;
-          padding: 80px 40px;
-          color: #64748b;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 16px;
+          padding: 60px 20px;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 8px;
+          border: 1px dashed rgba(255, 255, 255, 0.2);
         }
 
-        .empty-icon {
-          font-size: 64px;
-          opacity: 0.3;
+        .no-breakdowns p {
+          font-size: 18px;
+          color: #aaa;
           margin-bottom: 8px;
         }
 
-        .empty-state p {
-          font-size: 16px;
-          margin: 0;
+        .no-breakdowns small {
+          color: #888;
         }
 
-        @media (max-width: 1400px) {
-          .dashboard-container {
-            grid-template-columns: 1fr minmax(350px, 400px);
+        .dashboard-footer {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 30px;
+          padding: 20px;
+          background: rgba(0, 0, 0, 0.2);
+          border-radius: 8px;
+        }
+
+        .live-indicator {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #4ade80;
+          font-size: 14px;
+        }
+
+        .pulse {
+          width: 8px;
+          height: 8px;
+          background: #4ade80;
+          border-radius: 50%;
+          animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+          0% {
+            box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+          }
+          70% {
+            box-shadow: 0 0 0 10px rgba(74, 222, 128, 0);
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
           }
         }
 
-        @media (max-width: 1200px) {
-          .dashboard-container {
-            grid-template-columns: 1fr;
-            height: auto;
-          }
-
-          .right-column {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            grid-template-rows: auto;
-            gap: 16px;
-          }
-
-          .map-container {
-            grid-column: 1 / -1;
-          }
-
-          .quick-actions {
-            grid-column: 1 / -1;
-          }
-        }
-
-        @media (max-width: 768px) {
-          .dashboard-container {
-            padding: 12px;
-            gap: 12px;
-          }
-
-          .header-stats {
-            gap: 10px;
-            padding: 12px;
-            flex-wrap: wrap;
-          }
-
-          .header-stat {
-            flex: 1;
-            min-width: 70px;
-          }
-
-          .header-stat-value {
-            font-size: 20px;
-          }
-
-          .header-stat-label {
-            font-size: 10px;
-          }
-
-          .right-column {
-            grid-template-columns: 1fr;
-          }
-
-          .map-placeholder {
-            height: 200px;
-          }
-
-          .quick-actions {
-            grid-template-columns: repeat(3, 1fr);
-          }
-
-          .breakdown-list {
-            padding: 12px;
-          }
-
-          .section-header {
-            padding: 12px 16px;
-          }
-
-          .section-title {
-            font-size: 16px;
-          }
+        .last-update {
+          color: #888;
+          font-size: 12px;
         }
       `}</style>
     </DashboardLayout>

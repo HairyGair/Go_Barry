@@ -1,8 +1,8 @@
 // Supervisor Login Component for Breakdown Guide
-// Integrates with Supabase authentication system
+// Production-ready with fallback authentication
 
 import React, { useState, useEffect } from 'react';
-import { authHelpers, supabaseHelpers } from '../../services/supabase-client.js';
+import { authService } from '../auth/authService.js';
 import SupabaseDebug from './SupabaseDebug.jsx';
 
 const SupervisorLogin = ({ onLoginSuccess }) => {
@@ -11,28 +11,43 @@ const SupervisorLogin = ({ onLoginSuccess }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
+    const [supervisors, setSupervisors] = useState([]);
+    const [showDebug, setShowDebug] = useState(false);
+    const [connectionStatus, setConnectionStatus] = useState('checking');
     
-    // Check for existing session on mount
+    // Check for existing session and load supervisors on mount
     useEffect(() => {
-        const savedSession = localStorage.getItem('supervisor_session');
-        if (savedSession) {
-            try {
-                const session = JSON.parse(savedSession);
-                // Verify session is still valid (within 24 hours)
-                const sessionTime = new Date(session.timestamp);
-                const now = new Date();
-                const hoursDiff = (now - sessionTime) / (1000 * 60 * 60);
-                
-                if (hoursDiff < 24) {
-                    onLoginSuccess(session);
-                } else {
+        const init = async () => {
+            // Check connection status
+            const isConnected = await authService.checkSupabaseConnection();
+            setConnectionStatus(isConnected ? 'connected' : 'fallback');
+            
+            // Load available supervisors
+            const availableSupervisors = await authService.getSupervisors();
+            setSupervisors(availableSupervisors);
+            
+            // Check for existing session
+            const savedSession = localStorage.getItem('supervisor_session');
+            if (savedSession) {
+                try {
+                    const session = JSON.parse(savedSession);
+                    
+                    // Verify session is still valid
+                    const isValid = await authService.verifySession(session);
+                    
+                    if (isValid) {
+                        onLoginSuccess(session);
+                    } else {
+                        localStorage.removeItem('supervisor_session');
+                    }
+                } catch (err) {
+                    console.error('Invalid session data:', err);
                     localStorage.removeItem('supervisor_session');
                 }
-            } catch (err) {
-                console.error('Invalid session data:', err);
-                localStorage.removeItem('supervisor_session');
             }
-        }
+        };
+        
+        init();
     }, [onLoginSuccess]);
     
     const handleLogin = async (e) => {
@@ -52,60 +67,97 @@ const SupervisorLogin = ({ onLoginSuccess }) => {
         setError('');
         
         try {
-            // Authenticate with email and password
-            const authResult = await authHelpers.signInWithPassword(email, password);
+            // Authenticate using the auth service
+            const result = await authService.authenticate(email, password);
             
-            if (!authResult.supervisor) {
-                throw new Error('Supervisor profile not found');
+            if (result.success) {
+                const session = result.session;
+                
+                // Save session if remember me is checked
+                if (rememberMe) {
+                    localStorage.setItem('supervisor_session', JSON.stringify(session));
+                }
+                
+                console.log('Login successful via', result.method);
+                onLoginSuccess(session);
+                
+            } else {
+                setError(result.error || 'Login failed. Please try again.');
             }
-            
-            // Create session data
-            const session = {
-                id: authResult.supervisor.id,
-                supervisorId: authResult.supervisor.id, // Keep for backward compatibility
-                name: authResult.supervisor.name,
-                email: authResult.supervisor.email,
-                depot: authResult.supervisor.depot,
-                role: authResult.supervisor.role,
-                isAdmin: authResult.supervisor.role === 'admin',
-                timestamp: new Date().toISOString(),
-                authenticated: true,
-                supabaseSession: authResult.session
-            };
-            
-            // Save session if remember me is checked
-            if (rememberMe) {
-                localStorage.setItem('supervisor_session', JSON.stringify(session));
-            }
-            
-            console.log('Login successful, calling onLoginSuccess with session:', session);
-            onLoginSuccess(session);
             
         } catch (err) {
             console.error('Login error:', err);
-            
-            // Handle specific error types
-            if (err.message === 'Invalid login credentials') {
-                setError('Invalid email or password. Please try again.');
-            } else if (err.message === 'Supervisor profile not found') {
-                setError('Your account is not set up as a supervisor. Please contact your manager.');
-            } else {
-                setError(err.message || 'Login failed. Please try again.');
-            }
+            setError('An unexpected error occurred. Please try again.');
         } finally {
             setLoading(false);
         }
     };
     
+    // Quick login for supervisors (for easier access)
+    const handleQuickLogin = (supervisor) => {
+        setEmail(supervisor.email);
+        // Focus on password field
+        document.getElementById('password')?.focus();
+    };
+    
     return (
         <div className="supervisor-login-container">
-            <SupabaseDebug />
+            {showDebug && <SupabaseDebug />}
+            
             <div className="login-card">
                 <div className="login-header">
                     <h1>Go North East</h1>
                     <h2>Breakdown Assessment System</h2>
                     <p className="login-subtitle">Supervisor Login</p>
+                    
+                    {/* Connection Status Indicator */}
+                    <div className="connection-status" style={{
+                        fontSize: '12px',
+                        padding: '5px 10px',
+                        borderRadius: '4px',
+                        marginTop: '10px',
+                        background: connectionStatus === 'connected' ? '#0e5a0e' : '#5a4b0e',
+                        color: '#fff',
+                        textAlign: 'center'
+                    }}>
+                        {connectionStatus === 'checking' && '⏳ Checking connection...'}
+                        {connectionStatus === 'connected' && '✅ Connected to database'}
+                        {connectionStatus === 'fallback' && '⚠️ Using fallback authentication'}
+                    </div>
                 </div>
+                
+                {/* Quick Access Buttons (if supervisors loaded) */}
+                {supervisors.length > 0 && (
+                    <div className="quick-access" style={{
+                        padding: '15px',
+                        borderBottom: '1px solid #333',
+                        background: '#1a1a1a'
+                    }}>
+                        <p style={{ fontSize: '12px', marginBottom: '10px', color: '#999' }}>
+                            Quick access (select then enter password):
+                        </p>
+                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                            {supervisors.slice(0, 3).map(sup => (
+                                <button
+                                    key={sup.id}
+                                    type="button"
+                                    onClick={() => handleQuickLogin(sup)}
+                                    style={{
+                                        padding: '5px 10px',
+                                        fontSize: '12px',
+                                        background: '#2a2a2a',
+                                        color: '#fff',
+                                        border: '1px solid #444',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    {sup.name}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
                 
                 <form onSubmit={handleLogin} className="login-form">
                     <div className="form-group">
@@ -119,7 +171,16 @@ const SupervisorLogin = ({ onLoginSuccess }) => {
                             placeholder="Enter your Go North East email"
                             required
                             autoComplete="email"
+                            list="supervisor-emails"
                         />
+                        {/* Email datalist for suggestions */}
+                        <datalist id="supervisor-emails">
+                            {supervisors.map(sup => (
+                                <option key={sup.id} value={sup.email}>
+                                    {sup.name} - {sup.depot}
+                                </option>
+                            ))}
+                        </datalist>
                     </div>
                     
                     <div className="form-group">
@@ -160,6 +221,21 @@ const SupervisorLogin = ({ onLoginSuccess }) => {
                     >
                         {loading ? 'Signing in...' : 'Sign In'}
                     </button>
+                    
+                    {/* Emergency Access Info (for production issues) */}
+                    {connectionStatus === 'fallback' && (
+                        <div style={{
+                            marginTop: '15px',
+                            padding: '10px',
+                            background: '#2a2a2a',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            color: '#999'
+                        }}>
+                            <strong>Emergency Access:</strong><br/>
+                            If you cannot login, use your email and contact IT for the emergency password.
+                        </div>
+                    )}
                 </form>
                 
                 <div className="login-footer">
@@ -167,11 +243,29 @@ const SupervisorLogin = ({ onLoginSuccess }) => {
                         🔒 Secure System - All activities are logged for safety compliance
                     </p>
                     <p className="version-info">
-                        Version 2.2 - Email Authentication
+                        Version 2.3 - Production Authentication
                     </p>
                     <p className="support-info">
                         Need help? Contact IT Support
                     </p>
+                    
+                    {/* Debug Toggle (for troubleshooting) */}
+                    <button
+                        type="button"
+                        onClick={() => setShowDebug(!showDebug)}
+                        style={{
+                            marginTop: '10px',
+                            padding: '5px 10px',
+                            fontSize: '10px',
+                            background: 'transparent',
+                            color: '#666',
+                            border: '1px solid #444',
+                            borderRadius: '4px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        {showDebug ? 'Hide' : 'Show'} Debug Info
+                    </button>
                 </div>
             </div>
         </div>

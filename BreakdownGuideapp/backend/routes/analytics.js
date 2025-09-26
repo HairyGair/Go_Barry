@@ -729,4 +729,88 @@ function getTopIssues(reportData, limit = 5) {
     .slice(0, limit);
 }
 
+// GET /api/analytics/activity/feed - Get activity feed for all supervisors
+router.get('/activity/feed', async (req, res) => {
+  try {
+    const { limit = 20, offset = 0, depot } = req.query;
+
+    // Get recent breakdowns with supervisor info
+    let breakdownQuery = supabase
+      .from('breakdowns')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (depot) {
+      breakdownQuery = breakdownQuery.eq('depot', depot);
+    }
+
+    const { data: breakdowns, error: breakdownError } = await breakdownQuery;
+    if (breakdownError) throw breakdownError;
+
+    // Format activities from breakdowns
+    const activities = breakdowns.map(breakdown => {
+      const isWizardBreakdown = breakdown.breakdown_source === 'wizard' || breakdown.wizard_type;
+
+      return {
+        id: `breakdown-${breakdown.id}`,
+        type: isWizardBreakdown ? 'breakdown_guide_assessment' : 'breakdown_created',
+        icon: breakdown.severity === 'STOP' ? '🚨' : breakdown.severity === 'AMBER' ? '⚠️' : '📋',
+        message: formatBreakdownMessage(breakdown),
+        time: new Date(breakdown.created_at).toLocaleString('en-GB', {
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        timestamp: breakdown.created_at,
+        depot: breakdown.depot,
+        supervisor: breakdown.supervisor_name,
+        supervisor_badge: breakdown.supervisor_badge,
+        decision: breakdown.wizard_decision || breakdown.severity,
+        severity: breakdown.severity === 'STOP' ? 'critical' : breakdown.severity === 'AMBER' ? 'warning' : 'normal',
+        breakdown_id: breakdown.breakdown_id,
+        fleet_no: breakdown.fleet_no,
+        location: breakdown.location_description,
+        issue_type: breakdown.issue_category,
+        wizard_type: breakdown.wizard_type,
+        is_guide_assessment: isWizardBreakdown
+      };
+    });
+
+    res.json({
+      success: true,
+      activities,
+      count: activities.length,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error fetching activity feed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch activity feed',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Helper function to format breakdown messages
+function formatBreakdownMessage(breakdown) {
+  const supervisor = breakdown.supervisor_name || 'Supervisor';
+  const vehicle = breakdown.fleet_no || 'vehicle';
+  const location = breakdown.location_description || breakdown.location;
+  const isWizard = breakdown.wizard_type;
+
+  if (isWizard) {
+    let message = `${supervisor} completed ${breakdown.wizard_type} assessment for ${vehicle}`;
+    if (location) message += ` at ${location}`;
+    if (breakdown.wizard_decision) message += ` - Result: ${breakdown.wizard_decision}`;
+    return message;
+  } else {
+    let message = `${supervisor} reported breakdown on ${vehicle}`;
+    if (location) message += ` at ${location}`;
+    if (breakdown.issue_category) message += ` - ${breakdown.issue_category}`;
+    return message;
+  }
+}
+
 export default router;

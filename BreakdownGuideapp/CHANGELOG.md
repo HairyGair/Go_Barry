@@ -1,543 +1,210 @@
 # Changelog
 
-All notable changes to the Go North East Breakdown Guide project will be documented in this file.
+All notable changes to the Go North East Breakdown Management System will be documented in this file.
 
-## [1.6.1] - 2025-09-21
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-### Fixed - Login Page Error Loops & Activity Feed Glitches
+## [Unreleased]
 
-#### Login Issue
-- Homepage was stuck in continuous error loops trying to fetch dashboard data
-- Polling manager was starting before authentication, causing constant re-renders
-- Login form was unusable due to interface constantly refreshing
+### 🎉 Added
+- **Modern Header Component** - Complete redesign with glassmorphism effects
+- **Enhanced Notification System** - Rich notifications with priority levels and actions
+- **Command Palette** - Quick search and navigation (Cmd+K)
+- **Real-time Status Bar** - System health, weather, and fleet metrics
+- **Smart Scroll Behavior** - Auto-hide header on scroll down
+- **Notification Service** - Centralized notification management
+- **Keyboard Shortcuts** - Alt+1-5 for quick navigation
+- **Profile Dropdown** - Enhanced user menu with stats and quick actions
 
-#### Activity Feed Glitches
-- Activity feed was flickering and re-rendering unnecessarily
-- Hover effects causing layout shifts
-- Excessive console logging impacting performance
-- Unnecessary 60-second timer causing re-renders without updates
-- Cache conflicts between embedded and standalone modes
+### 🔄 Changed
+- **Header Height** - Reduced from 80px to 60px for more content space
+- **Navigation** - Compact labels with priority-based display
+- **Button Text** - "Emergency" changed to "Report Breakdown"
+- **Notification Badge** - Enhanced visibility with larger size and better contrast
+- **Theme Toggle** - Moved to profile dropdown for cleaner header
 
-#### Solutions Applied
-- Modified HomePage component to only start polling after successful authentication
-- Added authentication checks before displaying stats and activity feed
-- Changed initial loading state to false
-- Removed ApiDiagnostic component that was making unnecessary health checks
-- Rewrote LiveActivityFeed component for better performance
-- Removed unnecessary animations and transitions
-- Fixed React key warnings with proper unique key generation
+### 🐛 Fixed
+- **Notification Badge Cutoff** - Fixed overflow issues with proper spacing
+- **Button Text Overflow** - Increased button sizes to fit all text
+- **Filter Button Overlap** - Adjusted spacing in notification panel
+- **Mobile Responsiveness** - Improved layout on smaller screens
 
-### Changed
-- **App.jsx**: Updated HomePage component with proper authentication checks
-- **Polling behavior**: Now only starts after successful login
-- **UI visibility**: Stats and activity feed only render when authenticated
-- **Error handling**: Improved circuit breaker pattern in fetchDashboardData
-- **LiveActivityFeed.jsx**: Complete rewrite for performance
-  - Removed console logging
-  - Eliminated 60-second refresh timer
-  - Simplified caching logic
-  - Added memoization with useMemo
-  - Fixed unique key generation
-- **LiveActivityFeed.css**: Optimized animations and transitions
-  - Removed transform on hover that caused layout shifts
-  - Reduced transition durations for snappier feel
-  - Added GPU acceleration hints
-  - Disabled animations for embedded mode
+### 🎨 UI/UX Improvements
+- **Glassmorphism Design** - Modern semi-transparent effects throughout
+- **Color Coding** - Priority-based colors for notifications
+- **Animations** - Smooth transitions and micro-interactions
+- **Typography** - Consistent font sizes and weights
+- **Spacing** - Better visual hierarchy with improved padding
 
-### Technical Details
-- Fixed polling useEffect to depend on isAuthenticated state
-- Added cleanup when user is not authenticated
-- Created emergency-stop.js utility for manual polling control
-- Moved ApiDiagnostic.jsx to backup to prevent health check loops
-- Used React.useMemo to prevent unnecessary recalculations
-- Added translateZ(0) for GPU acceleration
-- Implemented proper flex-shrink to prevent layout recalculation
+## [1.5.3] - 2024-01-25
 
-## [1.6.0] - 2025-09-17
-
-### Added - Advanced Header Features
-
-#### User Profile Section
-- Added user avatar with initials
-- Dropdown menu showing user details, depot, and role
-- Supervisor-specific stats (Today's assessments, Active, Resolved)
-- Quick access to profile, settings, and sign out
-
-#### Status Bar
-- Top status bar showing system health and information
-- Real-time connection status indicator
-- System version display
-- Current depot and date/time information
-
-#### Breadcrumb Navigation
-- Automatic breadcrumb generation based on current route
-- Improves navigation context throughout the app
-- Clickable breadcrumbs for easy navigation
-
-#### Quick Stats Badges
-- Supervisor-specific active breakdown count on Live Dashboard
-- Real-time updates every minute
-- Visual indicator for immediate awareness
-
-#### Keyboard Shortcuts Indicator
-- Dedicated button showing available shortcuts (⌘)
-- Modal popup with all keyboard shortcuts (Alt+1-5, H, Q)
-- Improves discoverability of power user features
-
-#### Dark/Light Mode Toggle
-- Theme switcher button in header
-- Persists user preference in localStorage
-- Smooth transitions between themes
-- Updates all UI elements including logo brightness
-
-#### Mega Menu Navigation
-- Hover-activated dropdown menus for main navigation items
-- Quick access to sub-sections without clicking
-- Improves navigation efficiency
+### Added
+- Live Activity Feed on homepage
+- Real-time breakdown statistics
+- Supervisor session management
+- Offline mode support
 
 ### Changed
-- Header height adjusted to accommodate new features
-- Improved responsive behavior for all new components
-- Better organization of header elements
-
-## [1.5.3] - 2025-09-17
-
-### Changed - Header Layout Optimization
-- Moved logo to far left for better space utilization
-- Reduced header height from 80px to 70px for more content space
-- Optimized navigation to display all items on one line
-- Added shorter labels for medium-sized screens
-- Renamed "Engineering" to "Fleet Intelligence" for clarity
-- Streamlined status section with compact design
-- Improved responsive behavior with better breakpoints
-
-### Improved
-- Better space efficiency with optimized padding and gaps
-- Cleaner visual hierarchy with simplified layout
-- Enhanced mobile experience with progressive label shortening
-- Smoother transitions between screen sizes
-
-## [1.5.2] - 2025-09-17
-
-### Added - Professional Unified Header
-- Created new AppHeader component in `/src/shared/AppHeader.jsx`
-- Professional, high-end design with modern aesthetics
-- Real-time connection status indicator
-- Live time and date display
-- Consistent navigation across all sections
-- Emergency report button with pulsing animation
-- Responsive mobile menu
-
-### Changed - Header Implementation
-- Replaced old header in breakdown guide App.jsx with new AppHeader
-- Updated DashboardLayout to use new AppHeader for all dashboards
-- Removed duplicate navigation code from DashboardLayout
-- Added 'with-header' CSS class for proper spacing
-- Improved visual hierarchy and professional appearance
-
-### Removed
-- Old header sections from breakdown guide
-- Duplicate navigation bars from dashboards
-- Redundant CSS styles from DashboardLayout
-- Unused dashboard configuration code
-
-## [1.5.1] - 2025-09-17
-
-### Changed - UI Cleanup
-- Removed supervisor info section from breakdown guide header
-- Cleaned up header to focus on essential navigation elements
-- Commented out related CSS styles for the removed supervisor section
-- Improved header visual hierarchy
-
-## [1.5.0] - 2025-09-17
-
-### Added - Authentication System Documentation
-
-#### Authentication Implementation ✅
-- Complete Supabase authentication system already in place
-- Email/password login with SupervisorLogin component
-- Session management with 24-hour "Remember me" option
-- NO AUTH mode for testing (currently enabled)
-- Role-based access control (supervisor/admin)
-- Automatic session refresh and expiry handling
-
-#### Documentation Created
-- **ENABLE_AUTH_QUICK.md** - Quick setup guide for enabling auth
-- **AUTHENTICATION_GUIDE.md** - Detailed authentication instructions
-- **AUTHENTICATION_COMPLETE.md** - Complete system documentation
-- **test-auth.js** - Authentication testing script
-- **.env.auth-enabled** - Pre-configured environment file
-
-#### Technical Details
-- Authentication toggles with single environment variable (VITE_ENABLE_AUTH)
-- Supabase integration fully configured and tested
-- Supervisor profiles stored in Supabase supervisors table
-- Backend auth endpoints ready at /api/auth
-- Session persistence in localStorage with expiry checking
-
-### Changed
-- Updated README.md with authentication status
-- Updated CURRENT_STATUS.md to reflect auth implementation
-- NO AUTH mode remains default for immediate testing
-
-## [1.5.0] - 2025-09-16
-
-### Added - Dashboard React Migration (Phase 5 Complete)
-
-#### Phase 5: Management Dashboard ✅
-- Executive-level Management Dashboard for strategic oversight
-- Real-time KPI tracking with trend indicators
-- Multi-period analysis (Today/Week/Month/Quarter/Year)
-- Depot performance comparison league table
-- Fleet health monitoring with breakdown analysis
-- Export functionality (PDF/Excel/CSV)
-- 6 executive KPIs (MTBF, SLA, Response Time, Fleet Availability, Breakdowns, Utilization)
-- Interactive performance trend charts
-- Notification system for user feedback
-- Mobile-responsive executive interface
-
-### Technical Details
-- All 6 management components already implemented:
-  - ManagementDashboard: Main executive dashboard
-  - ExecutiveKPIs: Strategic KPI cards with trends
-  - PerformanceTrends: Interactive SVG charts
-  - DepotComparison: Performance league table
-  - FleetHealth: Fleet status visualization
-  - ExportPanel: Multi-format report generation
-- Mock data generation when API unavailable
-- 30-second auto-refresh for executive view
-- Period-based data filtering
-
-### Achievement
-- 🎉 **All 4 Dashboards Now Complete!**
-- Breakdown, SDC, Engineering, and Management dashboards fully migrated to React
-- Only WebSocket integration (Phase 6) remains
-
-## [1.4.0] - 2025-09-16
-
-### Added - Dashboard React Migration (Phase 4 Complete)
-
-#### Phase 4: Engineering Dashboard ✅
-- Complete Engineering Response tracking dashboard
-- Real-time engineer assignment and status tracking
-- Depot-specific performance metrics with hover details
-- 6-stage breakdown timeline visualization
-- Engineer selection modal with availability status
-- Auto-assign functionality across depots
-- Status progression workflow (Dispatched → On Site → Repairing → Complete)
-- Overdue breakdown highlighting with visual indicators
-- Test data toggle for development
-- Filter system (All, Unassigned, Dispatched, On Site, Overdue, Priority)
-- Performance statistics (Avg Response, SLA Compliance, Active Engineers)
-- Mobile-responsive design
-
-### Technical Details
-- Created 3 new components:
-  - EngineeringCard: Focused view for engineering actions
-  - DepotStats: Real-time depot performance visualization
-  - EngineerModal: Engineer selection interface
-- Integrated with existing dashboard infrastructure
-- Uses apiConfig.baseUrl for all API calls
-- Auto-refresh every 10 seconds
-- Comprehensive error handling and loading states
-
-## [1.3.0] - 2025-09-16
-
-### Added - Dashboard React Migration (Phase 1-3 Complete)
-
-#### Phase 1: Dashboard Infrastructure ✅
-- Created shared dashboard components (DashboardLayout, StatsCard, LiveIndicator, FilterBar)
-- Set up dashboard routing with React Router
-- Implemented shared navigation with keyboard shortcuts (Alt+1-5)
-- Added mobile-responsive bottom navigation
-- Integrated with environment variables for correct backend URL
-
-#### Phase 2: Breakdown Dashboard ✅
-- Fully functional breakdown tracking dashboard with timeline visualization
-- BreakdownCard component with 6-stage progress tracking
-- SLA breach/warning visual indicators
-- Engineering team assignment with ETAs
-- Activity feed per breakdown
-- EngineeringStats component showing depot performance
-- Real-time updates every 5 seconds
-- Quick stats bar with key metrics
-
-#### Phase 3: SDC Operations Dashboard ✅
-- Complete Service Delivery Centre control panel
-- SDCBreakdownCard with 4-stage timeline (Received → Acknowledged → Decision → Engineering)
-- PriorityAlerts for critical notifications (2+ critical on priority routes)
-- StatusWidget showing real-time statistics
-- RecentDecisions component for activity tracking
-- Quick Actions bar with 5 buttons (Emergency, New Breakdown, Engineering, Passenger Cloud, Refresh)
-- Filter system (All, Critical, Pending, Priority Routes)
-- Responsive two-column layout
-
-### Changed
-- Migrated from standalone HTML dashboards to React components
-- Fixed incorrect backend URLs (now using environment variables)
-- Improved state management with React hooks
-- Enhanced performance with component-based architecture
-
-### Technical Details
-- All dashboards now use `apiConfig.baseUrl` from constants
-- Shared authentication ready for implementation
-- Reusable component architecture
-- CSS-in-JS with style jsx (convertible to CSS modules)
-- Mobile-first responsive design
-
-## [1.2.3] - 2025-01-15
-
-### ✅ SYSTEM STATUS: PRODUCTION READY
-- **All 42 Assessment Wizards Operational** - Complete breakdown guide functionality
-  - Every wizard loads without blank screens
-  - All decision logic properly implemented (STOP/AMBER/CONTINUE)
-  - Complete Tranzaura system integration throughout
-  - Professional assessment summaries for Tracerit reporting
-- **Build System Stable** - No compilation errors or critical warnings
-- **User Interface Complete** - Go North East branding with modern responsive design
-- **Production Deployment Ready** - System ready for immediate supervisor use
-
-### Assessment Wizard Suite (42/42 Functional ✅)
-**Critical Safety Assessments:**
-- SteeringWizard, BrakesWizard, BatteryWizard, ABSLightWizard
-- NonStarterWizard, OverheatingWizard (CoolingSystemWizard), OilWarningLightWizard
-- ExcessiveSmokeWizard, CuttingOutFuelWizard, GearboxWizard, GearSelectionWizard
-
-**Vehicle Systems:**
-- ExteriorLightsWizard, InteriorLightsWizard, WarningLightsWizard
-- WipersScreenwashWizard, DemistersHeatersWizard, SuspensionWizard
-- WheelchairRampWizard, DoorsWizard, WingMirrorsWizard
-
-**Specialized Assessments:**
-- RoadTrafficIncidentsWizard, PunctureWizard, LooseWheelNutsWizard
-- BrokenWindowsWizard, InteriorExteriorDamageWizard, RepeatDefectsWizard
-- TracerItHelperWizard, SpeedoWizard, BuzzersWizard, LowWaterWizard
-
-### Technical Implementation
-- **Decision Logic**: All wizards properly pass decision values to onComplete()
-- **SDC Compliance**: Full alignment with SDC Engineering Issues Guide v1.3
-- **DVSA Standards**: Dangerous defects properly classified and handled
-- **Tranzaura Integration**: Complete replacement of Go-Check references
-- **Assessment Summaries**: Comprehensive reporting for Tracerit integration
-
-## [1.2.2] - 2025-09-15
-
-### Changed
-- **NonStarterWizard.jsx** updated to ensure full compliance with SDC Guide v1.3 and DVSA standards
-  - Complete rewrite to align exactly with SDC Engineering Issues Guide non-starter procedures
-  - Enhanced three-step assessment flow matching SDC Guide:
-    - Step 1: Initial troubleshooting (5 specific checks)
-    - Step 2: Rear start attempt with critical safety warnings
-    - Step 3: Gather diagnostic information for engineers
-  - Added explicit safety warnings about belt entanglement during rear start
-  - Updated decision logic to match SDC Guide:
-    - Initial start successful → CONTINUE (driver continues in service)
-    - Rear start successful → AMBER (keep engine running, await engineer)
-    - All attempts failed → STOP (await engineering assistance)
-  - Added DVSA compliance notes regarding dangerous defects for starting system failures
-  - Included proper diagnostic questions: oil light, exhaust smoke, engine response
-  - Updated all Tranzaura System references (replaced Go-Check)
-  - Enhanced safety messaging throughout the assessment
-
-### Technical Details
-- NonStarterWizard now properly passes decision values to onComplete: 'STOP', 'AMBER', or 'CONTINUE'
-- Added diagnostic information collection to assist engineering teams
-- Improved user flow with clearer stage progression
-- Added critical safety instructions for rear start procedures
-
-## [1.2.1] - 2025-09-15
+- Improved authentication flow
+- Enhanced dashboard performance
+- Updated fleet status calculations
 
 ### Fixed
-- **Critical Syntax Errors Resolved** - Complete codebase stability update
-  - Fixed all JSX syntax errors across 40+ wizard components
-  - Resolved missing closing braces in conditional expressions
-  - Fixed unterminated JSX contents in multiple files
-  - Corrected import path for AssessmentSummary.jsx icons
-  - Fixed duplicate case 5 clause in RoadTrafficIncidentsWizard.jsx
-  - Restructured React component function returns for proper JSX rendering
-  - All builds now pass without syntax errors ✅
+- Session timeout issues
+- Dashboard refresh bugs
+- Mobile layout problems
 
-### Changed  
-- **RoadTrafficIncidentsWizard** - Enhanced structure and functionality
-  - Fixed white page issue in stage 3 (Location Information)
-  - Corrected case sequence from 1→2→3→4→5→5→6 to proper 1→2→3→4→5→6→7
-  - Added proper renderStep() function structure for React functional component
-  - Balanced all div tags (258 open, 258 close)
-  - Complete 7-stage incident reporting workflow now fully functional
-
-- **Navigation Pattern Improvements** - Enhanced user experience
-  - Added automatic progression with onNext() calls to 402+ wizard selection buttons
-  - Improved wizard flow - selection buttons now automatically advance to next step
-  - Preserved proper UX patterns for checkboxes, toggles, and navigation buttons
-  - Maintained exceptions for Previous/Back, Cancel, and onComplete() buttons
-
-### Technical Details
-- Fixed specific syntax issues in:
-  - SteeringWizard.jsx: Invalid `>` character in JSX text
-  - BuzzersWizard.jsx: Missing closing `}` in conditional expressions
-  - CuttingOutFuelWizard.jsx: Multiple missing closing braces in conditional and replace expressions
-  - ExteriorLightsWizard.jsx: Missing closing braces in conditional expressions
-  - RoadTrafficIncidentsWizard.jsx: Duplicate case clause and missing div structure
-  - AssessmentSummary.jsx: Incorrect import path `../icons.jsx` → `./icons.jsx`
-
-## [1.1.3] - 2025-01-12
-
-### Changed
-- **BatteryWizard.jsx** updated to ensure full compliance with SDC Guide v1.3 and DVSA standards
-  - Streamlined to match SDC's exact two-step assessment flow
-  - Enhanced safety messaging with mandatory engine OFF protocol before belt inspection
-  - Updated decision logic to match SDC Guide exactly:
-    - Belt(s) come off → STOP (can move short distance if no other warnings)
-    - Master switch not engaged → CONTINUE (engage switch and continue)
-    - Master switch engaged → STOP (transmission drive loss risk)
-    - Cannot check belts → AMBER (changeover required)
-  - Added DVSA compliance warnings about electrical system "Dangerous" defects
-  - Emphasized Tranzaura System integration with EP Morris codes
-  - Clarified transmission drive loss risks when master switch is engaged
-
-### Technical Details
-- BatteryWizard now properly passes decision values to onComplete: 'STOP', 'AMBER', or 'CONTINUE'
-- Added clear visual indicators matching decision severity
-- Simplified user flow with fewer steps but more focused assessments
-
-## [1.1.2] - 2025-01-02
+## [1.5.2] - 2024-01-20
 
 ### Added
-- ABS Light PNG icon added to replace emoji fallback
-- Assessment Summary feature for Tracerit reporting
-  - Comprehensive summary at end of each assessment
-  - Includes all key information needed for Tracerit forms
-  - Copy to clipboard functionality
-  - Print and email options
-  - Decision-specific guidance and actions
+- SLA monitoring dashboard
+- Engineering team view
+- Breakdown history search
 
 ### Changed
-- ABSLightWizard now uses PNG icon instead of emoji
-- Updated icon count from 20 to 21 PNG icons
-- Removed ABS Light from missing icons list
-- Assessment flow now includes summary step before completion
-
-## [1.1.1] - 2025-01-12
-
-### Changed
-- **SteeringWizard.jsx** updated to ensure full compliance with SDC Guide v1.3 and DVSA standards
-  - Added explicit reference to DVSA's "Categorisation of Vehicle Defects" document
-  - Emphasised Tranzaura System for defect recording (replacing Go-Check references)
-  - Clarified DVSA 75mm play limit specification for power steering
-  - Added guidance about persistent false reports per SDC requirements
-  - Strengthened "Dangerous defects" classification messaging
-  - Enhanced compliance documentation throughout the wizard
-
-## [1.2.0] - 2025-09-14
-
-### Added
-- Enhanced Road Traffic Incidents wizard with improved flow
-- Auto-generation of incident numbers (RTI-YYYYMMDD-HHMM format)
-- Pre-populated smart defaults for common fields
-- Quick action buttons for common incident scenarios
-- Integration with TraceRit external reporting system
-- Location auto-capture from breakdown coordinates
-- Reverse geocoding for address details
-- Map visualization with OpenStreetMap integration
-- Route type and route number fields
-- Vehicle type dropdown selection
-- Employee injury tracking
-
-### Changed
-- Reordered Road Traffic Incidents wizard steps to match TraceRit form flow
-- Enhanced vehicle and employee information sections
-- Improved safety assessment with critical warnings for injuries
-- Added comprehensive damage assessment options
-
-### Known Issues
-- Button click issues in Step 2 of Road Traffic Incidents wizard (see RoadTrafficIncidentsWizard_FIX_NOTES.md)
-- CCTV status field not yet implemented
-- Fire/Environmental impact section pending
-- Full incident description text area to be added
-
-## [1.1.1] - 2025-01-08
+- Refactored API endpoints
+- Improved error handling
+- Updated documentation
 
 ### Fixed
-- ABSLightWizard "Complete Assessment" button now properly passes decision and notes parameters
-- Fixed onComplete callback to correctly determine final safety decision (STOP/AMBER/CONTINUE)
+- Data synchronization issues
+- Chart rendering problems
+- Form validation bugs
 
-### Changed
-- **ABSLightWizard**: Complete rewrite to align with SDC Engineering Issues Guide v1.3
-  - Removed all EBS (Electronic Braking System) references - SDC Guide only covers ABS
-  - Simplified assessment flow to match SDC's two-step process
-  - Removed "light behavior" question (constant/intermittent) not in SDC Guide
-  - Updated decision logic to match SDC Guide exactly:
-    - Amber ABS → Reset successful = Continue with monitoring
-    - Amber ABS → Reset failed = Changeover at earliest convenience
-    - Red ABS → Reset successful = Changeover at earliest convenience  
-    - Red ABS → Reset failed = Stop immediately, await engineering
-  - Added proper safety messaging per SDC Guide
-  - Updated all Tranzaura references
-
-### Removed
-- Tracerit reporting requirements for ABS Light assessments (not required per SDC Guide)
-- AssessmentSummary now conditionally hides Tracerit section for ABS assessments
-
-### Technical Details
-- ABSLightWizard now passes structured decision data: `onComplete(finalDecision, notes)`
-- Decision values: 'STOP', 'AMBER', or 'CONTINUE'
-- Notes include ABS color, reset status, and action taken
-
-## [1.1.0] - 2024-12-13
+## [1.5.1] - 2024-01-15
 
 ### Added
-- Professional dashboard UI with Go North East branding
-- PNG icon system for assessment types
-- Dashboard statistics cards (Active Breakdowns, Today's Assessments, Avg Response Time)
-- Enhanced header with logo integration
-- Modern dark theme with animations and hover effects
-- Responsive design improvements
+- Dark mode support
+- Export functionality for reports
+- Batch assignment feature
 
 ### Changed
-- **BREAKING**: Migrated from Go-Check to Tranzaura defect tracking system
-- Updated BrakesWizard.jsx to fully align with SDC Guide v1.3
-- Added DVSA "Dangerous defects" classification references
-- Removed location input from BrakesWizard (now handled by map insert)
-- Enhanced safety warnings with PG9 prohibition mentions
-- Improved wizard card styling with red accent hover effects
+- Simplified navigation structure
+- Improved loading states
+- Enhanced accessibility
 
-### Technical Details
-- Icon System:
-  - 20 PNG icons implemented from `/public/icons/`
-  - 10 assessment types using emoji fallbacks (icons to be created)
-  - Icons include: brakes.png, steering.png, oil_warning.png, etc.
-  
-- UI Components:
-  - Enhanced header: `app-header-enhanced` class
-  - New stat cards: `dashboard-stats` section
-  - Improved wizard cards: `wizard-card-enhanced` class
-  - PNG icon support: `wizard-icon-img` and `wizard-icon-png` classes
+### Fixed
+- Memory leaks in dashboard
+- Incorrect time calculations
+- Print layout issues
 
-### Missing Icons (To Be Created)
-1. ABS Light
-2. Cooling System
-3. Low Water
-4. Excessive Smoke
-5. Wipers/Screenwash
-6. Suspension
-7. Warning Lights
-8. Speedo
-9. Interior/Exterior Damage
-10. Buzzers
+## [1.5.0] - 2024-01-10
 
-### Dependencies
-- No new dependencies added
-- All changes are CSS and React component updates
+### Added
+- Breakdown assessment wizard
+- Photo upload capability
+- GPS location tracking
+- Push notifications
 
-### Notes
-- All references to "Go-Check" have been replaced with "Tranzaura"
-- The system is ready for production deployment
-- Future updates should maintain compatibility with Tranzaura API
+### Changed
+- Complete UI redesign
+- New dashboard layout
+- Improved mobile experience
 
-## [1.0.0] - 2024-08-25
+### Fixed
+- Authentication issues
+- Data persistence problems
+- Cross-browser compatibility
 
-### Initial Release
-- Core breakdown assessment system
-- 33 SDC-compliant assessment wizards
-- Supabase integration
-- Basic UI implementation
+## [1.4.0] - 2023-12-15
+
+### Added
+- Fleet intelligence module
+- Predictive maintenance alerts
+- Cost analysis tools
+
+### Changed
+- Database schema optimization
+- API response caching
+- Report generation speed
+
+### Fixed
+- Timezone handling
+- Currency formatting
+- Export functionality
+
+## [1.3.0] - 2023-11-20
+
+### Added
+- Multi-depot support
+- Custom report builder
+- Email notifications
+
+### Changed
+- User permission system
+- Dashboard widgets
+- Search functionality
+
+### Fixed
+- Login redirect issues
+- Data filtering bugs
+- Mobile scrolling problems
+
+## [1.2.0] - 2023-10-15
+
+### Added
+- Offline capability
+- Background sync
+- Service worker
+
+### Changed
+- Performance optimizations
+- Bundle size reduction
+- Loading speed improvements
+
+### Fixed
+- Cache invalidation
+- Stale data issues
+- Network error handling
+
+## [1.1.0] - 2023-09-10
+
+### Added
+- Real-time updates via WebSocket
+- Live map view
+- Driver communication portal
+
+### Changed
+- Notification system
+- Alert priorities
+- Response workflows
+
+### Fixed
+- WebSocket reconnection
+- Map marker clustering
+- Message delivery
+
+## [1.0.0] - 2023-08-01
+
+### Added
+- Initial release
+- Core breakdown management
+- Basic dashboard
+- User authentication
+- SLA tracking
+- Report generation
+
+### Security
+- Implemented role-based access control
+- Added API rate limiting
+- Enhanced data encryption
+
+---
+
+## Version Guidelines
+
+- **Major version (X.0.0)** - Incompatible API changes, major feature additions
+- **Minor version (0.X.0)** - New functionality in a backwards compatible manner
+- **Patch version (0.0.X)** - Backwards compatible bug fixes
+
+## Commit Types
+
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `docs:` - Documentation only changes
+- `style:` - Code style changes (formatting, etc)
+- `refactor:` - Code change that neither fixes a bug nor adds a feature
+- `perf:` - Performance improvement
+- `test:` - Adding or updating tests
+- `chore:` - Changes to build process or auxiliary tools
