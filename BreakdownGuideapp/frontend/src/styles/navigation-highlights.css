@@ -1,0 +1,285 @@
+/**
+ * Navigation Highlight Styles
+ * CSS animations and styles for breakdown card highlighting in SDC Dashboard
+ */
+
+/* Base highlight styles */
+.highlighted {
+  position: relative;
+  z-index: 10;
+  transition: all 0.3s ease;
+}
+
+/* Highlight flash animation */
+.highlight-flash {
+  animation: highlightPulse 2s ease-in-out;
+  box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.8);
+}
+
+@keyframes highlightPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.8);
+  }
+  25% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 20px rgba(59, 130, 246, 0);
+  }
+  50% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.8);
+  }
+  75% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 20px rgba(59, 130, 246, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+/* Flash effect for multiple flashes */
+.flash {
+  background-color: rgba(59, 130, 246, 0.1) !important;
+}
+
+/* Decision-specific highlight colors */
+.highlighted.decision-stop {
+  animation: highlightPulseStop 2s ease-in-out;
+}
+
+@keyframes highlightPulseStop {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.8);
+  }
+  50% {
+    box-shadow: 0 0 0 20px rgba(220, 38, 38, 0);
+  }
+}
+
+.highlighted.decision-amber,
+.highlighted.decision-changeover {
+  animation: highlightPulseAmber 2s ease-in-out;
+}
+
+@keyframes highlightPulseAmber {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.8);
+  }
+  50% {
+    box-shadow: 0 0 0 20px rgba(245, 158, 11, 0);
+  }
+}
+
+.highlighted.decision-continue {
+  animation: highlightPulseContinue 2s ease-in-out;
+}
+
+@keyframes highlightPulseContinue {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.8);
+  }
+  50% {
+    box-shadow: 0 0 0 20px rgba(16, 185, 129, 0);
+  }
+}
+
+/* Breakdown card highlight overlay */
+.breakdown-card.highlighted::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  background: linear-gradient(45deg, 
+    transparent 0%, 
+    rgba(59, 130, 246, 0.3) 50%, 
+    transparent 100%
+  );
+  border-radius: inherit;
+  z-index: -1;
+  animation: shimmer 3s linear infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Focus styles for accessibility */
+.breakdown-card.highlighted:focus {
+  outline: 3px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.breakdown-card.highlighted.decision-stop:focus {
+  outline-color: #dc2626;
+}
+
+.breakdown-card.highlighted.decision-amber:focus,
+.breakdown-card.highlighted.decision-changeover:focus {
+  outline-color: #f59e0b;
+}
+
+.breakdown-card.highlighted.decision-continue:focus {
+  outline-color: #10b981;
+}
+
+/* Highlight badge */
+.highlight-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+  animation: badgeBounce 0.5s ease-out;
+  z-index: 20;
+}
+
+@keyframes badgeBounce {
+  0% {
+    transform: scale(0) rotate(-45deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1) rotate(5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.highlight-badge.new {
+  background: linear-gradient(135deg, #10b981, #059669);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+/* Scroll indicator */
+.scroll-to-highlight {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 30px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 10px 30px rgba(59, 130, 246, 0.3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: scrollIndicatorSlide 0.5s ease-out;
+  z-index: 100;
+  transition: all 0.3s ease;
+}
+
+@keyframes scrollIndicatorSlide {
+  from {
+    transform: translateX(-50%) translateY(100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+.scroll-to-highlight:hover {
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 15px 40px rgba(59, 130, 246, 0.4);
+}
+
+.scroll-to-highlight::after {
+  content: '↓';
+  font-size: 16px;
+  animation: arrowBounce 1s ease-in-out infinite;
+}
+
+@keyframes arrowBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+
+/* Mobile-specific highlight styles */
+@media (max-width: 768px) {
+  .highlight-flash {
+    animation-duration: 1.5s;
+  }
+  
+  .breakdown-card.highlighted::before {
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+  }
+  
+  .highlight-badge {
+    font-size: 10px;
+    padding: 3px 8px;
+    top: -6px;
+    right: -6px;
+  }
+  
+  .scroll-to-highlight {
+    bottom: 10px;
+    padding: 10px 20px;
+    font-size: 12px;
+  }
+}
+
+/* Screen reader only content */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Transition states */
+.highlight-enter {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.highlight-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: all 0.3s ease-out;
+}
+
+.highlight-exit {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.highlight-exit-active {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: all 0.3s ease-in;
+}

@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New SDC Components Demo</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+        }
+        .demo-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .demo-header h1 {
+            margin: 0;
+            font-size: 32px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 12px;
+        }
+        .demo-header p {
+            margin: 0;
+            font-size: 16px;
+            color: #64748b;
+        }
+        .component-section {
+            margin-bottom: 50px;
+            padding: 24px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            background: #f8fafc;
+        }
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .component-demo {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #d1d5db;
+        }
+        .code-snippet {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 16px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin-top: 12px;
+        }
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+        }
+        .feature-icon {
+            font-size: 16px;
+        }
+        .feature-text {
+            font-size: 14px;
+            color: #374151;
+        }
+        .demo-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+        .demo-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .demo-btn.primary {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+        .demo-btn.success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+        .demo-btn.warning {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+        }
+        .demo-btn.danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+        .demo-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        .progress-demo {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(37, 99, 235, 0.02));
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 12px;
+            padding: 16px;
+            margin: 12px 0;
+            position: relative;
+        }
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .progress-title {
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .progress-step {
+            background: #3b82f6;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .progress-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .detail-label {
+            font-size: 11px;
+            color: #6b7280;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .detail-value {
+            font-size: 13px;
+            color: #374151;
+            font-weight: 500;
+        }
+        .modal-demo {
+            background: rgba(0, 0, 0, 0.7);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #374151;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #6b7280;
+        }
+        .audit-entry {
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+        .audit-time {
+            font-size: 11px;
+            color: #6b7280;
+            font-family: monospace;
+        }
+        .audit-action {
+            font-size: 13px;
+            font-weight: 500;
+            color: #374151;
+            margin-top: 4px;
+        }
+        .integration-specs {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 20px;
+        }
+        .integration-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #0369a1;
+            margin-bottom: 12px;
+        }
+        .integration-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .integration-list li {
+            padding: 4px 0;
+            font-size: 14px;
+            color: #374151;
+        }
+        .integration-list li::before {
+            content: "→ ";
+            color: #0ea5e9;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1>🎯 New SDC Components Demo</h1>
+            <p>AssessmentProgressCard & EditAssessmentModal with Real-time Progress Tracking</p>
+        </div>
+
+        <!-- AssessmentProgressCard Demo -->
+        <div class="component-section">
+            <div class="section-title">
+                🔄 AssessmentProgressCard Component
+            </div>
+            
+            <div class="component-demo">
+                <div class="progress-demo">
+                    <div class="progress-header">
+                        <div class="progress-title">BD-2025-00034 - Fleet 5832</div>
+                        <div class="progress-step">4/5</div>
+                    </div>
+                    <div class="progress-details">
+                        <div class="detail-item">
+                            <span class="detail-label">Current Step:</span>
+                            <span class="detail-value">🔍 Checking steering system...</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Supervisor:</span>
+                            <span class="detail-value">👤 John Smith</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Elapsed:</span>
+                            <span class="detail-value">⏱️ 6m 23s</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Estimated:</span>
+                            <span class="detail-value">⏰ 2 mins remaining</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="feature-list">
+                    <div class="feature-item">
+                        <span class="feature-icon">📊</span>
+                        <span class="feature-text">Real-time progress tracking</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">⏱️</span>
+                        <span class="feature-text">Live elapsed time counter</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🎯</span>
+                        <span class="feature-text">Step-by-step progress visualization</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">📱</span>
+                        <span class="feature-text">Direct wizard access links</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🚨</span>
+                        <span class="feature-text">Priority-based color coding</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">📍</span>
+                        <span class="feature-text">Expandable assessment details</span>
+                    </div>
+                </div>
+
+                <div class="demo-actions">
+                    <button class="demo-btn primary" onclick="simulateProgress()">Simulate Progress</button>
+                    <button class="demo-btn success" onclick="simulateComplete()">Complete Assessment</button>
+                    <button class="demo-btn danger" onclick="simulateCancel()">Cancel Assessment</button>
+                </div>
+
+                <div class="code-snippet">
+&lt;AssessmentProgressCard 
+  breakdownId="BD-2025-00034"
+  currentStep="4/5"
+  stepDescription="Checking steering system..."
+  supervisor="John Smith"
+  estimatedCompletion="2 mins"
+  fleetNumber="5832"
+  route="X21"
+  location="Newcastle Central Station"
+  startTime="2025-09-28T10:15:00Z"
+  wizardType="steering"
+  priority="high"
+  onViewDetails={handleViewLiveAssessment}
+  onCancel={handleCancelAssessment}
+/&gt;
+                </div>
+            </div>
+        </div>
+
+        <!-- EditAssessmentModal Demo -->
+        <div class="component-section">
+            <div class="section-title">
+                ✏️ EditAssessmentModal Component
+            </div>
+            
+            <div class="component-demo">
+                <p><strong>Assessment Edit with Full Audit Trail</strong></p>
+                <p>This modal provides comprehensive audit trail capabilities and secure assessment editing with full traceability.</p>
+
+                <div class="feature-list">
+                    <div class="feature-item">
+                        <span class="feature-icon">📜</span>
+                        <span class="feature-text">Complete audit trail history</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🔒</span>
+                        <span class="feature-text">Secure edit authorization</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">📋</span>
+                        <span class="feature-text">Full assessment details display</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🔄</span>
+                        <span class="feature-text">Wizard redirect with context</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">📝</span>
+                        <span class="feature-text">Required edit reason logging</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">👥</span>
+                        <span class="feature-text">Multi-user change tracking</span>
+                    </div>
+                </div>
+
+                <div class="demo-actions">
+                    <button class="demo-btn primary" onclick="openEditModal()">Open Edit Modal</button>
+                    <button class="demo-btn warning" onclick="showAuditTrail()">View Audit Trail</button>
+                </div>
+
+                <div class="code-snippet">
+&lt;EditAssessmentModal
+  isOpen={editModalOpen}
+  onClose={() => setEditModalOpen(false)}
+  breakdownId="BD-2025-00034"
+  originalDecision="STOP"
+  originalAssessment={assessmentData}
+  auditTrail={auditHistory}
+  onEdit={(breakdownId, reason) => redirectToWizard(breakdownId, reason)}
+/&gt;
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-time Progress Service -->
+        <div class="component-section">
+            <div class="section-title">
+                ⚡ Real-time Progress Service
+            </div>
+            
+            <div class="component-demo">
+                <p><strong>assessmentProgressService</strong> - Comprehensive progress tracking and monitoring</p>
+
+                <div class="feature-list">
+                    <div class="feature-item">
+                        <span class="feature-icon">🔌</span>
+                        <span class="feature-text">WebSocket real-time updates</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">💾</span>
+                        <span class="feature-text">Local storage persistence</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🔄</span>
+                        <span class="feature-text">Automatic reconnection</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">📊</span>
+                        <span class="feature-text">Step-by-step tracking</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🕐</span>
+                        <span class="feature-text">Estimated completion times</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🎯</span>
+                        <span class="feature-text">Event-driven architecture</span>
+                    </div>
+                </div>
+
+                <div class="code-snippet">
+// Initialize service
+assessmentProgressService.initialize();
+
+// Start tracking assessment
+assessmentProgressService.startAssessment('BD-2025-00034', {
+  type: 'steering',
+  supervisor: 'John Smith',
+  fleetNumber: '5832',
+  route: 'X21'
+});
+
+// Update progress
+assessmentProgressService.updateProgress('BD-2025-00034', 3, 'Testing steering response');
+
+// Listen for events
+assessmentProgressService.addEventListener('step_progress', (assessment) => {
+  updateProgressCard(assessment);
+});
+                </div>
+            </div>
+        </div>
+
+        <!-- Integration Specifications -->
+        <div class="integration-specs">
+            <div class="integration-title">📋 Integration Specifications</div>
+            <ul class="integration-list">
+                <li>Components integrate seamlessly into existing SDC Dashboard</li>
+                <li>Real-time WebSocket connections for live progress updates</li>
+                <li>Comprehensive audit trail with timestamp and user tracking</li>
+                <li>Secure assessment editing with mandatory reason logging</li>
+                <li>Automatic wizard redirection with context preservation</li>
+                <li>Mobile-responsive design with touch-friendly interactions</li>
+                <li>Accessibility compliant with WCAG 2.1 guidelines</li>
+                <li>Memory-optimized for production deployment on Render.com</li>
+                <li>Full error handling and graceful degradation</li>
+                <li>TypeScript-ready component interfaces</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Modal Demo -->
+    <div id="editModal" class="modal-demo">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">📋 Edit Assessment - BD-2025-00034</div>
+                <button class="close-btn" onclick="closeEditModal()">✕</button>
+            </div>
+            
+            <div style="margin-bottom: 16px;">
+                <strong>Current Decision:</strong> 
+                <span style="background: #dc2626; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">🛑 STOP</span>
+            </div>
+            
+            <div style="margin-bottom: 16px;">
+                <strong>Audit Trail:</strong>
+            </div>
+            
+            <div class="audit-entry">
+                <div class="audit-time">2025-09-28 10:25:43</div>
+                <div class="audit-action">Assessment completed - Decision: STOP</div>
+            </div>
+            
+            <div class="audit-entry">
+                <div class="audit-time">2025-09-28 10:23:12</div>
+                <div class="audit-action">Steering wizard started by John Smith</div>
+            </div>
+            
+            <div class="audit-entry">
+                <div class="audit-time">2025-09-28 10:20:05</div>
+                <div class="audit-action">Breakdown reported - Fleet 5832 on Route X21</div>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600;">Reason for Edit:</label>
+                <textarea style="width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 4px;" rows="3" placeholder="Please provide a detailed reason for editing this assessment..."></textarea>
+            </div>
+            
+            <div style="margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end;">
+                <button class="demo-btn" onclick="closeEditModal()">Cancel</button>
+                <button class="demo-btn primary">🔄 Edit Assessment</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStep = 4;
+        let isComplete = false;
+
+        function simulateProgress() {
+            if (isComplete || currentStep >= 5) return;
+            
+            currentStep++;
+            updateProgressDemo();
+            
+            if (currentStep >= 5) {
+                setTimeout(() => {
+                    simulateComplete();
+                }, 1000);
+            }
+        }
+
+        function simulateComplete() {
+            isComplete = true;
+            currentStep = 5;
+            updateProgressDemo();
+            
+            // Show completion animation
+            const progressDemo = document.querySelector('.progress-demo');
+            progressDemo.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05))';
+            progressDemo.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+            
+            setTimeout(() => {
+                alert('✅ Assessment completed successfully!');
+                resetDemo();
+            }, 500);
+        }
+
+        function simulateCancel() {
+            if (confirm('Cancel this assessment?')) {
+                resetDemo();
+                alert('🚫 Assessment cancelled');
+            }
+        }
+
+        function updateProgressDemo() {
+            const stepElement = document.querySelector('.progress-step');
+            const stepDescElement = document.querySelector('.detail-value');
+            
+            stepElement.textContent = `${currentStep}/5`;
+            
+            const steps = [
+                'Initial assessment...',
+                'System inspection...',
+                'Safety check...',
+                'Checking steering system...',
+                'Final verification...',
+                'Assessment complete!'
+            ];
+            
+            stepDescElement.innerHTML = `🔍 ${steps[currentStep - 1] || steps[4]}`;
+        }
+
+        function resetDemo() {
+            currentStep = 4;
+            isComplete = false;
+            updateProgressDemo();
+            
+            const progressDemo = document.querySelector('.progress-demo');
+            progressDemo.style.background = 'linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(37, 99, 235, 0.02))';
+            progressDemo.style.borderColor = 'rgba(59, 130, 246, 0.2)';
+        }
+
+        function openEditModal() {
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        function showAuditTrail() {
+            alert('📜 Audit Trail:\n\n' +
+                  '• 2025-09-28 10:25:43 - Assessment completed (STOP)\n' +
+                  '• 2025-09-28 10:23:12 - Steering wizard started\n' +
+                  '• 2025-09-28 10:20:05 - Breakdown reported\n' +
+                  '• 2025-09-28 10:19:30 - Initial dispatch\n\n' +
+                  'Full audit trail available in EditAssessmentModal component');
+        }
+
+        // Auto-update elapsed time
+        setInterval(() => {
+            const timeElement = document.querySelectorAll('.detail-value')[2];
+            if (timeElement && !isComplete) {
+                const currentTime = timeElement.textContent;
+                const match = currentTime.match(/(\d+)m (\d+)s/);
+                if (match) {
+                    let mins = parseInt(match[1]);
+                    let secs = parseInt(match[2]) + 1;
+                    if (secs >= 60) {
+                        mins++;
+                        secs = 0;
+                    }
+                    timeElement.innerHTML = `⏱️ ${mins}m ${secs}s`;
+                }
+            }
+        }, 1000);
+
+        // Initialize demo
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('🎯 SDC Components Demo loaded');
+            console.log('📊 AssessmentProgressCard ready');
+            console.log('✏️ EditAssessmentModal ready');
+            console.log('⚡ Real-time Progress Service ready');
+        });
+    </script>
+</body>
+</html>

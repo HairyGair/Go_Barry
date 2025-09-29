@@ -1,15 +1,63 @@
-import React from 'react';
+import React, { useState, memo } from 'react';
+import { getWizardInfo } from './utils/wizardTypeMapping';
 
-const SDCBreakdownCard = ({ 
+const SDCBreakdownCard = memo(({ 
   breakdown, 
   onAcknowledge, 
   onMakeDecision, 
   onRequestEngineering,
-  animationDelay = 0
+  onEditAssessment,
+  animationDelay = 0,
+  isHighlighted = false,
+  engineeringTimer = null,
+  recentlyCompleted = false
 }) => {
-  // Determine criticality class
+  const [showAssessmentDetails, setShowAssessmentDetails] = useState(false);
+  const [showWizardResponses, setShowWizardResponses] = useState(false);
+
+  // Determine criticality class with decision color coding
   const getCriticalityClass = () => {
+    // Decision-based color coding (primary)
+    if (breakdown.decision || breakdown.severity || breakdown.wizard_decision) {
+      const decision = (breakdown.decision || breakdown.severity || breakdown.wizard_decision).toLowerCase();
+      switch (decision) {
+        case 'stop': return 'breakdown-card--stop-decision';
+        case 'amber': return 'breakdown-card--amber-decision';
+        case 'continue': return 'breakdown-card--continue-decision';
+        default: break;
+      }
+    }
+    
+    // Assessment progress color coding
+    if (breakdown.inAssessment || breakdown.hasActiveAssessment) {
+      return 'breakdown-card--in-progress';
+    }
+    
+    // Fallback to criticality
     return breakdown.criticality || 'normal';
+  };
+
+  // Get wizard information for enhanced display
+  const wizardInfo = getWizardInfo(breakdown.wizard_type || breakdown.issue_category || breakdown.assessmentType);
+
+  // Format assessment duration
+  const formatDuration = (seconds) => {
+    if (!seconds) return 'Unknown';
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins === 0) return `${secs}s`;
+    return `${mins}m ${secs}s`;
+  };
+
+  // Format completion time
+  const formatCompletionTime = (timestamp) => {
+    if (!timestamp) return 'Unknown';
+    return new Date(timestamp).toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
   
   // Get status icon
@@ -35,13 +83,41 @@ const SDCBreakdownCard = ({
 
   return (
     <div 
-      className={`sdc-breakdown-card ${getCriticalityClass()}`}
+      className={`sdc-breakdown-card ${getCriticalityClass()} ${isHighlighted ? 'highlighted' : ''} ${breakdown.inAssessment ? 'in-assessment' : ''} ${recentlyCompleted ? 'recently-completed' : ''} ${engineeringTimer ? 'has-timer' : ''}`}
       style={{ animationDelay: `${animationDelay}s` }}
     >
       {/* Priority Badge */}
       {breakdown.isPriority && (
         <div className="priority-badge">
           <span>⚠️ Priority Route</span>
+        </div>
+      )}
+      
+      {/* Assessment Status Badge */}
+      {breakdown.inAssessment && (
+        <div className="assessment-badge">
+          <span>🔄 Assessment In Progress</span>
+        </div>
+      )}
+      
+      {/* Completion Highlighting */}
+      {recentlyCompleted && (
+        <div className="completion-badge">
+          <span>✨ Assessment Just Completed</span>
+        </div>
+      )}
+      
+      {/* Engineering Timer Badge */}
+      {engineeringTimer && (
+        <div className="timer-badge">
+          <span>⏰ Engineering: {Math.floor(engineeringTimer.remaining / 60000)}:{Math.floor((engineeringTimer.remaining % 60000) / 1000).toString().padStart(2, '0')}</span>
+        </div>
+      )}
+      
+      {/* Highlighted Badge */}
+      {isHighlighted && !recentlyCompleted && (
+        <div className="highlight-badge">
+          <span>✨ Recently Updated</span>
         </div>
       )}
       
@@ -125,6 +201,152 @@ const SDCBreakdownCard = ({
           </div>
         )}
       </div>
+
+      {/* Comprehensive Assessment Results */}
+      {(breakdown.wizard_decision || breakdown.severity) && (
+        <div className="assessment-results-section">
+          <div className="results-header" onClick={() => setShowAssessmentDetails(!showAssessmentDetails)}>
+            <div className="results-title">
+              <span className="results-icon">{wizardInfo.icon}</span>
+              <span className="results-text">Assessment Results</span>
+              {breakdown.sdcGuideSection && (
+                <span className="guide-section">({breakdown.sdcGuideSection || `${wizardInfo.displayName} Assessment`})</span>
+              )}
+            </div>
+            <div className="expand-toggle">
+              <span className={`toggle-arrow ${showAssessmentDetails ? 'expanded' : ''}`}>▼</span>
+            </div>
+          </div>
+
+          {showAssessmentDetails && (
+            <div className="results-expanded">
+              {/* Decision Summary */}
+              <div className="decision-summary">
+                <div className="decision-main">
+                  <div className={`decision-indicator ${(breakdown.wizard_decision || breakdown.severity || '').toLowerCase()}`}>
+                    <span className="decision-icon">
+                      {(breakdown.wizard_decision || breakdown.severity) === 'STOP' ? '🛑' : 
+                       (breakdown.wizard_decision || breakdown.severity) === 'AMBER' ? '⚠️' : '✅'}
+                    </span>
+                    <span className="decision-text">{breakdown.wizard_decision || breakdown.severity}</span>
+                  </div>
+                  <div className="decision-meta">
+                    {breakdown.completedAt && (
+                      <span className="completion-time">
+                        ✓ Completed: {formatCompletionTime(breakdown.completedAt)}
+                      </span>
+                    )}
+                    {breakdown.assessmentDuration && (
+                      <span className="assessment-duration">
+                        ⏱️ Duration: {formatDuration(breakdown.assessmentDuration)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Decision Reason */}
+                {breakdown.decisionReason && (
+                  <div className="decision-reason">
+                    <h4>🔍 Decision Reason</h4>
+                    <p>{breakdown.decisionReason}</p>
+                  </div>
+                )}
+
+                {/* DVSA Reference */}
+                {wizardInfo.dvsa_reference && (
+                  <div className="dvsa-reference">
+                    <h4>📋 DVSA Reference</h4>
+                    <p>{wizardInfo.dvsa_reference}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Recommended Actions */}
+              {(breakdown.recommendedActions && breakdown.recommendedActions.length > 0) && (
+                <div className="recommended-actions">
+                  <h4>📝 Recommended Actions</h4>
+                  <ul className="actions-list">
+                    {breakdown.recommendedActions.map((action, index) => (
+                      <li key={index} className="action-item">
+                        <span className="action-number">{index + 1}</span>
+                        <span className="action-text">{action.description || action}</span>
+                        {action.priority && (
+                          <span className={`action-priority ${action.priority}`}>
+                            {action.priority.toUpperCase()}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Wizard Responses Summary */}
+              {breakdown.wizardResponses && Object.keys(breakdown.wizardResponses).length > 0 && (
+                <div className="wizard-responses">
+                  <div className="responses-header" onClick={() => setShowWizardResponses(!showWizardResponses)}>
+                    <h4>🔬 Assessment Details</h4>
+                    <span className={`responses-toggle ${showWizardResponses ? 'expanded' : ''}`}>
+                      {showWizardResponses ? '▲' : '▼'} {Object.keys(breakdown.wizardResponses).length} steps
+                    </span>
+                  </div>
+                  
+                  {showWizardResponses && (
+                    <div className="responses-list">
+                      {Object.entries(breakdown.wizardResponses).map(([step, response], index) => (
+                        <div key={step} className="response-item">
+                          <div className="response-header">
+                            <span className="step-number">{index + 1}</span>
+                            <span className="step-label">
+                              {step.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).replace(/step\d+/i, 'Step')}
+                            </span>
+                          </div>
+                          <div className="response-content">
+                            {typeof response === 'object' ? JSON.stringify(response) : response}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Assessment Timeline */}
+              {(breakdown.startedAt || breakdown.completedAt) && (
+                <div className="assessment-timeline-summary">
+                  <h4>⏰ Assessment Timeline</h4>
+                  <div className="timeline-grid">
+                    {breakdown.startedAt && (
+                      <div className="timeline-item">
+                        <span className="timeline-label">Started:</span>
+                        <span className="timeline-value">{formatCompletionTime(breakdown.startedAt)}</span>
+                      </div>
+                    )}
+                    {breakdown.completedAt && (
+                      <div className="timeline-item">
+                        <span className="timeline-label">Completed:</span>
+                        <span className="timeline-value">{formatCompletionTime(breakdown.completedAt)}</span>
+                      </div>
+                    )}
+                    {breakdown.assessmentDuration && (
+                      <div className="timeline-item">
+                        <span className="timeline-label">Total Duration:</span>
+                        <span className="timeline-value">{formatDuration(breakdown.assessmentDuration)}</span>
+                      </div>
+                    )}
+                    {breakdown.supervisor_name && (
+                      <div className="timeline-item">
+                        <span className="timeline-label">Assessed by:</span>
+                        <span className="timeline-value">{breakdown.supervisor_name}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       
       <div className="breakdown-actions">
         {breakdown.currentStage === 'received' && (
@@ -149,6 +371,17 @@ const SDCBreakdownCard = ({
             onClick={() => onRequestEngineering(breakdown.breakdown_id)}
           >
             🔧 Engineering
+          </button>
+        )}
+        
+        {/* Edit Assessment Button - Show if assessment exists */}
+        {(breakdown.wizard_decision || breakdown.severity) && onEditAssessment && (
+          <button 
+            className="action-btn edit-assessment" 
+            onClick={() => onEditAssessment(breakdown.breakdown_id)}
+            title="Edit the original assessment for this breakdown"
+          >
+            ✏️ Edit Assessment
           </button>
         )}
       </div>
@@ -180,6 +413,67 @@ const SDCBreakdownCard = ({
           to {
             opacity: 1;
             transform: translateY(0);
+          }
+        }
+
+        /* Decision Color Coding */
+        .breakdown-card--stop-decision {
+          border-left: 4px solid #ef4444 !important;
+          background: 
+            linear-gradient(135deg, rgba(254, 226, 226, 0.98) 0%, rgba(253, 242, 242, 0.95) 100%),
+            radial-gradient(circle at 80% 20%, rgba(239, 68, 68, 0.08) 0%, transparent 50%);
+          box-shadow: 
+            0 4px 20px rgba(239, 68, 68, 0.15),
+            0 2px 8px rgba(239, 68, 68, 0.1),
+            inset 0 2px 0 rgba(255,255,255,0.7);
+        }
+
+        .breakdown-card--amber-decision {
+          border-left: 4px solid #f59e0b !important;
+          background: 
+            linear-gradient(135deg, rgba(254, 243, 199, 0.98) 0%, rgba(253, 246, 178, 0.95) 100%),
+            radial-gradient(circle at 80% 20%, rgba(245, 158, 11, 0.08) 0%, transparent 50%);
+          box-shadow: 
+            0 4px 20px rgba(245, 158, 11, 0.15),
+            0 2px 8px rgba(245, 158, 11, 0.1),
+            inset 0 2px 0 rgba(255,255,255,0.7);
+        }
+
+        .breakdown-card--continue-decision {
+          border-left: 4px solid #10b981 !important;
+          background: 
+            linear-gradient(135deg, rgba(220, 252, 231, 0.98) 0%, rgba(209, 250, 229, 0.95) 100%),
+            radial-gradient(circle at 80% 20%, rgba(16, 185, 129, 0.08) 0%, transparent 50%);
+          box-shadow: 
+            0 4px 20px rgba(16, 185, 129, 0.15),
+            0 2px 8px rgba(16, 185, 129, 0.1),
+            inset 0 2px 0 rgba(255,255,255,0.7);
+        }
+
+        .breakdown-card--in-progress {
+          border-left: 4px solid #3b82f6 !important;
+          background: 
+            linear-gradient(135deg, rgba(219, 234, 254, 0.98) 0%, rgba(239, 246, 255, 0.95) 100%),
+            radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%);
+          box-shadow: 
+            0 4px 20px rgba(59, 130, 246, 0.15),
+            0 2px 8px rgba(59, 130, 246, 0.1),
+            inset 0 2px 0 rgba(255,255,255,0.7);
+          animation: pulseInProgress 3s infinite;
+        }
+
+        @keyframes pulseInProgress {
+          0%, 100% { 
+            box-shadow: 
+              0 4px 20px rgba(59, 130, 246, 0.15),
+              0 2px 8px rgba(59, 130, 246, 0.1),
+              inset 0 2px 0 rgba(255,255,255,0.7);
+          }
+          50% { 
+            box-shadow: 
+              0 6px 25px rgba(59, 130, 246, 0.25),
+              0 3px 12px rgba(59, 130, 246, 0.15),
+              inset 0 2px 0 rgba(255,255,255,0.7);
           }
         }
 
@@ -232,6 +526,49 @@ const SDCBreakdownCard = ({
           border: 1px solid rgba(245,158,11,0.3);
         }
 
+        .sdc-breakdown-card.highlighted {
+          background: linear-gradient(135deg, rgba(236,254,255,0.98) 0%, rgba(207,250,254,0.95) 100%);
+          border: 2px solid rgba(6,182,212,0.4);
+          animation: fadeInUp 0.6s both, highlightGlow 3s ease-in-out;
+        }
+
+        .sdc-breakdown-card.in-assessment {
+          background: linear-gradient(135deg, rgba(240,253,244,0.98) 0%, rgba(220,252,231,0.95) 100%);
+          border: 1px solid rgba(34,197,94,0.3);
+        }
+
+        .sdc-breakdown-card.in-assessment::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 2px;
+          background: linear-gradient(90deg, transparent, #22c55e, transparent);
+          opacity: 0.8;
+          animation: shimmer 2s infinite;
+        }
+
+        @keyframes highlightGlow {
+          0%, 100% { 
+            box-shadow: 
+              0 4px 15px rgba(6,182,212,0.15),
+              0 1px 3px rgba(6,182,212,0.1),
+              inset 0 1px 0 rgba(255,255,255,0.5);
+          }
+          50% { 
+            box-shadow: 
+              0 8px 30px rgba(6,182,212,0.25),
+              0 2px 6px rgba(6,182,212,0.15),
+              inset 0 1px 0 rgba(255,255,255,0.5);
+          }
+        }
+
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+
         .priority-badge {
           position: absolute;
           top: -12px;
@@ -254,6 +591,44 @@ const SDCBreakdownCard = ({
         @keyframes bounce {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-2px); }
+        }
+
+        .assessment-badge {
+          position: absolute;
+          top: -12px;
+          left: 24px;
+          background: linear-gradient(135deg, #22c55e, #16a34a);
+          color: white;
+          padding: 6px 16px;
+          border-radius: 24px;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+          text-transform: uppercase;
+          box-shadow: 
+            0 4px 12px rgba(34,197,94,0.4),
+            0 2px 4px rgba(34,197,94,0.2);
+          animation: pulse 2s infinite;
+          border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .highlight-badge {
+          position: absolute;
+          top: -12px;
+          right: 120px;
+          background: linear-gradient(135deg, #06b6d4, #0891b2);
+          color: white;
+          padding: 6px 16px;
+          border-radius: 24px;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+          text-transform: uppercase;
+          box-shadow: 
+            0 4px 12px rgba(6,182,212,0.4),
+            0 2px 4px rgba(6,182,212,0.2);
+          animation: bounce 2s infinite;
+          border: 1px solid rgba(255,255,255,0.2);
         }
 
         @keyframes pulse-shadow {
@@ -646,6 +1021,115 @@ const SDCBreakdownCard = ({
           border-color: rgba(16, 185, 129, 0.3);
         }
 
+        .action-btn.edit-assessment {
+          background: linear-gradient(135deg, #a855f7, #9333ea);
+          color: white;
+          border-color: rgba(147, 51, 234, 0.2);
+          box-shadow: 
+            0 2px 8px rgba(147, 51, 234, 0.2),
+            inset 0 1px 0 rgba(255,255,255,0.2);
+        }
+
+        .action-btn.edit-assessment:hover {
+          transform: translateY(-2px);
+          box-shadow: 
+            0 6px 20px rgba(147, 51, 234, 0.3),
+            inset 0 1px 0 rgba(255,255,255,0.3);
+          border-color: rgba(147, 51, 234, 0.3);
+        }
+
+        /* New Badge Styles */
+        .completion-badge {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          background: linear-gradient(135deg, #10b981, #059669);
+          color: white;
+          padding: 6px 12px;
+          border-radius: 12px;
+          font-size: 11px;
+          font-weight: 700;
+          box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+          animation: completionPulse 2s infinite;
+          z-index: 10;
+        }
+
+        @keyframes completionPulse {
+          0%, 100% {
+            transform: scale(1);
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+          }
+          50% {
+            transform: scale(1.05);
+            box-shadow: 0 4px 16px rgba(16, 185, 129, 0.5);
+          }
+        }
+
+        .timer-badge {
+          position: absolute;
+          top: 12px;
+          left: 12px;
+          background: linear-gradient(135deg, #dc2626, #b91c1c);
+          color: white;
+          padding: 6px 12px;
+          border-radius: 12px;
+          font-size: 11px;
+          font-weight: 700;
+          box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+          animation: timerPulse 1s infinite;
+          z-index: 10;
+        }
+
+        @keyframes timerPulse {
+          0%, 100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+          50% {
+            transform: scale(1.02);
+            opacity: 0.9;
+          }
+        }
+
+        .sdc-breakdown-card.recently-completed {
+          background: 
+            linear-gradient(135deg, rgba(220, 252, 231, 0.98) 0%, rgba(187, 247, 208, 0.95) 100%),
+            radial-gradient(circle at 20% 80%, rgba(16, 185, 129, 0.08) 0%, transparent 50%);
+          border: 2px solid rgba(16, 185, 129, 0.4);
+          animation: fadeInUp 0.6s both, completionGlow 3s infinite;
+        }
+
+        @keyframes completionGlow {
+          0%, 100% {
+            border-color: rgba(16, 185, 129, 0.4);
+            box-shadow: 
+              0 4px 20px rgba(0,0,0,0.04),
+              0 2px 8px rgba(0,0,0,0.06),
+              inset 0 2px 0 rgba(255,255,255,0.7);
+          }
+          50% {
+            border-color: rgba(16, 185, 129, 0.6);
+            box-shadow: 
+              0 8px 30px rgba(16, 185, 129, 0.15),
+              0 4px 12px rgba(16, 185, 129, 0.1),
+              inset 0 2px 0 rgba(255,255,255,0.8);
+          }
+        }
+
+        .sdc-breakdown-card.has-timer {
+          border-left: 4px solid #dc2626;
+          animation: fadeInUp 0.6s both, timerAlert 2s infinite;
+        }
+
+        @keyframes timerAlert {
+          0%, 100% {
+            border-left-color: #dc2626;
+          }
+          50% {
+            border-left-color: #ef4444;
+          }
+        }
+
         @media (max-width: 640px) {
           .breakdown-info {
             grid-template-columns: 1fr;
@@ -655,10 +1139,460 @@ const SDCBreakdownCard = ({
           .breakdown-actions {
             grid-template-columns: 1fr;
           }
+
+          .completion-badge,
+          .timer-badge {
+            position: static;
+            margin-top: 8px;
+            align-self: flex-start;
+          }
+        }
+
+        /* Assessment Results Section Styles */
+        .assessment-results-section {
+          margin-top: 20px;
+          border-top: 1px solid rgba(226, 232, 240, 0.5);
+          padding-top: 16px;
+        }
+
+        .results-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px 16px;
+          background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(59, 130, 246, 0.02));
+          border: 1px solid rgba(59, 130, 246, 0.2);
+          border-radius: 12px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          margin-bottom: 12px;
+        }
+
+        .results-header:hover {
+          background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(59, 130, 246, 0.04));
+          border-color: rgba(59, 130, 246, 0.3);
+          transform: translateY(-1px);
+        }
+
+        .results-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .results-icon {
+          font-size: 16px;
+        }
+
+        .results-text {
+          font-size: 14px;
+          font-weight: 600;
+          color: #1e293b;
+        }
+
+        .guide-section {
+          font-size: 12px;
+          color: #64748b;
+          font-weight: 500;
+          margin-left: 4px;
+        }
+
+        .expand-toggle {
+          display: flex;
+          align-items: center;
+        }
+
+        .toggle-arrow {
+          font-size: 12px;
+          color: #64748b;
+          transition: transform 0.3s ease;
+        }
+
+        .toggle-arrow.expanded {
+          transform: rotate(180deg);
+        }
+
+        .results-expanded {
+          background: rgba(248, 250, 252, 0.5);
+          border-radius: 12px;
+          padding: 20px;
+          animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        /* Decision Summary Styles */
+        .decision-summary {
+          margin-bottom: 20px;
+        }
+
+        .decision-main {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 16px;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+
+        .decision-indicator {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 16px;
+          border-radius: 12px;
+          font-weight: 700;
+        }
+
+        .decision-indicator.stop {
+          background: linear-gradient(135deg, rgba(220, 38, 38, 0.1), rgba(220, 38, 38, 0.05));
+          color: #dc2626;
+          border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+
+        .decision-indicator.amber {
+          background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05));
+          color: #d97706;
+          border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .decision-indicator.continue {
+          background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+          color: #059669;
+          border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .decision-icon {
+          font-size: 18px;
+        }
+
+        .decision-text {
+          font-size: 14px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .decision-meta {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          align-items: flex-end;
+          font-size: 12px;
+          color: #64748b;
+        }
+
+        .completion-time,
+        .assessment-duration {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .decision-reason,
+        .dvsa-reference {
+          background: rgba(255, 255, 255, 0.7);
+          border: 1px solid rgba(226, 232, 240, 0.8);
+          border-radius: 8px;
+          padding: 12px;
+          margin-bottom: 12px;
+        }
+
+        .decision-reason h4,
+        .dvsa-reference h4 {
+          margin: 0 0 8px 0;
+          font-size: 13px;
+          font-weight: 600;
+          color: #374151;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .decision-reason p,
+        .dvsa-reference p {
+          margin: 0;
+          font-size: 13px;
+          color: #4b5563;
+          line-height: 1.5;
+        }
+
+        /* Recommended Actions Styles */
+        .recommended-actions {
+          margin-bottom: 20px;
+        }
+
+        .recommended-actions h4 {
+          margin: 0 0 12px 0;
+          font-size: 13px;
+          font-weight: 600;
+          color: #374151;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .actions-list {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .action-item {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 10px 12px;
+          background: rgba(255, 255, 255, 0.8);
+          border: 1px solid rgba(226, 232, 240, 0.6);
+          border-radius: 8px;
+          transition: all 0.2s ease;
+        }
+
+        .action-item:hover {
+          background: rgba(255, 255, 255, 0.95);
+          border-color: rgba(203, 213, 225, 0.8);
+          transform: translateX(2px);
+        }
+
+        .action-number {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 20px;
+          height: 20px;
+          background: linear-gradient(135deg, #3b82f6, #2563eb);
+          color: white;
+          border-radius: 50%;
+          font-size: 11px;
+          font-weight: 700;
+          flex-shrink: 0;
+        }
+
+        .action-text {
+          flex: 1;
+          font-size: 13px;
+          color: #374151;
+          line-height: 1.4;
+        }
+
+        .action-priority {
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-size: 10px;
+          font-weight: 700;
+          text-transform: uppercase;
+        }
+
+        .action-priority.critical {
+          background: rgba(220, 38, 38, 0.1);
+          color: #dc2626;
+        }
+
+        .action-priority.high {
+          background: rgba(245, 158, 11, 0.1);
+          color: #d97706;
+        }
+
+        .action-priority.medium {
+          background: rgba(59, 130, 246, 0.1);
+          color: #2563eb;
+        }
+
+        .action-priority.low {
+          background: rgba(16, 185, 129, 0.1);
+          color: #059669;
+        }
+
+        /* Wizard Responses Styles */
+        .wizard-responses {
+          margin-bottom: 20px;
+        }
+
+        .responses-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          cursor: pointer;
+          padding: 8px 0;
+          border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+        }
+
+        .responses-header h4 {
+          margin: 0;
+          font-size: 13px;
+          font-weight: 600;
+          color: #374151;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .responses-toggle {
+          font-size: 12px;
+          color: #64748b;
+          font-weight: 500;
+          transition: transform 0.3s ease;
+        }
+
+        .responses-toggle.expanded {
+          transform: rotate(180deg);
+        }
+
+        .responses-list {
+          margin-top: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .response-item {
+          background: rgba(255, 255, 255, 0.6);
+          border: 1px solid rgba(226, 232, 240, 0.5);
+          border-radius: 6px;
+          padding: 10px;
+        }
+
+        .response-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 6px;
+        }
+
+        .step-number {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 16px;
+          height: 16px;
+          background: #64748b;
+          color: white;
+          border-radius: 50%;
+          font-size: 10px;
+          font-weight: 700;
+          flex-shrink: 0;
+        }
+
+        .step-label {
+          font-size: 12px;
+          font-weight: 600;
+          color: #374151;
+        }
+
+        .response-content {
+          font-size: 12px;
+          color: #4b5563;
+          line-height: 1.4;
+          padding-left: 24px;
+          font-style: italic;
+        }
+
+        /* Assessment Timeline Summary Styles */
+        .assessment-timeline-summary {
+          margin-bottom: 16px;
+        }
+
+        .assessment-timeline-summary h4 {
+          margin: 0 0 12px 0;
+          font-size: 13px;
+          font-weight: 600;
+          color: #374151;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .timeline-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+          gap: 8px;
+        }
+
+        .timeline-item {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          padding: 8px;
+          background: rgba(255, 255, 255, 0.7);
+          border: 1px solid rgba(226, 232, 240, 0.6);
+          border-radius: 6px;
+        }
+
+        .timeline-label {
+          font-size: 11px;
+          color: #64748b;
+          font-weight: 500;
+        }
+
+        .timeline-value {
+          font-size: 12px;
+          color: #374151;
+          font-weight: 600;
+        }
+
+        @media (max-width: 640px) {
+          .decision-main {
+            flex-direction: column;
+            align-items: stretch;
+          }
+
+          .decision-meta {
+            align-items: flex-start;
+          }
+
+          .timeline-grid {
+            grid-template-columns: 1fr;
+          }
+
+          .action-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+          }
+
+          .action-number {
+            align-self: flex-start;
+          }
         }
       `}</style>
     </div>
   );
-};
+}, (prevProps, nextProps) => {
+  // Custom comparison function for memo - prevent re-render if key props haven't changed
+  const prevBreakdown = prevProps.breakdown || {};
+  const nextBreakdown = nextProps.breakdown || {};
+  
+  return (
+    prevBreakdown.id === nextBreakdown.id &&
+    prevBreakdown.breakdown_id === nextBreakdown.breakdown_id &&
+    prevBreakdown.status === nextBreakdown.status &&
+    prevBreakdown.severity === nextBreakdown.severity &&
+    prevBreakdown.wizard_decision === nextBreakdown.wizard_decision &&
+    prevBreakdown.acknowledged_at === nextBreakdown.acknowledged_at &&
+    prevBreakdown.decision_at === nextBreakdown.decision_at &&
+    prevBreakdown.engineer_assigned === nextBreakdown.engineer_assigned &&
+    prevBreakdown.assessment_status === nextBreakdown.assessment_status &&
+    prevBreakdown.assessment_progress === nextBreakdown.assessment_progress &&
+    prevProps.isHighlighted === nextProps.isHighlighted &&
+    prevProps.recentlyCompleted === nextProps.recentlyCompleted &&
+    prevProps.animationDelay === nextProps.animationDelay &&
+    JSON.stringify(prevProps.engineeringTimer) === JSON.stringify(nextProps.engineeringTimer)
+  );
+});
+
+// Add display name for debugging
+SDCBreakdownCard.displayName = 'SDCBreakdownCard';
 
 export default SDCBreakdownCard;

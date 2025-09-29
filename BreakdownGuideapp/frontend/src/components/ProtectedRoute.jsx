@@ -195,7 +195,7 @@ const LoadingSpinner = () => (
             </div>
         </div>
 
-        <style jsx="true">{`
+        <style jsx>{`
             .protected-route-loading {
                 min-height: 100vh;
                 display: flex;
@@ -293,7 +293,7 @@ const AdminRequiredMessage = ({ user }) => (
             </div>
         </div>
 
-        <style jsx="true">{`
+        <style jsx>{`
             .access-denied-container {
                 min-height: 100vh;
                 display: flex;
@@ -461,7 +461,7 @@ const AccessDeniedMessage = ({ reason, user, requiredRole, requiredPermission })
                 </div>
             </div>
 
-            <style jsx="true">{`
+            <style jsx>{`
                 .access-denied-container {
                     min-height: 100vh;
                     display: flex;

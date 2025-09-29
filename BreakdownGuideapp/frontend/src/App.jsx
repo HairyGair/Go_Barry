@@ -22,8 +22,9 @@ import BreakdownGuideApp from './breakdown-guide/App.jsx'
 // Import Dashboard Router
 import { DashboardRouter } from './dashboards'
 
-// Import HomePage component
+// Import HomePage and LoginPage components
 import HomePage from './components/HomePage.jsx'
+import LoginPage from './components/LoginPage.jsx'
 
 // Import NotificationPanel
 import NotificationPanel from './components/NotificationPanel.jsx'
@@ -309,7 +310,7 @@ const AppContent = () => {
 
       <main className={`main-container ${hideNav ? 'no-nav' : ''} ${useModernHeader && !hideNav ? 'with-modern-header' : ''}`}>
         <Routes>
-          <Route path="/login" element={<SupervisorLoginWithContext />} />
+          <Route path="/login" element={<LoginPage />} />
           <Route
             path="/"
             element={

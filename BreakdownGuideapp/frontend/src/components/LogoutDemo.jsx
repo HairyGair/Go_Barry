@@ -210,7 +210,7 @@ const tracker = new ActivityTracker(
                 </>
             )}
 
-            <style jsx="true">{`
+            <style jsx>{`
                 .logout-demo {
                     max-width: 800px;
                     margin: 20px auto;

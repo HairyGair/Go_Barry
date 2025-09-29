@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connection Manager Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .status-card {
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #ccc;
+        }
+        .status-card.connected {
+            border-left-color: #10b981;
+            background: #f0fdf4;
+        }
+        .status-card.disconnected {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        .status-card.polling {
+            border-left-color: #3b82f6;
+            background: #eff6ff;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .log {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 6px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .timestamp {
+            color: #888;
+        }
+        .error {
+            color: #ff4444;
+        }
+        .success {
+            color: #44ff44;
+        }
+        .info {
+            color: #4488ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 WebSocket + Polling Hybrid Connection Test</h1>
+        
+        <div class="status-grid">
+            <div class="status-card" id="connectionStatus">
+                <h3>Connection Status</h3>
+                <div>State: <span id="state">Disconnected</span></div>
+                <div>Mode: <span id="mode">Unknown</span></div>
+                <div>Health: <span id="health">Unknown</span></div>
+            </div>
+            
+            <div class="status-card" id="messageStats">
+                <h3>Message Stats</h3>
+                <div>Sent: <span id="sentCount">0</span></div>
+                <div>Received: <span id="receivedCount">0</span></div>
+                <div>Errors: <span id="errorCount">0</span></div>
+            </div>
+            
+            <div class="status-card" id="timingStats">
+                <h3>Timing Stats</h3>
+                <div>Connected: <span id="connectedTime">Never</span></div>
+                <div>Last Message: <span id="lastMessage">Never</span></div>
+                <div>Reconnects: <span id="reconnectCount">0</span></div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn-primary" onclick="connect()">🔌 Connect</button>
+            <button class="btn-danger" onclick="disconnect()">❌ Disconnect</button>
+            <button class="btn-success" onclick="sendTestMessage()">📤 Send Test</button>
+            <button class="btn-warning" onclick="switchToPolling()">🔄 Switch to Polling</button>
+            <button class="btn-warning" onclick="switchToWebSocket()">⚡ Switch to WebSocket</button>
+            <button class="btn-primary" onclick="runStressTest()">🚀 Stress Test</button>
+            <button onclick="clearLog()">🗑️ Clear Log</button>
+        </div>
+
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        // Simple connection manager for testing
+        class TestConnectionManager {
+            constructor() {
+                this.ws = null;
+                this.state = 'disconnected';
+                this.mode = 'websocket';
+                this.isPolling = false;
+                this.pollingInterval = null;
+                this.reconnectAttempts = 0;
+                this.maxReconnectAttempts = 5;
+                this.sentCount = 0;
+                this.receivedCount = 0;
+                this.errorCount = 0;
+                this.connectedTime = null;
+                this.lastMessageTime = null;
+                this.reconnectCount = 0;
+            }
+
+            connect() {
+                if (this.mode === 'websocket') {
+                    this.connectWebSocket();
+                } else {
+                    this.startPolling();
+                }
+            }
+
+            connectWebSocket() {
+                this.log('🔌 Attempting WebSocket connection...');
+                this.setState('connecting');
+                
+                try {
+                    this.ws = new WebSocket('ws://localhost:3001/ws/sdc-dashboard');
+                    
+                    this.ws.onopen = () => {
+                        this.log('✅ WebSocket connected successfully', 'success');
+                        this.setState('connected');
+                        this.mode = 'websocket';
+                        this.connectedTime = new Date();
+                        this.reconnectAttempts = 0;
+                        this.updateStats();
+                    };
+
+                    this.ws.onmessage = (event) => {
+                        const data = JSON.parse(event.data);
+                        this.log(`📨 Received: ${data.type}`, 'info');
+                        this.receivedCount++;
+                        this.lastMessageTime = new Date();
+                        this.updateStats();
+                    };
+
+                    this.ws.onclose = (event) => {
+                        this.log(`❌ WebSocket closed: ${event.code} - ${event.reason}`, 'error');
+                        this.setState('disconnected');
+                        this.attemptReconnect();
+                    };
+
+                    this.ws.onerror = (error) => {
+                        this.log('🚨 WebSocket error', 'error');
+                        this.errorCount++;
+                        this.setState('failed');
+                        this.updateStats();
+                    };
+
+                } catch (error) {
+                    this.log(`❌ Failed to create WebSocket: ${error.message}`, 'error');
+                    this.errorCount++;
+                    this.switchToPolling();
+                }
+            }
+
+            startPolling() {
+                this.log('🔄 Starting polling mode...');
+                this.setState('polling');
+                this.mode = 'polling';
+                this.connectedTime = new Date();
+                
+                this.poll();
+                this.pollingInterval = setInterval(() => {
+                    this.poll();
+                }, 5000);
+                
+                this.updateStats();
+            }
+
+            async poll() {
+                try {
+                    const response = await fetch('http://localhost:3001/api/activity/live?limit=5');
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.log(`📊 Poll successful: ${data.activities?.length || 0} activities`, 'info');
+                        this.receivedCount++;
+                        this.lastMessageTime = new Date();
+                    } else {
+                        this.log(`⚠️ Poll failed: ${response.status}`, 'error');
+                        this.errorCount++;
+                    }
+                } catch (error) {
+                    this.log(`❌ Poll error: ${error.message}`, 'error');
+                    this.errorCount++;
+                }
+                this.updateStats();
+            }
+
+            switchToPolling() {
+                this.log('🔄 Switching to polling mode...');
+                this.disconnect();
+                this.mode = 'polling';
+                setTimeout(() => this.connect(), 1000);
+            }
+
+            switchToWebSocket() {
+                this.log('⚡ Switching to WebSocket mode...');
+                this.disconnect();
+                this.mode = 'websocket';
+                setTimeout(() => this.connect(), 1000);
+            }
+
+            sendTestMessage() {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    const message = {
+                        type: 'test_message',
+                        payload: { test: true, timestamp: Date.now() }
+                    };
+                    this.ws.send(JSON.stringify(message));
+                    this.log('📤 Test message sent', 'info');
+                    this.sentCount++;
+                    this.updateStats();
+                } else if (this.mode === 'polling') {
+                    this.log('ℹ️ Cannot send message in polling mode', 'info');
+                } else {
+                    this.log('❌ Cannot send message - not connected', 'error');
+                }
+            }
+
+            attemptReconnect() {
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    this.reconnectCount++;
+                    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts - 1), 30000);
+                    
+                    this.log(`🔄 Reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`);
+                    this.setState('reconnecting');
+                    
+                    setTimeout(() => {
+                        this.connect();
+                    }, delay);
+                } else {
+                    this.log('❌ Max reconnect attempts reached, switching to polling', 'error');
+                    this.switchToPolling();
+                }
+                this.updateStats();
+            }
+
+            disconnect() {
+                this.log('❌ Disconnecting...');
+                
+                if (this.ws) {
+                    this.ws.close();
+                    this.ws = null;
+                }
+                
+                if (this.pollingInterval) {
+                    clearInterval(this.pollingInterval);
+                    this.pollingInterval = null;
+                }
+                
+                this.setState('disconnected');
+                this.updateStats();
+            }
+
+            setState(newState) {
+                this.state = newState;
+                this.updateStats();
+            }
+
+            log(message, type = '') {
+                const timestamp = new Date().toLocaleTimeString();
+                const logElement = document.getElementById('log');
+                const className = type ? ` class="${type}"` : '';
+                logElement.innerHTML += `<div><span class="timestamp">[${timestamp}]</span> <span${className}>${message}</span></div>`;
+                logElement.scrollTop = logElement.scrollHeight;
+            }
+
+            updateStats() {
+                // Update connection status
+                const statusCard = document.getElementById('connectionStatus');
+                statusCard.className = `status-card ${this.state}`;
+                
+                document.getElementById('state').textContent = this.state;
+                document.getElementById('mode').textContent = this.mode;
+                document.getElementById('health').textContent = 
+                    (this.state === 'connected' || this.state === 'polling') ? 'Healthy' : 'Unhealthy';
+
+                // Update message stats
+                document.getElementById('sentCount').textContent = this.sentCount;
+                document.getElementById('receivedCount').textContent = this.receivedCount;
+                document.getElementById('errorCount').textContent = this.errorCount;
+
+                // Update timing stats
+                document.getElementById('connectedTime').textContent = 
+                    this.connectedTime ? this.connectedTime.toLocaleTimeString() : 'Never';
+                document.getElementById('lastMessage').textContent = 
+                    this.lastMessageTime ? this.lastMessageTime.toLocaleTimeString() : 'Never';
+                document.getElementById('reconnectCount').textContent = this.reconnectCount;
+            }
+
+            async runStressTest() {
+                this.log('🚀 Starting stress test...', 'info');
+                
+                // Send 10 messages rapidly
+                for (let i = 0; i < 10; i++) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    this.sendTestMessage();
+                }
+                
+                this.log('✅ Stress test completed', 'success');
+            }
+        }
+
+        // Global connection manager instance
+        const manager = new TestConnectionManager();
+
+        // Global functions for buttons
+        function connect() {
+            manager.connect();
+        }
+
+        function disconnect() {
+            manager.disconnect();
+        }
+
+        function sendTestMessage() {
+            manager.sendTestMessage();
+        }
+
+        function switchToPolling() {
+            manager.switchToPolling();
+        }
+
+        function switchToWebSocket() {
+            manager.switchToWebSocket();
+        }
+
+        function runStressTest() {
+            manager.runStressTest();
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        // Auto-connect on page load
+        window.onload = () => {
+            manager.log('🏁 Test page loaded - ready for testing', 'info');
+        };
+
+        // Handle page unload
+        window.onbeforeunload = () => {
+            manager.disconnect();
+        };
+    </script>
+</body>
+</html>

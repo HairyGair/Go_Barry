@@ -504,7 +504,7 @@ const SupervisorLogin = ({ onLoginSuccess, className = '', variant = 'standalone
             </div>
 
             {/* Enhanced Styles */}
-            <style jsx="true">{`
+            <style jsx>{`
                 .supervisor-login {
                     min-height: 100vh;
                     display: flex;

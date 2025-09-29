@@ -366,6 +366,290 @@
             100% { transform: rotate(360deg); }
         }
         
+        /* User Management Section */
+        .user-management-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+
+        .user-management-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .user-management-header h2 {
+            color: #111827;
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .toggle-button {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .toggle-button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .create-user-form {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border: 2px solid #e5e7eb;
+        }
+
+        .create-user-form h3 {
+            color: #374151;
+            margin: 0 0 15px 0;
+            font-size: 18px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-row input, .form-row select {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+
+        .form-row input:focus, .form-row select:focus {
+            outline: none;
+            border-color: #10b981;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .primary-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .primary-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .primary-btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .secondary-btn {
+            background: #f3f4f6;
+            color: #374151;
+            padding: 12px 24px;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .secondary-btn:hover {
+            background: #e5e7eb;
+            border-color: #9ca3af;
+        }
+
+        .users-list-section {
+            background: white;
+        }
+
+        .users-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .users-header h3 {
+            color: #111827;
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .users-count {
+            background: #10b981;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .pending-count {
+            background: #f59e0b;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .approval-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .approve-btn {
+            background: #10b981;
+            color: white;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .approve-btn:hover {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+
+        .reject-btn {
+            background: #ef4444;
+            color: white;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .reject-btn:hover {
+            background: #dc2626;
+            transform: translateY(-1px);
+        }
+
+        .pending-badge {
+            background: #fef3c7;
+            color: #d97706;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .users-table th {
+            background: #f9fafb;
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #374151;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .users-table td {
+            padding: 12px 16px;
+            border-top: 1px solid #e5e7eb;
+            color: #111827;
+        }
+
+        .users-table tr:hover {
+            background: #f9fafb;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-badge.inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .action-btn.deactivate {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .action-btn.deactivate:hover {
+            background: #dc2626;
+            color: white;
+        }
+
+        .action-btn.activate {
+            background: #f0fdf4;
+            color: #16a34a;
+            border: 1px solid #bbf7d0;
+        }
+
+        .action-btn.activate:hover {
+            background: #16a34a;
+            color: white;
+        }
+
         /* Responsive */
         @media (max-width: 1024px) {
             .main-content {
@@ -375,6 +659,14 @@
                 display: grid;
                 grid-template-columns: 1fr 1fr;
                 gap: 20px;
+            }
+            .form-row {
+                flex-direction: column;
+            }
+            .user-management-header {
+                flex-direction: column;
+                gap: 15px;
+                align-items: stretch;
             }
         }
     </style>
@@ -518,12 +810,81 @@
             </div>
         </div>
     </div>
-    
+
+    <!-- User Management Section -->
+    <div class="main-content" style="margin-top: 0;">
+        <div style="grid-column: 1 / -1;">
+            <div class="user-management-section">
+                <div class="user-management-header">
+                    <h2>👥 User Management</h2>
+                    <button id="toggle-user-form" class="toggle-button">+ Add New User</button>
+                </div>
+
+                <!-- Create New User Form (Hidden by default) -->
+                <div id="create-user-form" class="create-user-form" style="display: none;">
+                    <h3>Create New User</h3>
+                    <div class="form-row">
+                        <input type="email" id="new-email" placeholder="Email" />
+                        <input type="password" id="new-password" placeholder="Password" />
+                    </div>
+                    <div class="form-row">
+                        <input type="text" id="new-name" placeholder="Full Name" />
+                        <select id="new-role">
+                            <option value="supervisor">Supervisor</option>
+                            <option value="admin">Admin</option>
+                            <option value="manager">Manager</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button id="create-user-btn" class="primary-btn">Create User</button>
+                        <button id="cancel-form-btn" class="secondary-btn">Cancel</button>
+                    </div>
+                </div>
+
+                <!-- Pending Signups Section -->
+                <div class="users-list-section" style="margin-bottom: 30px;">
+                    <div class="users-header">
+                        <h3>🔍 Pending Supervisor Signups</h3>
+                        <div class="pending-count">Loading...</div>
+                    </div>
+                    <div id="pending-signups-container">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <span>Loading pending signups...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users List -->
+                <div class="users-list-section">
+                    <div class="users-header">
+                        <h3>Existing Users</h3>
+                        <div class="users-count">Loading...</div>
+                    </div>
+                    <div id="users-table-container">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <span>Loading users...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         // Configuration
         const BACKEND_URL = 'https://go-barry.onrender.com';
         const REFRESH_INTERVAL = 30000; // 30 seconds for management dashboard
-        
+
+        // Supabase configuration
+        const SUPABASE_URL = 'https://oieliubbvvdzhzvikzal.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9pZWxpdWJidnZkemh6dmlremFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1NTA5OTUsImV4cCI6MjA3MTEyNjk5NX0.L0qUXBFOnzxoXt-ChhMAW8zqgprUXFdvqR2dxJ1GTU8';
+
+        // Initialize Supabase client
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         // State
         let allBreakdowns = [];
         let todayBreakdowns = [];
@@ -534,12 +895,21 @@
         let previousHourlyData = new Array(24).fill(0);
         let currentTimeFilter = 'today';
         
+        // User Management State
+        let users = [];
+        let pendingSignups = [];
+
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             updateDateTime();
             setInterval(updateDateTime, 60000);
             fetchAllData();
             setInterval(fetchAllData, REFRESH_INTERVAL);
+
+            // Initialize user management
+            initializeUserManagement();
+            loadUsers();
+            loadPendingSignups();
         });
         
         // Update date/time
@@ -1028,6 +1398,337 @@
             
             drawChart();
         }
+
+        // === USER MANAGEMENT FUNCTIONS ===
+
+        // Initialize user management event listeners
+        function initializeUserManagement() {
+            // Toggle form visibility
+            document.getElementById('toggle-user-form').addEventListener('click', function() {
+                const form = document.getElementById('create-user-form');
+                const isVisible = form.style.display !== 'none';
+                form.style.display = isVisible ? 'none' : 'block';
+                this.textContent = isVisible ? '+ Add New User' : '- Hide Form';
+            });
+
+            // Cancel form
+            document.getElementById('cancel-form-btn').addEventListener('click', function() {
+                hideUserForm();
+                clearUserForm();
+            });
+
+            // Create user
+            document.getElementById('create-user-btn').addEventListener('click', createUser);
+        }
+
+        // Load users from Supabase
+        async function loadUsers() {
+            try {
+                const { data, error } = await supabase
+                    .from('supervisors')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                users = data || [];
+                renderUsersTable();
+                updateUsersCount();
+            } catch (error) {
+                console.error('Error loading users:', error);
+                showError('Failed to load users: ' + error.message);
+            }
+        }
+
+        // Create new user
+        async function createUser() {
+            const email = document.getElementById('new-email').value.trim();
+            const password = document.getElementById('new-password').value;
+            const name = document.getElementById('new-name').value.trim();
+            const role = document.getElementById('new-role').value;
+
+            if (!email || !password || !name) {
+                alert('Email, password, and name are required');
+                return;
+            }
+
+            const createBtn = document.getElementById('create-user-btn');
+            createBtn.disabled = true;
+            createBtn.textContent = 'Creating...';
+
+            try {
+                // 1. Create auth user
+                const { data: authData, error: authError } = await supabase.auth.signUp({
+                    email: email,
+                    password: password,
+                    options: {
+                        data: {
+                            name: name,
+                            role: role
+                        }
+                    }
+                });
+
+                if (authError) throw authError;
+
+                // 2. Add to supervisors table
+                const { error: dbError } = await supabase
+                    .from('supervisors')
+                    .insert({
+                        email: email,
+                        name: name,
+                        role: role,
+                        depot: 'SDC',
+                        badge_number: email.split('@')[0].toUpperCase(),
+                        is_active: true
+                    });
+
+                if (dbError) throw dbError;
+
+                alert('User created successfully!');
+                clearUserForm();
+                hideUserForm();
+                loadUsers(); // Reload the users list
+            } catch (error) {
+                console.error('Error creating user:', error);
+                alert('Error creating user: ' + error.message);
+            } finally {
+                createBtn.disabled = false;
+                createBtn.textContent = 'Create User';
+            }
+        }
+
+        // Toggle user active status
+        async function toggleUserStatus(userId, currentStatus) {
+            try {
+                const { error } = await supabase
+                    .from('supervisors')
+                    .update({ is_active: !currentStatus })
+                    .eq('id', userId);
+
+                if (error) throw error;
+                loadUsers(); // Reload to update the display
+            } catch (error) {
+                console.error('Error updating user:', error);
+                alert('Error updating user: ' + error.message);
+            }
+        }
+
+        // Render users table
+        function renderUsersTable() {
+            const container = document.getElementById('users-table-container');
+
+            if (users.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #6b7280;">
+                        <p>No users found. Create your first user above.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const tableHTML = `
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Depot</th>
+                            <th>Badge</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${users.map(user => `
+                            <tr>
+                                <td><strong>${user.name || 'N/A'}</strong></td>
+                                <td>${user.email}</td>
+                                <td><span style="text-transform: capitalize;">${user.role || 'supervisor'}</span></td>
+                                <td>${user.depot || 'SDC'}</td>
+                                <td><code>${user.badge_number || 'N/A'}</code></td>
+                                <td>
+                                    <span class="status-badge ${user.is_active ? 'active' : 'inactive'}">
+                                        ${user.is_active ? 'Active' : 'Inactive'}
+                                    </span>
+                                </td>
+                                <td>
+                                    <button
+                                        class="action-btn ${user.is_active ? 'deactivate' : 'activate'}"
+                                        onclick="toggleUserStatus(${user.id}, ${user.is_active})"
+                                    >
+                                        ${user.is_active ? 'Deactivate' : 'Activate'}
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            container.innerHTML = tableHTML;
+        }
+
+        // Update users count
+        function updateUsersCount() {
+            const countElement = document.querySelector('.users-count');
+            const activeUsers = users.filter(u => u.is_active).length;
+            countElement.textContent = `${activeUsers} Active`;
+        }
+
+        // Clear user form
+        function clearUserForm() {
+            document.getElementById('new-email').value = '';
+            document.getElementById('new-password').value = '';
+            document.getElementById('new-name').value = '';
+            document.getElementById('new-role').value = 'supervisor';
+        }
+
+        // Hide user form
+        function hideUserForm() {
+            document.getElementById('create-user-form').style.display = 'none';
+            document.getElementById('toggle-user-form').textContent = '+ Add New User';
+        }
+
+        // Show error message
+        function showError(message) {
+            console.error(message);
+            // Could add a toast notification here
+        }
+
+        // Load pending signups from backend
+        async function loadPendingSignups() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/auth/pending-signups`);
+                const result = await response.json();
+
+                if (result.success) {
+                    pendingSignups = result.data || [];
+                    renderPendingSignups();
+                    updatePendingCount();
+                } else {
+                    throw new Error(result.error || 'Failed to load pending signups');
+                }
+            } catch (error) {
+                console.error('Error loading pending signups:', error);
+                showError('Failed to load pending signups: ' + error.message);
+            }
+        }
+
+        // Approve or reject signup
+        async function processSignup(supervisorId, approved) {
+            try {
+                const action = approved ? 'approve' : 'reject';
+                const confirmMessage = approved
+                    ? 'Are you sure you want to approve this supervisor signup?'
+                    : 'Are you sure you want to reject this supervisor signup? This action cannot be undone.';
+
+                if (!confirm(confirmMessage)) {
+                    return;
+                }
+
+                const response = await fetch(`${BACKEND_URL}/api/auth/approve-signup`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        supervisorId: supervisorId,
+                        approved: approved
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(result.message);
+                    loadPendingSignups(); // Reload pending signups
+                    loadUsers(); // Reload users list
+                } else {
+                    throw new Error(result.error || `Failed to ${action} signup`);
+                }
+            } catch (error) {
+                console.error(`Error processing signup:`, error);
+                alert(`Error processing signup: ${error.message}`);
+            }
+        }
+
+        // Render pending signups table
+        function renderPendingSignups() {
+            const container = document.getElementById('pending-signups-container');
+
+            if (pendingSignups.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #6b7280;">
+                        <p>✅ No pending signups at this time.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const tableHTML = `
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Badge</th>
+                            <th>Depot</th>
+                            <th>Signup Date</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${pendingSignups.map(signup => `
+                            <tr>
+                                <td><strong>${signup.name || 'N/A'}</strong></td>
+                                <td>${signup.email}</td>
+                                <td><code>${signup.badge_number || 'N/A'}</code></td>
+                                <td>${signup.depot || 'SDC'}</td>
+                                <td>${new Date(signup.signup_date).toLocaleDateString()}</td>
+                                <td>
+                                    <span class="pending-badge">Pending</span>
+                                </td>
+                                <td>
+                                    <div class="approval-actions">
+                                        <button
+                                            class="approve-btn"
+                                            onclick="processSignup(${signup.id}, true)"
+                                            title="Approve this signup"
+                                        >
+                                            ✅ Approve
+                                        </button>
+                                        <button
+                                            class="reject-btn"
+                                            onclick="processSignup(${signup.id}, false)"
+                                            title="Reject this signup"
+                                        >
+                                            ❌ Reject
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            container.innerHTML = tableHTML;
+        }
+
+        // Update pending signups count
+        function updatePendingCount() {
+            const countElement = document.querySelector('.pending-count');
+            const pendingCount = pendingSignups.length;
+            countElement.textContent = pendingCount > 0 ? `${pendingCount} Pending` : 'None';
+            countElement.style.background = pendingCount > 0 ? '#f59e0b' : '#6b7280';
+        }
+
+        // Make functions globally available
+        window.toggleUserStatus = toggleUserStatus;
+        window.processSignup = processSignup;
     </script>
 </body>
 </html>

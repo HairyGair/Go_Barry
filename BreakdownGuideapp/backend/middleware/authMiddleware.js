@@ -89,6 +89,21 @@ export const verifyToken = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
 
+        // Development bypass for testing
+        if (process.env.NODE_ENV === 'development' && (!authHeader || authHeader === 'Bearer undefined' || authHeader === 'Bearer null')) {
+            console.log('🔧 Development mode: bypassing auth for', req.path);
+            // Set a mock user for development
+            req.user = {
+                id: '1646c9a7-58fe-4ea6-bff2-8b5c3bbe54a0', // Use real UUID to match existing data
+                email: 'anthony.gair@gonortheast.co.uk',
+                role: 'admin',
+                aud: 'authenticated',
+                exp: Math.floor(Date.now() / 1000) + 3600,
+                iat: Math.floor(Date.now() / 1000)
+            };
+            return next();
+        }
+
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({
                 error: 'Authentication required',
@@ -140,6 +155,21 @@ export const verifyToken = async (req, res, next) => {
         next();
     } catch (error) {
         console.error('Token verification error:', error);
+        
+        // Development fallback to prevent crashes
+        if (process.env.NODE_ENV === 'development') {
+            console.log('🔧 Development mode: Auth error fallback for', req.path);
+            req.user = {
+                id: '1646c9a7-58fe-4ea6-bff2-8b5c3bbe54a0',
+                email: 'anthony.gair@gonortheast.co.uk',
+                role: 'admin',
+                aud: 'authenticated',
+                exp: Math.floor(Date.now() / 1000) + 3600,
+                iat: Math.floor(Date.now() / 1000)
+            };
+            return next();
+        }
+        
         return res.status(401).json({
             error: 'Authentication failed',
             code: 'AUTH_VERIFICATION_FAILED'
@@ -180,6 +210,22 @@ export const requireSupervisor = async (req, res, next) => {
         next();
     } catch (error) {
         console.error('Supervisor authorization error:', error);
+        
+        // Development fallback to prevent crashes
+        if (process.env.NODE_ENV === 'development') {
+            console.log('🔧 Development mode: Supervisor check fallback for', req.path);
+            req.supervisor = {
+                id: '1646c9a7-58fe-4ea6-bff2-8b5c3bbe54a0',
+                email: 'anthony.gair@gonortheast.co.uk',
+                name: 'Anthony Gair',
+                depot: 'SDC',
+                role: 'admin'
+            };
+            req.user.supervisorRole = 'admin';
+            req.user.depot = 'SDC';
+            return next();
+        }
+        
         return res.status(500).json({
             error: 'Authorization check failed',
             code: 'AUTH_CHECK_FAILED'

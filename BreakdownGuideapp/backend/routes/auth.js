@@ -1,5 +1,10 @@
 import express from 'express';
-import { supabase } from '../server.js';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client
+const supabaseUrl = process.env.SUPABASE_URL || 'https://oieliubbvvdzhzvikzal.supabase.co';
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9pZWxpdWJidnZkemh6dmlremFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1NTA5OTUsImV4cCI6MjA3MTEyNjk5NX0.L0qUXBFOnzxoXt-ChhMAW8zqgprUXFdvqR2dxJ1GTU8';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const router = express.Router();
 
@@ -161,6 +166,171 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// POST /api/auth/signup - Supervisor signup endpoint
+router.post('/signup', async (req, res) => {
+  try {
+    const { email, password, fullName, badgeNumber, depot, role = 'supervisor' } = req.body;
+
+    // Validate required fields
+    if (!email || !password || !fullName || !badgeNumber) {
+      return res.status(400).json({
+        error: 'Email, password, full name, and badge number are required',
+        code: 'MISSING_FIELDS'
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        error: 'Please enter a valid email address',
+        code: 'INVALID_EMAIL'
+      });
+    }
+
+    // Validate badge number format (e.g., AG003, BP009)
+    const badgeRegex = /^[A-Z]{2}\d{3}$/;
+    if (!badgeRegex.test(badgeNumber)) {
+      return res.status(400).json({
+        error: 'Badge number must be in format: AB123',
+        code: 'INVALID_BADGE'
+      });
+    }
+
+    // Check if supervisor already exists in supervisors table
+    const { data: existingSupervisor, error: checkError } = await supabase
+      .from('supervisors')
+      .select('email, badge_number')
+      .or(`email.eq.${email.toLowerCase()},badge_number.eq.${badgeNumber.toUpperCase()}`);
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      // PGRST116 means no rows found, which is expected for new users
+      console.error('Error checking existing supervisor:', checkError);
+      return res.status(500).json({
+        error: 'Failed to validate signup data. Please try again.',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    if (existingSupervisor && existingSupervisor.length > 0) {
+      const existing = existingSupervisor[0];
+      if (existing.email === email.toLowerCase()) {
+        return res.status(409).json({
+          error: 'An account with this email address already exists',
+          code: 'EMAIL_EXISTS'
+        });
+      }
+      if (existing.badge_number === badgeNumber.toUpperCase()) {
+        return res.status(409).json({
+          error: 'An account with this badge number already exists',
+          code: 'BADGE_EXISTS'
+        });
+      }
+    }
+
+    // Create auth user in Supabase (will be pending until approved)
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: email.toLowerCase(),
+      password: password,
+      options: {
+        data: {
+          full_name: fullName,
+          badge_number: badgeNumber.toUpperCase(),
+          depot: depot || 'SDC',
+          role: role,
+          signup_date: new Date().toISOString(),
+          pending_approval: true
+        }
+      }
+    });
+
+    if (authError) {
+      console.error('Supabase auth user creation error:', authError);
+      
+      // Handle specific auth errors
+      if (authError.status === 422 && authError.code === 'user_already_exists') {
+        return res.status(409).json({
+          error: 'An account with this email address already exists. Please use a different email or try logging in.',
+          code: 'EMAIL_EXISTS'
+        });
+      }
+      
+      // Handle other auth errors
+      let errorMessage = 'Failed to create user account. Please try again.';
+      if (authError.message && authError.message.includes('Invalid email')) {
+        errorMessage = 'Please enter a valid email address.';
+      } else if (authError.message && authError.message.includes('Password')) {
+        errorMessage = 'Password must be at least 6 characters long.';
+      }
+      
+      return res.status(500).json({
+        error: errorMessage,
+        code: 'AUTH_CREATE_FAILED'
+      });
+    }
+
+    // Add supervisor to supervisors table with pending approval status
+    const { data: supervisorData, error: supervisorError } = await supabase
+      .from('supervisors')
+      .insert({
+        email: email.toLowerCase(),
+        name: fullName,
+        badge_number: badgeNumber.toUpperCase(),
+        depot: depot || 'SDC',
+        role: role,
+        is_active: false, // Pending approval
+        pending_approval: true,
+        signup_date: new Date().toISOString(),
+        auth_user_id: authData.user.id
+      })
+      .select()
+      .single();
+
+    if (supervisorError) {
+      console.error('Supervisor table insert error:', supervisorError);
+
+      // Clean up auth user if supervisor creation fails
+      try {
+        // We can't easily delete the auth user with anon key, so just log the issue
+        console.warn('Auth user created but supervisor record failed. Manual cleanup may be needed for:', email);
+      } catch (cleanupError) {
+        console.error('Failed to cleanup auth user:', cleanupError);
+      }
+
+      return res.status(500).json({
+        error: 'Failed to create supervisor record. Please try again.',
+        code: 'SUPERVISOR_CREATE_FAILED'
+      });
+    }
+
+    // Log successful signup
+    console.log(`🆕 New supervisor signup: ${fullName} (${email}) - Badge: ${badgeNumber}`);
+
+    // TODO: Send email notification to admins about new signup
+    // This could be enhanced to send email notifications to administrators
+
+    res.status(201).json({
+      success: true,
+      message: 'Signup successful! Your account is pending approval.',
+      supervisor: {
+        id: supervisorData.id,
+        name: supervisorData.name,
+        email: supervisorData.email,
+        badge_number: supervisorData.badge_number,
+        depot: supervisorData.depot,
+        pending_approval: true
+      }
+    });
+
+  } catch (error) {
+    console.error('Signup error:', error);
+    res.status(500).json({
+      error: 'An unexpected error occurred during signup. Please try again.',
+      code: 'SIGNUP_ERROR'
+    });
+  }
+});
+
 // POST /api/auth/logout - Logout endpoint
 router.post('/logout', async (req, res) => {
   try {
@@ -300,6 +470,195 @@ router.get('/recent-sessions', async (req, res) => {
       success: false,
       error: 'Failed to fetch recent sessions',
       data: []
+    });
+  }
+});
+
+// GET /api/auth/pending-signups - Get all pending supervisor signups (Admin only)
+router.get('/pending-signups', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('supervisors')
+      .select('*')
+      .eq('pending_approval', true)
+      .order('signup_date', { ascending: false });
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      data: data || [],
+      count: data ? data.length : 0
+    });
+  } catch (error) {
+    console.error('Error fetching pending signups:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch pending signups'
+    });
+  }
+});
+
+// POST /api/auth/approve-signup - Approve a pending supervisor signup (Admin only)
+router.post('/approve-signup', async (req, res) => {
+  try {
+    const { supervisorId, approved = true } = req.body;
+
+    if (!supervisorId) {
+      return res.status(400).json({
+        error: 'Supervisor ID is required',
+        code: 'MISSING_SUPERVISOR_ID'
+      });
+    }
+
+    // Get the supervisor record
+    const { data: supervisor, error: fetchError } = await supabase
+      .from('supervisors')
+      .select('*')
+      .eq('id', supervisorId)
+      .single();
+
+    if (fetchError || !supervisor) {
+      return res.status(404).json({
+        error: 'Supervisor not found',
+        code: 'SUPERVISOR_NOT_FOUND'
+      });
+    }
+
+    if (!supervisor.pending_approval) {
+      return res.status(400).json({
+        error: 'Supervisor is not pending approval',
+        code: 'NOT_PENDING'
+      });
+    }
+
+    if (approved) {
+      // Approve the supervisor
+      const { error: updateError } = await supabase
+        .from('supervisors')
+        .update({
+          is_active: true,
+          pending_approval: false,
+          approved_date: new Date().toISOString()
+        })
+        .eq('id', supervisorId);
+
+      if (updateError) throw updateError;
+
+      // Update auth user to confirm email
+      if (supervisor.auth_user_id) {
+        try {
+          await supabase.auth.admin.updateUserById(supervisor.auth_user_id, {
+            email_confirm: true,
+            user_metadata: {
+              ...supervisor,
+              pending_approval: false,
+              approved: true,
+              approved_date: new Date().toISOString()
+            }
+          });
+        } catch (authUpdateError) {
+          console.warn('Failed to update auth user:', authUpdateError);
+        }
+      }
+
+      console.log(`✅ Supervisor approved: ${supervisor.name} (${supervisor.email})`);
+
+      res.json({
+        success: true,
+        message: 'Supervisor approved successfully',
+        supervisor: {
+          id: supervisor.id,
+          name: supervisor.name,
+          email: supervisor.email,
+          is_active: true,
+          pending_approval: false
+        }
+      });
+    } else {
+      // Reject the supervisor - delete from both tables
+      // Delete from supervisors table
+      const { error: deleteError } = await supabase
+        .from('supervisors')
+        .delete()
+        .eq('id', supervisorId);
+
+      if (deleteError) throw deleteError;
+
+      // Delete auth user
+      if (supervisor.auth_user_id) {
+        try {
+          await supabase.auth.admin.deleteUser(supervisor.auth_user_id);
+        } catch (authDeleteError) {
+          console.warn('Failed to delete auth user:', authDeleteError);
+        }
+      }
+
+      console.log(`❌ Supervisor rejected: ${supervisor.name} (${supervisor.email})`);
+
+      res.json({
+        success: true,
+        message: 'Supervisor signup rejected and removed',
+        supervisor: {
+          id: supervisor.id,
+          name: supervisor.name,
+          email: supervisor.email,
+          rejected: true
+        }
+      });
+    }
+
+  } catch (error) {
+    console.error('Error processing signup approval:', error);
+    res.status(500).json({
+      error: 'Failed to process signup approval',
+      code: 'APPROVAL_ERROR'
+    });
+  }
+});
+
+// PUT /api/auth/supervisor/:id - Update supervisor details (Admin only)
+router.put('/supervisor/:id', async (req, res) => {
+  try {
+    const supervisorId = req.params.id;
+    const { name, email, depot, role, is_active } = req.body;
+
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (email !== undefined) updateData.email = email.toLowerCase();
+    if (depot !== undefined) updateData.depot = depot;
+    if (role !== undefined) updateData.role = role;
+    if (is_active !== undefined) updateData.is_active = is_active;
+
+    const { data, error } = await supabase
+      .from('supervisors')
+      .update(updateData)
+      .eq('id', supervisorId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    if (!data) {
+      return res.status(404).json({
+        error: 'Supervisor not found',
+        code: 'SUPERVISOR_NOT_FOUND'
+      });
+    }
+
+    console.log(`🔄 Supervisor updated: ${data.name} (${data.email})`);
+
+    res.json({
+      success: true,
+      message: 'Supervisor updated successfully',
+      supervisor: data
+    });
+
+  } catch (error) {
+    console.error('Error updating supervisor:', error);
+    res.status(500).json({
+      error: 'Failed to update supervisor',
+      code: 'UPDATE_ERROR'
     });
   }
 });

@@ -19,6 +19,7 @@ class ActivityRealtimeService {
   constructor() {
     this.subscriptions = new Map();
     this.channels = new Map();
+    this.connectionChannel = null; // For connection monitoring
     this.isConnected = false;
     this.subscribers = new Map();
     this.activityBuffer = [];
@@ -358,25 +359,38 @@ class ActivityRealtimeService {
    * Connection monitoring
    */
   setupConnectionMonitoring() {
-    // Monitor Supabase connection status
+    // Monitor Supabase connection status using modern API
     if (supabase && supabase.realtime) {
-      supabase.realtime.onOpen(() => {
-        console.log('🔗 Supabase realtime connection opened');
-        this.isConnected = true;
-        this.reconnectAttempts = 0;
-      });
-
-      supabase.realtime.onClose(() => {
-        console.log('🔌 Supabase realtime connection closed');
+      console.log('🔗 Setting up Supabase realtime connection monitoring');
+      
+      // The modern Supabase client handles connection automatically
+      // We'll monitor through subscription status instead
+      try {
+        this.connectionChannel = supabase.channel('connection-monitor')
+          .on('system', { event: '*' }, (payload) => {
+            console.log('📡 Supabase system event:', payload);
+            
+            if (payload.event === 'phx_join') {
+              console.log('🔗 Supabase realtime connection established');
+              this.isConnected = true;
+              this.reconnectAttempts = 0;
+            } else if (payload.event === 'phx_close' || payload.event === 'phx_error') {
+              console.log('🔌 Supabase realtime connection lost');
+              this.isConnected = false;
+              this.handleReconnection();
+            }
+          })
+          .subscribe((status) => {
+            console.log('📡 Supabase connection status:', status);
+            this.isConnected = status === 'SUBSCRIBED';
+          });
+      } catch (error) {
+        console.warn('⚠️ Could not set up Supabase connection monitoring:', error);
         this.isConnected = false;
-        this.handleReconnection();
-      });
-
-      supabase.realtime.onError((error) => {
-        console.error('❌ Supabase realtime error:', error);
-        this.isConnected = false;
-        this.emit(ACTIVITY_EVENTS.ERROR, { error });
-      });
+      }
+    } else {
+      console.warn('⚠️ Supabase realtime not available');
+      this.isConnected = false;
     }
   }
 
@@ -493,6 +507,17 @@ class ActivityRealtimeService {
     this.unsubscribeAll();
     this.clearBuffer();
     this.events.clear();
+    
+    // Clean up connection monitoring channel
+    if (this.connectionChannel) {
+      try {
+        this.connectionChannel.unsubscribe();
+        this.connectionChannel = null;
+      } catch (error) {
+        console.warn('⚠️ Error cleaning up connection channel:', error);
+      }
+    }
+    
     console.log('🧹 Activity Real-time Service cleaned up');
   }
 }

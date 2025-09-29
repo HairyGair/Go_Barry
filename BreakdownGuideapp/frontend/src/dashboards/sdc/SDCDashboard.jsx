@@ -1,53 +1,734 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
 import StatsCard from '../components/StatsCard';
 import FilterBar from '../components/FilterBar';
-import SDCBreakdownCard from './SDCBreakdownCard';
+import EnhancedFilterBar from './EnhancedFilterBar';
+import SDCBreakdownCardEnhanced from './SDCBreakdownCardEnhanced';
+import { getSDCGuidance, getSLAForIssue } from './utils/sdcGuideReference';
 import PriorityAlerts from './PriorityAlerts';
 import StatusWidget from './StatusWidget';
 import RecentDecisions from './RecentDecisions';
+import AssessmentProgressTracker from './AssessmentProgressTracker';
+import AssessmentProgressCard from './AssessmentProgressCard';
+import EngineeringTimerAlert from './EngineeringTimerAlert';
+import ConnectionStatusIndicator from '../../components/ConnectionStatusIndicator';
+import SDCDashboardHeader from './SDCDashboardHeader';
 import { apiConfig } from '../../breakdown-guide/components/common/constants';
+import { fetchAllActivities } from '../../api/activityAggregator';
+import useConnectionManager from '../../hooks/useConnectionManager';
+import useAssessmentData from '../../hooks/useAssessmentData';
+import assessmentAPI from '../../services/assessmentAPI';
+import AssessmentDataFallback from '../../components/AssessmentDataFallback';
 
 const SDCDashboard = () => {
+  const location = useLocation();
   const [breakdowns, setBreakdowns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
   const [priorityAlerts, setPriorityAlerts] = useState([]);
   const [recentDecisions, setRecentDecisions] = useState([]);
+  
+  // Enhanced Assessment State Management
+  const [activeAssessments, setActiveAssessments] = useState([]);
+  const [assessmentsInProgress, setAssessmentsInProgress] = useState([]);
+  const [completedAssessments, setCompletedAssessments] = useState([]);
+  const [highlightedBreakdown, setHighlightedBreakdown] = useState(null);
+  
+  // Additional dashboard state
+  const [engineeringTimers, setEngineeringTimers] = useState(new Map());
+  
+  // URL parameter handling state
+  const [redirectNotification, setRedirectNotification] = useState(null);
+  const [scrollToBreakdown, setScrollToBreakdown] = useState(null);
+  const breakdownRefs = useRef(new Map());
   const [stats, setStats] = useState({
     total: 0,
     critical: 0,
     pending: 0,
-    dispatched: 0
+    dispatched: 0,
+    inAssessment: 0
+  });
+  
+  // Hybrid connection manager for real-time updates
+  const connectionManager = useConnectionManager({
+    endpoint: '/ws/sdc-dashboard',
+    autoConnect: true,
+    primary: 'websocket',
+    fallback: 'polling',
+    autoFailover: true,
+    reconnectAttempts: 5,
+    pollingInterval: 5000
   });
 
-  // Filter options
-  const filters = [
-    { value: 'all', label: 'All Breakdowns', icon: '📋' },
-    { value: 'critical', label: 'Critical', icon: '🚨' },
-    { value: 'pending', label: 'Pending Decision', icon: '⏳' },
-    { value: 'priority-routes', label: 'Priority Routes', icon: '⭐' }
-  ];
+  // Assessment data integration with API and WebSocket
+  const assessmentData = useAssessmentData({
+    autoConnect: true,
+    enableWebSocket: true,
+    enableAPI: true,
+    pollInterval: 30000
+  });
+
+  // Current supervisor state (must be declared before getEnhancedFilters)
+  const [currentSupervisor, setCurrentSupervisor] = useState(null);
+
+  // Enhanced filter options with dynamic counts and assessment details (memoized for performance)
+  const enhancedFilters = useMemo(() => {
+    const totalBreakdowns = breakdowns.length;
+    const criticalCount = breakdowns.filter(b => b.isCritical).length;
+    const pendingCount = breakdowns.filter(b => b.isPending).length;
+    const priorityRoutesCount = breakdowns.filter(b => b.isPriorityRoute).length;
+    
+    // Calculate in-assessment details using enhanced state management
+    const allActiveAssessments = [
+      ...(assessmentsInProgress || []),
+      ...(activeAssessments || [])
+    ];
+    
+    // Remove duplicates based on breakdown_id
+    const uniqueAssessments = allActiveAssessments.reduce((acc, assessment) => {
+      const key = assessment.breakdown_id || assessment.id || assessment.assessment_id;
+      if (!acc.find(a => (a.breakdown_id || a.id || a.assessment_id) === key)) {
+        acc.push(assessment);
+      }
+      return acc;
+    }, []);
+    
+    const inAssessmentCount = assessmentsInProgress?.length || 0;
+    const supervisorNames = [...new Set(uniqueAssessments.map(a => 
+      a.supervisor_name || a.supervisor?.name || 'Unknown'
+    ).filter(Boolean))];
+    const assessmentTypes = [...new Set(uniqueAssessments.map(a => 
+      a.wizardType || a.wizard_type || 'General'
+    ).filter(Boolean))];
+    const avgProgress = uniqueAssessments.length > 0 
+      ? Math.round(uniqueAssessments.reduce((sum, a) => {
+          const stepProgress = a.progress_percentage || 
+            (() => {
+              const [current, total] = (a.currentStep || a.current_step || '1/1').split('/').map(Number);
+              return (current / total) * 100;
+            })();
+          return sum + stepProgress;
+        }, 0) / uniqueAssessments.length)
+      : 0;
+    
+    // Calculate my breakdowns count
+    const myBreakdownsCount = currentSupervisor 
+      ? breakdowns.filter(b => 
+          b.supervisor_badge === (currentSupervisor.badge || currentSupervisor.supervisorBadge) ||
+          b.supervisor_name === currentSupervisor.name
+        ).length
+      : 0;
+
+    return [
+      { 
+        value: 'all', 
+        label: 'All Breakdowns', 
+        icon: '📋', 
+        count: totalBreakdowns 
+      },
+      { 
+        value: 'critical', 
+        label: 'Critical', 
+        icon: '🚨', 
+        count: criticalCount,
+        subtitle: criticalCount > 0 ? 'Immediate attention required' : 'No critical issues'
+      },
+      { 
+        value: 'pending', 
+        label: 'Pending Decision', 
+        icon: '⏳', 
+        count: pendingCount,
+        subtitle: pendingCount > 0 ? 'Awaiting supervisor decision' : 'All acknowledged'
+      },
+      { 
+        value: 'in-assessment', 
+        label: 'In Assessment', 
+        icon: '🔄', 
+        count: inAssessmentCount,
+        subtitle: inAssessmentCount > 0 
+          ? `${supervisorNames.length} supervisor${supervisorNames.length !== 1 ? 's' : ''} active • ${avgProgress}% avg progress`
+          : 'No active assessments',
+        details: inAssessmentCount > 0 ? {
+          supervisors: supervisorNames.slice(0, 3),
+          types: assessmentTypes.slice(0, 3),
+          avgProgress
+        } : null
+      },
+      { 
+        value: 'my-breakdowns', 
+        label: 'My Breakdowns', 
+        icon: '👤', 
+        count: myBreakdownsCount,
+        subtitle: currentSupervisor 
+          ? `Assigned to ${currentSupervisor.name || currentSupervisor.badge}`
+          : 'Login to see your breakdowns'
+      },
+      { 
+        value: 'priority-routes', 
+        label: 'Priority Routes', 
+        icon: '⭐', 
+        count: priorityRoutesCount,
+        subtitle: priorityRoutesCount > 0 
+          ? `X10, X21, 21, 56, 1 routes affected`
+          : 'No priority route issues'
+      }
+    ];
+  }, [breakdowns, assessmentsInProgress, currentSupervisor]);
+
+  // Memoized filter computation
+  const filters = enhancedFilters;
 
   // Priority routes
   const PRIORITY_ROUTES = ['X10', 'X21', '21', '56', '1'];
 
-  // Fetch real breakdowns from backend
+  // Enhanced assessment tracking with integrated data - DISABLED TO FIX INFINITE LOOP
+  const fetchActiveAssessments = useCallback(async () => {
+    console.log('📊 fetchActiveAssessments disabled to fix infinite loop');
+    return;
+    
+    /* DISABLED CODE:
+    try {
+      // Use integrated assessment data as primary source
+      const integratedAssessments = assessmentData.activeAssessments || [];
+      
+      // Fallback to legacy activity data if needed
+      let legacyAssessments = [];
+      if (integratedAssessments.length === 0) {
+        const activityData = await fetchAllActivities(50);
+        
+        // Filter for wizard_started activities that don't have corresponding wizard_completed
+        const wizardStarted = activityData.activities?.filter(a => 
+          a.type === 'wizard_started' || a.message?.includes('started')
+        ) || [];
+        
+        const wizardCompleted = activityData.activities?.filter(a => 
+          a.type === 'wizard_completed' || a.message?.includes('completed')
+        ) || [];
+        
+        // Find active assessments (started but not completed)
+        legacyAssessments = wizardStarted.filter(started => {
+          const hasCompleted = wizardCompleted.some(completed => 
+            completed.breakdown_id === started.breakdown_id ||
+            completed.fleet_no === started.fleet_no
+          );
+          
+          // Only show if assessment was started in the last 30 minutes
+          const startTime = new Date(started.timestamp);
+          const now = new Date();
+          const ageMinutes = (now - startTime) / (1000 * 60);
+          
+          return !hasCompleted && ageMinutes <= 30;
+        });
+      }
+      
+      // Merge and normalize assessment data
+      const allAssessments = [...integratedAssessments, ...legacyAssessments];
+      const uniqueAssessments = allAssessments.reduce((acc, assessment) => {
+        const key = assessment.breakdown_id || assessment.id || assessment.assessment_id;
+        if (!acc.find(a => (a.breakdown_id || a.id || a.assessment_id) === key)) {
+          // Normalize assessment structure
+          acc.push({
+            breakdown_id: assessment.breakdown_id || assessment.id,
+            assessment_id: assessment.assessment_id || assessment.id,
+            supervisor_name: assessment.supervisor_name || assessment.supervisor?.name,
+            supervisor_badge: assessment.supervisor_badge || assessment.supervisor?.badge,
+            wizardType: assessment.wizardType || assessment.wizard_type || 'General',
+            currentStep: assessment.currentStep || assessment.current_step || '1',
+            totalSteps: assessment.totalSteps || assessment.total_steps || '5',
+            stepDescription: assessment.stepDescription || assessment.step_description || 'In progress...',
+            progress_percentage: assessment.progress_percentage || 0,
+            timestamp: assessment.timestamp || assessment.started_at || new Date().toISOString(),
+            fleet_no: assessment.fleet_no || assessment.vehicle?.fleet_number,
+            location: assessment.location,
+            route: assessment.route,
+            estimatedCompletion: assessment.estimatedCompletion || 'Unknown',
+            priority: assessment.priority || 'normal'
+          });
+        }
+        return acc;
+      }, []);
+      
+      setActiveAssessments(uniqueAssessments);
+      console.log(`📊 Active assessments updated: ${uniqueAssessments.length} (${integratedAssessments.length} integrated, ${legacyAssessments.length} legacy)`);
+      
+    } catch (error) {
+      console.error('Error fetching active assessments:', error);
+      setActiveAssessments([]);
+    }
+    */
+  }, [assessmentData]);
+
+  // Enhanced assessment state management - sync with useAssessmentData hook
+  useEffect(() => {
+    if (assessmentData) {
+      // Update assessments in progress (actively being worked on)
+      const inProgressAssessments = assessmentData.activeAssessments?.filter(assessment => 
+        assessment.status === 'in_progress' || 
+        assessment.current_step || 
+        assessment.progress_percentage > 0
+      ) || [];
+      
+      setAssessmentsInProgress(inProgressAssessments);
+      
+      // Update completed assessments (recent completions)
+      const recentCompletedAssessments = assessmentData.completedAssessments || [];
+      setCompletedAssessments(recentCompletedAssessments);
+      
+      console.log(`📊 Enhanced assessment state updated:`, {
+        inProgress: inProgressAssessments.length,
+        completed: recentCompletedAssessments.length,
+        total: (assessmentData.activeAssessments?.length || 0)
+      });
+    }
+  }, [assessmentData.activeAssessments, assessmentData.completedAssessments]);
+
+  // Update stats when assessment state changes
+  useEffect(() => {
+    if (breakdowns.length > 0) {
+      const activeBreakdowns = breakdowns.filter(b => b.status !== 'resolved');
+      const criticalCount = activeBreakdowns.filter(b => b.isCritical).length;
+      const pendingCount = activeBreakdowns.filter(b => b.isPending).length;
+      const dispatchedCount = activeBreakdowns.filter(b => b.isDispatched).length;
+      
+      setStats(prevStats => ({
+        ...prevStats,
+        total: activeBreakdowns.length,
+        critical: criticalCount,
+        pending: pendingCount,
+        dispatched: dispatchedCount,
+        inAssessment: assessmentsInProgress.length
+      }));
+      
+      console.log(`📊 Stats updated: ${assessmentsInProgress.length} assessments in progress`);
+    }
+  }, [breakdowns, assessmentsInProgress.length]);
+
+  // Enhanced URL parameter handling for breakdown guide redirects
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const highlightId = urlParams.get('highlight');
+    const decision = urlParams.get('decision');
+    const supervisor = urlParams.get('supervisor');
+    const duration = urlParams.get('duration');
+    const timestamp = urlParams.get('timestamp');
+    const source = urlParams.get('source');
+    
+    if (highlightId) {
+      console.log('📍 Processing breakdown guide redirect:', {
+        highlightId,
+        decision,
+        supervisor,
+        duration,
+        source
+      });
+      
+      // Set highlight state
+      setHighlightedBreakdown(highlightId);
+      setScrollToBreakdown(highlightId);
+      
+      // Create completion notification if this is from an assessment
+      if (decision && source === 'breakdown-guide') {
+        const notificationData = {
+          id: `redirect-${highlightId}-${Date.now()}`,
+          breakdownId: highlightId,
+          decision: decision.toUpperCase(),
+          supervisor: supervisor || 'Unknown Supervisor',
+          duration: duration || 'Unknown',
+          timestamp: timestamp ? new Date(timestamp) : new Date(),
+          source: 'assessment_redirect'
+        };
+        
+        setRedirectNotification(notificationData);
+        
+        // Add to completed assessments for tracking
+        setCompletedAssessments(prev => {
+          const newCompletion = {
+            id: highlightId,
+            completedAt: notificationData.timestamp.toISOString(),
+            decision: decision.toUpperCase(),
+            supervisor: supervisor || 'Unknown',
+            duration: duration || 'Unknown',
+            source: 'redirect'
+          };
+          
+          // Avoid duplicates
+          const exists = prev.some(c => c.id === highlightId);
+          return exists ? prev : [newCompletion, ...prev.slice(0, 9)];
+        });
+        
+        // Start engineering timer for STOP/AMBER decisions
+        if (decision.toUpperCase() === 'STOP' || decision.toUpperCase() === 'AMBER') {
+          setEngineeringTimers(prev => {
+            const newTimers = new Map(prev);
+            if (!newTimers.has(highlightId)) {
+              newTimers.set(highlightId, {
+                startTime: Date.now(),
+                decision: decision.toUpperCase(),
+                targetTime: decision.toUpperCase() === 'STOP' ? 15 * 60 * 1000 : 30 * 60 * 1000,
+                fleet: 'Redirect',
+                source: 'assessment_redirect'
+              });
+            }
+            return newTimers;
+          });
+        }
+        
+        // Clear notification after 15 seconds
+        setTimeout(() => {
+          setRedirectNotification(null);
+        }, 15000);
+      }
+      
+      // Clear highlight after 12 seconds (slightly longer for redirects)
+      setTimeout(() => {
+        setHighlightedBreakdown(null);
+      }, 12000);
+      
+      // Clean up URL parameters after processing
+      const newUrl = new URL(window.location);
+      newUrl.searchParams.delete('highlight');
+      newUrl.searchParams.delete('decision');
+      newUrl.searchParams.delete('supervisor');
+      newUrl.searchParams.delete('duration');
+      newUrl.searchParams.delete('timestamp');
+      newUrl.searchParams.delete('source');
+      
+      if (newUrl.search !== window.location.search) {
+        window.history.replaceState({}, '', newUrl.toString());
+      }
+    }
+  }, [location.search]);
+  
+  // Auto-scroll to highlighted breakdown when data loads
+  useEffect(() => {
+    if (scrollToBreakdown && breakdowns.length > 0 && !loading) {
+      const targetBreakdown = breakdowns.find(b => 
+        b.breakdown_id === scrollToBreakdown || 
+        b.id === scrollToBreakdown
+      );
+      
+      if (targetBreakdown) {
+        // Small delay to ensure DOM is updated
+        setTimeout(() => {
+          const breakdownElement = breakdownRefs.current.get(scrollToBreakdown);
+          if (breakdownElement) {
+            // Smooth scroll to breakdown with offset for header
+            const yOffset = -100;
+            const y = breakdownElement.getBoundingClientRect().top + window.pageYOffset + yOffset;
+            
+            window.scrollTo({
+              top: y,
+              behavior: 'smooth'
+            });
+            
+            console.log('📍 Auto-scrolled to breakdown:', scrollToBreakdown);
+          }
+          
+          // Clear scroll target
+          setScrollToBreakdown(null);
+        }, 500);
+      }
+    }
+  }, [scrollToBreakdown, breakdowns, loading]);
+  
+  // Function to set breakdown ref for auto-scrolling
+  const setBreakdownRef = useCallback((breakdownId, element) => {
+    if (element) {
+      breakdownRefs.current.set(breakdownId, element);
+    } else {
+      breakdownRefs.current.delete(breakdownId);
+    }
+  }, []);
+  
+  // Get current supervisor for "My Breakdowns" filter
+  useEffect(() => {
+    const getSupervisor = () => {
+      try {
+        const sources = [
+          localStorage.getItem('currentSupervisor'),
+          localStorage.getItem('supervisorData'),
+          sessionStorage.getItem('currentSupervisor')
+        ];
+
+        for (const source of sources) {
+          if (source) {
+            try {
+              const supervisor = JSON.parse(source);
+              if (supervisor.badge || supervisor.supervisorBadge) {
+                setCurrentSupervisor(supervisor);
+                return;
+              }
+            } catch (e) {
+              // Continue to next source
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error getting supervisor data:', error);
+      }
+    };
+
+    getSupervisor();
+  }, []);
+
+  // Handle real-time messages from connection manager
+  useEffect(() => {
+    const unsubscribe = connectionManager.onMessage((message) => {
+      console.log('📨 SDC Dashboard received message:', message);
+      
+      if (message.type === 'poll_update' && message.activities) {
+        // Handle polling updates
+        message.activities.forEach(activity => {
+          const activityData = {
+            type: activity.type || activity.activity_type,
+            breakdown_id: activity.breakdown_id,
+            fleet_no: activity.fleet_no,
+            ...activity
+          };
+          handleRealtimeUpdate(activityData);
+        });
+      } else {
+        // Handle WebSocket updates
+        handleRealtimeUpdate(message);
+      }
+    });
+
+    return unsubscribe;
+  }, []); // Remove connectionManager dependency to prevent loops
+
+  // Handle real-time updates from WebSocket
+  const handleRealtimeUpdate = useCallback((data) => {
+    switch (data.type) {
+      case 'wizard_started':
+      case 'assessment_started':
+        // Add to active assessments with enhanced data
+        setActiveAssessments(prev => {
+          const exists = prev.some(a => 
+            a.breakdown_id === data.breakdown_id || 
+            a.assessmentId === data.assessmentId
+          );
+          if (!exists) {
+            const assessment = {
+              ...data,
+              breakdown_id: data.breakdown_id || data.breakdownId,
+              fleet_no: data.vehicle?.fleetNumber || data.fleet_no,
+              timestamp: data.timestamp || data.startTime || new Date().toISOString(),
+              currentStep: data.currentStep || '1',
+              totalSteps: data.totalSteps || '5',
+              stepDescription: data.stepDescription || 'Starting assessment...',
+              estimatedCompletion: data.estimatedCompletion || '5 mins',
+              wizardType: data.wizardType || data.issue_type || 'General Assessment',
+              supervisor_name: data.supervisor?.name || data.supervisor_name,
+              location: data.location,
+              route: data.route
+            };
+            return [assessment, ...prev];
+          }
+          return prev;
+        });
+        break;
+        
+      case 'wizard_completed':
+      case 'assessment_completed':
+        const breakdownId = data.breakdown_id || data.breakdownId;
+        
+        // Remove from active assessments and highlight in main list
+        setActiveAssessments(prev => 
+          prev.filter(a => 
+            a.breakdown_id !== breakdownId &&
+            a.assessmentId !== data.assessmentId
+          )
+        );
+        
+        // Add to completed assessments with timestamp
+        const completedAssessment = {
+          id: breakdownId,
+          completedAt: new Date().toISOString(),
+          decision: data.decision,
+          supervisor: data.supervisor?.name || data.supervisor_name || 'Unknown',
+          fleet: data.vehicle?.fleetNumber || data.fleet_no || 'Unknown',
+          location: data.location,
+          wizardType: data.wizardType || data.issue_type,
+          duration: data.duration || data.elapsedTime
+        };
+        
+        setCompletedAssessments(prev => [completedAssessment, ...prev.slice(0, 9)]);
+        
+        // Highlight the breakdown for 12 seconds with completion flash
+        setHighlightedBreakdown(breakdownId);
+        setTimeout(() => setHighlightedBreakdown(null), 12000);
+        
+        // Start engineering response timer for STOP and AMBER decisions
+        if (data.decision === 'STOP' || data.decision === 'AMBER') {
+          setEngineeringTimers(prev => {
+            const newTimers = new Map(prev);
+            newTimers.set(breakdownId, {
+              startTime: Date.now(),
+              decision: data.decision,
+              targetTime: data.decision === 'STOP' ? 15 * 60 * 1000 : 30 * 60 * 1000, // 15 mins for STOP, 30 for AMBER
+              fleet: data.vehicle?.fleetNumber || data.fleet_no || 'Unknown'
+            });
+            return newTimers;
+          });
+        }
+        
+        // Add to recent decisions
+        if (data.decision) {
+          setRecentDecisions(prev => [
+            {
+              id: breakdownId,
+              time: new Date().toISOString(),
+              fleet: data.vehicle?.fleetNumber || data.fleet_no || 'Unknown',
+              decision: data.decision,
+              notes: data.notes,
+              supervisor: data.supervisor?.name || data.supervisor_name || 'Unknown',
+              duration: data.duration || data.elapsedTime
+            },
+            ...prev.slice(0, 4)
+          ]);
+        }
+        
+        fetchBreakdowns(); // Refresh breakdown data
+        break;
+        
+      case 'assessment_cancelled':
+        // Remove from active assessments
+        setActiveAssessments(prev => 
+          prev.filter(a => 
+            a.breakdown_id !== data.breakdown_id &&
+            a.assessmentId !== data.assessmentId
+          )
+        );
+        break;
+        
+      case 'breakdown_created':
+        fetchBreakdowns(); // Refresh breakdown data
+        break;
+        
+      case 'engineer_assigned':
+      case 'engineering_dispatched':
+        // Clear engineering timer when engineer is assigned
+        const assignedBreakdownId = data.breakdown_id || data.breakdownId;
+        setEngineeringTimers(prev => {
+          const newTimers = new Map(prev);
+          newTimers.delete(assignedBreakdownId);
+          return newTimers;
+        });
+        fetchBreakdowns(); // Refresh breakdown data
+        break;
+        
+      case 'assessment_progress':
+        // Update progress for specific assessment with detailed info
+        setActiveAssessments(prev => 
+          prev.map(a => {
+            if (a.breakdown_id === data.breakdown_id || 
+                a.assessmentId === data.assessmentId) {
+              return {
+                ...a,
+                currentStep: data.currentStep,
+                totalSteps: data.totalSteps,
+                stepDescription: data.stepDescription,
+                progress: data.progress,
+                estimatedCompletion: data.estimatedCompletion,
+                elapsedTime: data.elapsedTime
+              };
+            }
+            return a;
+          })
+        );
+        break;
+    }
+  }, []);
+
+  // Enhanced assessment state management functions
+  const getAssessmentByBreakdownId = useCallback((breakdownId) => {
+    return assessmentsInProgress.find(assessment => 
+      assessment.breakdown_id === breakdownId || 
+      assessment.id === breakdownId
+    );
+  }, [assessmentsInProgress]);
+
+  const getCompletedAssessmentByBreakdownId = useCallback((breakdownId) => {
+    return completedAssessments.find(assessment => 
+      assessment.breakdown_id === breakdownId || 
+      assessment.id === breakdownId
+    );
+  }, [completedAssessments]);
+
+  const isBreakdownInAssessment = useCallback((breakdownId) => {
+    return Boolean(getAssessmentByBreakdownId(breakdownId));
+  }, [getAssessmentByBreakdownId]);
+
+  const getAssessmentProgress = useCallback((breakdownId) => {
+    const assessment = getAssessmentByBreakdownId(breakdownId);
+    if (!assessment) return null;
+    
+    return {
+      progress: assessment.progress_percentage || 0,
+      currentStep: assessment.currentStep || assessment.current_step || '1',
+      totalSteps: assessment.totalSteps || assessment.total_steps || '5',
+      stepDescription: assessment.stepDescription || assessment.step_description || 'In progress...',
+      supervisor: assessment.supervisor_name || assessment.supervisor?.name || 'Unknown',
+      wizardType: assessment.wizardType || assessment.wizard_type || 'General'
+    };
+  }, [getAssessmentByBreakdownId]);
+
+  // Assessment error handling and retry functions
+  const handleAssessmentDataError = useCallback((error) => {
+    console.error('📊 Assessment data error:', error);
+    // Could set additional error state here if needed
+  }, []);
+
+  const retryAssessmentConnection = useCallback(async () => {
+    try {
+      console.log('🔄 Retrying assessment connection...');
+      await assessmentData.refresh.all();
+    } catch (error) {
+      console.error('❌ Failed to retry assessment connection:', error);
+    }
+  }, [assessmentData.refresh]);
+
+  const manualRefreshAssessments = useCallback(async () => {
+    try {
+      console.log('🔄 Manual refresh of assessment data...');
+      await Promise.all([
+        assessmentData.refresh.assessments(),
+        assessmentData.refresh.breakdowns(),
+        assessmentData.refresh.statistics()
+      ]);
+    } catch (error) {
+      console.error('❌ Manual refresh failed:', error);
+    }
+  }, [assessmentData.refresh]);
+
+  // Check if assessment data should show fallback
+  const shouldShowAssessmentFallback = useCallback(() => {
+    const hasErrors = assessmentData.errors?.api || assessmentData.errors?.websocket || assessmentData.errors?.general;
+    const hasNoData = !assessmentData.hasData();
+    const isDisconnected = !assessmentData.isConnected();
+    
+    return hasErrors && (hasNoData || isDisconnected);
+  }, [assessmentData]);
+
+  // Simplified breakdown fetching (assessment integration disabled)
   const fetchBreakdowns = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${apiConfig.baseUrl}/api/breakdowns/active`);
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch breakdowns');
-      }
+      // Fetch only regular breakdowns for now
+      const response = await fetch(`${apiConfig.baseUrl}/api/sdc/live`);
       
-      const data = await response.json();
-      console.log('📊 SDC fetched real breakdowns:', data);
-      
-      if (data.success && Array.isArray(data.breakdowns)) {
-        // Process real breakdowns for SDC view
-        const processedBreakdowns = data.breakdowns.map(b => ({
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📊 SDC fetched breakdowns:', data);
+        const breakdownsData = data.breakdowns || [];
+        
+        console.log('📊 SDC total breakdowns:', breakdownsData.length);
+        
+        if (Array.isArray(breakdownsData) && breakdownsData.length > 0) {
+        // Process merged breakdowns for SDC view
+        const processedBreakdowns = breakdownsData.map(b => ({
           id: b.breakdown_id || b.id,
           breakdown_id: b.breakdown_id,
           daily_id: b.daily_id,
@@ -102,7 +783,8 @@ const SDCDashboard = () => {
           total: activeBreakdowns.length,
           critical: criticalCount,
           pending: pendingCount,
-          dispatched: dispatchedCount
+          dispatched: dispatchedCount,
+          inAssessment: assessmentsInProgress.length
         });
         
         // Generate priority alerts for critical situations
@@ -156,10 +838,14 @@ const SDCDashboard = () => {
         
         setRecentDecisions(decisions);
         
+        } else {
+          setBreakdowns([]);
+          setPriorityAlerts([]);
+          setRecentDecisions([]);
+        }
       } else {
+        console.error('Failed to fetch breakdowns:', response.status);
         setBreakdowns([]);
-        setPriorityAlerts([]);
-        setRecentDecisions([]);
       }
     } catch (error) {
       console.error('Error fetching breakdowns:', error);
@@ -172,30 +858,117 @@ const SDCDashboard = () => {
   // Fetch data on mount and set up auto-refresh
   useEffect(() => {
     fetchBreakdowns();
+    fetchActiveAssessments();
     
-    // Auto-refresh every 5 seconds for real-time updates
-    const interval = setInterval(fetchBreakdowns, 5000);
+    // Auto-refresh based on connection status
+    // If WebSocket is connected, refresh less frequently
+    // If polling mode, the connection manager handles updates
+    const getRefreshInterval = () => {
+      if (connectionManager.isConnected) {
+        return connectionManager.currentMode === 'websocket' ? 30000 : 0; // 30s for WebSocket, 0 for polling
+      }
+      return 10000; // 10s fallback when disconnected
+    };
     
-    return () => clearInterval(interval);
+    let refreshTimeout;
+    
+    const scheduleNextRefresh = () => {
+      const interval = getRefreshInterval();
+      if (interval > 0) {
+        refreshTimeout = setTimeout(() => {
+          if (!loading) {
+            fetchBreakdowns();
+            // fetchActiveAssessments(); // Disabled to fix infinite loop
+          }
+          scheduleNextRefresh();
+        }, interval);
+      }
+    };
+    
+    scheduleNextRefresh();
+    
+    // Cleanup timeout on unmount or dependency change
+    return () => {
+      if (refreshTimeout) {
+        clearTimeout(refreshTimeout);
+      }
+    };
+  }, []); // Remove dependencies that cause infinite loops
+
+  // Memoized filtered breakdowns for performance
+  const filteredBreakdowns = useMemo(() => {
+    return breakdowns.filter(b => {
+      if (activeFilter === 'all') return true;
+      if (activeFilter === 'critical') return b.isCritical;
+      if (activeFilter === 'pending') return b.isPending;
+      if (activeFilter === 'in-assessment') {
+        // Check if this breakdown has an active assessment
+        return activeAssessments.some(a => 
+          a.breakdown_id === b.breakdown_id || a.fleet_no === b.fleet_number
+        );
+      }
+      if (activeFilter === 'my-breakdowns') {
+        // Filter by current supervisor
+        if (!currentSupervisor) return false;
+        const supervisorBadge = currentSupervisor.badge || currentSupervisor.supervisorBadge;
+        return b.supervisor_badge === supervisorBadge || 
+               b.supervisor_name === currentSupervisor.name;
+      }
+      if (activeFilter === 'priority-routes') return b.isPriorityRoute;
+      return true;
+    });
+  }, [breakdowns, activeFilter, activeAssessments, currentSupervisor]);
+
+  // Memoized action handlers for performance
+  const handleEmergencyBreakdown = useCallback(() => {
+    window.location.href = '/breakdown-guide';
   }, []);
 
-  // Filter breakdowns based on active filter
-  const filteredBreakdowns = breakdowns.filter(b => {
-    if (activeFilter === 'all') return true;
-    if (activeFilter === 'critical') return b.isCritical;
-    if (activeFilter === 'pending') return b.isPending;
-    if (activeFilter === 'priority-routes') return b.isPriorityRoute;
-    return true;
-  });
-
-  // Quick action handlers
-  const handleEmergencyBreakdown = () => {
+  const handleNewBreakdown = useCallback(() => {
     window.location.href = '/breakdown-guide';
-  };
+  }, []);
 
-  const handleNewBreakdown = () => {
-    window.location.href = '/breakdown-guide';
-  };
+  // Enhanced card handler for viewing SDC Guide sections
+  const handleViewGuide = useCallback((section, page) => {
+    console.log(`📖 Opening SDC Guide ${section}, Page ${page}`);
+    // In a real implementation, this would open the SDC Guide to the specific section
+    // For now, we'll show an alert with the guide reference
+    alert(`SDC Guide Reference: ${section}, Page ${page}\n\nThis would open the digital SDC Engineering Issues Guide to the specified section.`);
+  }, []);
+
+  // Enhanced card handler for adding notes to breakdowns
+  const handleAddNote = useCallback(async (breakdownId, note) => {
+    if (!note.trim()) return;
+    
+    try {
+      console.log(`📝 Adding note to breakdown ${breakdownId}:`, note);
+      
+      const response = await fetch(`${apiConfig.baseUrl}/api/sdc/add-note`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          breakdown_id: breakdownId,
+          note: note.trim(),
+          timestamp: new Date().toISOString(),
+          supervisor_id: currentSupervisor?.id || 'unknown'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log(`✅ Note added successfully to breakdown ${breakdownId}`);
+      
+      // Optionally refresh data to show the new note
+      await loadBreakdowns();
+      
+    } catch (error) {
+      console.error(`❌ Failed to add note to breakdown ${breakdownId}:`, error);
+      alert('Failed to add note. Please try again.');
+    }
+  }, [currentSupervisor]);
 
   const handleRequestEngineering = async (breakdownId) => {
     try {
@@ -252,15 +1025,202 @@ const SDCDashboard = () => {
     }
   };
 
+  // Enhanced edit assessment handler with integrated API
+  const handleEditAssessment = async (breakdownId) => {
+    try {
+      console.log(`🔧 Initiating assessment edit for breakdown: ${breakdownId}`);
+      
+      // Get assessment details first
+      const assessmentDetails = await assessmentData.getAssessmentDetails(breakdownId);
+      
+      if (!assessmentDetails.success) {
+        throw new Error(assessmentDetails.error || 'Failed to retrieve assessment details');
+      }
+      
+      // Prepare edit request
+      const editRequest = {
+        reason: 'sdc_dashboard_edit',
+        type: 'modification',
+        supervisor: currentSupervisor?.name || currentSupervisor?.badge || 'sdc_operator',
+        return_url: `/dashboards/sdc?highlight=${breakdownId}`,
+        breakdown_id: breakdownId,
+        dashboard_state: {
+          filter: activeFilter,
+          highlighted_breakdown: breakdownId,
+          timestamp: new Date().toISOString()
+        },
+        ip_address: 'dashboard', // Would be actual IP in production
+        user_agent: navigator.userAgent
+      };
+      
+      // Initiate edit session through API
+      const editResult = await assessmentData.editAssessment(
+        assessmentDetails.assessment.assessment_id,
+        editRequest
+      );
+      
+      if (editResult.success) {
+        console.log('✅ Edit session initiated:', editResult.edit_session.id);
+        
+        // Log audit event through API
+        await fetch(`${apiConfig.baseUrl}/api/audit/log`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'edit_assessment_initiated',
+            breakdown_id: breakdownId,
+            assessment_id: assessmentDetails.assessment.assessment_id,
+            edit_session_id: editResult.edit_session.id,
+            user_type: 'sdc_operator',
+            supervisor: currentSupervisor?.name || currentSupervisor?.badge,
+            timestamp: new Date().toISOString(),
+            source: 'sdc_dashboard'
+          })
+        });
+        
+        // Redirect to edit URL or fallback to breakdown guide
+        const redirectUrl = editResult.edit_session.redirect_url || 
+          `/breakdown-guide?edit=${breakdownId}&return=${encodeURIComponent(`/dashboards/sdc?highlight=${breakdownId}`)}`;
+        
+        window.location.href = redirectUrl;
+      } else {
+        throw new Error(editResult.error || 'Failed to initiate edit session');
+      }
+    } catch (error) {
+      console.error('❌ Error initiating assessment edit:', error);
+      
+      // Fallback to legacy edit mode
+      console.log('🔄 Falling back to legacy edit mode');
+      const returnUrl = encodeURIComponent(`/dashboards/sdc?highlight=${breakdownId}`);
+      window.location.href = `/breakdown-guide?edit=${breakdownId}&return=${returnUrl}`;
+    }
+  };
+
+  // Handle report breakdown action
+  const handleReportBreakdown = () => {
+    window.open('/breakdown-guide', '_blank');
+  };
+  
+  // Handle refresh action
+  const handleRefresh = () => {
+    fetchBreakdowns();
+    fetchActiveAssessments();
+  };
+
   return (
     <DashboardLayout title="SDC Operations Centre" icon="🎯">
+      {/* Enhanced Dashboard Header */}
+      <SDCDashboardHeader 
+        stats={stats}
+        connectionManager={connectionManager}
+        onReportBreakdown={handleReportBreakdown}
+        onRefresh={handleRefresh}
+      />
+      
+      {/* Redirect Completion Notification */}
+      {redirectNotification && (
+        <div className="redirect-notification">
+          <div className="notification-content">
+            <div className="notification-header">
+              <span className="notification-icon">
+                {redirectNotification.decision === 'STOP' ? '🛑' : 
+                 redirectNotification.decision === 'AMBER' ? '⚠️' : '✅'}
+              </span>
+              <h3>Assessment Completed</h3>
+              <button 
+                className="close-notification"
+                onClick={() => setRedirectNotification(null)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="notification-details">
+              <div className="notification-item">
+                <span className="label">Breakdown:</span>
+                <span className="value">{redirectNotification.breakdownId}</span>
+              </div>
+              <div className="notification-item">
+                <span className="label">Decision:</span>
+                <span className={`value decision-${redirectNotification.decision.toLowerCase()}`}>
+                  {redirectNotification.decision}
+                </span>
+              </div>
+              <div className="notification-item">
+                <span className="label">Supervisor:</span>
+                <span className="value">{redirectNotification.supervisor}</span>
+              </div>
+              <div className="notification-item">
+                <span className="label">Duration:</span>
+                <span className="value">{redirectNotification.duration}</span>
+              </div>
+              <div className="notification-item">
+                <span className="label">Completed:</span>
+                <span className="value">
+                  {redirectNotification.timestamp.toLocaleTimeString('en-GB')}
+                </span>
+              </div>
+            </div>
+            <div className="notification-actions">
+              <span className="scroll-hint">
+                📍 Breakdown highlighted below - auto-scrolling to location
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Engineering Response Timers */}
+      {engineeringTimers.size > 0 && (
+        <EngineeringTimerAlert engineeringTimers={engineeringTimers} />
+      )}
+
       {/* Priority Alerts */}
       {priorityAlerts.length > 0 && (
         <PriorityAlerts alerts={priorityAlerts} />
       )}
 
+      {/* Enhanced Assessment Progress Tracking */}
+      {activeAssessments.length > 0 && (
+        <div className="assessment-tracking-section">
+          {/* Show detailed cards for first 2 assessments */}
+          {activeAssessments.slice(0, 2).map(assessment => (
+            <AssessmentProgressCard
+              key={assessment.assessmentId || assessment.breakdown_id}
+              breakdownId={assessment.breakdown_id}
+              currentStep={`${assessment.currentStep}/${assessment.totalSteps}`}
+              stepDescription={assessment.stepDescription}
+              supervisor={assessment.supervisor_name}
+              estimatedCompletion={assessment.estimatedCompletion}
+              fleetNumber={assessment.fleet_no}
+              route={assessment.route}
+              location={assessment.location?.description || assessment.location}
+              startTime={assessment.timestamp}
+              wizardType={assessment.wizardType}
+              priority={assessment.priority || 'normal'}
+              onViewDetails={(id) => {
+                // Open assessment in new tab
+                window.open(`/breakdown-guide?continue=${id}`, '_blank');
+              }}
+              onCancel={(id) => {
+                // Send cancellation request
+                fetch(`${apiConfig.baseUrl}/api/assessment/cancel`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ assessment_id: id })
+                });
+              }}
+            />
+          ))}
+          
+          {/* Show tracker for additional assessments */}
+          {activeAssessments.length > 2 && (
+            <AssessmentProgressTracker assessments={activeAssessments.slice(2)} />
+          )}
+        </div>
+      )}
+
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
         <StatsCard
           title="Active Breakdowns"
           value={stats.total}
@@ -272,6 +1232,12 @@ const SDCDashboard = () => {
           value={stats.critical}
           change={stats.critical > 2 ? 'High volume' : 'Normal'}
           trend={stats.critical > 2 ? 'danger' : 'neutral'}
+        />
+        <StatsCard
+          title="In Assessment"
+          value={stats.inAssessment}
+          change={stats.inAssessment > 0 ? 'Supervisors active' : 'No active assessments'}
+          trend={stats.inAssessment > 0 ? 'info' : 'neutral'}
         />
         <StatsCard
           title="Pending Decision"
@@ -287,21 +1253,27 @@ const SDCDashboard = () => {
         />
       </div>
 
-      {/* Quick Actions Bar */}
-      <div className="quick-actions-bar">
-        <button onClick={handleEmergencyBreakdown} className="action-btn emergency">
-          🚨 Emergency Breakdown
-        </button>
-        <button onClick={handleNewBreakdown} className="action-btn">
-          ➕ New Breakdown
-        </button>
-        <button onClick={() => fetchBreakdowns()} className="action-btn">
-          🔄 Refresh
-        </button>
-      </div>
+      {/* Enhanced Stats with My Breakdowns count */}
+      {currentSupervisor && (
+        <div className="supervisor-stats">
+          <div className="supervisor-breakdown-count">
+            <span className="supervisor-icon">👤</span>
+            <span className="supervisor-text">
+              {currentSupervisor.name || currentSupervisor.badge}: 
+              {filteredBreakdowns.filter(b => 
+                b.supervisor_badge === (currentSupervisor.badge || currentSupervisor.supervisorBadge) ||
+                b.supervisor_name === currentSupervisor.name
+              ).length} breakdown{filteredBreakdowns.filter(b => 
+                b.supervisor_badge === (currentSupervisor.badge || currentSupervisor.supervisorBadge) ||
+                b.supervisor_name === currentSupervisor.name
+              ).length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        </div>
+      )}
 
-      {/* Filter Bar */}
-      <FilterBar
+      {/* Enhanced Filter Bar with Assessment Details */}
+      <EnhancedFilterBar
         filters={filters}
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
@@ -325,15 +1297,52 @@ const SDCDashboard = () => {
                 <small>Real-time data from assessments</small>
               </div>
             ) : (
-              filteredBreakdowns.map(breakdown => (
-                <SDCBreakdownCard
-                  key={breakdown.breakdown_id}
-                  breakdown={breakdown}
-                  onAcknowledge={() => handleAcknowledge(breakdown.breakdown_id)}
-                  onMakeDecision={(decision) => handleMakeDecision(breakdown.breakdown_id, decision)}
-                  onRequestEngineering={() => handleRequestEngineering(breakdown.breakdown_id)}
-                />
-              ))
+              filteredBreakdowns.map(breakdown => {
+                const isHighlighted = highlightedBreakdown === breakdown.breakdown_id;
+                const hasActiveAssessment = activeAssessments.some(a => 
+                  a.breakdown_id === breakdown.breakdown_id || a.fleet_no === breakdown.fleet_number
+                );
+                const recentlyCompleted = completedAssessments.some(c => 
+                  c.id === breakdown.breakdown_id && 
+                  (Date.now() - new Date(c.completedAt)) < 10000 // Within last 10 seconds
+                );
+                const engineeringTimer = engineeringTimers.get(breakdown.breakdown_id);
+                
+                return (
+                  <div
+                    key={breakdown.breakdown_id}
+                    ref={(el) => setBreakdownRef(breakdown.breakdown_id, el)}
+                    className="breakdown-card-container"
+                  >
+                    <SDCBreakdownCardEnhanced
+                      breakdown={{
+                        ...breakdown,
+                        hasActiveAssessment,
+                        inAssessment: hasActiveAssessment,
+                        // Add elapsed time calculation
+                        elapsed: breakdown.created_at ? 
+                          Math.floor((new Date() - new Date(breakdown.created_at)) / 1000 / 60) : 0,
+                        // Add SLA information based on issue type
+                        sla: getSLAForIssue(breakdown.issue_type || breakdown.wizard_type, breakdown.isPriorityRoute),
+                        // Add SDC guidance
+                        sdcGuidance: getSDCGuidance(breakdown.issue_type || breakdown.wizard_type)
+                      }}
+                      isHighlighted={isHighlighted}
+                      recentlyCompleted={recentlyCompleted}
+                      engineeringTimer={engineeringTimer ? {
+                        ...engineeringTimer,
+                        remaining: Math.max(0, engineeringTimer.targetTime - (Date.now() - engineeringTimer.startTime))
+                      } : null}
+                      onAcknowledge={() => handleAcknowledge(breakdown.breakdown_id)}
+                      onMakeDecision={(decision) => handleMakeDecision(breakdown.breakdown_id, decision)}
+                      onRequestEngineering={() => handleRequestEngineering(breakdown.breakdown_id)}
+                      onEditAssessment={() => handleEditAssessment(breakdown.breakdown_id)}
+                      onViewGuide={handleViewGuide}
+                      onAddNote={handleAddNote}
+                    />
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
@@ -352,54 +1361,51 @@ const SDCDashboard = () => {
           SDC Live Data - Real breakdowns from assessments
         </span>
         <span className="last-update">
-          Auto-refreshing every 5 seconds
+          {filteredBreakdowns.length} breakdown{filteredBreakdowns.length !== 1 ? 's' : ''} displayed
         </span>
       </div>
 
+      {/* Connection Status Indicator */}
+      <ConnectionStatusIndicator 
+        connectionManager={connectionManager.manager}
+        showDetails={true}
+        position="bottom-right"
+      />
+
       <style jsx>{`
-        .quick-actions-bar {
-          display: flex;
-          gap: 10px;
+        .supervisor-stats {
+          background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05));
+          border: 1px solid rgba(59, 130, 246, 0.2);
+          border-radius: 12px;
+          padding: 12px 16px;
           margin-bottom: 20px;
-          padding: 15px;
-          background: rgba(0, 0, 0, 0.2);
-          border-radius: 8px;
+          backdrop-filter: blur(10px);
         }
-
-        .action-btn {
-          padding: 10px 20px;
-          background: rgba(59, 130, 246, 0.1);
-          border: 1px solid rgba(59, 130, 246, 0.3);
-          border-radius: 6px;
-          color: #60a5fa;
+        
+        .supervisor-breakdown-count {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #3b82f6;
           font-weight: 500;
-          cursor: pointer;
-          transition: all 0.2s;
+          font-size: 14px;
         }
-
-        .action-btn:hover {
-          background: rgba(59, 130, 246, 0.2);
-          transform: translateY(-1px);
+        
+        .supervisor-icon {
+          font-size: 16px;
         }
-
-        .action-btn.emergency {
-          background: rgba(239, 68, 68, 0.2);
-          border-color: rgba(239, 68, 68, 0.5);
-          color: #f87171;
-          animation: pulse-red 2s infinite;
-        }
-
-        @keyframes pulse-red {
-          0%, 100% {
-            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
-          }
-          50% {
-            box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
-          }
+        
+        .supervisor-text {
+          color: #1e293b;
         }
 
         .breakdown-list {
           min-height: 400px;
+        }
+
+        .breakdown-card-container {
+          margin-bottom: 16px;
+          scroll-margin-top: 120px; /* Offset for header during auto-scroll */
         }
 
         .no-breakdowns {
@@ -408,6 +1414,150 @@ const SDCDashboard = () => {
           background: rgba(255, 255, 255, 0.05);
           border-radius: 8px;
           border: 1px dashed rgba(255, 255, 255, 0.2);
+        }
+
+        /* Redirect Notification Styles */
+        .redirect-notification {
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          z-index: 1000;
+          background: linear-gradient(135deg, 
+            rgba(59, 130, 246, 0.95) 0%, 
+            rgba(37, 99, 235, 0.95) 100%
+          );
+          border: 1px solid rgba(59, 130, 246, 0.3);
+          border-radius: 16px;
+          padding: 0;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+          backdrop-filter: blur(20px);
+          max-width: 420px;
+          min-width: 350px;
+          animation: slideInFromRight 0.5s ease-out;
+        }
+
+        @keyframes slideInFromRight {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+
+        .notification-content {
+          padding: 20px;
+          color: white;
+        }
+
+        .notification-header {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 16px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .notification-icon {
+          font-size: 24px;
+          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+        }
+
+        .notification-header h3 {
+          margin: 0;
+          font-size: 16px;
+          font-weight: 700;
+          flex: 1;
+          color: white;
+        }
+
+        .close-notification {
+          background: none;
+          border: none;
+          color: white;
+          font-size: 24px;
+          font-weight: bold;
+          cursor: pointer;
+          opacity: 0.7;
+          transition: opacity 0.2s ease;
+          padding: 0;
+          width: 30px;
+          height: 30px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+        }
+
+        .close-notification:hover {
+          opacity: 1;
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        .notification-details {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+
+        .notification-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 13px;
+        }
+
+        .notification-item .label {
+          font-weight: 500;
+          opacity: 0.9;
+          min-width: 80px;
+        }
+
+        .notification-item .value {
+          font-weight: 600;
+          text-align: right;
+          font-family: 'Monaco', 'Consolas', monospace;
+        }
+
+        .decision-stop {
+          color: #fee2e2;
+          background: rgba(220, 38, 38, 0.2);
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-size: 11px;
+        }
+
+        .decision-amber {
+          color: #fef3c7;
+          background: rgba(245, 158, 11, 0.2);
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-size: 11px;
+        }
+
+        .decision-continue {
+          color: #dcfce7;
+          background: rgba(16, 185, 129, 0.2);
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-size: 11px;
+        }
+
+        .notification-actions {
+          padding-top: 12px;
+          border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .scroll-hint {
+          display: block;
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.8);
+          text-align: center;
+          font-style: italic;
         }
 
         .no-breakdowns p {
@@ -461,6 +1611,39 @@ const SDCDashboard = () => {
         .last-update {
           color: #888;
           font-size: 12px;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+          .redirect-notification {
+            top: 10px;
+            right: 10px;
+            left: 10px;
+            max-width: none;
+            min-width: auto;
+          }
+
+          .notification-content {
+            padding: 16px;
+          }
+
+          .notification-header h3 {
+            font-size: 14px;
+          }
+
+          .notification-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+          }
+
+          .notification-item .value {
+            text-align: left;
+          }
+
+          .breakdown-card-container {
+            scroll-margin-top: 80px;
+          }
         }
       `}</style>
     </DashboardLayout>

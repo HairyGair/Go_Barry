@@ -4,37 +4,40 @@
 import { supabase } from './supabase-client.js';
 import { passwordValidator, sessionSecurity, rateLimiter, SecurityUtils, SECURITY_CONFIG } from './security-service.js';
 
-// Authorized supervisors - these will be created in Supabase Auth
+// Authorized supervisors - these accounts must be created in Supabase Auth
+// All supervisors are initially from SDC (Service Delivery Centre)
 const AUTHORIZED_SUPERVISORS = [
     {
-        email: 'anthony.gair@example.com',
+        email: 'anthony.gair@gonortheast.co.uk',
         name: 'Anthony Gair',
-        depot: 'Washington',
-        role: 'admin'
+        depot: 'SDC',
+        role: 'admin',
+        supervisorId: 'AG003',
+        badge_number: 'AG003'
     },
     {
-        email: 'lee.mutch@example.com',
+        email: 'lee.mutch@gonortheast.co.uk',
         name: 'Lee Mutch',
-        depot: 'Washington',
-        role: 'admin'
+        depot: 'SDC',
+        role: 'admin',
+        supervisorId: 'LM001',
+        badge_number: 'LM001'
     },
     {
-        email: 'joshua.devlin@example.com',
+        email: 'joshua.devlin@gonortheast.co.uk',
         name: 'Joshua Devlin',
-        depot: 'Washington',
-        role: 'admin'
+        depot: 'SDC',
+        role: 'supervisor',
+        supervisorId: 'JD002',
+        badge_number: 'JD002'
     },
     {
-        email: 'supervisor@example.com',
+        email: 'test@test.com',
         name: 'Test Supervisor',
-        depot: 'Washington',
-        role: 'supervisor'
-    },
-    {
-        email: 'admin@example.com',
-        name: 'System Admin',
-        depot: 'Washington',
-        role: 'admin'
+        depot: 'SDC',
+        role: 'supervisor',
+        supervisorId: 'TEST01',
+        badge_number: 'TEST01'
     }
 ];
 

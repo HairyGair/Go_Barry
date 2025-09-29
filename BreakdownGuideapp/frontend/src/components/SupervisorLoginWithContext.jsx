@@ -16,9 +16,16 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
         currentUser
     } = useAuth();
 
+    // Form mode state
+    const [isSignupMode, setIsSignupMode] = useState(false);
+
     // Form state
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [fullName, setFullName] = useState('');
+    const [badgeNumber, setBadgeNumber] = useState('');
+    const [depot, setDepot] = useState('SDC');
     const [rememberMe, setRememberMe] = useState(true);
 
     // UI state
@@ -28,7 +35,16 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
     // Validation state
     const [emailError, setEmailError] = useState('');
     const [passwordError, setPasswordError] = useState('');
-    const [touched, setTouched] = useState({ email: false, password: false });
+    const [confirmPasswordError, setConfirmPasswordError] = useState('');
+    const [fullNameError, setFullNameError] = useState('');
+    const [badgeNumberError, setBadgeNumberError] = useState('');
+    const [touched, setTouched] = useState({
+        email: false,
+        password: false,
+        confirmPassword: false,
+        fullName: false,
+        badgeNumber: false
+    });
 
     // Progress and feedback
     const [loginAttempts, setLoginAttempts] = useState(0);
@@ -80,8 +96,51 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
             return 'Password must be at least 6 characters';
         }
 
+        if (isSignupMode && password.length < 8) {
+            return 'Password must be at least 8 characters for new accounts';
+        }
+
         return '';
-    }, []);
+    }, [isSignupMode]);
+
+    // Confirm password validation
+    const validateConfirmPassword = useCallback((confirmPassword) => {
+        if (!confirmPassword && isSignupMode) {
+            return 'Please confirm your password';
+        }
+
+        if (confirmPassword !== password && isSignupMode) {
+            return 'Passwords do not match';
+        }
+
+        return '';
+    }, [password, isSignupMode]);
+
+    // Full name validation
+    const validateFullName = useCallback((fullName) => {
+        if (!fullName && isSignupMode) {
+            return 'Full name is required';
+        }
+
+        if (fullName && fullName.length < 2) {
+            return 'Full name must be at least 2 characters';
+        }
+
+        return '';
+    }, [isSignupMode]);
+
+    // Badge number validation
+    const validateBadgeNumber = useCallback((badgeNumber) => {
+        if (!badgeNumber && isSignupMode) {
+            return 'Badge number is required';
+        }
+
+        if (badgeNumber && !/^[A-Z]{2}\d{3}$/.test(badgeNumber)) {
+            return 'Badge number must be in format: AB123';
+        }
+
+        return '';
+    }, [isSignupMode]);
 
     // Handle email change with validation
     const handleEmailChange = useCallback((e) => {
@@ -126,57 +185,237 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
         setPasswordError(validatePassword(password));
     }, [password, validatePassword]);
 
+    // Signup function
+    const handleSignup = async () => {
+        console.log('🆕 Attempting signup for:', email);
+
+        try {
+            const response = await fetch(`${process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : 'https://go-barry.onrender.com'}/api/auth/signup`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: email.toLowerCase(),
+                    password,
+                    fullName,
+                    badgeNumber: badgeNumber.toUpperCase(),
+                    depot,
+                    role: 'supervisor'
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                console.log('✅ Signup successful, awaiting approval');
+                setLocalError('');
+                // Show success message
+                alert('Signup successful! Your account is pending approval. You will be notified when approved.');
+                // Switch back to login mode
+                setIsSignupMode(false);
+                clearSignupForm();
+                return { success: true };
+            } else {
+                console.error('❌ Signup failed:', result.error);
+                
+                // Handle specific error cases
+                if (result.code === 'EMAIL_EXISTS') {
+                    setLocalError(result.error || 'An account with this email already exists.');
+                    // Suggest switching to login mode
+                    setTimeout(() => {
+                        if (confirm('An account with this email already exists. Would you like to switch to login mode?')) {
+                            setIsSignupMode(false);
+                            setEmail(email); // Pre-fill the email
+                            setLocalError('');
+                        }
+                    }, 1000);
+                } else {
+                    setLocalError(result.error || 'Signup failed. Please try again.');
+                }
+                return { success: false, error: result.error };
+            }
+        } catch (err) {
+            console.error('Signup error:', err);
+            setLocalError('Network error. Please check your connection and try again.');
+            return { success: false, error: 'Network error' };
+        }
+    };
+
     // Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Validate all fields
-        const emailErr = validateEmail(email);
-        const passwordErr = validatePassword(password);
+        if (isSignupMode) {
+            // Validate all signup fields
+            const emailErr = validateEmail(email);
+            const passwordErr = validatePassword(password);
+            const confirmPasswordErr = validateConfirmPassword(confirmPassword);
+            const fullNameErr = validateFullName(fullName);
+            const badgeNumberErr = validateBadgeNumber(badgeNumber);
 
-        setEmailError(emailErr);
-        setPasswordError(passwordErr);
-        setTouched({ email: true, password: true });
+            setEmailError(emailErr);
+            setPasswordError(passwordErr);
+            setConfirmPasswordError(confirmPasswordErr);
+            setFullNameError(fullNameErr);
+            setBadgeNumberError(badgeNumberErr);
+            setTouched({
+                email: true,
+                password: true,
+                confirmPassword: true,
+                fullName: true,
+                badgeNumber: true
+            });
 
-        if (emailErr || passwordErr) {
-            // Focus first field with error
-            if (emailErr && emailRef.current) {
-                emailRef.current.focus();
-            } else if (passwordErr && passwordRef.current) {
-                passwordRef.current.focus();
-            }
-            return;
-        }
-
-        // Clear any existing errors
-        clearError();
-        setLocalError('');
-        setLoginAttempts(prev => prev + 1);
-
-        try {
-            const result = await login(email, password, rememberMe);
-
-            if (result.success) {
-                console.log('✅ Login successful:', result.user?.name);
-                // onSuccess will be called via useEffect when auth state updates
-            } else {
-                // Error is handled by context, but we can show hints
-                if (loginAttempts >= 2 && !showHints) {
-                    setTimeout(() => setShowHints(true), 1000);
+            if (emailErr || passwordErr || confirmPasswordErr || fullNameErr || badgeNumberErr) {
+                // Focus first field with error
+                if (emailErr && emailRef.current) {
+                    emailRef.current.focus();
+                } else if (passwordErr && passwordRef.current) {
+                    passwordRef.current.focus();
                 }
-
-                // Focus email field for retry
-                setTimeout(() => {
-                    if (emailRef.current) {
-                        emailRef.current.select();
-                    }
-                }, 100);
+                return;
             }
-        } catch (err) {
-            console.error('Login error:', err);
-            setLocalError('An unexpected error occurred. Please try again.');
+
+            // Clear any existing errors
+            clearError();
+            setLocalError('');
+
+            await handleSignup();
+        } else {
+            // Validate login fields
+            const emailErr = validateEmail(email);
+            const passwordErr = validatePassword(password);
+
+            setEmailError(emailErr);
+            setPasswordError(passwordErr);
+            setTouched({ email: true, password: true });
+
+            if (emailErr || passwordErr) {
+                // Focus first field with error
+                if (emailErr && emailRef.current) {
+                    emailRef.current.focus();
+                } else if (passwordErr && passwordRef.current) {
+                    passwordRef.current.focus();
+                }
+                return;
+            }
+
+            // Clear any existing errors
+            clearError();
+            setLocalError('');
+            setLoginAttempts(prev => prev + 1);
+
+            try {
+                const result = await login(email, password, rememberMe);
+
+                if (result.success) {
+                    console.log('✅ Login successful:', result.user?.name);
+                    // onSuccess will be called via useEffect when auth state updates
+                } else {
+                    // Error is handled by context, but we can show hints
+                    if (loginAttempts >= 2 && !showHints) {
+                        setTimeout(() => setShowHints(true), 1000);
+                    }
+
+                    // Focus email field for retry
+                    setTimeout(() => {
+                        if (emailRef.current) {
+                            emailRef.current.select();
+                        }
+                    }, 100);
+                }
+            } catch (err) {
+                console.error('Login error:', err);
+                setLocalError('An unexpected error occurred. Please try again.');
+            }
         }
     };
+
+    // Clear signup form
+    const clearSignupForm = useCallback(() => {
+        setEmail('');
+        setPassword('');
+        setConfirmPassword('');
+        setFullName('');
+        setBadgeNumber('');
+        setDepot('SDC');
+        setEmailError('');
+        setPasswordError('');
+        setConfirmPasswordError('');
+        setFullNameError('');
+        setBadgeNumberError('');
+        setTouched({
+            email: false,
+            password: false,
+            confirmPassword: false,
+            fullName: false,
+            badgeNumber: false
+        });
+    }, []);
+
+    // Toggle between login and signup mode
+    const toggleSignupMode = useCallback(() => {
+        setIsSignupMode(!isSignupMode);
+        clearSignupForm();
+        clearError();
+        setLocalError('');
+        setShowHints(false);
+        setLoginAttempts(0);
+    }, [isSignupMode, clearSignupForm, clearError]);
+
+    // Handle additional field changes
+    const handleConfirmPasswordChange = useCallback((e) => {
+        const value = e.target.value;
+        setConfirmPassword(value);
+        if (touched.confirmPassword) {
+            setConfirmPasswordError(validateConfirmPassword(value));
+        }
+        if (error) {
+            clearError();
+            setLocalError('');
+        }
+    }, [touched.confirmPassword, validateConfirmPassword, error, clearError]);
+
+    const handleFullNameChange = useCallback((e) => {
+        const value = e.target.value;
+        setFullName(value);
+        if (touched.fullName) {
+            setFullNameError(validateFullName(value));
+        }
+        if (error) {
+            clearError();
+            setLocalError('');
+        }
+    }, [touched.fullName, validateFullName, error, clearError]);
+
+    const handleBadgeNumberChange = useCallback((e) => {
+        const value = e.target.value.toUpperCase();
+        setBadgeNumber(value);
+        if (touched.badgeNumber) {
+            setBadgeNumberError(validateBadgeNumber(value));
+        }
+        if (error) {
+            clearError();
+            setLocalError('');
+        }
+    }, [touched.badgeNumber, validateBadgeNumber, error, clearError]);
+
+    // Handle blur events for new fields
+    const handleConfirmPasswordBlur = useCallback(() => {
+        setTouched(prev => ({ ...prev, confirmPassword: true }));
+        setConfirmPasswordError(validateConfirmPassword(confirmPassword));
+    }, [confirmPassword, validateConfirmPassword]);
+
+    const handleFullNameBlur = useCallback(() => {
+        setTouched(prev => ({ ...prev, fullName: true }));
+        setFullNameError(validateFullName(fullName));
+    }, [fullName, validateFullName]);
+
+    const handleBadgeNumberBlur = useCallback(() => {
+        setTouched(prev => ({ ...prev, badgeNumber: true }));
+        setBadgeNumberError(validateBadgeNumber(badgeNumber));
+    }, [badgeNumber, validateBadgeNumber]);
 
     // Handle Enter key submission
     const handleKeyDown = useCallback((e) => {
@@ -262,28 +501,78 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
                             className="login-logo"
                         />
                         <h2>Welcome Back!</h2>
-                        <p className="login-subtitle">Successfully authenticated</p>
+                        <p className="login-subtitle">Authentication Successful</p>
                     </div>
                     <div className="success-content">
-                        <div className="success-icon">✅</div>
-                        <h3>Hello, {currentUser.name}</h3>
-                        <p>Role: {currentUser.role}</p>
-                        <p>Depot: {currentUser.depot}</p>
+                        <div className="success-icon-animated">
+                            <div className="checkmark-circle">
+                                <div className="checkmark draw"></div>
+                            </div>
+                        </div>
+                        <h3 className="welcome-name">Hello, {currentUser.name}!</h3>
+                        <div className="user-details">
+                            <div className="detail-item">
+                                <span className="detail-icon">👤</span>
+                                <span className="detail-label">Role:</span>
+                                <span className="detail-value">
+                                    {currentUser.role?.charAt(0).toUpperCase() + currentUser.role?.slice(1)}
+                                </span>
+                            </div>
+                            <div className="detail-item">
+                                <span className="detail-icon">🏢</span>
+                                <span className="detail-label">Depot:</span>
+                                <span className="detail-value">{currentUser.depot}</span>
+                            </div>
+                        </div>
                         <div className="success-actions">
                             <button
-                                className="btn btn-primary"
-                                onClick={() => onSuccess?.(currentUser)}
+                                className="btn btn-primary btn-dashboard"
+                                onClick={() => {
+                                    if (onSuccess) {
+                                        onSuccess(currentUser);
+                                    } else {
+                                        // Navigate to breakdown guide
+                                        window.location.href = '/breakdown-guide';
+                                    }
+                                }}
                             >
+                                <span className="btn-icon">🚀</span>
                                 Continue to Dashboard
                             </button>
+                            <button
+                                className="btn btn-secondary btn-logout"
+                                onClick={async () => {
+                                    try {
+                                        // Clear the auth context
+                                        localStorage.removeItem('auth_session');
+                                        sessionStorage.removeItem('auth_session');
+                                        // Reload to reset state
+                                        window.location.reload();
+                                    } catch (error) {
+                                        console.error('Logout error:', error);
+                                    }
+                                }}
+                            >
+                                <span className="btn-icon">🚪</span>
+                                Switch User
+                            </button>
                         </div>
+                    </div>
+                    <div className="success-footer">
+                        <p className="session-info">
+                            <span className="session-icon">🔐</span>
+                            Secure session active • Expires in 24 hours
+                        </p>
                     </div>
                 </div>
             </div>
         );
     }
 
-    const formIsValid = email && password && !emailError && !passwordError;
+    const formIsValid = isSignupMode
+        ? email && password && confirmPassword && fullName && badgeNumber &&
+          !emailError && !passwordError && !confirmPasswordError && !fullNameError && !badgeNumberError
+        : email && password && !emailError && !passwordError;
 
     return (
         <div className={`supervisor-login ${className}`}>
@@ -303,7 +592,9 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
                         className="login-logo"
                     />
                     <h2>Breakdown Assessment System</h2>
-                    <p className="login-subtitle">Secure Supervisor Login</p>
+                    <p className="login-subtitle">
+                        {isSignupMode ? 'Supervisor Registration' : 'Secure Supervisor Login'}
+                    </p>
                 </div>
 
                 <form
@@ -389,20 +680,155 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
                         )}
                     </div>
 
-                    {/* Remember Me Checkbox */}
-                    <div className="form-group checkbox-group">
-                        <label className="checkbox-label">
-                            <input
-                                type="checkbox"
-                                checked={rememberMe}
-                                onChange={(e) => setRememberMe(e.target.checked)}
-                                disabled={isLoading}
-                                className="checkbox-input"
-                            />
-                            <span className="checkbox-custom"></span>
-                            <span className="checkbox-text">Remember me for 24 hours</span>
-                        </label>
-                    </div>
+                    {/* Signup-only fields */}
+                    {isSignupMode && (
+                        <>
+                            {/* Confirm Password Field */}
+                            <div className="form-group">
+                                <label htmlFor="confirmPassword" className="form-label">
+                                    Confirm Password
+                                    <span className="required">*</span>
+                                </label>
+                                <div className="input-wrapper">
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        id="confirmPassword"
+                                        name="confirmPassword"
+                                        value={confirmPassword}
+                                        onChange={handleConfirmPasswordChange}
+                                        onBlur={handleConfirmPasswordBlur}
+                                        onKeyDown={handleKeyDown}
+                                        className={`form-control ${confirmPasswordError ? 'error' : ''} ${touched.confirmPassword && !confirmPasswordError ? 'valid' : ''}`}
+                                        placeholder="Confirm your password"
+                                        required
+                                        disabled={isLoading}
+                                        aria-describedby={confirmPasswordError ? 'confirmPassword-error' : undefined}
+                                        aria-invalid={!!confirmPasswordError}
+                                    />
+                                    <div className="input-icon">
+                                        <span className="lock-icon">🔒</span>
+                                    </div>
+                                </div>
+                                {confirmPasswordError && (
+                                    <div id="confirmPassword-error" className="error-message" role="alert">
+                                        {confirmPasswordError}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Full Name Field */}
+                            <div className="form-group">
+                                <label htmlFor="fullName" className="form-label">
+                                    Full Name
+                                    <span className="required">*</span>
+                                </label>
+                                <div className="input-wrapper">
+                                    <input
+                                        type="text"
+                                        id="fullName"
+                                        name="fullName"
+                                        value={fullName}
+                                        onChange={handleFullNameChange}
+                                        onBlur={handleFullNameBlur}
+                                        onKeyDown={handleKeyDown}
+                                        className={`form-control ${fullNameError ? 'error' : ''} ${touched.fullName && !fullNameError ? 'valid' : ''}`}
+                                        placeholder="Enter your full name"
+                                        required
+                                        disabled={isLoading}
+                                        aria-describedby={fullNameError ? 'fullName-error' : undefined}
+                                        aria-invalid={!!fullNameError}
+                                    />
+                                    <div className="input-icon">
+                                        <span className="name-icon">👤</span>
+                                    </div>
+                                </div>
+                                {fullNameError && (
+                                    <div id="fullName-error" className="error-message" role="alert">
+                                        {fullNameError}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Badge Number Field */}
+                            <div className="form-group">
+                                <label htmlFor="badgeNumber" className="form-label">
+                                    Badge Number
+                                    <span className="required">*</span>
+                                </label>
+                                <div className="input-wrapper">
+                                    <input
+                                        type="text"
+                                        id="badgeNumber"
+                                        name="badgeNumber"
+                                        value={badgeNumber}
+                                        onChange={handleBadgeNumberChange}
+                                        onBlur={handleBadgeNumberBlur}
+                                        onKeyDown={handleKeyDown}
+                                        className={`form-control ${badgeNumberError ? 'error' : ''} ${touched.badgeNumber && !badgeNumberError ? 'valid' : ''}`}
+                                        placeholder="e.g., AG003"
+                                        required
+                                        maxLength="5"
+                                        disabled={isLoading}
+                                        aria-describedby={badgeNumberError ? 'badgeNumber-error' : undefined}
+                                        aria-invalid={!!badgeNumberError}
+                                    />
+                                    <div className="input-icon">
+                                        <span className="badge-icon">🆔</span>
+                                    </div>
+                                </div>
+                                {badgeNumberError && (
+                                    <div id="badgeNumber-error" className="error-message" role="alert">
+                                        {badgeNumberError}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Depot Selection */}
+                            <div className="form-group">
+                                <label htmlFor="depot" className="form-label">
+                                    Depot
+                                </label>
+                                <div className="input-wrapper">
+                                    <select
+                                        id="depot"
+                                        name="depot"
+                                        value={depot}
+                                        onChange={(e) => setDepot(e.target.value)}
+                                        className="form-control"
+                                        disabled={isLoading}
+                                    >
+                                        <option value="SDC">SDC (Service Delivery Centre)</option>
+                                        <option value="WASHINGTON">Washington</option>
+                                        <option value="RIVERSIDE">Riverside</option>
+                                        <option value="PERCY_MAIN">Percy Main</option>
+                                        <option value="CONSETT">Consett</option>
+                                        <option value="DEPTFORD">Deptford</option>
+                                        <option value="HEXHAM">Hexham</option>
+                                    </select>
+                                    <div className="input-icon">
+                                        <span className="depot-icon">🏢</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {/* Remember Me Checkbox (Login only) */}
+                    {!isSignupMode && (
+                        <div className="form-group checkbox-group">
+                            <label className="checkbox-label">
+                                <input
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    disabled={isLoading}
+                                    className="checkbox-input"
+                                />
+                                <span className="checkbox-custom"></span>
+                                <span className="checkbox-text">Remember me for 24 hours</span>
+                            </label>
+                        </div>
+                    )}
 
                     {/* Error Message */}
                     {error && (
@@ -422,26 +848,40 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
                         {isLoading ? (
                             <>
                                 <span className="button-spinner"></span>
-                                Signing in...
+                                {isSignupMode ? 'Creating Account...' : 'Signing in...'}
                             </>
                         ) : (
                             <>
-                                <span className="button-icon">🔐</span>
-                                Sign In
+                                <span className="button-icon">{isSignupMode ? '✨' : '🔐'}</span>
+                                {isSignupMode ? 'Create Account' : 'Sign In'}
                             </>
                         )}
                     </button>
 
-                    {/* Forgot Password Link */}
+                    {/* Mode Toggle */}
                     <div className="form-footer">
                         <button
                             type="button"
-                            className="link-button forgot-password"
+                            className="link-button mode-toggle"
                             disabled={isLoading}
-                            onClick={() => alert('Password reset feature coming soon. Contact your system administrator.')}
+                            onClick={toggleSignupMode}
                         >
-                            Forgot your password?
+                            {isSignupMode
+                                ? 'Already have an account? Sign In'
+                                : 'Need an account? Register as a Supervisor'
+                            }
                         </button>
+                        {!isSignupMode && (
+                            <button
+                                type="button"
+                                className="link-button forgot-password"
+                                disabled={isLoading}
+                                onClick={() => alert('Password reset feature coming soon. Contact your system administrator.')}
+                                style={{ marginTop: '8px', fontSize: '13px', opacity: '0.8' }}
+                            >
+                                Forgot your password?
+                            </button>
+                        )}
                     </div>
                 </form>
 
@@ -474,19 +914,21 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
                             <div className="quick-login-buttons">
                                 <button
                                     type="button"
-                                    onClick={() => handleQuickLogin('anthony.gair@example.com', 'TempPassword2025!')}
+                                    onClick={() => handleQuickLogin('test@test.com', 'Test123456!')}
                                     className="dev-button quick-login-btn admin"
                                     disabled={isLoading}
                                 >
-                                    Anthony (Admin)
+                                    Test Supervisor
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => handleQuickLogin('supervisor@example.com', 'TempPassword2025!')}
+                                    onClick={() => {
+                                        alert('Please use the test account or create your own account in Supabase');
+                                    }}
                                     className="dev-button quick-login-btn supervisor"
                                     disabled={isLoading}
                                 >
-                                    Test Supervisor
+                                    Setup Instructions
                                 </button>
                             </div>
                         </div>
@@ -509,15 +951,17 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
             </div>
 
             {/* Enhanced Styles */}
-            <style jsx="true">{`
+            <style jsx>{`
                 .supervisor-login {
                     min-height: 100vh;
+                    width: 100%;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    background: linear-gradient(135deg, #003B5C 0%, #E4002B 100%);
                     padding: 20px;
                     position: relative;
+                    overflow-x: hidden;
                 }
 
                 .auth-status-badge {
@@ -552,7 +996,7 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
                 .login-card {
                     background: white;
                     border-radius: 16px;
-                    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 10px 15px rgba(0, 0, 0, 0.1);
                     padding: 40px;
                     width: 100%;
                     max-width: 440px;
@@ -562,8 +1006,13 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
                 }
 
                 .login-card.success {
-                    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-                    border: 2px solid #0ea5e9;
+                    background: linear-gradient(135deg, #1a1f2e 0%, #2d3748 100%);
+                    border: 2px solid #4a5568;
+                    color: white;
+                    box-shadow: 
+                        0 10px 40px rgba(0, 0, 0, 0.3),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+                    animation: slideUp 0.4s ease-out;
                 }
 
                 .login-card::before {
@@ -578,31 +1027,33 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
 
                 .login-header {
                     text-align: center;
-                    margin-bottom: 32px;
+                    margin-bottom: 28px;
                 }
 
                 .login-logo {
-                    height: 60px;
+                    height: 56px;
                     width: auto;
                     margin-bottom: 20px;
                 }
 
                 .login-header h2 {
-                    color: #2d3748;
+                    color: #1a202c;
                     font-size: 24px;
                     font-weight: 700;
                     margin: 0 0 8px 0;
+                    letter-spacing: -0.5px;
                 }
 
                 .login-subtitle {
                     color: #718096;
                     font-size: 14px;
                     margin: 0;
+                    font-weight: 500;
                 }
 
                 .success-content {
                     text-align: center;
-                    padding: 20px 0;
+                    padding: 30px 0 20px;
                 }
 
                 .success-icon {
@@ -621,13 +1072,201 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
                 }
 
                 .success-actions {
-                    margin-top: 24px;
+                    margin-top: 28px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                }
+
+                /* Enhanced Success State Styles */
+                @keyframes slideUp {
+                    from {
+                        transform: translateY(20px);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateY(0);
+                        opacity: 1;
+                    }
+                }
+
+                .success-icon-animated {
+                    margin: 0 auto 24px;
+                    width: 80px;
+                    height: 80px;
+                }
+
+                .checkmark-circle {
+                    width: 80px;
+                    height: 80px;
+                    position: relative;
+                    display: inline-block;
+                    vertical-align: top;
+                    border: 3px solid #10b981;
+                    border-radius: 50%;
+                    animation: scaleIn 0.4s ease-in-out;
+                    background: rgba(16, 185, 129, 0.1);
+                }
+
+                .checkmark {
+                    width: 35px;
+                    height: 50px;
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -60%) rotate(45deg);
+                    border: solid #10b981;
+                    border-width: 0 5px 5px 0;
+                }
+
+                .checkmark.draw {
+                    animation: checkmark-draw 0.4s ease-in-out 0.3s forwards;
+                    opacity: 0;
+                }
+
+                @keyframes scaleIn {
+                    from {
+                        transform: scale(0);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: scale(1);
+                        opacity: 1;
+                    }
+                }
+
+                @keyframes checkmark-draw {
+                    to {
+                        opacity: 1;
+                    }
+                }
+
+                .welcome-name {
+                    color: #f9fafb;
+                    font-size: 28px;
+                    margin: 0 0 20px 0;
+                    font-weight: 600;
+                    letter-spacing: -0.5px;
+                }
+
+                .user-details {
+                    background: rgba(255, 255, 255, 0.05);
+                    border-radius: 12px;
+                    padding: 16px;
+                    margin: 0 auto 28px;
+                    max-width: 320px;
+                    backdrop-filter: blur(10px);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                }
+
+                .detail-item {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                    padding: 8px 0;
+                    color: #e2e8f0;
+                    font-size: 15px;
+                }
+
+                .detail-item:not(:last-child) {
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                }
+
+                .detail-icon {
+                    font-size: 18px;
+                }
+
+                .detail-label {
+                    color: #94a3b8;
+                    font-weight: 500;
+                }
+
+                .detail-value {
+                    color: #f1f5f9;
+                    font-weight: 600;
+                }
+
+                .btn-dashboard {
+                    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+                    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+                    font-size: 16px;
+                    padding: 14px 28px;
+                    border-radius: 10px;
+                    font-weight: 600;
+                    transition: all 0.3s ease;
+                    color: white !important;
+                }
+
+                .btn-dashboard:hover:not(:disabled) {
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+                    background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+                }
+
+                .btn-secondary {
+                    background: rgba(255, 255, 255, 0.1);
+                    color: #94a3b8 !important;
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    font-size: 14px;
+                    padding: 10px 20px;
+                    font-weight: 500;
+                    transition: all 0.2s ease;
+                }
+
+                .btn-secondary:hover:not(:disabled) {
+                    background: rgba(255, 255, 255, 0.15);
+                    color: #cbd5e1 !important;
+                    transform: translateY(-1px);
+                }
+
+                .btn-icon {
+                    font-size: 18px;
+                    margin-right: 4px;
+                    vertical-align: middle;
+                }
+
+                .success-footer {
+                    margin-top: 32px;
+                    padding-top: 20px;
+                    border-top: 1px solid rgba(255, 255, 255, 0.1);
+                }
+
+                .session-info {
+                    color: #64748b;
+                    font-size: 12px;
+                    margin: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 6px;
+                }
+
+                .session-icon {
+                    font-size: 14px;
+                }
+
+                /* Mobile responsive for success screen */
+                @media (max-width: 640px) {
+                    .welcome-name {
+                        font-size: 24px;
+                    }
+                    
+                    .user-details {
+                        max-width: 100%;
+                    }
+                    
+                    .btn-dashboard {
+                        font-size: 15px;
+                        padding: 12px 24px;
+                    }
                 }
 
                 .login-form {
                     display: flex;
                     flex-direction: column;
                     gap: 20px;
+                    margin-top: 35px;
                 }
 
                 .form-group {
@@ -639,7 +1278,7 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
                 .form-label {
                     font-weight: 600;
                     color: #2d3748;
-                    font-size: 14px;
+                    font-size: 15px;
                     display: flex;
                     align-items: center;
                     gap: 4px;
@@ -658,35 +1297,42 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
 
                 .form-control {
                     width: 100%;
-                    padding: 12px 16px;
-                    padding-right: 40px;
+                    padding: 13px 16px;
+                    padding-right: 42px;
                     border: 2px solid #e2e8f0;
-                    border-radius: 8px;
-                    font-size: 16px;
+                    border-radius: 10px;
+                    font-size: 15px;
                     transition: all 0.2s ease;
-                    background: white;
+                    background: #fafbfc;
+                    height: 48px;
+                    color: #1a202c !important;  /* Dark text color for visibility */
                 }
 
                 .form-control:focus {
                     outline: none;
                     border-color: #3182ce;
                     box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+                    background: white;
+                    color: #1a202c !important;  /* Ensure text stays dark when focused */
                 }
 
                 .form-control.error {
                     border-color: #e53e3e;
                     box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.1);
+                    color: #1a202c !important;  /* Ensure text stays dark with errors */
                 }
 
                 .form-control.valid {
                     border-color: #38a169;
                     box-shadow: 0 0 0 3px rgba(56, 161, 105, 0.1);
+                    color: #1a202c !important;  /* Ensure text stays dark when valid */
                 }
 
                 .form-control:disabled {
                     background: #f7fafc;
                     cursor: not-allowed;
                     opacity: 0.6;
+                    color: #4a5568 !important;  /* Slightly lighter but still visible when disabled */
                 }
 
                 .input-icon, .password-toggle {
@@ -776,9 +1422,9 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
                 }
 
                 .btn {
-                    padding: 14px 20px;
+                    padding: 14px 24px;
                     border: none;
-                    border-radius: 8px;
+                    border-radius: 10px;
                     font-size: 16px;
                     font-weight: 600;
                     cursor: pointer;
@@ -788,6 +1434,7 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
                     justify-content: center;
                     gap: 8px;
                     position: relative;
+                    height: 48px;
                 }
 
                 .btn-primary {
@@ -978,6 +1625,52 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
                     color: #718096;
                     font-size: 14px;
                     margin: 0;
+                }
+
+                /* Select dropdown styling */
+                select.form-control {
+                    color: #1a202c !important;
+                    -webkit-appearance: none;
+                    -moz-appearance: none;
+                    appearance: none;
+                    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%234a5568' d='M6 9L2 5h8z'/%3E%3C/svg%3E");
+                    background-repeat: no-repeat;
+                    background-position: right 16px center;
+                    padding-right: 36px;
+                }
+
+                select.form-control option {
+                    color: #1a202c;
+                    background: white;
+                }
+
+                /* Input placeholder text */
+                .form-control::placeholder {
+                    color: #a0aec0;
+                    opacity: 1;
+                }
+
+                .form-control::-webkit-input-placeholder {
+                    color: #a0aec0;
+                }
+
+                .form-control::-moz-placeholder {
+                    color: #a0aec0;
+                    opacity: 1;
+                }
+
+                .form-control:-ms-input-placeholder {
+                    color: #a0aec0;
+                }
+
+                /* Ensure autocomplete text is visible */
+                .form-control:-webkit-autofill,
+                .form-control:-webkit-autofill:hover,
+                .form-control:-webkit-autofill:focus {
+                    -webkit-text-fill-color: #1a202c !important;
+                    -webkit-box-shadow: 0 0 0 30px #fafbfc inset !important;
+                    box-shadow: 0 0 0 30px #fafbfc inset !important;
+                    transition: background-color 5000s ease-in-out 0s;
                 }
 
                 /* Responsive Design */

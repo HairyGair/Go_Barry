@@ -177,7 +177,7 @@ const SecurePasswordInput = ({
         )}
       </div>
 
-      <style jsx="true">{`
+      <style jsx>{`
         .secure-password-input {
           width: 100%;
           margin-bottom: 16px;

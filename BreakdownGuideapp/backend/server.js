@@ -3,6 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import { createServer } from 'http';
+import { WebSocketServer } from 'ws';
 import { createClient } from '@supabase/supabase-js';
 import { activityLogger } from './services/activityLogger.js';
 import {
@@ -160,6 +162,8 @@ import engineeringRoutes from './routes/engineering.js';
 import analyticsRoutes from './routes/analytics.js';
 import activityRoutes from './routes/activity.js';
 import supervisorRoutes from './routes/supervisors.js';
+import breakdownsAPIRoutes from './routes/breakdownsAPI.js';
+import webSocketHandler from './routes/webSocketHandler.js';
 
 // Public routes (no authentication required)
 app.get('/health', healthCheck);
@@ -177,6 +181,9 @@ app.use('/api/analytics', authenticateSupervisor, analyticsRoutes);
 app.use('/api/reports', authenticateSupervisor, analyticsRoutes); // Reports also use analytics routes
 app.use('/api/activity', authenticateSupervisor, activityRoutes);
 app.use('/api/supervisors', authenticateSupervisor, supervisorRoutes);
+
+// SDC Dashboard API routes (less restrictive authentication for dashboard viewing)
+app.use('/api/sdc', breakdownsAPIRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -230,11 +237,33 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Create HTTP server 
+const server = createServer(app);
+
+// Initialize WebSocket handler
+webSocketHandler.initialize(server);
+
+// WebSocket connections are now handled by webSocketHandler
+
+// WebSocket broadcast functions are now handled by webSocketHandler
+// Export broadcast functions for use by other modules
+export const broadcastToSDCDashboard = (message) => {
+  return webSocketHandler.broadcast('sdc-dashboard', message);
+};
+
+export const broadcastToAll = (message) => {
+  return webSocketHandler.broadcastToAll(message);
+};
+
+// WebSocket cleanup is now handled by webSocketHandler
+
 // Start server with Supabase verification
-app.listen(PORT, async () => {
+server.listen(PORT, async () => {
   console.log(`🚀 Breakdown Guide API running on port ${PORT}`);
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  console.log(`📡 WebSocket endpoint: ws://localhost:${PORT}/ws`);
+  console.log(`🎯 SDC Dashboard WebSocket: ws://localhost:${PORT}/ws/sdc-dashboard`);
   
   // Verify Supabase connection
   const supabaseConnected = await verifySupabaseConnection();
@@ -245,7 +274,10 @@ app.listen(PORT, async () => {
   
   console.log('\n📋 Available API Routes:');
   console.log(`   POST   http://localhost:${PORT}/api/breakdowns - Create breakdown`);
-  console.log(`   GET    http://localhost:${PORT}/api/breakdowns/live - Live breakdowns`);
+  console.log(`   GET    http://localhost:${PORT}/api/breakdowns/live - Live breakdowns for SDC`);
+  console.log(`   GET    http://localhost:${PORT}/api/breakdowns/in-progress - Active assessments`);
+  console.log(`   POST   http://localhost:${PORT}/api/breakdowns/:id/edit - Start assessment edit`);
+  console.log(`   GET    http://localhost:${PORT}/api/breakdowns/:id/audit - Get audit trail`);
   console.log(`   PUT    http://localhost:${PORT}/api/breakdowns/:id - Update breakdown`);
   console.log(`   GET    http://localhost:${PORT}/api/breakdowns/stats - Get stats`);
   console.log(`   GET    http://localhost:${PORT}/api/fleet/vehicles - Search vehicles`);

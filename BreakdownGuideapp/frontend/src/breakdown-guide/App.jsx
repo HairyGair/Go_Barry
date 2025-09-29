@@ -31,6 +31,7 @@ import AppHeader from '../shared/AppHeader.jsx';
 import { supervisorBreakdownLogger } from './supervisorBreakdownLogger.js';
 import enhancedAuthService from '../services/enhanced-auth-service.js';
 import SupabaseLogin from './components/SupabaseLogin.jsx';
+import assessmentBroadcaster from '../services/assessmentBroadcaster.js';
 
 // Import components
 import FleetSelectionModal from './components/FleetSelectionModal.jsx';
@@ -230,6 +231,22 @@ const App = () => {
                 routeName: routeDisplayName
             });
             
+            // Get wizard config for total steps
+            const wizardConfig = wizards[pendingWizardType];
+            const totalSteps = wizardConfig?.steps || 5;
+            
+            // Initialize assessment broadcaster for real-time tracking
+            assessmentBroadcaster.initAssessment({
+                assessmentId: breakdownId,
+                breakdownId: breakdownId,
+                wizardType: pendingWizardType,
+                totalSteps: totalSteps,
+                supervisor: supervisorSession,
+                vehicle: vehicle,
+                location: location,
+                route: route
+            });
+            
             setAssessmentId(breakdownId);
             setCurrentWizard(pendingWizardType);
             setCurrentStep(1);
@@ -380,17 +397,29 @@ const App = () => {
                             const nextStep = currentStep + 1;
                             console.log('App.jsx - setting currentStep to:', nextStep);
                             setCurrentStep(nextStep);
+                            
+                            // Broadcast progress update
+                            assessmentBroadcaster.updateProgress(nextStep);
                         }}
                         onPrevious={() => setCurrentStep(Math.max(1, currentStep - 1))}
                         onComplete={async (decision, notes) => {
                             // Store decision and notes for summary
-                            setAssessmentDecision((decision || responses.decision || 'CONTINUE').toUpperCase());
-                            setAssessmentNotes(notes || responses.notes || '');
+                            const finalDecision = (decision || responses.decision || 'CONTINUE').toUpperCase();
+                            const finalNotes = notes || responses.notes || '';
+                            
+                            setAssessmentDecision(finalDecision);
+                            setAssessmentNotes(finalNotes);
+                            
+                            // Broadcast assessment completion
+                            assessmentBroadcaster.completeAssessment(finalDecision, finalNotes);
 
                             // Show summary instead of completing immediately
                             setShowSummary(true);
                         }}
                         onCancel={() => {
+                            // Broadcast cancellation
+                            assessmentBroadcaster.cancelAssessment();
+                            
                             setCurrentWizard(null);
                             setAssessmentId(null);
                             setResponses({});

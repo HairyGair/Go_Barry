@@ -127,15 +127,19 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                 setRouteName('');
                 setRouteSearch('');
             }
-            setTicketerCoords('');
+            // Only clear ticketerCoords when modal is first opened, not on every state change
+            if (!isOpen) {
+                setTicketerCoords('');
+            }
             setError('');
             setShowRouteSearch(false);
         }
     }, [isOpen, hasDraft, draft]);
 
-    // Auto-save draft on changes
+    // Auto-save draft on changes (optimized to reduce re-renders)
     useEffect(() => {
-        if (isOpen && (searchQuery || selectedRoute || selectedVehicle)) {
+        // Only auto-save if modal is open and we have meaningful data
+        if (isOpen && (searchQuery?.length > 2 || selectedRoute || selectedVehicle)) {
             const draftData = {
                 wizardType,
                 fleetNumber: searchQuery,
@@ -146,14 +150,14 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                 step: currentStep
             };
 
-            // Debounce the save to avoid excessive writes
+            // Increased debounce time to reduce interference with user input
             const saveTimer = setTimeout(() => {
                 saveDraft(draftData);
-            }, 1000);
+            }, 2000);
 
             return () => clearTimeout(saveTimer);
         }
-    }, [searchQuery, selectedRoute, selectedVehicle, routeName, currentStep, isOpen, wizardType, saveDraft]);
+    }, [searchQuery, selectedVehicle, routeName]); // Removed frequent dependencies to reduce triggers
     
     // Search fleet
     useEffect(() => {

@@ -447,7 +447,7 @@ const AppHeader = ({ variant = 'full' }) => {
         </div>
       )}
 
-      <style jsx="true">{`
+      <style jsx>{`
         /* Ensure no margins/padding at top */
         html, body {
           margin: 0;

@@ -1,5 +1,128 @@
 // Activity Aggregator - Collects activities from all sources
 import { apiConfig } from '../breakdown-guide/components/common/constants.js';
+import { supabase } from '../services/supabase-client.js';
+
+// Helper function to get auth headers with fallback to sync method
+async function getAuthHeaders() {
+  try {
+    // First try to get current Supabase session (most reliable method)
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      
+      if (session && session.access_token) {
+        console.log('📡 Using current Supabase session token');
+        console.log('📡 Token preview:', session.access_token.substring(0, 20) + '...');
+        return {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        };
+      }
+
+      if (error) {
+        console.warn('⚠️ Supabase session error:', error.message);
+      } else {
+        console.warn('⚠️ No Supabase session found');
+      }
+    } catch (supabaseError) {
+      console.warn('⚠️ Supabase auth error:', supabaseError.message);
+    }
+
+    // Fallback: Try legacy auth tokens
+    const token = localStorage.getItem('auth_token') || 
+                 localStorage.getItem('supervisorToken') || 
+                 localStorage.getItem('gne_auth_token') ||
+                 sessionStorage.getItem('auth_token') ||
+                 sessionStorage.getItem('supervisorToken');
+
+    // Try to get supervisor data
+    const supervisorData = localStorage.getItem('currentSupervisor') || 
+                          localStorage.getItem('supervisorData') ||
+                          sessionStorage.getItem('currentSupervisor');
+
+    if (token) {
+      console.log('📡 Using legacy auth token');
+      return {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+    }
+
+    if (supervisorData) {
+      try {
+        const supervisor = JSON.parse(supervisorData);
+        if (supervisor.token) {
+          console.log('📡 Using supervisor session token');
+          return {
+            'Authorization': `Bearer ${supervisor.token}`,
+            'Content-Type': 'application/json'
+          };
+        }
+      } catch (e) {
+        console.warn('Failed to parse supervisor data');
+      }
+    }
+
+    console.log('⚠️ No auth token found - using basic headers');
+    // Return basic headers if no auth available
+    return {
+      'Content-Type': 'application/json'
+    };
+  } catch (error) {
+    console.warn('Error getting auth headers:', error);
+    return {
+      'Content-Type': 'application/json'
+    };
+  }
+}
+
+// Synchronous fallback for when async auth headers fail
+function getAuthHeadersSync() {
+  try {
+    // Try to get Supabase token from localStorage directly
+    try {
+      const allKeys = Object.keys(localStorage);
+      for (const key of allKeys) {
+        if (key.includes('supabase') && key.includes('auth-token')) {
+          const data = JSON.parse(localStorage.getItem(key));
+          if (data.access_token) {
+            console.log('📡 Using Supabase token from localStorage');
+            return {
+              'Authorization': `Bearer ${data.access_token}`,
+              'Content-Type': 'application/json'
+            };
+          }
+        }
+      }
+    } catch (e) {
+      // Continue to fallbacks
+    }
+
+    // Fallback: Try legacy auth tokens
+    const token = localStorage.getItem('auth_token') || 
+                 localStorage.getItem('supervisorToken') || 
+                 localStorage.getItem('gne_auth_token') ||
+                 sessionStorage.getItem('auth_token') ||
+                 sessionStorage.getItem('supervisorToken');
+
+    if (token) {
+      console.log('📡 Using legacy auth token (sync)');
+      return {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      };
+    }
+
+    console.log('⚠️ No auth token found (sync) - using basic headers');
+    return {
+      'Content-Type': 'application/json'
+    };
+  } catch (error) {
+    console.warn('Error getting auth headers (sync):', error);
+    return {
+      'Content-Type': 'application/json'
+    };
+  }
+}
 
 // Activity types configuration
 const ACTIVITY_TYPES = {
@@ -71,31 +194,81 @@ export async function fetchAllActivities(limit = 50) {
 
     // Try to fetch from the new unified activities endpoint first
     try {
+      const headers = await getAuthHeaders();
+      console.log('📡 Making API call to activity/feed with auth headers');
+      
       const response = await fetch(`${apiConfig.baseUrl}/api/activity/feed?limit=${limit}`, {
+        method: 'GET',
+        headers: headers,
         signal: AbortSignal.timeout(8000)
       });
 
+      console.log('📡 Response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
-        console.log('✅ Successfully fetched from unified activities table:', data.count, 'activities');
+        console.log('✅ Successfully fetched from unified activities table:', data);
+        console.log('✅ Activities count:', data.activities?.length || 0);
+
+        // Process activities for frontend compatibility
+        const processedActivities = (data.activities || []).map(activity => ({
+          // Core fields
+          id: activity.id,
+          type: activity.type || activity.activity_type || 'activity',
+          icon: activity.icon || '📋',
+          message: activity.message || 'Activity',
+          time: activity.time || formatTimeAgo(activity.timestamp || activity.created_at),
+          timestamp: activity.timestamp || activity.created_at,
+          
+          // Additional display fields
+          depot: activity.depot,
+          supervisor: activity.supervisor || activity.supervisor_name || activity.actor_name,
+          supervisor_badge: activity.supervisor_badge || activity.actor_id,
+          decision: activity.decision,
+          severity: activity.severity || 'normal',
+          priority: activity.priority || 5,
+          
+          // Breakdown specific fields
+          breakdown_id: activity.breakdown_id || activity.entity_id,
+          fleet_no: activity.fleet_no,
+          location: activity.location,
+          issue_type: activity.issue_type,
+          
+          // LiveActivityFeed expects these fields
+          supervisorName: activity.supervisor || activity.supervisor_name || activity.actor_name,
+          busNumber: activity.fleet_no,
+          issue: activity.issue_type,
+          route: activity.route,
+          route_number: activity.route_number,
+          passengersOnBoard: activity.passengers_on_board,
+          status: activity.decision || activity.status,
+          
+          // Metadata
+          source: activity.source || 'unified',
+          metadata: activity.metadata || {}
+        }));
 
         return {
-          activities: data.activities || [],
+          activities: processedActivities,
           sources: {
             unified_activities: true,
-            breakdowns: false, // Legacy source disabled
+            breakdowns: false,
             assessments: false,
             engineering: false,
             decisions: false,
             audit: false
           },
-          total: data.count || 0,
+          total: data.count || processedActivities.length,
           timestamp: data.timestamp || new Date().toISOString(),
           source: 'unified_activities_table'
         };
+      } else if (response.status === 401) {
+        console.warn('⚠️ Authentication required for activity feed, falling back to legacy');
+      } else {
+        console.warn(`⚠️ Activity feed returned status ${response.status}`);
       }
     } catch (unifiedError) {
-      console.log('⚠️ Unified activities endpoint not available, falling back to legacy:', unifiedError.message);
+      console.log('⚠️ Unified activities endpoint error:', unifiedError.message);
     }
 
     // Fallback to legacy approach if unified endpoint fails
@@ -126,10 +299,13 @@ export async function fetchLegacyActivities(limit = 50) {
   };
 
   try {
+    const headers = await getAuthHeaders();
+    
     // For now, just fetch live breakdowns which we know works
     const requests = await Promise.allSettled([
       // Live breakdowns (only working endpoint)
       fetch(`${apiConfig.baseUrl}/api/breakdowns/live`, {
+        headers: headers,
         signal: AbortSignal.timeout(5000)
       })
     ]);
@@ -139,7 +315,7 @@ export async function fetchLegacyActivities(limit = 50) {
       const data = await requests[0].value.json();
       sources.breakdowns = true;
       
-      console.log('🔍 Activity aggregator received data:', data);
+      console.log('🔍 Legacy aggregator received data:', data);
       console.log('🔍 Number of breakdowns:', data.breakdowns?.length);
       
       if (data.breakdowns && data.breakdowns.length > 0) {
@@ -180,6 +356,17 @@ export async function fetchLegacyActivities(limit = 50) {
               severity: decision === 'STOP' ? 'critical' :
                        decision === 'AMBER' ? 'warning' : 'success',
               priority: 2,
+              // Fields for LiveActivityFeed
+              supervisorName: supervisorName,
+              busNumber: fleetNumber,
+              fleet_no: fleetNumber,
+              issue: breakdown.issue_category,
+              issue_type: breakdown.issue_category,
+              location: breakdown.location || breakdown.location_description,
+              route: breakdown.route || breakdown.route_number,
+              route_number: breakdown.route || breakdown.route_number,
+              passengersOnBoard: breakdown.passengers_on_board,
+              status: decision,
               metadata: {
                 wizardType: breakdown.wizard_type,
                 fleetNo: fleetNumber,
@@ -200,6 +387,17 @@ export async function fetchLegacyActivities(limit = 50) {
               decision: breakdown.severity,
               severity: ACTIVITY_TYPES.BREAKDOWN_REPORTED.severity(breakdown),
               priority: ACTIVITY_TYPES.BREAKDOWN_REPORTED.priority,
+              // Fields for LiveActivityFeed
+              supervisorName: supervisorName,
+              busNumber: fleetNumber,
+              fleet_no: fleetNumber,
+              issue: breakdown.issue_category,
+              issue_type: breakdown.issue_category,
+              location: breakdown.location || breakdown.location_description,
+              route: breakdown.route || breakdown.route_number,
+              route_number: breakdown.route || breakdown.route_number,
+              passengersOnBoard: breakdown.passengers_on_board,
+              status: breakdown.severity,
               metadata: {
                 breakdownId: breakdownId,
                 fleetNo: fleetNumber,
@@ -210,154 +408,6 @@ export async function fetchLegacyActivities(limit = 50) {
         });
       }
     }
-
-    // Skip other endpoints for now since they don't exist yet
-    /*
-    // Process assessments
-    if (requests[1].status === 'fulfilled' && requests[1].value.ok) {
-      const data = await requests[1].value.json();
-      sources.assessments = true;
-      
-      if (data.assessments) {
-        data.assessments.forEach(assessment => {
-          const icon = typeof ACTIVITY_TYPES.ASSESSMENT_COMPLETED.icon === 'function' 
-            ? ACTIVITY_TYPES.ASSESSMENT_COMPLETED.icon(assessment.decision)
-            : ACTIVITY_TYPES.ASSESSMENT_COMPLETED.icon;
-            
-          activities.push({
-            id: `assessment-${assessment.id}`,
-            type: 'ASSESSMENT_COMPLETED',
-            icon,
-            message: `${assessment.supervisor_name} completed ${assessment.wizard_type} assessment - ${assessment.decision}`,
-            time: formatTimeAgo(assessment.completed_at),
-            timestamp: assessment.completed_at,
-            depot: assessment.depot || 'SDC',
-            decision: assessment.decision,
-            severity: ACTIVITY_TYPES.ASSESSMENT_COMPLETED.severity(assessment),
-            priority: ACTIVITY_TYPES.ASSESSMENT_COMPLETED.priority,
-            metadata: {
-              wizardType: assessment.wizard_type,
-              fleetNo: assessment.fleet_no,
-              notes: assessment.notes
-            }
-          });
-        });
-      }
-    }
-
-    // Process engineering activities
-    if (requests[2].status === 'fulfilled' && requests[2].value.ok) {
-      const data = await requests[2].value.json();
-      sources.engineering = true;
-      
-      if (data.activities) {
-        data.activities.forEach(activity => {
-          let icon = '🔧';
-          let message = '';
-          let type = 'ENGINEER_ASSIGNED';
-          
-          switch(activity.action) {
-            case 'assigned':
-              icon = '👷';
-              message = `${activity.engineer_name} assigned to ${activity.fleet_no}`;
-              type = 'ENGINEER_ASSIGNED';
-              break;
-            case 'on_site':
-              icon = '📍';
-              message = `${activity.engineer_name} arrived on site for ${activity.fleet_no}`;
-              type = 'ENGINEER_ON_SITE';
-              break;
-            case 'resolved':
-              icon = '✅';
-              message = `${activity.engineer_name} resolved breakdown on ${activity.fleet_no}`;
-              type = 'BREAKDOWN_RESOLVED';
-              break;
-            case 'recovered':
-              icon = '🚛';
-              message = `${activity.fleet_no} recovered to ${activity.depot} depot`;
-              type = 'VEHICLE_RECOVERED';
-              break;
-            default:
-              message = activity.description || `Engineering update for ${activity.fleet_no}`;
-          }
-          
-          activities.push({
-            id: `engineering-${activity.id}`,
-            type,
-            icon,
-            message,
-            time: formatTimeAgo(activity.timestamp),
-            timestamp: activity.timestamp,
-            depot: activity.depot || 'Engineering',
-            severity: type === 'BREAKDOWN_RESOLVED' ? 'success' : 'normal',
-            priority: ACTIVITY_TYPES[type]?.priority || 4,
-            metadata: {
-              engineerId: activity.engineer_id,
-              breakdownId: activity.breakdown_id,
-              fleetNo: activity.fleet_no
-            }
-          });
-        });
-      }
-    }
-
-    // Process SDC decisions
-    if (requests[3].status === 'fulfilled' && requests[3].value.ok) {
-      const data = await requests[3].value.json();
-      sources.decisions = true;
-      
-      if (data.activities) {
-        data.activities.forEach(activity => {
-          activities.push({
-            id: `sdc-${activity.id}`,
-            type: 'SDC_DECISION',
-            icon: ACTIVITY_TYPES.SDC_DECISION.icon,
-            message: `${activity.supervisor_name} ${activity.action}: ${activity.decision} for ${activity.fleet_no}`,
-            time: formatTimeAgo(activity.timestamp),
-            timestamp: activity.timestamp,
-            depot: 'SDC',
-            decision: activity.decision,
-            severity: ACTIVITY_TYPES.SDC_DECISION.severity(activity),
-            priority: ACTIVITY_TYPES.SDC_DECISION.priority,
-            metadata: {
-              breakdownId: activity.breakdown_id,
-              fleetNo: activity.fleet_no,
-              notes: activity.notes
-            }
-          });
-        });
-      }
-    }
-
-    // Process audit logs
-    if (requests[4].status === 'fulfilled' && requests[4].value.ok) {
-      const data = await requests[4].value.json();
-      sources.audit = true;
-      
-      if (data.logs) {
-        data.logs.forEach(log => {
-          if (log.action === 'changeover_requested') {
-            activities.push({
-              id: `audit-${log.id}`,
-              type: 'CHANGEOVER_REQUESTED',
-              icon: ACTIVITY_TYPES.CHANGEOVER_REQUESTED.icon,
-              message: `${log.user_name} requested changeover for ${log.fleet_no} at ${log.location}`,
-              time: formatTimeAgo(log.timestamp),
-              timestamp: log.timestamp,
-              depot: log.depot || 'SDC',
-              severity: ACTIVITY_TYPES.CHANGEOVER_REQUESTED.severity,
-              priority: ACTIVITY_TYPES.CHANGEOVER_REQUESTED.priority,
-              metadata: {
-                fleetNo: log.fleet_no,
-                location: log.location,
-                reason: log.reason
-              }
-            });
-          }
-        });
-      }
-    }
-    */
 
   } catch (error) {
     console.error('Error fetching legacy activities:', error);
@@ -411,7 +461,10 @@ export async function fetchUnifiedActivities(options = {}) {
     if (severity) params.append('severity', severity);
     if (source) params.append('source', source);
 
+    const headers = await getAuthHeaders();
     const response = await fetch(`${apiConfig.baseUrl}/api/activity/feed?${params.toString()}`, {
+      method: 'GET',
+      headers: headers,
       signal: AbortSignal.timeout(10000)
     });
 
@@ -448,7 +501,10 @@ export async function fetchLiveActivities(since = null, limit = 25) {
     params.append('limit', limit.toString());
     if (since) params.append('since', since);
 
+    const headers = await getAuthHeaders();
     const response = await fetch(`${apiConfig.baseUrl}/api/activity/live?${params.toString()}`, {
+      method: 'GET',
+      headers: headers,
       signal: AbortSignal.timeout(8000)
     });
 
@@ -488,7 +544,10 @@ export async function searchActivities(searchTerm, options = {}) {
     params.append('limit', limit.toString());
     params.append('offset', offset.toString());
 
+    const headers = await getAuthHeaders();
     const response = await fetch(`${apiConfig.baseUrl}/api/activity/search?${params.toString()}`, {
+      method: 'GET',
+      headers: headers,
       signal: AbortSignal.timeout(10000)
     });
 
@@ -528,7 +587,10 @@ export async function getActivityStats(options = {}) {
     if (depot) params.append('depot', depot);
     if (actor_id) params.append('actor_id', actor_id);
 
+    const headers = await getAuthHeaders();
     const response = await fetch(`${apiConfig.baseUrl}/api/activity/stats?${params.toString()}`, {
+      method: 'GET',
+      headers: headers,
       signal: AbortSignal.timeout(8000)
     });
 
@@ -558,11 +620,10 @@ export async function getActivityStats(options = {}) {
 // Log new activity
 export async function logActivity(activityData) {
   try {
+    const headers = await getAuthHeaders();
     const response = await fetch(`${apiConfig.baseUrl}/api/activity/log`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: headers,
       body: JSON.stringify(activityData),
       signal: AbortSignal.timeout(8000)
     });

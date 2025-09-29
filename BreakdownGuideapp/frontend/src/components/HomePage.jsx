@@ -8,10 +8,14 @@ const HomePage = ({ onStatsChange }) => {
   const navigate = useNavigate();
   const { isAuthenticated, currentUser, isLoading, isSessionChecking } = useAuth();
   const [dashboardData, setDashboardData] = useState({
-    activeBreakdowns: 0,
-    todaysAssessments: 0,
-    avgResponseTime: 0,
-    recentActivity: []
+    stats: {
+      activeBreakdowns: 0,
+      todayTotal: 0,
+      avgResponseTime: 0,
+      fleetHealth: 100
+    },
+    activityFeed: [],
+    metadata: null
   });
 
   // Redirect to login if not authenticated
@@ -24,6 +28,7 @@ const HomePage = ({ onStatsChange }) => {
   // Fetch dashboard data when authenticated
   useEffect(() => {
     if (isAuthenticated) {
+      console.log('📊 HomePage: Loading dashboard data and setting up polling');
       loadDashboardData();
       // Refresh every 30 seconds
       const interval = setInterval(loadDashboardData, 30000);
@@ -33,16 +38,43 @@ const HomePage = ({ onStatsChange }) => {
 
   const loadDashboardData = async () => {
     try {
+      console.log('🔄 HomePage: Starting dashboard data fetch...');
       const data = await fetchDashboardData();
-      setDashboardData(data);
-      if (onStatsChange) {
-        onStatsChange({
-          activeBreakdowns: data.activeBreakdowns,
-          todaysAssessments: data.todaysAssessments
-        });
+      console.log('✅ HomePage: Dashboard data received:', data);
+      console.log('📊 Activity feed data:', data.activityFeed);
+      console.log('📊 Activity feed length:', data.activityFeed?.length);
+      
+      // Ensure data has the correct structure
+      const safeData = {
+        stats: data.stats || {
+          activeBreakdowns: 0,
+          todayTotal: 0,
+          avgResponseTime: 0,
+          fleetHealth: 100
+        },
+        activityFeed: data.activityFeed || [],
+        metadata: data.metadata || null
+      };
+      
+      setDashboardData(safeData);
+      if (onStatsChange && safeData.stats) {
+        onStatsChange(safeData.stats.activeBreakdowns);
       }
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      console.error('❌ HomePage: Error fetching dashboard data:', error);
+      console.error('❌ Error stack:', error.stack);
+      
+      // Set fallback data to prevent blank page
+      setDashboardData({
+        stats: {
+          activeBreakdowns: 0,
+          todayTotal: 0,
+          avgResponseTime: 0,
+          fleetHealth: 100
+        },
+        activityFeed: [],
+        metadata: { error: error.message }
+      });
     }
   };
 
@@ -75,21 +107,21 @@ const HomePage = ({ onStatsChange }) => {
           <div className="stat-icon">⚠️</div>
           <div className="stat-content">
             <h3>Active Breakdowns</h3>
-            <p className="stat-value">{dashboardData.activeBreakdowns}</p>
+            <p className="stat-value">{dashboardData.stats?.activeBreakdowns || 0}</p>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon">📋</div>
           <div className="stat-content">
             <h3>Today's Assessments</h3>
-            <p className="stat-value">{dashboardData.todaysAssessments}</p>
+            <p className="stat-value">{dashboardData.stats?.todayTotal || 0}</p>
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-icon">⏱️</div>
           <div className="stat-content">
             <h3>Avg Response Time</h3>
-            <p className="stat-value">{dashboardData.avgResponseTime} min</p>
+            <p className="stat-value">{dashboardData.stats?.avgResponseTime || 0} min</p>
           </div>
         </div>
       </div>
@@ -139,7 +171,22 @@ const HomePage = ({ onStatsChange }) => {
       {/* Activity Feed */}
       <div className="activity-section">
         <h2>Recent Activity</h2>
-        <LiveActivityFeed />
+        <div className="activity-feed-wrapper">
+          {dashboardData.metadata?.error ? (
+            <div className="activity-feed-error">
+              <p>⚠️ Unable to load activity feed</p>
+              <p className="error-detail">{dashboardData.metadata.error}</p>
+              <button onClick={loadDashboardData} className="retry-button">
+                🔄 Retry
+              </button>
+            </div>
+          ) : (
+            <LiveActivityFeed 
+              activities={dashboardData.activityFeed || []} 
+              embedded={true}
+            />
+          )}
+        </div>
       </div>
 
       <style jsx>{`
@@ -310,6 +357,41 @@ const HomePage = ({ onStatsChange }) => {
           margin: 0 0 20px 0;
           font-size: 24px;
           color: #111827;
+        }
+
+        .activity-feed-error {
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          border-radius: 8px;
+          padding: 20px;
+          text-align: center;
+          color: #991b1b;
+        }
+
+        .activity-feed-error p {
+          margin: 0 0 8px 0;
+        }
+
+        .error-detail {
+          font-size: 14px;
+          color: #6b7280;
+          font-family: monospace;
+          margin-bottom: 16px !important;
+        }
+
+        .retry-button {
+          background: #dc2626;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          padding: 8px 16px;
+          cursor: pointer;
+          font-size: 14px;
+          transition: background-color 0.2s;
+        }
+
+        .retry-button:hover {
+          background: #b91c1c;
         }
 
         @media (max-width: 768px) {

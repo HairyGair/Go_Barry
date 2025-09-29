@@ -4,7 +4,7 @@ import AppHeader from '../../shared/AppHeader.jsx';
 import { theme } from '@styles/theme';
 
 
-const DashboardLayout = ({ children, title }) => {
+const DashboardLayout = ({ children, title, icon, breakdownCount, criticalCount, connectionStatus, onRefresh }) => {
   const [isQuickPanelOpen, setIsQuickPanelOpen] = useState(false);
   
   return (
@@ -27,18 +27,144 @@ const DashboardLayout = ({ children, title }) => {
           backgroundImage: 'none',
         }}
       >
-        <h1 style={{
-          fontSize: '28px',
-          fontWeight: '700',
-          margin: 0,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          color: theme.colors.textPrimary,
-        }}>
-          {title}
-        </h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <h1 style={{
+            fontSize: '28px',
+            fontWeight: '700',
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            color: theme.colors.textPrimary,
+          }}>
+            {icon && <span style={{ fontSize: '24px' }}>{icon}</span>}
+            {title}
+          </h1>
+          
+          {/* Breakdown Counter for SDC Dashboard */}
+          {breakdownCount !== undefined && (
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '12px',
+              padding: '8px 16px',
+              background: `linear-gradient(135deg, ${theme.colors.bgSecondary}, ${theme.colors.bgPrimary})`,
+              borderRadius: theme.radius.md,
+              border: `1px solid ${theme.colors.border}`,
+            }}>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '6px',
+                fontSize: '14px',
+                fontWeight: '600',
+                color: theme.colors.textPrimary
+              }}>
+                <span style={{ fontSize: '16px' }}>📋</span>
+                <span>{breakdownCount} Active</span>
+              </div>
+              
+              {criticalCount > 0 && (
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  color: theme.colors.danger,
+                  padding: '4px 8px',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  borderRadius: theme.radius.sm,
+                  border: `1px solid ${theme.colors.danger}`,
+                }}>
+                  <span style={{ fontSize: '16px' }}>🚨</span>
+                  <span>{criticalCount} Critical</span>
+                </div>
+              )}
+              
+              {/* Connection Status Indicator */}
+              {connectionStatus && (
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px',
+                  fontSize: '12px',
+                  color: connectionStatus === 'connected' ? theme.colors.success : theme.colors.warning
+                }}>
+                  <div style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: connectionStatus === 'connected' ? theme.colors.success : theme.colors.warning,
+                    animation: connectionStatus === 'connected' ? 'pulse 2s infinite' : 'none'
+                  }} />
+                  <span>{connectionStatus === 'connected' ? 'Live' : 'Reconnecting'}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         
+        {/* Dashboard Actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              style={{
+                padding: '8px 12px',
+                background: 'transparent',
+                border: `1px solid ${theme.colors.border}`,
+                borderRadius: theme.radius.md,
+                color: theme.colors.textSecondary,
+                cursor: 'pointer',
+                transition: theme.transitions.fast,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '14px'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = theme.colors.bgSecondary;
+                e.currentTarget.style.color = theme.colors.textPrimary;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.color = theme.colors.textSecondary;
+              }}
+            >
+              <span style={{ fontSize: '16px' }}>🔄</span>
+              <span>Refresh</span>
+            </button>
+          )}
+          
+          <button
+            onClick={() => setIsQuickPanelOpen(!isQuickPanelOpen)}
+            style={{
+              padding: '8px 12px',
+              background: 'transparent',
+              border: `1px solid ${theme.colors.border}`,
+              borderRadius: theme.radius.md,
+              color: theme.colors.textSecondary,
+              cursor: 'pointer',
+              transition: theme.transitions.fast,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '14px'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = theme.colors.bgSecondary;
+              e.currentTarget.style.color = theme.colors.textPrimary;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.color = theme.colors.textSecondary;
+            }}
+          >
+            <span style={{ fontSize: '16px' }}>☰</span>
+            <span>Actions</span>
+          </button>
+        </div>
 
       </div>
 
@@ -276,6 +402,22 @@ const DashboardLayout = ({ children, title }) => {
           .dashboard-content {
             padding-bottom: 80px;
           }
+          
+          /* Hide breakdown counter on mobile */
+          .dashboard-header > div:first-child > div:last-child {
+            display: none !important;
+          }
+          
+          .dashboard-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 12px !important;
+          }
+          
+          .dashboard-header > div:last-child {
+            width: 100% !important;
+            justify-content: flex-end !important;
+          }
         }
         
         /* Animations */
@@ -285,6 +427,39 @@ const DashboardLayout = ({ children, title }) => {
         
         .floating-quick-panel.active {
           right: 0 !important;
+        }
+        
+        @keyframes pulse {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.7;
+            transform: scale(1.1);
+          }
+        }
+        
+        /* Enhanced Quick Panel */
+        .floating-quick-panel {
+          backdrop-filter: blur(10px);
+        }
+        
+        /* Breakdown counter animations */
+        @keyframes slideInRight {
+          from {
+            opacity: 0;
+            transform: translateX(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        
+        /* Apply animation to breakdown counter */
+        .dashboard-header > div:first-child > div:last-child {
+          animation: slideInRight 0.5s ease-out;
         }
       `}</style>
     </div>

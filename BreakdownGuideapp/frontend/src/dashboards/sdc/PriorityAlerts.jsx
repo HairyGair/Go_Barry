@@ -1,9 +1,13 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 
-const PriorityAlerts = ({ breakdowns }) => {
+const PriorityAlerts = ({ breakdowns = [] }) => {
+  // Ensure breakdowns is always an array
+  const safeBreakdowns = Array.isArray(breakdowns) ? breakdowns : [];
+  
   // Check if alert should be shown
-  const criticalPriorityCount = breakdowns.filter(b => 
-    b.isPriority && b.criticality === 'critical'
+  const criticalPriorityCount = safeBreakdowns.filter(b => 
+    b?.isPriority && b?.criticality === 'critical'
   ).length;
 
   const showAlert = criticalPriorityCount >= 2;
@@ -11,9 +15,10 @@ const PriorityAlerts = ({ breakdowns }) => {
   if (!showAlert) return null;
   
   const affectedRoutes = [...new Set(
-    breakdowns
-      .filter(b => b.isPriority && b.criticality === 'critical')
-      .map(b => b.route_id)
+    safeBreakdowns
+      .filter(b => b?.isPriority && b?.criticality === 'critical')
+      .map(b => b?.route_id)
+      .filter(Boolean)
   )].join(', ');
 
   return (
@@ -199,6 +204,21 @@ const PriorityAlerts = ({ breakdowns }) => {
       </div>
     </div>
   );
+};
+
+PriorityAlerts.propTypes = {
+  breakdowns: PropTypes.arrayOf(
+    PropTypes.shape({
+      id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+      isPriority: PropTypes.bool,
+      criticality: PropTypes.string,
+      route_id: PropTypes.oneOfType([PropTypes.string, PropTypes.number])
+    })
+  )
+};
+
+PriorityAlerts.defaultProps = {
+  breakdowns: []
 };
 
 export default PriorityAlerts;

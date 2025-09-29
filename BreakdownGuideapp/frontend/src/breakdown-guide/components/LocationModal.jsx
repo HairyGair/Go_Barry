@@ -45,16 +45,30 @@ const LocationModal = ({
     { value: 'washington_galleries', label: 'Washington Galleries' }
   ];
 
-  // Reset state when modal opens
+  // Reset state when modal opens (but preserve coordinates to prevent clearing user input)
   useEffect(() => {
     if (isOpen) {
-      setLocationDescription(initialLocation);
+      // Only set initial location if it's different and not empty
+      if (initialLocation && initialLocation !== locationDescription) {
+        setLocationDescription(initialLocation);
+      }
+      // Don't reset coordinates automatically - let user manage them
+      setUseGPS(false);
+      setGpsLoading(false);
+      setValidationError('');
+    }
+  }, [isOpen, initialLocation]); // Keep initialLocation but with better logic
+
+  // Clean up state when modal is actually closed (not just refreshing)
+  useEffect(() => {
+    if (!isOpen) {
+      // Reset coordinates only when modal is truly closed
       setCoordinates({ lat: null, lng: null });
       setUseGPS(false);
       setGpsLoading(false);
       setValidationError('');
     }
-  }, [isOpen, initialLocation]);
+  }, [isOpen]);
 
   // Handle GPS location
   const handleGetGPS = async () => {

@@ -29,10 +29,17 @@ router.get('/:id/stats', async (req, res) => {
       .from('supervisors')
       .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
     if (supervisorError) {
       console.error('Error fetching supervisor:', supervisorError);
+      return res.status(500).json({
+        success: false,
+        error: 'Database error while fetching supervisor'
+      });
+    }
+
+    if (!supervisor) {
       return res.status(404).json({
         success: false,
         error: 'Supervisor not found'
@@ -131,10 +138,17 @@ router.get('/:id', async (req, res) => {
       .from('supervisors')
       .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Error fetching supervisor:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Database error while fetching supervisor'
+      });
+    }
+
+    if (!supervisor) {
       return res.status(404).json({
         success: false,
         error: 'Supervisor not found'

@@ -1,8 +1,8 @@
 import React from 'react';
 
-const StatusWidget = ({ breakdowns }) => {
-  // Calculate statistics
-  const stats = {
+const StatusWidget = ({ stats = {}, breakdowns = [] }) => {
+  // Use provided stats or calculate from breakdowns
+  const calculatedStats = stats.total !== undefined ? stats : {
     awaitingDecision: breakdowns.filter(b => b.currentStage === 'acknowledged').length,
     engineeringRequested: breakdowns.filter(b => b.assigned_engineer_id).length,
     over30: breakdowns.filter(b => b.elapsed > 30).length,
@@ -10,44 +10,44 @@ const StatusWidget = ({ breakdowns }) => {
   };
   
   // Calculate percentages for visual indicators
-  const total = breakdowns.length || 1;
+  const total = stats.total || breakdowns.length || 1;
   const percentages = {
-    awaitingDecision: (stats.awaitingDecision / total) * 100,
-    engineeringRequested: (stats.engineeringRequested / total) * 100,
-    over30: (stats.over30 / total) * 100,
-    priorityAffected: (stats.priorityAffected / total) * 100
+    awaitingDecision: (calculatedStats.awaitingDecision / total) * 100,
+    engineeringRequested: (calculatedStats.engineeringRequested / total) * 100,
+    over30: (calculatedStats.over30 / total) * 100,
+    priorityAffected: (calculatedStats.priorityAffected / total) * 100
   };
   
   const items = [
     {
       name: 'Awaiting Decision',
-      value: stats.awaitingDecision,
+      value: calculatedStats.awaitingDecision || stats.pending || 0,
       percentage: percentages.awaitingDecision,
       icon: '⏳',
       color: '#f59e0b'
     },
     {
       name: 'Engineering Requested',
-      value: stats.engineeringRequested,
+      value: calculatedStats.engineeringRequested || stats.dispatched || 0,
       percentage: percentages.engineeringRequested,
       icon: '🔧',
       color: '#3b82f6'
     },
     {
       name: 'Over 30 mins',
-      value: stats.over30,
+      value: calculatedStats.over30 || 0,
       percentage: percentages.over30,
       icon: '⚠️',
-      color: stats.over30 > 0 ? '#dc2626' : '#10b981',
-      critical: stats.over30 > 0
+      color: (calculatedStats.over30 || 0) > 0 ? '#dc2626' : '#10b981',
+      critical: (calculatedStats.over30 || 0) > 0
     },
     {
-      name: 'Priority Routes Affected',
-      value: stats.priorityAffected,
+      name: 'Critical Issues',
+      value: stats.critical || calculatedStats.priorityAffected || 0,
       percentage: percentages.priorityAffected,
       icon: '🚨',
-      color: stats.priorityAffected > 0 ? '#dc2626' : '#10b981',
-      critical: stats.priorityAffected > 0
+      color: (stats.critical || calculatedStats.priorityAffected || 0) > 0 ? '#dc2626' : '#10b981',
+      critical: (stats.critical || calculatedStats.priorityAffected || 0) > 0
     }
   ];
 
@@ -55,7 +55,7 @@ const StatusWidget = ({ breakdowns }) => {
     <div className="stats-widget">
       <div className="widget-header">
         <h3>📊 Current Status</h3>
-        <span className="total-badge">{breakdowns.length} Active</span>
+        <span className="total-badge">{total} Active</span>
       </div>
       
       <div className="stats-container">

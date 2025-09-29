@@ -293,105 +293,25 @@ class SupervisorBreakdownLogger {
 
     
     // Log wizard completion to activity system
+    // NOTE: Activity logging is now handled by the backend /api/breakdowns/from-wizard endpoint
+    // to prevent duplication in the activity feed. This method is kept for legacy compatibility.
     async logWizardCompletionActivity(data) {
-        try {
-            const activityData = {
-                activityType: 'wizard_completed',
-                action: `completed ${data.wizardType || 'breakdown'} assessment - ${data.decision}`,
-                actorType: 'supervisor',
-                actorId: this.supervisor?.supervisorId || this.supervisor?.badge,
-                actorName: this.supervisor?.name,
-                entityType: 'breakdown',
-                entityId: data.breakdownId,
-                entityDetails: {
-                    fleetNo: data.fleetNo,
-                    location: data.location,
-                    wizardType: data.wizardType,
-                    decision: data.decision
-                },
-                depot: this.supervisor?.depot,
-                severity: data.decision === 'STOP' ? 'critical' :
-                         data.decision === 'AMBER' ? 'warning' : 'success',
-                priority: data.decision === 'STOP' ? 1 :
-                         data.decision === 'AMBER' ? 2 : 3,
-                source: 'breakdown_guide',
-                metadata: {
-                    wizardType: data.wizardType,
-                    decision: data.decision,
-                    assessmentData: data.assessmentData,
-                    duration: new Date() - this.assessmentStartTime
-                },
-                icon: data.decision === 'STOP' ? '📋🚨' :
-                      data.decision === 'AMBER' ? '📋⚡' : '📋✅'
-            };
-
-            console.log('🎯 Logging wizard completion activity:', activityData);
-
-            const response = await fetch(`${BACKEND_URL}/api/activity/log`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(activityData)
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ Activity logged successfully:', result);
-            } else {
-                console.error('⚠️ Failed to log activity:', response.status, response.statusText);
-            }
-        } catch (error) {
-            console.error('❌ Error logging wizard completion activity:', error);
-        }
+        console.log('📝 Wizard completion activity logging skipped (handled by backend):', {
+            wizardType: data.wizardType,
+            decision: data.decision,
+            fleetNo: data.fleetNo
+        });
     }
 
     // Log breakdown start activity
+    // NOTE: For now, breakdown start activities are not logged to prevent activity feed noise.
+    // Only completion activities (which create actual breakdown records) are logged via backend.
     async logBreakdownStartActivity(data) {
-        try {
-            const activityData = {
-                activityType: 'wizard_started',
-                action: `started ${data.wizardType || 'breakdown'} assessment`,
-                actorType: 'supervisor',
-                actorId: this.supervisor?.supervisorId || this.supervisor?.badge,
-                actorName: this.supervisor?.name,
-                entityType: 'breakdown',
-                entityId: this.assessmentId, // Use assessment ID as temporary entity ID
-                entityDetails: {
-                    fleetNo: data.vehicle?.fleetNumber,
-                    location: data.location?.description,
-                    issueCategory: data.issueCategory
-                },
-                depot: this.supervisor?.depot,
-                severity: 'info',
-                priority: 5,
-                source: 'breakdown_guide',
-                metadata: {
-                    issueCategory: data.issueCategory,
-                    startTime: new Date().toISOString()
-                },
-                icon: '🔍'
-            };
-
-            console.log('🎯 Logging breakdown start activity:', activityData);
-
-            const response = await fetch(`${BACKEND_URL}/api/activity/log`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(activityData)
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                console.log('✅ Start activity logged successfully:', result);
-            } else {
-                console.error('⚠️ Failed to log start activity:', response.status, response.statusText);
-            }
-        } catch (error) {
-            console.error('❌ Error logging breakdown start activity:', error);
-        }
+        console.log('📝 Breakdown start activity logging skipped (reduces activity feed noise):', {
+            wizardType: data.wizardType,
+            fleetNo: data.vehicle?.fleetNumber,
+            issueCategory: data.issueCategory
+        });
     }
 
     // Log action locally

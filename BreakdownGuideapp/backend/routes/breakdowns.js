@@ -1,6 +1,7 @@
 import express from 'express';
 import { supabase } from '../server.js';
 import breakdownIdGenerator from '../services/breakdownIdGenerator.js';
+import { activityLogger } from '../services/activityLogger.js';
 
 const router = express.Router();
 
@@ -264,6 +265,25 @@ router.post('/', async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    // Log activity to the unified activity feed
+    try {
+      await activityLogger.logBreakdownReported({
+        supervisorId: data.supervisor_badge || data.supervisor_id || 'unknown',
+        supervisorName: data.supervisor_name || 'Supervisor',
+        breakdownId: data.breakdown_id,
+        fleetNo: data.fleet_no || 'Unknown',
+        issueCategory: data.issue_category || 'General',
+        location: data.location || 'Location to be added later',
+        severity: data.severity || 'NORMAL',
+        depot: data.depot || 'Unknown',
+        source: 'direct_report'
+      });
+      console.log('✅ Activity logged successfully for breakdown:', data.breakdown_id);
+    } catch (activityError) {
+      console.error('⚠️ Failed to log activity for breakdown:', data.breakdown_id, activityError);
+      // Don't fail the main request if activity logging fails
+    }
 
     res.status(201).json({
       ...data,
@@ -843,6 +863,25 @@ router.post('/from-wizard', async (req, res) => {
           supervisor_name
         }
       });
+
+    // Log activity to the unified activity feed with location
+    try {
+      await activityLogger.logBreakdownReported({
+        supervisorId: supervisor_badge,
+        supervisorName: supervisor_name,
+        breakdownId: data.breakdown_id,
+        fleetNo: fleet_number,
+        issueCategory: issue_category || wizard_type,
+        location: location || 'Location to be added later',
+        severity: determinedSeverity,
+        depot: 'SDC', // Could be enhanced to get actual depot from supervisor data
+        source: 'wizard_assessment'
+      });
+      console.log('✅ Activity logged successfully for breakdown:', data.breakdown_id);
+    } catch (activityError) {
+      console.error('⚠️ Failed to log activity for breakdown:', data.breakdown_id, activityError);
+      // Don't fail the main request if activity logging fails
+    }
 
     res.status(201).json({
       success: true,
