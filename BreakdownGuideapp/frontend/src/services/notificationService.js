@@ -158,17 +158,10 @@ class NotificationService {
 
   // Get notifications for specific supervisor
   async fetchNotifications(supervisorId) {
-    try {
-      // Try API first
-      const response = await fetch(`${apiConfig.baseUrl}/api/notifications/${supervisorId}`);
-      if (response.ok) {
-        const data = await response.json();
-        return data.notifications;
-      }
-    } catch (error) {
-      console.log('Using mock notifications:', error);
-    }
-
+    // Note: Notifications API endpoint not yet implemented
+    // Using mock notifications for now
+    console.log('📧 Using mock notifications (API endpoint not implemented)');
+    
     // Return mock notifications
     return this.generateNotifications();
   }

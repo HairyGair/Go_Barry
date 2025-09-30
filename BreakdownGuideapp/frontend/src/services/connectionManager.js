@@ -112,8 +112,29 @@ class ConnectionManager {
 
   async connectWebSocket(endpoint) {
     try {
-      const wsUrl = `${apiConfig.baseUrl.replace('http', 'ws')}${endpoint}`;
-      this.log('Attempting WebSocket connection', { wsUrl });
+      // For development, use relative WebSocket URL to go through Vite proxy
+      // For production, use absolute URL from apiConfig
+      let wsUrl;
+      const isDevelopment = import.meta.env.DEV;
+
+      if (isDevelopment) {
+        // Use relative URL in development to go through Vite's WebSocket proxy
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        wsUrl = `${protocol}//${window.location.host}${endpoint}`;
+        this.log('Development mode: Using relative WebSocket URL', { wsUrl, endpoint });
+      } else {
+        // In production, use absolute URL
+        wsUrl = `${apiConfig.baseUrl.replace('http://', 'ws://').replace('https://', 'wss://')}${endpoint}`;
+        this.log('Production mode: Using absolute WebSocket URL', { wsUrl });
+      }
+
+      this.log('Attempting WebSocket connection', {
+        wsUrl,
+        baseUrl: apiConfig.baseUrl,
+        endpoint,
+        fullUrl: wsUrl,
+        isDevelopment
+      });
 
       this.ws = new WebSocket(wsUrl);
       
@@ -186,7 +207,12 @@ class ConnectionManager {
   }
 
   handleWebSocketClose(event) {
-    this.log('WebSocket closed', { code: event.code, reason: event.reason });
+    this.log('WebSocket closed', { 
+      code: event.code, 
+      reason: event.reason,
+      wasClean: event.wasClean,
+      state: this.state 
+    });
     this.stopHeartbeat();
     
     if (!this.isDestroyed && this.state !== CONNECTION_STATES.DISCONNECTED) {
@@ -199,7 +225,11 @@ class ConnectionManager {
   }
 
   handleWebSocketError(error) {
-    this.log('WebSocket error', { error });
+    this.log('WebSocket error', { 
+      error: error.message || error,
+      readyState: this.ws?.readyState,
+      url: this.ws?.url 
+    });
     this.emit('error', { type: 'websocket', error });
   }
 

@@ -1,5 +1,6 @@
 import React, { useState, memo, useEffect } from 'react';
 import { getWizardInfo } from './utils/wizardTypeMapping';
+import SimpleLocationMap from './SimpleLocationMap';
 
 // SDC Guide category mappings with icons and sections
 const SDC_GUIDE_CATEGORIES = {
@@ -34,6 +35,68 @@ const SDC_GUIDE_CATEGORIES = {
   'Loose Wheel Nuts': { icon: '⚠️', section: 'Section 17', critical: true, page: 28 }
 };
 
+// Helper to extract coordinates from location string
+const extractCoordinates = (location) => {
+  if (!location) return null;
+  
+  // Check if it's already coordinates (format: "55.011629, -1.621362")
+  const coordMatch = location.match(/(-?\d+\.?\d*),?\s*(-?\d+\.?\d*)/);
+  if (coordMatch) {
+    const lat = parseFloat(coordMatch[1]);
+    const lng = parseFloat(coordMatch[2]);
+    
+    // Validate coordinates are reasonable for UK
+    if (lat >= 49 && lat <= 61 && lng >= -8 && lng <= 2) {
+      console.log('📍 Coordinates found:', { lat, lng, from: location });
+      return { lat, lng };
+    }
+  }
+  
+  // For testing - hardcoded coordinates for known locations
+  const knownLocations = {
+    'Gosforth': { lat: 55.0117, lng: -1.6214 },
+    'Washington': { lat: 54.9000, lng: -1.5200 },
+    'Newcastle': { lat: 54.9783, lng: -1.6178 },
+    'Chester-le-Street': { lat: 54.8543, lng: -1.5740 },
+    'Gateshead': { lat: 54.9527, lng: -1.6034 }
+  };
+  
+  // Check if location contains any known place
+  for (const [place, coords] of Object.entries(knownLocations)) {
+    if (location.includes(place)) {
+      console.log('📍 Using known location:', place, coords);
+      return coords;
+    }
+  }
+  
+  return null;
+};
+
+// Generate static map URL (using OpenStreetMap)
+const getStaticMapUrl = (location) => {
+  const coords = extractCoordinates(location);
+  
+  if (coords) {
+    // Using OpenStreetMap static image
+    const zoom = 15;
+    const width = 300;
+    const height = 200;
+    
+    // Alternative 1: Using static map service (if available)
+    // return `https://staticmap.openstreetmap.de/staticmap.php?center=${coords.lat},${coords.lng}&zoom=${zoom}&size=${width}x${height}&markers=${coords.lat},${coords.lng},red`;
+    
+    // Alternative 2: Using iframe-based map (more reliable)
+    return {
+      type: 'iframe',
+      lat: coords.lat,
+      lng: coords.lng,
+      zoom: zoom
+    };
+  }
+  
+  return null;
+};
+
 const SDCBreakdownCardEnhanced = memo(({ 
   breakdown, 
   onAcknowledge, 
@@ -52,10 +115,127 @@ const SDCBreakdownCardEnhanced = memo(({
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [showNotes, setShowNotes] = useState(false);
   const [note, setNote] = useState('');
+  const [showMap, setShowMap] = useState(true); // Show map by default
+
+  // Validate fleet number - should be 3-5 digits typically
+  const isValidFleetNumber = (value) => {
+    if (!value || typeof value !== 'string') return false;
+    const trimmed = value.trim();
+    // Fleet numbers should be 3-5 digits (like 6301, 5401, etc.)
+    return /^\d{3,5}$/.test(trimmed);
+  };
+
+  // Get the correct fleet number and vehicle data with validation
+  const candidateFleetNumbers = [
+    breakdown.fleet_no,
+    breakdown.fleet_number,
+    breakdown.vehicle?.fleet_number,
+    breakdown.vehicle?.fleetNumber,
+    breakdown.fleetNumber
+  ];
+
+  const validFleetNumber = candidateFleetNumbers.find(isValidFleetNumber);
+  const fleetNumber = validFleetNumber || 'Unknown';
+
+  // Debug fleet number extraction
+  console.log('🔍 Fleet number extraction for breakdown:', breakdown.breakdown_id, {
+    candidateFleetNumbers: candidateFleetNumbers,
+    validationResults: candidateFleetNumbers.map(num => ({
+      value: num,
+      isValid: isValidFleetNumber(num)
+    })),
+    validFleetNumber: validFleetNumber,
+    finalFleetNumber: fleetNumber,
+    allBreakdownFields: Object.keys(breakdown),
+    suspiciousNumbers: {
+      coordinates: breakdown.coordinates,
+      latitude: breakdown.latitude,
+      longitude: breakdown.longitude,
+      location_coords: breakdown.location_coords,
+      daily_id: breakdown.daily_id
+    }
+  });
+
+  // Get vehicle type
+  const vehicleType = breakdown.vehicle_type ||
+                     breakdown.vehicleType ||
+                     breakdown.vehicle?.vehicleType ||
+                     breakdown.vehicle?.type ||
+                     breakdown.type ||
+                     null;
+
+  // Get depot - try multiple possible field names
+  const depot = breakdown.depot ||
+               breakdown.depot_id ||
+               breakdown.vehicle?.depot ||
+               breakdown.depot_name ||
+               'Unknown';
+
+  // Simplify vehicle type for display
+  const getSimplifiedVehicleType = (vehicleType) => {
+    if (!vehicleType) return null;
+    if (vehicleType.toLowerCase().includes('streetdeck')) return 'StreetDeck';
+    if (vehicleType.toLowerCase().includes('streetlite')) return 'Streetlite';
+    if (vehicleType.toLowerCase().includes('enviro')) return 'Enviro';
+    if (vehicleType.toLowerCase().includes('versa')) return 'Versa';
+    if (vehicleType.toLowerCase().includes('solo')) return 'Solo';
+    if (vehicleType.toLowerCase().includes('omnidekka')) return 'Omnidekka';
+    return vehicleType.split(' ')[0] || vehicleType;
+  };
+
+  const simplifiedVehicleType = getSimplifiedVehicleType(vehicleType);
 
   // Get SDC Guide info based on issue type
   const issueType = breakdown.issue_type || breakdown.wizard_type?.replace('Wizard', '') || 'General';
   const sdcGuideInfo = SDC_GUIDE_CATEGORIES[issueType] || { icon: '❔', section: 'N/A', critical: false };
+  
+  // Get map data - try multiple sources
+  const locationString = breakdown.location || 
+                         breakdown.coordinates || 
+                         breakdown.location_coords || 
+                         `${breakdown.latitude || ''}, ${breakdown.longitude || ''}`;
+  
+  const mapData = getStaticMapUrl(locationString);
+  const hasCoordinates = mapData !== null;
+  
+  // Debug map data
+  if (!hasCoordinates && breakdown.location) {
+    console.log('🗺️ No map data for:', breakdown.location, '- coordinates not found');
+  }
+  
+  // Format location for display
+  const formatLocation = (location) => {
+    if (!location) return 'Unknown Location';
+    
+    // If it's coordinates, return as is for now
+    const coords = extractCoordinates(location);
+    if (coords && location.match(/^(-?\d+\.?\d*),?\s*(-?\d+\.?\d*)$/)) {
+      return `${coords.lat.toFixed(6)}, ${coords.lng.toFixed(6)}`;
+    }
+    
+    // Otherwise return the location string
+    return location;
+  };
+  
+  // Get more specific location details
+  const getLocationDetails = () => {
+    const location = breakdown.location || '';
+    const parts = location.split(',').map(p => p.trim());
+    
+    if (parts.length >= 2) {
+      return {
+        primary: parts[0], // Street or specific location
+        secondary: parts.slice(1).join(', ') // Area/City
+      };
+    }
+    
+    return {
+      primary: location,
+      secondary: ''
+    };
+  };
+  
+  const locationDetails = getLocationDetails();
   
   // Calculate SLA status (30 min warning, 45 min breach for critical)
   useEffect(() => {
@@ -136,12 +316,29 @@ const SDCBreakdownCardEnhanced = memo(({
       {/* Header Section */}
       <div className="card-header">
         <div className="header-left">
-          <div className="fleet-badge">
-            <span className="fleet-number">{breakdown.fleet_no || 'Unknown'}</span>
-            {breakdown.route_id && (
-              <span className="route-number">{breakdown.route_id}</span>
-            )}
+          <div className="fleet-section">
+            <div className="fleet-label">FLEET</div>
+            <div className="fleet-number">
+              {fleetNumber}
+              {simplifiedVehicleType && (
+                <span 
+                  className="vehicle-type"
+                  style={{
+                    fontSize: '0.85em',
+                    opacity: 0.8,
+                    fontWeight: 'normal',
+                    color: '#94a3b8'
+                  }}
+                > • {simplifiedVehicleType}</span>
+              )}
+            </div>
           </div>
+          {breakdown.route_id && (
+            <div className="route-badge">
+              <span className="route-label">Route</span>
+              <span className="route-number">{breakdown.route_id}</span>
+            </div>
+          )}
           {breakdown.isPriority && (
             <span className="priority-indicator">PRIORITY</span>
           )}
@@ -167,6 +364,63 @@ const SDCBreakdownCardEnhanced = memo(({
             )}
           </div>
         </div>
+      </div>
+
+      {/* Location Section with Map */}
+      <div className="location-section">
+        <div className="location-info">
+          <div className="location-header">
+            <span className="location-icon">📍</span>
+            <div className="location-text">
+              <div className="location-primary">{locationDetails.primary}</div>
+              {locationDetails.secondary && (
+                <div className="location-secondary">{locationDetails.secondary}</div>
+              )}
+            </div>
+          </div>
+          {hasCoordinates && (
+            <button 
+              className="map-toggle"
+              onClick={() => setShowMap(!showMap)}
+            >
+              {showMap ? '🗺️ Hide Map' : '🗺️ Show Map'}
+            </button>
+          )}
+        </div>
+        
+        {showMap && (mapData && mapData.type === 'iframe' ? (
+          <div className="map-container">
+            <iframe
+              width="100%"
+              height="200"
+              frameBorder="0"
+              scrolling="no"
+              marginHeight="0"
+              marginWidth="0"
+              src={`https://www.openstreetmap.org/export/embed.html?bbox=${mapData.lng-0.01},${mapData.lat-0.01},${mapData.lng+0.01},${mapData.lat+0.01}&layer=mapnik&marker=${mapData.lat},${mapData.lng}`}
+              style={{ borderRadius: '8px' }}
+              title="Breakdown Location Map"
+            />
+            <div className="map-coordinates">
+              📍 {mapData.lat.toFixed(6)}, {mapData.lng.toFixed(6)}
+            </div>
+            <a 
+              href={`https://www.openstreetmap.org/?mlat=${mapData.lat}&mlon=${mapData.lng}#map=16/${mapData.lat}/${mapData.lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="map-link"
+            >
+              Open in full map →
+            </a>
+          </div>
+        ) : (
+          // Fallback to simple map when no coordinates found
+          <SimpleLocationMap 
+            location={breakdown.location || 'Unknown'}
+            fleetNumber={fleetNumber}
+            depot={depot}
+          />
+        ))}
       </div>
 
       {/* Issue Type Section */}
@@ -218,12 +472,8 @@ const SDCBreakdownCardEnhanced = memo(({
       {/* Key Information Grid */}
       <div className="info-grid">
         <div className="info-item">
-          <span className="info-label">Location</span>
-          <span className="info-value">{breakdown.location || 'Unknown'}</span>
-        </div>
-        <div className="info-item">
           <span className="info-label">Depot</span>
-          <span className="info-value">{breakdown.depot_id || 'Unknown'}</span>
+          <span className="info-value">{depot}</span>
         </div>
         <div className="info-item">
           <span className="info-label">Supervisor</span>
@@ -232,6 +482,10 @@ const SDCBreakdownCardEnhanced = memo(({
         <div className="info-item">
           <span className="info-label">Status</span>
           <span className="info-value status">{breakdown.currentStage || 'Received'}</span>
+        </div>
+        <div className="info-item">
+          <span className="info-label">Breakdown ID</span>
+          <span className="info-value">{breakdown.breakdown_id || 'N/A'}</span>
         </div>
       </div>
 
@@ -286,7 +540,7 @@ const SDCBreakdownCardEnhanced = memo(({
             className="notes-input"
           />
           <button 
-            className="btn btn-save-note"
+            className="btn-save-note"
             onClick={() => {
               onAddNote && onAddNote(breakdown.breakdown_id, note);
               setNote('');
@@ -357,33 +611,61 @@ const SDCBreakdownCardEnhanced = memo(({
           justify-content: space-between;
           align-items: flex-start;
           margin-bottom: 20px;
+          padding-bottom: 16px;
+          border-bottom: 1px solid #e5e7eb;
         }
 
         .header-left {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 16px;
         }
 
-        .fleet-badge {
+        .fleet-section {
           display: flex;
+          flex-direction: column;
           align-items: center;
-          gap: 8px;
+          background: #f3f4f6;
+          padding: 8px 16px;
+          border-radius: 8px;
+          border: 2px solid #1e293b;
+        }
+
+        .fleet-label {
+          font-size: 10px;
+          font-weight: 600;
+          color: #64748b;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
 
         .fleet-number {
-          font-size: 24px;
-          font-weight: 700;
+          font-size: 28px;
+          font-weight: 800;
           color: #1e293b;
+          line-height: 1;
+          font-family: 'Arial Black', sans-serif;
+        }
+
+        .route-badge {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          padding: 6px 12px;
+          background: #dbeafe;
+          border-radius: 8px;
+        }
+
+        .route-label {
+          font-size: 10px;
+          color: #64748b;
+          text-transform: uppercase;
         }
 
         .route-number {
-          background: #3b82f6;
-          color: white;
-          padding: 4px 8px;
-          border-radius: 6px;
-          font-size: 14px;
-          font-weight: 600;
+          font-size: 18px;
+          font-weight: 700;
+          color: #3b82f6;
         }
 
         .priority-indicator {
@@ -400,6 +682,97 @@ const SDCBreakdownCardEnhanced = memo(({
         @keyframes blink {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.6; }
+        }
+
+        /* Location Section */
+        .location-section {
+          background: #f8fafc;
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 16px;
+        }
+
+        .location-info {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 8px;
+        }
+
+        .location-header {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+        }
+
+        .location-icon {
+          font-size: 20px;
+          margin-top: 2px;
+        }
+
+        .location-text {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .location-primary {
+          font-size: 16px;
+          font-weight: 600;
+          color: #1e293b;
+        }
+
+        .location-secondary {
+          font-size: 14px;
+          color: #64748b;
+          margin-top: 2px;
+        }
+
+        .map-toggle {
+          background: #3b82f6;
+          color: white;
+          border: none;
+          padding: 6px 12px;
+          border-radius: 6px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+
+        .map-toggle:hover {
+          background: #2563eb;
+        }
+
+        .map-container {
+          margin-top: 12px;
+          border-radius: 8px;
+          overflow: hidden;
+          border: 1px solid #e5e7eb;
+        }
+
+        .map-coordinates {
+          background: rgba(0, 0, 0, 0.7);
+          color: white;
+          padding: 4px 8px;
+          font-size: 11px;
+          font-family: monospace;
+          text-align: center;
+        }
+
+        .map-link {
+          display: block;
+          text-align: center;
+          padding: 6px;
+          background: #3b82f6;
+          color: white;
+          text-decoration: none;
+          font-size: 12px;
+          font-weight: 600;
+          transition: background 0.2s;
+        }
+
+        .map-link:hover {
+          background: #2563eb;
         }
 
         /* SLA Timer */

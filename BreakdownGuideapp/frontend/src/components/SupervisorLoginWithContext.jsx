@@ -185,23 +185,19 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
         setPasswordError(validatePassword(password));
     }, [password, validatePassword]);
 
-    // Signup function
+    // Supervisor signup function (for existing supervisors to activate their accounts)
     const handleSignup = async () => {
-        console.log('🆕 Attempting signup for:', email);
+        console.log('🆕 Attempting supervisor account activation for:', email);
 
         try {
-            const response = await fetch(`${process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : 'https://go-barry.onrender.com'}/api/auth/signup`, {
+            const response = await fetch(`${process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : 'https://go-barry.onrender.com'}/api/auth/supervisor-signup`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                     email: email.toLowerCase(),
-                    password,
-                    fullName,
-                    badgeNumber: badgeNumber.toUpperCase(),
-                    depot,
-                    role: 'supervisor'
+                    password
                 })
             });
 
@@ -247,27 +243,21 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
         e.preventDefault();
 
         if (isSignupMode) {
-            // Validate all signup fields
+            // Validate signup fields (only email and password required for existing supervisors)
             const emailErr = validateEmail(email);
             const passwordErr = validatePassword(password);
             const confirmPasswordErr = validateConfirmPassword(confirmPassword);
-            const fullNameErr = validateFullName(fullName);
-            const badgeNumberErr = validateBadgeNumber(badgeNumber);
 
             setEmailError(emailErr);
             setPasswordError(passwordErr);
             setConfirmPasswordError(confirmPasswordErr);
-            setFullNameError(fullNameErr);
-            setBadgeNumberError(badgeNumberErr);
             setTouched({
                 email: true,
                 password: true,
-                confirmPassword: true,
-                fullName: true,
-                badgeNumber: true
+                confirmPassword: true
             });
 
-            if (emailErr || passwordErr || confirmPasswordErr || fullNameErr || badgeNumberErr) {
+            if (emailErr || passwordErr || confirmPasswordErr) {
                 // Focus first field with error
                 if (emailErr && emailRef.current) {
                     emailRef.current.focus();
@@ -570,8 +560,8 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
     }
 
     const formIsValid = isSignupMode
-        ? email && password && confirmPassword && fullName && badgeNumber &&
-          !emailError && !passwordError && !confirmPasswordError && !fullNameError && !badgeNumberError
+        ? email && password && confirmPassword &&
+          !emailError && !passwordError && !confirmPasswordError
         : email && password && !emailError && !passwordError;
 
     return (
@@ -716,100 +706,10 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
                                 )}
                             </div>
 
-                            {/* Full Name Field */}
-                            <div className="form-group">
-                                <label htmlFor="fullName" className="form-label">
-                                    Full Name
-                                    <span className="required">*</span>
-                                </label>
-                                <div className="input-wrapper">
-                                    <input
-                                        type="text"
-                                        id="fullName"
-                                        name="fullName"
-                                        value={fullName}
-                                        onChange={handleFullNameChange}
-                                        onBlur={handleFullNameBlur}
-                                        onKeyDown={handleKeyDown}
-                                        className={`form-control ${fullNameError ? 'error' : ''} ${touched.fullName && !fullNameError ? 'valid' : ''}`}
-                                        placeholder="Enter your full name"
-                                        required
-                                        disabled={isLoading}
-                                        aria-describedby={fullNameError ? 'fullName-error' : undefined}
-                                        aria-invalid={!!fullNameError}
-                                    />
-                                    <div className="input-icon">
-                                        <span className="name-icon">👤</span>
-                                    </div>
-                                </div>
-                                {fullNameError && (
-                                    <div id="fullName-error" className="error-message" role="alert">
-                                        {fullNameError}
-                                    </div>
-                                )}
-                            </div>
+                            {/* Note: Full Name and Badge Number fields removed for existing supervisor signup */}
+                            {/* These details are already in the system and will be retrieved automatically */}
 
-                            {/* Badge Number Field */}
-                            <div className="form-group">
-                                <label htmlFor="badgeNumber" className="form-label">
-                                    Badge Number
-                                    <span className="required">*</span>
-                                </label>
-                                <div className="input-wrapper">
-                                    <input
-                                        type="text"
-                                        id="badgeNumber"
-                                        name="badgeNumber"
-                                        value={badgeNumber}
-                                        onChange={handleBadgeNumberChange}
-                                        onBlur={handleBadgeNumberBlur}
-                                        onKeyDown={handleKeyDown}
-                                        className={`form-control ${badgeNumberError ? 'error' : ''} ${touched.badgeNumber && !badgeNumberError ? 'valid' : ''}`}
-                                        placeholder="e.g., AG003"
-                                        required
-                                        maxLength="5"
-                                        disabled={isLoading}
-                                        aria-describedby={badgeNumberError ? 'badgeNumber-error' : undefined}
-                                        aria-invalid={!!badgeNumberError}
-                                    />
-                                    <div className="input-icon">
-                                        <span className="badge-icon">🆔</span>
-                                    </div>
-                                </div>
-                                {badgeNumberError && (
-                                    <div id="badgeNumber-error" className="error-message" role="alert">
-                                        {badgeNumberError}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Depot Selection */}
-                            <div className="form-group">
-                                <label htmlFor="depot" className="form-label">
-                                    Depot
-                                </label>
-                                <div className="input-wrapper">
-                                    <select
-                                        id="depot"
-                                        name="depot"
-                                        value={depot}
-                                        onChange={(e) => setDepot(e.target.value)}
-                                        className="form-control"
-                                        disabled={isLoading}
-                                    >
-                                        <option value="SDC">SDC (Service Delivery Centre)</option>
-                                        <option value="WASHINGTON">Washington</option>
-                                        <option value="RIVERSIDE">Riverside</option>
-                                        <option value="PERCY_MAIN">Percy Main</option>
-                                        <option value="CONSETT">Consett</option>
-                                        <option value="DEPTFORD">Deptford</option>
-                                        <option value="HEXHAM">Hexham</option>
-                                    </select>
-                                    <div className="input-icon">
-                                        <span className="depot-icon">🏢</span>
-                                    </div>
-                                </div>
-                            </div>
+                            {/* Depot field also removed - will be retrieved from existing supervisor record */}
                         </>
                     )}
 
@@ -853,7 +753,7 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
                         ) : (
                             <>
                                 <span className="button-icon">{isSignupMode ? '✨' : '🔐'}</span>
-                                {isSignupMode ? 'Create Account' : 'Sign In'}
+                                {isSignupMode ? 'Activate Account' : 'Sign In'}
                             </>
                         )}
                     </button>
@@ -867,8 +767,8 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
                             onClick={toggleSignupMode}
                         >
                             {isSignupMode
-                                ? 'Already have an account? Sign In'
-                                : 'Need an account? Register as a Supervisor'
+                                ? 'Already activated your account? Sign In'
+                                : 'New supervisor? Activate your account'
                             }
                         </button>
                         {!isSignupMode && (

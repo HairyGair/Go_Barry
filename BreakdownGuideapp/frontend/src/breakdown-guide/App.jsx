@@ -138,6 +138,7 @@ const App = () => {
     const [currentStep, setCurrentStep] = useState(1);
     const [responses, setResponses] = useState({});
     const [assessmentId, setAssessmentId] = useState(null);
+    const [assessmentStartTime, setAssessmentStartTime] = useState(null);
     
     // Fleet selection state
     const [showFleetModal, setShowFleetModal] = useState(false);
@@ -186,6 +187,11 @@ const App = () => {
             });
         }
     }, [supervisorSession]);
+
+    // Track summary state changes
+    useEffect(() => {
+        console.log('🔍 Summary state changed:', { showSummary, assessmentDecision, assessmentNotes });
+    }, [showSummary, assessmentDecision, assessmentNotes]);
     
     // Start assessment flow
     const startAssessment = (wizardType) => {
@@ -206,11 +212,12 @@ const App = () => {
         delete vehicle.route;
         delete vehicle.routeName;
 
-        console.log('handleFleetSelection - vehicle:', vehicle);
-        console.log('handleFleetSelection - location:', location);
-        console.log('handleFleetSelection - location type:', location?.type);
-        console.log('handleFleetSelection - route:', route);
-        console.log('handleFleetSelection - routeName:', routeDisplayName);
+        console.log('🚗 handleFleetSelection - vehicle:', vehicle);
+        console.log('🚗 Fleet number from selection:', vehicle.fleetNumber);
+        console.log('🚗 Depot from selection:', vehicle.depot);
+        console.log('🚗 Vehicle type from selection:', vehicle.vehicleType);
+        console.log('🚗 Location:', location);
+        console.log('🚗 Route:', route);
 
         // Update state with vehicle, location, and route data
         setSelectedVehicle(vehicle);
@@ -250,6 +257,7 @@ const App = () => {
             setAssessmentId(breakdownId);
             setCurrentWizard(pendingWizardType);
             setCurrentStep(1);
+            setAssessmentStartTime(new Date().toISOString());
         }
     };
     
@@ -257,6 +265,7 @@ const App = () => {
     const renderWizard = () => {
         
         // Show summary if assessment is complete
+        console.log('🔍 Render check - showSummary:', showSummary, 'assessmentDecision:', assessmentDecision);
         if (showSummary && assessmentDecision) {
             return (
                 <>
@@ -281,9 +290,11 @@ const App = () => {
                                 routeName: routeName
                             }}
                             onPrint={() => {
+                                console.log('🖨️ Print button clicked');
                                 window.print();
                             }}
                             onEmail={() => {
+                                console.log('📧 Email button clicked');
                                 const summary = document.querySelector('.assessment-summary');
                                 if (summary) {
                                     const emailBody = encodeURIComponent(summary.innerText);
@@ -291,7 +302,143 @@ const App = () => {
                                 }
                             }}
                             onComplete={async () => {
-                                console.log('🔥 Completing wizard assessment with full data...');
+                                try {
+                                    console.log('🔥 AssessmentSummary onComplete called - Starting completion process...');
+                                    console.log('🔍 Current state:', {
+                                        assessmentId,
+                                        selectedVehicle,
+                                        assessmentDecision,
+                                        breakdownLocation,
+                                        selectedRoute,
+                                        routeName
+                                    });
+
+                                    if (!assessmentDecision) {
+                                        console.error('❌ No assessment decision found!');
+                                        alert('Error: No assessment decision found. Please try again.');
+                                        return;
+                                    }
+
+                                    if (!selectedVehicle || !selectedVehicle.fleetNumber) {
+                                        console.error('❌ No vehicle selected or missing fleet number!');
+                                        console.log('🔍 Current selectedVehicle state:', selectedVehicle);
+                                        alert('Error: No vehicle selected. Please restart the assessment and select a vehicle.');
+                                        return;
+                                    }
+
+                                    // 🎯 COMPREHENSIVE DATA CAPTURE - Capture ALL breakdown data before backend submission
+                                    const timestamp = Date.now();
+                                    const breakdownId = assessmentId || `BD-${timestamp}`;
+                                
+                                const comprehensiveBreakdownData = {
+                                    // Core breakdown identification
+                                    breakdown_id: breakdownId,
+                                    fleet_no: selectedVehicle?.fleetNumber || selectedVehicle?.fleet_number || 'Unknown',
+                                    fleet_number: selectedVehicle?.fleetNumber || selectedVehicle?.fleet_number || 'Unknown',
+                                    fleetNumber: selectedVehicle?.fleetNumber || selectedVehicle?.fleet_number || 'Unknown',
+                                    issue_type: (wizards[currentWizard]?.title || currentWizard).replace('Wizard', '').trim(),
+                                    severity: assessmentDecision || 'CONTINUE',
+                                    
+                                    // Vehicle details - ensure all data is captured
+                                    vehicle_type: selectedVehicle?.vehicleType || selectedVehicle?.type || null,
+                                    vehicleType: selectedVehicle?.vehicleType || selectedVehicle?.type || null,
+                                    depot: selectedVehicle?.depot || 'Unknown',
+                                    depot_id: selectedVehicle?.depot || 'Unknown',
+                                    registration: selectedVehicle?.regNo || selectedVehicle?.registration || '',
+                                    regNo: selectedVehicle?.regNo || selectedVehicle?.registration || '',
+                                    
+                                    // Location data (multiple sources for reliability)
+                                    location: breakdownLocation?.description || 
+                                             breakdownLocation?.address || 
+                                             breakdownLocation?.coordinates ||
+                                             `${breakdownLocation?.lat}, ${breakdownLocation?.lng}` ||
+                                             'Location to be added later',
+                                    coordinates: breakdownLocation?.lat && breakdownLocation?.lng ? 
+                                                `${breakdownLocation.lat}, ${breakdownLocation.lng}` : null, // GPS coords if available
+                                    location_coords: breakdownLocation?.coords || 
+                                                   (breakdownLocation?.lat && breakdownLocation?.lng ? 
+                                                    { lat: breakdownLocation.lat, lng: breakdownLocation.lng } : null),
+                                    
+                                    // Route information
+                                    route_id: selectedRoute || '',
+                                    route_name: routeName || '',
+                                    
+                                    // Supervisor information
+                                    supervisor_name: supervisorSession?.name || 'Unknown Supervisor',
+                                    supervisor_badge: supervisorSession?.supervisorId || supervisorSession?.badge || 'Unknown',
+                                    supervisor_email: supervisorSession?.email || '',
+                                    depot: supervisorSession?.depot || 'SDC',
+                                    
+                                    // Assessment data
+                                    wizard_type: wizards[currentWizard]?.title || currentWizard,
+                                    assessment_notes: assessmentNotes || '',
+                                    wizard_responses: responses || {},
+                                    assessment_steps: Object.entries(responses || {}).map(([key, value]) => ({
+                                        question: key,
+                                        answer: value
+                                    })),
+                                    
+                                    // Timing information
+                                    created_at: new Date().toISOString(),
+                                    assessment_start: assessmentStartTime || new Date().toISOString(),
+                                    assessment_complete: new Date().toISOString(),
+                                    
+                                    // Additional context - complete vehicle object
+                                    vehicle_details: selectedVehicle || {},
+                                    vehicle: {
+                                        fleetNumber: selectedVehicle?.fleetNumber || selectedVehicle?.fleet_number || 'Unknown',
+                                        fleet_number: selectedVehicle?.fleetNumber || selectedVehicle?.fleet_number || 'Unknown',
+                                        depot: selectedVehicle?.depot || 'Unknown',
+                                        vehicleType: selectedVehicle?.vehicleType || selectedVehicle?.type || null,
+                                        type: selectedVehicle?.vehicleType || selectedVehicle?.type || null,
+                                        registration: selectedVehicle?.regNo || selectedVehicle?.registration || '',
+                                        regNo: selectedVehicle?.regNo || selectedVehicle?.registration || ''
+                                    },
+                                    breakdown_source: 'wizard_assessment',
+                                    status: 'completed',
+                                    priority_level: assessmentDecision === 'STOP' ? 1 : assessmentDecision === 'AMBER' ? 2 : 3,
+                                    
+                                    // Metadata for tracking
+                                    assessment_id: assessmentId,
+                                    session_data: {
+                                        current_step: currentStep,
+                                        wizard_title: wizards[currentWizard]?.title,
+                                        total_responses: Object.keys(responses || {}).length
+                                    }
+                                };
+
+                                // 🎯 STORE LOCALLY for persistence and SDC dashboard highlighting
+                                try {
+                                    console.log('💾 Storing comprehensive breakdown data:', comprehensiveBreakdownData);
+                                    console.log('🔍 Breakdown fleet data check:', {
+                                        selectedVehicle_fleetNumber: selectedVehicle?.fleetNumber,
+                                        selectedVehicle_depot: selectedVehicle?.depot,
+                                        selectedVehicle_vehicleType: selectedVehicle?.vehicleType,
+                                        breakdown_fleet_no: comprehensiveBreakdownData.fleet_no,
+                                        breakdown_depot: comprehensiveBreakdownData.depot,
+                                        breakdown_vehicle_type: comprehensiveBreakdownData.vehicle_type
+                                    });
+                                    localStorage.setItem(`breakdown_${breakdownId}`, JSON.stringify(comprehensiveBreakdownData));
+                                    localStorage.setItem('latest_breakdown_id', breakdownId);
+                                    
+                                    // Store highlighting information for SDC dashboard
+                                    localStorage.setItem('sdc_highlight_breakdown', JSON.stringify({
+                                        breakdown_id: breakdownId,
+                                        timestamp: Date.now(),
+                                        decision: assessmentDecision,
+                                        source: 'wizard_completion'
+                                    }));
+                                    
+                                    console.log('✅ Comprehensive breakdown data stored locally:', breakdownId);
+                                    console.log('🔍 Fleet data stored:', {
+                                        fleet_no: comprehensiveBreakdownData.fleet_no,
+                                        depot: comprehensiveBreakdownData.depot,
+                                        vehicle_type: comprehensiveBreakdownData.vehicle_type,
+                                        vehicle_object: comprehensiveBreakdownData.vehicle
+                                    });
+                                } catch (error) {
+                                    console.warn('⚠️ Failed to store breakdown data locally:', error);
+                                }
 
                                 // Complete the assessment with ALL required data including route info
                                 const result = await supervisorBreakdownLogger.completeAssessment({
@@ -329,6 +476,32 @@ const App = () => {
                                         ? 'Assessment saved locally and will sync automatically' 
                                         : 'Assessment completed and sent to dashboard';
                                     console.log('✅', message);
+
+                                    // 🎯 REDIRECT TO SDC DASHBOARD with highlighting using comprehensive data
+                                    try {
+                                        const { navigationService } = await import('../services/navigationService.js');
+                                        
+                                        // Use the backend breakdown ID if available, otherwise use our generated ID
+                                        const highlightBreakdownId = result.breakdown?.breakdown_id || result.breakdown_id || breakdownId;
+                                        
+                                        navigationService.handleBreakdownGuideCompletion({
+                                            breakdownId: highlightBreakdownId,
+                                            decision: assessmentDecision,
+                                            wizardType: wizards[currentWizard]?.title || currentWizard,
+                                            supervisorBadge: supervisorSession?.supervisorId || supervisorSession?.badge,
+                                            returnUrl: null // Will default to SDC dashboard
+                                        });
+                                        
+                                        console.log(`🎯 Redirecting to SDC Dashboard with highlight: ${highlightBreakdownId}`);
+                                        return; // Exit early since we're redirecting
+                                    } catch (error) {
+                                        console.error('⚠️ Failed to redirect to SDC dashboard:', error);
+                                        // Fallback to manual redirect
+                                        const fallbackUrl = `/dashboards/sdc?highlight=${breakdownId}&completed=true&decision=${assessmentDecision}`;
+                                        console.log(`🔄 Fallback redirect to: ${fallbackUrl}`);
+                                        window.location.href = fallbackUrl;
+                                        return;
+                                    }
                                 } else if (result) {
                                     console.warn('⚠️ Assessment saved but not synced:', result.message);
                                 }
@@ -343,6 +516,10 @@ const App = () => {
                                 setAssessmentDecision(null);
                                 setAssessmentNotes('');
                                 setBreakdownLocation(null);
+                                } catch (error) {
+                                    console.error('❌ Critical error in onComplete:', error);
+                                    alert(`Error completing assessment: ${error.message}`);
+                                }
                             }}
                         />
                     </div>
@@ -403,18 +580,32 @@ const App = () => {
                         }}
                         onPrevious={() => setCurrentStep(Math.max(1, currentStep - 1))}
                         onComplete={async (decision, notes) => {
+                            console.log('🎯 Wizard onComplete called:', { decision, notes });
+                            console.log('🎯 Current responses:', responses);
+                            console.log('🎯 Current assessmentDecision state:', assessmentDecision);
+                            console.log('🎯 Current showSummary state:', showSummary);
+                            
                             // Store decision and notes for summary
                             const finalDecision = (decision || responses.decision || 'CONTINUE').toUpperCase();
                             const finalNotes = notes || responses.notes || '';
                             
-                            setAssessmentDecision(finalDecision);
-                            setAssessmentNotes(finalNotes);
+                            console.log('🎯 Final decision:', finalDecision);
+                            console.log('🎯 Final notes:', finalNotes);
                             
                             // Broadcast assessment completion
-                            assessmentBroadcaster.completeAssessment(finalDecision, finalNotes);
+                            try {
+                                assessmentBroadcaster.completeAssessment(finalDecision, finalNotes);
+                                console.log('✅ Assessment broadcasted successfully');
+                            } catch (error) {
+                                console.error('❌ Assessment broadcast error:', error);
+                            }
 
-                            // Show summary instead of completing immediately
+                            // Update state - React will batch these updates
+                            console.log('🎯 Setting assessment decision and showing summary...');
+                            setAssessmentDecision(finalDecision);
+                            setAssessmentNotes(finalNotes);
                             setShowSummary(true);
+                            console.log('🎯 State updates called - React will re-render');
                         }}
                         onCancel={() => {
                             // Broadcast cancellation

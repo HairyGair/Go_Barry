@@ -83,6 +83,110 @@ router.get('/supervisor/:username', async (req, res) => {
   }
 });
 
+
+// POST /api/auth/supervisor-signup - Existing supervisor account activation
+router.post('/supervisor-signup', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validate required fields
+    if (!email || !password) {
+      return res.status(400).json({
+        error: 'Email and password are required',
+        code: 'MISSING_FIELDS'
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.toLowerCase())) {
+      return res.status(400).json({
+        error: 'Please enter a valid email address',
+        code: 'INVALID_EMAIL'
+      });
+    }
+
+    // Check if supervisor exists in our database
+    const { data: existingSupervisor, error: checkError } = await supabase
+      .from('supervisors')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .eq('is_active', true)
+      .single();
+
+    if (checkError || !existingSupervisor) {
+      return res.status(404).json({
+        error: 'No supervisor account found with this email address. Please contact your administrator.',
+        code: 'SUPERVISOR_NOT_FOUND'
+      });
+    }
+
+    // Skip checking for existing auth account for now since it requires admin privileges
+    // The signUp method below will handle duplicate email errors
+
+    // Create Supabase auth user
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: email.toLowerCase(),
+      password: password,
+      options: {
+        data: {
+          full_name: existingSupervisor.name,
+          badge_number: existingSupervisor.badge_number,
+          depot: existingSupervisor.depot,
+          role: existingSupervisor.role,
+          supervisor_id: existingSupervisor.id,
+          signup_date: new Date().toISOString()
+        },
+        emailRedirectTo: `${process.env.APP_URL || 'http://localhost:3000'}/auth/verify`
+      }
+    });
+
+    if (authError) {
+      console.error('Supervisor auth signup error:', authError);
+      return res.status(400).json({
+        error: authError.message || 'Failed to create account',
+        code: 'SIGNUP_FAILED'
+      });
+    }
+
+    // Update supervisor record to link auth user
+    const { error: updateError } = await supabase
+      .from('supervisors')
+      .update({
+        auth_user_id: authData.user.id,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', existingSupervisor.id);
+
+    if (updateError) {
+      console.error('Error linking supervisor to auth user:', updateError);
+    }
+
+    console.log(`✅ Supervisor account activated: ${existingSupervisor.name} (${existingSupervisor.badge_number})`);
+
+    res.status(201).json({
+      success: true,
+      message: 'Account created successfully! Please check your email to verify your account.',
+      supervisor: {
+        id: existingSupervisor.id,
+        name: existingSupervisor.name,
+        email: existingSupervisor.email,
+        badge_number: existingSupervisor.badge_number,
+        depot: existingSupervisor.depot,
+        role: existingSupervisor.role
+      },
+      requiresEmailVerification: !authData.session // Will be null if email confirmation required
+    });
+
+  } catch (error) {
+    console.error('Supervisor signup error:', error);
+    res.status(500).json({
+      error: 'Internal server error during account creation',
+      code: 'SERVER_ERROR'
+    });
+  }
+});
+
 // POST /api/auth/login - Supabase authentication login
 router.post('/login', async (req, res) => {
   try {
@@ -659,6 +763,84 @@ router.put('/supervisor/:id', async (req, res) => {
     res.status(500).json({
       error: 'Failed to update supervisor',
       code: 'UPDATE_ERROR'
+    });
+  }
+});
+
+// GET /api/supervisors/:id/stats - Get supervisor-specific statistics
+router.get('/supervisors/:id/stats', async (req, res) => {
+  try {
+    const supervisorId = req.params.id;
+    
+    // Get supervisor details first
+    const { data: supervisor, error: supervisorError } = await supabase
+      .from('supervisors')
+      .select('*')
+      .or(`id.eq.${supervisorId},badge_number.eq.${supervisorId}`)
+      .single();
+    
+    if (supervisorError || !supervisor) {
+      console.log(`Supervisor not found: ${supervisorId}`);
+      return res.status(404).json({
+        error: 'Supervisor not found',
+        code: 'SUPERVISOR_NOT_FOUND'
+      });
+    }
+    
+    // Get breakdown counts for this supervisor
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Get active breakdowns
+    const { data: activeBreakdowns, error: activeError } = await supabase
+      .from('breakdowns')
+      .select('id', { count: 'exact' })
+      .eq('supervisor_id', supervisor.id)
+      .in('status', ['in_progress', 'pending', 'dispatched']);
+    
+    // Get today's breakdowns
+    const { data: todayBreakdowns, error: todayError } = await supabase
+      .from('breakdowns')
+      .select('id', { count: 'exact' })
+      .eq('supervisor_id', supervisor.id)
+      .gte('created_at', `${today}T00:00:00`);
+    
+    // Get resolved breakdowns
+    const { data: resolvedBreakdowns, error: resolvedError } = await supabase
+      .from('breakdowns')
+      .select('id', { count: 'exact' })
+      .eq('supervisor_id', supervisor.id)
+      .eq('status', 'completed');
+    
+    // Calculate response time (mock for now)
+    const avgResponseMinutes = Math.floor(Math.random() * 15) + 5;
+    const responseTime = `00:${String(avgResponseMinutes).padStart(2, '0')}`;
+    
+    // Fleet health metrics (mock for now)
+    const fleetHealth = 85 + Math.floor(Math.random() * 15);
+    const onRoute = Math.floor(Math.random() * 50) + 150;
+    const depotCount = Math.floor(Math.random() * 10) + 5;
+    
+    const stats = {
+      active: activeBreakdowns?.length || 0,
+      today: todayBreakdowns?.length || 0,
+      resolved: resolvedBreakdowns?.length || 0,
+      responseTime,
+      fleetHealth,
+      onRoute,
+      depot: depotCount,
+      avgResponseTime: avgResponseMinutes,
+      supervisorName: supervisor.name,
+      supervisorDepot: supervisor.depot
+    };
+    
+    console.log(`📊 Supervisor stats fetched for ${supervisor.name} (${supervisorId})`);
+    res.json(stats);
+    
+  } catch (error) {
+    console.error('Error fetching supervisor stats:', error);
+    res.status(500).json({
+      error: 'Failed to fetch supervisor statistics',
+      code: 'STATS_ERROR'
     });
   }
 });

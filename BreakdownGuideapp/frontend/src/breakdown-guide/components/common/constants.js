@@ -31,10 +31,10 @@ export const apiConfig = {
 export const websocketConfig = {
     url: import.meta.env.VITE_WS_URL || 'wss://breakdown-guide.onrender.com',
     endpoints: {
-        sdcDashboard: '/ws/sdc-dashboard',
-        breakdowns: '/ws/breakdowns',
-        assessments: '/ws/assessments',
-        activities: '/ws/activities'
+        sdcDashboard: '/ws?channel=sdc-dashboard',
+        breakdowns: '/ws?channel=breakdowns',
+        assessments: '/ws?channel=assessments',
+        activities: '/ws?channel=activities'
     },
     reconnectAttempts: 5,
     reconnectInterval: 3000, // 3 seconds

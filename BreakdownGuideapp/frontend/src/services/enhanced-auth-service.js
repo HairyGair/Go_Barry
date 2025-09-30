@@ -38,6 +38,14 @@ const AUTHORIZED_SUPERVISORS = [
         role: 'supervisor',
         supervisorId: 'TEST01',
         badge_number: 'TEST01'
+    },
+    {
+        email: 'simon.glass@gonortheast.co.uk',
+        name: 'Simon Glass',
+        depot: 'SDC',
+        role: 'supervisor',
+        supervisorId: 'SG001',
+        badge_number: 'SG001'
     }
 ];
 
@@ -159,6 +167,7 @@ class EnhancedAuthService {
     getSupervisorData(email) {
         return this.getLocalSupervisorData(email);
     }
+
 
     // Enhanced authentication method with comprehensive security features
     async authenticate(email, password, rememberMe = true) {

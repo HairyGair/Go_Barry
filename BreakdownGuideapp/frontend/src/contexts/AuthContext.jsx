@@ -210,6 +210,7 @@ export const AuthProvider = ({ children }) => {
         }
     }, []);
 
+
     // Login function
     const login = useCallback(async (email, password, rememberMe = true) => {
         console.log('🔐 AuthContext: Attempting login for:', email);

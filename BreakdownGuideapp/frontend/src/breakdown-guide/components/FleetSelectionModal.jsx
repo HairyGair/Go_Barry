@@ -4,6 +4,7 @@ import * as Icons from './common/icons.jsx';
 import storageService from '../../services/storageService.js';
 import { useFrequentRoutes, useRecentFleetNumbers, useBreakdownDraft } from '../../hooks/useStorage.js';
 import routeHelpers from '../../data/routes.js';
+import { storeSelectedVehicle } from '../../dashboards/sdc/fleetDataFix.js';
 
 const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) => {
     const { Search, MapPin, Building, CheckCircle, XCircle, AlertCircle } = Icons;
@@ -213,9 +214,20 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
     
     // Handle vehicle selection
     const handleVehicleSelect = (vehicle) => {
+        console.log('🚗 Vehicle selected in modal:', vehicle);
+        
+        // Store vehicle data properly for fleet data fix
+        storeSelectedVehicle(vehicle);
+        
         setSelectedVehicle(vehicle);
         saveFleetNumber(vehicle.fleetNumber); // Save to recent fleet numbers
         setCurrentStep('route'); // Go to route selection first
+        
+        console.log('✅ Vehicle selection complete:', {
+            fleetNumber: vehicle.fleetNumber,
+            depot: vehicle.depot,
+            vehicleType: vehicle.vehicleType
+        });
     };
 
     // Handle route selection
@@ -282,7 +294,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
             });
             
             // Complete the selection with route data
-            onSelectVehicle({
+            const completeVehicleData = {
                 ...selectedVehicle,
                 route: selectedRoute,
                 routeName: routeName,
@@ -290,9 +302,15 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                     type: 'ticketer',
                     lat,
                     lng,
-                    coordinates: ticketerCoords
+                    coordinates: ticketerCoords,
+                    description: `Ticketer Location (${lat.toFixed(6)}, ${lng.toFixed(6)})`
                 }
-            });
+            };
+            
+            // Store the complete vehicle data with location and route
+            storeSelectedVehicle(completeVehicleData);
+            
+            onSelectVehicle(completeVehicleData);
 
             // Clear draft on successful completion
             clearDraft();
@@ -313,16 +331,22 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
             ...depot
         });
         
-        onSelectVehicle({
+        const completeVehicleData = {
             ...selectedVehicle,
             route: selectedRoute,
             routeName: routeName,
             location: {
                 type: 'depot',
                 name: depotName,
+                description: `${depotName} Depot`,
                 ...depot
             }
-        });
+        };
+        
+        // Store the complete vehicle data with location and route
+        storeSelectedVehicle(completeVehicleData);
+        
+        onSelectVehicle(completeVehicleData);
 
         // Clear draft on successful completion
         clearDraft();
@@ -331,7 +355,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
     };
     
     const handleSkipLocation = () => {
-        onSelectVehicle({
+        const completeVehicleData = {
             ...selectedVehicle,
             route: selectedRoute,
             routeName: routeName,
@@ -339,7 +363,12 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                 type: 'skip',
                 description: 'Location to be added later'
             }
-        });
+        };
+        
+        // Store the complete vehicle data with location and route
+        storeSelectedVehicle(completeVehicleData);
+        
+        onSelectVehicle(completeVehicleData);
 
         // Clear draft on successful completion
         clearDraft();

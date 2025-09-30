@@ -7,6 +7,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import assessmentAPI from '../services/assessmentAPI';
 import assessmentWebSocket from '../services/assessmentWebSocket';
+import { supabase } from '../services/supabase-client';
 
 export const useAssessmentData = (options = {}) => {
   const {
@@ -17,10 +18,21 @@ export const useAssessmentData = (options = {}) => {
     cacheTimeout = 5 * 60 * 1000 // 5 minutes
   } = options;
 
-  // Authentication status detection
-  const hasAuthToken = () => {
-    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('supervisor_token');
-    return Boolean(token);
+  // Authentication status detection (updated to use Supabase session)
+  const hasAuthToken = async () => {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (session && session.access_token) {
+        return true;
+      }
+      
+      // Fallback to legacy tokens
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('supervisor_token');
+      return Boolean(token);
+    } catch (error) {
+      console.warn('⚠️ Error checking authentication:', error);
+      return false;
+    }
   };
 
   // State management
@@ -60,7 +72,7 @@ export const useAssessmentData = (options = {}) => {
     },
     
     refreshCount: 0,
-    authenticated: hasAuthToken()
+    authenticated: false // Will be updated asynchronously
   });
 
   // Refs for cleanup and debouncing
@@ -124,7 +136,7 @@ export const useAssessmentData = (options = {}) => {
   const fetchActiveAssessments = useCallback(async () => {
     if (!enableAPI) return;
     
-    if (!hasAuthToken()) {
+    if (!(await hasAuthToken())) {
       console.error('❌ Cannot fetch assessments: No authentication token');
       setError('api', 'Authentication required');
       return;
@@ -165,7 +177,7 @@ export const useAssessmentData = (options = {}) => {
   const fetchBreakdownsWithAssessments = useCallback(async () => {
     if (!enableAPI) return;
     
-    if (!hasAuthToken()) {
+    if (!(await hasAuthToken())) {
       console.error('❌ Cannot fetch breakdowns: No authentication token');
       setError('api', 'Authentication required');
       return;
@@ -206,7 +218,7 @@ export const useAssessmentData = (options = {}) => {
   const fetchStatistics = useCallback(async () => {
     if (!enableAPI) return;
     
-    if (!hasAuthToken()) {
+    if (!(await hasAuthToken())) {
       console.error('❌ Cannot fetch statistics: No authentication token');
       setError('api', 'Authentication required');
       return;
@@ -427,21 +439,28 @@ export const useAssessmentData = (options = {}) => {
   useEffect(() => {
     if (autoConnect) {
       console.log('🚀 Initializing assessment data integration...');
-      if (hasAuthToken()) {
-        console.log('🔐 Assessment Data: Authentication token found');
-        
-        // Fetch initial data
-        fetchAllData();
-        
-        // Initialize WebSocket
-        initializeWebSocket();
-        
-        // Setup polling fallback
-        setupPolling();
-      } else {
-        console.error('❌ Assessment Data: No authentication token available');
-        setError('general', 'Authentication required');
-      }
+      
+      // Check authentication asynchronously
+      hasAuthToken().then(hasAuth => {
+        if (hasAuth) {
+          console.log('🔐 Assessment Data: Authentication token found');
+          
+          // Fetch initial data
+          fetchAllData();
+          
+          // Initialize WebSocket
+          initializeWebSocket();
+          
+          // Setup polling fallback
+          setupPolling();
+        } else {
+          console.error('❌ Assessment Data: No authentication token available');
+          setError('general', 'Authentication required');
+        }
+      }).catch(error => {
+        console.error('❌ Error checking authentication:', error);
+        setError('general', 'Authentication check failed');
+      });
     }
     
     return cleanup;
@@ -494,7 +513,7 @@ export const useAssessmentData = (options = {}) => {
     isConnected: () => state.connected.websocket || state.connected.api,
     hasData: () => state.activeAssessments.length > 0 || state.breakdownsWithAssessments.length > 0,
     isAuthenticated: hasAuthToken,
-    requiresAuth: () => !hasAuthToken(),
+    requiresAuth: async () => !(await hasAuthToken()),
     getDataAge: () => {
       const timestamps = Object.values(state.lastUpdated).filter(Boolean);
       if (timestamps.length === 0) return null;

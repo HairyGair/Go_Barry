@@ -186,6 +186,7 @@ class SupervisorBreakdownLogger {
 
             // Vehicle and location
             fleet_number: this.currentBreakdown.vehicle?.fleetNumber,
+            fleet_no: this.currentBreakdown.vehicle?.fleetNumber, // Alternative field
             location: this.currentBreakdown.location?.description ||
                      this.currentBreakdown.location?.address ||
                      this.currentBreakdown.location?.coordinates ||

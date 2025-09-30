@@ -16,6 +16,8 @@ import ConnectionStatusIndicator from '../../components/ConnectionStatusIndicato
 import SDCDashboardHeader from './SDCDashboardHeader';
 import { apiConfig } from '../../breakdown-guide/components/common/constants';
 import { fetchAllActivities } from '../../api/activityAggregator';
+import { enhanceBreakdownDataInline } from './dataEnhancementPatch';
+import { clearCorruptedData } from './clearTestData';
 import useConnectionManager from '../../hooks/useConnectionManager';
 import useAssessmentData from '../../hooks/useAssessmentData';
 import assessmentAPI from '../../services/assessmentAPI';
@@ -52,7 +54,7 @@ const SDCDashboard = () => {
   
   // Hybrid connection manager for real-time updates
   const connectionManager = useConnectionManager({
-    endpoint: '/ws/sdc-dashboard',
+    endpoint: '/ws?channel=sdc-dashboard',
     autoConnect: true,
     primary: 'websocket',
     fallback: 'polling',
@@ -61,12 +63,22 @@ const SDCDashboard = () => {
     pollingInterval: 5000
   });
 
-  // Assessment data integration with API and WebSocket
+  // Debug connection status
+  useEffect(() => {
+    console.log('🔌 Connection Manager Status:', {
+      isConnected: connectionManager.isConnected,
+      currentMode: connectionManager.currentMode,
+      state: connectionManager.state,
+      endpoint: '/ws?channel=sdc-dashboard'
+    });
+  }, [connectionManager.isConnected, connectionManager.currentMode, connectionManager.state]);
+
+  // Assessment data integration with API and WebSocket (disabled for now to reduce log noise)
   const assessmentData = useAssessmentData({
-    autoConnect: true,
-    enableWebSocket: true,
-    enableAPI: true,
-    pollInterval: 30000
+    autoConnect: false,
+    enableWebSocket: false,
+    enableAPI: false,
+    pollInterval: 60000 // Reduced frequency when enabled
   });
 
   // Current supervisor state (must be declared before getEnhancedFilters)
@@ -712,9 +724,12 @@ const SDCDashboard = () => {
   }, [assessmentData]);
 
   // Simplified breakdown fetching (assessment integration disabled)
-  const fetchBreakdowns = async () => {
+  const fetchBreakdowns = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      // Only show loading spinner on initial load, not on refreshes
+      if (!isRefresh) {
+        setLoading(true);
+      }
       
       // Fetch only regular breakdowns for now
       const response = await fetch(`${apiConfig.baseUrl}/api/sdc/live`);
@@ -727,14 +742,21 @@ const SDCDashboard = () => {
         console.log('📊 SDC total breakdowns:', breakdownsData.length);
         
         if (Array.isArray(breakdownsData) && breakdownsData.length > 0) {
+        // Enhance all breakdowns first
+        const enhancedBreakdowns = await Promise.all(
+          breakdownsData.map(b => enhanceBreakdownDataInline(b))
+        );
+
         // Process merged breakdowns for SDC view
-        const processedBreakdowns = breakdownsData.map(b => ({
+        const processedBreakdowns = enhancedBreakdowns.map(b => ({
+          ...b, // Include all enhanced fields
           id: b.breakdown_id || b.id,
           breakdown_id: b.breakdown_id,
           daily_id: b.daily_id,
-          fleet_number: b.fleet_number,
-          location: b.location,
-          issue_category: b.issue_category,
+          fleet_number: b.fleet_no, // Use enhanced fleet_no
+          location: b.location, // Use enhanced location
+          depot_id: b.depot_id, // Use enhanced depot
+          issue_category: b.issue_type, // Use enhanced issue type
           severity: b.severity || b.wizard_decision,
           status: b.status || 'active',
           created_at: b.created_at,
@@ -839,17 +861,256 @@ const SDCDashboard = () => {
         setRecentDecisions(decisions);
         
         } else {
-          setBreakdowns([]);
-          setPriorityAlerts([]);
-          setRecentDecisions([]);
+          // 🎯 FALLBACK: If no backend data, check localStorage for wizard-completed breakdowns
+          console.log('📱 No backend data found, checking localStorage for breakdown data...');
+          
+          const localBreakdowns = [];
+          for (let key in localStorage) {
+            if (key.startsWith('breakdown_')) {
+              try {
+                const breakdownData = JSON.parse(localStorage.getItem(key));
+                if (breakdownData && breakdownData.breakdown_id) {
+                  localBreakdowns.push(breakdownData);
+                }
+              } catch (error) {
+                console.warn(`⚠️ Failed to parse localStorage breakdown: ${key}`, error);
+              }
+            }
+          }
+          
+          if (localBreakdowns.length > 0) {
+            console.log(`📱 Found ${localBreakdowns.length} breakdown(s) in localStorage`);
+            console.log('📊 Raw localStorage breakdown data:', localBreakdowns);
+            
+            // Debug: Check for suspicious fleet number values
+            localBreakdowns.forEach(b => {
+              console.log(`🔍 Breakdown ${b.breakdown_id} fleet analysis:`, {
+                fleet_no: b.fleet_no,
+                fleet_number: b.fleet_number,
+                fleetNumber: b.fleetNumber,
+                coordinates: b.coordinates,
+                location_coords: b.location_coords,
+                vehicle: b.vehicle,
+                allFields: Object.keys(b).filter(key => 
+                  typeof b[key] === 'string' && b[key].includes('55018629')
+                )
+              });
+            });
+            
+            // Convert localStorage breakdown data to SDC Dashboard format with enhanced vehicle data
+            const processedLocalBreakdowns = localBreakdowns.map(b => ({
+              id: b.breakdown_id,
+              breakdown_id: b.breakdown_id,
+              daily_id: `LOCAL-${b.breakdown_id.split('-').pop()}`,
+              
+              // Enhanced fleet data - try multiple field names
+              fleet_number: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
+              fleet_no: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
+              fleetNumber: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
+              
+              // Vehicle details
+              vehicle_type: b.vehicle_type || b.vehicleType || b.vehicle?.vehicleType || null,
+              vehicleType: b.vehicle_type || b.vehicleType || b.vehicle?.vehicleType || null,
+              depot: b.depot || b.depot_id || b.vehicle?.depot || 'Unknown',
+              depot_id: b.depot || b.depot_id || b.vehicle?.depot || 'Unknown',
+              registration: b.registration || b.regNo || b.vehicle?.regNo || '',
+              regNo: b.registration || b.regNo || b.vehicle?.regNo || '',
+              
+              // Enhanced vehicle object
+              vehicle: {
+                fleetNumber: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
+                fleet_number: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
+                vehicleType: b.vehicle_type || b.vehicleType || b.vehicle?.vehicleType || null,
+                type: b.vehicle_type || b.vehicleType || b.vehicle?.vehicleType || null,
+                depot: b.depot || b.depot_id || b.vehicle?.depot || 'Unknown',
+                registration: b.registration || b.regNo || b.vehicle?.regNo || '',
+                regNo: b.registration || b.regNo || b.vehicle?.regNo || '',
+                ...b.vehicle
+              },
+              
+              location: b.location || 'Location not specified',
+              issue_category: b.issue_type || b.wizard_type?.replace('Wizard', ''),
+              severity: b.severity || 'CONTINUE',
+              status: b.status || 'active',
+              created_at: b.created_at || new Date().toISOString(),
+              
+              // SDC-specific fields
+              isCritical: b.severity === 'STOP',
+              isPending: true, // Local breakdowns are always pending
+              isDispatched: false,
+              isPriorityRoute: PRIORITY_ROUTES.some(route => 
+                (b.route_id || '').includes(route) || (b.location || '').includes(route)
+              ),
+              
+              // Timeline for SDC stages
+              timeline: {
+                received: b.created_at || new Date().toISOString(),
+                acknowledged: null,
+                decision: null,
+                engineering: null
+              },
+              
+              // Supervisor info
+              supervisor_name: b.supervisor_name || 'Unknown',
+              supervisor_badge: b.supervisor_badge || 'Unknown',
+              
+              // Engineering assignment
+              engineer_assigned: false,
+              engineer_name: null,
+              
+              // Decision data
+              decision: b.severity,
+              decision_notes: b.assessment_notes || '',
+              
+              // Add source indicator
+              source: 'localStorage',
+              route_id: b.route_id,
+              route_name: b.route_name,
+              
+              // Activities
+              activities: []
+            }));
+            
+            setBreakdowns(processedLocalBreakdowns);
+            
+            // Calculate statistics for local data
+            const activeLocalBreakdowns = processedLocalBreakdowns.filter(b => b.status !== 'resolved');
+            const criticalCount = activeLocalBreakdowns.filter(b => b.isCritical).length;
+            const pendingCount = activeLocalBreakdowns.filter(b => b.isPending).length;
+            
+            setStats({
+              total: activeLocalBreakdowns.length,
+              critical: criticalCount,
+              pending: pendingCount,
+              dispatched: 0,
+              inAssessment: assessmentsInProgress.length
+            });
+            
+            console.log('✅ Loaded breakdown data from localStorage');
+          } else {
+            setBreakdowns([]);
+            setPriorityAlerts([]);
+            setRecentDecisions([]);
+          }
         }
       } else {
         console.error('Failed to fetch breakdowns:', response.status);
-        setBreakdowns([]);
+        
+        // 🎯 FALLBACK: Also check localStorage when API fails
+        console.log('📱 API failed, checking localStorage as fallback...');
+        const localBreakdowns = [];
+        for (let key in localStorage) {
+          if (key.startsWith('breakdown_')) {
+            try {
+              const breakdownData = JSON.parse(localStorage.getItem(key));
+              if (breakdownData && breakdownData.breakdown_id) {
+                localBreakdowns.push(breakdownData);
+              }
+            } catch (error) {
+              console.warn(`⚠️ Failed to parse localStorage breakdown: ${key}`, error);
+            }
+          }
+        }
+        
+        if (localBreakdowns.length > 0) {
+          console.log(`📱 Using ${localBreakdowns.length} localStorage breakdown(s) as fallback`);
+          // Use same enhanced processing logic as above
+          const processedLocalBreakdowns = localBreakdowns.map(b => ({
+            id: b.breakdown_id,
+            breakdown_id: b.breakdown_id,
+            
+            // Enhanced fleet data
+            fleet_number: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
+            fleet_no: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
+            fleetNumber: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
+            
+            // Vehicle details
+            vehicle_type: b.vehicle_type || b.vehicleType || b.vehicle?.vehicleType || null,
+            vehicleType: b.vehicle_type || b.vehicleType || b.vehicle?.vehicleType || null,
+            depot: b.depot || b.depot_id || b.vehicle?.depot || 'Unknown',
+            depot_id: b.depot || b.depot_id || b.vehicle?.depot || 'Unknown',
+            
+            // Enhanced vehicle object
+            vehicle: {
+              fleetNumber: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
+              vehicleType: b.vehicle_type || b.vehicleType || b.vehicle?.vehicleType || null,
+              depot: b.depot || b.depot_id || b.vehicle?.depot || 'Unknown',
+              ...b.vehicle
+            },
+            
+            location: b.location || 'Location not specified',
+            issue_category: b.issue_type || b.wizard_type?.replace('Wizard', ''),
+            severity: b.severity || 'CONTINUE',
+            isCritical: b.severity === 'STOP',
+            isPending: true,
+            source: 'localStorage_fallback',
+            created_at: b.created_at || new Date().toISOString(),
+            supervisor_name: b.supervisor_name || 'Unknown'
+          }));
+          
+          setBreakdowns(processedLocalBreakdowns);
+        } else {
+          setBreakdowns([]);
+        }
       }
     } catch (error) {
       console.error('Error fetching breakdowns:', error);
-      setBreakdowns([]);
+      
+      // 🎯 FALLBACK: Check localStorage when there's a network/server error
+      console.log('📱 Network error, checking localStorage as fallback...');
+      const localBreakdowns = [];
+      for (let key in localStorage) {
+        if (key.startsWith('breakdown_')) {
+          try {
+            const breakdownData = JSON.parse(localStorage.getItem(key));
+            if (breakdownData && breakdownData.breakdown_id) {
+              localBreakdowns.push(breakdownData);
+            }
+          } catch (error) {
+            console.warn(`⚠️ Failed to parse localStorage breakdown: ${key}`, error);
+          }
+        }
+      }
+      
+      if (localBreakdowns.length > 0) {
+        console.log(`📱 Using ${localBreakdowns.length} localStorage breakdown(s) due to network error`);
+        const processedLocalBreakdowns = localBreakdowns.map(b => ({
+          id: b.breakdown_id,
+          breakdown_id: b.breakdown_id,
+          
+          // Enhanced fleet data
+          fleet_number: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
+          fleet_no: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
+          fleetNumber: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
+          
+          // Vehicle details
+          vehicle_type: b.vehicle_type || b.vehicleType || b.vehicle?.vehicleType || null,
+          vehicleType: b.vehicle_type || b.vehicleType || b.vehicle?.vehicleType || null,
+          depot: b.depot || b.depot_id || b.vehicle?.depot || 'Unknown',
+          depot_id: b.depot || b.depot_id || b.vehicle?.depot || 'Unknown',
+          
+          // Enhanced vehicle object
+          vehicle: {
+            fleetNumber: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
+            vehicleType: b.vehicle_type || b.vehicleType || b.vehicle?.vehicleType || null,
+            depot: b.depot || b.depot_id || b.vehicle?.depot || 'Unknown',
+            ...b.vehicle
+          },
+          
+          location: b.location || 'Location not specified',
+          issue_category: b.issue_type || b.wizard_type?.replace('Wizard', ''),
+          severity: b.severity || 'CONTINUE',
+          isCritical: b.severity === 'STOP',
+          isPending: true,
+          source: 'localStorage_offline',
+          created_at: b.created_at || new Date().toISOString(),
+          supervisor_name: b.supervisor_name || 'Unknown'
+        }));
+        
+        setBreakdowns(processedLocalBreakdowns);
+      } else {
+        setBreakdowns([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -857,6 +1118,9 @@ const SDCDashboard = () => {
 
   // Fetch data on mount and set up auto-refresh
   useEffect(() => {
+    // Clear any corrupted data first
+    clearCorruptedData();
+    
     fetchBreakdowns();
     fetchActiveAssessments();
     
@@ -877,7 +1141,7 @@ const SDCDashboard = () => {
       if (interval > 0) {
         refreshTimeout = setTimeout(() => {
           if (!loading) {
-            fetchBreakdowns();
+            fetchBreakdowns(true); // Pass true to indicate this is a refresh
             // fetchActiveAssessments(); // Disabled to fix infinite loop
           }
           scheduleNextRefresh();
@@ -1116,6 +1380,22 @@ const SDCDashboard = () => {
         onReportBreakdown={handleReportBreakdown}
         onRefresh={handleRefresh}
       />
+      
+      {/* LocalStorage Data Notification */}
+      {breakdowns.some(b => b.source && b.source.includes('localStorage')) && (
+        <div className="localStorage-notification">
+          <div className="notification-content offline-mode">
+            <div className="notification-header">
+              <span className="notification-icon">📱</span>
+              <h3>Offline Mode - Local Data</h3>
+            </div>
+            <div className="notification-message">
+              {breakdowns.filter(b => b.source && b.source.includes('localStorage')).length} breakdown(s) 
+              loaded from local storage. Data will sync automatically when connection is restored.
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Redirect Completion Notification */}
       {redirectNotification && (
@@ -1550,6 +1830,51 @@ const SDCDashboard = () => {
         .notification-actions {
           padding-top: 12px;
           border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* LocalStorage Notification Styles */
+        .localStorage-notification {
+          position: fixed;
+          top: 80px;
+          right: 20px;
+          z-index: 999;
+          background: linear-gradient(135deg, 
+            rgba(245, 158, 11, 0.95), 
+            rgba(217, 119, 6, 0.95)
+          );
+          border: 1px solid rgba(245, 158, 11, 0.3);
+          border-radius: 12px;
+          box-shadow: 0 8px 25px rgba(245, 158, 11, 0.3);
+          max-width: 350px;
+          min-width: 300px;
+          animation: slideInFromRight 0.5s ease-out;
+          backdrop-filter: blur(10px);
+        }
+
+        .localStorage-notification .notification-content.offline-mode {
+          padding: 16px;
+          color: white;
+        }
+
+        .localStorage-notification .notification-header {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 12px;
+        }
+
+        .localStorage-notification .notification-header h3 {
+          margin: 0;
+          font-size: 14px;
+          font-weight: 600;
+          color: white;
+        }
+
+        .localStorage-notification .notification-message {
+          font-size: 12px;
+          line-height: 1.4;
+          opacity: 0.95;
+          color: white;
         }
 
         .scroll-hint {
