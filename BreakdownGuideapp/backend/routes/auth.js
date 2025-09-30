@@ -89,6 +89,8 @@ router.post('/supervisor-signup', async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    console.log(`📝 Signup attempt for email: ${email}`);
+
     // Validate required fields
     if (!email || !password) {
       return res.status(400).json({
@@ -106,6 +108,14 @@ router.post('/supervisor-signup', async (req, res) => {
       });
     }
 
+    // Validate password strength
+    if (password.length < 8) {
+      return res.status(400).json({
+        error: 'Password must be at least 8 characters long',
+        code: 'WEAK_PASSWORD'
+      });
+    }
+
     // Check if supervisor exists in our database
     const { data: existingSupervisor, error: checkError } = await supabase
       .from('supervisors')
@@ -115,58 +125,79 @@ router.post('/supervisor-signup', async (req, res) => {
       .single();
 
     if (checkError || !existingSupervisor) {
+      console.log(`❌ Signup failed: No supervisor found with email ${email}`);
       return res.status(404).json({
         error: 'No supervisor account found with this email address. Please contact your administrator.',
         code: 'SUPERVISOR_NOT_FOUND'
       });
     }
 
-    // Skip checking for existing auth account for now since it requires admin privileges
-    // The signUp method below will handle duplicate email errors
-
-    // Create Supabase auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: email.toLowerCase(),
-      password: password,
-      options: {
-        data: {
-          full_name: existingSupervisor.name,
-          badge_number: existingSupervisor.badge_number,
-          depot: existingSupervisor.depot,
-          role: existingSupervisor.role,
-          supervisor_id: existingSupervisor.id,
-          signup_date: new Date().toISOString()
-        },
-        emailRedirectTo: `${process.env.APP_URL || 'http://localhost:3000'}/auth/verify`
-      }
-    });
-
-    if (authError) {
-      console.error('Supervisor auth signup error:', authError);
-      return res.status(400).json({
-        error: authError.message || 'Failed to create account',
-        code: 'SIGNUP_FAILED'
+    // Check if already linked to an auth user
+    if (existingSupervisor.auth_user_id) {
+      console.log(`❌ Signup failed: Supervisor already has auth account`);
+      return res.status(409).json({
+        error: 'Account already activated. Please use the login page.',
+        code: 'ACCOUNT_EXISTS'
       });
     }
 
-    // Update supervisor record to link auth user
+    // Create admin client with service key for user creation
+    const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
+
+    // Create Supabase Auth user using admin API
+    const { data: authData, error: signUpError } = await supabaseAdmin.auth.admin.createUser({
+      email: email.toLowerCase(),
+      password: password,
+      email_confirm: true, // Auto-confirm email for internal users
+      user_metadata: {
+        name: existingSupervisor.name,
+        depot: existingSupervisor.depot,
+        role: existingSupervisor.role || 'supervisor',
+        badge_number: existingSupervisor.badge_number
+      }
+    });
+
+    if (signUpError) {
+      console.error('❌ Failed to create auth user:', signUpError);
+      return res.status(500).json({
+        error: 'Failed to create authentication account. Please try again.',
+        code: 'AUTH_CREATE_FAILED',
+        details: signUpError.message
+      });
+    }
+
+    // Link the auth user to the supervisor record
     const { error: updateError } = await supabase
       .from('supervisors')
       .update({
         auth_user_id: authData.user.id,
+        signup_date: new Date().toISOString(),
+        pending_approval: false,
+        approved_date: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('id', existingSupervisor.id);
 
     if (updateError) {
-      console.error('Error linking supervisor to auth user:', updateError);
+      console.error('❌ Failed to link supervisor to auth user:', updateError);
+      // Try to delete the auth user we just created
+      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      return res.status(500).json({
+        error: 'Failed to complete account setup. Please try again.',
+        code: 'LINK_FAILED'
+      });
     }
 
-    console.log(`✅ Supervisor account activated: ${existingSupervisor.name} (${existingSupervisor.badge_number})`);
+    console.log(`✅ Account activated successfully for ${existingSupervisor.name} (${email})`);
 
-    res.status(201).json({
+    res.json({
       success: true,
-      message: 'Account created successfully! Please check your email to verify your account.',
+      message: 'Account activated successfully! You can now log in.',
       supervisor: {
         id: existingSupervisor.id,
         name: existingSupervisor.name,
@@ -174,15 +205,15 @@ router.post('/supervisor-signup', async (req, res) => {
         badge_number: existingSupervisor.badge_number,
         depot: existingSupervisor.depot,
         role: existingSupervisor.role
-      },
-      requiresEmailVerification: !authData.session // Will be null if email confirmation required
+      }
     });
 
   } catch (error) {
-    console.error('Supervisor signup error:', error);
+    console.error('❌ Supervisor signup error:', error);
     res.status(500).json({
-      error: 'Internal server error during account creation',
-      code: 'SERVER_ERROR'
+      error: 'Account activation failed. Please try again.',
+      code: 'INTERNAL_ERROR',
+      details: error.message
     });
   }
 });
@@ -763,6 +794,80 @@ router.put('/supervisor/:id', async (req, res) => {
     res.status(500).json({
       error: 'Failed to update supervisor',
       code: 'UPDATE_ERROR'
+    });
+  }
+});
+
+// POST /api/auth/change-password - Change password for logged-in supervisor
+router.post('/change-password', async (req, res) => {
+  try {
+    const { currentPassword, newPassword, email } = req.body;
+
+    // Validate required fields
+    if (!email || !currentPassword || !newPassword) {
+      return res.status(400).json({
+        error: 'Email, current password, and new password are required',
+        code: 'MISSING_FIELDS'
+      });
+    }
+
+    // Validate password strength
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        error: 'New password must be at least 8 characters long',
+        code: 'WEAK_PASSWORD'
+      });
+    }
+
+    // Verify current password by attempting to sign in
+    const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase(),
+      password: currentPassword
+    });
+
+    if (signInError || !authData.user) {
+      return res.status(401).json({
+        error: 'Current password is incorrect',
+        code: 'INVALID_PASSWORD'
+      });
+    }
+
+    // Create admin client to update password
+    const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_KEY, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    });
+
+    // Update password using admin API
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+      authData.user.id,
+      { password: newPassword }
+    );
+
+    if (updateError) {
+      console.error('❌ Failed to update password:', updateError);
+      return res.status(500).json({
+        error: 'Failed to update password. Please try again.',
+        code: 'UPDATE_FAILED',
+        details: updateError.message
+      });
+    }
+
+    console.log(`🔑 Password changed for ${email}`);
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Password change error:', error);
+    res.status(500).json({
+      error: 'Password change failed. Please try again.',
+      code: 'INTERNAL_ERROR',
+      details: error.message
     });
   }
 });

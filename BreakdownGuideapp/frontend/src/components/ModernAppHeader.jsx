@@ -4,6 +4,7 @@ import { apiConfig } from '../breakdown-guide/components/common/constants';
 import notificationService from '../services/notificationService';
 import EnhancedNotifications from './notifications/EnhancedNotifications';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import ChangePasswordModal from './ChangePasswordModal.jsx';
 import './ModernAppHeader.css';
 
 const ModernAppHeader = ({ 
@@ -48,6 +49,7 @@ const ModernAppHeader = ({
     depot: 0
   });
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
 
   // Quick actions for command palette
   const quickActions = [
@@ -611,21 +613,31 @@ const ModernAppHeader = ({
                     </div>
 
                     <div className="profile-quick-actions">
-                      <button 
+                      <button
                         className="quick-action"
                         onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                         title="Toggle Theme"
                       >
                         {theme === 'dark' ? '☀️' : '🌙'}
                       </button>
-                      <button 
+                      <button
+                        className="quick-action"
+                        onClick={() => {
+                          setShowChangePassword(true);
+                          setShowProfileMenu(false);
+                        }}
+                        title="Change Password"
+                      >
+                        🔐
+                      </button>
+                      <button
                         className="quick-action"
                         onClick={() => navigate('/settings')}
                         title="Settings"
                       >
                         ⚙️
                       </button>
-                      <button 
+                      <button
                         className="quick-action"
                         onClick={() => navigate('/help')}
                         title="Help"
@@ -791,6 +803,13 @@ const ModernAppHeader = ({
           }
           setShowNotifications(false);
         }}
+      />
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={showChangePassword}
+        onClose={() => setShowChangePassword(false)}
+        userEmail={currentUser?.email}
       />
     </>
   );
