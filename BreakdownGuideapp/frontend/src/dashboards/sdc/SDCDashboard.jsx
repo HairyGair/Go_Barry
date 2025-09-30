@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
-import StatsCard from '../components/StatsCard';
 import FilterBar from '../components/FilterBar';
 import EnhancedFilterBar from './EnhancedFilterBar';
 import SDCBreakdownCardEnhanced from './SDCBreakdownCardEnhanced';
@@ -732,7 +731,7 @@ const SDCDashboard = () => {
       }
       
       // Fetch only regular breakdowns for now
-      const response = await fetch(`${apiConfig.baseUrl}/api/sdc/live`);
+      const response = await fetch(`${apiConfig.baseUrl}/api/breakdowns/live`);
       
       if (response.ok) {
         const data = await response.json();
@@ -1499,39 +1498,6 @@ const SDCDashboard = () => {
         </div>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
-        <StatsCard
-          title="Active Breakdowns"
-          value={stats.total}
-          change={stats.critical > 0 ? `${stats.critical} critical` : 'No critical'}
-          trend={stats.critical > 0 ? 'danger' : 'success'}
-        />
-        <StatsCard
-          title="Critical"
-          value={stats.critical}
-          change={stats.critical > 2 ? 'High volume' : 'Normal'}
-          trend={stats.critical > 2 ? 'danger' : 'neutral'}
-        />
-        <StatsCard
-          title="In Assessment"
-          value={stats.inAssessment}
-          change={stats.inAssessment > 0 ? 'Supervisors active' : 'No active assessments'}
-          trend={stats.inAssessment > 0 ? 'info' : 'neutral'}
-        />
-        <StatsCard
-          title="Pending Decision"
-          value={stats.pending}
-          change={stats.pending > 0 ? 'Action needed' : 'All acknowledged'}
-          trend={stats.pending > 0 ? 'warning' : 'success'}
-        />
-        <StatsCard
-          title="Dispatched"
-          value={stats.dispatched}
-          change="Engineers assigned"
-          trend="success"
-        />
-      </div>
 
       {/* Enhanced Stats with My Breakdowns count */}
       {currentSupervisor && (
