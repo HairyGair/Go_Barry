@@ -190,7 +190,12 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
         console.log('🆕 Attempting supervisor account activation for:', email);
 
         try {
-            const response = await fetch(`${process.env.NODE_ENV === 'development' ? 'http://localhost:3001' : 'https://go-barry.onrender.com'}/api/auth/supervisor-signup`, {
+            // Use apiConfig for consistent backend URL
+            const apiUrl = process.env.NODE_ENV === 'development'
+                ? 'http://localhost:3001'
+                : 'https://breakdown-guide.onrender.com';
+
+            const response = await fetch(`${apiUrl}/api/auth/supervisor-signup`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
