@@ -6,7 +6,7 @@ services:
     plan: starter # This is the $7/month plan
     rootDir: backend
     buildCommand: npm install
-    startCommand: npm start
+    startCommand: node server.js
     envVars:
       - key: NODE_ENV
         value: production
