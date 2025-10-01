@@ -8,10 +8,10 @@ dotenv.config();
 
 // Use service role key for admin operations
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!supabaseServiceKey) {
-  console.error('❌ SUPABASE_SERVICE_ROLE_KEY is required for creating auth users');
+  console.error('❌ SUPABASE_SERVICE_KEY or SUPABASE_SERVICE_ROLE_KEY is required for creating auth users');
   console.log('   This key should be found in your Supabase project settings > API > service_role key');
   process.exit(1);
 }
