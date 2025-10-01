@@ -1,5 +1,6 @@
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
+import { authenticate } from '../middleware/auth.js';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL || 'https://oieliubbvvdzhzvikzal.supabase.co';
@@ -799,9 +800,11 @@ router.put('/supervisor/:id', async (req, res) => {
 });
 
 // POST /api/auth/change-password - Change password for logged-in supervisor
-router.post('/change-password', async (req, res) => {
+router.post('/change-password', authenticate, async (req, res) => {
   try {
-    const { currentPassword, newPassword, email } = req.body;
+    const { currentPassword, newPassword } = req.body;
+    // Get email from authenticated user or from request body
+    const email = req.body.email || req.user?.email;
 
     // Validate required fields
     if (!email || !currentPassword || !newPassword) {
