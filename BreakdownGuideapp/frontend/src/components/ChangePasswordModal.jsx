@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { apiConfig } from '../breakdown-guide/components/common/constants';
-import { supabase } from '../services/supabase-client';
+import { apiClient } from '../services/api-client';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import './ChangePasswordModal.css';
 
@@ -45,48 +44,14 @@ const ChangePasswordModal = ({ isOpen, onClose, userEmail }) => {
     setIsLoading(true);
 
     try {
-      // Try to get the Supabase session for the Authorization header
-      let authHeader = undefined;
+      // Use apiClient which automatically injects Authorization headers
+      console.log('🔐 Changing password for:', userEmail || currentUser?.email);
 
-      try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-        if (!sessionError && session?.access_token) {
-          authHeader = `Bearer ${session.access_token}`;
-          console.log('✅ Using Supabase access token for auth');
-        } else {
-          console.log('⚠️ No Supabase session found, backend will use auth bypass');
-        }
-      } catch (sessionErr) {
-        console.log('⚠️ Failed to get Supabase session:', sessionErr.message);
-        console.log('Backend will use auth bypass');
-      }
-
-      // Make the API request - backend has auth bypass enabled so this will work
-      // even without a valid token
-      const headers = {
-        'Content-Type': 'application/json'
-      };
-
-      if (authHeader) {
-        headers['Authorization'] = authHeader;
-      }
-
-      const response = await fetch(`${apiConfig.baseUrl}/api/auth/change-password`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          email: userEmail || currentUser?.email,
-          currentPassword,
-          newPassword
-        })
+      const data = await apiClient.post('/api/auth/change-password', {
+        email: userEmail || currentUser?.email,
+        currentPassword,
+        newPassword
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to change password');
-      }
 
       setSuccess('✅ Password changed successfully!');
       setTimeout(() => {

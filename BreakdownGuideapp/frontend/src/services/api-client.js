@@ -1,18 +1,25 @@
 // API Client for Go North East Breakdown Guide
 // Connects to production Supabase via backend API
+// Automatically injects Authorization headers for authenticated requests
+
+import enhancedAuthService from './enhanced-auth-service.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://breakdown-guide.onrender.com';
 // Mock data system removed - using real API data only
 
-// API Client class
+// API Client class with automatic authentication
 class APIClient {
   constructor() {
     this.baseURL = API_BASE_URL;
+    this.isRefreshing = false;
   }
 
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
-    
+
+    // Get access token from enhanced auth service
+    const token = await enhancedAuthService.getAccessToken();
+
     const config = {
       headers: {
         'Content-Type': 'application/json',
@@ -21,13 +28,53 @@ class APIClient {
       ...options,
     };
 
+    // Inject Authorization header if token is available
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+      console.log('🔒 Request includes auth token');
+    } else {
+      console.log('⚠️ Request without auth token (backend will use auth bypass)');
+    }
+
     if (config.body && typeof config.body === 'object') {
       config.body = JSON.stringify(config.body);
     }
 
     try {
       const response = await fetch(url, config);
-      
+
+      // Handle 401 Unauthorized - try to refresh token once
+      if (response.status === 401 && token && !this.isRefreshing) {
+        console.log('🔄 401 Unauthorized - attempting token refresh');
+        this.isRefreshing = true;
+
+        try {
+          // Try to get a fresh token
+          const newToken = await enhancedAuthService.getAccessToken();
+
+          if (newToken && newToken !== token) {
+            // Retry request with new token
+            config.headers['Authorization'] = `Bearer ${newToken}`;
+            console.log('🔄 Retrying request with refreshed token');
+
+            const retryResponse = await fetch(url, config);
+            this.isRefreshing = false;
+
+            if (!retryResponse.ok) {
+              throw new Error(`HTTP error! status: ${retryResponse.status}`);
+            }
+
+            return await retryResponse.json();
+          } else {
+            console.warn('⚠️ Token refresh did not provide new token');
+          }
+        } catch (refreshError) {
+          console.error('Token refresh failed:', refreshError);
+        } finally {
+          this.isRefreshing = false;
+        }
+      }
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -35,9 +82,9 @@ class APIClient {
       return await response.json();
     } catch (error) {
       console.error(`API request failed: ${endpoint}`, error);
-      
+
       // Mock data removed - no fallbacks
-      
+
       throw error;
     }
   }

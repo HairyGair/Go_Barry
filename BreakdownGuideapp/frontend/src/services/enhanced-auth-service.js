@@ -440,6 +440,58 @@ class EnhancedAuthService {
         return { success: false, session: null };
     }
 
+    // Get access token from any available source
+    async getAccessToken() {
+        // Priority 1: Get from current session in memory
+        if (this.currentSession?.supabaseSession?.access_token) {
+            console.log('🔒 Token from memory session');
+            return this.currentSession.supabaseSession.access_token;
+        }
+
+        // Priority 2: Get from stored session
+        const storedSession = this.getStoredSession();
+        if (storedSession?.supabaseSession?.access_token) {
+            // Check if token is expired
+            const expiresAt = storedSession.supabaseSession.expires_at;
+            if (expiresAt && expiresAt > Math.floor(Date.now() / 1000)) {
+                console.log('🔒 Token from localStorage');
+                return storedSession.supabaseSession.access_token;
+            } else {
+                console.log('⚠️ Stored token expired, attempting refresh');
+            }
+        }
+
+        // Priority 3: Get from Supabase directly
+        try {
+            const { data: { session }, error } = await supabase.auth.getSession();
+            if (!error && session?.access_token) {
+                console.log('🔒 Token from Supabase session');
+                return session.access_token;
+            }
+        } catch (error) {
+            console.error('Failed to get Supabase session:', error);
+        }
+
+        // Priority 4: Try to refresh the session
+        try {
+            const { data, error } = await supabase.auth.refreshSession();
+            if (!error && data?.session?.access_token) {
+                console.log('🔒 Token from refreshed session');
+                // Update current session with new token
+                if (this.currentSession) {
+                    this.currentSession.supabaseSession = data.session;
+                    this.saveSessionToStorage(this.currentSession);
+                }
+                return data.session.access_token;
+            }
+        } catch (error) {
+            console.error('Failed to refresh session:', error);
+        }
+
+        console.warn('❌ No access token available from any source');
+        return null;
+    }
+
     // Setup automatic token refresh
     setupRefreshTimer(session) {
         this.clearRefreshTimer();
@@ -475,10 +527,16 @@ class EnhancedAuthService {
         try {
             const sessionData = {
                 ...session,
-                // Don't store sensitive Supabase session details
-                supabaseSession: null
+                // Store essential Supabase tokens (needed for API authentication)
+                supabaseSession: session.supabaseSession ? {
+                    access_token: session.supabaseSession.access_token,
+                    refresh_token: session.supabaseSession.refresh_token,
+                    expires_at: session.supabaseSession.expires_at,
+                    token_type: session.supabaseSession.token_type || 'bearer'
+                } : null
             };
             localStorage.setItem('supervisor_session', JSON.stringify(sessionData));
+            console.log('✅ Session saved with Supabase tokens');
         } catch (error) {
             console.error('Error saving session to storage:', error);
         }
