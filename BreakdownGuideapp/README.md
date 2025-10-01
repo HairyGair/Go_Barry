@@ -39,7 +39,7 @@ The **Breakdown Management System** is a full-stack web application for Go North
 ### Current Deployment
 
 **Production URLs:**
-- Backend API: https://go-barry.onrender.com
+- Backend API: https://breakdown-guide.onrender.com
 - Frontend: https://breakdown-guide.onrender.com (or cPanel)
 - Database: Supabase Project `oieliubbvvdzhzvikzal`
 
@@ -437,7 +437,7 @@ engineers   (1) ──< (∞) breakdowns (via engineer_assigned)
 ### Base URLs
 
 - **Local:** `http://localhost:3001`
-- **Production:** `https://go-barry.onrender.com`
+- **Production:** `https://breakdown-guide.onrender.com`
 
 ### Authentication
 
