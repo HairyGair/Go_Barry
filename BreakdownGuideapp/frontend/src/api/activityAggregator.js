@@ -1,128 +1,6 @@
 // Activity Aggregator - Collects activities from all sources
-import { apiConfig } from '../breakdown-guide/components/common/constants.js';
-import { supabase } from '../services/supabase-client.js';
-
-// Helper function to get auth headers with fallback to sync method
-async function getAuthHeaders() {
-  try {
-    // First try to get current Supabase session (most reliable method)
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (session && session.access_token) {
-        console.log('📡 Using current Supabase session token');
-        console.log('📡 Token preview:', session.access_token.substring(0, 20) + '...');
-        return {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        };
-      }
-
-      if (error) {
-        console.warn('⚠️ Supabase session error:', error.message);
-      } else {
-        console.warn('⚠️ No Supabase session found');
-      }
-    } catch (supabaseError) {
-      console.warn('⚠️ Supabase auth error:', supabaseError.message);
-    }
-
-    // Fallback: Try legacy auth tokens
-    const token = localStorage.getItem('auth_token') || 
-                 localStorage.getItem('supervisorToken') || 
-                 localStorage.getItem('gne_auth_token') ||
-                 sessionStorage.getItem('auth_token') ||
-                 sessionStorage.getItem('supervisorToken');
-
-    // Try to get supervisor data
-    const supervisorData = localStorage.getItem('currentSupervisor') || 
-                          localStorage.getItem('supervisorData') ||
-                          sessionStorage.getItem('currentSupervisor');
-
-    if (token) {
-      console.log('📡 Using legacy auth token');
-      return {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      };
-    }
-
-    if (supervisorData) {
-      try {
-        const supervisor = JSON.parse(supervisorData);
-        if (supervisor.token) {
-          console.log('📡 Using supervisor session token');
-          return {
-            'Authorization': `Bearer ${supervisor.token}`,
-            'Content-Type': 'application/json'
-          };
-        }
-      } catch (e) {
-        console.warn('Failed to parse supervisor data');
-      }
-    }
-
-    console.log('⚠️ No auth token found - using basic headers');
-    // Return basic headers if no auth available
-    return {
-      'Content-Type': 'application/json'
-    };
-  } catch (error) {
-    console.warn('Error getting auth headers:', error);
-    return {
-      'Content-Type': 'application/json'
-    };
-  }
-}
-
-// Synchronous fallback for when async auth headers fail
-function getAuthHeadersSync() {
-  try {
-    // Try to get Supabase token from localStorage directly
-    try {
-      const allKeys = Object.keys(localStorage);
-      for (const key of allKeys) {
-        if (key.includes('supabase') && key.includes('auth-token')) {
-          const data = JSON.parse(localStorage.getItem(key));
-          if (data.access_token) {
-            console.log('📡 Using Supabase token from localStorage');
-            return {
-              'Authorization': `Bearer ${data.access_token}`,
-              'Content-Type': 'application/json'
-            };
-          }
-        }
-      }
-    } catch (e) {
-      // Continue to fallbacks
-    }
-
-    // Fallback: Try legacy auth tokens
-    const token = localStorage.getItem('auth_token') || 
-                 localStorage.getItem('supervisorToken') || 
-                 localStorage.getItem('gne_auth_token') ||
-                 sessionStorage.getItem('auth_token') ||
-                 sessionStorage.getItem('supervisorToken');
-
-    if (token) {
-      console.log('📡 Using legacy auth token (sync)');
-      return {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      };
-    }
-
-    console.log('⚠️ No auth token found (sync) - using basic headers');
-    return {
-      'Content-Type': 'application/json'
-    };
-  } catch (error) {
-    console.warn('Error getting auth headers (sync):', error);
-    return {
-      'Content-Type': 'application/json'
-    };
-  }
-}
+// Now uses api-client.js which automatically handles authentication
+import { apiClient } from '../services/api-client.js';
 
 // Activity types configuration
 const ACTIVITY_TYPES = {
@@ -194,21 +72,12 @@ export async function fetchAllActivities(limit = 50) {
 
     // Try to fetch from the new unified activities endpoint first
     try {
-      const headers = await getAuthHeaders();
-      console.log('📡 Making API call to activity/feed with auth headers');
-      
-      const response = await fetch(`${apiConfig.baseUrl}/api/activity/feed?limit=${limit}`, {
-        method: 'GET',
-        headers: headers,
-        signal: AbortSignal.timeout(8000)
-      });
+      console.log('📡 Making API call to activity/feed (auth automatic via apiClient)');
 
-      console.log('📡 Response status:', response.status);
+      const data = await apiClient.get(`/api/activity/feed?limit=${limit}`);
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ Successfully fetched from unified activities table:', data);
-        console.log('✅ Activities count:', data.activities?.length || 0);
+      console.log('✅ Successfully fetched from unified activities table:', data);
+      console.log('✅ Activities count:', data.activities?.length || 0);
 
         // Process activities for frontend compatibility
         const processedActivities = (data.activities || []).map(activity => ({
@@ -299,20 +168,15 @@ export async function fetchLegacyActivities(limit = 50) {
   };
 
   try {
-    const headers = await getAuthHeaders();
-    
     // For now, just fetch live breakdowns which we know works
     const requests = await Promise.allSettled([
-      // Live breakdowns (only working endpoint)
-      fetch(`${apiConfig.baseUrl}/api/breakdowns/live`, {
-        headers: headers,
-        signal: AbortSignal.timeout(5000)
-      })
+      // Live breakdowns (auth automatic via apiClient)
+      apiClient.get('/api/breakdowns/live')
     ]);
 
     // Process breakdowns
-    if (requests[0].status === 'fulfilled' && requests[0].value.ok) {
-      const data = await requests[0].value.json();
+    if (requests[0].status === 'fulfilled') {
+      const data = requests[0].value;
       sources.breakdowns = true;
       
       console.log('🔍 Legacy aggregator received data:', data);
@@ -461,18 +325,7 @@ export async function fetchUnifiedActivities(options = {}) {
     if (severity) params.append('severity', severity);
     if (source) params.append('source', source);
 
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${apiConfig.baseUrl}/api/activity/feed?${params.toString()}`, {
-      method: 'GET',
-      headers: headers,
-      signal: AbortSignal.timeout(10000)
-    });
-
-    if (!response.ok) {
-      throw new Error(`Activity API responded with ${response.status}: ${response.statusText}`);
-    }
-
-    const data = await response.json();
+    const data = await apiClient.get(`/api/activity/feed?${params.toString()}`);
 
     return {
       success: true,
@@ -501,18 +354,7 @@ export async function fetchLiveActivities(since = null, limit = 25) {
     params.append('limit', limit.toString());
     if (since) params.append('since', since);
 
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${apiConfig.baseUrl}/api/activity/live?${params.toString()}`, {
-      method: 'GET',
-      headers: headers,
-      signal: AbortSignal.timeout(8000)
-    });
-
-    if (!response.ok) {
-      throw new Error(`Live activity API responded with ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = await apiClient.get(`/api/activity/live?${params.toString()}`);
 
     return {
       success: true,
@@ -544,18 +386,7 @@ export async function searchActivities(searchTerm, options = {}) {
     params.append('limit', limit.toString());
     params.append('offset', offset.toString());
 
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${apiConfig.baseUrl}/api/activity/search?${params.toString()}`, {
-      method: 'GET',
-      headers: headers,
-      signal: AbortSignal.timeout(10000)
-    });
-
-    if (!response.ok) {
-      throw new Error(`Activity search API responded with ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = await apiClient.get(`/api/activity/search?${params.toString()}`);
 
     return {
       success: true,
@@ -587,18 +418,7 @@ export async function getActivityStats(options = {}) {
     if (depot) params.append('depot', depot);
     if (actor_id) params.append('actor_id', actor_id);
 
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${apiConfig.baseUrl}/api/activity/stats?${params.toString()}`, {
-      method: 'GET',
-      headers: headers,
-      signal: AbortSignal.timeout(8000)
-    });
-
-    if (!response.ok) {
-      throw new Error(`Activity stats API responded with ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = await apiClient.get(`/api/activity/stats?${params.toString()}`);
 
     return {
       success: true,
@@ -620,19 +440,7 @@ export async function getActivityStats(options = {}) {
 // Log new activity
 export async function logActivity(activityData) {
   try {
-    const headers = await getAuthHeaders();
-    const response = await fetch(`${apiConfig.baseUrl}/api/activity/log`, {
-      method: 'POST',
-      headers: headers,
-      body: JSON.stringify(activityData),
-      signal: AbortSignal.timeout(8000)
-    });
-
-    if (!response.ok) {
-      throw new Error(`Activity logging API responded with ${response.status}`);
-    }
-
-    const data = await response.json();
+    const data = await apiClient.post('/api/activity/log', activityData);
 
     return {
       success: true,
