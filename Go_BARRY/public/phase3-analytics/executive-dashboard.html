@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go North East - Executive Analytics Dashboard</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/index.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            min-height: 100vh;
+        }
+        
+        .gne-red { color: #ce0e2d; }
+        .gne-navy { color: #003d79; }
+        .bg-gne-red { background-color: #ce0e2d; }
+        .bg-gne-navy { background-color: #003d79; }
+        
+        .metric-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+        
+        .trend-up { color: #10b981; }
+        .trend-down { color: #ef4444; }
+        .trend-neutral { color: #6b7280; }
+        
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .status-excellent { background: #dcfce7; color: #166534; }
+        .status-good { background: #fef3c7; color: #a16207; }
+        .status-warning { background: #fed7aa; color: #c2410c; }
+        .status-critical { background: #fecaca; color: #b91c1c; }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+        }
+        
+        .loading {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .data-table {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .table-header {
+            background: linear-gradient(135deg, #003d79 0%, #ce0e2d 100%);
+            color: white;
+            font-weight: 600;
+        }
+        
+        .performance-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+        
+        .alert-banner {
+            background: linear-gradient(90deg, #fef3c7 0%, #fed7aa 100%);
+            border-left: 4px solid #f59e0b;
+            animation: slideDown 0.5s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // API configuration
+        const API_BASE = window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000' 
+            : 'https://breakdown-guide.onrender.com';
+
+        // Fetch real data from the breakdown analytics API
+        const fetchAnalyticsData = async (timeRange = '30d') => {
+            try {
+                const response = await fetch(`${API_BASE}/api/breakdown-analytics/dashboard?period=${timeRange}`);
+                
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Error fetching analytics data:', error);
+                // Fallback to mock data
+                return generateMockData();
+            }
+        };
+
+        // Simulated API data - fallback for when real API is unavailable
+        const generateMockData = () => {
+            const depots = ['Washington', 'Consett', 'Hexham', 'Riverside', 'Percy Main', 'Deptford'];
+            const categories = ['Brakes', 'Steering', 'Cooling System', 'Electrical', 'Doors', 'Gearbox'];
+            const vehicles = Array.from({length: 50}, (_, i) => `${5000 + i}`);
+            
+            return {
+                kpis: {
+                    totalBreakdowns: 156,
+                    totalBreakdownsChange: -12,
+                    vehiclesAffected: 89,
+                    vehiclesAffectedChange: -8,
+                    avgResolutionTime: 67,
+                    avgResolutionTimeChange: -15,
+                    costImpact: 89750,
+                    costImpactChange: -22,
+                    safetyIncidents: 3,
+                    safetyIncidentsChange: -50,
+                    fleetAvailability: 96.8,
+                    fleetAvailabilityChange: 2.1
+                },
+                breakdownsByDepot: depots.map(depot => ({
+                    name: depot,
+                    breakdowns: Math.floor(Math.random() * 40) + 10,
+                    change: Math.floor(Math.random() * 30) - 15
+                })),
+                breakdownsByCategory: categories.map(category => ({
+                    name: category,
+                    count: Math.floor(Math.random() * 30) + 5,
+                    percentage: Math.floor(Math.random() * 25) + 5
+                })),
+                worstPerformers: Array.from({length: 10}, (_, i) => ({
+                    fleetNumber: vehicles[i],
+                    depot: depots[Math.floor(Math.random() * depots.length)],
+                    breakdownCount: Math.floor(Math.random() * 8) + 3,
+                    lastBreakdown: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000),
+                    reliabilityScore: Math.floor(Math.random() * 40) + 40,
+                    estimatedCost: Math.floor(Math.random() * 15000) + 5000
+                })),
+                predictiveAlerts: [
+                    {
+                        id: 1,
+                        type: 'pattern',
+                        severity: 'high',
+                        message: 'Fleet 6301-6315 showing increased brake issues (40% above normal)',
+                        action: 'Schedule fleet-wide brake inspection',
+                        depot: 'Washington',
+                        estimatedSaving: 15000
+                    },
+                    {
+                        id: 2,
+                        type: 'maintenance',
+                        severity: 'medium',
+                        message: 'Cooling system failures up 25% at Riverside depot',
+                        action: 'Review cooling system maintenance schedule',
+                        depot: 'Riverside',
+                        estimatedSaving: 8500
+                    },
+                    {
+                        id: 3,
+                        type: 'supplier',
+                        severity: 'low',
+                        message: '2019 Volvo models showing steering pattern',
+                        action: 'Contact Volvo warranty team',
+                        depot: 'Multiple',
+                        estimatedSaving: 12000
+                    }
+                ]
+            };
+        };
+
+        const ExecutiveAnalyticsDashboard = () => {
+            const [data, setData] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [timeRange, setTimeRange] = useState('30d');
+            const depotChartRef = useRef(null);
+            const categoryChartRef = useRef(null);
+            const trendChartRef = useRef(null);
+
+            useEffect(() => {
+                const loadData = async () => {
+                    setLoading(true);
+                    try {
+                        const analyticsData = await fetchAnalyticsData(timeRange);
+                        setData(analyticsData);
+                    } catch (error) {
+                        console.error('Error loading data:', error);
+                        setData(generateMockData()); // Fallback to mock data
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+
+                loadData();
+            }, [timeRange]);
+
+            useEffect(() => {
+                if (data && !loading) {
+                    // Depot Breakdown Chart
+                    if (depotChartRef.current) {
+                        new Chart(depotChartRef.current, {
+                            type: 'bar',
+                            data: {
+                                labels: data.breakdownsByDepot.map(d => d.name),
+                                datasets: [{
+                                    label: 'Breakdowns',
+                                    data: data.breakdownsByDepot.map(d => d.breakdowns),
+                                    backgroundColor: 'rgba(206, 14, 45, 0.8)',
+                                    borderColor: 'rgba(206, 14, 45, 1)',
+                                    borderWidth: 1
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: { display: false }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        grid: { color: 'rgba(0, 0, 0, 0.1)' }
+                                    }
+                                }
+                            }
+                        });
+                    }
+
+                    // Category Breakdown Chart
+                    if (categoryChartRef.current) {
+                        new Chart(categoryChartRef.current, {
+                            type: 'doughnut',
+                            data: {
+                                labels: data.breakdownsByCategory.map(d => d.name),
+                                datasets: [{
+                                    data: data.breakdownsByCategory.map(d => d.count),
+                                    backgroundColor: [
+                                        '#ce0e2d', '#003d79', '#f59e0b', '#10b981', 
+                                        '#8b5cf6', '#ec4899'
+                                    ]
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: {
+                                        position: 'right'
+                                    }
+                                }
+                            }
+                        });
+                    }
+
+                    // Trend Chart
+                    if (trendChartRef.current) {
+                        const last30Days = Array.from({length: 30}, (_, i) => {
+                            const date = new Date();
+                            date.setDate(date.getDate() - (29 - i));
+                            return {
+                                date: date.toISOString().split('T')[0],
+                                breakdowns: Math.floor(Math.random() * 10) + 2
+                            };
+                        });
+
+                        new Chart(trendChartRef.current, {
+                            type: 'line',
+                            data: {
+                                labels: last30Days.map(d => d.date.split('-')[2]),
+                                datasets: [{
+                                    label: 'Daily Breakdowns',
+                                    data: last30Days.map(d => d.breakdowns),
+                                    borderColor: 'rgba(206, 14, 45, 1)',
+                                    backgroundColor: 'rgba(206, 14, 45, 0.1)',
+                                    tension: 0.4,
+                                    fill: true
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: { display: false }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        grid: { color: 'rgba(0, 0, 0, 0.1)' }
+                                    }
+                                }
+                            }
+                        });
+                    }
+                }
+            }, [data, loading]);
+
+            const MetricCard = ({ title, value, change, prefix = '', suffix = '', format = 'number' }) => {
+                const formatValue = (val) => {
+                    if (format === 'currency') return `£${val.toLocaleString()}`;
+                    if (format === 'percentage') return `${val}%`;
+                    if (format === 'time') return `${val} min`;
+                    return val.toLocaleString();
+                };
+
+                const getChangeIcon = (change) => {
+                    if (change > 0) return '↗️';
+                    if (change < 0) return '↘️';
+                    return '→';
+                };
+
+                const getChangeClass = (change) => {
+                    if (change > 0) return 'trend-up';
+                    if (change < 0) return 'trend-down';
+                    return 'trend-neutral';
+                };
+
+                return (
+                    <div className="metric-card rounded-xl p-6 shadow-lg">
+                        <div className="text-sm font-medium text-gray-500 mb-1">{title}</div>
+                        <div className="text-3xl font-bold gne-navy mb-2">
+                            {prefix}{formatValue(value)}{suffix}
+                        </div>
+                        <div className={`text-sm font-medium ${getChangeClass(change)}`}>
+                            {getChangeIcon(change)} {Math.abs(change)}% vs last month
+                        </div>
+                    </div>
+                );
+            };
+
+            const AlertBanner = ({ alert }) => (
+                <div className="alert-banner rounded-lg p-4 mb-4">
+                    <div className="flex items-start">
+                        <div className="flex-shrink-0">
+                            <span className="text-2xl">
+                                {alert.severity === 'high' ? '🚨' : 
+                                 alert.severity === 'medium' ? '⚠️' : 'ℹ️'}
+                            </span>
+                        </div>
+                        <div className="ml-3 flex-1">
+                            <h3 className="text-sm font-medium text-gray-800">
+                                {alert.message}
+                            </h3>
+                            <p className="text-sm text-gray-600 mt-1">
+                                <strong>Action:</strong> {alert.action}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                                <strong>Potential Saving:</strong> £{alert.estimatedSaving.toLocaleString()}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center">
+                        <div className="text-center">
+                            <div className="loading w-16 h-16 bg-white rounded-full mx-auto mb-4"></div>
+                            <div className="text-white text-xl font-semibold">Loading Analytics...</div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen p-6">
+                    {/* Header */}
+                    <div className="mb-8">
+                        <h1 className="text-4xl font-bold text-white mb-2">
+                            Fleet Analytics Dashboard
+                        </h1>
+                        <p className="text-gray-300 text-lg">
+                            Executive insights into fleet performance and breakdown patterns
+                        </p>
+                        <div className="mt-4 flex space-x-4">
+                            {['7d', '30d', '90d', '1y'].map(range => (
+                                <button
+                                    key={range}
+                                    onClick={() => setTimeRange(range)}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                        timeRange === range 
+                                            ? 'bg-gne-red text-white' 
+                                            : 'bg-white text-gray-700 hover:bg-gray-100'
+                                    }`}
+                                >
+                                    Last {range}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Predictive Alerts */}
+                    {data.predictiveAlerts.length > 0 && (
+                        <div className="mb-8">
+                            <h2 className="text-2xl font-bold text-white mb-4">🤖 Predictive Insights</h2>
+                            {data.predictiveAlerts.map(alert => (
+                                <AlertBanner key={alert.id} alert={alert} />
+                            ))}
+                        </div>
+                    )}
+
+                    {/* KPI Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
+                        <MetricCard
+                            title="Total Breakdowns"
+                            value={data.kpis.totalBreakdowns}
+                            change={data.kpis.totalBreakdownsChange}
+                        />
+                        <MetricCard
+                            title="Vehicles Affected"
+                            value={data.kpis.vehiclesAffected}
+                            change={data.kpis.vehiclesAffectedChange}
+                        />
+                        <MetricCard
+                            title="Avg Resolution Time"
+                            value={data.kpis.avgResolutionTime}
+                            change={data.kpis.avgResolutionTimeChange}
+                            format="time"
+                        />
+                        <MetricCard
+                            title="Cost Impact"
+                            value={data.kpis.costImpact}
+                            change={data.kpis.costImpactChange}
+                            format="currency"
+                        />
+                        <MetricCard
+                            title="Safety Incidents"
+                            value={data.kpis.safetyIncidents}
+                            change={data.kpis.safetyIncidentsChange}
+                        />
+                        <MetricCard
+                            title="Fleet Availability"
+                            value={data.kpis.fleetAvailability}
+                            change={data.kpis.fleetAvailabilityChange}
+                            format="percentage"
+                        />
+                    </div>
+
+                    {/* Charts Row */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                        <div className="chart-container">
+                            <h3 className="text-lg font-semibold mb-4">Breakdowns by Depot</h3>
+                            <canvas ref={depotChartRef}></canvas>
+                        </div>
+                        <div className="chart-container">
+                            <h3 className="text-lg font-semibold mb-4">Breakdown Categories</h3>
+                            <canvas ref={categoryChartRef}></canvas>
+                        </div>
+                        <div className="chart-container">
+                            <h3 className="text-lg font-semibold mb-4">30-Day Trend</h3>
+                            <canvas ref={trendChartRef}></canvas>
+                        </div>
+                    </div>
+
+                    {/* Worst Performers Table */}
+                    <div className="data-table">
+                        <div className="table-header px-6 py-4">
+                            <h3 className="text-xl font-semibold">⚡ Priority Vehicles - Reliability Analysis</h3>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vehicle</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Depot</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Breakdowns</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Breakdown</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reliability</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Est. Cost</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {data.worstPerformers.map((vehicle, index) => (
+                                        <tr key={vehicle.fleetNumber} className="hover:bg-gray-50">
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="flex items-center">
+                                                    <span 
+                                                        className={`performance-indicator ${
+                                                            vehicle.reliabilityScore >= 80 ? 'bg-green-500' :
+                                                            vehicle.reliabilityScore >= 60 ? 'bg-yellow-500' :
+                                                            vehicle.reliabilityScore >= 40 ? 'bg-orange-500' : 'bg-red-500'
+                                                        }`}
+                                                    ></span>
+                                                    <span className="font-medium text-gray-900">
+                                                        Fleet {vehicle.fleetNumber}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {vehicle.depot}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                    {vehicle.breakdownCount}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {vehicle.lastBreakdown.toLocaleDateString()}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <div className="flex items-center">
+                                                    <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                                                        <div 
+                                                            className={`h-2 rounded-full ${
+                                                                vehicle.reliabilityScore >= 80 ? 'bg-green-500' :
+                                                                vehicle.reliabilityScore >= 60 ? 'bg-yellow-500' :
+                                                                vehicle.reliabilityScore >= 40 ? 'bg-orange-500' : 'bg-red-500'
+                                                            }`}
+                                                            style={{ width: `${vehicle.reliabilityScore}%` }}
+                                                        ></div>
+                                                    </div>
+                                                    <span className="text-sm text-gray-900">{vehicle.reliabilityScore}%</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                £{vehicle.estimatedCost.toLocaleString()}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="mt-8 text-center text-gray-400 text-sm">
+                        <p>Go North East - Breakdown Guide Analytics Dashboard</p>
+                        <p>Last updated: {new Date().toLocaleString()}</p>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<ExecutiveAnalyticsDashboard />, document.getElementById('root'));
+    </script>
+</body>
+</html>

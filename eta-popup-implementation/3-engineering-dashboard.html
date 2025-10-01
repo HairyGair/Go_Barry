@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Engineering ETA Dashboard - Go North East</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #1f2937;
+            font-size: 24px;
+        }
+
+        .engineer-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .engineer-badge {
+            background: #10b981;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            background: white;
+            margin: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-around;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #1f2937;
+        }
+
+        .stat-label {
+            color: #6b7280;
+            margin-top: 5px;
+        }
+
+        /* Main Dashboard */
+        .dashboard-container {
+            padding: 20px;
+        }
+
+        .active-requests {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            color: #1f2937;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .request-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .request-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .request-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .request-info {
+            display: grid;
+            gap: 8px;
+        }
+
+        .fleet-number {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1f2937;
+        }
+
+        .request-detail {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .waiting-time {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ef4444;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Pop-up Styles */
+        .eta-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            z-index: 10000;
+            min-width: 450px;
+            max-width: 500px;
+            animation: popIn 0.3s ease-out;
+        }
+
+        @keyframes popIn {
+            from {
+                transform: translate(-50%, -50%) scale(0.8);
+                opacity: 0;
+            }
+            to {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+            to {
+                transform: translate(-50%, -50%) scale(0.8);
+                opacity: 0;
+            }
+        }
+
+        .eta-popup.urgent {
+            border: 3px solid #f59e0b;
+        }
+
+        .eta-popup.critical {
+            border: 3px solid #dc2626;
+            animation: popIn 0.3s ease-out, pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { 
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            }
+            50% { 
+                box-shadow: 0 20px 60px rgba(220, 38, 38, 0.5);
+            }
+        }
+
+        .popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .popup-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .urgency-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .urgency-normal { 
+            background: #d1fae5; 
+            color: #065f46; 
+        }
+
+        .urgency-urgent { 
+            background: #fed7aa; 
+            color: #c2410c; 
+        }
+
+        .urgency-critical { 
+            background: #fecaca; 
+            color: #991b1b; 
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .popup-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #6b7280;
+            cursor: pointer;
+        }
+
+        .fleet-info {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #4b5563;
+        }
+
+        .info-value {
+            color: #1f2937;
+        }
+
+        .eta-form {
+            margin-top: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #4b5563;
+        }
+
+        .quick-eta {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .quick-btn {
+            padding: 8px 16px;
+            background: #e5e7eb;
+            border: 2px solid transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .quick-btn:hover {
+            background: #d1d5db;
+            transform: translateY(-1px);
+        }
+
+        .quick-btn.selected {
+            background: #3b82f6;
+            color: white;
+            border-color: #2563eb;
+        }
+
+        .eta-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .eta-input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .eta-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .btn-submit {
+            flex: 1;
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-submit:hover {
+            background: #059669;
+            transform: translateY(-1px);
+        }
+
+        .btn-later {
+            background: #6b7280;
+            color: white;
+        }
+
+        .btn-later:hover {
+            background: #4b5563;
+        }
+
+        /* Overlay */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+        }
+
+        /* Notification Toast */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            animation: slideIn 0.3s ease-out;
+            z-index: 10001;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .notification-success {
+            background: #10b981;
+        }
+
+        .notification-error {
+            background: #ef4444;
+        }
+
+        .notification-info {
+            background: #3b82f6;
+        }
+
+        /* Sound toggle */
+        .sound-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: #e5e7eb;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .toggle-switch.active {
+            background: #10b981;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(26px);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>🔧 Engineering ETA Dashboard</h1>
+        <div class="engineer-info">
+            <div class="sound-toggle">
+                <span>Sound Alerts</span>
+                <div class="toggle-switch active" id="soundToggle">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+            <div class="engineer-badge" id="engineerBadge">
+                <!-- Badge will be set on login -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Bar -->
+    <div class="stats-bar">
+        <div class="stat-item">
+            <div class="stat-value" id="pendingCount">0</div>
+            <div class="stat-label">Pending ETAs</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="urgentCount">0</div>
+            <div class="stat-label">Urgent Requests</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="avgResponse">-</div>
+            <div class="stat-label">Avg Response (min)</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-value" id="todayCompleted">0</div>
+            <div class="stat-label">Completed Today</div>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div class="dashboard-container">
+        <div class="active-requests">
+            <h2 class="section-title">
+                <span>🚨 Active ETA Requests</span>
+                <span id="lastUpdate" style="font-size: 14px; color: #6b7280;">Last updated: just now</span>
+            </h2>
+            <div class="request-list" id="requestList">
+                <!-- Requests will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Pop-up container -->
+    <div id="popupContainer"></div>
+
+    <!-- Audio elements -->
+    <audio id="notificationSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBi+C0fPTgjMGHm7A7+OWT" type="audio/wav">
+    </audio>
+    
+    <audio id="urgentSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBi+C0fPTgjMGHm7A7+OWT" type="audio/wav">
+    </audio>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        // Configuration
+        const BACKEND_URL = 'https://go-barry.onrender.com';
+        // const BACKEND_URL = 'http://localhost:3001'; // For local testing
+        
+        // State
+        let engineerBadge = null;
+        let soundEnabled = true;
+        let socket = null;
+        const activePopups = new Map();
+        const activeRequests = new Map();
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initialize();
+        });
+        
+        function initialize() {
+            // Get engineer badge
+            engineerBadge = localStorage.getItem('engineer_badge');
+            if (!engineerBadge) {
+                engineerBadge = prompt('Enter your engineering badge number:');
+                if (engineerBadge) {
+                    localStorage.setItem('engineer_badge', engineerBadge);
+                }
+            }
+            
+            // Display badge
+            document.getElementById('engineerBadge').textContent = engineerBadge || 'Not Logged In';
+            
+            // Initialize WebSocket
+            initializeWebSocket();
+            
+            // Load initial data
+            loadPendingRequests();
+            loadStats();
+            
+            // Set up auto-refresh
+            setInterval(loadPendingRequests, 30000); // Every 30 seconds
+            setInterval(loadStats, 60000); // Every minute
+            
+            // Sound toggle
+            document.getElementById('soundToggle').addEventListener('click', toggleSound);
+        }
+        
+        function initializeWebSocket() {
+            socket = io(BACKEND_URL);
+            
+            socket.on('connect', () => {
+                console.log('Connected to server');
+                socket.emit('join-room', 'engineering');
+            });
+            
+            socket.on('eta-request', (data) => {
+                console.log('New ETA request received:', data);
+                handleNewETARequest(data);
+            });
+            
+            socket.on('eta-cancelled', (data) => {
+                console.log('ETA request cancelled:', data);
+                removeRequest(data.request_id);
+            });
+            
+            socket.on('eta-escalated', (data) => {
+                console.log('ETA request escalated:', data);
+                handleEscalation(data);
+            });
+            
+            socket.on('disconnect', () => {
+                console.log('Disconnected from server');
+                showNotification('Connection lost. Reconnecting...', 'error');
+            });
+        }
+        
+        function handleNewETARequest(data) {
+            // Play sound based on urgency
+            if (soundEnabled) {
+                if (data.urgency === 'critical') {
+                    document.getElementById('urgentSound').play();
+                } else {
+                    document.getElementById('notificationSound').play();
+                }
+            }
+            
+            // Flash browser tab
+            flashBrowserTab(data.urgency);
+            
+            // Create popup
+            createETAPopup(data);
+            
+            // Add to active requests
+            activeRequests.set(data.request_id, data);
+            
+            // Refresh the list
+            loadPendingRequests();
+        }
+        
+        function createETAPopup(data) {
+            // Remove any existing popup for this breakdown
+            const existingPopup = document.querySelector(`[data-breakdown="${data.breakdown_id}"]`);
+            if (existingPopup) {
+                existingPopup.remove();
+            }
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'popup-overlay';
+            overlay.onclick = () => dismissPopup(data.request_id);
+            
+            const popup = document.createElement('div');
+            popup.className = `eta-popup ${data.urgency || 'normal'}`;
+            popup.dataset.breakdown = data.breakdown_id;
+            popup.dataset.request = data.request_id;
+            
+            popup.innerHTML = `
+                <div class="popup-header">
+                    <div class="popup-title">
+                        <span>🚨</span>
+                        <span>ETA Request</span>
+                    </div>
+                    <span class="urgency-badge urgency-${data.urgency || 'normal'}">
+                        ${data.urgency || 'normal'}
+                    </span>
+                </div>
+                
+                <div class="fleet-info">
+                    <div class="info-row">
+                        <span class="info-label">Fleet Number:</span>
+                        <span class="info-value">${data.fleet_number || 'Unknown'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Location:</span>
+                        <span class="info-value">${data.location || 'Not specified'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Depot:</span>
+                        <span class="info-value">${data.depot_id || 'Unknown'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Requested by:</span>
+                        <span class="info-value">${data.requested_by || 'SDC'}</span>
+                    </div>
+                    ${data.notes ? `
+                    <div class="info-row">
+                        <span class="info-label">Notes:</span>
+                        <span class="info-value">${data.notes}</span>
+                    </div>
+                    ` : ''}
+                </div>
+                
+                <div class="eta-form">
+                    <label class="form-label">Estimated Time of Arrival:</label>
+                    <div class="quick-eta">
+                        <button class="quick-btn" onclick="setQuickETA('${data.request_id}', 10)">10 min</button>
+                        <button class="quick-btn" onclick="setQuickETA('${data.request_id}', 15)">15 min</button>
+                        <button class="quick-btn" onclick="setQuickETA('${data.request_id}', 20)">20 min</button>
+                        <button class="quick-btn" onclick="setQuickETA('${data.request_id}', 30)">30 min</button>
+                        <button class="quick-btn" onclick="setQuickETA('${data.request_id}', 45)">45 min</button>
+                        <button class="quick-btn" onclick="setQuickETA('${data.request_id}', 60)">1 hour</button>
+                        <button class="quick-btn" onclick="setQuickETA('${data.request_id}', 90)">1.5 hours</button>
+                        <button class="quick-btn" onclick="setQuickETA('${data.request_id}', 120)">2 hours</button>
+                    </div>
+                    
+                    <div class="eta-input-group">
+                        <input type="number" 
+                               id="eta-${data.request_id}" 
+                               class="eta-input" 
+                               placeholder="Custom time (minutes)"
+                               min="1" 
+                               max="480">
+                    </div>
+                    
+                    <div class="eta-input-group">
+                        <input type="text" 
+                               id="notes-${data.request_id}" 
+                               class="eta-input" 
+                               placeholder="Optional notes (e.g., traffic delay, waiting for parts)">
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="btn btn-submit" onclick="submitETA('${data.request_id}', '${data.breakdown_id}')">
+                            Submit ETA
+                        </button>
+                        <button class="btn btn-later" onclick="dismissPopup('${data.request_id}')">
+                            Later
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('popupContainer').appendChild(overlay);
+            document.getElementById('popupContainer').appendChild(popup);
+            
+            activePopups.set(data.request_id, { popup, overlay });
+            
+            // Auto-dismiss after 5 minutes
+            setTimeout(() => {
+                if (activePopups.has(data.request_id)) {
+                    dismissPopup(data.request_id);
+                }
+            }, 300000);
+        }
+        
+        function setQuickETA(requestId, minutes) {
+            // Update input
+            document.getElementById(`eta-${requestId}`).value = minutes;
+            
+            // Highlight selected button
+            const popup = activePopups.get(requestId)?.popup;
+            if (popup) {
+                popup.querySelectorAll('.quick-btn').forEach(btn => {
+                    btn.classList.remove('selected');
+                    if (btn.textContent.includes(minutes.toString()) || 
+                        (minutes === 60 && btn.textContent === '1 hour') ||
+                        (minutes === 90 && btn.textContent === '1.5 hours') ||
+                        (minutes === 120 && btn.textContent === '2 hours')) {
+                        btn.classList.add('selected');
+                    }
+                });
+            }
+        }
+        
+        async function submitETA(requestId, breakdownId) {
+            const minutes = document.getElementById(`eta-${requestId}`).value;
+            const notes = document.getElementById(`notes-${requestId}`).value;
+            
+            if (!minutes) {
+                showNotification('Please enter an estimated time', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/breakdowns/${breakdownId}/provide-eta`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        engineer_badge: engineerBadge,
+                        engineer_name: engineerBadge, // Could enhance with actual name lookup
+                        estimated_minutes: parseInt(minutes),
+                        notes: notes
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification(`ETA submitted: ${minutes} minutes`, 'success');
+                    dismissPopup(requestId);
+                    loadPendingRequests();
+                    loadStats();
+                } else {
+                    showNotification('Failed to submit ETA', 'error');
+                }
+            } catch (error) {
+                console.error('Error submitting ETA:', error);
+                showNotification('Network error. Please try again.', 'error');
+            }
+        }
+        
+        function dismissPopup(requestId) {
+            const popupData = activePopups.get(requestId);
+            if (popupData) {
+                popupData.popup.style.animation = 'slideOut 0.3s ease-in';
+                popupData.overlay.style.opacity = '0';
+                
+                setTimeout(() => {
+                    popupData.popup.remove();
+                    popupData.overlay.remove();
+                    activePopups.delete(requestId);
+                }, 300);
+            }
+        }
+        
+        async function loadPendingRequests() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/eta-requests/pending`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayRequests(data.requests);
+                    document.getElementById('pendingCount').textContent = data.count;
+                    document.getElementById('urgentCount').textContent = 
+                        data.requests.filter(r => r.urgency_level === 'urgent' || r.urgency_level === 'critical').length;
+                }
+                
+                // Update last refresh time
+                document.getElementById('lastUpdate').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+                
+            } catch (error) {
+                console.error('Error loading requests:', error);
+            }
+        }
+        
+        function displayRequests(requests) {
+            const container = document.getElementById('requestList');
+            
+            if (requests.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #6b7280; padding: 40px;">No pending ETA requests</div>';
+                return;
+            }
+            
+            container.innerHTML = requests.map(request => `
+                <div class="request-card">
+                    <div class="request-info">
+                        <div class="fleet-number">Fleet ${request.fleet_no}</div>
+                        <div class="request-detail">📍 ${request.location || 'Location not specified'}</div>
+                        <div class="request-detail">🏢 ${request.depot_id || 'Unknown depot'}</div>
+                        <div class="request-detail">👤 Requested by ${request.requested_by}</div>
+                        <div class="urgency-badge urgency-${request.urgency_level}">
+                            ${request.urgency_level}
+                        </div>
+                    </div>
+                    <div class="waiting-time">
+                        <span>⏱️</span>
+                        <span>${Math.round(request.minutes_waiting)}m</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function loadStats() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/eta-requests/stats`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('todayCompleted').textContent = data.stats.responded || 0;
+                    document.getElementById('avgResponse').textContent = 
+                        data.stats.avg_response_minutes ? `${data.stats.avg_response_minutes}` : '-';
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+            }
+        }
+        
+        function flashBrowserTab(urgency) {
+            const originalTitle = document.title;
+            let isFlashing = true;
+            let flashCount = 0;
+            const maxFlashes = urgency === 'critical' ? 20 : 10;
+            
+            const flash = setInterval(() => {
+                document.title = isFlashing ? '🚨 NEW ETA REQUEST!' : originalTitle;
+                isFlashing = !isFlashing;
+                flashCount++;
+                
+                if (flashCount > maxFlashes) {
+                    clearInterval(flash);
+                    document.title = originalTitle;
+                }
+            }, 1000);
+        }
+        
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const toggle = document.getElementById('soundToggle');
+            if (soundEnabled) {
+                toggle.classList.add('active');
+            } else {
+                toggle.classList.remove('active');
+            }
+            localStorage.setItem('sound_enabled', soundEnabled);
+        }
+        
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+        
+        function removeRequest(requestId) {
+            activeRequests.delete(requestId);
+            loadPendingRequests();
+        }
+        
+        function handleEscalation(data) {
+            // Update urgency in active requests
+            if (activeRequests.has(data.request_id)) {
+                const request = activeRequests.get(data.request_id);
+                request.urgency = data.urgency_level;
+                
+                // Re-create popup with new urgency
+                if (!activePopups.has(data.request_id)) {
+                    handleNewETARequest(request);
+                }
+            }
+            
+            showNotification(`Request for Fleet ${data.fleet_number} escalated to ${data.urgency_level}!`, 'error');
+            
+            if (soundEnabled) {
+                document.getElementById('urgentSound').play();
+            }
+        }
+        
+        // Global functions for inline onclick handlers
+        window.setQuickETA = setQuickETA;
+        window.submitETA = submitETA;
+        window.dismissPopup = dismissPopup;
+    </script>
+</body>
+</html>

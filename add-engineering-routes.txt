@@ -1,0 +1,9 @@
+// Add engineering team routes to backend/index.js
+// Insert this code after the breakdown routes registration
+
+// After this line:
+await routeManager.registerRoute(app, '/api/breakdowns', './routes/breakdownTrackerV2.js', 'Enhanced Breakdown Tracker');
+
+// Add these lines:
+await routeManager.registerRoute(app, '/api/engineering', './routes/engineeringTeam.js', 'Engineering Team Management');
+console.log('✅ Engineering team management routes registered');

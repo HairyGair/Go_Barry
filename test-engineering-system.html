@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Engineering System Test Panel</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #00ff00;
+            border-bottom: 2px solid #00ff00;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            background: #000;
+            border: 1px solid #333;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .test-section h2 {
+            color: #ffff00;
+            margin-bottom: 15px;
+        }
+        button {
+            background: #333;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin: 5px;
+            border-radius: 4px;
+        }
+        button:hover {
+            background: #00ff00;
+            color: #000;
+        }
+        .result {
+            background: #111;
+            border: 1px solid #333;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            border-color: #00ff00;
+            color: #00ff00;
+        }
+        .error {
+            border-color: #ff0000;
+            color: #ff0000;
+        }
+        .warning {
+            border-color: #ffff00;
+            color: #ffff00;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .engineer-card {
+            background: #111;
+            border: 1px solid #333;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .engineer-card.available {
+            border-color: #00ff00;
+        }
+        .engineer-card.busy {
+            border-color: #ff0000;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        .status-badge.available {
+            background: #00ff00;
+            color: #000;
+        }
+        .status-badge.busy {
+            background: #ff0000;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Engineering System Test Panel</h1>
+        
+        <!-- Connection Test -->
+        <div class="test-section">
+            <h2>1. Connection Test</h2>
+            <button onclick="testConnection()">Test Backend Connection</button>
+            <button onclick="testEngineering()">Test Engineering API</button>
+            <div id="connection-result" class="result"></div>
+        </div>
+        
+        <!-- Engineer Management -->
+        <div class="test-section">
+            <h2>2. Engineer Management</h2>
+            <button onclick="loadEngineers()">Load All Engineers</button>
+            <button onclick="loadAvailableEngineers()">Load Available Only</button>
+            <button onclick="updateEngineerStatus()">Toggle Engineer Status</button>
+            <div id="engineers-grid" class="grid"></div>
+        </div>
+        
+        <!-- Create Test Scenario -->
+        <div class="test-section">
+            <h2>3. Test Scenario</h2>
+            <button onclick="createTestBreakdown()">Create Test Breakdown</button>
+            <button onclick="autoAssignTest()">Test Auto-Assignment</button>
+            <button onclick="simulateLifecycle()">Simulate Full Lifecycle</button>
+            <div id="scenario-result" class="result"></div>
+        </div>
+        
+        <!-- Depot Metrics -->
+        <div class="test-section">
+            <h2>4. Depot Metrics</h2>
+            <button onclick="loadMetrics()">Load All Depot Metrics</button>
+            <div id="metrics-result" class="result"></div>
+        </div>
+        
+        <!-- Live Assignments -->
+        <div class="test-section">
+            <h2>5. Live Assignments</h2>
+            <button onclick="loadLiveAssignments()">View Active Assignments</button>
+            <div id="assignments-result" class="result"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Try both local and production
+        let BACKEND_URL = 'http://localhost:3001';
+        let testBreakdownId = null;
+        let testAssignmentId = null;
+        let testEngineerId = null;
+        
+        // Test connection
+        async function testConnection() {
+            const result = document.getElementById('connection-result');
+            result.innerHTML = 'Testing connection...';
+            
+            try {
+                // Try local first
+                let response = await fetch(`${BACKEND_URL}/api/breakdowns/test`);
+                
+                if (!response.ok) {
+                    BACKEND_URL = 'https://go-barry.onrender.com';
+                    response = await fetch(`${BACKEND_URL}/api/breakdowns/test`);
+                }
+                
+                const data = await response.json();
+                result.className = 'result success';
+                result.innerHTML = `✅ Backend connected at: ${BACKEND_URL}\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `❌ Connection failed: ${error.message}`;
+            }
+        }
+        
+        // Test engineering API
+        async function testEngineering() {
+            const result = document.getElementById('connection-result');
+            result.innerHTML = 'Testing engineering API...';
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/engineering/engineers`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    result.className = 'result success';
+                    result.innerHTML = `✅ Engineering API working\nEngineers found: ${data.engineers?.length || 0}`;
+                } else {
+                    result.className = 'result error';
+                    result.innerHTML = `⚠️ API responded with error: ${data.error}`;
+                }
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `❌ Engineering API not available: ${error.message}\n\nMake sure you've:\n1. Run the database migration\n2. Added engineering routes to backend/index.js\n3. Restarted the backend`;
+            }
+        }
+        
+        // Load engineers
+        async function loadEngineers() {
+            const grid = document.getElementById('engineers-grid');
+            grid.innerHTML = 'Loading engineers...';
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/engineering/engineers`);
+                const data = await response.json();
+                
+                if (data.success && data.engineers) {
+                    grid.innerHTML = data.engineers.map(eng => {
+                        testEngineerId = testEngineerId || eng.engineer_id;
+                        return `
+                            <div class="engineer-card ${eng.status}">
+                                <h3>${eng.name} 
+                                    <span class="status-badge ${eng.status}">${eng.status}</span>
+                                </h3>
+                                <p>Badge: ${eng.badge_number}</p>
+                                <p>Depot: ${eng.depot_id}</p>
+                                <p>Shift: ${eng.shift_start} - ${eng.shift_end}</p>
+                                <p>Skills: ${eng.specializations?.join(', ') || 'None'}</p>
+                                <p>Phone: ${eng.phone || 'No phone'}</p>
+                                ${eng.current_job_id ? `<p>Current Job: ${eng.current_job_id}</p>` : ''}
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    grid.innerHTML = '<div class="result error">No engineers found</div>';
+                }
+            } catch (error) {
+                grid.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        // Load available engineers
+        async function loadAvailableEngineers() {
+            const grid = document.getElementById('engineers-grid');
+            grid.innerHTML = 'Loading available engineers...';
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/engineering/engineers?status=available`);
+                const data = await response.json();
+                
+                if (data.success && data.engineers) {
+                    const available = data.engineers.filter(e => e.status === 'available');
+                    grid.innerHTML = `<div class="result success">Available: ${available.length} engineers</div>` +
+                        available.map(eng => `
+                            <div class="engineer-card available">
+                                <h3>${eng.name} - AVAILABLE</h3>
+                                <p>Depot: ${eng.depot_id}</p>
+                                <p>Ready for assignment</p>
+                            </div>
+                        `).join('');
+                }
+            } catch (error) {
+                grid.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        // Update engineer status
+        async function updateEngineerStatus() {
+            if (!testEngineerId) {
+                alert('Load engineers first to get an ID');
+                return;
+            }
+            
+            const newStatus = prompt('Enter new status (available/busy/off_duty/break):', 'available');
+            if (!newStatus) return;
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/engineering/engineer/${testEngineerId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert(`Engineer status updated to ${newStatus}`);
+                    loadEngineers();
+                }
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+        
+        // Create test breakdown
+        async function createTestBreakdown() {
+            const result = document.getElementById('scenario-result');
+            result.innerHTML = 'Creating test breakdown...';
+            
+            try {
+                const testData = {
+                    fleet_number: '6301',
+                    supervisor_badge: 'AG003',
+                    supervisor_name: 'Anthony Gair',
+                    location: '54.9783,-1.6178',
+                    depot_id: 'WASHINGTON',
+                    wizard_type: 'steering',
+                    route_id: 'X10'
+                };
+                
+                const response = await fetch(`${BACKEND_URL}/api/breakdowns/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testData)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    testBreakdownId = data.breakdown_id;
+                    result.className = 'result success';
+                    result.innerHTML = `✅ Test breakdown created\nID: ${data.breakdown_id}\nDaily ID: ${data.daily_id}`;
+                } else {
+                    result.className = 'result error';
+                    result.innerHTML = `Error: ${data.error}`;
+                }
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `Error: ${error.message}`;
+            }
+        }
+        
+        // Test auto-assignment
+        async function autoAssignTest() {
+            if (!testBreakdownId) {
+                alert('Create a test breakdown first');
+                return;
+            }
+            
+            const result = document.getElementById('scenario-result');
+            result.innerHTML = 'Testing auto-assignment...';
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/engineering/auto-assign`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        breakdown_id: testBreakdownId,
+                        depot_id: 'WASHINGTON'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    testAssignmentId = data.assignment.assignment_id;
+                    result.className = 'result success';
+                    result.innerHTML = `✅ Auto-assigned successfully!\n` +
+                        `Engineer: ${data.assignment.engineer.name}\n` +
+                        `Badge: ${data.assignment.engineer.badge_number}\n` +
+                        `From: ${data.assignment.from_depot}\n` +
+                        `Assignment ID: ${data.assignment.assignment_id}`;
+                } else {
+                    result.className = 'result warning';
+                    result.innerHTML = `⚠️ ${data.error}\n\nTry updating an engineer to 'available' status first`;
+                }
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `Error: ${error.message}`;
+            }
+        }
+        
+        // Simulate lifecycle
+        async function simulateLifecycle() {
+            const result = document.getElementById('scenario-result');
+            const steps = ['dispatched', 'on_site', 'repairing', 'completed'];
+            
+            if (!testAssignmentId) {
+                result.innerHTML = 'Create and assign a breakdown first';
+                return;
+            }
+            
+            result.innerHTML = 'Simulating breakdown lifecycle...\n';
+            
+            for (const status of steps) {
+                result.innerHTML += `\nUpdating to ${status}...`;
+                
+                try {
+                    const response = await fetch(
+                        `${BACKEND_URL}/api/engineering/assignment/${testAssignmentId}/status`,
+                        {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status })
+                        }
+                    );
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        result.innerHTML += ` ✅ Success`;
+                        
+                        // Wait 2 seconds between steps
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                    } else {
+                        result.innerHTML += ` ❌ Failed: ${data.error}`;
+                        break;
+                    }
+                } catch (error) {
+                    result.innerHTML += ` ❌ Error: ${error.message}`;
+                    break;
+                }
+            }
+            
+            result.className = 'result success';
+            result.innerHTML += '\n\n✅ Lifecycle simulation complete!';
+        }
+        
+        // Load metrics
+        async function loadMetrics() {
+            const result = document.getElementById('metrics-result');
+            result.innerHTML = 'Loading depot metrics...';
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/engineering/metrics`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    result.className = 'result success';
+                    result.innerHTML = 'DEPOT METRICS\n' + '='.repeat(50) + '\n\n';
+                    
+                    for (const [depot, metrics] of Object.entries(data.metrics)) {
+                        result.innerHTML += `${depot}:\n`;
+                        result.innerHTML += `  Response Time: ${metrics.avg_response_time_minutes || 0} mins\n`;
+                        result.innerHTML += `  SLA: ${Math.round(metrics.sla_percentage || 100)}%\n`;
+                        result.innerHTML += `  Engineers: ${metrics.engineers?.available || 0}/${metrics.engineers?.total || 0} available\n`;
+                        result.innerHTML += `  Breakdowns Today: ${metrics.total_breakdowns || 0}\n\n`;
+                    }
+                }
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `Error: ${error.message}`;
+            }
+        }
+        
+        // Load live assignments
+        async function loadLiveAssignments() {
+            const result = document.getElementById('assignments-result');
+            result.innerHTML = 'Loading active assignments...';
+            
+            try {
+                // Get live breakdowns
+                const breakdownResponse = await fetch(`${BACKEND_URL}/api/breakdowns/live`);
+                const breakdownData = await breakdownResponse.json();
+                
+                if (breakdownData.success && breakdownData.breakdowns) {
+                    result.className = 'result success';
+                    result.innerHTML = 'ACTIVE ASSIGNMENTS\n' + '='.repeat(50) + '\n\n';
+                    
+                    let hasAssignments = false;
+                    
+                    for (const breakdown of breakdownData.breakdowns) {
+                        if (breakdown.assigned_engineer_id) {
+                            hasAssignments = true;
+                            result.innerHTML += `Fleet ${breakdown.fleet_no}:\n`;
+                            result.innerHTML += `  Engineer: ${breakdown.assigned_engineer_id}\n`;
+                            result.innerHTML += `  Status: ${breakdown.status}\n`;
+                            result.innerHTML += `  Depot: ${breakdown.depot_id}\n\n`;
+                        }
+                    }
+                    
+                    if (!hasAssignments) {
+                        result.innerHTML += 'No active assignments found';
+                    }
+                }
+            } catch (error) {
+                result.className = 'result error';
+                result.innerHTML = `Error: ${error.message}`;
+            }
+        }
+        
+        // Auto-test on load
+        window.addEventListener('load', function() {
+            testConnection();
+        });
+    </script>
+</body>
+</html>

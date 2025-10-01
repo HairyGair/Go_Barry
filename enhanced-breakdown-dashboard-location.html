@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Breakdown Dashboard - With Location</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .dashboard-header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .dashboard-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        
+        .dashboard-stats {
+            display: flex;
+            gap: 30px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #dc2626;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #6b7280;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+        
+        .filters-bar {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .filter-btn:hover {
+            background: #f3f4f6;
+        }
+        
+        .filter-btn.active {
+            background: #dc2626;
+            color: white;
+            border-color: #dc2626;
+        }
+        
+        .breakdowns-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 20px;
+        }
+        
+        .breakdown-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .breakdown-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+        }
+        
+        .breakdown-card.priority {
+            border-left: 4px solid #dc2626;
+        }
+        
+        .breakdown-card.overdue {
+            background: #fef2f2;
+            border: 2px solid #dc2626;
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .fleet-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .fleet-number {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1f2937;
+        }
+        
+        .route-badge {
+            background: #3b82f6;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-badge {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-badge.in_progress {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .status-badge.diagnosed {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .status-badge.escalated {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        /* LOCATION SECTION STYLES */
+        .location-section {
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+        
+        .location-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .location-icon {
+            font-size: 18px;
+        }
+        
+        .location-text {
+            flex: 1;
+            font-size: 14px;
+            color: #374151;
+            font-weight: 500;
+        }
+        
+        .location-verified {
+            background: #d1fae5;
+            color: #065f46;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .location-unverified {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .location-w3w {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: white;
+            border-radius: 4px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .w3w-label {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .w3w-link {
+            color: #dc2626;
+            text-decoration: none;
+            font-family: monospace;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .w3w-link:hover {
+            text-decoration: underline;
+        }
+        
+        .location-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .location-btn {
+            flex: 1;
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #374151;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        
+        .location-btn:hover {
+            background: #f3f4f6;
+            border-color: #9ca3af;
+        }
+        
+        .location-btn.primary {
+            background: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
+        
+        .location-btn.primary:hover {
+            background: #2563eb;
+        }
+        
+        .card-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .detail-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .detail-label {
+            font-size: 11px;
+            color: #6b7280;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+        
+        .detail-value {
+            font-size: 14px;
+            color: #1f2937;
+            font-weight: 500;
+        }
+        
+        .timer-section {
+            background: #fef3c7;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        
+        .timer-section.critical {
+            background: #fee2e2;
+        }
+        
+        .timer-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #92400e;
+        }
+        
+        .timer-section.critical .timer-value {
+            color: #991b1b;
+        }
+        
+        .timer-label {
+            font-size: 12px;
+            color: #78350f;
+            margin-top: 4px;
+        }
+        
+        .card-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-view {
+            background: #e5e7eb;
+            color: #374151;
+        }
+        
+        .btn-view:hover {
+            background: #d1d5db;
+        }
+        
+        .btn-resolve {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-resolve:hover {
+            background: #059669;
+        }
+        
+        .refresh-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .refresh-indicator.refreshing {
+            animation: pulse 1s infinite;
+        }
+        
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .breakdowns-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .dashboard-header {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .filters-bar {
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="dashboard-header">
+            <h1 class="dashboard-title">🚨 Live Breakdown Dashboard</h1>
+            <div class="dashboard-stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="total-count">0</div>
+                    <div class="stat-label">Active</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="diagnosed-count">0</div>
+                    <div class="stat-label">Diagnosed</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="overdue-count">0</div>
+                    <div class="stat-label">Overdue</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="filters-bar">
+            <button class="filter-btn active" onclick="setFilter('all')">All Breakdowns</button>
+            <button class="filter-btn" onclick="setFilter('critical')">Critical Only</button>
+            <button class="filter-btn" onclick="setFilter('overdue')">Overdue (30+ min)</button>
+            <button class="filter-btn" onclick="setFilter('priority')">Priority Routes</button>
+            <button class="filter-btn" onclick="setFilter('verified')">Verified Locations</button>
+        </div>
+        
+        <div class="breakdowns-grid" id="breakdowns-grid">
+            <!-- Breakdown cards will be inserted here -->
+        </div>
+        
+        <div class="refresh-indicator" id="refresh-indicator">
+            Auto-refresh in <span id="refresh-countdown">5</span>s
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'https://go-barry.onrender.com';
+        let currentFilter = 'all';
+        let refreshCountdown = 5;
+        let breakdownsData = [];
+        
+        // Priority routes
+        const PRIORITY_ROUTES = ['X10', 'X21', '21', '1', '56'];
+        
+        async function fetchBreakdowns() {
+            try {
+                document.getElementById('refresh-indicator').classList.add('refreshing');
+                
+                const response = await fetch(`${BACKEND_URL}/api/breakdowns/live`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    breakdownsData = data.breakdowns;
+                    renderBreakdowns();
+                    updateStats();
+                }
+            } catch (error) {
+                console.error('Error fetching breakdowns:', error);
+            } finally {
+                document.getElementById('refresh-indicator').classList.remove('refreshing');
+                resetCountdown();
+            }
+        }
+        
+        function renderBreakdowns() {
+            const grid = document.getElementById('breakdowns-grid');
+            let filtered = breakdownsData;
+            
+            // Apply filters
+            switch (currentFilter) {
+                case 'critical':
+                    filtered = breakdownsData.filter(b => 
+                        b.severity === 'STOP' || b.status === 'escalated'
+                    );
+                    break;
+                case 'overdue':
+                    filtered = breakdownsData.filter(b => 
+                        b.minutes_since_diagnosis > 30
+                    );
+                    break;
+                case 'priority':
+                    filtered = breakdownsData.filter(b => 
+                        PRIORITY_ROUTES.includes(b.route_number)
+                    );
+                    break;
+                case 'verified':
+                    filtered = breakdownsData.filter(b => 
+                        b.location_verified === true
+                    );
+                    break;
+            }
+            
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 40px; background: white; border-radius: 10px;">
+                        <p style="color: #6b7280;">No breakdowns matching filter</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = filtered.map(breakdown => createBreakdownCard(breakdown)).join('');
+        }
+        
+        function createBreakdownCard(breakdown) {
+            const isOverdue = breakdown.minutes_since_diagnosis > 30;
+            const isPriority = PRIORITY_ROUTES.includes(breakdown.route_number);
+            const hasTimer = breakdown.status === 'diagnosed' || breakdown.status === 'escalated';
+            
+            return `
+                <div class="breakdown-card ${isOverdue ? 'overdue' : ''} ${isPriority ? 'priority' : ''}">
+                    <div class="card-header">
+                        <div class="fleet-info">
+                            <span class="fleet-number">${breakdown.fleet_no}</span>
+                            ${breakdown.route_number ? `<span class="route-badge">Route ${breakdown.route_number}</span>` : ''}
+                        </div>
+                        <span class="status-badge ${breakdown.status}">${breakdown.status.replace('_', ' ')}</span>
+                    </div>
+                    
+                    ${createLocationSection(breakdown)}
+                    
+                    <div class="card-details">
+                        <div class="detail-item">
+                            <span class="detail-label">Depot</span>
+                            <span class="detail-value">${breakdown.depot_id || 'Unknown'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Supervisor</span>
+                            <span class="detail-value">${breakdown.supervisor_badge}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Started</span>
+                            <span class="detail-value">${breakdown.minutes_since_start || 0} min ago</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Wizard</span>
+                            <span class="detail-value">${formatWizardName(breakdown.wizard_type)}</span>
+                        </div>
+                    </div>
+                    
+                    ${hasTimer ? `
+                        <div class="timer-section ${isOverdue ? 'critical' : ''}">
+                            <div class="timer-value">${breakdown.minutes_since_diagnosis || 0}</div>
+                            <div class="timer-label">Minutes Since Diagnosis</div>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="card-actions">
+                        <button class="action-btn btn-view" onclick="viewBreakdown('${breakdown.breakdown_id}')">
+                            View Details
+                        </button>
+                        <button class="action-btn btn-resolve" onclick="resolveBreakdown('${breakdown.breakdown_id}')">
+                            Resolve
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function createLocationSection(breakdown) {
+            const hasCoords = breakdown.location_coords && breakdown.location_coords.lat && breakdown.location_coords.lng;
+            const hasW3W = breakdown.location_w3w;
+            
+            return `
+                <div class="location-section">
+                    <div class="location-header">
+                        <span class="location-icon">📍</span>
+                        <span class="location-text">${breakdown.location || 'Location not specified'}</span>
+                        ${breakdown.location_verified ? 
+                            '<span class="location-verified">✓ Verified</span>' : 
+                            '<span class="location-unverified">⚠ Unverified</span>'
+                        }
+                    </div>
+                    
+                    ${hasW3W ? `
+                        <div class="location-w3w">
+                            <span class="w3w-label">What3Words:</span>
+                            <a href="https://w3w.co/${breakdown.location_w3w}" 
+                               target="_blank" 
+                               class="w3w-link">
+                                ///${breakdown.location_w3w}
+                            </a>
+                        </div>
+                    ` : ''}
+                    
+                    ${hasCoords || hasW3W ? `
+                        <div class="location-actions">
+                            ${hasCoords ? `
+                                <a href="https://www.google.com/maps?q=${breakdown.location_coords.lat},${breakdown.location_coords.lng}" 
+                                   target="_blank" 
+                                   class="location-btn primary">
+                                    🗺️ Open Maps
+                                </a>
+                                <button class="location-btn" 
+                                        onclick="getDirections(${breakdown.location_coords.lat}, ${breakdown.location_coords.lng})">
+                                    🧭 Directions
+                                </button>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
+        function formatWizardName(wizardType) {
+            if (!wizardType) return 'Unknown';
+            return wizardType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+        
+        function updateStats() {
+            const total = breakdownsData.length;
+            const diagnosed = breakdownsData.filter(b => 
+                b.status === 'diagnosed' || b.status === 'escalated'
+            ).length;
+            const overdue = breakdownsData.filter(b => 
+                b.minutes_since_diagnosis > 30
+            ).length;
+            
+            document.getElementById('total-count').textContent = total;
+            document.getElementById('diagnosed-count').textContent = diagnosed;
+            document.getElementById('overdue-count').textContent = overdue;
+        }
+        
+        function setFilter(filter) {
+            currentFilter = filter;
+            
+            // Update button states
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            renderBreakdowns();
+        }
+        
+        function getDirections(lat, lng) {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        const url = `https://www.google.com/maps/dir/${position.coords.latitude},${position.coords.longitude}/${lat},${lng}`;
+                        window.open(url, '_blank');
+                    },
+                    () => {
+                        window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
+                    }
+                );
+            } else {
+                window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
+            }
+        }
+        
+        async function viewBreakdown(breakdownId) {
+            // Open breakdown details in new tab or modal
+            console.log('View breakdown:', breakdownId);
+            // Implement view logic
+        }
+        
+        async function resolveBreakdown(breakdownId) {
+            const notes = prompt('Resolution notes:');
+            if (!notes) return;
+            
+            const supervisor = prompt('Your badge number:');
+            if (!supervisor) return;
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/breakdowns/${breakdownId}/resolve`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        resolution_notes: notes,
+                        resolving_supervisor: supervisor,
+                        returned_to_service: true
+                    })
+                });
+                
+                if (response.ok) {
+                    alert('Breakdown resolved successfully');
+                    fetchBreakdowns();
+                }
+            } catch (error) {
+                console.error('Error resolving breakdown:', error);
+                alert('Failed to resolve breakdown');
+            }
+        }
+        
+        function resetCountdown() {
+            refreshCountdown = 5;
+            updateCountdown();
+        }
+        
+        function updateCountdown() {
+            document.getElementById('refresh-countdown').textContent = refreshCountdown;
+            
+            if (refreshCountdown > 0) {
+                refreshCountdown--;
+                setTimeout(updateCountdown, 1000);
+            } else {
+                fetchBreakdowns();
+            }
+        }
+        
+        // Initial load
+        fetchBreakdowns();
+        
+        // Auto-refresh every 5 seconds
+        setInterval(fetchBreakdowns, 5000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "fleet_number": "6301",
+  "supervisor_badge": "AG003",
+  "supervisor_name": "Anthony Gair",
+  "depot_id": "Gateshead",
+  "wizard_type": "wipers",
+  "location": "Newcastle Central Station",
+  "location_type": "bus_station",
+  "location_coords": {"lat": 54.9683, "lng": -1.6174},
+  "location_w3w": "cafe.pulse.risky",
+  "location_verified": true,
+  "route_number": "21"
+}

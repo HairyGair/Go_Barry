@@ -1,0 +1,515 @@
+<!-- SDC Enhanced Breakdown Dashboard with ETA Request Feature -->
+<!-- Add this to your existing enhanced-breakdown-dashboard.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDC Breakdown Dashboard - Go North East</title>
+    <style>
+        /* ETA Request Styles */
+        .btn-request-eta {
+            background: #3b82f6;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+
+        .btn-request-eta:hover {
+            background: #2563eb;
+            transform: translateY(-1px);
+        }
+
+        .btn-request-eta:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .btn-request-eta.eta-pending {
+            background: #f59e0b;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .eta-display {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f9ff;
+            border-left: 4px solid #3b82f6;
+            border-radius: 4px;
+        }
+
+        .eta-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+        }
+
+        .eta-label {
+            color: #64748b;
+        }
+
+        .eta-time {
+            color: #1e40af;
+            font-size: 18px;
+        }
+
+        .eta-remaining {
+            color: #10b981;
+            font-size: 14px;
+        }
+
+        .eta-overdue {
+            color: #dc2626;
+        }
+
+        /* Urgency Modal */
+        .urgency-modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            z-index: 10000;
+            min-width: 400px;
+        }
+
+        .urgency-modal h3 {
+            margin-bottom: 20px;
+            color: #1f2937;
+        }
+
+        .urgency-options {
+            display: grid;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .urgency-option {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .urgency-option:hover {
+            border-color: #3b82f6;
+            background: #f0f9ff;
+        }
+
+        .urgency-option.selected {
+            border-color: #3b82f6;
+            background: #dbeafe;
+        }
+
+        .urgency-option input[type="radio"] {
+            margin-right: 10px;
+        }
+
+        .urgency-label {
+            flex: 1;
+        }
+
+        .urgency-title {
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .urgency-description {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        .modal-notes {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+        }
+
+        /* ETA Countdown Timer */
+        .eta-countdown {
+            display: inline-block;
+            padding: 4px 8px;
+            background: #f0f9ff;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .eta-countdown.overdue {
+            background: #fee2e2;
+            color: #dc2626;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+    <!-- This section would be integrated into your existing dashboard -->
+    
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        // Add to your existing dashboard JavaScript
+        
+        const BACKEND_URL = 'https://go-barry.onrender.com';
+        let socket;
+        let sdcOperatorBadge = localStorage.getItem('sdc_operator') || 'SDC001';
+        
+        // Initialize WebSocket for SDC
+        function initializeSDCWebSocket() {
+            socket = io(BACKEND_URL);
+            
+            socket.on('connect', () => {
+                console.log('SDC connected to server');
+                socket.emit('join-room', 'sdc');
+            });
+            
+            socket.on('eta-provided', (data) => {
+                handleETAResponse(data);
+            });
+        }
+        
+        // Add ETA request button to breakdown cards
+        function addETAButton(breakdownCard, breakdown) {
+            // Check if button already exists
+            if (breakdownCard.querySelector('.btn-request-eta')) {
+                updateETAButton(breakdownCard, breakdown);
+                return;
+            }
+            
+            const actionsDiv = breakdownCard.querySelector('.breakdown-actions') || 
+                             createActionsDiv(breakdownCard);
+            
+            const etaButton = document.createElement('button');
+            etaButton.className = 'btn-request-eta';
+            etaButton.innerHTML = '⏱️ Request ETA';
+            etaButton.onclick = () => showUrgencyModal(breakdown);
+            
+            actionsDiv.appendChild(etaButton);
+            
+            // Update button state if ETA already requested
+            if (breakdown.eta_requested) {
+                etaButton.innerHTML = '⏱️ ETA Requested';
+                etaButton.disabled = true;
+                etaButton.classList.add('eta-pending');
+            }
+            
+            // Show ETA if available
+            if (breakdown.engineer_eta) {
+                displayETA(breakdownCard, breakdown);
+            }
+        }
+        
+        function createActionsDiv(breakdownCard) {
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'breakdown-actions';
+            breakdownCard.appendChild(actionsDiv);
+            return actionsDiv;
+        }
+        
+        // Show urgency selection modal
+        function showUrgencyModal(breakdown) {
+            const modal = document.createElement('div');
+            modal.className = 'urgency-modal';
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.onclick = () => closeModal();
+            
+            modal.innerHTML = `
+                <h3>Request ETA for Fleet ${breakdown.fleet_no}</h3>
+                
+                <div class="urgency-options">
+                    <label class="urgency-option">
+                        <input type="radio" name="urgency" value="normal" checked>
+                        <div class="urgency-label">
+                            <div class="urgency-title">Normal</div>
+                            <div class="urgency-description">Standard breakdown, no immediate safety concern</div>
+                        </div>
+                    </label>
+                    
+                    <label class="urgency-option">
+                        <input type="radio" name="urgency" value="urgent">
+                        <div class="urgency-label">
+                            <div class="urgency-title">Urgent</div>
+                            <div class="urgency-description">Priority route (X10, X21) or blocking traffic</div>
+                        </div>
+                    </label>
+                    
+                    <label class="urgency-option">
+                        <input type="radio" name="urgency" value="critical">
+                        <div class="urgency-label">
+                            <div class="urgency-title">Critical</div>
+                            <div class="urgency-description">Safety critical or passengers stranded in dangerous location</div>
+                        </div>
+                    </label>
+                </div>
+                
+                <textarea class="modal-notes" placeholder="Additional notes (optional)"></textarea>
+                
+                <div class="modal-actions">
+                    <button class="btn btn-submit" onclick="submitETARequest('${breakdown.breakdown_id}', '${breakdown.fleet_no}', '${breakdown.location}', '${breakdown.depot_id}')">
+                        Send Request
+                    </button>
+                    <button class="btn btn-cancel" onclick="closeModal()">
+                        Cancel
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+            document.body.appendChild(modal);
+            
+            // Add event listeners to radio buttons
+            modal.querySelectorAll('.urgency-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    modal.querySelectorAll('.urgency-option').forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    this.querySelector('input[type="radio"]').checked = true;
+                });
+            });
+        }
+        
+        // Submit ETA request
+        async function submitETARequest(breakdownId, fleetNumber, location, depotId) {
+            const urgency = document.querySelector('input[name="urgency"]:checked').value;
+            const notes = document.querySelector('.modal-notes').value;
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/breakdowns/${breakdownId}/request-eta`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        requested_by: sdcOperatorBadge,
+                        urgency_level: urgency,
+                        notes: notes,
+                        fleet_number: fleetNumber,
+                        location: location,
+                        depot_id: depotId
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('ETA request sent to Engineering', 'success');
+                    closeModal();
+                    
+                    // Update button state
+                    const button = document.querySelector(`[data-breakdown="${breakdownId}"] .btn-request-eta`);
+                    if (button) {
+                        button.innerHTML = '⏱️ ETA Requested';
+                        button.disabled = true;
+                        button.classList.add('eta-pending');
+                    }
+                } else {
+                    showNotification('Failed to send ETA request', 'error');
+                }
+            } catch (error) {
+                console.error('Error sending ETA request:', error);
+                showNotification('Network error. Please try again.', 'error');
+            }
+        }
+        
+        // Handle ETA response from engineering
+        function handleETAResponse(data) {
+            console.log('ETA received:', data);
+            
+            // Show notification
+            showNotification(`ETA received for Fleet ${data.fleet_number}: ${data.eta_minutes} minutes`, 'success');
+            
+            // Update the breakdown card
+            const card = document.querySelector(`[data-breakdown="${data.breakdown_id}"]`);
+            if (card) {
+                // Update button
+                const button = card.querySelector('.btn-request-eta');
+                if (button) {
+                    button.innerHTML = '✅ ETA Received';
+                    button.classList.remove('eta-pending');
+                }
+                
+                // Display ETA
+                displayETA(card, {
+                    engineer_eta: data.eta_time,
+                    engineer_assigned: data.engineer
+                });
+            }
+            
+            // Play success sound
+            playSuccessSound();
+        }
+        
+        // Display ETA on breakdown card
+        function displayETA(card, breakdown) {
+            // Remove existing ETA display
+            const existingETA = card.querySelector('.eta-display');
+            if (existingETA) {
+                existingETA.remove();
+            }
+            
+            const etaTime = new Date(breakdown.engineer_eta);
+            const now = new Date();
+            const minutesRemaining = Math.round((etaTime - now) / 60000);
+            
+            const etaDisplay = document.createElement('div');
+            etaDisplay.className = 'eta-display';
+            
+            etaDisplay.innerHTML = `
+                <div class="eta-status">
+                    <span class="eta-label">Engineer ETA:</span>
+                    <span class="eta-time">${etaTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+                    <span class="eta-countdown ${minutesRemaining < 0 ? 'overdue' : ''}">
+                        ${minutesRemaining > 0 ? `${minutesRemaining}m remaining` : `${Math.abs(minutesRemaining)}m OVERDUE`}
+                    </span>
+                </div>
+                ${breakdown.engineer_assigned ? `
+                <div style="margin-top: 5px; color: #6b7280; font-size: 14px;">
+                    Engineer: ${breakdown.engineer_assigned}
+                </div>
+                ` : ''}
+            `;
+            
+            card.appendChild(etaDisplay);
+        }
+        
+        // Update ETA countdown timers
+        function updateETACountdowns() {
+            document.querySelectorAll('.eta-display').forEach(display => {
+                const card = display.closest('[data-breakdown]');
+                if (card) {
+                    const breakdownId = card.dataset.breakdown;
+                    const etaTimeStr = display.querySelector('.eta-time')?.textContent;
+                    
+                    if (etaTimeStr) {
+                        // Parse time and calculate remaining
+                        const [hours, minutes] = etaTimeStr.split(':').map(Number);
+                        const etaTime = new Date();
+                        etaTime.setHours(hours, minutes, 0, 0);
+                        
+                        const now = new Date();
+                        const minutesRemaining = Math.round((etaTime - now) / 60000);
+                        
+                        const countdown = display.querySelector('.eta-countdown');
+                        if (countdown) {
+                            countdown.className = `eta-countdown ${minutesRemaining < 0 ? 'overdue' : ''}`;
+                            countdown.textContent = minutesRemaining > 0 ? 
+                                `${minutesRemaining}m remaining` : 
+                                `${Math.abs(minutesRemaining)}m OVERDUE`;
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Close modal
+        function closeModal() {
+            document.querySelector('.urgency-modal')?.remove();
+            document.querySelector('.modal-overlay')?.remove();
+        }
+        
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification notification-${type}`;
+            notification.textContent = message;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 25px;
+                background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+                color: white;
+                border-radius: 8px;
+                font-weight: 600;
+                animation: slideIn 0.3s ease-out;
+                z-index: 10001;
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease-in';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+        
+        // Play success sound
+        function playSuccessSound() {
+            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBi+C0fPTgjMGHm7A7+OWT');
+            audio.play().catch(e => console.log('Could not play sound'));
+        }
+        
+        // Update existing breakdown cards (call this in your refresh function)
+        function enhanceBreakdownCards() {
+            document.querySelectorAll('.breakdown-card').forEach(card => {
+                const breakdownId = card.dataset.breakdown;
+                if (breakdownId) {
+                    // Fetch breakdown data and add ETA button
+                    // This assumes you have breakdown data available
+                    const breakdown = getBreakdownData(breakdownId);
+                    if (breakdown) {
+                        addETAButton(card, breakdown);
+                    }
+                }
+            });
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeSDCWebSocket();
+            
+            // Update countdowns every 30 seconds
+            setInterval(updateETACountdowns, 30000);
+        });
+        
+        // Make functions global for onclick handlers
+        window.submitETARequest = submitETARequest;
+        window.closeModal = closeModal;
+    </script>
+</body>
+</html>

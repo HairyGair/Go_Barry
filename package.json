@@ -29,7 +29,9 @@
     "install:playwright": "playwright install"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.58.0",
     "@turf/turf": "^7.2.0",
+    "dotenv": "^17.2.3",
     "expo": "^53.0.11",
     "mapbox-gl": "^3.12.0",
     "node-fetch": "^3.3.2",

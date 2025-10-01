@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Supabase Key Validator</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f3f4f6;
+        }
+        h1 {
+            color: #1e3a8a;
+            border-bottom: 3px solid #dc2626;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #1e3a8a;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #1e40af;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #86efac;
+        }
+        .error {
+            background: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔐 Supabase Key Validator</h1>
+    
+    <div class="test-section">
+        <h2>Test Your Supabase Keys</h2>
+        <p>This will test your keys directly against Supabase to see if they're valid.</p>
+        <button onclick="testKeys()">Test Keys</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // Your Supabase credentials from .env
+        const SUPABASE_URL = 'https://haountnghecfrsoniubq.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhb3VudG5naGVjZnJzb25pdWJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc2NzgxNDksImV4cCI6MjA2MzI1NDE0OX0.xtjxeGkxG3cx67IvpI4XxEpWewLG9Bh6bfyQenfTILs';
+        const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhhb3VudG5naGVjZnJzb25pdWJxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NzY3ODE0OSwiZXhwIjoyMDYzMjU0MTQ5fQ.SXrxBWe1asnZecLdnDOXRUA8OCySNge27c2SpAJOwwo';
+
+        async function testKeys() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="result">Testing...</div>';
+            
+            let results = {
+                anonKey: false,
+                serviceKey: false,
+                tableAccess: false,
+                errors: []
+            };
+
+            // Test 1: Anon Key
+            try {
+                const response1 = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                    }
+                });
+                
+                if (response1.ok) {
+                    results.anonKey = true;
+                } else {
+                    const error = await response1.text();
+                    results.errors.push(`Anon key error: ${response1.status} - ${error}`);
+                }
+            } catch (error) {
+                results.errors.push(`Anon key error: ${error.message}`);
+            }
+
+            // Test 2: Service Key
+            try {
+                const response2 = await fetch(`${SUPABASE_URL}/rest/v1/`, {
+                    headers: {
+                        'apikey': SUPABASE_SERVICE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`
+                    }
+                });
+                
+                if (response2.ok) {
+                    results.serviceKey = true;
+                } else {
+                    const error = await response2.text();
+                    results.errors.push(`Service key error: ${response2.status} - ${error}`);
+                }
+            } catch (error) {
+                results.errors.push(`Service key error: ${error.message}`);
+            }
+
+            // Test 3: Access breakdowns table
+            try {
+                const response3 = await fetch(`${SUPABASE_URL}/rest/v1/breakdowns?limit=1`, {
+                    headers: {
+                        'apikey': SUPABASE_SERVICE_KEY,
+                        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'count=exact'
+                    }
+                });
+                
+                if (response3.ok) {
+                    results.tableAccess = true;
+                    const data = await response3.json();
+                    results.rowCount = data.length;
+                } else {
+                    const error = await response3.text();
+                    results.errors.push(`Table access error: ${response3.status} - ${error}`);
+                }
+            } catch (error) {
+                results.errors.push(`Table access error: ${error.message}`);
+            }
+
+            // Display results
+            let html = '<div class="result ' + (results.errors.length === 0 ? 'success' : 'error') + '">';
+            html += '<h3>Test Results:</h3>';
+            html += '<p>✅ Anon Key Valid: ' + (results.anonKey ? 'YES' : 'NO') + '</p>';
+            html += '<p>✅ Service Key Valid: ' + (results.serviceKey ? 'YES' : 'NO') + '</p>';
+            html += '<p>✅ Table Access: ' + (results.tableAccess ? 'YES' : 'NO') + '</p>';
+            
+            if (results.errors.length > 0) {
+                html += '<h4>Errors:</h4>';
+                html += '<pre>' + results.errors.join('\n') + '</pre>';
+            }
+            
+            if (results.tableAccess) {
+                html += '<p>Found ' + results.rowCount + ' row(s) in breakdowns table</p>';
+            }
+            
+            html += '</div>';
+            
+            resultDiv.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

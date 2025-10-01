@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Go North East - Engineering Response Dashboard (Live Data)</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Shared Navigation System -->
+    <script src="shared-navigation.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f3f4f6;
+            padding-top: 70px; /* Adjust for fixed navigation */
+        }
+        
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #dc2626 100%);
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: relative;
+        }
+        .header h1 {
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .header-stats {
+            display: flex;
+            gap: 30px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .header-stat {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .header-stat strong {
+            font-size: 18px;
+        }
+        .connection-status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .connection-status.online {
+            background: rgba(16, 185, 129, 0.2);
+            color: white;
+        }
+        .connection-status.offline {
+            background: rgba(239, 68, 68, 0.2);
+            color: white;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        .status-dot.online { background: #10b981; }
+        .status-dot.offline { background: #ef4444; }
+        
+        /* Engineering Performance Panel */
+        .engineering-panel {
+            background: white;
+            margin: 20px;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .engineering-panel h2 {
+            color: #1e3a8a;
+            margin-bottom: 15px;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .depot-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .depot-stat {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #3b82f6;
+            position: relative;
+        }
+        .depot-stat.warning {
+            background: linear-gradient(135deg, #fef3c7 0%, #fed7aa 100%);
+            border-left-color: #f59e0b;
+        }
+        .depot-stat.critical {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+            border-left-color: #ef4444;
+        }
+        .depot-name {
+            font-weight: bold;
+            color: #1e3a8a;
+            margin-bottom: 8px;
+        }
+        .depot-metrics {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: #4b5563;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .metric-value {
+            font-weight: bold;
+            color: #1e3a8a;
+        }
+        
+        /* Engineer List */
+        .engineer-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-top: 5px;
+            padding: 10px;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .depot-stat:hover .engineer-list {
+            display: block;
+        }
+        .engineer-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px;
+            font-size: 12px;
+        }
+        .engineer-available {
+            color: #10b981;
+        }
+        .engineer-busy {
+            color: #ef4444;
+        }
+        
+        /* Filters */
+        .filters {
+            display: flex;
+            gap: 10px;
+            padding: 20px;
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            flex-wrap: wrap;
+        }
+        .filter-btn {
+            padding: 8px 16px;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .filter-btn:hover {
+            background: #f9fafb;
+        }
+        .filter-btn.active {
+            background: #1e3a8a;
+            color: white;
+            border-color: #1e3a8a;
+        }
+        
+        /* Test Data Toggle */
+        .test-data-toggle {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #f3f4f6;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .test-data-toggle input {
+            cursor: pointer;
+        }
+        
+        /* Statistics Cards */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #3b82f6, #1e3a8a);
+        }
+        .stat-card.warning::before {
+            background: linear-gradient(90deg, #f59e0b, #d97706);
+        }
+        .stat-card.critical::before {
+            background: linear-gradient(90deg, #ef4444, #dc2626);
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #1e3a8a;
+        }
+        .stat-label {
+            color: #6b7280;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .stat-change {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        .stat-change.negative {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        /* Breakdown Cards Container */
+        .container {
+            padding: 20px;
+        }
+        .breakdown-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+            gap: 20px;
+        }
+        
+        /* Enhanced Breakdown Card */
+        .breakdown-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: all 0.3s;
+            position: relative;
+            border: 2px solid transparent;
+        }
+        .breakdown-card.overdue {
+            border: 2px solid #ef4444;
+            background: #fef2f2;
+            animation: pulse-border 2s infinite;
+        }
+        .breakdown-card.warning {
+            border: 2px solid #f59e0b;
+            background: #fffbeb;
+        }
+        .breakdown-card.priority {
+            border-top: 4px solid #dc2626;
+        }
+        @keyframes pulse-border {
+            0%, 100% { 
+                border-color: #ef4444;
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+            }
+            50% { 
+                border-color: #dc2626;
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+            }
+        }
+        
+        /* Overdue Badge */
+        .overdue-badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #ef4444;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            animation: blink 2s infinite;
+            z-index: 10;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        /* Card Header */
+        .card-header {
+            padding: 15px;
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+            border-bottom: 2px solid #e5e7eb;
+        }
+        .card-header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .fleet-number {
+            font-size: 22px;
+            font-weight: bold;
+            color: #1e3a8a;
+        }
+        .card-badges {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .depot-badge {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .priority-badge {
+            background: #fef3c7;
+            color: #d97706;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .repeat-flag {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        /* Progress Timeline */
+        .progress-timeline {
+            padding: 10px 15px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .timeline-track {
+            display: flex;
+            justify-content: space-between;
+            position: relative;
+            padding: 10px 0;
+        }
+        .timeline-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            z-index: 2;
+        }
+        .timeline-step::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #e5e7eb;
+            border: 2px solid white;
+        }
+        .timeline-step.completed::before {
+            background: #10b981;
+        }
+        .timeline-step.current::before {
+            background: #f59e0b;
+            animation: pulse 2s infinite;
+        }
+        .timeline-step.current::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid #f59e0b;
+            animation: pulse-ring 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+        }
+        @keyframes pulse-ring {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.3); opacity: 0; }
+        }
+        .timeline-label {
+            font-size: 10px;
+            color: #6b7280;
+            margin-top: 20px;
+        }
+        .timeline-time {
+            font-size: 9px;
+            color: #9ca3af;
+            margin-top: 2px;
+        }
+        .timeline-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #e5e7eb;
+            z-index: 1;
+        }
+        .timeline-progress {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: #10b981;
+            transition: width 0.3s;
+        }
+        
+        /* Engineering Assignment */
+        .engineering-assignment {
+            padding: 12px 15px;
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .engineering-assignment.unassigned {
+            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        }
+        .assignment-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .team-badge {
+            font-size: 13px;
+            font-weight: 600;
+            color: #065f46;
+        }
+        .engineer-name {
+            font-size: 12px;
+            color: #047857;
+        }
+        .engineer-phone {
+            font-size: 11px;
+            color: #059669;
+        }
+        .response-eta {
+            background: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #dc2626;
+        }
+        
+        /* Card Body */
+        .card-body {
+            padding: 15px;
+        }
+        
+        /* Timer Section */
+        .timer-section {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .timer-box {
+            background: #f9fafb;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            border-left: 3px solid #3b82f6;
+        }
+        .timer-box.critical {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        .timer-box.warning {
+            border-left-color: #f59e0b;
+            background: #fffbeb;
+        }
+        .timer-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1e3a8a;
+        }
+        .timer-box.critical .timer-value {
+            color: #dc2626;
+        }
+        .timer-box.warning .timer-value {
+            color: #f59e0b;
+        }
+        .timer-label {
+            font-size: 10px;
+            color: #6b7280;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+        
+        /* Action Buttons */
+        .card-actions {
+            padding: 15px;
+            background: #f9fafb;
+            border-top: 2px solid #e5e7eb;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        .btn {
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .btn-dispatch {
+            background: #f59e0b;
+            color: white;
+        }
+        .btn-dispatch:hover {
+            background: #d97706;
+        }
+        .btn-auto-assign {
+            background: #8b5cf6;
+            color: white;
+        }
+        .btn-auto-assign:hover {
+            background: #7c3aed;
+        }
+        .btn-update {
+            background: #3b82f6;
+            color: white;
+        }
+        .btn-update:hover {
+            background: #2563eb;
+        }
+        .btn-resolve {
+            background: #10b981;
+            color: white;
+        }
+        .btn-resolve:hover {
+            background: #059669;
+        }
+        
+        /* Engineer Selection Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.show {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1e3a8a;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6b7280;
+        }
+        .engineer-select-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .engineer-option {
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .engineer-option:hover {
+            border-color: #3b82f6;
+            background: #f0f9ff;
+        }
+        .engineer-option.unavailable {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .engineer-option-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        .engineer-option-name {
+            font-weight: bold;
+            color: #1e3a8a;
+        }
+        .engineer-option-status {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .engineer-option-status.available {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        .engineer-option-status.busy {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .engineer-option-details {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        /* Loading and Alerts */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #1e3a8a;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Notifications */
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+            font-weight: 500;
+            animation: slideDown 0.3s ease-out;
+        }
+        .notification.success {
+            background: #10b981;
+            color: white;
+        }
+        .notification.error {
+            background: #ef4444;
+            color: white;
+        }
+        @keyframes slideDown {
+            from { transform: translateX(-50%) translateY(-100%); }
+            to { transform: translateX(-50%) translateY(0); }
+        }
+        
+        /* No data message */
+        .no-data {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .no-data-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        .no-data-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1e3a8a;
+            margin-bottom: 10px;
+        }
+        .no-data-text {
+            color: #6b7280;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚨 Engineering Response Dashboard (Live Data)</h1>
+        <div class="header-stats">
+            <div class="header-stat">
+                <span>⏱️ Avg Response:</span>
+                <strong id="avg-response">--</strong>
+            </div>
+            <div class="header-stat">
+                <span>✅ SLA Compliance:</span>
+                <strong id="sla-compliance">--</strong>
+            </div>
+            <div class="header-stat">
+                <span>👷 Engineers Active:</span>
+                <strong id="engineers-active">--</strong>
+            </div>
+        </div>
+        <div id="connection-status" class="connection-status online">
+            <span class="status-dot online"></span>
+            <span id="connection-text">Connected</span>
+        </div>
+    </div>
+
+    <!-- Engineering Performance Panel -->
+    <div class="engineering-panel">
+        <h2>⚙️ Engineering Team Performance (Real-Time)</h2>
+        <div id="depot-stats" class="depot-stats">
+            <!-- Depot stats will be populated here -->
+        </div>
+    </div>
+
+    <div class="filters">
+        <button class="filter-btn active" data-filter="all">All Breakdowns</button>
+        <button class="filter-btn" data-filter="unassigned">Unassigned</button>
+        <button class="filter-btn" data-filter="dispatched">Dispatched</button>
+        <button class="filter-btn" data-filter="on-site">On Site</button>
+        <button class="filter-btn" data-filter="overdue">Overdue (>30m)</button>
+        <button class="filter-btn" data-filter="priority">Priority Routes</button>
+        <div class="test-data-toggle">
+            <label>
+                <input type="checkbox" id="show-test-data" onchange="toggleTestData()">
+                Show Test Data
+            </label>
+        </div>
+    </div>
+
+    <div class="stats">
+        <div class="stat-card" id="stat-card-total">
+            <div class="stat-value" id="stat-total">--</div>
+            <div class="stat-label">Active Breakdowns</div>
+        </div>
+        <div class="stat-card" id="stat-card-unassigned">
+            <div class="stat-value" id="stat-unassigned">--</div>
+            <div class="stat-label">Awaiting Engineer</div>
+        </div>
+        <div class="stat-card" id="stat-card-onsite">
+            <div class="stat-value" id="stat-onsite">--</div>
+            <div class="stat-label">Engineers On Site</div>
+        </div>
+        <div class="stat-card" id="stat-card-overdue">
+            <div class="stat-value" id="stat-sla-risk">--</div>
+            <div class="stat-label">Overdue (>30m)</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="breakdown-list" class="breakdown-grid">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Loading breakdown data...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Engineer Selection Modal -->
+    <div id="engineer-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">Select Engineer</h3>
+                <button class="close-btn" onclick="closeEngineerModal()">&times;</button>
+            </div>
+            <div id="engineer-list" class="engineer-select-list">
+                <!-- Engineers will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const BACKEND_URL = 'https://go-barry.onrender.com';
+        const REFRESH_INTERVAL = 10000; // 10 seconds
+        const PRIORITY_ROUTES = ['X10', 'X21', '21', '56', '1'];
+        
+        // State
+        let allBreakdowns = [];
+        let allEngineers = [];
+        let engineeringMetrics = {};
+        let currentFilter = 'all';
+        let selectedBreakdownId = null;
+        let refreshTimer = null;
+        let showTestData = false;
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            setupFilterButtons();
+            fetchAllData();
+            startAutoRefresh();
+        });
+
+        // Setup filter buttons
+        function setupFilterButtons() {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentFilter = this.dataset.filter;
+                    renderBreakdowns();
+                });
+            });
+        }
+
+        // Toggle test data visibility
+        window.toggleTestData = function() {
+            showTestData = document.getElementById('show-test-data').checked;
+            renderBreakdowns();
+        }
+
+        // Fetch all data
+        async function fetchAllData() {
+            try {
+                // Set loading state
+                document.getElementById('connection-text').textContent = 'Updating...';
+                
+                // Fetch data in parallel
+                const [breakdowns, engineers, metrics] = await Promise.all([
+                    fetchBreakdowns(),
+                    fetchEngineers(),
+                    fetchMetrics()
+                ]);
+                
+                // Update UI
+                renderDepotStats();
+                renderBreakdowns();
+                updateStats();
+                updateHeaderStats();
+                
+                // Set connected state
+                document.getElementById('connection-status').className = 'connection-status online';
+                document.getElementById('connection-text').textContent = 'Connected';
+                
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                document.getElementById('connection-status').className = 'connection-status offline';
+                document.getElementById('connection-text').textContent = 'Connection Error';
+                showNotification('Connection error - using cached data', 'error');
+            }
+        }
+
+        // Fetch breakdowns
+        async function fetchBreakdowns() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/breakdowns/live`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    allBreakdowns = await enhanceBreakdownData(data.breakdowns || []);
+                }
+                return allBreakdowns;
+            } catch (error) {
+                console.error('Error fetching breakdowns:', error);
+                return allBreakdowns; // Return existing data
+            }
+        }
+
+        // Fetch engineers
+        async function fetchEngineers() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/engineering/engineers`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    allEngineers = data.engineers || [];
+                }
+                return allEngineers;
+            } catch (error) {
+                console.error('Error fetching engineers:', error);
+                return allEngineers;
+            }
+        }
+
+        // Fetch metrics
+        async function fetchMetrics() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/engineering/metrics`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    engineeringMetrics = data.metrics || {};
+                }
+                return engineeringMetrics;
+            } catch (error) {
+                console.error('Error fetching metrics:', error);
+                return engineeringMetrics;
+            }
+        }
+
+        // Enhance breakdown data with assignments and calculate real times
+        async function enhanceBreakdownData(breakdowns) {
+            // Filter out test data unless checkbox is checked
+            let filteredBreakdowns = breakdowns;
+            if (!showTestData) {
+                filteredBreakdowns = breakdowns.filter(b => 
+                    !b.fleet_no.toUpperCase().includes('TEST')
+                );
+            }
+            
+            // Fetch assignments for each breakdown
+            const enhancedBreakdowns = [];
+            
+            for (const breakdown of filteredBreakdowns) {
+                try {
+                    const assignmentResponse = await fetch(
+                        `${BACKEND_URL}/api/engineering/breakdown/${breakdown.breakdown_id}/assignments`
+                    );
+                    const assignmentData = await assignmentResponse.json();
+                    
+                    const currentAssignment = assignmentData.success && assignmentData.assignments?.length > 0
+                        ? assignmentData.assignments[0]
+                        : null;
+                    
+                    // Calculate real elapsed time
+                    const created = new Date(breakdown.created_at);
+                    const now = new Date();
+                    const totalElapsed = Math.floor((now - created) / 60000); // minutes
+                    
+                    // Calculate wait time (time since creation if no engineer, or 0 if engineer on site)
+                    let waitTime = totalElapsed;
+                    if (currentAssignment) {
+                        if (currentAssignment.status === 'on_site' || currentAssignment.status === 'repairing') {
+                            waitTime = 0; // Engineer is on site
+                        } else if (currentAssignment.arrival_at) {
+                            // Calculate time from creation to arrival
+                            const arrival = new Date(currentAssignment.arrival_at);
+                            waitTime = Math.floor((arrival - created) / 60000);
+                        }
+                    }
+                    
+                    // Determine status based on elapsed time
+                    let timeStatus = 'normal';
+                    if (totalElapsed > 45) {
+                        timeStatus = 'overdue';
+                    } else if (totalElapsed > 30) {
+                        timeStatus = 'warning';
+                    }
+                    
+                    enhancedBreakdowns.push({
+                        ...breakdown,
+                        assignment: currentAssignment,
+                        totalElapsed,
+                        waitTime,
+                        timeStatus,
+                        currentStage: getBreakdownStage(breakdown, currentAssignment),
+                        isPriority: PRIORITY_ROUTES.includes(breakdown.route_id)
+                    });
+                } catch (error) {
+                    // If assignment fetch fails, use breakdown without assignment
+                    const created = new Date(breakdown.created_at);
+                    const now = new Date();
+                    const totalElapsed = Math.floor((now - created) / 60000);
+                    
+                    enhancedBreakdowns.push({
+                        ...breakdown,
+                        assignment: null,
+                        totalElapsed,
+                        waitTime: totalElapsed,
+                        timeStatus: totalElapsed > 45 ? 'overdue' : totalElapsed > 30 ? 'warning' : 'normal',
+                        currentStage: 'reported',
+                        isPriority: PRIORITY_ROUTES.includes(breakdown.route_id)
+                    });
+                }
+            }
+            
+            return enhancedBreakdowns;
+        }
+
+        // Get breakdown stage
+        function getBreakdownStage(breakdown, assignment) {
+            if (breakdown.status === 'cleared') return 'resolved';
+            if (assignment) {
+                if (assignment.status === 'completed') return 'resolved';
+                if (assignment.status === 'repairing') return 'fixing';
+                if (assignment.status === 'on_site') return 'onSite';
+                if (assignment.status === 'dispatched') return 'dispatched';
+                if (assignment.status === 'assigned') return 'acknowledged';
+            }
+            if (breakdown.status === 'decision') return 'acknowledged';
+            return 'reported';
+        }
+
+        // Render depot stats
+        function renderDepotStats() {
+            const container = document.getElementById('depot-stats');
+            const depots = ['WASHINGTON', 'RIVERSIDE', 'PERCY_MAIN', 'CONSETT', 'DEPTFORD', 'HEXHAM'];
+            
+            container.innerHTML = depots.map(depot => {
+                const metrics = engineeringMetrics[depot] || {};
+                const engineers = metrics.engineers || { total: 0, available: 0, busy: 0 };
+                const avgResponse = metrics.avg_response_time_minutes || 0;
+                const slaPercentage = metrics.sla_percentage || 100;
+                
+                // Determine status class
+                let statusClass = '';
+                if (slaPercentage < 80) statusClass = 'critical';
+                else if (slaPercentage < 90) statusClass = 'warning';
+                
+                // Get depot engineers
+                const depotEngineers = allEngineers.filter(e => e.depot_id === depot);
+                
+                return `
+                    <div class="depot-stat ${statusClass}">
+                        <div class="depot-name">${formatDepotName(depot)}</div>
+                        <div class="depot-metrics">
+                            <span>Avg: <span class="metric-value">${avgResponse} mins</span></span>
+                            <span>SLA: <span class="metric-value">${Math.round(slaPercentage)}%</span></span>
+                            <span>Active: <span class="metric-value">${engineers.busy}/${engineers.total}</span></span>
+                        </div>
+                        <div class="engineer-list">
+                            ${depotEngineers.map(eng => `
+                                <div class="engineer-item">
+                                    <span>${eng.name} (${eng.badge_number})</span>
+                                    <span class="${eng.status === 'available' ? 'engineer-available' : 'engineer-busy'}">
+                                        ${eng.status}
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Format depot name
+        function formatDepotName(depot) {
+            const names = {
+                'WASHINGTON': 'Washington',
+                'RIVERSIDE': 'Riverside',
+                'PERCY_MAIN': 'Percy Main',
+                'CONSETT': 'Consett',
+                'DEPTFORD': 'Deptford',
+                'HEXHAM': 'Hexham'
+            };
+            return names[depot] || depot;
+        }
+
+        // Render breakdowns
+        function renderBreakdowns() {
+            let breakdowns = [...allBreakdowns];
+            
+            // Apply filters
+            switch(currentFilter) {
+                case 'unassigned':
+                    breakdowns = breakdowns.filter(b => !b.assignment);
+                    break;
+                case 'dispatched':
+                    breakdowns = breakdowns.filter(b => 
+                        b.assignment && b.assignment.status === 'dispatched'
+                    );
+                    break;
+                case 'on-site':
+                    breakdowns = breakdowns.filter(b => 
+                        b.assignment && (b.assignment.status === 'on_site' || b.assignment.status === 'repairing')
+                    );
+                    break;
+                case 'overdue':
+                    breakdowns = breakdowns.filter(b => b.timeStatus === 'overdue' || b.timeStatus === 'warning');
+                    break;
+                case 'priority':
+                    breakdowns = breakdowns.filter(b => b.isPriority);
+                    break;
+            }
+            
+            const container = document.getElementById('breakdown-list');
+            
+            if (breakdowns.length === 0) {
+                container.innerHTML = `
+                    <div class="no-data">
+                        <div class="no-data-icon">✅</div>
+                        <div class="no-data-title">No Active Breakdowns</div>
+                        <div class="no-data-text">
+                            ${currentFilter === 'all' ? 
+                                'All vehicles are operational' : 
+                                `No breakdowns match the "${currentFilter}" filter`}
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Sort breakdowns: overdue first, then by elapsed time
+            breakdowns.sort((a, b) => {
+                if (a.timeStatus === 'overdue' && b.timeStatus !== 'overdue') return -1;
+                if (b.timeStatus === 'overdue' && a.timeStatus !== 'overdue') return 1;
+                if (a.timeStatus === 'warning' && b.timeStatus === 'normal') return -1;
+                if (b.timeStatus === 'warning' && a.timeStatus === 'normal') return 1;
+                return b.totalElapsed - a.totalElapsed;
+            });
+            
+            container.innerHTML = breakdowns.map(b => createBreakdownCard(b)).join('');
+        }
+
+        // Create breakdown card
+        function createBreakdownCard(breakdown) {
+            const cardClass = `breakdown-card ${breakdown.timeStatus} ${breakdown.isPriority ? 'priority' : ''}`;
+            const assignment = breakdown.assignment;
+            const engineer = assignment ? assignment.engineer : null;
+            
+            // Show overdue badge if over 30 minutes
+            const overdueBadge = breakdown.totalElapsed > 30 ? 
+                `<div class="overdue-badge">⚠️ OVERDUE ${breakdown.totalElapsed}m</div>` : '';
+            
+            return `
+                <div class="${cardClass}" data-breakdown-id="${breakdown.breakdown_id}">
+                    ${overdueBadge}
+                    <div class="card-header">
+                        <div class="card-header-top">
+                            <span class="fleet-number">Fleet ${breakdown.fleet_no}</span>
+                            <div class="card-badges">
+                                ${breakdown.isPriority ? '<span class="priority-badge">🚨 PRIORITY</span>' : ''}
+                                ${breakdown.repeat_breakdown ? '<span class="repeat-flag">⚠️ REPEAT</span>' : ''}
+                                <span class="depot-badge">${formatDepotName(breakdown.depot_id || 'Unknown')}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="progress-timeline">
+                        <div class="timeline-track">
+                            <div class="timeline-line">
+                                <div class="timeline-progress" style="width: ${getProgressPercentage(breakdown.currentStage)}%"></div>
+                            </div>
+                            ${createTimelineSteps(breakdown)}
+                        </div>
+                    </div>
+                    
+                    ${engineer ? `
+                        <div class="engineering-assignment">
+                            <div class="assignment-info">
+                                <span class="team-badge">${formatDepotName(engineer.depot_id)} Engineering</span>
+                                <span class="engineer-name">${engineer.name} (${engineer.badge_number})</span>
+                                <span class="engineer-phone">📞 ${engineer.phone || 'No phone'}</span>
+                            </div>
+                            ${assignment.status !== 'on_site' && assignment.status !== 'repairing' ? 
+                                `<span class="response-eta">Status: ${formatStatus(assignment.status)}</span>` :
+                                `<span class="response-eta" style="background: #dcfce7; color: #16a34a;">On Site</span>`
+                            }
+                        </div>
+                    ` : `
+                        <div class="engineering-assignment unassigned">
+                            <div class="assignment-info">
+                                <span class="team-badge">⚠️ No Engineer Assigned</span>
+                                <span class="engineer-name">Awaiting dispatch</span>
+                            </div>
+                            <button class="btn btn-auto-assign" style="padding: 4px 12px; font-size: 12px;" 
+                                onclick="autoAssignEngineer('${breakdown.breakdown_id}', '${breakdown.depot_id}')">
+                                🤖 Auto-Assign
+                            </button>
+                        </div>
+                    `}
+                    
+                    <div class="card-body">
+                        <div class="timer-section">
+                            <div class="timer-box ${breakdown.totalElapsed > 45 ? 'critical' : breakdown.totalElapsed > 30 ? 'warning' : ''}">
+                                <div class="timer-value">${breakdown.totalElapsed}</div>
+                                <div class="timer-label">Total Minutes</div>
+                            </div>
+                            <div class="timer-box ${breakdown.waitTime > 30 && !assignment ? 'critical' : breakdown.waitTime > 20 ? 'warning' : ''}">
+                                <div class="timer-value">${breakdown.waitTime}</div>
+                                <div class="timer-label">${assignment ? 'Response Time' : 'Wait Time'}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card-actions">
+                        ${!assignment ? `
+                            <button class="btn btn-dispatch" onclick="showEngineerModal('${breakdown.breakdown_id}', '${breakdown.depot_id}')">
+                                📞 Assign Engineer
+                            </button>
+                            <button class="btn btn-auto-assign" onclick="autoAssignEngineer('${breakdown.breakdown_id}', '${breakdown.depot_id}')">
+                                🤖 Auto-Assign
+                            </button>
+                        ` : assignment.status !== 'on_site' && assignment.status !== 'repairing' ? `
+                            <button class="btn btn-update" onclick="updateAssignmentStatus('${assignment.assignment_id}', 'dispatched')">
+                                🚗 Mark Dispatched
+                            </button>
+                            <button class="btn btn-update" onclick="updateAssignmentStatus('${assignment.assignment_id}', 'on_site')">
+                                📍 Mark On Site
+                            </button>
+                        ` : assignment.status === 'on_site' ? `
+                            <button class="btn btn-update" onclick="updateAssignmentStatus('${assignment.assignment_id}', 'repairing')">
+                                🔧 Start Repair
+                            </button>
+                            <button class="btn btn-resolve" onclick="updateAssignmentStatus('${assignment.assignment_id}', 'completed')">
+                                ✅ Complete
+                            </button>
+                        ` : `
+                            <button class="btn btn-resolve" onclick="updateAssignmentStatus('${assignment.assignment_id}', 'completed')">
+                                ✅ Complete Repair
+                            </button>
+                            <button class="btn btn-update" onclick="requestUpdate('${breakdown.breakdown_id}')">
+                                📝 Request Update
+                            </button>
+                        `}
+                    </div>
+                </div>
+            `;
+        }
+
+        // Create timeline steps
+        function createTimelineSteps(breakdown) {
+            const stages = [
+                { key: 'reported', label: 'Reported' },
+                { key: 'acknowledged', label: 'Acknowledged' },
+                { key: 'dispatched', label: 'Dispatched' },
+                { key: 'onSite', label: 'On Site' },
+                { key: 'fixing', label: 'Fixing' },
+                { key: 'resolved', label: 'Resolved' }
+            ];
+            
+            const currentStageIndex = stages.findIndex(s => s.key === breakdown.currentStage);
+            
+            return stages.map((stage, index) => {
+                let className = 'timeline-step';
+                if (index <= currentStageIndex) {
+                    className += ' completed';
+                }
+                if (index === currentStageIndex && breakdown.currentStage !== 'resolved') {
+                    className += ' current';
+                }
+                
+                return `
+                    <div class="${className}">
+                        <div class="timeline-label">${stage.label}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Get progress percentage
+        function getProgressPercentage(stage) {
+            const stages = {
+                reported: 0,
+                acknowledged: 20,
+                dispatched: 40,
+                onSite: 60,
+                fixing: 80,
+                resolved: 100
+            };
+            return stages[stage] || 0;
+        }
+
+        // Format status
+        function formatStatus(status) {
+            const statuses = {
+                'assigned': 'Assigned',
+                'dispatched': 'Dispatched',
+                'on_site': 'On Site',
+                'repairing': 'Repairing',
+                'completed': 'Completed'
+            };
+            return statuses[status] || status;
+        }
+
+        // Show engineer modal
+        window.showEngineerModal = async function(breakdownId, depotId) {
+            selectedBreakdownId = breakdownId;
+            
+            // Get available engineers
+            const response = await fetch(`${BACKEND_URL}/api/engineering/engineers/available/${depotId}`);
+            const data = await response.json();
+            
+            const modal = document.getElementById('engineer-modal');
+            const list = document.getElementById('engineer-list');
+            
+            if (data.success && data.engineers.length > 0) {
+                list.innerHTML = data.engineers.map(eng => `
+                    <div class="engineer-option" onclick="assignEngineer('${eng.engineer_id}')">
+                        <div class="engineer-option-header">
+                            <span class="engineer-option-name">${eng.name} (${eng.badge_number})</span>
+                            <span class="engineer-option-status available">Available</span>
+                        </div>
+                        <div class="engineer-option-details">
+                            ${eng.specializations.join(', ')} | Shift: ${eng.shift_start} - ${eng.shift_end}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                list.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #6b7280;">
+                        No available engineers at ${formatDepotName(depotId)}
+                    </div>
+                `;
+            }
+            
+            modal.classList.add('show');
+        }
+
+        // Close engineer modal
+        window.closeEngineerModal = function() {
+            document.getElementById('engineer-modal').classList.remove('show');
+            selectedBreakdownId = null;
+        }
+
+        // Assign engineer
+        window.assignEngineer = async function(engineerId) {
+            if (!selectedBreakdownId) return;
+            
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/engineering/assign`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        breakdown_id: selectedBreakdownId,
+                        engineer_id: engineerId,
+                        estimated_arrival_minutes: 30
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(`Engineer ${data.assignment.engineer.name} assigned successfully`, 'success');
+                    closeEngineerModal();
+                    await fetchAllData();
+                } else {
+                    showNotification(data.error || 'Failed to assign engineer', 'error');
+                }
+            } catch (error) {
+                console.error('Error assigning engineer:', error);
+                showNotification('Failed to assign engineer', 'error');
+            }
+        }
+
+        // Auto-assign engineer
+        window.autoAssignEngineer = async function(breakdownId, depotId) {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/engineering/auto-assign`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        breakdown_id: breakdownId,
+                        depot_id: depotId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(
+                        `Auto-assigned ${data.assignment.engineer.name} from ${formatDepotName(data.assignment.from_depot)}`,
+                        'success'
+                    );
+                    await fetchAllData();
+                } else {
+                    showNotification(data.error || 'No available engineers', 'error');
+                }
+            } catch (error) {
+                console.error('Error auto-assigning:', error);
+                showNotification('Failed to auto-assign engineer', 'error');
+            }
+        }
+
+        // Update assignment status
+        window.updateAssignmentStatus = async function(assignmentId, newStatus) {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/engineering/assignment/${assignmentId}/status`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(`Status updated to ${formatStatus(newStatus)}`, 'success');
+                    await fetchAllData();
+                } else {
+                    showNotification('Failed to update status', 'error');
+                }
+            } catch (error) {
+                console.error('Error updating status:', error);
+                showNotification('Failed to update status', 'error');
+            }
+        }
+
+        // Update statistics
+        function updateStats() {
+            const total = allBreakdowns.length;
+            const unassigned = allBreakdowns.filter(b => !b.assignment).length;
+            const onsite = allBreakdowns.filter(b => 
+                b.assignment && (b.assignment.status === 'on_site' || b.assignment.status === 'repairing')
+            ).length;
+            const overdue = allBreakdowns.filter(b => b.timeStatus === 'overdue' || b.timeStatus === 'warning').length;
+            
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-unassigned').textContent = unassigned;
+            document.getElementById('stat-onsite').textContent = onsite;
+            document.getElementById('stat-sla-risk').textContent = overdue;
+            
+            // Update stat card colors based on values
+            const overdueCard = document.getElementById('stat-card-overdue');
+            overdueCard.className = `stat-card ${overdue > 3 ? 'critical' : overdue > 1 ? 'warning' : ''}`;
+            
+            const unassignedCard = document.getElementById('stat-card-unassigned');
+            unassignedCard.className = `stat-card ${unassigned > 5 ? 'critical' : unassigned > 2 ? 'warning' : ''}`;
+        }
+
+        // Update header stats
+        function updateHeaderStats() {
+            // Calculate average response time
+            const completedAssignments = allBreakdowns
+                .filter(b => b.assignment && b.assignment.travel_time_minutes)
+                .map(b => b.assignment.travel_time_minutes);
+            
+            const avgResponse = completedAssignments.length > 0
+                ? Math.round(completedAssignments.reduce((a, b) => a + b, 0) / completedAssignments.length)
+                : 0;
+            
+            // Calculate SLA compliance
+            const totalWithResponse = completedAssignments.length;
+            const slaMetCount = completedAssignments.filter(time => time <= 30).length;
+            const slaCompliance = totalWithResponse > 0
+                ? Math.round((slaMetCount / totalWithResponse) * 100)
+                : 100;
+            
+            // Count active engineers
+            const busyEngineers = allEngineers.filter(e => e.status === 'busy').length;
+            const totalEngineers = allEngineers.length;
+            
+            document.getElementById('avg-response').textContent = avgResponse ? `${avgResponse} mins` : '--';
+            document.getElementById('sla-compliance').textContent = `${slaCompliance}%`;
+            document.getElementById('engineers-active').textContent = `${busyEngineers}/${totalEngineers}`;
+        }
+
+        // Show notification
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = type === 'success' ? '✅ ' + message : '❌ ' + message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideDown 0.3s ease-out reverse';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Auto-refresh
+        function startAutoRefresh() {
+            refreshTimer = setInterval(() => {
+                fetchAllData();
+            }, REFRESH_INTERVAL);
+        }
+
+        // Stop refresh when page is hidden
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                clearInterval(refreshTimer);
+            } else {
+                startAutoRefresh();
+                fetchAllData();
+            }
+        });
+
+        // Initial load
+        console.log('Engineering Response Dashboard with Live Data initialized');
+    </script>
+</body>
+</html>

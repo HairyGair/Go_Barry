@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDC Operations Dashboard - Go North East</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3a8a 0%, #dc2626 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .dashboard {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        /* Header Styles */
+        .header {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 12px;
+            padding: 20px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(90deg, #1e3a8a, #dc2626);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-info {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .time {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .supervisor-count {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-trend {
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .trend-up {
+            color: #10b981;
+        }
+
+        .trend-down {
+            color: #ef4444;
+        }
+
+        /* Active Breakdowns Section */
+        .active-breakdowns {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1e3a8a;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid #e5e7eb;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn:hover {
+            background: #f3f4f6;
+        }
+
+        .filter-btn.active {
+            background: #1e3a8a;
+            color: white;
+            border-color: #1e3a8a;
+        }
+
+        /* Breakdown Cards */
+        .breakdown-grid {
+            display: grid;
+            gap: 15px;
+        }
+
+        .breakdown-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 4px solid #e5e7eb;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .breakdown-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateX(5px);
+        }
+
+        .breakdown-card.severity-stop {
+            border-left-color: #dc2626;
+        }
+
+        .breakdown-card.severity-amber {
+            border-left-color: #f59e0b;
+        }
+
+        .breakdown-card.severity-continue {
+            border-left-color: #10b981;
+        }
+
+        .breakdown-card.priority {
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+        }
+
+        .vehicle-info {
+            min-width: 150px;
+        }
+
+        .fleet-number {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1e3a8a;
+            margin-bottom: 5px;
+        }
+
+        .route-badge {
+            display: inline-block;
+            background: #e5e7eb;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .route-badge.priority {
+            background: #dc2626;
+            color: white;
+        }
+
+        .breakdown-details {
+            flex: 1;
+        }
+
+        .issue-type {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .location {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .supervisor-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .supervisor-badge {
+            background: #e5e7eb;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .timing-info {
+            text-align: right;
+            min-width: 150px;
+        }
+
+        .timer {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .timer.warning {
+            color: #f59e0b;
+        }
+
+        .timer.critical {
+            color: #dc2626;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-received {
+            background: #e5e7eb;
+            color: #333;
+        }
+
+        .status-acknowledged {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status-decision {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-dispatched {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-on-site {
+            background: #bfdbfe;
+            color: #1e40af;
+        }
+
+        .status-moving {
+            background: #a7f3d0;
+            color: #047857;
+        }
+
+        .status-cleared {
+            background: #10b981;
+            color: white;
+        }
+
+        /* Supervisor Activity Section */
+        .supervisor-activity {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .supervisor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .supervisor-card {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 15px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .supervisor-card.active {
+            border-color: #10b981;
+            background: #f0fdf4;
+        }
+
+        .supervisor-card.in-assessment {
+            border-color: #f59e0b;
+            background: #fef3c7;
+        }
+
+        .supervisor-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .supervisor-status {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .supervisor-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+        }
+
+        .supervisor-stats span {
+            color: #999;
+        }
+
+        .supervisor-stats strong {
+            color: #333;
+        }
+
+        /* Depot Performance */
+        .depot-performance {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .depot-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .depot-card {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .depot-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .depot-metrics {
+            display: grid;
+            gap: 8px;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+
+        .metric-label {
+            color: #666;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .metric-value.good {
+            color: #10b981;
+        }
+
+        .metric-value.warning {
+            color: #f59e0b;
+        }
+
+        .metric-value.poor {
+            color: #dc2626;
+        }
+
+        /* Alert Banner */
+        .alert-banner {
+            background: linear-gradient(135deg, #dc2626, #991b1b);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+            align-items: center;
+            gap: 15px;
+            animation: pulse 2s infinite;
+        }
+
+        .alert-banner.show {
+            display: flex;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.8; }
+            100% { opacity: 1; }
+        }
+
+        .alert-icon {
+            font-size: 24px;
+        }
+
+        .alert-text {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .alert-action {
+            background: white;
+            color: #dc2626;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.2s ease;
+        }
+
+        .alert-action:hover {
+            transform: scale(1.05);
+        }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #1e3a8a;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* No Data State */
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .no-data-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .status-info {
+                flex-direction: column;
+                gap: 10px;
+                width: 100%;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .breakdown-card {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .timing-info {
+                text-align: left;
+            }
+
+            .filter-buttons {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <h1>SDC Operations Dashboard</h1>
+                <span style="color: #666;">Go North East</span>
+            </div>
+            <div class="status-info">
+                <div class="time" id="currentTime">--:--:--</div>
+                <div class="supervisor-count">
+                    <span id="activeSupervisors">0</span> Active Supervisors
+                </div>
+                <button onclick="location.reload()" style="padding: 8px 16px; background: #1e3a8a; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                    Refresh
+                </button>
+            </div>
+        </div>
+
+        <!-- Alert Banner -->
+        <div class="alert-banner" id="alertBanner">
+            <span class="alert-icon">⚠️</span>
+            <span class="alert-text" id="alertText">Critical breakdown requiring immediate attention</span>
+            <a href="#" class="alert-action" id="alertAction">View Details</a>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="activeBreakdowns">0</div>
+                <div class="stat-label">Active Breakdowns</div>
+                <div class="stat-trend trend-up" id="breakdownTrend">↑ 0% vs last hour</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stopDecisions" style="color: #dc2626;">0</div>
+                <div class="stat-label">STOP Decisions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="amberDecisions" style="color: #f59e0b;">0</div>
+                <div class="stat-label">AMBER Decisions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="continueDecisions" style="color: #10b981;">0</div>
+                <div class="stat-label">CONTINUE Decisions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgResponseTime">--</div>
+                <div class="stat-label">Avg Response Time</div>
+                <div class="stat-trend" id="responseTrend">-- min</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="engineersDispatched">0</div>
+                <div class="stat-label">Engineers Dispatched</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="clearedToday">0</div>
+                <div class="stat-label">Cleared Today</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="priorityRoutes">0</div>
+                <div class="stat-label">Priority Routes</div>
+            </div>
+        </div>
+
+        <!-- Active Breakdowns Section -->
+        <div class="active-breakdowns">
+            <div class="section-header">
+                <h2 class="section-title">Active Breakdowns</h2>
+                <div class="filter-buttons">
+                    <button class="filter-btn active" onclick="filterBreakdowns('all')">All</button>
+                    <button class="filter-btn" onclick="filterBreakdowns('stop')">STOP</button>
+                    <button class="filter-btn" onclick="filterBreakdowns('amber')">AMBER</button>
+                    <button class="filter-btn" onclick="filterBreakdowns('continue')">CONTINUE</button>
+                    <button class="filter-btn" onclick="filterBreakdowns('priority')">Priority</button>
+                </div>
+            </div>
+            <div class="breakdown-grid" id="breakdownGrid">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Loading breakdown data...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Supervisor Activity Section -->
+        <div class="supervisor-activity">
+            <div class="section-header">
+                <h2 class="section-title">Supervisor Activity</h2>
+            </div>
+            <div class="supervisor-grid" id="supervisorGrid">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Loading supervisor data...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Depot Performance Section -->
+        <div class="depot-performance">
+            <div class="section-header">
+                <h2 class="section-title">Depot Performance</h2>
+            </div>
+            <div class="depot-grid" id="depotGrid">
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <p>Loading depot metrics...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const BACKEND_URL = 'https://breakdown-guide.onrender.com';
+        const REFRESH_INTERVAL = 5000; // 5 seconds
+        const PRIORITY_ROUTES = ['X10', 'X21', '307', '1'];
+        
+        // State
+        let currentFilter = 'all';
+        let breakdownData = [];
+        let supervisorData = {};
+        let depotMetrics = {};
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Initializing SDC Operations Dashboard...');
+            updateClock();
+            setInterval(updateClock, 1000);
+            
+            // Initial data load
+            loadDashboardData();
+            
+            // Set up auto-refresh
+            setInterval(loadDashboardData, REFRESH_INTERVAL);
+        });
+        
+        // Update clock
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-GB');
+        }
+        
+        // Load all dashboard data
+        async function loadDashboardData() {
+            try {
+                // Load breakdown data
+                await loadBreakdowns();
+                
+                // Load supervisor activity
+                await loadSupervisorActivity();
+                
+                // Load depot metrics
+                await loadDepotMetrics();
+                
+                // Update statistics
+                updateStatistics();
+                
+                // Check for critical alerts
+                checkAlerts();
+                
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+            }
+        }
+        
+        // Load active breakdowns
+        async function loadBreakdowns() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/breakdowns/live`, {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    breakdownData = data.data.breakdowns || [];
+                    renderBreakdowns();
+                } else {
+                    breakdownData = [];
+                    renderBreakdowns();
+                }
+            } catch (error) {
+                console.error('Error loading breakdowns:', error);
+                document.getElementById('breakdownGrid').innerHTML = `
+                    <div class="no-data">
+                        <div class="no-data-icon">⚠️</div>
+                        <p>Unable to load breakdown data</p>
+                        <p style="font-size: 12px; color: #999;">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Render breakdowns
+        function renderBreakdowns() {
+            const grid = document.getElementById('breakdownGrid');
+            
+            // Filter breakdowns
+            let filtered = breakdownData;
+            if (currentFilter !== 'all') {
+                if (currentFilter === 'priority') {
+                    filtered = breakdownData.filter(b => 
+                        PRIORITY_ROUTES.includes(b.route_id) || b.is_priority
+                    );
+                } else {
+                    filtered = breakdownData.filter(b => 
+                        b.severity?.toLowerCase() === currentFilter
+                    );
+                }
+            }
+            
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="no-data">
+                        <div class="no-data-icon">✓</div>
+                        <p>No ${currentFilter === 'all' ? '' : currentFilter} breakdowns active</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Sort by creation time (newest first)
+            filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+            
+            // Render breakdown cards
+            grid.innerHTML = filtered.map(breakdown => {
+                const isPriority = PRIORITY_ROUTES.includes(breakdown.route_id);
+                const severityClass = breakdown.severity ? `severity-${breakdown.severity.toLowerCase()}` : '';
+                const minutes = calculateMinutesSince(breakdown.created_at);
+                const timerClass = minutes > 30 ? 'critical' : minutes > 15 ? 'warning' : '';
+                
+                return `
+                    <div class="breakdown-card ${severityClass} ${isPriority ? 'priority' : ''}">
+                        <div class="vehicle-info">
+                            <div class="fleet-number">${breakdown.vehicle_id || 'Unknown'}</div>
+                            ${breakdown.route_id ? `
+                                <span class="route-badge ${isPriority ? 'priority' : ''}">
+                                    Route ${breakdown.route_id}
+                                </span>
+                            ` : ''}
+                        </div>
+                        <div class="breakdown-details">
+                            <div class="issue-type">${breakdown.wizard_type || breakdown.issue_type || 'General Assessment'}</div>
+                            <div class="location">📍 ${breakdown.location || 'Location pending...'}</div>
+                            <div class="supervisor-info">
+                                <span class="supervisor-badge">${breakdown.supervisor_badge || 'Unknown'}</span>
+                                <span>${breakdown.supervisor_name || ''}</span>
+                            </div>
+                        </div>
+                        <div class="timing-info">
+                            <div class="timer ${timerClass}">${minutes}m</div>
+                            <span class="status-badge status-${breakdown.status || 'received'}">
+                                ${breakdown.status || 'RECEIVED'}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Calculate minutes since timestamp
+        function calculateMinutesSince(timestamp) {
+            const now = new Date();
+            const then = new Date(timestamp);
+            return Math.floor((now - then) / 60000);
+        }
+        
+        // Load supervisor activity
+        async function loadSupervisorActivity() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/breakdown-analytics/supervisor-performance`, {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    supervisorData = data.data;
+                    renderSupervisors();
+                }
+            } catch (error) {
+                console.error('Error loading supervisor data:', error);
+                document.getElementById('supervisorGrid').innerHTML = `
+                    <div class="no-data">
+                        <div class="no-data-icon">👤</div>
+                        <p>Unable to load supervisor data</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Render supervisors
+        function renderSupervisors() {
+            const grid = document.getElementById('supervisorGrid');
+            const supervisors = [
+                { badge: 'AG003', name: 'Anthony Gair', depot: 'Washington' },
+                { badge: 'AW001', name: 'A. Wilson', depot: 'Percy Main' },
+                { badge: 'AC002', name: 'A. Campbell', depot: 'Consett' },
+                { badge: 'CF004', name: 'C. Foster', depot: 'Deptford' },
+                { badge: 'DH005', name: 'D. Harrison', depot: 'Hexham' },
+                { badge: 'JD006', name: 'J. Davies', depot: 'Riverside' },
+                { badge: 'JP007', name: 'J. Parker', depot: 'Washington' },
+                { badge: 'SG008', name: 'S. Graham', depot: 'Percy Main' },
+                { badge: 'BP009', name: 'B. Patel', depot: 'Consett' }
+            ];
+            
+            grid.innerHTML = supervisors.map(supervisor => {
+                // Check if supervisor has active breakdowns
+                const activeBreakdowns = breakdownData.filter(b => 
+                    b.supervisor_badge === supervisor.badge && 
+                    b.status !== 'cleared'
+                );
+                
+                const isActive = activeBreakdowns.length > 0;
+                const inAssessment = activeBreakdowns.some(b => b.status === 'decision');
+                
+                // Get supervisor stats from data
+                const stats = supervisorData[supervisor.badge] || {
+                    total_assessments: 0,
+                    avg_response_time: 0
+                };
+                
+                return `
+                    <div class="supervisor-card ${isActive ? 'active' : ''} ${inAssessment ? 'in-assessment' : ''}">
+                        <div class="supervisor-name">${supervisor.name}</div>
+                        <div class="supervisor-status">
+                            ${isActive ? `🟢 Active (${activeBreakdowns.length})` : '⚪ Available'}
+                        </div>
+                        <div class="supervisor-stats">
+                            <span>Today: <strong>${stats.total_assessments || 0}</strong></span>
+                            <span>Avg: <strong>${Math.round(stats.avg_response_time || 0)}m</strong></span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Load depot metrics
+        async function loadDepotMetrics() {
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/breakdown-analytics/depot-performance`, {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.data) {
+                    depotMetrics = data.data;
+                    renderDepots();
+                }
+            } catch (error) {
+                console.error('Error loading depot metrics:', error);
+                renderDefaultDepots();
+            }
+        }
+        
+        // Render depots
+        function renderDepots() {
+            const grid = document.getElementById('depotGrid');
+            const depots = ['Washington', 'Percy Main', 'Consett', 'Deptford', 'Hexham', 'Riverside'];
+            
+            grid.innerHTML = depots.map(depot => {
+                const metrics = depotMetrics[depot] || {};
+                const activeCount = breakdownData.filter(b => 
+                    b.depot_id === depot && b.status !== 'cleared'
+                ).length;
+                
+                const avgResponse = metrics.avg_response_time || 0;
+                const responseClass = avgResponse <= 5 ? 'good' : avgResponse <= 10 ? 'warning' : 'poor';
+                
+                return `
+                    <div class="depot-card">
+                        <div class="depot-name">${depot}</div>
+                        <div class="depot-metrics">
+                            <div class="metric-row">
+                                <span class="metric-label">Active:</span>
+                                <span class="metric-value">${activeCount}</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Today:</span>
+                                <span class="metric-value">${metrics.total_breakdowns || 0}</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Avg Response:</span>
+                                <span class="metric-value ${responseClass}">${Math.round(avgResponse)}m</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Cleared:</span>
+                                <span class="metric-value good">${metrics.cleared_count || 0}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Render default depots when no data
+        function renderDefaultDepots() {
+            const grid = document.getElementById('depotGrid');
+            const depots = ['Washington', 'Percy Main', 'Consett', 'Deptford', 'Hexham', 'Riverside'];
+            
+            grid.innerHTML = depots.map(depot => {
+                const activeCount = breakdownData.filter(b => 
+                    b.depot_id === depot && b.status !== 'cleared'
+                ).length;
+                
+                return `
+                    <div class="depot-card">
+                        <div class="depot-name">${depot}</div>
+                        <div class="depot-metrics">
+                            <div class="metric-row">
+                                <span class="metric-label">Active:</span>
+                                <span class="metric-value">${activeCount}</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Today:</span>
+                                <span class="metric-value">--</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Avg Response:</span>
+                                <span class="metric-value">--</span>
+                            </div>
+                            <div class="metric-row">
+                                <span class="metric-label">Cleared:</span>
+                                <span class="metric-value">--</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Update statistics
+        function updateStatistics() {
+            // Active breakdowns
+            const activeCount = breakdownData.filter(b => b.status !== 'cleared').length;
+            document.getElementById('activeBreakdowns').textContent = activeCount;
+            
+            // Severity counts
+            const stopCount = breakdownData.filter(b => 
+                b.severity === 'STOP' && b.status !== 'cleared'
+            ).length;
+            const amberCount = breakdownData.filter(b => 
+                b.severity === 'AMBER' && b.status !== 'cleared'
+            ).length;
+            const continueCount = breakdownData.filter(b => 
+                b.severity === 'CONTINUE' && b.status !== 'cleared'
+            ).length;
+            
+            document.getElementById('stopDecisions').textContent = stopCount;
+            document.getElementById('amberDecisions').textContent = amberCount;
+            document.getElementById('continueDecisions').textContent = continueCount;
+            
+            // Engineers dispatched
+            const dispatchedCount = breakdownData.filter(b => 
+                ['dispatched', 'on_site', 'moving'].includes(b.status)
+            ).length;
+            document.getElementById('engineersDispatched').textContent = dispatchedCount;
+            
+            // Cleared today
+            const today = new Date().toISOString().split('T')[0];
+            const clearedToday = breakdownData.filter(b => 
+                b.status === 'cleared' && 
+                b.closed_at && 
+                b.closed_at.startsWith(today)
+            ).length;
+            document.getElementById('clearedToday').textContent = clearedToday;
+            
+            // Priority routes
+            const priorityCount = breakdownData.filter(b => 
+                PRIORITY_ROUTES.includes(b.route_id) && 
+                b.status !== 'cleared'
+            ).length;
+            document.getElementById('priorityRoutes').textContent = priorityCount;
+            
+            // Average response time
+            if (breakdownData.length > 0) {
+                const responseTimes = breakdownData
+                    .filter(b => b.created_at)
+                    .map(b => calculateMinutesSince(b.created_at));
+                const avgTime = responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length;
+                document.getElementById('avgResponseTime').textContent = `${Math.round(avgTime)}m`;
+            } else {
+                document.getElementById('avgResponseTime').textContent = '--';
+            }
+            
+            // Active supervisors
+            const activeSupervisors = new Set(
+                breakdownData
+                    .filter(b => b.status !== 'cleared')
+                    .map(b => b.supervisor_badge)
+            ).size;
+            document.getElementById('activeSupervisors').textContent = activeSupervisors;
+        }
+        
+        // Check for critical alerts
+        function checkAlerts() {
+            const criticalBreakdowns = breakdownData.filter(b => {
+                if (b.status === 'cleared') return false;
+                
+                // Check for STOP decisions
+                if (b.severity === 'STOP') return true;
+                
+                // Check for delayed responses (>30 minutes)
+                const minutes = calculateMinutesSince(b.created_at);
+                if (minutes > 30 && b.status === 'received') return true;
+                
+                // Check for priority routes
+                if (PRIORITY_ROUTES.includes(b.route_id) && minutes > 15) return true;
+                
+                return false;
+            });
+            
+            const alertBanner = document.getElementById('alertBanner');
+            const alertText = document.getElementById('alertText');
+            
+            if (criticalBreakdowns.length > 0) {
+                const critical = criticalBreakdowns[0];
+                let message = '';
+                
+                if (critical.severity === 'STOP') {
+                    message = `STOP decision on Fleet ${critical.vehicle_id} - Immediate action required`;
+                } else if (PRIORITY_ROUTES.includes(critical.route_id)) {
+                    message = `Priority Route ${critical.route_id} breakdown - Fleet ${critical.vehicle_id}`;
+                } else {
+                    message = `Fleet ${critical.vehicle_id} awaiting response for ${calculateMinutesSince(critical.created_at)} minutes`;
+                }
+                
+                alertText.textContent = message;
+                alertBanner.classList.add('show');
+            } else {
+                alertBanner.classList.remove('show');
+            }
+        }
+        
+        // Filter breakdowns
+        function filterBreakdowns(filter) {
+            currentFilter = filter;
+            
+            // Update button states
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Re-render breakdowns
+            renderBreakdowns();
+        }
+        
+        // Handle errors gracefully
+        window.addEventListener('error', (event) => {
+            console.error('Dashboard error:', event.error);
+        });
+        
+        // Handle offline/online status
+        window.addEventListener('online', () => {
+            console.log('Connection restored, refreshing data...');
+            loadDashboardData();
+        });
+        
+        window.addEventListener('offline', () => {
+            console.log('Connection lost, running in offline mode');
+        });
+    </script>
+</body>
+</html>

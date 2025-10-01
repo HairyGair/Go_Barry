@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>System Integration Demo - Go North East Breakdown Guide</title>
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#1e40af">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e40af 50%, #0f172a 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        
+        input, select, textarea {
+            font-size: 16px !important;
+        }
+        
+        .integration-pulse {
+            animation: integration-pulse 3s infinite;
+        }
+        
+        @keyframes integration-pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.02); }
+        }
+        
+        .integration-flow {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .integration-flow::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), transparent);
+            animation: flow 3s infinite;
+        }
+        
+        @keyframes flow {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        .system-status {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .system-status.connected {
+            background-color: #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+            animation: pulse 2s infinite;
+        }
+        
+        .system-status.warning {
+            background-color: #f59e0b;
+            animation: pulse 2s infinite;
+        }
+        
+        .system-status.error {
+            background-color: #ef4444;
+            animation: pulse 1s infinite;
+        }
+        
+        .system-status.offline {
+            background-color: #6b7280;
+        }
+        
+        .metric-card {
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div id="integration-demo-app"></div>
+
+    <!-- Include all integration components -->
+    <script src="./components/PWAManager.js"></script>
+    <script src="./components/common/MobileEnhancements.js"></script>
+    <script src="./components/RealTimeManager.js"></script>
+    <script src="./components/TracerItIntegration.js"></script>
+    <script src="./components/PassengerCloudIntegration.js"></script>
+    <script src="./components/AdvancedAnalyticsIntegration.js"></script>
+    <script src="./components/PerformanceMonitoringSystem.js"></script>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Main Integration Demo Application
+        const SystemIntegrationDemo = () => {
+            const [currentView, setCurrentView] = useState('overview');
+            const [systemStatuses, setSystemStatuses] = useState({});
+            const [analyticsData, setAnalyticsData] = useState({});
+            const [performanceData, setPerformanceData] = useState({});
+            const [activeBreakdowns, setActiveBreakdowns] = useState([]);
+            const [recentEvents, setRecentEvents] = useState([]);
+
+            // Monitor all system statuses
+            useEffect(() => {
+                const updateSystemStatuses = () => {
+                    const statuses = {
+                        realtime: window.RealTime?.isConnected() ? 'connected' : 'offline',
+                        tracerit: window.TracerIt?.isConnected() ? 'connected' : 'warning',
+                        passengercloud: window.PassengerCloud?.isConnected() ? 'connected' : 'warning',
+                        analytics: window.Analytics?.isConnected() ? 'connected' : 'warning',
+                        performance: window.PerformanceMonitoring ? 'connected' : 'offline'
+                    };
+                    setSystemStatuses(statuses);
+                };
+
+                // Update immediately and then every 5 seconds
+                updateSystemStatuses();
+                const interval = setInterval(updateSystemStatuses, 5000);
+
+                // Listen for analytics updates
+                if (window.Analytics) {
+                    const handleAnalyticsUpdate = (data) => {
+                        setAnalyticsData(data);
+                    };
+                    window.Analytics.subscribe('realtime_metrics', handleAnalyticsUpdate);
+                }
+
+                // Listen for performance updates
+                if (window.PerformanceMonitoring) {
+                    const handlePerformanceUpdate = (data) => {
+                        setPerformanceData(data);
+                    };
+                    window.PerformanceMonitoring.subscribe('performance_report', handlePerformanceUpdate);
+                }
+
+                // Listen for various integration events
+                const handleBreakdownEvent = (event) => {
+                    addRecentEvent('breakdown', event.detail);
+                };
+
+                const handleWorkOrderEvent = (event) => {
+                    addRecentEvent('workorder', event.detail);
+                };
+
+                const handlePassengerEvent = (event) => {
+                    addRecentEvent('passenger', event.detail);
+                };
+
+                window.addEventListener('breakdown-assessment-complete', handleBreakdownEvent);
+                window.addEventListener('tracerit-workorder-created', handleWorkOrderEvent);
+                window.addEventListener('passenger-cloud-update', handlePassengerEvent);
+
+                return () => {
+                    clearInterval(interval);
+                    window.removeEventListener('breakdown-assessment-complete', handleBreakdownEvent);
+                    window.removeEventListener('tracerit-workorder-created', handleWorkOrderEvent);
+                    window.removeEventListener('passenger-cloud-update', handlePassengerEvent);
+                };
+            }, []);
+
+            const addRecentEvent = (type, data) => {
+                const event = {
+                    id: Date.now(),
+                    type,
+                    data,
+                    timestamp: Date.now()
+                };
+                
+                setRecentEvents(prev => [event, ...prev.slice(0, 9)]); // Keep last 10 events
+            };
+
+            const simulateFullBreakdownFlow = async () => {
+                console.log('🚀 Starting full breakdown flow simulation...');
+                
+                // 1. Simulate breakdown assessment
+                const breakdownData = {
+                    breakdown_id: `BD-2025-${String(Date.now()).slice(-5)}`,
+                    vehicle_id: `${6000 + Math.floor(Math.random() * 400)}`,
+                    route_id: ['X21', 'X10', '1', '307'][Math.floor(Math.random() * 4)],
+                    decision: ['STOP', 'AMBER'][Math.floor(Math.random() * 2)],
+                    location: ['Newcastle Central', 'Team Valley', 'Gateshead', 'Durham'][Math.floor(Math.random() * 4)],
+                    assessment_type: 'steering_system',
+                    supervisor_id: 'AG003',
+                    issue_description: 'Steering wheel pulling to the left, driver reports difficulty maintaining straight line',
+                    assessment_duration: 180 + Math.random() * 120, // 180-300 seconds
+                    escalation_triggered: Math.random() > 0.8,
+                    real_time_features: {
+                        collaboration_used: true,
+                        conflicts_resolved: Math.floor(Math.random() * 2)
+                    }
+                };
+
+                // Trigger breakdown assessment
+                window.dispatchEvent(new CustomEvent('breakdown-assessment-complete', {
+                    detail: breakdownData
+                }));
+
+                await delay(2000);
+
+                // 2. Simulate TracerIt work order creation
+                if (breakdownData.decision !== 'CONTINUE') {
+                    const workOrderData = {
+                        breakdownId: breakdownData.breakdown_id,
+                        jobNumber: `JOB-${Date.now()}`,
+                        priority: breakdownData.decision === 'STOP' ? 'Critical' : 'High',
+                        category: 'STEERING_SYSTEM',
+                        timeToCreate: 45 + Math.random() * 30 // 45-75 seconds
+                    };
+
+                    window.dispatchEvent(new CustomEvent('tracerit-workorder-created', {
+                        detail: workOrderData
+                    }));
+                }
+
+                await delay(1500);
+
+                // 3. Simulate Passenger Cloud disruption
+                if (breakdownData.decision === 'STOP') {
+                    const passengerData = {
+                        disruptionId: `DIS-${Date.now()}`,
+                        breakdownId: breakdownData.breakdown_id,
+                        severity: 'High',
+                        affectedRoutes: [breakdownData.route_id],
+                        estimatedPassengers: 80 + Math.random() * 40,
+                        alternativesProvided: 2,
+                        notificationsSent: 3
+                    };
+
+                    window.dispatchEvent(new CustomEvent('passenger-cloud-update', {
+                        detail: passengerData
+                    }));
+                }
+
+                await delay(1000);
+
+                // 4. Show completion notification
+                if (window.PushNotificationManager) {
+                    window.PushNotificationManager.showInAppNotification(
+                        `Full breakdown flow completed for ${breakdownData.vehicle_id}`,
+                        'success'
+                    );
+                }
+
+                setActiveBreakdowns(prev => [breakdownData, ...prev.slice(0, 4)]);
+            };
+
+            const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+            const getStatusIcon = (status) => {
+                switch (status) {
+                    case 'connected': return '🟢';
+                    case 'warning': return '🟡';
+                    case 'error': return '🔴';
+                    case 'offline': return '⚪';
+                    default: return '❓';
+                }
+            };
+
+            const getStatusText = (status) => {
+                switch (status) {
+                    case 'connected': return 'Connected';
+                    case 'warning': return 'Warning';
+                    case 'error': return 'Error';
+                    case 'offline': return 'Offline';
+                    default: return 'Unknown';
+                }
+            };
+
+            const formatTimeAgo = (timestamp) => {
+                const seconds = Math.floor((Date.now() - timestamp) / 1000);
+                if (seconds < 60) return `${seconds}s ago`;
+                const minutes = Math.floor(seconds / 60);
+                if (minutes < 60) return `${minutes}m ago`;
+                const hours = Math.floor(minutes / 60);
+                return `${hours}h ago`;
+            };
+
+            if (currentView === 'analytics') {
+                return (
+                    <div className="min-h-screen px-4 py-6">
+                        <div className="max-w-2xl mx-auto">
+                            <div className="flex items-center justify-between mb-6">
+                                <h1 className="text-2xl font-bold text-white">📊 Analytics Dashboard</h1>
+                                <button 
+                                    onClick={() => setCurrentView('overview')}
+                                    className="px-3 py-1 bg-gray-600 rounded text-white text-sm"
+                                >
+                                    Back
+                                </button>
+                            </div>
+                            
+                            {React.createElement(window.AnalyticsDashboard)}
+                        </div>
+                    </div>
+                );
+            }
+
+            if (currentView === 'performance') {
+                return (
+                    <div className="min-h-screen px-4 py-6">
+                        <div className="max-w-2xl mx-auto">
+                            <div className="flex items-center justify-between mb-6">
+                                <h1 className="text-2xl font-bold text-white">📈 Performance Monitor</h1>
+                                <button 
+                                    onClick={() => setCurrentView('overview')}
+                                    className="px-3 py-1 bg-gray-600 rounded text-white text-sm"
+                                >
+                                    Back
+                                </button>
+                            </div>
+                            
+                            {React.createElement(window.PerformanceStatus)}
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen px-4 py-6">
+                    {/* Header */}
+                    <div className="text-center mb-8">
+                        <h1 className="text-3xl font-bold text-white mb-2">
+                            🔗 System Integration Demo
+                        </h1>
+                        <p className="text-gray-300 mb-4">
+                            Phase 2 Priority 5: Complete System Integration
+                        </p>
+
+                        {/* System Status Overview */}
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-6">
+                            {Object.entries({
+                                'Real-time': 'realtime',
+                                'TracerIt': 'tracerit', 
+                                'Passenger Cloud': 'passengercloud',
+                                'Analytics': 'analytics',
+                                'Performance': 'performance'
+                            }).map(([name, key]) => (
+                                <div key={key} className={`p-2 rounded-lg border metric-card ${
+                                    systemStatuses[key] === 'connected' ? 'bg-green-500/20 border-green-400/30' :
+                                    systemStatuses[key] === 'warning' ? 'bg-yellow-500/20 border-yellow-400/30' :
+                                    systemStatuses[key] === 'error' ? 'bg-red-500/20 border-red-400/30' :
+                                    'bg-gray-500/20 border-gray-400/30'
+                                }`}>
+                                    <div className="flex items-center justify-center space-x-1">
+                                        <span className="text-xs">{getStatusIcon(systemStatuses[key])}</span>
+                                        <span className="text-xs font-medium text-white truncate">{name}</span>
+                                    </div>
+                                    <div className="text-xs text-center text-gray-300 mt-1">
+                                        {getStatusText(systemStatuses[key])}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Integration Flow Demonstration */}
+                    <div className="space-y-6 mb-8">
+                        <h2 className="text-xl font-semibold text-white text-center">
+                            🔄 Complete Integration Flow
+                        </h2>
+                        
+                        <div className="p-6 bg-gray-800/40 rounded-lg border border-gray-600/30 integration-flow">
+                            <div className="text-center mb-4">
+                                <button
+                                    onClick={simulateFullBreakdownFlow}
+                                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-semibold transition-all integration-pulse"
+                                >
+                                    🚀 Simulate Complete Breakdown Flow
+                                </button>
+                            </div>
+                            
+                            <div className="text-sm text-gray-300 text-center space-y-1">
+                                <p>Demonstrates end-to-end integration:</p>
+                                <p>📱 Breakdown Assessment → 🔧 TracerIt Work Order → 🚌 Passenger Notifications → 📊 Analytics → 📈 Performance Tracking</p>
+                            </div>
+                        </div>
+
+                        {/* Integration Steps Visualization */}
+                        <div className="grid gap-4">
+                            {[
+                                { 
+                                    step: 1, 
+                                    title: 'Breakdown Assessment', 
+                                    description: 'Real-time collaborative assessment with mobile UI',
+                                    icon: '📱',
+                                    system: 'Mobile Guide + Real-time'
+                                },
+                                { 
+                                    step: 2, 
+                                    title: 'Work Order Creation', 
+                                    description: 'Automatic TracerIt job creation and engineer dispatch',
+                                    icon: '🔧',
+                                    system: 'TracerIt Integration'
+                                },
+                                { 
+                                    step: 3, 
+                                    title: 'Passenger Notifications', 
+                                    description: 'Service disruption alerts and alternative options',
+                                    icon: '🚌',
+                                    system: 'Passenger Cloud'
+                                },
+                                { 
+                                    step: 4, 
+                                    title: 'Analytics Processing', 
+                                    description: 'Real-time metrics and business intelligence',
+                                    icon: '📊',
+                                    system: 'Advanced Analytics'
+                                },
+                                { 
+                                    step: 5, 
+                                    title: 'Performance Monitoring', 
+                                    description: 'System health and optimization tracking',
+                                    icon: '📈',
+                                    system: 'Performance Monitor'
+                                }
+                            ].map(item => (
+                                <div key={item.step} className="flex items-center space-x-4 p-4 bg-gray-800/40 rounded-lg border border-gray-600/30 metric-card">
+                                    <div className="flex-shrink-0 w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
+                                        {item.step}
+                                    </div>
+                                    <div className="flex-shrink-0 text-2xl">
+                                        {item.icon}
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="font-semibold text-white">{item.title}</div>
+                                        <div className="text-sm text-gray-300">{item.description}</div>
+                                        <div className="text-xs text-blue-300 mt-1">{item.system}</div>
+                                    </div>
+                                    <div className={`system-status ${systemStatuses[
+                                        item.system.toLowerCase().includes('real') ? 'realtime' :
+                                        item.system.toLowerCase().includes('tracer') ? 'tracerit' :
+                                        item.system.toLowerCase().includes('passenger') ? 'passengercloud' :
+                                        item.system.toLowerCase().includes('analytics') ? 'analytics' :
+                                        'performance'
+                                    ]}`}></div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Quick Access Dashboards */}
+                    <div className="space-y-4 mb-8">
+                        <h2 className="text-xl font-semibold text-white text-center">
+                            📊 System Dashboards
+                        </h2>
+                        
+                        <div className="grid gap-3">
+                            {React.createElement(window.MobileUI.MobileTouchButton, {
+                                onClick: () => setCurrentView('analytics'),
+                                variant: 'default',
+                                icon: React.createElement('span', { className: 'text-xl' }, '📊')
+                            }, React.createElement('div', null, [
+                                React.createElement('div', { 
+                                    key: 'title',
+                                    className: 'font-semibold text-lg' 
+                                }, '📊 Analytics Dashboard'),
+                                React.createElement('div', { 
+                                    key: 'desc',
+                                    className: 'text-sm opacity-80 mt-1' 
+                                }, 'Real-time metrics, KPIs, and business intelligence')
+                            ]))}
+
+                            {React.createElement(window.MobileUI.MobileTouchButton, {
+                                onClick: () => setCurrentView('performance'),
+                                variant: 'default',
+                                icon: React.createElement('span', { className: 'text-xl' }, '📈')
+                            }, React.createElement('div', null, [
+                                React.createElement('div', { 
+                                    key: 'title',
+                                    className: 'font-semibold text-lg' 
+                                }, '📈 Performance Monitor'),
+                                React.createElement('div', { 
+                                    key: 'desc',
+                                    className: 'text-sm opacity-80 mt-1' 
+                                }, 'System health, alerts, and optimization metrics')
+                            ]))}
+                        </div>
+                    </div>
+
+                    {/* Recent Integration Events */}
+                    {recentEvents.length > 0 && (
+                        <div className="space-y-4 mb-8">
+                            <h3 className="text-lg font-semibold text-white">🔄 Recent Integration Events</h3>
+                            
+                            <div className="space-y-2">
+                                {recentEvents.slice(0, 5).map(event => (
+                                    <div key={event.id} className="p-3 bg-gray-800/40 rounded-lg border border-gray-600/30">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center space-x-3">
+                                                <span className="text-lg">
+                                                    {event.type === 'breakdown' ? '📱' :
+                                                     event.type === 'workorder' ? '🔧' :
+                                                     event.type === 'passenger' ? '🚌' : '📊'}
+                                                </span>
+                                                <div>
+                                                    <div className="text-sm font-medium text-white">
+                                                        {event.type === 'breakdown' ? `Breakdown ${event.data.breakdown_id}` :
+                                                         event.type === 'workorder' ? `Work Order ${event.data.jobNumber}` :
+                                                         event.type === 'passenger' ? `Disruption ${event.data.disruptionId}` :
+                                                         'System Event'}
+                                                    </div>
+                                                    <div className="text-xs text-gray-300">
+                                                        {event.type === 'breakdown' ? `${event.data.vehicle_id} - ${event.data.decision}` :
+                                                         event.type === 'workorder' ? `Priority: ${event.data.priority}` :
+                                                         event.type === 'passenger' ? `Severity: ${event.data.severity}` :
+                                                         'Analytics update'}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="text-xs text-gray-400">
+                                                {formatTimeAgo(event.timestamp)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Active Breakdown Simulations */}
+                    {activeBreakdowns.length > 0 && (
+                        <div className="space-y-4 mb-8">
+                            <h3 className="text-lg font-semibold text-white">🚨 Active Breakdown Simulations</h3>
+                            
+                            <div className="space-y-2">
+                                {activeBreakdowns.map(breakdown => (
+                                    <div key={breakdown.breakdown_id} className="p-3 bg-red-500/10 border border-red-400/30 rounded-lg">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <div className="text-sm font-medium text-white">
+                                                    {breakdown.breakdown_id} - {breakdown.vehicle_id}
+                                                </div>
+                                                <div className="text-xs text-red-300">
+                                                    {breakdown.route_id} • {breakdown.location} • {breakdown.decision}
+                                                </div>
+                                                <div className="text-xs text-gray-400 mt-1">
+                                                    Assessment: {Math.round(breakdown.assessment_duration)}s
+                                                    {breakdown.escalation_triggered && ' • Escalated'}
+                                                    {breakdown.real_time_features.collaboration_used && ' • Collaborative'}
+                                                </div>
+                                            </div>
+                                            <div className="text-xs text-gray-400">
+                                                Simulated
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Integration Features Summary */}
+                    <div className="space-y-6">
+                        <h2 className="text-xl font-semibold text-white text-center">
+                            🔗 Integration Features
+                        </h2>
+                        
+                        <div className="grid gap-4">
+                            {React.createElement(window.MobileUI.MobileAlertCard, {
+                                type: 'success',
+                                title: '🔧 TracerIt Integration',
+                                icon: React.createElement('span', { className: 'text-xl' }, '🔧')
+                            }, React.createElement('ul', { className: 'space-y-1 text-sm' }, [
+                                React.createElement('li', { key: '1' }, '• Automatic work order creation from assessments'),
+                                React.createElement('li', { key: '2' }, '• Real-time job status tracking and updates'),
+                                React.createElement('li', { key: '3' }, '• Parts availability checking and ordering'),
+                                React.createElement('li', { key: '4' }, '• Engineer dispatch coordination')
+                            ]))}
+
+                            {React.createElement(window.MobileUI.MobileAlertCard, {
+                                type: 'info',
+                                title: '🚌 Enhanced Passenger Cloud',
+                                icon: React.createElement('span', { className: 'text-xl' }, '🚌')
+                            }, React.createElement('ul', { className: 'space-y-1 text-sm' }, [
+                                React.createElement('li', { key: '1' }, '• Automatic service disruption notifications'),
+                                React.createElement('li', { key: '2' }, '• Real-time passenger impact assessment'),
+                                React.createElement('li', { key: '3' }, '• Alternative route suggestions'),
+                                React.createElement('li', { key: '4' }, '• Service adjustment recommendations')
+                            ]))}
+
+                            {React.createElement(window.MobileUI.MobileAlertCard, {
+                                type: 'warning',
+                                title: '📊 Advanced Analytics',
+                                icon: React.createElement('span', { className: 'text-xl' }, '📊')
+                            }, React.createElement('ul', { className: 'space-y-1 text-sm' }, [
+                                React.createElement('li', { key: '1' }, '• Real-time breakdown analytics and insights'),
+                                React.createElement('li', { key: '2' }, '• Performance metrics and KPI tracking'),
+                                React.createElement('li', { key: '3' }, '• Predictive maintenance recommendations'),
+                                React.createElement('li', { key: '4' }, '• Executive dashboard data aggregation')
+                            ]))}
+
+                            {React.createElement(window.MobileUI.MobileAlertCard, {
+                                type: 'success',
+                                title: '📈 Performance Monitoring',
+                                icon: React.createElement('span', { className: 'text-xl' }, '📈')
+                            }, React.createElement('ul', { className: 'space-y-1 text-sm' }, [
+                                React.createElement('li', { key: '1' }, '• Real-time system health monitoring'),
+                                React.createElement('li', { key: '2' }, '• Performance threshold alerting'),
+                                React.createElement('li', { key: '3' }, '• Resource usage optimization'),
+                                React.createElement('li', { key: '4' }, '• User experience tracking')
+                            ]))}
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="mt-12 text-center text-gray-400 text-sm">
+                        <p>Go North East - Phase 2 Complete System Integration</p>
+                        <p className="mt-1">TracerIt • Passenger Cloud • Analytics • Performance Monitoring</p>
+                    </div>
+                </div>
+            );
+        };
+
+        // Initialize and render
+        const container = document.getElementById('integration-demo-app');
+        const root = ReactDOM.createRoot(container);
+        root.render(React.createElement(SystemIntegrationDemo));
+    </script>
+</body>
+</html>

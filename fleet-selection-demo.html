@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fleet Selection Modal Demo</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { 
+            margin: 0; 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <!-- Load Fleet Database Service -->
+    <script src="./breakdown-guide-standalone/frontend/breakdown-guide/services/fleetDatabase.js"></script>
+    
+    <!-- Load Fleet Selection Modal -->
+    <script src="./breakdown-guide-standalone/frontend/breakdown-guide/components/FleetSelectionModal.js"></script>
+    
+    <!-- Load Initialization Script -->
+    <script src="./breakdown-guide-standalone/frontend/breakdown-guide/scripts/fleetDatabaseInit.js"></script>
+    
+    <script>
+        const { useState, useEffect } = React;
+        
+        function FleetSelectionDemo() {
+            const [modalVisible, setModalVisible] = useState(false);
+            const [selectedVehicle, setSelectedVehicle] = useState(null);
+            const [systemStatus, setSystemStatus] = useState('initializing');
+            const [statusMessage, setStatusMessage] = useState('Initializing fleet database...');
+            
+            useEffect(() => {
+                // Monitor fleet system initialization
+                window.fleetSystemReady
+                    .then((result) => {
+                        console.log('✅ Fleet system ready:', result);
+                        setSystemStatus('ready');
+                        setStatusMessage(`Fleet database ready: ${result.vehicleCount} vehicles loaded`);
+                    })
+                    .catch(error => {
+                        console.error('❌ Fleet system failed:', error);
+                        setSystemStatus('error');
+                        setStatusMessage(`Fleet system error: ${error.message}`);
+                    });
+            }, []);
+            
+            function handleVehicleSelected(vehicle) {
+                console.log('🚌 Vehicle selected:', vehicle);
+                setSelectedVehicle(vehicle);
+                setModalVisible(false);
+                
+                // Show success message
+                alert(`Vehicle Selected!\nFleet: ${vehicle.fleetNumber}\nReg: ${vehicle.registration}\nDepot: ${vehicle.depot}\nType: ${vehicle.vehicleType || vehicle.busType}`);
+            }
+            
+            function getStatusColor() {
+                switch(systemStatus) {
+                    case 'ready': return 'text-green-600';
+                    case 'error': return 'text-red-600';
+                    default: return 'text-yellow-600';
+                }
+            }
+            
+            function getStatusIcon() {
+                switch(systemStatus) {
+                    case 'ready': return '✅';
+                    case 'error': return '❌';
+                    default: return '⏳';
+                }
+            }
+            
+            return React.createElement('div', {
+                className: 'min-h-screen flex items-center justify-center p-6'
+            }, [
+                React.createElement('div', {
+                    key: 'card',
+                    className: 'bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full'
+                }, [
+                    React.createElement('div', {
+                        key: 'header',
+                        className: 'text-center mb-8'
+                    }, [
+                        React.createElement('h1', {
+                            key: 'title',
+                            className: 'text-3xl font-bold text-gray-800 mb-2'
+                        }, '🚌 Fleet Selection Demo'),
+                        React.createElement('p', {
+                            key: 'subtitle',
+                            className: 'text-gray-600'
+                        }, 'Test the vehicle search and selection functionality')
+                    ]),
+                    
+                    React.createElement('div', {
+                        key: 'status',
+                        className: 'mb-8 p-4 bg-gray-50 rounded-lg'
+                    }, [
+                        React.createElement('div', {
+                            key: 'status-header',
+                            className: 'flex items-center justify-between mb-2'
+                        }, [
+                            React.createElement('span', {
+                                key: 'status-label',
+                                className: 'font-medium text-gray-700'
+                            }, 'System Status'),
+                            React.createElement('span', {
+                                key: 'status-icon',
+                                className: getStatusColor()
+                            }, getStatusIcon())
+                        ]),
+                        React.createElement('p', {
+                            key: 'status-message',
+                            className: `text-sm ${getStatusColor()}`
+                        }, statusMessage)
+                    ]),
+                    
+                    selectedVehicle && React.createElement('div', {
+                        key: 'selected',
+                        className: 'mb-6 p-4 bg-green-50 border-2 border-green-200 rounded-lg'
+                    }, [
+                        React.createElement('h3', {
+                            key: 'selected-title',
+                            className: 'font-semibold text-green-800 mb-2'
+                        }, '✅ Last Selected Vehicle'),
+                        React.createElement('div', {
+                            key: 'selected-details',
+                            className: 'text-sm text-green-700 space-y-1'
+                        }, [
+                            React.createElement('div', { key: 'fleet' }, `Fleet: ${selectedVehicle.fleetNumber}`),
+                            React.createElement('div', { key: 'reg' }, `Registration: ${selectedVehicle.registration}`),
+                            React.createElement('div', { key: 'depot' }, `Depot: ${selectedVehicle.depot}`),
+                            React.createElement('div', { key: 'type' }, `Type: ${selectedVehicle.busType || 'Unknown'}`)
+                        ])
+                    ]),
+                    
+                    React.createElement('div', {
+                        key: 'actions',
+                        className: 'space-y-4'
+                    }, [
+                        React.createElement('button', {
+                            key: 'open-modal',
+                            onClick: () => setModalVisible(true),
+                            disabled: systemStatus !== 'ready',
+                            className: `w-full py-3 px-4 rounded-lg font-medium transition-colors ${
+                                systemStatus === 'ready' 
+                                    ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            }`
+                        }, systemStatus === 'ready' ? '🔍 Open Fleet Selection' : '⏳ System Loading...'),
+                        
+                        React.createElement('div', {
+                            key: 'instructions',
+                            className: 'text-xs text-gray-500 text-center'
+                        }, 'Try searching for fleet numbers like: 540, 630, 5401, 6301')
+                    ]),
+                    
+                    React.createElement('div', {
+                        key: 'footer',
+                        className: 'mt-8 pt-6 border-t border-gray-200 text-center'
+                    }, React.createElement('p', {
+                        className: 'text-xs text-gray-500'
+                    }, 'This demo tests the vehicle location system fix'))
+                ]),
+                
+                // Render the modal
+                modalVisible && window.FleetSelectionModal && React.createElement(window.FleetSelectionModal, {
+                    key: 'modal',
+                    isVisible: true,
+                    onClose: () => setModalVisible(false),
+                    onVehicleSelected: handleVehicleSelected,
+                    wizardType: 'vehicle_selection_demo'
+                })
+            ]);
+        }
+        
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎯 Fleet Selection Demo Loading...');
+            const root = ReactDOM.createRoot(document.getElementById('root'));
+            root.render(React.createElement(FleetSelectionDemo));
+        });
+    </script>
+</body>
+</html>
