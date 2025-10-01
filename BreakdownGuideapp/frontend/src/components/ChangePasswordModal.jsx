@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { apiConfig } from '../breakdown-guide/components/common/constants';
+import { supabase } from '../services/supabase-client';
 import './ChangePasswordModal.css';
 
 const ChangePasswordModal = ({ isOpen, onClose, userEmail }) => {
@@ -42,10 +43,18 @@ const ChangePasswordModal = ({ isOpen, onClose, userEmail }) => {
     setIsLoading(true);
 
     try {
+      // Get the current Supabase session to retrieve the access token
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+
+      if (sessionError || !session) {
+        throw new Error('You must be logged in to change your password');
+      }
+
       const response = await fetch(`${apiConfig.baseUrl}/api/auth/change-password`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
           email: userEmail,
