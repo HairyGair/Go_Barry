@@ -1,529 +1,1034 @@
-// backend/routes/breakdowns.js
-// Vehicle Breakdown Logging and Analytics API
-// Handles logging, retrieval, and analytics for vehicle breakdowns
-
 import express from 'express';
-import { readFileSync, writeFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-import crypto from 'crypto';
+import { supabase } from '../server.js';
+import breakdownIdGenerator from '../services/breakdownIdGenerator.js';
+import { activityLogger } from '../services/activityLogger.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 const router = express.Router();
 
-// Path to breakdown logs data file
-const BREAKDOWN_LOGS_PATH = join(__dirname, '../data/breakdown-logs.json');
-
-// Valid supervisor badges (from existing system)
-const VALID_SUPERVISORS = [
-  'AG003', 'BP009', 'JM004', 'KL007', 'ST012', 'DW015', 'NR018', 'MK021', 'CP024'
-];
-
-// Valid breakdown types
-const VALID_BREAKDOWN_TYPES = [
-  'Battery', 'Brakes', 'Engine', 'Transmission', 'Suspension', 'Steering',
-  'Electrical', 'Cooling System', 'Fuel System', 'Exhaust', 'Lights',
-  'Wipers', 'Doors', 'Windows', 'Air Conditioning', 'Heating',
-  'Wheelchair Ramp', 'Destination Display', 'Buzzers', 'Interior Damage',
-  'Exterior Damage', 'Puncture', 'Oil Warning', 'ABS Warning',
-  'Gearbox', 'Non-Starter', 'Cutting Out', 'Excessive Smoke',
-  'Wing Mirrors', 'Warning Lights', 'Road Traffic Incident', 'Other'
-];
-
-// Utility function to load breakdown logs
-function loadBreakdownLogs() {
+// GET /api/breakdowns - Get all breakdowns with pagination
+router.get('/', async (req, res) => {
   try {
-    const data = readFileSync(BREAKDOWN_LOGS_PATH, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('Error loading breakdown logs:', error);
-    // Return default structure if file doesn't exist or is corrupted
-    return {
-      logs: [],
-      lastUpdated: null,
-      version: "1.0"
-    };
-  }
-}
+    const { page = 1, limit = 50, status, depot } = req.query;
+    const offset = (page - 1) * limit;
 
-// Utility function to save breakdown logs
-function saveBreakdownLogs(logsData) {
-  try {
-    logsData.lastUpdated = new Date().toISOString();
-    writeFileSync(BREAKDOWN_LOGS_PATH, JSON.stringify(logsData, null, 2));
-    return true;
-  } catch (error) {
-    console.error('Error saving breakdown logs:', error);
-    return false;
-  }
-}
+    let query = supabase
+      .from('breakdowns')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
 
-// Utility function to validate supervisor
-function isValidSupervisor(supervisorId) {
-  return VALID_SUPERVISORS.includes(supervisorId?.toUpperCase());
-}
-
-// Utility function to generate unique ID
-function generateId() {
-  return 'breakdown_' + Date.now() + '_' + crypto.randomBytes(4).toString('hex');
-}
-
-// Validation middleware
-function validateBreakdownData(req, res, next) {
-  const { supervisorId, vehicleReg, fleetNo, breakdownType } = req.body;
-  
-  // Check required fields
-  if (!supervisorId || !vehicleReg || !fleetNo || !breakdownType) {
-    return res.status(400).json({
-      success: false,
-      error: 'Missing required fields: supervisorId, vehicleReg, fleetNo, breakdownType'
-    });
-  }
-  
-  // Validate supervisor
-  if (!isValidSupervisor(supervisorId)) {
-    return res.status(401).json({
-      success: false,
-      error: 'Invalid supervisor badge. Must be one of: ' + VALID_SUPERVISORS.join(', ')
-    });
-  }
-  
-  // Validate breakdown type
-  if (!VALID_BREAKDOWN_TYPES.includes(breakdownType)) {
-    return res.status(400).json({
-      success: false,
-      error: 'Invalid breakdown type. Must be one of: ' + VALID_BREAKDOWN_TYPES.join(', ')
-    });
-  }
-  
-  next();
-}
-
-// POST /api/breakdowns/log - Log a new breakdown
-router.post('/log', validateBreakdownData, (req, res) => {
-  try {
-    const {
-      supervisorId,
-      vehicleReg,
-      fleetNo,
-      breakdownType,
-      timestamp,
-      location,
-      description,
-      severity,
-      diagnosticSession,
-      notes
-    } = req.body;
-    
-    console.log('🔧 Logging new breakdown:', { supervisorId, vehicleReg, fleetNo, breakdownType });
-    
-    const logsData = loadBreakdownLogs();
-    
-    // Create new breakdown log entry
-    const newLog = {
-      id: generateId(),
-      supervisorId: supervisorId.toUpperCase(),
-      vehicleReg: vehicleReg.toUpperCase(),
-      fleetNo: fleetNo,
-      breakdownType: breakdownType,
-      timestamp: timestamp || new Date().toISOString(),
-      location: location || 'Unknown',
-      description: description || '',
-      severity: severity || 'medium',
-      status: 'reported',
-      resolution: null,
-      resolvedAt: null,
-      resolvedBy: null,
-      diagnosticSession: diagnosticSession || null,
-      notes: notes || '',
-      created: new Date().toISOString(),
-      updated: new Date().toISOString()
-    };
-    
-    // Add to logs array
-    logsData.logs.push(newLog);
-    
-    // Save to file
-    const saved = saveBreakdownLogs(logsData);
-    
-    if (!saved) {
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to save breakdown log'
-      });
+    if (status) {
+      query = query.eq('status', status);
     }
-    
-    console.log('✅ Breakdown logged successfully:', newLog.id);
-    
-    res.status(201).json({
-      success: true,
-      message: 'Breakdown logged successfully',
-      data: {
-        id: newLog.id,
-        supervisorId: newLog.supervisorId,
-        vehicleReg: newLog.vehicleReg,
-        fleetNo: newLog.fleetNo,
-        breakdownType: newLog.breakdownType,
-        timestamp: newLog.timestamp,
-        severity: newLog.severity,
-        status: newLog.status
+
+    if (depot) {
+      query = query.eq('depot', depot);
+    }
+
+    const { data, error, count } = await query;
+
+    if (error) throw error;
+
+    res.json({
+      data,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: count,
+        pages: Math.ceil(count / limit)
       }
     });
-    
   } catch (error) {
-    console.error('❌ Error logging breakdown:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error: ' + error.message
-    });
+    console.error('Error fetching breakdowns:', error);
+    res.status(500).json({ error: 'Failed to fetch breakdowns' });
   }
 });
 
-// GET /api/breakdowns/logs - Get breakdown logs with filtering
-router.get('/logs', (req, res) => {
+// GET /api/breakdowns/active - Get active breakdowns
+router.get('/active', async (req, res) => {
   try {
-    const {
-      supervisorId,
-      vehicleReg,
-      fleetNo,
-      breakdownType,
-      status,
-      severity,
-      fromDate,
-      toDate,
-      limit = 100,
-      offset = 0
-    } = req.query;
-    
-    console.log('📊 Fetching breakdown logs with filters:', req.query);
-    
-    const logsData = loadBreakdownLogs();
-    let logs = [...logsData.logs];
-    
-    // Apply filters
-    if (supervisorId) {
-      logs = logs.filter(log => log.supervisorId === supervisorId.toUpperCase());
-    }
-    
-    if (vehicleReg) {
-      logs = logs.filter(log => log.vehicleReg === vehicleReg.toUpperCase());
-    }
-    
-    if (fleetNo) {
-      logs = logs.filter(log => log.fleetNo === fleetNo);
-    }
-    
-    if (breakdownType) {
-      logs = logs.filter(log => log.breakdownType === breakdownType);
-    }
-    
-    if (status) {
-      logs = logs.filter(log => log.status === status);
-    }
-    
-    if (severity) {
-      logs = logs.filter(log => log.severity === severity);
-    }
-    
-    if (fromDate) {
-      const from = new Date(fromDate);
-      logs = logs.filter(log => new Date(log.timestamp) >= from);
-    }
-    
-    if (toDate) {
-      const to = new Date(toDate);
-      logs = logs.filter(log => new Date(log.timestamp) <= to);
-    }
-    
-    // Sort by timestamp (newest first)
-    logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-    
-    // Apply pagination
-    const total = logs.length;
-    const paginatedLogs = logs.slice(parseInt(offset), parseInt(offset) + parseInt(limit));
-    
-    console.log(`✅ Returning ${paginatedLogs.length} of ${total} breakdown logs`);
-    
+    const { data, error } = await supabase
+      .from('breakdowns')
+      .select('*')
+      .in('status', ['active', 'pending', 'in_progress'])
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching active breakdowns:', error);
+    res.status(500).json({ error: 'Failed to fetch active breakdowns' });
+  }
+});
+
+// GET /api/breakdowns/live - Get active breakdowns for dashboards
+router.get('/live', async (req, res) => {
+  try {
+    // Query from breakdowns table only (joins will be added once foreign keys are set up)
+    const { data: breakdowns, error } = await supabase
+      .from('breakdowns')
+      .select('*')
+      .in('status', ['active', 'pending', 'in_progress', 'received', 'acknowledged', 'decision', 'dispatched', 'on_site', 'moving'])
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Additional processing for dashboard compatibility
+    const formattedBreakdowns = breakdowns.map(b => {
+      // Calculate elapsed minutes from created_at
+      const elapsedMinutes = Math.floor((new Date() - new Date(b.created_at)) / (1000 * 60));
+      const elapsedHours = Math.floor(elapsedMinutes / 60);
+      const remainingMinutes = Math.floor(elapsedMinutes % 60);
+
+      let durationText = '';
+      if (elapsedHours > 0) {
+        durationText = `${elapsedHours}h ${remainingMinutes}m`;
+      } else {
+        durationText = `${remainingMinutes}m`;
+      }
+
+      // Vehicle and supervisor data will come from the breakdown record itself
+
+      // Determine priority level and status color
+      const priorityLevel = b.priority_level || (
+        b.severity === 'STOP' ? 1 :
+        b.severity === 'AMBER' ? 2 : 3
+      );
+
+      const statusColor = b.status_color || (
+        b.severity === 'STOP' ? 'red' :
+        b.severity === 'AMBER' ? 'orange' :
+        b.severity === 'CONTINUE' ? 'green' : 'gray'
+      );
+
+      const cardTitle = b.card_title ||
+        `${b.fleet_no || 'Unknown'} - ${b.issue_category || 'Assessment Required'}`;
+
+      return {
+        // Core identifiers
+        breakdown_id: b.breakdown_id,
+        id: b.breakdown_id,
+
+        // Vehicle information
+        fleet_no: b.fleet_no,
+        fleet_number: b.fleet_no,
+        registration: b.registration,
+        depot_id: b.depot,
+
+        // Location and issue information
+        location: b.location_description || b.location || 'Location TBC',
+        issue_type: b.issue_category,
+        issue_description: b.description,
+
+        // Status and severity
+        status: b.status,
+        severity: b.severity,
+        wizard_decision: b.wizard_decision,
+        criticality: b.criticality || b.severity,
+
+        // Timing information
+        created_at: b.created_at,
+        updated_at: b.updated_at,
+        elapsed_minutes: elapsedMinutes,
+        duration_text: durationText,
+
+        // Route and priority
+        route_id: b.route || null,
+        is_priority: priorityLevel <= 2,
+        priority_level: priorityLevel,
+
+        // Supervisor information
+        supervisor_badge: b.supervisor_badge,
+        supervisor_name: b.supervisor_name,
+
+        // Dashboard card information
+        card_title: cardTitle,
+        status_color: statusColor,
+        requires_immediate_action: b.requires_immediate_action || (b.severity === 'STOP') || (priorityLevel <= 2),
+
+        // Legacy compatibility fields
+        driver_name: b.driver_name,
+        driver_phone: b.driver_phone,
+        passenger_count: b.passenger_count,
+        received_at: b.received_at || b.created_at,
+        acknowledged_at: b.acknowledged_at,
+        decision_at: b.decision_at,
+        dispatched_at: b.dispatched_at,
+        on_site_at: b.on_site_at,
+        cleared_at: b.cleared_at
+      };
+    });
+
     res.json({
       success: true,
-      data: paginatedLogs,
-      pagination: {
-        total: total,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        hasMore: (parseInt(offset) + parseInt(limit)) < total
-      }
+      breakdowns: formattedBreakdowns,
+      timestamp: new Date().toISOString(),
+      count: formattedBreakdowns.length
     });
-    
   } catch (error) {
-    console.error('❌ Error fetching breakdown logs:', error);
+    console.error('Error fetching live breakdowns:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch breakdown logs: ' + error.message
+      error: 'Failed to fetch live breakdowns',
+      timestamp: new Date().toISOString(),
+      breakdowns: [] // Return empty array for graceful degradation
     });
   }
 });
 
-// GET /api/breakdowns/analytics - Get breakdown analytics and statistics
-router.get('/analytics', (req, res) => {
+// GET /api/breakdowns/stats - Get breakdown statistics (moved before :id route)
+router.get('/stats', async (req, res) => {
   try {
-    const { period = 'today', groupBy = 'type' } = req.query;
-    
-    console.log('📈 Generating breakdown analytics:', { period, groupBy });
-    
-    const logsData = loadBreakdownLogs();
-    const logs = logsData.logs;
-    
-    // Filter by period
-    let filteredLogs = logs;
-    const now = new Date();
-    
+    const { period = 'today' } = req.query;
+    let startDate;
+
     switch (period) {
       case 'today':
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        filteredLogs = logs.filter(log => new Date(log.timestamp) >= today);
-        break;
-      case 'yesterday':
-        const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-        const startOfYesterday = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
-        const endOfYesterday = new Date(startOfYesterday.getTime() + 24 * 60 * 60 * 1000);
-        filteredLogs = logs.filter(log => {
-          const logDate = new Date(log.timestamp);
-          return logDate >= startOfYesterday && logDate < endOfYesterday;
-        });
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
         break;
       case 'week':
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        filteredLogs = logs.filter(log => new Date(log.timestamp) >= weekAgo);
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 7);
         break;
       case 'month':
-        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        filteredLogs = logs.filter(log => new Date(log.timestamp) >= monthAgo);
+        startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 1);
         break;
+      default:
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
     }
-    
-    // Generate analytics
-    const analytics = {
-      period: period,
-      totalBreakdowns: filteredLogs.length,
-      periodStart: period === 'today' ? new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString() : null,
-      periodEnd: new Date().toISOString(),
-      
-      // Breakdown by type
-      breakdownTypes: {},
-      
-      // Breakdown by severity
-      severity: {
-        low: filteredLogs.filter(log => log.severity === 'low').length,
-        medium: filteredLogs.filter(log => log.severity === 'medium').length,
-        high: filteredLogs.filter(log => log.severity === 'high').length,
-        critical: filteredLogs.filter(log => log.severity === 'critical').length
-      },
-      
-      // Breakdown by status
-      status: {
-        reported: filteredLogs.filter(log => log.status === 'reported').length,
-        'in-progress': filteredLogs.filter(log => log.status === 'in-progress').length,
-        resolved: filteredLogs.filter(log => log.status === 'resolved').length
-      },
-      
-      // Top supervisors (by number of reports)
-      topSupervisors: {},
-      
-      // Top vehicles (by number of breakdowns)
-      topVehicles: {},
-      
-      // Most common breakdown types
-      commonTypes: []
+
+    const { data, error } = await supabase
+      .from('breakdowns')
+      .select('status')
+      .gte('created_at', startDate.toISOString());
+
+    if (error) throw error;
+
+    const stats = {
+      total: data.length,
+      active: data.filter(b => b.status === 'active').length,
+      pending: data.filter(b => b.status === 'pending').length,
+      resolved: data.filter(b => b.status === 'resolved').length,
+      in_progress: data.filter(b => b.status === 'in_progress').length
     };
-    
-    // Count breakdowns by type
-    filteredLogs.forEach(log => {
-      analytics.breakdownTypes[log.breakdownType] = (analytics.breakdownTypes[log.breakdownType] || 0) + 1;
-      analytics.topSupervisors[log.supervisorId] = (analytics.topSupervisors[log.supervisorId] || 0) + 1;
-      analytics.topVehicles[log.vehicleReg] = (analytics.topVehicles[log.vehicleReg] || 0) + 1;
-    });
-    
-    // Get most common breakdown types (top 5)
-    analytics.commonTypes = Object.entries(analytics.breakdownTypes)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 5)
-      .map(([type, count]) => ({ type, count }));
-    
-    console.log(`✅ Generated analytics for ${filteredLogs.length} breakdowns (${period})`);
-    
-    res.json({
-      success: true,
-      data: analytics
-    });
-    
+
+    res.json(stats);
   } catch (error) {
-    console.error('❌ Error generating breakdown analytics:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to generate analytics: ' + error.message
+    console.error('Error fetching breakdown stats:', error);
+    res.status(500).json({ error: 'Failed to fetch breakdown statistics' });
+  }
+});
+
+// GET /api/breakdowns/:id - Get specific breakdown
+router.get('/:id', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('breakdowns')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+
+    if (error) throw error;
+
+    if (!data) {
+      return res.status(404).json({ error: 'Breakdown not found' });
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error('Error fetching breakdown:', error);
+    res.status(500).json({ error: 'Failed to fetch breakdown' });
+  }
+});
+
+// POST /api/breakdowns - Create new breakdown
+router.post('/', async (req, res) => {
+  try {
+    // Generate unique breakdown ID with daily counter
+    const idResult = await breakdownIdGenerator.generateId();
+    
+    const breakdownData = {
+      ...req.body,
+      breakdown_id: idResult.id,
+      created_at: new Date().toISOString(),
+      status: req.body.status || 'received'
+    };
+
+    const { data, error } = await supabase
+      .from('breakdowns')
+      .insert(breakdownData)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Log activity to the unified activity feed
+    try {
+      await activityLogger.logBreakdownReported({
+        supervisorId: data.supervisor_badge || data.supervisor_id || 'unknown',
+        supervisorName: data.supervisor_name || 'Supervisor',
+        breakdownId: data.breakdown_id,
+        fleetNo: data.fleet_no || 'Unknown',
+        issueCategory: data.issue_category || 'General',
+        location: data.location || 'Location to be added later',
+        severity: data.severity || 'NORMAL',
+        depot: data.depot || 'Unknown',
+        source: 'direct_report'
+      });
+      console.log('✅ Activity logged successfully for breakdown:', data.breakdown_id);
+    } catch (activityError) {
+      console.error('⚠️ Failed to log activity for breakdown:', data.breakdown_id, activityError);
+      // Don't fail the main request if activity logging fails
+    }
+
+    res.status(201).json({
+      ...data,
+      breakdown_id: idResult.id
+    });
+  } catch (error) {
+    console.error('Error creating breakdown:', error);
+    res.status(500).json({ 
+      error: 'Failed to create breakdown',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
 
-// PUT /api/breakdowns/logs/:id - Update an existing breakdown log
-router.put('/logs/:id', (req, res) => {
+// PUT /api/breakdowns/:id - Update breakdown
+router.put('/:id', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('breakdowns')
+      .update({
+        ...req.body,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    if (!data) {
+      return res.status(404).json({ error: 'Breakdown not found' });
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error('Error updating breakdown:', error);
+    res.status(500).json({ error: 'Failed to update breakdown' });
+  }
+});
+
+// PATCH /api/breakdowns/:id/status - Update breakdown status
+router.patch('/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    
+    const { data, error } = await supabase
+      .from('breakdowns')
+      .update({ 
+        status,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', req.params.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    if (!data) {
+      return res.status(404).json({ error: 'Breakdown not found' });
+    }
+
+    res.json(data);
+  } catch (error) {
+    console.error('Error updating breakdown status:', error);
+    res.status(500).json({ error: 'Failed to update breakdown status' });
+  }
+});
+
+
+// GET /api/breakdowns/stats/summary - Get breakdown statistics
+router.get('/stats/summary', async (req, res) => {
+  try {
+    const { period = 'today' } = req.query;
+    let startDate;
+
+    switch (period) {
+      case 'today':
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case 'week':
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case 'month':
+        startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 1);
+        break;
+      default:
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+    }
+
+    const { data, error } = await supabase
+      .from('breakdowns')
+      .select('status')
+      .gte('created_at', startDate.toISOString());
+
+    if (error) throw error;
+
+    const stats = {
+      total: data.length,
+      active: data.filter(b => b.status === 'active').length,
+      pending: data.filter(b => b.status === 'pending').length,
+      resolved: data.filter(b => b.status === 'resolved').length,
+      in_progress: data.filter(b => b.status === 'in_progress').length
+    };
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching breakdown stats:', error);
+    res.status(500).json({ error: 'Failed to fetch breakdown statistics' });
+  }
+});
+
+// GET /api/breakdowns/id-generator/status - Get ID generator status
+router.get('/id-generator/status', async (req, res) => {
+  try {
+    const status = breakdownIdGenerator.getStatus();
+    const statistics = await breakdownIdGenerator.getStatistics();
+    
+    res.json({
+      generator: status,
+      statistics: statistics,
+      health: 'operational'
+    });
+  } catch (error) {
+    console.error('Error getting ID generator status:', error);
+    res.status(500).json({ error: 'Failed to get generator status' });
+  }
+});
+
+// GET /api/breakdowns/id-generator/next - Preview next ID without creating
+router.get('/id-generator/next', async (req, res) => {
+  try {
+    const year = new Date().getFullYear();
+    const { count } = await supabase
+      .from('breakdowns')
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', `${year}-01-01T00:00:00.000Z`)
+      .lt('created_at', `${year + 1}-01-01T00:00:00.000Z`);
+    
+    const nextNumber = (count || 0) + 1;
+    const nextId = `BD-${year}-${nextNumber.toString().padStart(5, '0')}`;
+    
+    res.json({
+      next_id: nextId,
+      current_count: count || 0,
+      next_sequence: nextNumber,
+      year: year,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error previewing next ID:', error);
+    res.status(500).json({ error: 'Failed to preview next ID' });
+  }
+});
+
+// POST /api/breakdowns/id-generator/validate - Validate a breakdown ID
+router.post('/id-generator/validate', async (req, res) => {
+  try {
+    const { breakdown_id } = req.body;
+    
+    if (!breakdown_id) {
+      return res.status(400).json({ error: 'breakdown_id is required' });
+    }
+    
+    const validation = breakdownIdGenerator.validateId(breakdown_id);
+    
+    // Check if ID already exists in database
+    let exists = false;
+    if (validation.valid) {
+      const { data } = await supabase
+        .from('breakdowns')
+        .select('breakdown_id')
+        .eq('breakdown_id', breakdown_id)
+        .single();
+      
+      exists = !!data;
+    }
+    
+    res.json({
+      ...validation,
+      exists_in_database: exists,
+      breakdown_id: breakdown_id
+    });
+  } catch (error) {
+    console.error('Error validating breakdown ID:', error);
+    res.status(500).json({ error: 'Failed to validate breakdown ID' });
+  }
+});
+
+// PUT /api/breakdowns/:id/resolve - Resolve a breakdown
+router.put('/:id/resolve', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { resolution_notes, resolving_supervisor, returned_to_service } = req.body;
+
+    // Update the breakdown using breakdown_id
+    const { data, error } = await supabase
+      .from('breakdowns')
+      .update({
+        status: 'cleared',
+        cleared_at: new Date().toISOString(),
+        resolution_notes,
+        updated_at: new Date().toISOString()
+      })
+      .eq('breakdown_id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        error: 'Breakdown not found'
+      });
+    }
+
+    // Create an event log
+    const { error: eventError } = await supabase
+      .from('breakdown_events')
+      .insert({
+        breakdown_id: data.id,
+        event_type: 'resolved',
+        event_data: {
+          resolution_notes,
+          resolving_supervisor,
+          returned_to_service,
+          resolved_at: new Date().toISOString()
+        }
+      });
+
+    if (eventError) console.error('Error creating event:', eventError);
+
+    res.json({
+      success: true,
+      breakdown: data,
+      message: 'Breakdown resolved successfully'
+    });
+  } catch (error) {
+    console.error('Error resolving breakdown:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to resolve breakdown'
+    });
+  }
+});
+
+// POST /api/breakdowns/:id/dispatch - Dispatch engineer to breakdown
+router.post('/:id/dispatch', async (req, res) => {
   try {
     const { id } = req.params;
     const {
-      status,
-      resolution,
-      resolvedBy,
-      notes,
-      severity
+      engineer_id,
+      engineer_name,
+      estimated_arrival_minutes,
+      dispatch_notes,
+      dispatching_supervisor
     } = req.body;
-    
-    console.log('🔄 Updating breakdown log:', id);
-    
-    const logsData = loadBreakdownLogs();
-    const logIndex = logsData.logs.findIndex(log => log.id === id);
-    
-    if (logIndex === -1) {
+
+    // Update breakdown status to dispatched
+    const { data: breakdown, error: updateError } = await supabase
+      .from('breakdowns')
+      .update({
+        status: 'dispatched',
+        dispatched_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('breakdown_id', id)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    if (!breakdown) {
       return res.status(404).json({
         success: false,
-        error: 'Breakdown log not found'
+        error: 'Breakdown not found'
       });
     }
-    
-    const existingLog = logsData.logs[logIndex];
-    
-    // Update fields
-    if (status) existingLog.status = status;
-    if (resolution) existingLog.resolution = resolution;
-    if (resolvedBy) existingLog.resolvedBy = resolvedBy;
-    if (notes !== undefined) existingLog.notes = notes;
-    if (severity) existingLog.severity = severity;
-    
-    // Set resolved timestamp if status is resolved
-    if (status === 'resolved' && !existingLog.resolvedAt) {
-      existingLog.resolvedAt = new Date().toISOString();
-    }
-    
-    existingLog.updated = new Date().toISOString();
-    
-    // Save changes
-    const saved = saveBreakdownLogs(logsData);
-    
-    if (!saved) {
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to update breakdown log'
+
+    // Create event log for dispatch
+    const { error: eventError } = await supabase
+      .from('breakdown_events')
+      .insert({
+        breakdown_id: breakdown.id,
+        event_type: 'engineer_dispatched',
+        event_data: {
+          engineer_id,
+          engineer_name,
+          estimated_arrival_minutes,
+          dispatch_notes,
+          dispatching_supervisor,
+          dispatched_at: new Date().toISOString()
+        }
       });
-    }
-    
-    console.log('✅ Breakdown log updated successfully:', id);
-    
+
+    if (eventError) console.error('Error creating dispatch event:', eventError);
+
+    // Calculate ETA
+    const eta = new Date();
+    eta.setMinutes(eta.getMinutes() + (estimated_arrival_minutes || 30));
+
     res.json({
       success: true,
-      message: 'Breakdown log updated successfully',
-      data: existingLog
+      breakdown: {
+        ...breakdown,
+        engineer_assigned: {
+          id: engineer_id,
+          name: engineer_name,
+          eta: eta.toISOString(),
+          estimated_minutes: estimated_arrival_minutes || 30
+        }
+      },
+      message: 'Engineer dispatched successfully'
     });
-    
   } catch (error) {
-    console.error('❌ Error updating breakdown log:', error);
+    console.error('Error dispatching engineer:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to update breakdown log: ' + error.message
+      error: 'Failed to dispatch engineer'
     });
   }
 });
 
-// DELETE /api/breakdowns/logs/:id - Delete a breakdown log (admin only)
-router.delete('/logs/:id', (req, res) => {
+// GET /api/breakdowns/:id/activities - Get activity log for specific breakdown
+router.get('/:id/activities', async (req, res) => {
   try {
     const { id } = req.params;
-    const { supervisorId } = req.body;
-    
-    // Check if supervisor is admin (AG003 or BP009)
-    if (!supervisorId || !['AG003', 'BP009'].includes(supervisorId.toUpperCase())) {
-      return res.status(403).json({
-        success: false,
-        error: 'Admin privileges required (AG003 or BP009)'
-      });
-    }
-    
-    console.log('🗑️ Deleting breakdown log:', id, 'by admin:', supervisorId);
-    
-    const logsData = loadBreakdownLogs();
-    const logIndex = logsData.logs.findIndex(log => log.id === id);
-    
-    if (logIndex === -1) {
+    const { limit = 50, offset = 0 } = req.query;
+
+    // First get the breakdown to verify it exists
+    const { data: breakdown, error: breakdownError } = await supabase
+      .from('breakdowns')
+      .select('id, breakdown_id')
+      .eq('breakdown_id', id)
+      .single();
+
+    if (breakdownError || !breakdown) {
       return res.status(404).json({
         success: false,
-        error: 'Breakdown log not found'
+        error: 'Breakdown not found'
       });
     }
-    
-    // Remove the log
-    const deletedLog = logsData.logs.splice(logIndex, 1)[0];
-    
-    // Save changes
-    const saved = saveBreakdownLogs(logsData);
-    
-    if (!saved) {
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to delete breakdown log'
-      });
-    }
-    
-    console.log('✅ Breakdown log deleted successfully:', id);
-    
+
+    // Get all events for this breakdown
+    const { data: events, error: eventsError } = await supabase
+      .from('breakdown_events')
+      .select('*')
+      .eq('breakdown_id', breakdown.id)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (eventsError) throw eventsError;
+
+    // Format activities
+    const activities = events.map(event => ({
+      id: event.id,
+      type: event.event_type,
+      timestamp: event.created_at,
+      description: formatEventDescription(event),
+      data: event.event_data,
+      user: event.event_data?.supervisor_name || event.event_data?.dispatching_supervisor || 'System'
+    }));
+
     res.json({
       success: true,
-      message: 'Breakdown log deleted successfully',
-      data: { id: deletedLog.id }
+      breakdown_id: id,
+      activities,
+      count: activities.length,
+      timestamp: new Date().toISOString()
     });
-    
   } catch (error) {
-    console.error('❌ Error deleting breakdown log:', error);
+    console.error('Error fetching breakdown activities:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to delete breakdown log: ' + error.message
+      error: 'Failed to fetch breakdown activities'
     });
   }
 });
 
-// GET /api/breakdowns/types - Get list of valid breakdown types
-router.get('/types', (req, res) => {
-  res.json({
-    success: true,
-    data: VALID_BREAKDOWN_TYPES
-  });
-});
-
-// GET /api/breakdowns/supervisors - Get list of valid supervisors
-router.get('/supervisors', (req, res) => {
-  res.json({
-    success: true,
-    data: VALID_SUPERVISORS
-  });
-});
-
-// GET /api/breakdowns/health - Health check endpoint
-router.get('/health', (req, res) => {
+// POST /api/breakdowns/:id/activities - Add activity entry to breakdown
+router.post('/:id/activities', async (req, res) => {
   try {
-    const logsData = loadBreakdownLogs();
-    res.json({
+    const { id } = req.params;
+    const {
+      activity_type,
+      description,
+      user_name,
+      metadata
+    } = req.body;
+
+    // Verify breakdown exists
+    const { data: breakdown, error: breakdownError } = await supabase
+      .from('breakdowns')
+      .select('id, breakdown_id')
+      .eq('breakdown_id', id)
+      .single();
+
+    if (breakdownError || !breakdown) {
+      return res.status(404).json({
+        success: false,
+        error: 'Breakdown not found'
+      });
+    }
+
+    // Create activity event
+    const { data: event, error: eventError } = await supabase
+      .from('breakdown_events')
+      .insert({
+        breakdown_id: breakdown.id,
+        event_type: activity_type || 'comment',
+        event_data: {
+          description,
+          user_name,
+          metadata,
+          created_at: new Date().toISOString()
+        }
+      })
+      .select()
+      .single();
+
+    if (eventError) throw eventError;
+
+    res.status(201).json({
       success: true,
-      status: 'healthy',
-      data: {
-        totalLogs: logsData.logs.length,
-        lastUpdated: logsData.lastUpdated,
-        version: logsData.version
-      }
+      activity: {
+        id: event.id,
+        type: event.event_type,
+        timestamp: event.created_at,
+        description,
+        user: user_name,
+        data: event.event_data
+      },
+      message: 'Activity added successfully'
     });
   } catch (error) {
+    console.error('Error adding activity:', error);
     res.status(500).json({
       success: false,
-      status: 'unhealthy',
-      error: error.message
+      error: 'Failed to add activity'
+    });
+  }
+});
+
+// Helper function to format event descriptions
+function formatEventDescription(event) {
+  const data = event.event_data || {};
+
+  switch (event.event_type) {
+    case 'wizard_assessment_completed':
+      return `${data.wizard_type || 'Breakdown'} assessment completed - Decision: ${data.wizard_decision || 'N/A'}`;
+
+    case 'engineer_assigned':
+      return `Engineer ${data.engineer_name || 'assigned'} - ETA: ${data.estimated_arrival_minutes || 'N/A'} minutes`;
+
+    case 'engineer_dispatched':
+      return `Engineer ${data.engineer_name || 'dispatched'} to site`;
+
+    case 'engineer_on_site':
+      return `Engineer arrived on site`;
+
+    case 'resolved':
+      return `Breakdown resolved - ${data.resolution_notes || 'No notes'}`;
+
+    case 'status_change':
+      return `Status changed from ${data.old_status || 'N/A'} to ${data.new_status || 'N/A'}`;
+
+    case 'comment':
+      return data.description || 'Comment added';
+
+    default:
+      return data.description || event.event_type.replace(/_/g, ' ');
+  }
+}
+
+// =====================================================
+// WIZARD INTEGRATION ENDPOINTS
+// =====================================================
+
+// POST /api/breakdowns/from-wizard - Create breakdown from wizard assessment
+router.post('/from-wizard', async (req, res) => {
+  try {
+    const {
+      // Wizard information
+      wizard_type,
+      wizard_decision,
+      wizard_assessment_data,
+
+      // Vehicle and location
+      fleet_number,
+      location,
+      location_coords,
+      w3w_location,
+
+      // Supervisor information
+      supervisor_badge,
+      supervisor_name,
+
+      // Issue details
+      issue_category,
+      issue_description, // Frontend sends this but we'll map to description
+      severity,
+
+      // Additional context
+      priority_level = 3,
+      engineering_required = false,
+      replacement_vehicle_required = false
+    } = req.body;
+
+    // Generate unique breakdown ID
+    const idResult = await breakdownIdGenerator.generateId();
+
+    // Determine severity if not provided
+    const determinedSeverity = severity || wizard_decision || 'AMBER';
+
+    // Determine priority based on severity and wizard decision
+    const determinedPriority = priority_level || (
+      determinedSeverity === 'STOP' ? 1 :
+      determinedSeverity === 'AMBER' ? 2 : 3
+    );
+
+    // Create the breakdown record with only fields that exist in the database
+    const breakdownData = {
+      breakdown_id: idResult.id,
+      fleet_no: fleet_number,
+      supervisor_badge: supervisor_badge,
+      supervisor_name: supervisor_name,
+      location: location,
+      issue_category: issue_category,
+      description: issue_description || 'Wizard assessment completed',
+      status: 'active',
+      severity: determinedSeverity,
+      wizard_decision: wizard_decision,
+      wizard_type: wizard_type,
+      wizard_assessment_data: wizard_assessment_data || {},
+      breakdown_source: 'wizard',
+      priority_level: determinedPriority,
+      engineering_required: engineering_required,
+      replacement_vehicle_required: replacement_vehicle_required,
+      created_at: new Date().toISOString()
+    };
+
+    // Add coordinates if provided
+    if (location_coords && location_coords.lat && location_coords.lng) {
+      breakdownData.location_lat = location_coords.lat;
+      breakdownData.location_lng = location_coords.lng;
+    }
+
+    console.log('🔍 Attempting to insert breakdown data:', JSON.stringify(breakdownData, null, 2));
+
+    const { data, error } = await supabase
+      .from('breakdowns')
+      .insert(breakdownData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Database insert error:', error);
+      console.error('❌ Error details:', JSON.stringify(error, null, 2));
+      throw error;
+    }
+
+    // Create initial event log
+    await supabase
+      .from('breakdown_events')
+      .insert({
+        breakdown_id: data.id,
+        event_type: 'wizard_assessment_completed',
+        event_data: {
+          wizard_type,
+          wizard_decision,
+          assessment_data: wizard_assessment_data,
+          supervisor_badge,
+          supervisor_name
+        }
+      });
+
+    // Log activity to the unified activity feed with location
+    try {
+      await activityLogger.logBreakdownReported({
+        supervisorId: supervisor_badge,
+        supervisorName: supervisor_name,
+        breakdownId: data.breakdown_id,
+        fleetNo: fleet_number,
+        issueCategory: issue_category || wizard_type,
+        location: location || 'Location to be added later',
+        severity: determinedSeverity,
+        depot: 'SDC', // Could be enhanced to get actual depot from supervisor data
+        source: 'wizard_assessment'
+      });
+      console.log('✅ Activity logged successfully for breakdown:', data.breakdown_id);
+    } catch (activityError) {
+      console.error('⚠️ Failed to log activity for breakdown:', data.breakdown_id, activityError);
+      // Don't fail the main request if activity logging fails
+    }
+
+    res.status(201).json({
+      success: true,
+      breakdown_id: data.breakdown_id,
+      breakdown: data,
+      message: 'Breakdown created from wizard assessment'
+    });
+
+  } catch (error) {
+    console.error('Error creating breakdown from wizard:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create breakdown from wizard assessment',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// GET /api/breakdowns/dashboard/cards - Get breakdown cards for dashboards
+router.get('/dashboard/cards', async (req, res) => {
+  try {
+    const { dashboard = 'sdc' } = req.query;
+
+    let visibilityField;
+    switch (dashboard) {
+      case 'sdc':
+        visibilityField = 'visible_on_sdc';
+        break;
+      case 'engineering':
+        visibilityField = 'visible_on_engineering';
+        break;
+      case 'management':
+        visibilityField = 'visible_on_management';
+        break;
+      default:
+        visibilityField = 'visible_on_sdc';
+    }
+
+    const { data: cards, error } = await supabase
+      .from('breakdown_dashboard_cards')
+      .select(`
+        *,
+        breakdowns!breakdown_id (
+          breakdown_id,
+          status,
+          severity,
+          created_at,
+          updated_at,
+          wizard_type,
+          wizard_decision
+        )
+      `)
+      .eq(visibilityField, true)
+      .order('priority_level', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Format cards for dashboard consumption
+    const formattedCards = cards.map(card => ({
+      id: card.id,
+      breakdown_id: card.breakdown_id,
+
+      // Card display
+      title: card.card_title,
+      subtitle: card.card_subtitle,
+      status_color: card.status_color,
+      priority_level: card.priority_level,
+
+      // Key information
+      fleet_number: card.fleet_number,
+      location: card.location_display,
+      issue_summary: card.issue_summary,
+      duration_text: card.duration_text,
+      severity_display: card.severity_display,
+
+      // Action indicators
+      requires_immediate_action: card.requires_immediate_action,
+      engineering_dispatched: card.engineering_dispatched,
+      replacement_vehicle_sent: card.replacement_vehicle_sent,
+      service_resumed: card.service_resumed,
+
+      // Breakdown data
+      breakdown_status: card.breakdowns?.status,
+      wizard_type: card.breakdowns?.wizard_type,
+      wizard_decision: card.breakdowns?.wizard_decision,
+
+      // Metadata
+      last_refreshed: card.last_refreshed_at,
+      created_at: card.created_at
+    }));
+
+    res.json({
+      success: true,
+      cards: formattedCards,
+      dashboard: dashboard,
+      count: formattedCards.length,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error fetching dashboard cards:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch dashboard cards',
+      cards: []
+    });
+  }
+});
+
+// POST /api/breakdowns/:breakdown_id/update-card - Update breakdown card
+router.post('/:breakdown_id/update-card', async (req, res) => {
+  try {
+    const { breakdown_id } = req.params;
+    const cardUpdates = req.body;
+
+    const { data, error } = await supabase
+      .from('breakdown_dashboard_cards')
+      .update({
+        ...cardUpdates,
+        last_refreshed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('breakdown_id', breakdown_id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        error: 'Breakdown card not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      card: data,
+      message: 'Breakdown card updated successfully'
+    });
+
+  } catch (error) {
+    console.error('Error updating breakdown card:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update breakdown card'
     });
   }
 });
