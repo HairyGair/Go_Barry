@@ -1,7 +1,8 @@
 // Fixed version of fetchDashboardData.js
 // This file ensures activities have the correct structure for LiveActivityFeed
+// Now uses apiClient for automatic authentication
 
-import { apiConfig } from '../breakdown-guide/components/common/constants.js';
+import { apiClient } from '../services/api-client.js';
 import { fetchAllActivities } from '../api/activityAggregator.js';
 
 // Circuit breaker state
@@ -133,30 +134,18 @@ export async function fetchDashboardData() {
     // Create the request promise
     cache.pendingRequest = (async () => {
       try {
-        console.log('🔄 Fetching dashboard data...');
-        
-        // Fetch core data
-        const [breakdownsResponse, statsResponse] = await Promise.all([
-          fetch(`${apiConfig.baseUrl}/api/breakdowns/live`, { 
-            signal: AbortSignal.timeout(10000)
-          }),
-          fetch(`${apiConfig.baseUrl}/api/breakdowns/stats?period=today`, { 
-            signal: AbortSignal.timeout(10000)
-          }).catch(() => null)
+        console.log('🔄 Fetching dashboard data (auth automatic via apiClient)...');
+
+        // Fetch core data using apiClient (handles auth automatically)
+        const [breakdownsData, statsData] = await Promise.all([
+          apiClient.get('/api/breakdowns/live'),
+          apiClient.get('/api/breakdowns/stats?period=today').catch(() => null)
         ]);
 
-        // Check if core request failed
-        if (!breakdownsResponse.ok) {
-          throw new Error(`Core API failed: ${breakdownsResponse.status}`);
-        }
-
-        const breakdownsData = await breakdownsResponse.json();
         console.log('📊 Breakdowns data:', breakdownsData);
-        
+
         // Handle stats response
-        let statsData = {};
-        if (statsResponse && statsResponse.ok) {
-          statsData = await statsResponse.json();
+        if (statsData) {
           console.log('📈 Stats data:', statsData);
         }
 
