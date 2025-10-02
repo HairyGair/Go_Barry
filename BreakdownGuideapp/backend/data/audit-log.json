@@ -1,0 +1,38 @@
+{
+  "events": [
+    {
+      "id": "1759433653897",
+      "timestamp": "2025-10-02T19:34:13.897Z",
+      "action": "breakdown_resolved",
+      "breakdown_id": "BD-2025-00001",
+      "user_type": "sdc_operator",
+      "resolved_by": "BP009",
+      "resolution_type": "changeover",
+      "returned_to_service": false,
+      "metadata": {
+        "fleet_number": null,
+        "location": "Ticketer Location (55.011578, -1.621315)",
+        "issue_category": "brakes",
+        "resolution_notes": "Vehicle changeover completed at depot",
+        "elapsed_time_minutes": 3482
+      }
+    },
+    {
+      "id": "1759433579809",
+      "timestamp": "2025-10-02T19:32:59.809Z",
+      "action": "breakdown_resolved",
+      "breakdown_id": "BD-2025-00001",
+      "user_type": "sdc_operator",
+      "resolved_by": "AG003",
+      "resolution_type": "fixed",
+      "returned_to_service": true,
+      "metadata": {
+        "fleet_number": null,
+        "location": "Ticketer Location (55.011578, -1.621315)",
+        "issue_category": "brakes",
+        "resolution_notes": "Brake system repaired - caliper replaced and brake pads renewed. Vehicle tested and returned to service.",
+        "elapsed_time_minutes": 3480
+      }
+    }
+  ]
+}

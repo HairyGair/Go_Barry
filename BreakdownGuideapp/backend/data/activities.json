@@ -1,0 +1,32 @@
+{
+  "activities": [
+    {
+      "id": "activity_1759433653896",
+      "type": "breakdown_resolved",
+      "activity_type": "breakdown_resolved",
+      "breakdown_id": "BD-2025-00001",
+      "fleet_no": "5801",
+      "fleet_number": "5801",
+      "resolved_by": "BP009",
+      "resolution_type": "changeover",
+      "resolution_notes": "Vehicle changeover completed at depot",
+      "returned_to_service": false,
+      "timestamp": "2025-10-02T19:34:13.895Z",
+      "message": "Breakdown BD-2025-00001 resolved by BP009 - changeover: Vehicle changeover completed at depot"
+    },
+    {
+      "id": "activity_1759433579808",
+      "type": "breakdown_resolved",
+      "activity_type": "breakdown_resolved",
+      "breakdown_id": "BD-2025-00001",
+      "fleet_no": "5801",
+      "fleet_number": "5801",
+      "resolved_by": "AG003",
+      "resolution_type": "fixed",
+      "resolution_notes": "Brake system repaired - caliper replaced and brake pads renewed. Vehicle tested and returned to service.",
+      "returned_to_service": true,
+      "timestamp": "2025-10-02T19:32:59.808Z",
+      "message": "Breakdown BD-2025-00001 resolved by AG003 - fixed: Brake system repaired - caliper replaced and brake pads renewed. Vehicle tested and returned to service."
+    }
+  ]
+}
