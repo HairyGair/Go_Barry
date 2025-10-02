@@ -9,6 +9,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { supabase } from '../server.js';
 import webSocketHandler from './webSocketHandler.js';
+import Joi from 'joi';
 import {
   validateBody,
   acknowledgeBreakdownSchema,
@@ -1315,6 +1316,201 @@ router.post('/request-engineering', validateBody(requestEngineeringSchema), sani
       success: false,
       error: 'Failed to request engineering',
       message: error.message
+    });
+  }
+});
+
+// POST /api/sdc/resolve - Mark breakdown as resolved/completed
+router.post('/resolve', validateBody(Joi.object({
+  breakdown_id: Joi.string()
+    .required()
+    .trim()
+    .max(50)
+    .pattern(/^[A-Z0-9-]+$/)
+    .messages({
+      'string.empty': 'Breakdown ID is required',
+      'string.pattern.base': 'Breakdown ID must contain only uppercase letters, numbers, and hyphens',
+      'any.required': 'Breakdown ID is required'
+    }),
+
+  resolved_by: Joi.string()
+    .trim()
+    .max(100)
+    .default('SDC')
+    .messages({
+      'string.max': 'Resolved by name cannot exceed 100 characters'
+    }),
+
+  supervisor_badge: Joi.string()
+    .trim()
+    .max(20)
+    .pattern(/^[A-Z0-9]+$/)
+    .messages({
+      'string.max': 'Supervisor badge cannot exceed 20 characters',
+      'string.pattern.base': 'Supervisor badge must contain only uppercase letters and numbers'
+    }),
+
+  resolution_notes: Joi.string()
+    .trim()
+    .max(1000)
+    .allow('')
+    .messages({
+      'string.max': 'Resolution notes cannot exceed 1000 characters'
+    }),
+
+  returned_to_service: Joi.boolean()
+    .default(true),
+
+  resolution_type: Joi.string()
+    .lowercase()
+    .valid('fixed', 'changeover', 'cancelled', 'duplicate', 'other')
+    .default('fixed')
+    .messages({
+      'any.only': 'Resolution type must be one of: fixed, changeover, cancelled, duplicate, other'
+    })
+})), sanitizeNotes, async (req, res) => {
+  try {
+    const {
+      breakdown_id,
+      resolved_by,
+      supervisor_badge,
+      resolution_notes,
+      returned_to_service,
+      resolution_type
+    } = req.body;
+
+    console.log(`✅ SDC API: Resolving breakdown ${breakdown_id}`);
+
+    // Verify breakdown exists
+    const { data: currentBreakdown, error: fetchError } = await supabase
+      .from('breakdowns')
+      .select('*')
+      .eq('breakdown_id', breakdown_id)
+      .single();
+
+    if (fetchError || !currentBreakdown) {
+      return res.status(404).json({
+        success: false,
+        error: 'Breakdown not found',
+        code: 'BREAKDOWN_NOT_FOUND',
+        breakdown_id: breakdown_id,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Check if already resolved
+    if (currentBreakdown.status === 'cleared' || currentBreakdown.status === 'resolved') {
+      return res.status(400).json({
+        success: false,
+        error: 'Breakdown already resolved',
+        code: 'ALREADY_RESOLVED',
+        breakdown_id: breakdown_id,
+        resolved_at: currentBreakdown.cleared_at || currentBreakdown.resolved_at,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const resolvedAt = new Date().toISOString();
+    const resolvingUser = resolved_by || supervisor_badge || 'SDC';
+
+    // Update breakdown status to resolved
+    const { data: breakdown, error: updateError } = await supabase
+      .from('breakdowns')
+      .update({
+        status: 'cleared',
+        cleared_at: resolvedAt,
+        resolved_at: resolvedAt,
+        resolved_by: resolvingUser,
+        resolution_notes: resolution_notes || null,
+        resolution_type: resolution_type,
+        returned_to_service: returned_to_service,
+        updated_at: resolvedAt
+      })
+      .eq('breakdown_id', breakdown_id)
+      .select()
+      .single();
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    // Log activity
+    const activitiesData = loadJSONFile(ACTIVITIES_PATH, { activities: [] });
+    const newActivity = {
+      id: `activity_${Date.now()}`,
+      type: 'breakdown_resolved',
+      activity_type: 'breakdown_resolved',
+      breakdown_id: breakdown_id,
+      fleet_no: breakdown.fleet_number || breakdown.fleet_no,
+      fleet_number: breakdown.fleet_number || breakdown.fleet_no,
+      resolved_by: resolvingUser,
+      supervisor_badge: supervisor_badge,
+      resolution_type: resolution_type,
+      resolution_notes: resolution_notes,
+      returned_to_service: returned_to_service,
+      timestamp: resolvedAt,
+      message: `Breakdown ${breakdown_id} resolved by ${resolvingUser} - ${resolution_type}`
+    };
+
+    activitiesData.activities.unshift(newActivity);
+    if (activitiesData.activities.length > 500) {
+      activitiesData.activities = activitiesData.activities.slice(0, 500);
+    }
+    saveJSONFile(ACTIVITIES_PATH, activitiesData);
+
+    // Log audit event
+    logAuditEvent({
+      action: 'breakdown_resolved',
+      breakdown_id: breakdown_id,
+      user_type: 'sdc_operator',
+      resolved_by: resolvingUser,
+      resolution_type: resolution_type,
+      returned_to_service: returned_to_service,
+      metadata: {
+        fleet_number: breakdown.fleet_number,
+        location: breakdown.location,
+        issue_category: breakdown.issue_category,
+        resolution_notes: resolution_notes,
+        elapsed_time_minutes: Math.floor((new Date(resolvedAt) - new Date(breakdown.created_at)) / 1000 / 60)
+      }
+    });
+
+    const response = {
+      success: true,
+      message: 'Breakdown resolved successfully',
+      breakdown_id: breakdown_id,
+      resolution_type: resolution_type,
+      resolved_at: resolvedAt,
+      resolved_by: resolvingUser,
+      returned_to_service: returned_to_service,
+      breakdown: breakdown,
+      timestamp: resolvedAt
+    };
+
+    // Broadcast to WebSocket clients
+    webSocketHandler.broadcast('sdc-dashboard', {
+      type: 'breakdown_resolved',
+      breakdown_id: breakdown_id,
+      breakdown: breakdown,
+      resolution_type: resolution_type,
+      resolved_at: resolvedAt,
+      resolved_by: resolvingUser,
+      returned_to_service: returned_to_service,
+      resolution_notes: resolution_notes,
+      timestamp: resolvedAt
+    });
+
+    console.log(`✅ SDC API: Breakdown ${breakdown_id} resolved - ${resolution_type}`);
+
+    res.json(response);
+  } catch (error) {
+    console.error('❌ SDC API: Error resolving breakdown:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to resolve breakdown',
+      code: 'RESOLVE_ERROR',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      timestamp: new Date().toISOString()
     });
   }
 });
