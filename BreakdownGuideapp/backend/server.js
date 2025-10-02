@@ -10,12 +10,14 @@ import { activityLogger } from './services/activityLogger.js';
 import {
   rateLimitLogin,
   clearLoginAttempts,
+  rateLimitSDC,
   verifyToken,
   requireSupervisor,
   requireAdmin,
   authenticateUser,
   authenticateSupervisor,
   authenticateAdmin,
+  authenticateSDC,
   healthCheck,
   logSecurityEvent
 } from './middleware/authMiddleware.js';
@@ -182,8 +184,8 @@ app.use('/api/reports', authenticateSupervisor, analyticsRoutes); // Reports als
 app.use('/api/activity', authenticateSupervisor, activityRoutes);
 app.use('/api/supervisors', authenticateSupervisor, supervisorRoutes);
 
-// SDC Dashboard API routes (less restrictive authentication for dashboard viewing)
-app.use('/api/sdc', breakdownsAPIRoutes);
+// SDC Dashboard API routes (requires SDC operator authentication and rate limiting)
+app.use('/api/sdc', rateLimitSDC, authenticateSDC, breakdownsAPIRoutes);
 
 // 404 handler
 app.use((req, res) => {

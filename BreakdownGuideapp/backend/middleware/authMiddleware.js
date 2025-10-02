@@ -10,15 +10,26 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Rate limiting storage (in-memory for now)
 const loginAttempts = new Map();
+const sdcOperationAttempts = new Map();
 const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
 const MAX_LOGIN_ATTEMPTS = 5;
+const MAX_SDC_OPERATIONS = 100; // 100 operations per 15 minutes per user
 
 // Clean up old rate limit entries
 setInterval(() => {
     const now = Date.now();
+
+    // Clean login attempts
     for (const [key, data] of loginAttempts.entries()) {
         if (now - data.windowStart > RATE_LIMIT_WINDOW) {
             loginAttempts.delete(key);
+        }
+    }
+
+    // Clean SDC operation attempts
+    for (const [key, data] of sdcOperationAttempts.entries()) {
+        if (now - data.windowStart > RATE_LIMIT_WINDOW) {
+            sdcOperationAttempts.delete(key);
         }
     }
 }, 5 * 60 * 1000); // Clean up every 5 minutes
@@ -84,18 +95,83 @@ export const clearLoginAttempts = (req, res, next) => {
     next();
 };
 
+// Rate limiting middleware for SDC operations
+export const rateLimitSDC = (req, res, next) => {
+    const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
+    const userEmail = req.user?.email || 'unauthenticated';
+    const identifier = `sdc:${userEmail}:${clientIP}`;
+
+    const now = Date.now();
+    const attempts = sdcOperationAttempts.get(identifier);
+
+    if (!attempts) {
+        // First operation
+        sdcOperationAttempts.set(identifier, {
+            count: 1,
+            windowStart: now,
+            lastOperation: now
+        });
+        return next();
+    }
+
+    // Check if window has expired
+    if (now - attempts.windowStart > RATE_LIMIT_WINDOW) {
+        // Reset window
+        sdcOperationAttempts.set(identifier, {
+            count: 1,
+            windowStart: now,
+            lastOperation: now
+        });
+        return next();
+    }
+
+    // Check if rate limit exceeded
+    if (attempts.count >= MAX_SDC_OPERATIONS) {
+        const resetTime = new Date(attempts.windowStart + RATE_LIMIT_WINDOW);
+
+        console.warn(`⚠️ SDC rate limit exceeded for ${userEmail} from ${clientIP}. Reset at ${resetTime}`);
+
+        // Log security event
+        const securityEvent = {
+            eventType: 'sdc_rate_limit_exceeded',
+            timestamp: new Date().toISOString(),
+            email: userEmail,
+            ip: clientIP,
+            userAgent: req.get('User-Agent'),
+            path: req.path,
+            operationCount: attempts.count
+        };
+        console.log('🔒 Security Alert:', JSON.stringify(securityEvent, null, 2));
+
+        return res.status(429).json({
+            success: false,
+            error: 'Too many SDC operations. Please try again later.',
+            code: 'SDC_RATE_LIMIT_EXCEEDED',
+            resetTime: resetTime.toISOString(),
+            retryAfter: Math.ceil((resetTime.getTime() - now) / 1000),
+            timestamp: new Date().toISOString()
+        });
+    }
+
+    // Increment operation count
+    attempts.count++;
+    attempts.lastOperation = now;
+    sdcOperationAttempts.set(identifier, attempts);
+
+    next();
+};
+
 // Middleware to verify JWT token from Supabase
 export const verifyToken = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
 
-        // Development bypass for testing
-        // TEMPORARY: Allow bypass in production until frontend auth is updated
-        if (!authHeader || authHeader === 'Bearer undefined' || authHeader === 'Bearer null') {
-            console.log('🔧 Auth bypass mode: allowing access for', req.path);
-            // Set a mock user for development
+        // DEVELOPMENT ONLY: Allow bypass for testing (REMOVED FROM PRODUCTION)
+        if (process.env.NODE_ENV === 'development' &&
+            (!authHeader || authHeader === 'Bearer undefined' || authHeader === 'Bearer null')) {
+            console.log('🔧 Development mode: Auth bypass for', req.path);
             req.user = {
-                id: '1646c9a7-58fe-4ea6-bff2-8b5c3bbe54a0', // Use real UUID to match existing data
+                id: '1646c9a7-58fe-4ea6-bff2-8b5c3bbe54a0',
                 email: 'anthony.gair@gonortheast.co.uk',
                 role: 'admin',
                 aud: 'authenticated',
@@ -105,6 +181,7 @@ export const verifyToken = async (req, res, next) => {
             return next();
         }
 
+        // PRODUCTION: Require authentication
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({
                 error: 'Authentication required',
@@ -282,6 +359,99 @@ export const logSecurityEvent = (eventType) => {
 
         next();
     };
+};
+
+// SDC-specific authentication middleware
+export const authenticateSDC = async (req, res, next) => {
+    try {
+        const authHeader = req.headers.authorization;
+
+        // DEVELOPMENT ONLY: Allow bypass
+        if (process.env.NODE_ENV === 'development' && (!authHeader || authHeader === 'Bearer undefined')) {
+            console.log('🔧 Development mode: SDC auth bypass for', req.path);
+            req.user = {
+                id: '1646c9a7-58fe-4ea6-bff2-8b5c3bbe54a0',
+                email: 'anthony.gair@gonortheast.co.uk',
+                role: 'admin'
+            };
+            req.supervisor = {
+                id: '1646c9a7-58fe-4ea6-bff2-8b5c3bbe54a0',
+                email: 'anthony.gair@gonortheast.co.uk',
+                name: 'Anthony Gair',
+                depot: 'SDC',
+                role: 'admin'
+            };
+            return next();
+        }
+
+        // PRODUCTION: Require authentication
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({
+                success: false,
+                error: 'SDC authentication required',
+                code: 'SDC_AUTH_MISSING'
+            });
+        }
+
+        const token = authHeader.substring(7);
+
+        // Verify token with Supabase
+        const { data: user, error } = await supabase.auth.getUser(token);
+
+        if (error || !user) {
+            console.warn('Invalid SDC authentication:', error?.message);
+            return res.status(401).json({
+                success: false,
+                error: 'Invalid authentication token',
+                code: 'SDC_AUTH_INVALID'
+            });
+        }
+
+        // Check if user has SDC/supervisor privileges
+        const { data: supervisor, error: supervisorError } = await supabase
+            .from('supervisors')
+            .select('id, email, name, role, depot')
+            .eq('email', user.user.email.toLowerCase())
+            .in('role', ['admin', 'sdc_operator', 'manager', 'supervisor'])
+            .single();
+
+        if (supervisorError || !supervisor) {
+            console.warn(`Unauthorized SDC access attempt by ${user.user.email}`);
+
+            // Log security event
+            const securityEvent = {
+                eventType: 'unauthorized_sdc_access',
+                timestamp: new Date().toISOString(),
+                email: user.user.email,
+                ip: req.ip || req.connection.remoteAddress,
+                userAgent: req.get('User-Agent'),
+                path: req.path
+            };
+            console.log('🔒 Security Alert:', JSON.stringify(securityEvent, null, 2));
+
+            return res.status(403).json({
+                success: false,
+                error: 'SDC operator privileges required',
+                code: 'SDC_AUTH_FORBIDDEN'
+            });
+        }
+
+        req.user = {
+            id: user.user.id,
+            email: user.user.email,
+            role: supervisor.role
+        };
+        req.supervisor = supervisor;
+
+        next();
+    } catch (error) {
+        console.error('SDC authentication error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Authentication failed',
+            code: 'SDC_AUTH_ERROR'
+        });
+    }
 };
 
 // Combined auth middleware for convenience

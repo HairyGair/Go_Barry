@@ -9,6 +9,14 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { supabase } from '../server.js';
 import webSocketHandler from './webSocketHandler.js';
+import {
+  validateBody,
+  acknowledgeBreakdownSchema,
+  recordDecisionSchema,
+  addNoteSchema,
+  requestEngineeringSchema,
+  sanitizeNotes
+} from '../middleware/validationMiddleware.js';
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -752,7 +760,7 @@ const calculateProgressData = (activities) => {
 };
 
 // POST /api/sdc/acknowledge - SDC acknowledges a breakdown
-router.post('/acknowledge', async (req, res) => {
+router.post('/acknowledge', validateBody(acknowledgeBreakdownSchema), sanitizeNotes, async (req, res) => {
   try {
     const { breakdown_id, acknowledged_by, supervisor_badge, notes } = req.body;
 
@@ -858,7 +866,7 @@ router.post('/acknowledge', async (req, res) => {
 });
 
 // POST /api/sdc/decision - SDC records operational decision
-router.post('/decision', async (req, res) => {
+router.post('/decision', validateBody(recordDecisionSchema), sanitizeNotes, async (req, res) => {
   try {
     const { breakdown_id, decision, decided_by, supervisor_badge, notes, decision_notes } = req.body;
 
@@ -989,7 +997,7 @@ router.post('/decision', async (req, res) => {
 });
 
 // POST /api/sdc/add-note - Add operational note to breakdown
-router.post('/add-note', async (req, res) => {
+router.post('/add-note', validateBody(addNoteSchema), sanitizeNotes, async (req, res) => {
   try {
     const { breakdown_id, note, added_by, supervisor_badge, note_type } = req.body;
 
@@ -1148,7 +1156,7 @@ router.post('/add-note', async (req, res) => {
 });
 
 // POST /api/sdc/request-engineering - Request engineering assistance
-router.post('/request-engineering', async (req, res) => {
+router.post('/request-engineering', validateBody(requestEngineeringSchema), sanitizeNotes, async (req, res) => {
   try {
     const {
       breakdown_id,

@@ -7,9 +7,15 @@ import { WebSocketServer } from 'ws';
 import { readFileSync, existsSync, watchFile } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { createClient } from '@supabase/supabase-js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Supabase client for authentication
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 // Data file paths
 const BREAKDOWN_COUNTER_PATH = join(__dirname, '../data/breakdown-counter.json');
@@ -45,20 +51,157 @@ class WebSocketHandler {
   }
 
   // Handle new WebSocket connection
-  handleConnection(ws, request) {
+  async handleConnection(ws, request) {
     const clientId = this.generateClientId();
     const url = new URL(request.url, `http://${request.headers.host}`);
     const channel = url.searchParams.get('channel') || 'general';
-    
-    console.log(`🔗 New WebSocket connection: ${clientId} on channel: ${channel}`);
+    const token = url.searchParams.get('token');
 
-    // Store client info
+    console.log(`🔗 New WebSocket connection attempt: ${clientId} on channel: ${channel}`);
+
+    // Authenticate WebSocket connection
+    let user = null;
+    let supervisor = null;
+
+    // DEVELOPMENT ONLY: Allow unauthenticated connections
+    if (process.env.NODE_ENV === 'development' && !token) {
+      console.log('🔧 Development mode: WebSocket auth bypass for', channel);
+      user = {
+        id: '1646c9a7-58fe-4ea6-bff2-8b5c3bbe54a0',
+        email: 'anthony.gair@gonortheast.co.uk',
+        role: 'admin'
+      };
+      supervisor = {
+        id: '1646c9a7-58fe-4ea6-bff2-8b5c3bbe54a0',
+        email: 'anthony.gair@gonortheast.co.uk',
+        name: 'Anthony Gair',
+        depot: 'SDC',
+        role: 'admin'
+      };
+    } else {
+      // PRODUCTION: Require authentication for protected channels
+      const protectedChannels = ['sdc-dashboard', 'breakdowns', 'assessment-progress'];
+
+      if (protectedChannels.includes(channel)) {
+        if (!token) {
+          console.warn(`❌ WebSocket authentication required for channel: ${channel}`);
+          ws.send(JSON.stringify({
+            type: 'error',
+            error: 'Authentication required for this channel',
+            code: 'WS_AUTH_REQUIRED',
+            timestamp: new Date().toISOString()
+          }));
+          ws.close();
+          return;
+        }
+
+        // Verify token with Supabase
+        try {
+          if (!supabase) {
+            console.error('❌ Supabase client not initialized');
+            ws.send(JSON.stringify({
+              type: 'error',
+              error: 'Authentication service unavailable',
+              code: 'WS_AUTH_SERVICE_ERROR',
+              timestamp: new Date().toISOString()
+            }));
+            ws.close();
+            return;
+          }
+
+          const { data: userData, error: authError } = await supabase.auth.getUser(token);
+
+          if (authError || !userData) {
+            console.warn(`❌ Invalid WebSocket authentication token for channel: ${channel}`);
+
+            // Log security event
+            const securityEvent = {
+              eventType: 'unauthorized_websocket_access',
+              timestamp: new Date().toISOString(),
+              channel: channel,
+              ip: request.socket.remoteAddress,
+              userAgent: request.headers['user-agent'],
+              error: authError?.message || 'Invalid token'
+            };
+            console.log('🔒 Security Alert:', JSON.stringify(securityEvent, null, 2));
+
+            ws.send(JSON.stringify({
+              type: 'error',
+              error: 'Invalid or expired authentication token',
+              code: 'WS_AUTH_INVALID',
+              timestamp: new Date().toISOString()
+            }));
+            ws.close();
+            return;
+          }
+
+          user = {
+            id: userData.user.id,
+            email: userData.user.email,
+            role: userData.user.user_metadata?.role || 'user'
+          };
+
+          // Check supervisor privileges for SDC dashboard
+          if (channel === 'sdc-dashboard') {
+            const { data: supervisorData, error: supervisorError } = await supabase
+              .from('supervisors')
+              .select('id, email, name, role, depot')
+              .eq('email', user.email.toLowerCase())
+              .in('role', ['admin', 'sdc_operator', 'manager', 'supervisor'])
+              .single();
+
+            if (supervisorError || !supervisorData) {
+              console.warn(`❌ Unauthorized WebSocket access attempt to SDC dashboard by ${user.email}`);
+
+              // Log security event
+              const securityEvent = {
+                eventType: 'unauthorized_sdc_websocket_access',
+                timestamp: new Date().toISOString(),
+                email: user.email,
+                channel: channel,
+                ip: request.socket.remoteAddress,
+                userAgent: request.headers['user-agent']
+              };
+              console.log('🔒 Security Alert:', JSON.stringify(securityEvent, null, 2));
+
+              ws.send(JSON.stringify({
+                type: 'error',
+                error: 'SDC operator privileges required',
+                code: 'WS_SDC_AUTH_FORBIDDEN',
+                timestamp: new Date().toISOString()
+              }));
+              ws.close();
+              return;
+            }
+
+            supervisor = supervisorData;
+          }
+
+          console.log(`✅ WebSocket authenticated: ${user.email} on channel: ${channel}`);
+        } catch (error) {
+          console.error('❌ WebSocket authentication error:', error);
+          ws.send(JSON.stringify({
+            type: 'error',
+            error: 'Authentication failed',
+            code: 'WS_AUTH_ERROR',
+            timestamp: new Date().toISOString()
+          }));
+          ws.close();
+          return;
+        }
+      }
+    }
+
+    // Store client info with authentication details
     this.clients.set(clientId, {
       ws,
       channel,
+      user,
+      supervisor,
       connectedAt: new Date().toISOString(),
       lastActivity: new Date().toISOString(),
-      subscriptions: new Set([channel])
+      subscriptions: new Set([channel]),
+      authenticated: !!user
     });
 
     // Add to channel
@@ -86,7 +229,9 @@ class WebSocketHandler {
       type: 'connected',
       clientId,
       channel,
-      message: 'Connected to breakdown updates',
+      authenticated: !!user,
+      user: user ? { email: user.email, role: user.role } : null,
+      message: user ? `Authenticated as ${user.email}` : 'Connected to breakdown updates',
       timestamp: new Date().toISOString()
     });
 
