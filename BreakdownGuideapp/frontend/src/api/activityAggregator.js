@@ -117,25 +117,20 @@ export async function fetchAllActivities(limit = 50) {
           metadata: activity.metadata || {}
         }));
 
-        return {
-          activities: processedActivities,
-          sources: {
-            unified_activities: true,
-            breakdowns: false,
-            assessments: false,
-            engineering: false,
-            decisions: false,
-            audit: false
-          },
-          total: data.count || processedActivities.length,
-          timestamp: data.timestamp || new Date().toISOString(),
-          source: 'unified_activities_table'
-        };
-      } else if (response.status === 401) {
-        console.warn('⚠️ Authentication required for activity feed, falling back to legacy');
-      } else {
-        console.warn(`⚠️ Activity feed returned status ${response.status}`);
-      }
+      return {
+        activities: processedActivities,
+        sources: {
+          unified_activities: true,
+          breakdowns: false,
+          assessments: false,
+          engineering: false,
+          decisions: false,
+          audit: false
+        },
+        total: data.count || processedActivities.length,
+        timestamp: data.timestamp || new Date().toISOString(),
+        source: 'unified_activities_table'
+      };
     } catch (unifiedError) {
       console.log('⚠️ Unified activities endpoint error:', unifiedError.message);
     }
