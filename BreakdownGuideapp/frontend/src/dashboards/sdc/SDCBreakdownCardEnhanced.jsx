@@ -97,12 +97,13 @@ const getStaticMapUrl = (location) => {
   return null;
 };
 
-const SDCBreakdownCardEnhanced = memo(({ 
-  breakdown, 
-  onAcknowledge, 
-  onMakeDecision, 
+const SDCBreakdownCardEnhanced = memo(({
+  breakdown,
+  onAcknowledge,
+  onMakeDecision,
   onRequestEngineering,
   onEditAssessment,
+  onResolve,
   onViewGuide,
   onAddNote,
   animationDelay = 0,
@@ -526,6 +527,11 @@ const SDCBreakdownCardEnhanced = memo(({
         {breakdown.wizard_decision && onEditAssessment && (
           <button className="btn btn-edit" onClick={() => onEditAssessment(breakdown.breakdown_id)}>
             <span>✏️</span> Edit
+          </button>
+        )}
+        {onResolve && (
+          <button className="btn btn-resolve" onClick={onResolve}>
+            <span>✅</span> Mark as Resolved
           </button>
         )}
       </div>
@@ -1159,6 +1165,17 @@ const SDCBreakdownCardEnhanced = memo(({
         .btn-edit {
           background: linear-gradient(135deg, #64748b, #475569);
           color: white;
+        }
+
+        .btn-resolve {
+          background: linear-gradient(135deg, #10b981, #059669);
+          color: white;
+          box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-resolve:hover {
+          background: linear-gradient(135deg, #059669, #047857);
+          box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
         }
 
         .btn:hover {

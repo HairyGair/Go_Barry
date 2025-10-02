@@ -13,6 +13,7 @@ import AssessmentProgressCard from './AssessmentProgressCard';
 import EngineeringTimerAlert from './EngineeringTimerAlert';
 import ConnectionStatusIndicator from '../../components/ConnectionStatusIndicator';
 import SDCDashboardHeader from './SDCDashboardHeader';
+import BreakdownResolutionDialog from './components/BreakdownResolutionDialog';
 import { apiClient } from '../../services/api-client';
 import { fetchAllActivities } from '../../api/activityAggregator';
 import { enhanceBreakdownDataInline } from './dataEnhancementPatch';
@@ -38,7 +39,13 @@ const SDCDashboard = () => {
   
   // Additional dashboard state
   const [engineeringTimers, setEngineeringTimers] = useState(new Map());
-  
+
+  // Resolution dialog state
+  const [resolutionDialog, setResolutionDialog] = useState({
+    isOpen: false,
+    breakdown: null
+  });
+
   // URL parameter handling state
   const [redirectNotification, setRedirectNotification] = useState(null);
   const [scrollToBreakdown, setScrollToBreakdown] = useState(null);
@@ -628,7 +635,45 @@ const SDCDashboard = () => {
         });
         fetchBreakdowns(); // Refresh breakdown data
         break;
-        
+
+      case 'breakdown_resolved':
+        // Remove resolved breakdown from view
+        const resolvedBreakdownId = data.breakdown_id || data.breakdownId;
+        console.log('✅ Breakdown resolved via WebSocket:', resolvedBreakdownId);
+
+        // Remove from active breakdowns
+        setBreakdowns(prev => prev.filter(b => b.breakdown_id !== resolvedBreakdownId));
+
+        // Clear engineering timer if exists
+        setEngineeringTimers(prev => {
+          const newTimers = new Map(prev);
+          newTimers.delete(resolvedBreakdownId);
+          return newTimers;
+        });
+
+        // Remove from active assessments if exists
+        setActiveAssessments(prev =>
+          prev.filter(a => a.breakdown_id !== resolvedBreakdownId)
+        );
+
+        // Add to completed resolutions list
+        setCompletedAssessments(prev => [
+          {
+            id: resolvedBreakdownId,
+            completedAt: data.resolved_at || new Date().toISOString(),
+            decision: data.resolution_type || 'resolved',
+            supervisor: data.resolved_by || 'SDC',
+            fleet: data.breakdown?.fleet_number || 'Unknown',
+            location: data.breakdown?.location,
+            wizardType: 'Resolution',
+            duration: data.breakdown?.elapsed_time_minutes ? `${data.breakdown.elapsed_time_minutes} mins` : 'N/A'
+          },
+          ...prev.slice(0, 9)
+        ]);
+
+        console.log(`🎉 Breakdown ${resolvedBreakdownId} removed from dashboard`);
+        break;
+
       case 'assessment_progress':
         // Update progress for specific assessment with detailed info
         setActiveAssessments(prev => 
@@ -1200,6 +1245,45 @@ const SDCDashboard = () => {
     }
   };
 
+  // Handle breakdown resolution
+  const handleResolveBreakdown = (breakdown) => {
+    console.log('🔧 Opening resolution dialog for:', breakdown.breakdown_id);
+    setResolutionDialog({
+      isOpen: true,
+      breakdown: breakdown
+    });
+  };
+
+  // Confirm breakdown resolution
+  const handleConfirmResolution = async (resolutionData) => {
+    try {
+      console.log('✅ Resolving breakdown:', resolutionData.breakdown_id);
+
+      const response = await apiClient.post('/api/sdc/resolve', resolutionData);
+
+      if (response.success) {
+        console.log('✅ Breakdown resolved successfully');
+
+        // Close dialog
+        setResolutionDialog({ isOpen: false, breakdown: null });
+
+        // Remove from local state immediately for instant feedback
+        setBreakdowns(prev => prev.filter(b => b.breakdown_id !== resolutionData.breakdown_id));
+
+        // Show success notification
+        // TODO: Add toast notification here
+
+        // Refresh data to sync
+        setTimeout(() => fetchBreakdowns(), 1000);
+      } else {
+        throw new Error(response.error || 'Failed to resolve breakdown');
+      }
+    } catch (error) {
+      console.error('❌ Error resolving breakdown:', error);
+      alert(`Failed to resolve breakdown: ${error.message || 'Unknown error'}`);
+    }
+  };
+
   // Enhanced edit assessment handler with integrated API
   const handleEditAssessment = async (breakdownId) => {
     try {
@@ -1491,6 +1575,7 @@ const SDCDashboard = () => {
                       onMakeDecision={(decision) => handleMakeDecision(breakdown.breakdown_id, decision)}
                       onRequestEngineering={() => handleRequestEngineering(breakdown.breakdown_id)}
                       onEditAssessment={() => handleEditAssessment(breakdown.breakdown_id)}
+                      onResolve={() => handleResolveBreakdown(breakdown)}
                       onViewGuide={handleViewGuide}
                       onAddNote={handleAddNote}
                     />
@@ -1520,10 +1605,19 @@ const SDCDashboard = () => {
       </div>
 
       {/* Connection Status Indicator */}
-      <ConnectionStatusIndicator 
+      <ConnectionStatusIndicator
         connectionManager={connectionManager.manager}
         showDetails={true}
         position="bottom-right"
+      />
+
+      {/* Breakdown Resolution Dialog */}
+      <BreakdownResolutionDialog
+        breakdown={resolutionDialog.breakdown}
+        isOpen={resolutionDialog.isOpen}
+        onClose={() => setResolutionDialog({ isOpen: false, breakdown: null })}
+        onConfirm={handleConfirmResolution}
+        currentSupervisor={currentSupervisor}
       />
 
       <style jsx>{`
