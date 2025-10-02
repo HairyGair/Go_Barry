@@ -4,7 +4,7 @@ import StatsCard from '../components/StatsCard';
 import FilterBar from '../components/FilterBar';
 import BreakdownCard from './BreakdownCard';
 import EngineeringStats from './EngineeringStats';
-import { apiConfig } from '../../breakdown-guide/components/common/constants';
+import { apiClient } from '../../services/api-client';
 
 const BreakdownDashboard = () => {
   const [breakdowns, setBreakdowns] = useState([]);
@@ -39,14 +39,9 @@ const BreakdownDashboard = () => {
   const fetchBreakdowns = async () => {
     try {
       setLoading(true);
-      
-      // Fetch breakdowns from the real API
-      const response = await fetch(`${apiConfig.baseUrl}/api/breakdowns/active`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch breakdowns');
-      }
-      
-      const data = await response.json();
+
+      // Fetch breakdowns from the real API (auth automatic via apiClient)
+      const data = await apiClient.get('/api/breakdowns/active');
       console.log('📊 Fetched real breakdowns:', data);
       
       if (data.success && Array.isArray(data.breakdowns)) {
@@ -144,20 +139,17 @@ const BreakdownDashboard = () => {
   // Fetch depot stats from backend
   const fetchDepotStats = async () => {
     try {
-      const response = await fetch(`${apiConfig.baseUrl}/api/engineering/depot-stats`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setEngineeringTeams(data.teams || {});
-          const depotData = Object.entries(data.teams || {}).map(([name, data]) => ({
-            name,
-            avgResponse: data.avgResponse || 0,
-            sla: data.sla || 0,
-            activeEngineers: data.available || 0,
-            totalEngineers: data.total || 0
-          }));
-          setDepotStats(depotData);
-        }
+      const data = await apiClient.get('/api/engineering/depot-stats');
+      if (data.success) {
+        setEngineeringTeams(data.teams || {});
+        const depotData = Object.entries(data.teams || {}).map(([name, data]) => ({
+          name,
+          avgResponse: data.avgResponse || 0,
+          sla: data.sla || 0,
+          activeEngineers: data.available || 0,
+          totalEngineers: data.total || 0
+        }));
+        setDepotStats(depotData);
       }
     } catch (error) {
       console.error('Error fetching depot stats:', error);
@@ -209,19 +201,13 @@ const BreakdownDashboard = () => {
 
   const handleAssignEngineer = async (breakdownId, engineerId) => {
     try {
-      const response = await fetch(`${apiConfig.baseUrl}/api/engineering/assign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          breakdown_id: breakdownId, 
-          engineer_id: engineerId 
-        })
+      await apiClient.post('/api/engineering/assign', {
+        breakdown_id: breakdownId,
+        engineer_id: engineerId
       });
-      
-      if (response.ok) {
-        // Refresh data to show the assignment
-        fetchBreakdowns();
-      }
+
+      // Refresh data to show the assignment
+      fetchBreakdowns();
     } catch (error) {
       console.error('Error assigning engineer:', error);
     }
@@ -229,19 +215,13 @@ const BreakdownDashboard = () => {
 
   const handleResolve = async (breakdownId) => {
     try {
-      const response = await fetch(`${apiConfig.baseUrl}/api/breakdowns/${breakdownId}/resolve`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          resolved_at: new Date().toISOString(),
-          status: 'resolved'
-        })
+      await apiClient.put(`/api/breakdowns/${breakdownId}/resolve`, {
+        resolved_at: new Date().toISOString(),
+        status: 'resolved'
       });
-      
-      if (response.ok) {
-        // Refresh data to show resolution
-        fetchBreakdowns();
-      }
+
+      // Refresh data to show resolution
+      fetchBreakdowns();
     } catch (error) {
       console.error('Error resolving breakdown:', error);
     }

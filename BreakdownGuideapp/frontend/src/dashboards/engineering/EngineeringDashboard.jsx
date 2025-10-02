@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
 import StatsCard from '../components/StatsCard';
 import FilterBar from '../components/FilterBar';
-import { apiConfig } from '../../breakdown-guide/components/common/constants';
+import { apiClient } from '../../services/api-client';
 import EngineeringCard from './EngineeringCard';
 import DepotStats from './DepotStats';
 import EngineerModal from './EngineerModal';
@@ -36,13 +36,7 @@ const EngineeringDashboard = () => {
   // Fetch real breakdown data from backend
   const fetchBreakdowns = async () => {
     try {
-      const response = await fetch(`${apiConfig.baseUrl}/api/breakdowns/active`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch breakdowns: ${response.status}`);
-      }
-      
-      const data = await response.json();
+      const data = await apiClient.get('/api/breakdowns/active');
       console.log('📊 Fetched real breakdowns for engineering:', data);
       
       if (data.success && Array.isArray(data.breakdowns)) {
@@ -125,13 +119,9 @@ const EngineeringDashboard = () => {
   // Fetch engineers data
   const fetchEngineers = async () => {
     try {
-      const response = await fetch(`${apiConfig.baseUrl}/api/engineering/engineers`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setAllEngineers(data.engineers || []);
-        }
+      const data = await apiClient.get('/api/engineering/engineers');
+      if (data.success) {
+        setAllEngineers(data.engineers || []);
       }
     } catch (error) {
       console.error('Error fetching engineers:', error);
@@ -141,13 +131,9 @@ const EngineeringDashboard = () => {
   // Fetch engineering metrics
   const fetchMetrics = async () => {
     try {
-      const response = await fetch(`${apiConfig.baseUrl}/api/engineering/metrics`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setEngineeringMetrics(data.metrics || {});
-        }
+      const data = await apiClient.get('/api/engineering/metrics');
+      if (data.success) {
+        setEngineeringMetrics(data.metrics || {});
       }
     } catch (error) {
       console.error('Error fetching metrics:', error);
@@ -238,24 +224,16 @@ const EngineeringDashboard = () => {
 
   const handleEngineerSelect = async (engineerId) => {
     try {
-      const response = await fetch(`${apiConfig.baseUrl}/api/engineering/assign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          breakdown_id: selectedBreakdownId,
-          engineer_id: engineerId
-        })
+      await apiClient.post('/api/engineering/assign', {
+        breakdown_id: selectedBreakdownId,
+        engineer_id: engineerId
       });
 
-      if (response.ok) {
-        setNotification('Engineer assigned successfully');
-        setShowEngineerModal(false);
-        fetchAllData(); // Refresh data
-        
-        setTimeout(() => setNotification(null), 3000);
-      } else {
-        throw new Error('Failed to assign engineer');
-      }
+      setNotification('Engineer assigned successfully');
+      setShowEngineerModal(false);
+      fetchAllData(); // Refresh data
+
+      setTimeout(() => setNotification(null), 3000);
     } catch (error) {
       console.error('Error assigning engineer:', error);
       setNotification('Failed to assign engineer');
@@ -266,21 +244,14 @@ const EngineeringDashboard = () => {
   // Handle status update
   const handleStatusUpdate = async (breakdownId, newStatus) => {
     try {
-      const response = await fetch(
-        `${apiConfig.baseUrl}/api/engineering/assignment/${breakdownId}/status`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: newStatus })
-        }
-      );
+      await apiClient.put(`/api/engineering/assignment/${breakdownId}/status`, {
+        status: newStatus
+      });
 
-      if (response.ok) {
-        setNotification(`Status updated to ${newStatus}`);
-        fetchAllData(); // Refresh data
-        
-        setTimeout(() => setNotification(null), 3000);
-      }
+      setNotification(`Status updated to ${newStatus}`);
+      fetchAllData(); // Refresh data
+
+      setTimeout(() => setNotification(null), 3000);
     } catch (error) {
       console.error('Error updating status:', error);
     }
@@ -289,18 +260,14 @@ const EngineeringDashboard = () => {
   // Handle auto-assign
   const handleAutoAssign = async (breakdownId) => {
     try {
-      const response = await fetch(`${apiConfig.baseUrl}/api/engineering/auto-assign`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ breakdown_id: breakdownId })
+      await apiClient.post('/api/engineering/auto-assign', {
+        breakdown_id: breakdownId
       });
 
-      if (response.ok) {
-        setNotification('Engineer auto-assigned successfully');
-        fetchAllData(); // Refresh data
-        
-        setTimeout(() => setNotification(null), 3000);
-      }
+      setNotification('Engineer auto-assigned successfully');
+      fetchAllData(); // Refresh data
+
+      setTimeout(() => setNotification(null), 3000);
     } catch (error) {
       console.error('Error auto-assigning engineer:', error);
     }

@@ -13,7 +13,7 @@ import AssessmentProgressCard from './AssessmentProgressCard';
 import EngineeringTimerAlert from './EngineeringTimerAlert';
 import ConnectionStatusIndicator from '../../components/ConnectionStatusIndicator';
 import SDCDashboardHeader from './SDCDashboardHeader';
-import { apiConfig } from '../../breakdown-guide/components/common/constants';
+import { apiClient } from '../../services/api-client';
 import { fetchAllActivities } from '../../api/activityAggregator';
 import { enhanceBreakdownDataInline } from './dataEnhancementPatch';
 import { clearCorruptedData } from './clearTestData';
@@ -730,13 +730,10 @@ const SDCDashboard = () => {
         setLoading(true);
       }
       
-      // Fetch only regular breakdowns for now
-      const response = await fetch(`${apiConfig.baseUrl}/api/breakdowns/live`);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('📊 SDC fetched breakdowns:', data);
-        const breakdownsData = data.breakdowns || [];
+      // Fetch only regular breakdowns for now (auth automatic via apiClient)
+      const data = await apiClient.get('/api/breakdowns/live');
+      console.log('📊 SDC fetched breakdowns:', data);
+      const breakdownsData = data.breakdowns || [];
         
         console.log('📊 SDC total breakdowns:', breakdownsData.length);
         
@@ -992,66 +989,6 @@ const SDCDashboard = () => {
             setRecentDecisions([]);
           }
         }
-      } else {
-        console.error('Failed to fetch breakdowns:', response.status);
-        
-        // 🎯 FALLBACK: Also check localStorage when API fails
-        console.log('📱 API failed, checking localStorage as fallback...');
-        const localBreakdowns = [];
-        for (let key in localStorage) {
-          if (key.startsWith('breakdown_')) {
-            try {
-              const breakdownData = JSON.parse(localStorage.getItem(key));
-              if (breakdownData && breakdownData.breakdown_id) {
-                localBreakdowns.push(breakdownData);
-              }
-            } catch (error) {
-              console.warn(`⚠️ Failed to parse localStorage breakdown: ${key}`, error);
-            }
-          }
-        }
-        
-        if (localBreakdowns.length > 0) {
-          console.log(`📱 Using ${localBreakdowns.length} localStorage breakdown(s) as fallback`);
-          // Use same enhanced processing logic as above
-          const processedLocalBreakdowns = localBreakdowns.map(b => ({
-            id: b.breakdown_id,
-            breakdown_id: b.breakdown_id,
-            
-            // Enhanced fleet data
-            fleet_number: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
-            fleet_no: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
-            fleetNumber: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
-            
-            // Vehicle details
-            vehicle_type: b.vehicle_type || b.vehicleType || b.vehicle?.vehicleType || null,
-            vehicleType: b.vehicle_type || b.vehicleType || b.vehicle?.vehicleType || null,
-            depot: b.depot || b.depot_id || b.vehicle?.depot || 'Unknown',
-            depot_id: b.depot || b.depot_id || b.vehicle?.depot || 'Unknown',
-            
-            // Enhanced vehicle object
-            vehicle: {
-              fleetNumber: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
-              vehicleType: b.vehicle_type || b.vehicleType || b.vehicle?.vehicleType || null,
-              depot: b.depot || b.depot_id || b.vehicle?.depot || 'Unknown',
-              ...b.vehicle
-            },
-            
-            location: b.location || 'Location not specified',
-            issue_category: b.issue_type || b.wizard_type?.replace('Wizard', ''),
-            severity: b.severity || 'CONTINUE',
-            isCritical: b.severity === 'STOP',
-            isPending: true,
-            source: 'localStorage_fallback',
-            created_at: b.created_at || new Date().toISOString(),
-            supervisor_name: b.supervisor_name || 'Unknown'
-          }));
-          
-          setBreakdowns(processedLocalBreakdowns);
-        } else {
-          setBreakdowns([]);
-        }
-      }
     } catch (error) {
       console.error('Error fetching breakdowns:', error);
       
@@ -1205,23 +1142,14 @@ const SDCDashboard = () => {
     
     try {
       console.log(`📝 Adding note to breakdown ${breakdownId}:`, note);
-      
-      const response = await fetch(`${apiConfig.baseUrl}/api/sdc/add-note`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          breakdown_id: breakdownId,
-          note: note.trim(),
-          timestamp: new Date().toISOString(),
-          supervisor_id: currentSupervisor?.id || 'unknown'
-        })
+
+      const result = await apiClient.post('/api/sdc/add-note', {
+        breakdown_id: breakdownId,
+        note: note.trim(),
+        timestamp: new Date().toISOString(),
+        supervisor_id: currentSupervisor?.id || 'unknown'
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const result = await response.json();
       console.log(`✅ Note added successfully to breakdown ${breakdownId}`);
       
       // Optionally refresh data to show the new note
@@ -1235,15 +1163,11 @@ const SDCDashboard = () => {
 
   const handleRequestEngineering = async (breakdownId) => {
     try {
-      const response = await fetch(`${apiConfig.baseUrl}/api/sdc/request-engineering`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ breakdown_id: breakdownId })
+      await apiClient.post('/api/sdc/request-engineering', {
+        breakdown_id: breakdownId
       });
-      
-      if (response.ok) {
-        fetchBreakdowns(); // Refresh data
-      }
+
+      fetchBreakdowns(); // Refresh data
     } catch (error) {
       console.error('Error requesting engineering:', error);
     }
@@ -1251,18 +1175,12 @@ const SDCDashboard = () => {
 
   const handleAcknowledge = async (breakdownId) => {
     try {
-      const response = await fetch(`${apiConfig.baseUrl}/api/sdc/acknowledge`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          breakdown_id: breakdownId,
-          acknowledged_at: new Date().toISOString()
-        })
+      await apiClient.post('/api/sdc/acknowledge', {
+        breakdown_id: breakdownId,
+        acknowledged_at: new Date().toISOString()
       });
-      
-      if (response.ok) {
-        fetchBreakdowns(); // Refresh data
-      }
+
+      fetchBreakdowns(); // Refresh data
     } catch (error) {
       console.error('Error acknowledging breakdown:', error);
     }
@@ -1270,19 +1188,13 @@ const SDCDashboard = () => {
 
   const handleMakeDecision = async (breakdownId, decision) => {
     try {
-      const response = await fetch(`${apiConfig.baseUrl}/api/sdc/decision`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          breakdown_id: breakdownId,
-          decision: decision,
-          decision_at: new Date().toISOString()
-        })
+      await apiClient.post('/api/sdc/decision', {
+        breakdown_id: breakdownId,
+        decision: decision,
+        decision_at: new Date().toISOString()
       });
-      
-      if (response.ok) {
-        fetchBreakdowns(); // Refresh data
-      }
+
+      fetchBreakdowns(); // Refresh data
     } catch (error) {
       console.error('Error making decision:', error);
     }
@@ -1326,19 +1238,15 @@ const SDCDashboard = () => {
         console.log('✅ Edit session initiated:', editResult.edit_session.id);
         
         // Log audit event through API
-        await fetch(`${apiConfig.baseUrl}/api/audit/log`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'edit_assessment_initiated',
-            breakdown_id: breakdownId,
-            assessment_id: assessmentDetails.assessment.assessment_id,
-            edit_session_id: editResult.edit_session.id,
-            user_type: 'sdc_operator',
-            supervisor: currentSupervisor?.name || currentSupervisor?.badge,
-            timestamp: new Date().toISOString(),
-            source: 'sdc_dashboard'
-          })
+        await apiClient.post('/api/audit/log', {
+          action: 'edit_assessment_initiated',
+          breakdown_id: breakdownId,
+          assessment_id: assessmentDetails.assessment.assessment_id,
+          edit_session_id: editResult.edit_session.id,
+          user_type: 'sdc_operator',
+          supervisor: currentSupervisor?.name || currentSupervisor?.badge,
+          timestamp: new Date().toISOString(),
+          source: 'sdc_dashboard'
         });
         
         // Redirect to edit URL or fallback to breakdown guide
@@ -1482,10 +1390,10 @@ const SDCDashboard = () => {
               }}
               onCancel={(id) => {
                 // Send cancellation request
-                fetch(`${apiConfig.baseUrl}/api/assessment/cancel`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ assessment_id: id })
+                apiClient.post('/api/assessment/cancel', {
+                  assessment_id: id
+                }).catch(error => {
+                  console.error('Error cancelling assessment:', error);
                 });
               }}
             />

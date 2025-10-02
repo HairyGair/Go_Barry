@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
 import StatsCard from '../components/StatsCard';
-import { apiConfig } from '../../breakdown-guide/components/common/constants';
+import { apiClient } from '../../services/api-client';
 import ExecutiveKPIs from './ExecutiveKPIs';
 import PerformanceTrends from './PerformanceTrends';
 import DepotComparison from './DepotComparison';
@@ -33,19 +33,12 @@ const ManagementDashboard = () => {
   // Fetch all data
   const fetchAllData = useCallback(async () => {
     try {
-      // Fetch data in parallel
-      const [kpiRes, trendRes, depotRes, fleetRes] = await Promise.all([
-        fetch(`${apiConfig.baseUrl}/api/analytics/kpis?period=${selectedPeriod}`),
-        fetch(`${apiConfig.baseUrl}/api/analytics/trends?period=${selectedPeriod}`),
-        fetch(`${apiConfig.baseUrl}/api/analytics/depot-comparison?period=${selectedPeriod}`),
-        fetch(`${apiConfig.baseUrl}/api/analytics/fleet-health`)
-      ]);
-
+      // Fetch data in parallel (auth automatic via apiClient)
       const [kpiJson, trendJson, depotJson, fleetJson] = await Promise.all([
-        kpiRes.json(),
-        trendRes.json(),
-        depotRes.json(),
-        fleetRes.json()
+        apiClient.get(`/api/analytics/kpis?period=${selectedPeriod}`),
+        apiClient.get(`/api/analytics/trends?period=${selectedPeriod}`),
+        apiClient.get(`/api/analytics/depot-comparison?period=${selectedPeriod}`),
+        apiClient.get('/api/analytics/fleet-health')
       ]);
 
       setKpiData(kpiJson.data || null);
