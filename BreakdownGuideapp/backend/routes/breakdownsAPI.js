@@ -1405,7 +1405,7 @@ router.post('/resolve', validateBody(Joi.object({
         error: 'Breakdown already resolved',
         code: 'ALREADY_RESOLVED',
         breakdown_id: breakdown_id,
-        resolved_at: currentBreakdown.cleared_at || currentBreakdown.resolved_at,
+        resolved_at: currentBreakdown.updated_at,
         timestamp: new Date().toISOString()
       });
     }
@@ -1413,26 +1413,33 @@ router.post('/resolve', validateBody(Joi.object({
     const resolvedAt = new Date().toISOString();
     const resolvingUser = resolved_by || supervisor_badge || 'SDC';
 
-    // Update breakdown status to resolved
+    // Update breakdown status to resolved in database
     const { data: breakdown, error: updateError } = await supabase
       .from('breakdowns')
       .update({
         status: 'cleared',
-        cleared_at: resolvedAt,
         resolved_at: resolvedAt,
         resolved_by: resolvingUser,
         resolution_notes: resolution_notes || null,
         resolution_type: resolution_type,
-        returned_to_service: returned_to_service,
-        updated_at: resolvedAt
+        returned_to_service: returned_to_service
       })
       .eq('breakdown_id', breakdown_id)
       .select()
       .single();
 
     if (updateError) {
-      throw updateError;
+      console.error('Error updating breakdown resolution:', updateError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to update breakdown resolution',
+        code: 'UPDATE_ERROR',
+        details: process.env.NODE_ENV === 'development' ? updateError.message : undefined,
+        timestamp: new Date().toISOString()
+      });
     }
+
+    console.log(`✅ Breakdown ${breakdown_id} marked as resolved in database`);
 
     // Log activity
     const activitiesData = loadJSONFile(ACTIVITIES_PATH, { activities: [] });
@@ -1449,7 +1456,7 @@ router.post('/resolve', validateBody(Joi.object({
       resolution_notes: resolution_notes,
       returned_to_service: returned_to_service,
       timestamp: resolvedAt,
-      message: `Breakdown ${breakdown_id} resolved by ${resolvingUser} - ${resolution_type}`
+      message: `Breakdown ${breakdown_id} resolved by ${resolvingUser} - ${resolution_type}${resolution_notes ? ': ' + resolution_notes : ''}`
     };
 
     activitiesData.activities.unshift(newActivity);
