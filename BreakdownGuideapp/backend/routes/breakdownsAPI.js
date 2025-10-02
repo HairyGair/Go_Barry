@@ -8,6 +8,7 @@ import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { supabase } from '../server.js';
+import webSocketHandler from './webSocketHandler.js';
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -749,5 +750,565 @@ const calculateProgressData = (activities) => {
     progress_percentage: Math.round((Math.min(currentStep, 5) / 5) * 100)
   };
 };
+
+// POST /api/sdc/acknowledge - SDC acknowledges a breakdown
+router.post('/acknowledge', async (req, res) => {
+  try {
+    const { breakdown_id, acknowledged_by, supervisor_badge, notes } = req.body;
+
+    console.log(`✅ SDC API: Acknowledging breakdown ${breakdown_id}`);
+
+    // Validation
+    if (!breakdown_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'breakdown_id is required'
+      });
+    }
+
+    const acknowledgedAt = new Date().toISOString();
+
+    // Update breakdown in Supabase
+    const { data: breakdown, error: updateError } = await supabase
+      .from('breakdowns')
+      .update({
+        acknowledged_at: acknowledgedAt,
+        acknowledged_by: acknowledged_by || supervisor_badge || 'SDC',
+        sdc_notes: notes || null,
+        status: 'acknowledged'
+      })
+      .eq('breakdown_id', breakdown_id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating breakdown:', updateError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to acknowledge breakdown',
+        details: updateError.message
+      });
+    }
+
+    // Log activity
+    const activitiesData = loadJSONFile(ACTIVITIES_PATH, { activities: [] });
+    const newActivity = {
+      id: Date.now(),
+      timestamp: acknowledgedAt,
+      type: 'sdc_acknowledged',
+      activity_type: 'sdc_acknowledged',
+      breakdown_id: breakdown_id,
+      fleet_no: breakdown?.fleet_number,
+      fleet_number: breakdown?.fleet_number,
+      supervisor_badge: supervisor_badge || acknowledged_by,
+      message: `SDC acknowledged breakdown${notes ? ': ' + notes : ''}`,
+      notes: notes
+    };
+
+    activitiesData.activities.unshift(newActivity);
+    if (activitiesData.activities.length > 500) {
+      activitiesData.activities = activitiesData.activities.slice(0, 500);
+    }
+    saveJSONFile(ACTIVITIES_PATH, activitiesData);
+
+    // Log audit event
+    logAuditEvent({
+      action: 'sdc_acknowledged',
+      breakdown_id: breakdown_id,
+      user_type: 'sdc_operator',
+      acknowledged_by: acknowledged_by || supervisor_badge || 'SDC',
+      notes: notes,
+      metadata: {
+        fleet_number: breakdown?.fleet_number,
+        location: breakdown?.location
+      }
+    });
+
+    const response = {
+      success: true,
+      message: 'Breakdown acknowledged successfully',
+      breakdown_id: breakdown_id,
+      acknowledged_at: acknowledgedAt,
+      breakdown: breakdown,
+      timestamp: new Date().toISOString()
+    };
+
+    // Broadcast to WebSocket clients
+    webSocketHandler.broadcast('sdc-dashboard', {
+      type: 'sdc_acknowledged',
+      breakdown_id: breakdown_id,
+      breakdown: breakdown,
+      acknowledged_at: acknowledgedAt,
+      acknowledged_by: acknowledged_by || supervisor_badge || 'SDC',
+      timestamp: acknowledgedAt
+    });
+
+    console.log(`✅ SDC API: Breakdown ${breakdown_id} acknowledged`);
+
+    res.json(response);
+
+  } catch (error) {
+    console.error('Error acknowledging breakdown:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to acknowledge breakdown',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/sdc/decision - SDC records operational decision
+router.post('/decision', async (req, res) => {
+  try {
+    const { breakdown_id, decision, decided_by, supervisor_badge, notes, decision_notes } = req.body;
+
+    console.log(`📋 SDC API: Recording decision for breakdown ${breakdown_id}: ${decision}`);
+
+    // Validation
+    if (!breakdown_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'breakdown_id is required'
+      });
+    }
+
+    if (!decision) {
+      return res.status(400).json({
+        success: false,
+        error: 'decision is required (STOP, AMBER, CONTINUE)'
+      });
+    }
+
+    // Validate decision value
+    const validDecisions = ['STOP', 'AMBER', 'CONTINUE', 'CHANGEOVER'];
+    if (!validDecisions.includes(decision.toUpperCase())) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid decision. Must be one of: ${validDecisions.join(', ')}`
+      });
+    }
+
+    const decisionAt = new Date().toISOString();
+    const normalizedDecision = decision.toUpperCase();
+
+    // Update breakdown in Supabase
+    const { data: breakdown, error: updateError } = await supabase
+      .from('breakdowns')
+      .update({
+        decision_at: decisionAt,
+        decided_by: decided_by || supervisor_badge || 'SDC',
+        sdc_decision: normalizedDecision,
+        decision_notes: decision_notes || notes || null,
+        severity: normalizedDecision,
+        status: 'decision_made'
+      })
+      .eq('breakdown_id', breakdown_id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating breakdown decision:', updateError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to record decision',
+        details: updateError.message
+      });
+    }
+
+    // Log activity
+    const activitiesData = loadJSONFile(ACTIVITIES_PATH, { activities: [] });
+    const newActivity = {
+      id: Date.now(),
+      timestamp: decisionAt,
+      type: 'sdc_decision',
+      activity_type: 'sdc_decision',
+      breakdown_id: breakdown_id,
+      fleet_no: breakdown?.fleet_number,
+      fleet_number: breakdown?.fleet_number,
+      supervisor_badge: supervisor_badge || decided_by,
+      decision: normalizedDecision,
+      message: `SDC decision: ${normalizedDecision}${decision_notes || notes ? ' - ' + (decision_notes || notes) : ''}`,
+      notes: decision_notes || notes
+    };
+
+    activitiesData.activities.unshift(newActivity);
+    if (activitiesData.activities.length > 500) {
+      activitiesData.activities = activitiesData.activities.slice(0, 500);
+    }
+    saveJSONFile(ACTIVITIES_PATH, activitiesData);
+
+    // Log audit event
+    logAuditEvent({
+      action: 'sdc_decision_recorded',
+      breakdown_id: breakdown_id,
+      user_type: 'sdc_operator',
+      decided_by: decided_by || supervisor_badge || 'SDC',
+      decision: normalizedDecision,
+      notes: decision_notes || notes,
+      metadata: {
+        fleet_number: breakdown?.fleet_number,
+        location: breakdown?.location,
+        severity: normalizedDecision
+      }
+    });
+
+    const response = {
+      success: true,
+      message: `Decision recorded: ${normalizedDecision}`,
+      breakdown_id: breakdown_id,
+      decision: normalizedDecision,
+      decision_at: decisionAt,
+      breakdown: breakdown,
+      timestamp: new Date().toISOString()
+    };
+
+    // Broadcast to WebSocket clients
+    webSocketHandler.broadcast('sdc-dashboard', {
+      type: 'sdc_decision',
+      breakdown_id: breakdown_id,
+      breakdown: breakdown,
+      decision: normalizedDecision,
+      decision_at: decisionAt,
+      decided_by: decided_by || supervisor_badge || 'SDC',
+      notes: decision_notes || notes,
+      timestamp: decisionAt
+    });
+
+    console.log(`📋 SDC API: Decision ${normalizedDecision} recorded for ${breakdown_id}`);
+
+    res.json(response);
+
+  } catch (error) {
+    console.error('Error recording decision:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to record decision',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/sdc/add-note - Add operational note to breakdown
+router.post('/add-note', async (req, res) => {
+  try {
+    const { breakdown_id, note, added_by, supervisor_badge, note_type } = req.body;
+
+    console.log(`📝 SDC API: Adding note to breakdown ${breakdown_id}`);
+
+    // Validation
+    if (!breakdown_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'breakdown_id is required'
+      });
+    }
+
+    if (!note || note.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        error: 'note is required and cannot be empty'
+      });
+    }
+
+    // Sanitize note (basic protection against XSS)
+    const sanitizedNote = note.trim().substring(0, 1000); // Max 1000 chars
+    const noteTimestamp = new Date().toISOString();
+
+    // Get current breakdown to append note
+    const { data: currentBreakdown, error: fetchError } = await supabase
+      .from('breakdowns')
+      .select('sdc_notes, fleet_number, location')
+      .eq('breakdown_id', breakdown_id)
+      .single();
+
+    if (fetchError || !currentBreakdown) {
+      return res.status(404).json({
+        success: false,
+        error: 'Breakdown not found'
+      });
+    }
+
+    // Create note entry
+    const noteEntry = {
+      timestamp: noteTimestamp,
+      note: sanitizedNote,
+      added_by: added_by || supervisor_badge || 'SDC',
+      note_type: note_type || 'operational'
+    };
+
+    // Append to existing notes (stored as JSONB array)
+    let updatedNotes = [];
+    try {
+      if (currentBreakdown.sdc_notes) {
+        if (typeof currentBreakdown.sdc_notes === 'string') {
+          updatedNotes = JSON.parse(currentBreakdown.sdc_notes);
+        } else if (Array.isArray(currentBreakdown.sdc_notes)) {
+          updatedNotes = currentBreakdown.sdc_notes;
+        }
+      }
+    } catch (e) {
+      console.warn('Could not parse existing notes, starting fresh');
+    }
+
+    updatedNotes.unshift(noteEntry);
+
+    // Keep only last 50 notes
+    if (updatedNotes.length > 50) {
+      updatedNotes = updatedNotes.slice(0, 50);
+    }
+
+    // Update breakdown in Supabase
+    const { data: breakdown, error: updateError } = await supabase
+      .from('breakdowns')
+      .update({
+        sdc_notes: updatedNotes,
+        last_note_at: noteTimestamp
+      })
+      .eq('breakdown_id', breakdown_id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error adding note to breakdown:', updateError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to add note',
+        details: updateError.message
+      });
+    }
+
+    // Log activity
+    const activitiesData = loadJSONFile(ACTIVITIES_PATH, { activities: [] });
+    const newActivity = {
+      id: Date.now(),
+      timestamp: noteTimestamp,
+      type: 'note_added',
+      activity_type: 'note_added',
+      breakdown_id: breakdown_id,
+      fleet_no: currentBreakdown.fleet_number,
+      fleet_number: currentBreakdown.fleet_number,
+      supervisor_badge: supervisor_badge || added_by,
+      message: `Note added: ${sanitizedNote.substring(0, 100)}${sanitizedNote.length > 100 ? '...' : ''}`,
+      note: sanitizedNote,
+      note_type: note_type || 'operational'
+    };
+
+    activitiesData.activities.unshift(newActivity);
+    if (activitiesData.activities.length > 500) {
+      activitiesData.activities = activitiesData.activities.slice(0, 500);
+    }
+    saveJSONFile(ACTIVITIES_PATH, activitiesData);
+
+    // Log audit event
+    logAuditEvent({
+      action: 'note_added',
+      breakdown_id: breakdown_id,
+      user_type: 'sdc_operator',
+      added_by: added_by || supervisor_badge || 'SDC',
+      note_preview: sanitizedNote.substring(0, 100),
+      note_type: note_type || 'operational',
+      metadata: {
+        fleet_number: currentBreakdown.fleet_number,
+        location: currentBreakdown.location,
+        note_length: sanitizedNote.length
+      }
+    });
+
+    const response = {
+      success: true,
+      message: 'Note added successfully',
+      breakdown_id: breakdown_id,
+      note: noteEntry,
+      total_notes: updatedNotes.length,
+      timestamp: noteTimestamp
+    };
+
+    // Broadcast to WebSocket clients
+    webSocketHandler.broadcast('sdc-dashboard', {
+      type: 'note_added',
+      breakdown_id: breakdown_id,
+      note: noteEntry,
+      total_notes: updatedNotes.length,
+      fleet_number: currentBreakdown.fleet_number,
+      timestamp: noteTimestamp
+    });
+
+    console.log(`📝 SDC API: Note added to breakdown ${breakdown_id}`);
+
+    res.json(response);
+
+  } catch (error) {
+    console.error('Error adding note:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to add note',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/sdc/request-engineering - Request engineering assistance
+router.post('/request-engineering', async (req, res) => {
+  try {
+    const {
+      breakdown_id,
+      requested_by,
+      supervisor_badge,
+      priority,
+      notes,
+      required_skills,
+      estimated_arrival
+    } = req.body;
+
+    console.log(`🔧 SDC API: Requesting engineering for breakdown ${breakdown_id}`);
+
+    // Validation
+    if (!breakdown_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'breakdown_id is required'
+      });
+    }
+
+    const requestedAt = new Date().toISOString();
+    const requestPriority = priority || 'normal';
+
+    // Validate priority
+    const validPriorities = ['critical', 'high', 'normal', 'low'];
+    if (!validPriorities.includes(requestPriority)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid priority. Must be one of: ${validPriorities.join(', ')}`
+      });
+    }
+
+    // Get breakdown details
+    const { data: currentBreakdown, error: fetchError } = await supabase
+      .from('breakdowns')
+      .select('*')
+      .eq('breakdown_id', breakdown_id)
+      .single();
+
+    if (fetchError || !currentBreakdown) {
+      return res.status(404).json({
+        success: false,
+        error: 'Breakdown not found'
+      });
+    }
+
+    // Create engineering request object
+    const engineeringRequest = {
+      request_id: `ENG-${Date.now()}`,
+      breakdown_id: breakdown_id,
+      requested_at: requestedAt,
+      requested_by: requested_by || supervisor_badge || 'SDC',
+      priority: requestPriority,
+      notes: notes || null,
+      required_skills: required_skills || [],
+      estimated_arrival: estimated_arrival || null,
+      status: 'pending',
+      fleet_number: currentBreakdown.fleet_number,
+      location: currentBreakdown.location,
+      issue_category: currentBreakdown.issue_category
+    };
+
+    // Update breakdown in Supabase
+    const { data: breakdown, error: updateError } = await supabase
+      .from('breakdowns')
+      .update({
+        engineering_requested_at: requestedAt,
+        engineering_request_priority: requestPriority,
+        engineering_notes: notes || null,
+        status: 'engineering_requested'
+      })
+      .eq('breakdown_id', breakdown_id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error requesting engineering:', updateError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to request engineering',
+        details: updateError.message
+      });
+    }
+
+    // Log activity
+    const activitiesData = loadJSONFile(ACTIVITIES_PATH, { activities: [] });
+    const newActivity = {
+      id: Date.now(),
+      timestamp: requestedAt,
+      type: 'engineering_requested',
+      activity_type: 'engineering_requested',
+      breakdown_id: breakdown_id,
+      fleet_no: currentBreakdown.fleet_number,
+      fleet_number: currentBreakdown.fleet_number,
+      supervisor_badge: supervisor_badge || requested_by,
+      message: `Engineering requested - Priority: ${requestPriority}${notes ? ' - ' + notes : ''}`,
+      priority: requestPriority,
+      notes: notes,
+      engineering_request: engineeringRequest
+    };
+
+    activitiesData.activities.unshift(newActivity);
+    if (activitiesData.activities.length > 500) {
+      activitiesData.activities = activitiesData.activities.slice(0, 500);
+    }
+    saveJSONFile(ACTIVITIES_PATH, activitiesData);
+
+    // Log audit event
+    logAuditEvent({
+      action: 'engineering_requested',
+      breakdown_id: breakdown_id,
+      user_type: 'sdc_operator',
+      requested_by: requested_by || supervisor_badge || 'SDC',
+      priority: requestPriority,
+      notes: notes,
+      metadata: {
+        fleet_number: currentBreakdown.fleet_number,
+        location: currentBreakdown.location,
+        issue_category: currentBreakdown.issue_category,
+        required_skills: required_skills,
+        estimated_arrival: estimated_arrival,
+        request_id: engineeringRequest.request_id
+      }
+    });
+
+    const response = {
+      success: true,
+      message: `Engineering assistance requested - Priority: ${requestPriority}`,
+      breakdown_id: breakdown_id,
+      engineering_request: engineeringRequest,
+      requested_at: requestedAt,
+      breakdown: breakdown,
+      timestamp: new Date().toISOString()
+    };
+
+    // Broadcast to WebSocket clients
+    webSocketHandler.broadcast('sdc-dashboard', {
+      type: 'engineering_requested',
+      breakdown_id: breakdown_id,
+      breakdown: breakdown,
+      engineering_request: engineeringRequest,
+      priority: requestPriority,
+      requested_at: requestedAt,
+      requested_by: requested_by || supervisor_badge || 'SDC',
+      timestamp: requestedAt
+    });
+
+    console.log(`🔧 SDC API: Engineering requested for ${breakdown_id} with priority ${requestPriority}`);
+
+    res.json(response);
+
+  } catch (error) {
+    console.error('Error requesting engineering:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to request engineering',
+      message: error.message
+    });
+  }
+});
 
 export default router;
