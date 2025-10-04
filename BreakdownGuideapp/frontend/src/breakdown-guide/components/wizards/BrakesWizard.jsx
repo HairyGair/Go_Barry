@@ -549,7 +549,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                 </div>
                 
                 {(responses.brakeToFloor || responses.delayedBraking) && (
-                  <div className="bg-red-600/30 backdrop-blur-sm rounded-lg p-6 border-2 border-red-500/50 animate-pulse">
+                  <div className="bg-red-600/30 backdrop-blur-sm rounded-lg p-6 border-2 border-red-500/50 mb-6">
                     <h3 className="text-lg font-bold text-red-100 mb-4 flex items-center">
                       <span className="mr-2">🚨</span>
                       CRITICAL: Total Brake Failure Protocol
@@ -568,8 +568,8 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                     </div>
                   </div>
                 )}
-                
-                <div className="bg-amber-500/20 backdrop-blur-sm rounded-lg p-6 border border-amber-400/30">
+
+                <div className="bg-amber-500/20 backdrop-blur-sm rounded-lg p-6 border border-amber-400/30 clear-both">
                   <h3 className="text-lg font-semibold text-amber-200 mb-4">Engineering Contact</h3>
                   <p className="text-amber-300/90 mb-3">Provide engineering with:</p>
                   <ul className="list-disc ml-6 text-amber-300/90 text-sm space-y-1">

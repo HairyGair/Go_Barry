@@ -71,7 +71,7 @@ router.get('/live', async (req, res) => {
     const { data: breakdowns, error } = await supabase
       .from('breakdowns')
       .select('*')
-      .not('status', 'in', '("resolved","deleted","cancelled","completed")')
+      .not('status', 'in', '(resolved,deleted,cancelled,completed)')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
