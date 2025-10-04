@@ -216,11 +216,25 @@ class SupervisorBreakdownLogger {
         console.log('🔗 Backend URL:', BACKEND_URL);
 
         try {
+            // Get Supabase token for authentication
+            const { supabase } = await import('../services/supabase-client.js');
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+                console.log('🔐 Adding authentication token to request');
+            } else {
+                console.warn('⚠️ No authentication token available');
+            }
+
             const response = await fetch(`${BACKEND_URL}/api/breakdowns/from-wizard`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers,
                 body: JSON.stringify(wizardData)
             });
 
