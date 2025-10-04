@@ -151,7 +151,6 @@ class WebSocketHandler {
               .from('supervisors')
               .select('id, email, name, role, depot')
               .eq('email', user.email.toLowerCase())
-              .in('role', ['admin', 'sdc_operator', 'manager', 'supervisor'])
               .single();
 
             if (supervisorError || !supervisorData) {
