@@ -2,6 +2,7 @@ import express from 'express';
 import { supabase } from '../server.js';
 import breakdownIdGenerator from '../services/breakdownIdGenerator.js';
 import { activityLogger } from '../services/activityLogger.js';
+import webSocketHandler from './webSocketHandler.js';
 
 const router = express.Router();
 
@@ -1029,6 +1030,145 @@ router.post('/:breakdown_id/update-card', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to update breakdown card'
+    });
+  }
+});
+
+// POST /api/breakdowns/resolve - Mark breakdown as resolved/completed
+router.post('/resolve', async (req, res) => {
+  try {
+    const {
+      breakdown_id,
+      resolved_by,
+      supervisor_badge,
+      resolution_notes,
+      returned_to_service = true,
+      resolution_type = 'fixed'
+    } = req.body;
+
+    if (!breakdown_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Breakdown ID is required',
+        code: 'MISSING_BREAKDOWN_ID'
+      });
+    }
+
+    console.log(`✅ Resolving breakdown ${breakdown_id}`);
+
+    // Verify breakdown exists
+    const { data: currentBreakdown, error: fetchError } = await supabase
+      .from('breakdowns')
+      .select('*')
+      .eq('breakdown_id', breakdown_id)
+      .single();
+
+    if (fetchError || !currentBreakdown) {
+      return res.status(404).json({
+        success: false,
+        error: 'Breakdown not found',
+        code: 'BREAKDOWN_NOT_FOUND',
+        breakdown_id: breakdown_id
+      });
+    }
+
+    // Check if already resolved
+    if (currentBreakdown.status === 'cleared' || currentBreakdown.status === 'resolved') {
+      return res.status(400).json({
+        success: false,
+        error: 'Breakdown already resolved',
+        code: 'ALREADY_RESOLVED',
+        breakdown_id: breakdown_id,
+        resolved_at: currentBreakdown.resolved_at
+      });
+    }
+
+    const resolvedAt = new Date().toISOString();
+    const resolvingUser = resolved_by || supervisor_badge || req.supervisor?.name || 'System';
+
+    // Update breakdown status to cleared
+    const { data: breakdown, error: updateError } = await supabase
+      .from('breakdowns')
+      .update({
+        status: 'cleared',
+        resolved_at: resolvedAt,
+        resolved_by: resolvingUser,
+        resolution_notes: resolution_notes || null,
+        resolution_type: resolution_type,
+        returned_to_service: returned_to_service
+      })
+      .eq('breakdown_id', breakdown_id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating breakdown resolution:', updateError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to update breakdown resolution',
+        code: 'UPDATE_ERROR'
+      });
+    }
+
+    console.log(`✅ Breakdown ${breakdown_id} marked as resolved`);
+
+    // Log activity
+    await activityLogger.logActivity({
+      activityType: 'breakdown_resolved',
+      action: `resolved ${resolution_type} - ${breakdown.fleet_number || breakdown.fleet_no}`,
+      actorType: 'supervisor',
+      actorId: supervisor_badge || req.supervisor?.id || 'system',
+      actorName: resolvingUser,
+      entityType: 'breakdown',
+      entityId: breakdown_id,
+      entityDetails: {
+        fleetNo: breakdown.fleet_number || breakdown.fleet_no,
+        location: breakdown.location,
+        issueCategory: breakdown.issue_category,
+        resolutionType: resolution_type,
+        returnedToService: returned_to_service
+      },
+      depot: breakdown.depot,
+      severity: returned_to_service ? 'success' : 'info',
+      source: 'sdc_operations',
+      metadata: {
+        resolutionNotes: resolution_notes,
+        elapsedTime: Math.floor((new Date(resolvedAt) - new Date(breakdown.created_at)) / 1000 / 60)
+      },
+      message: `Breakdown ${breakdown_id} resolved by ${resolvingUser} - ${resolution_type}${resolution_notes ? ': ' + resolution_notes : ''}`
+    });
+
+    // Broadcast to WebSocket clients
+    webSocketHandler.broadcast('sdc-dashboard', {
+      type: 'breakdown_resolved',
+      breakdown_id: breakdown_id,
+      breakdown: breakdown,
+      resolution_type: resolution_type,
+      resolved_at: resolvedAt,
+      resolved_by: resolvingUser,
+      returned_to_service: returned_to_service,
+      resolution_notes: resolution_notes,
+      timestamp: resolvedAt
+    });
+
+    res.json({
+      success: true,
+      message: 'Breakdown resolved successfully',
+      breakdown_id: breakdown_id,
+      resolution_type: resolution_type,
+      resolved_at: resolvedAt,
+      resolved_by: resolvingUser,
+      returned_to_service: returned_to_service,
+      breakdown: breakdown,
+      timestamp: resolvedAt
+    });
+
+  } catch (error) {
+    console.error('Error resolving breakdown:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to resolve breakdown',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });

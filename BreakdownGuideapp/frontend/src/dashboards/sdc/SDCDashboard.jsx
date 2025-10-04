@@ -1259,7 +1259,8 @@ const SDCDashboard = () => {
     try {
       console.log('✅ Resolving breakdown:', resolutionData.breakdown_id);
 
-      const response = await apiClient.post('/api/sdc/resolve', resolutionData);
+      // Use breakdowns API endpoint which works with supervisor auth
+      const response = await apiClient.post('/api/breakdowns/resolve', resolutionData);
 
       if (response.success) {
         console.log('✅ Breakdown resolved successfully');
