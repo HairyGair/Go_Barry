@@ -1093,9 +1093,11 @@ router.post('/resolve', async (req, res) => {
         status: 'resolved',
         resolved_at: resolvedAt,
         resolved_by: resolvingUser,
-        resolution_notes: resolution_notes || null,
-        resolution_type: resolution_type,
-        returned_to_service: returned_to_service
+        resolution_notes: resolution_notes || '',
+        resolution_type: resolution_type || 'fixed',
+        returned_to_service: returned_to_service,
+        resolution_method: resolution_type || 'fixed',
+        resolution_supervisor: resolvingUser
       })
       .eq('breakdown_id', breakdown_id)
       .select()
