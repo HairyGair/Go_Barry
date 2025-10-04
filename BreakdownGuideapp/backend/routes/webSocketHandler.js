@@ -54,7 +54,11 @@ class WebSocketHandler {
   async handleConnection(ws, request) {
     const clientId = this.generateClientId();
     const url = new URL(request.url, `http://${request.headers.host}`);
-    const channel = url.searchParams.get('channel') || 'general';
+
+    // Extract channel from path (e.g., /ws/sdc-dashboard) or query parameter
+    const pathParts = url.pathname.split('/').filter(Boolean);
+    const channel = url.searchParams.get('channel') ||
+                   (pathParts.length > 1 ? pathParts[1] : 'general');
     const token = url.searchParams.get('token');
 
     console.log(`🔗 New WebSocket connection attempt: ${clientId} on channel: ${channel}`);
