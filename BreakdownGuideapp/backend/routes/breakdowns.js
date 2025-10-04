@@ -1087,6 +1087,7 @@ router.post('/resolve', async (req, res) => {
     const resolvingUser = resolved_by || supervisor_badge || req.supervisor?.name || 'System';
 
     // Update breakdown status to resolved
+    // Note: Only updating fields that exist in the database schema
     const { data: breakdown, error: updateError } = await supabase
       .from('breakdowns')
       .update({
@@ -1095,9 +1096,7 @@ router.post('/resolve', async (req, res) => {
         resolved_by: resolvingUser,
         resolution_notes: resolution_notes || '',
         resolution_type: resolution_type || 'fixed',
-        returned_to_service: returned_to_service,
-        resolution_method: resolution_type || 'fixed',
-        resolution_supervisor: resolvingUser
+        returned_to_service: returned_to_service
       })
       .eq('breakdown_id', breakdown_id)
       .select()
