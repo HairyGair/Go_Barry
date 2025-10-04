@@ -4,6 +4,7 @@
  */
 
 import { apiConfig } from '../breakdown-guide/components/common/constants';
+import enhancedAuthService from './enhanced-auth-service';
 
 // Connection states
 export const CONNECTION_STATES = {
@@ -112,8 +113,8 @@ class ConnectionManager {
 
   async connectWebSocket(endpoint) {
     try {
-      // Get authentication token for WebSocket
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('supervisor_token');
+      // Get authentication token for WebSocket from enhanced auth service
+      const token = await enhancedAuthService.getAccessToken();
 
       // For development, use relative WebSocket URL to go through Vite proxy
       // For production, use absolute URL from apiConfig
