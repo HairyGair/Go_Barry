@@ -5,6 +5,7 @@ import notificationService from '../services/notificationService';
 import EnhancedNotifications from './notifications/EnhancedNotifications';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import ChangePasswordModal from './ChangePasswordModal.jsx';
+import apiClient from '../services/api-client';
 import './ModernAppHeader.css';
 
 const ModernAppHeader = ({ 
@@ -180,22 +181,11 @@ const ModernAppHeader = ({
       try {
         // Try using supervisor badge first, then fallback to ID
         const supervisorIdentifier = supervisorData.supervisorId || supervisorData.badge || supervisorData.id;
-        
-        
-        // Add authentication headers if available
-        const headers = {
-          'Content-Type': 'application/json'
-        };
-        
-        if (supervisorData.token) {
-          headers['Authorization'] = `Bearer ${supervisorData.token}`;
-        }
-        
-        const response = await fetch(`${apiConfig.baseUrl}/api/supervisors/${supervisorIdentifier}/stats`, {
-          headers
-        });
-        if (response.ok) {
-          const result = await response.json();
+
+        // Use apiClient for automatic authentication with fresh tokens
+        const result = await apiClient.get(`/api/supervisors/${supervisorIdentifier}/stats`);
+
+        if (result) {
           
           // Handle the actual response format from the API
           if (result.success && result.data) {
