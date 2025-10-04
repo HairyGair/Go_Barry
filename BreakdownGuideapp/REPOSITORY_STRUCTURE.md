@@ -228,21 +228,38 @@ git push origin main
 
 ## Directory Structure
 
-### Main Project Directory
+### Git Repository Root vs Working Directory
 
+**IMPORTANT DISCOVERY (October 4, 2025):**
+
+The git repository root is NOT at the BreakdownGuideapp directory level!
+
+**Actual Git Root:**
 ```
-/Users/anthony/Go BARRY App/BreakdownGuideapp/
-├── backend/                 # Node.js Express API
-├── frontend/                # React + Vite SPA
-├── database/                # SQL migrations
-├── docs/                    # Documentation
-├── tests/                   # E2E tests
-├── breakdown-guide-deploy/  # Standalone deployment folder
-├── render.yaml             # Render.com config
-├── README.md               # Main documentation
-├── DEPLOYMENT.md           # This guide
-└── REPOSITORY_STRUCTURE.md # Repository architecture
+/Users/anthony/Go BARRY App/           ← Git repository root (.git folder here)
+└── BreakdownGuideapp/                 ← Project subdirectory
+    ├── backend/                       # Node.js Express API
+    ├── frontend/                      # React + Vite SPA
+    ├── database/                      # SQL migrations
+    ├── docs/                          # Documentation
+    ├── tests/                         # E2E tests
+    ├── breakdown-guide-deploy/        # Standalone deployment folder
+    ├── render.yaml                    # Render.com config
+    ├── README.md                      # Main documentation
+    ├── DEPLOYMENT.md                  # Deployment guide
+    └── REPOSITORY_STRUCTURE.md        # This file
 ```
+
+**Critical Path Information:**
+- Git commands must reference files with `BreakdownGuideapp/` prefix
+- Example: `git show HEAD:BreakdownGuideapp/backend/routes/breakdownsAPI.js`
+- Working directory: `/Users/anthony/Go BARRY App/BreakdownGuideapp/`
+- Git directory: `/Users/anthony/Go BARRY App/.git/`
+
+**Why This Matters:**
+When using git commands from the `BreakdownGuideapp` subdirectory, you're actually in a subdirectory of the repository, not the root. This explains why:
+- `git show HEAD:backend/routes/breakdownsAPI.js` returned different content (752 lines)
+- `git show HEAD:BreakdownGuideapp/backend/routes/breakdownsAPI.js` shows correct content (1,525 lines)
 
 ### Breakdown Guide Deploy Folder
 

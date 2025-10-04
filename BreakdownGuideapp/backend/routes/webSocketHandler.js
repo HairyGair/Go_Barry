@@ -8,6 +8,7 @@ import { readFileSync, existsSync, watchFile } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
+import { activityLogger } from '../services/activityLogger.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -19,7 +20,6 @@ const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supa
 
 // Data file paths
 const BREAKDOWN_COUNTER_PATH = join(__dirname, '../data/breakdown-counter.json');
-const ACTIVITIES_PATH = join(__dirname, '../data/activities.json');
 
 class WebSocketHandler {
   constructor() {
@@ -483,17 +483,19 @@ class WebSocketHandler {
     try {
       // Load current breakdown data
       const breakdownData = JSON.parse(readFileSync(BREAKDOWN_COUNTER_PATH, 'utf8'));
-      const activitiesData = JSON.parse(readFileSync(ACTIVITIES_PATH, 'utf8'));
+
+      // Fetch recent activities from database
+      const recentActivities = await activityLogger.getRecentActivities(10);
 
       const initialData = {
         type: 'initial_data',
         breakdowns: breakdownData.breakdowns || [],
-        recent_activities: activitiesData.activities?.slice(0, 10) || [],
+        recent_activities: recentActivities || [],
         timestamp: new Date().toISOString()
       };
 
       this.sendToClient(clientId, initialData);
-      
+
     } catch (error) {
       console.error('Error sending initial breakdown data:', error);
     }
