@@ -67,14 +67,25 @@ router.get('/active', async (req, res) => {
 router.get('/live', async (req, res) => {
   try {
     // Query from breakdowns table only (joins will be added once foreign keys are set up)
-    // Use NOT IN to exclude only resolved/deleted, instead of whitelisting specific statuses
-    const { data: breakdowns, error } = await supabase
+    // Get all breakdowns, then filter in JavaScript for more reliable results
+    const { data: allBreakdowns, error } = await supabase
       .from('breakdowns')
       .select('*')
-      .not('status', 'in', '(resolved,deleted,cancelled,completed)')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
+
+    console.log(`📊 /live endpoint: Found ${allBreakdowns?.length || 0} total breakdowns in database`);
+    if (allBreakdowns && allBreakdowns.length > 0) {
+      console.log('📋 Breakdown statuses:', allBreakdowns.map(b => `${b.breakdown_id}: ${b.status}`));
+    }
+
+    // Filter out resolved/completed breakdowns
+    const breakdowns = allBreakdowns.filter(b =>
+      !['resolved', 'deleted', 'cancelled', 'completed'].includes(b.status)
+    );
+
+    console.log(`✅ /live endpoint: Returning ${breakdowns.length} active breakdowns after filtering`);
 
     // Additional processing for dashboard compatibility
     const formattedBreakdowns = breakdowns.map(b => {
