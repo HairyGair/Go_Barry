@@ -3,6 +3,25 @@ import { supabase } from '../server.js';
 
 const router = express.Router();
 
+// WebSocket broadcaster (imported from server)
+let wsBroadcast = null;
+
+// Set WebSocket broadcaster
+export const setWebSocketBroadcast = (broadcast) => {
+  wsBroadcast = broadcast;
+};
+
+// Helper function to broadcast engineering events
+const broadcastEngineeringEvent = (type, data) => {
+  if (wsBroadcast) {
+    wsBroadcast('engineering', {
+      type,
+      ...data,
+      timestamp: new Date().toISOString()
+    });
+  }
+};
+
 // GET /api/engineering/depot-stats - Get depot performance statistics
 router.get('/depot-stats', async (req, res) => {
   try {
@@ -854,5 +873,434 @@ router.get('/teams', async (req, res) => {
     });
   }
 });
+
+// POST /api/engineering/accept-job - Engineer accepts a breakdown job
+router.post('/accept-job', async (req, res) => {
+  try {
+    const { breakdown_id, engineer_badge, engineer_name, eta_minutes } = req.body;
+
+    if (!breakdown_id || !engineer_badge) {
+      return res.status(400).json({
+        success: false,
+        error: 'breakdown_id and engineer_badge are required'
+      });
+    }
+
+    // Update breakdown with engineer assignment
+    const { data: breakdown, error: updateError } = await supabase
+      .from('breakdowns')
+      .update({
+        engineer_id: engineer_badge,
+        engineer_name: engineer_name || 'Engineer',
+        engineer_badge: engineer_badge,
+        engineer_eta_minutes: eta_minutes || null,
+        engineer_accepted_at: new Date().toISOString(),
+        status: 'dispatched',
+        updated_at: new Date().toISOString()
+      })
+      .eq('breakdown_id', breakdown_id)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    // Update engineer status
+    const { error: engineerError } = await supabase
+      .from('engineers')
+      .update({
+        status: 'on_job',
+        current_breakdown_id: breakdown_id,
+        updated_at: new Date().toISOString()
+      })
+      .eq('badge_number', engineer_badge);
+
+    if (engineerError) console.error('Error updating engineer status:', engineerError);
+
+    // Broadcast WebSocket event
+    broadcastEngineeringEvent('job_accepted', {
+      breakdown_id,
+      engineer_badge,
+      engineer_name,
+      breakdown
+    });
+
+    res.json({
+      success: true,
+      breakdown: {
+        breakdown_id,
+        engineer_badge,
+        engineer_name,
+        status: 'dispatched',
+        accepted_at: breakdown.engineer_accepted_at,
+        eta_minutes: eta_minutes
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error accepting job:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to accept job'
+    });
+  }
+});
+
+// PUT /api/engineering/update-status - Update engineer job status
+router.put('/update-status', async (req, res) => {
+  try {
+    const { breakdown_id, status, engineer_badge, notes } = req.body;
+
+    if (!breakdown_id || !status) {
+      return res.status(400).json({
+        success: false,
+        error: 'breakdown_id and status are required'
+      });
+    }
+
+    const validStatuses = ['dispatched', 'on_site', 'fixing', 'testing'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+      });
+    }
+
+    // Prepare update fields based on status
+    let updateFields = {
+      status: status === 'fixing' || status === 'testing' ? 'in_progress' : status,
+      updated_at: new Date().toISOString()
+    };
+
+    // Add timestamp fields based on status
+    switch (status) {
+      case 'on_site':
+        updateFields.engineer_on_site_at = new Date().toISOString();
+        break;
+      case 'fixing':
+        updateFields.engineer_fixing_at = new Date().toISOString();
+        break;
+    }
+
+    // Add notes if provided
+    if (notes) {
+      // Get existing notes first
+      const { data: existing } = await supabase
+        .from('breakdowns')
+        .select('engineer_notes')
+        .eq('breakdown_id', breakdown_id)
+        .single();
+
+      const existingNotes = existing?.engineer_notes || [];
+      const newNote = {
+        timestamp: new Date().toISOString(),
+        engineer: engineer_badge || 'Unknown',
+        note: notes,
+        status: status
+      };
+
+      updateFields.engineer_notes = [...existingNotes, newNote];
+    }
+
+    // Update breakdown
+    const { data: breakdown, error } = await supabase
+      .from('breakdowns')
+      .update(updateFields)
+      .eq('breakdown_id', breakdown_id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Broadcast WebSocket event
+    broadcastEngineeringEvent('status_updated', {
+      breakdown_id,
+      status,
+      engineer_badge,
+      breakdown
+    });
+
+    res.json({
+      success: true,
+      breakdown: {
+        breakdown_id,
+        status: status,
+        updated_at: breakdown.updated_at
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error updating status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update status'
+    });
+  }
+});
+
+// POST /api/engineering/complete-job - Complete a breakdown job
+router.post('/complete-job', async (req, res) => {
+  try {
+    const {
+      breakdown_id,
+      engineer_badge,
+      resolution_type,
+      resolution_notes,
+      parts_used,
+      labor_hours,
+      repair_category,
+      root_cause,
+      returned_to_service
+    } = req.body;
+
+    if (!breakdown_id || !engineer_badge || !resolution_type) {
+      return res.status(400).json({
+        success: false,
+        error: 'breakdown_id, engineer_badge, and resolution_type are required'
+      });
+    }
+
+    const validResolutionTypes = ['fixed', 'changeover', 'workshop_required', 'escalated', 'deem_safe'];
+    if (!validResolutionTypes.includes(resolution_type)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid resolution_type. Must be one of: ${validResolutionTypes.join(', ')}`
+      });
+    }
+
+    // Update breakdown as completed
+    const { data: breakdown, error: updateError } = await supabase
+      .from('breakdowns')
+      .update({
+        status: 'resolved',
+        engineer_completed_at: new Date().toISOString(),
+        resolved_at: new Date().toISOString(),
+        resolved_by: engineer_badge,
+        resolution_type: resolution_type,
+        resolution_notes: resolution_notes || '',
+        parts_used: parts_used || null,
+        labor_hours: labor_hours || null,
+        repair_category: repair_category || null,
+        root_cause: root_cause || '',
+        returned_to_service: returned_to_service !== false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('breakdown_id', breakdown_id)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    // Update engineer status back to available
+    const { error: engineerError } = await supabase
+      .from('engineers')
+      .update({
+        status: 'available',
+        current_breakdown_id: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('badge_number', engineer_badge);
+
+    if (engineerError) console.error('Error updating engineer status:', engineerError);
+
+    // Broadcast WebSocket event
+    broadcastEngineeringEvent('job_completed', {
+      breakdown_id,
+      engineer_badge,
+      engineer_name: engineerName,
+      resolution_type,
+      breakdown
+    });
+
+    res.json({
+      success: true,
+      completion: {
+        breakdown_id,
+        engineer_badge,
+        resolution_type,
+        completed_at: breakdown.engineer_completed_at,
+        labor_hours: labor_hours,
+        returned_to_service: returned_to_service !== false
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error completing job:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to complete job'
+    });
+  }
+});
+
+// GET /api/engineering/jobs - Get engineering jobs queue
+router.get('/jobs', async (req, res) => {
+  try {
+    const { filter = 'all', engineer_badge } = req.query;
+
+    // Base query for active breakdowns
+    let query = supabase
+      .from('breakdowns')
+      .select('*')
+      .neq('status', 'resolved')
+      .order('created_at', { ascending: false });
+
+    // Apply filters
+    switch (filter) {
+      case 'unassigned':
+        query = query.is('engineer_id', null);
+        break;
+      case 'my_jobs':
+        if (engineer_badge) {
+          query = query.eq('engineer_badge', engineer_badge);
+        }
+        break;
+      case 'dispatched':
+        query = query.eq('status', 'dispatched');
+        break;
+      case 'on_site':
+        query = query.eq('status', 'on_site');
+        break;
+      case 'priority':
+        query = query.or('severity.eq.STOP,wizard_decision.eq.STOP');
+        break;
+    }
+
+    const { data: breakdowns, error } = await query;
+    if (error) throw error;
+
+    // Process breakdowns with calculated fields
+    const jobs = (breakdowns || []).map(b => {
+      const created = new Date(b.created_at);
+      const now = new Date();
+      const elapsedMinutes = Math.floor((now - created) / 60000);
+
+      // Calculate time on site if applicable
+      let timeOnSiteMinutes = null;
+      if (b.engineer_on_site_at) {
+        timeOnSiteMinutes = Math.floor((now - new Date(b.engineer_on_site_at)) / 60000);
+      }
+
+      return {
+        ...b,
+        elapsed_minutes: elapsedMinutes,
+        time_on_site_minutes: timeOnSiteMinutes,
+        is_overdue: elapsedMinutes > 60,
+        sla_status: elapsedMinutes > 90 ? 'critical' : elapsedMinutes > 60 ? 'warning' : 'normal'
+      };
+    });
+
+    res.json({
+      success: true,
+      jobs,
+      count: jobs.length,
+      filter,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching jobs:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch jobs'
+    });
+  }
+});
+
+// GET /api/engineering/job/:breakdown_id - Get full job details including assessment data
+router.get('/job/:breakdown_id', async (req, res) => {
+  try {
+    const { breakdown_id } = req.params;
+
+    // Get breakdown with all details
+    const { data: breakdown, error } = await supabase
+      .from('breakdowns')
+      .select('*')
+      .eq('breakdown_id', breakdown_id)
+      .single();
+
+    if (error) throw error;
+
+    if (!breakdown) {
+      return res.status(404).json({
+        success: false,
+        error: 'Breakdown not found'
+      });
+    }
+
+    // Calculate timeline durations
+    const timeline = {
+      created_at: breakdown.created_at,
+      accepted_at: breakdown.engineer_accepted_at,
+      on_site_at: breakdown.engineer_on_site_at,
+      fixing_at: breakdown.engineer_fixing_at,
+      completed_at: breakdown.engineer_completed_at,
+
+      // Calculated durations
+      time_to_accept: breakdown.engineer_accepted_at
+        ? Math.floor((new Date(breakdown.engineer_accepted_at) - new Date(breakdown.created_at)) / 60000)
+        : null,
+      time_to_site: breakdown.engineer_on_site_at && breakdown.engineer_accepted_at
+        ? Math.floor((new Date(breakdown.engineer_on_site_at) - new Date(breakdown.engineer_accepted_at)) / 60000)
+        : null,
+      time_on_site: breakdown.engineer_on_site_at && breakdown.engineer_completed_at
+        ? Math.floor((new Date(breakdown.engineer_completed_at) - new Date(breakdown.engineer_on_site_at)) / 60000)
+        : breakdown.engineer_on_site_at
+        ? Math.floor((new Date() - new Date(breakdown.engineer_on_site_at)) / 60000)
+        : null,
+      total_elapsed: Math.floor((new Date() - new Date(breakdown.created_at)) / 60000)
+    };
+
+    res.json({
+      success: true,
+      job: {
+        ...breakdown,
+        timeline,
+        wizard_responses: breakdown.wizard_assessment_data || {},
+        assessment_summary: parseAssessmentSummary(breakdown)
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching job details:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch job details'
+    });
+  }
+});
+
+// Helper function to parse assessment summary from wizard data
+function parseAssessmentSummary(breakdown) {
+  const summary = {
+    issue_type: breakdown.issue_category || 'General',
+    severity: breakdown.severity || breakdown.wizard_decision || 'Unknown',
+    key_symptoms: [],
+    safety_concerns: [],
+    recommended_actions: []
+  };
+
+  // Parse wizard assessment data if available
+  if (breakdown.wizard_assessment_data) {
+    const data = breakdown.wizard_assessment_data;
+
+    // Extract symptoms
+    if (data.symptoms) {
+      summary.key_symptoms = Array.isArray(data.symptoms) ? data.symptoms : [data.symptoms];
+    }
+
+    // Extract safety concerns
+    if (data.safety_critical === true || data.immediate_danger === true) {
+      summary.safety_concerns.push('Safety critical issue identified');
+    }
+
+    // Extract recommended actions
+    if (data.recommended_action) {
+      summary.recommended_actions = Array.isArray(data.recommended_action)
+        ? data.recommended_action
+        : [data.recommended_action];
+    }
+  }
+
+  return summary;
+}
 
 export default router;

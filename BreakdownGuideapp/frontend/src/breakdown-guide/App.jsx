@@ -584,14 +584,14 @@ const App = () => {
                             console.log('🎯 Current responses:', responses);
                             console.log('🎯 Current assessmentDecision state:', assessmentDecision);
                             console.log('🎯 Current showSummary state:', showSummary);
-                            
+
                             // Store decision and notes for summary
                             const finalDecision = (decision || responses.decision || 'CONTINUE').toUpperCase();
                             const finalNotes = notes || responses.notes || '';
-                            
+
                             console.log('🎯 Final decision:', finalDecision);
                             console.log('🎯 Final notes:', finalNotes);
-                            
+
                             // Broadcast assessment completion
                             try {
                                 assessmentBroadcaster.completeAssessment(finalDecision, finalNotes);
@@ -606,6 +606,86 @@ const App = () => {
                             setAssessmentNotes(finalNotes);
                             setShowSummary(true);
                             console.log('🎯 State updates called - React will re-render');
+
+                            // 🚀 AUTO-SUBMIT: Automatically submit to backend without requiring button click
+                            console.log('🚀 Auto-submitting assessment to backend...');
+                            setTimeout(async () => {
+                                try {
+                                    console.log('🔥 Starting auto-submission process...');
+                                    console.log('🔍 Current state:', {
+                                        assessmentId,
+                                        selectedVehicle,
+                                        finalDecision,
+                                        breakdownLocation,
+                                        selectedRoute,
+                                        routeName
+                                    });
+
+                                    if (!selectedVehicle || !selectedVehicle.fleetNumber) {
+                                        console.error('❌ No vehicle selected or missing fleet number!');
+                                        console.log('🔍 Current selectedVehicle state:', selectedVehicle);
+                                        return;
+                                    }
+
+                                    // Generate breakdown ID
+                                    const timestamp = Date.now();
+                                    const breakdownId = assessmentId || `BD-${timestamp}`;
+
+                                    // Prepare data for backend submission
+                                    const wizardData = {
+                                        breakdownId: assessmentId,
+                                        decision: finalDecision,
+                                        notes: finalNotes,
+                                        wizardType: wizards[currentWizard]?.title || currentWizard,
+                                        issueCategory: currentWizard,
+                                        fleet_number: selectedVehicle?.fleetNumber,
+                                        route: selectedRoute,
+                                        routeName: routeName,
+                                        assessmentData: {
+                                            responses: responses,
+                                            route: selectedRoute,
+                                            routeName: routeName,
+                                            steps: Object.entries(responses).map(([key, value]) => ({
+                                                question: key,
+                                                answer: value
+                                            }))
+                                        },
+                                        description: `${wizards[currentWizard]?.title || currentWizard} assessment completed with decision: ${finalDecision}${selectedRoute ? ` on route ${selectedRoute}` : ''}`
+                                    };
+
+                                    console.log('🚀 Submitting wizard data to backend:', wizardData);
+
+                                    const result = await supervisorBreakdownLogger.completeAssessment(wizardData);
+
+                                    if (result && result.success) {
+                                        console.log('✅ Auto-submission successful!', result);
+
+                                        // Trigger activity feed refresh
+                                        if (window.homepageDataManager) {
+                                            console.log('🔄 Triggering activity feed refresh...');
+                                            window.homepageDataManager.fetchData();
+                                        }
+
+                                        // Redirect to SDC dashboard with highlighting
+                                        const { navigationService } = await import('../services/navigationService.js');
+                                        const highlightBreakdownId = result.breakdown?.breakdown_id || result.breakdown_id || breakdownId;
+
+                                        navigationService.handleBreakdownGuideCompletion({
+                                            breakdownId: highlightBreakdownId,
+                                            decision: finalDecision,
+                                            wizardType: wizards[currentWizard]?.title || currentWizard,
+                                            supervisorBadge: supervisorSession?.supervisorId || supervisorSession?.badge,
+                                            returnUrl: null
+                                        });
+
+                                        console.log(`🎯 Redirecting to SDC Dashboard with highlight: ${highlightBreakdownId}`);
+                                    } else {
+                                        console.warn('⚠️ Auto-submission returned non-success result:', result);
+                                    }
+                                } catch (error) {
+                                    console.error('❌ Auto-submission failed:', error);
+                                }
+                            }, 1000); // Submit after 1 second to allow summary to render
                         }}
                         onCancel={() => {
                             // Broadcast cancellation

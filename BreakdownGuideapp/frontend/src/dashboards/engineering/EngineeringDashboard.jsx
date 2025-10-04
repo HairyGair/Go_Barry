@@ -3,128 +3,164 @@ import DashboardLayout from '../components/DashboardLayout';
 import StatsCard from '../components/StatsCard';
 import FilterBar from '../components/FilterBar';
 import { apiClient } from '../../services/api-client';
-import EngineeringCard from './EngineeringCard';
+import EngineeringCardEnhanced from './EngineeringCardEnhanced';
 import DepotStats from './DepotStats';
-import EngineerModal from './EngineerModal';
 
 const REFRESH_INTERVAL = 10000; // 10 seconds
 const PRIORITY_ROUTES = ['X10', 'X21', '21', '56', '1'];
 
+// WebSocket connection
+let ws = null;
+
 const EngineeringDashboard = () => {
   // State
   const [allBreakdowns, setAllBreakdowns] = useState([]);
-  const [allEngineers, setAllEngineers] = useState([]);
   const [engineeringMetrics, setEngineeringMetrics] = useState({});
   const [currentFilter, setCurrentFilter] = useState('all');
-  const [selectedBreakdownId, setSelectedBreakdownId] = useState(null);
-  const [showEngineerModal, setShowEngineerModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [notification, setNotification] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [wsConnected, setWsConnected] = useState(false);
+
+  // Engineer identity (from localStorage or props)
+  const [engineerBadge, setEngineerBadge] = useState(localStorage.getItem('engineer_badge') || null);
+  const [engineerName, setEngineerName] = useState(localStorage.getItem('engineer_name') || null);
+  const [viewMode, setViewMode] = useState(localStorage.getItem('engineer_view_mode') || 'all'); // 'all' or 'my_jobs'
 
   // Filter options
   const filterOptions = [
-    { value: 'all', label: 'All Breakdowns' },
+    { value: 'all', label: 'All Jobs' },
     { value: 'unassigned', label: 'Unassigned' },
+    { value: 'my_jobs', label: 'My Jobs' },
     { value: 'dispatched', label: 'Dispatched' },
-    { value: 'on-site', label: 'On Site' },
-    { value: 'overdue', label: 'SLA Risk' },
-    { value: 'priority', label: 'Priority Routes' }
+    { value: 'on_site', label: 'On Site' },
+    { value: 'priority', label: 'Priority Routes' },
+    { value: 'overdue', label: 'SLA Risk' }
   ];
 
-  // Fetch real breakdown data from backend
+  // WebSocket setup and cleanup
+  useEffect(() => {
+    connectWebSocket();
+
+    return () => {
+      if (ws) {
+        ws.close();
+        ws = null;
+      }
+    };
+  }, []);
+
+  const connectWebSocket = () => {
+    const WS_URL = import.meta.env.VITE_WS_URL || 'wss://breakdown-guide.onrender.com';
+
+    try {
+      ws = new WebSocket(WS_URL);
+
+      ws.onopen = () => {
+        console.log('✅ Engineering Dashboard WebSocket connected');
+        setWsConnected(true);
+
+        // Subscribe to engineering events
+        ws.send(JSON.stringify({
+          type: 'subscribe',
+          channel: 'engineering'
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          handleWebSocketMessage(data);
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setWsConnected(false);
+      };
+
+      ws.onclose = () => {
+        console.log('WebSocket disconnected. Reconnecting in 5s...');
+        setWsConnected(false);
+
+        // Attempt to reconnect after 5 seconds
+        setTimeout(() => {
+          connectWebSocket();
+        }, 5000);
+      };
+    } catch (error) {
+      console.error('Failed to connect WebSocket:', error);
+    }
+  };
+
+  const handleWebSocketMessage = (data) => {
+    console.log('📨 Engineering WebSocket message:', data);
+
+    switch (data.type) {
+      case 'job_assigned':
+        showNotification(`New job assigned: Fleet ${data.breakdown?.fleet_number}`);
+        fetchAllData(); // Refresh data
+        break;
+
+      case 'job_accepted':
+        if (data.engineer_badge === engineerBadge) {
+          showNotification(`You accepted job: ${data.breakdown_id}`);
+        }
+        fetchAllData();
+        break;
+
+      case 'status_updated':
+        showNotification(`Job ${data.breakdown_id} status: ${data.status}`);
+        fetchAllData();
+        break;
+
+      case 'job_completed':
+        showNotification(`Job ${data.breakdown_id} completed by ${data.engineer_name}`);
+        fetchAllData();
+        break;
+
+      case 'new_breakdown':
+        showNotification(`🚨 New breakdown: Fleet ${data.breakdown?.fleet_number}`);
+        fetchAllData();
+        break;
+
+      default:
+        console.log('Unknown WebSocket message type:', data.type);
+    }
+  };
+
+  const showNotification = (message) => {
+    setNotification(message);
+    setTimeout(() => setNotification(null), 5000);
+  };
+
+  // Fetch engineering jobs from new API
   const fetchBreakdowns = async () => {
     try {
-      const data = await apiClient.get('/api/breakdowns/active');
-      console.log('📊 Fetched real breakdowns for engineering:', data);
-      
-      if (data.success && Array.isArray(data.breakdowns)) {
-        // Process real breakdown data - NO MOCK DATA!
-        const processedBreakdowns = data.breakdowns.map(breakdown => {
-          const created = new Date(breakdown.created_at);
-          const now = new Date();
-          const totalElapsed = Math.floor((now - created) / 60000); // minutes
-          
-          // Calculate SLA status based on real elapsed time
-          let slaStatus = 'normal';
-          if (totalElapsed > 90) {
-            slaStatus = 'critical'; // Over 90 minutes
-          } else if (totalElapsed > 60) {
-            slaStatus = 'warning'; // Over 60 minutes
-          }
-          
-          // Determine if priority route
-          const isPriority = PRIORITY_ROUTES.some(route => 
-            breakdown.location?.includes(route)
-          );
-          
-          return {
-            // Core breakdown data
-            id: breakdown.breakdown_id || breakdown.id,
-            breakdown_id: breakdown.breakdown_id,
-            daily_id: breakdown.daily_id,
-            fleet_number: breakdown.fleet_number,
-            depot: breakdown.depot || 'Unknown',
-            location: breakdown.location,
-            
-            // Issue details
-            issue_category: breakdown.issue_category,
-            severity: breakdown.severity || breakdown.wizard_decision,
-            status: breakdown.status || 'active',
-            
-            // Timeline data from backend
-            created_at: breakdown.created_at,
-            acknowledged_at: breakdown.acknowledged_at,
-            dispatched_at: breakdown.dispatched_at,
-            on_site_at: breakdown.on_site_at,
-            fixing_at: breakdown.fixing_at,
-            resolved_at: breakdown.resolved_at,
-            
-            // Engineer assignment
-            engineer_id: breakdown.engineer_id,
-            engineer_name: breakdown.engineer_name,
-            engineer_badge: breakdown.engineer_badge,
-            engineer_status: breakdown.engineer_status,
-            engineer_eta: breakdown.engineer_eta,
-            
-            // Calculated fields
-            totalElapsed,
-            waitTime: breakdown.engineer_status === 'on_site' ? 0 : totalElapsed,
-            slaStatus,
-            isPriority,
-            isOverdue: totalElapsed > 60,
-            
-            // Activity feed
-            activities: breakdown.activities || [],
-            
-            // Supervisor info
-            supervisor_name: breakdown.supervisor_name,
-            supervisor_badge: breakdown.supervisor_badge
-          };
-        });
-        
-        setAllBreakdowns(processedBreakdowns);
+      // Use the new /api/engineering/jobs endpoint with filter support
+      const params = new URLSearchParams();
+      if (currentFilter !== 'all') {
+        params.append('filter', currentFilter);
+      }
+      if (currentFilter === 'my_jobs' && engineerBadge) {
+        params.append('engineer_badge', engineerBadge);
+      }
+
+      const data = await apiClient.get(`/api/engineering/jobs?${params.toString()}`);
+      console.log('📊 Fetched engineering jobs:', data);
+
+      if (data.success && Array.isArray(data.jobs)) {
+        setAllBreakdowns(data.jobs);
         setError(null);
       } else {
         setAllBreakdowns([]);
       }
     } catch (error) {
-      console.error('Error fetching breakdowns:', error);
-      setError('Failed to fetch breakdown data');
-      // Keep existing data if fetch fails
-    }
-  };
-
-  // Fetch engineers data
-  const fetchEngineers = async () => {
-    try {
-      const data = await apiClient.get('/api/engineering/engineers');
-      if (data.success) {
-        setAllEngineers(data.engineers || []);
-      }
-    } catch (error) {
-      console.error('Error fetching engineers:', error);
+      console.error('Error fetching jobs:', error);
+      setError('Failed to fetch jobs data');
     }
   };
 
@@ -145,45 +181,74 @@ const EngineeringDashboard = () => {
     setLoading(true);
     await Promise.all([
       fetchBreakdowns(),
-      fetchEngineers(),
       fetchMetrics()
     ]);
     setLastUpdate(new Date());
     setLoading(false);
-  }, []);
+  }, [currentFilter, engineerBadge]);
 
   // Initial load and auto-refresh
   useEffect(() => {
     fetchAllData();
-    
+
     const interval = setInterval(() => {
       fetchAllData();
     }, REFRESH_INTERVAL);
-    
+
     return () => clearInterval(interval);
   }, [fetchAllData]);
 
-  // Filter breakdowns
-  const filteredBreakdowns = allBreakdowns.filter(breakdown => {
-    if (currentFilter === 'all') return true;
-    if (currentFilter === 'unassigned') return !breakdown.engineer_id;
-    if (currentFilter === 'dispatched') return breakdown.engineer_status === 'dispatched';
-    if (currentFilter === 'on-site') return breakdown.engineer_status === 'on_site';
-    if (currentFilter === 'overdue') return breakdown.isOverdue;
-    if (currentFilter === 'priority') return breakdown.isPriority;
-    return true;
-  });
+  // Filtered breakdowns (already filtered by API, but can add client-side filtering if needed)
+  const filteredBreakdowns = allBreakdowns;
 
   // Calculate statistics
   const stats = {
     total: allBreakdowns.length,
     unassigned: allBreakdowns.filter(b => !b.engineer_id).length,
-    onSite: allBreakdowns.filter(b => b.engineer_status === 'on_site').length,
-    overdue: allBreakdowns.filter(b => b.isOverdue).length,
+    myJobs: engineerBadge ? allBreakdowns.filter(b => b.engineer_badge === engineerBadge).length : 0,
+    onSite: allBreakdowns.filter(b => b.status === 'on_site').length,
+    overdue: allBreakdowns.filter(b => b.is_overdue).length,
     avgResponseTime: engineeringMetrics.avgResponseTime || 0,
-    slaCompliance: engineeringMetrics.slaCompliance || 0,
-    activeEngineers: engineeringMetrics.activeEngineers || 0,
-    totalEngineers: engineeringMetrics.totalEngineers || 0
+    slaCompliance: engineeringMetrics.slaCompliance || 0
+  };
+
+  // Handle engineer login
+  const handleEngineerLogin = () => {
+    const badge = prompt('Enter your engineer badge number (e.g., ENG001):');
+    if (!badge) return;
+
+    const name = prompt('Enter your name:');
+    if (!name) return;
+
+    // Save to localStorage
+    localStorage.setItem('engineer_badge', badge);
+    localStorage.setItem('engineer_name', name);
+
+    setEngineerBadge(badge);
+    setEngineerName(name);
+
+    showNotification(`Logged in as ${name} (${badge})`);
+  };
+
+  const handleEngineerLogout = () => {
+    localStorage.removeItem('engineer_badge');
+    localStorage.removeItem('engineer_name');
+    setEngineerBadge(null);
+    setEngineerName(null);
+    showNotification('Logged out');
+  };
+
+  // Callback handlers for card actions
+  const handleJobAccepted = () => {
+    fetchAllData();
+  };
+
+  const handleStatusUpdated = () => {
+    fetchAllData();
+  };
+
+  const handleJobCompleted = () => {
+    fetchAllData();
   };
 
   // Calculate depot statistics
@@ -275,24 +340,62 @@ const EngineeringDashboard = () => {
 
   return (
     <DashboardLayout title="Engineering Dashboard" icon="🔧">
+      {/* Engineer Identity Bar */}
+      <div className="engineer-identity-bar">
+        {engineerBadge ? (
+          <>
+            <div className="engineer-info">
+              <span className="engineer-icon">👷</span>
+              <div>
+                <div className="engineer-name">{engineerName}</div>
+                <div className="engineer-badge">{engineerBadge}</div>
+              </div>
+            </div>
+            <div className="engineer-actions">
+              <span className={`ws-indicator ${wsConnected ? 'connected' : 'disconnected'}`}>
+                {wsConnected ? '🟢 Live' : '🔴 Offline'}
+              </span>
+              <button className="btn-logout" onClick={handleEngineerLogout}>
+                Logout
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="engineer-login-prompt">
+            <p>Login to accept and manage jobs</p>
+            <button className="btn-login" onClick={handleEngineerLogin}>
+              👷 Engineer Login
+            </button>
+          </div>
+        )}
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <StatsCard
-          title="Total Breakdowns"
+          title="Total Jobs"
           value={stats.total}
           change={`${stats.unassigned} unassigned`}
           trend={stats.unassigned > 2 ? 'danger' : 'warning'}
         />
+        {engineerBadge && (
+          <StatsCard
+            title="My Jobs"
+            value={stats.myJobs}
+            change={stats.myJobs > 0 ? 'Active assignments' : 'No jobs'}
+            trend={stats.myJobs > 0 ? 'info' : 'neutral'}
+          />
+        )}
         <StatsCard
-          title="Engineers On Site"
+          title="On Site"
           value={stats.onSite}
-          change={`${stats.activeEngineers}/${stats.totalEngineers} active`}
+          change="Engineers working"
           trend="neutral"
         />
         <StatsCard
           title="SLA Risk"
           value={stats.overdue}
-          change={stats.overdue > 0 ? 'Immediate action' : 'On track'}
+          change={stats.overdue > 0 ? 'Immediate action needed' : 'On track'}
           trend={stats.overdue > 0 ? 'danger' : 'success'}
         />
         <StatsCard
@@ -320,9 +423,9 @@ const EngineeringDashboard = () => {
         {loading && filteredBreakdowns.length === 0 ? (
           <div className="text-center py-8">
             <div className="spinner-border" role="status">
-              <span className="sr-only">Loading real breakdowns...</span>
+              <span className="sr-only">Loading engineering jobs...</span>
             </div>
-            <p className="mt-2 text-gray-400">Fetching live engineering data...</p>
+            <p className="mt-2 text-gray-400">Fetching live job data...</p>
           </div>
         ) : error ? (
           <div className="alert alert-danger">
@@ -333,32 +436,24 @@ const EngineeringDashboard = () => {
           </div>
         ) : filteredBreakdowns.length === 0 ? (
           <div className="no-data-message">
-            <p>No breakdowns matching the selected filter</p>
-            <small>Real-time data from active assessments</small>
+            <p>No jobs matching the selected filter</p>
+            <small>Real-time engineering jobs feed</small>
           </div>
         ) : (
           filteredBreakdowns.map(breakdown => (
-            <EngineeringCard
+            <EngineeringCardEnhanced
               key={breakdown.breakdown_id}
               breakdown={breakdown}
-              onAssignEngineer={() => handleAssignEngineer(breakdown.breakdown_id)}
-              onStatusUpdate={handleStatusUpdate}
-              onAutoAssign={() => handleAutoAssign(breakdown.breakdown_id)}
+              engineerBadge={engineerBadge}
+              engineerName={engineerName}
+              onJobAccepted={handleJobAccepted}
+              onStatusUpdated={handleStatusUpdated}
+              onJobCompleted={handleJobCompleted}
+              onRefresh={fetchAllData}
             />
           ))
         )}
       </div>
-
-      {/* Engineer Selection Modal */}
-      {showEngineerModal && (
-        <EngineerModal
-          show={showEngineerModal}
-          onClose={() => setShowEngineerModal(false)}
-          onSelect={handleEngineerSelect}
-          breakdownId={selectedBreakdownId}
-          engineers={allEngineers}
-        />
-      )}
 
       {/* Notification Toast */}
       {notification && (
@@ -379,6 +474,109 @@ const EngineeringDashboard = () => {
       </div>
 
       <style jsx>{`
+        .engineer-identity-bar {
+          background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+          padding: 16px 20px;
+          border-radius: 12px;
+          margin-bottom: 24px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .engineer-info {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .engineer-icon {
+          font-size: 32px;
+        }
+
+        .engineer-name {
+          color: white;
+          font-size: 18px;
+          font-weight: 600;
+        }
+
+        .engineer-badge {
+          color: #93c5fd;
+          font-size: 14px;
+          font-family: monospace;
+        }
+
+        .engineer-actions {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+
+        .ws-indicator {
+          padding: 6px 12px;
+          border-radius: 6px;
+          font-size: 13px;
+          font-weight: 600;
+        }
+
+        .ws-indicator.connected {
+          background: rgba(16, 185, 129, 0.2);
+          color: #10b981;
+        }
+
+        .ws-indicator.disconnected {
+          background: rgba(239, 68, 68, 0.2);
+          color: #ef4444;
+        }
+
+        .btn-logout {
+          background: rgba(255, 255, 255, 0.2);
+          color: white;
+          border: none;
+          padding: 8px 16px;
+          border-radius: 6px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .btn-logout:hover {
+          background: rgba(255, 255, 255, 0.3);
+        }
+
+        .engineer-login-prompt {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          width: 100%;
+        }
+
+        .engineer-login-prompt p {
+          margin: 0;
+          color: white;
+          font-size: 16px;
+        }
+
+        .btn-login {
+          background: rgba(255, 255, 255, 0.2);
+          color: white;
+          border: 2px solid white;
+          padding: 10px 20px;
+          border-radius: 8px;
+          font-size: 15px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .btn-login:hover {
+          background: white;
+          color: #1e3a8a;
+          transform: translateY(-2px);
+        }
+
         .no-data-message {
           text-align: center;
           padding: 60px 20px;
