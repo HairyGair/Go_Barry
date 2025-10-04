@@ -560,55 +560,35 @@ const SDCBreakdownCardEnhanced = memo(({
 
       <style jsx>{`
         .sdc-card-enhanced {
-          background: white;
-          border-radius: 16px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-          padding: 24px;
-          margin-bottom: 16px;
-          transition: all 0.3s ease;
-          animation: slideIn 0.5s ease;
-          border-left: 4px solid transparent;
+          background: #ffffff;
+          border-radius: 12px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          padding: 16px;
+          margin-bottom: 12px;
+          transition: box-shadow 0.2s ease;
+          border-left: 3px solid #e5e7eb;
         }
 
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        /* Decision color coding */
+        /* Decision color coding - simplified */
         .sdc-card-enhanced.decision-stop {
           border-left-color: #dc2626;
-          background: linear-gradient(to right, rgba(254, 226, 226, 0.3), white);
         }
 
         .sdc-card-enhanced.decision-amber {
           border-left-color: #f59e0b;
-          background: linear-gradient(to right, rgba(254, 243, 199, 0.3), white);
         }
 
         .sdc-card-enhanced.decision-continue {
           border-left-color: #10b981;
-          background: linear-gradient(to right, rgba(220, 252, 231, 0.3), white);
         }
 
-        /* SLA Status */
+        /* SLA Status - removed animations */
         .sdc-card-enhanced.breached {
-          animation: pulse 2s infinite;
+          border-left-color: #dc2626;
         }
 
         .sdc-card-enhanced.warning {
-          box-shadow: 0 2px 8px rgba(245, 158, 11, 0.2);
-        }
-
-        @keyframes pulse {
-          0%, 100% { box-shadow: 0 2px 8px rgba(220, 38, 38, 0.2); }
-          50% { box-shadow: 0 4px 16px rgba(220, 38, 38, 0.3); }
+          border-left-color: #f59e0b;
         }
 
         /* Header Section */
@@ -616,41 +596,40 @@ const SDCBreakdownCardEnhanced = memo(({
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          margin-bottom: 20px;
-          padding-bottom: 16px;
+          margin-bottom: 16px;
+          padding-bottom: 12px;
           border-bottom: 1px solid #e5e7eb;
         }
 
         .header-left {
           display: flex;
           align-items: center;
-          gap: 16px;
+          gap: 12px;
         }
 
         .fleet-section {
           display: flex;
           flex-direction: column;
           align-items: center;
-          background: #f3f4f6;
-          padding: 8px 16px;
+          background: #f9fafb;
+          padding: 6px 12px;
           border-radius: 8px;
-          border: 2px solid #1e293b;
+          border: 1px solid #d1d5db;
         }
 
         .fleet-label {
-          font-size: 10px;
-          font-weight: 600;
-          color: #64748b;
+          font-size: 11px;
+          font-weight: 500;
+          color: #6b7280;
           text-transform: uppercase;
-          letter-spacing: 0.5px;
         }
 
         .fleet-number {
-          font-size: 28px;
-          font-weight: 800;
-          color: #1e293b;
+          font-size: 20px;
+          font-weight: 600;
+          color: #111827;
           line-height: 1;
-          font-family: 'Arial Black', sans-serif;
+          font-family: system-ui, -apple-system, sans-serif;
         }
 
         .route-badge {
@@ -675,27 +654,23 @@ const SDCBreakdownCardEnhanced = memo(({
         }
 
         .priority-indicator {
-          background: #dc2626;
-          color: white;
-          padding: 4px 12px;
-          border-radius: 6px;
-          font-size: 12px;
-          font-weight: 700;
+          background: #fef2f2;
+          color: #b91c1c;
+          padding: 2px 8px;
+          border-radius: 4px;
+          font-size: 11px;
+          font-weight: 500;
           text-transform: uppercase;
-          animation: blink 1.5s infinite;
-        }
-
-        @keyframes blink {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.6; }
+          border: 1px solid #fca5a5;
         }
 
         /* Location Section */
         .location-section {
-          background: #f8fafc;
-          border-radius: 12px;
-          padding: 16px;
-          margin-bottom: 16px;
+          background: #fafafa;
+          border-radius: 8px;
+          padding: 12px;
+          margin-bottom: 12px;
+          border: 1px solid #e5e7eb;
         }
 
         .location-info {
@@ -708,11 +683,11 @@ const SDCBreakdownCardEnhanced = memo(({
         .location-header {
           display: flex;
           align-items: flex-start;
-          gap: 10px;
+          gap: 8px;
         }
 
         .location-icon {
-          font-size: 20px;
+          font-size: 18px;
           margin-top: 2px;
         }
 
@@ -722,14 +697,14 @@ const SDCBreakdownCardEnhanced = memo(({
         }
 
         .location-primary {
-          font-size: 16px;
-          font-weight: 600;
-          color: #1e293b;
+          font-size: 14px;
+          font-weight: 500;
+          color: #374151;
         }
 
         .location-secondary {
-          font-size: 14px;
-          color: #64748b;
+          font-size: 12px;
+          color: #6b7280;
           margin-top: 2px;
         }
 
@@ -793,13 +768,13 @@ const SDCBreakdownCardEnhanced = memo(({
         }
 
         .timer-value {
-          font-size: 20px;
-          font-weight: 700;
-          color: #1e293b;
+          font-size: 16px;
+          font-weight: 500;
+          color: #374151;
         }
 
         .timer-display.warning .timer-value {
-          color: #f59e0b;
+          color: #d97706;
         }
 
         .timer-display.breached .timer-value {
@@ -807,33 +782,10 @@ const SDCBreakdownCardEnhanced = memo(({
         }
 
         .timer-label {
-          font-size: 10px;
-          font-weight: 600;
-          text-transform: uppercase;
-          color: #64748b;
-        }
-
-        .timer-display.warning .timer-label {
-          color: #f59e0b;
-        }
-
-        .timer-display.breached .timer-label {
-          color: #dc2626;
-        }
-
-        .sla-bar {
-          width: 80px;
-          height: 4px;
-          background: #e5e7eb;
-          border-radius: 2px;
-          margin-top: 4px;
-          overflow: hidden;
-        }
-
-        .sla-progress {
-          height: 100%;
-          background: linear-gradient(to right, #10b981, #f59e0b, #dc2626);
-          transition: width 0.3s ease;
+          font-size: 12px;
+          font-weight: 400;
+          text-transform: none;
+          color: #6b7280;
         }
 
         /* Issue Section */
@@ -897,33 +849,35 @@ const SDCBreakdownCardEnhanced = memo(({
         .decision-display {
           display: flex;
           align-items: center;
-          gap: 12px;
-          padding: 12px;
-          border-radius: 8px;
+          gap: 8px;
+          padding: 8px 12px;
+          border-radius: 6px;
+          background: #f9fafb;
+          border: 1px solid #e5e7eb;
         }
 
         .decision-display.decision-stop {
-          background: rgba(220, 38, 38, 0.1);
-          border: 1px solid rgba(220, 38, 38, 0.2);
+          background: #fef2f2;
+          border-color: #fca5a5;
         }
 
         .decision-display.decision-amber {
-          background: rgba(245, 158, 11, 0.1);
-          border: 1px solid rgba(245, 158, 11, 0.2);
+          background: #fffbeb;
+          border-color: #fcd34d;
         }
 
         .decision-display.decision-continue {
-          background: rgba(16, 185, 129, 0.1);
-          border: 1px solid rgba(16, 185, 129, 0.2);
+          background: #f0fdf4;
+          border-color: #86efac;
         }
 
         .decision-display.decision-pending {
-          background: rgba(148, 163, 184, 0.1);
-          border: 1px solid rgba(148, 163, 184, 0.2);
+          background: #f8fafc;
+          border-color: #cbd5e1;
         }
 
         .decision-icon {
-          font-size: 24px;
+          font-size: 18px;
         }
 
         .decision-content {
@@ -933,36 +887,36 @@ const SDCBreakdownCardEnhanced = memo(({
         }
 
         .decision-text {
-          font-size: 16px;
-          font-weight: 700;
-          text-transform: uppercase;
+          font-size: 14px;
+          font-weight: 600;
+          text-transform: none;
         }
 
         .decision-display.decision-stop .decision-text {
-          color: #dc2626;
+          color: #b91c1c;
         }
 
         .decision-display.decision-amber .decision-text {
-          color: #f59e0b;
+          color: #b45309;
         }
 
         .decision-display.decision-continue .decision-text {
-          color: #10b981;
+          color: #047857;
         }
 
         .decision-display.decision-pending .decision-text {
-          color: #64748b;
+          color: #475569;
         }
 
         .decision-description {
           font-size: 12px;
-          color: #64748b;
+          color: #6b7280;
           margin-top: 2px;
         }
 
         /* Timeline Section */
         .timeline-section {
-          margin: 24px 0;
+          margin: 16px 0;
         }
 
         .timeline-bar {
@@ -970,7 +924,7 @@ const SDCBreakdownCardEnhanced = memo(({
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 20px 0;
+          padding: 12px 0;
         }
 
         .timeline-bar::before {
@@ -989,9 +943,9 @@ const SDCBreakdownCardEnhanced = memo(({
           top: 50%;
           left: 0;
           height: 2px;
-          background: linear-gradient(to right, #10b981, #3b82f6);
+          background: #3b82f6;
           transform: translateY(-50%);
-          transition: width 0.5s ease;
+          transition: width 0.3s ease;
         }
 
         .timeline-step {
@@ -999,23 +953,22 @@ const SDCBreakdownCardEnhanced = memo(({
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
           z-index: 1;
         }
 
         .step-dot {
-          width: 32px;
-          height: 32px;
+          width: 24px;
+          height: 24px;
           border-radius: 50%;
-          background: white;
-          border: 2px solid #e5e7eb;
+          background: #f3f4f6;
+          border: 2px solid #d1d5db;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 12px;
-          font-weight: 600;
-          color: #94a3b8;
-          transition: all 0.3s ease;
+          font-size: 10px;
+          font-weight: 500;
+          color: #6b7280;
         }
 
         .timeline-step.completed .step-dot {
@@ -1028,19 +981,18 @@ const SDCBreakdownCardEnhanced = memo(({
           background: #3b82f6;
           border-color: #3b82f6;
           color: white;
-          box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
         }
 
         .step-label {
-          font-size: 11px;
-          color: #64748b;
-          font-weight: 500;
+          font-size: 10px;
+          color: #6b7280;
+          font-weight: 400;
         }
 
         .timeline-step.completed .step-label,
         .timeline-step.current .step-label {
-          color: #1e293b;
-          font-weight: 600;
+          color: #374151;
+          font-weight: 500;
         }
 
         /* Info Grid */
