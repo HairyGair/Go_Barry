@@ -18,6 +18,7 @@ import {
   requestEngineeringSchema,
   sanitizeNotes
 } from '../middleware/validationMiddleware.js';
+import { activityLogger, ACTIVITY_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -1441,29 +1442,34 @@ router.post('/resolve', validateBody(Joi.object({
 
     console.log(`✅ Breakdown ${breakdown_id} marked as resolved in database`);
 
-    // Log activity
-    const activitiesData = loadJSONFile(ACTIVITIES_PATH, { activities: [] });
-    const newActivity = {
-      id: `activity_${Date.now()}`,
-      type: 'breakdown_resolved',
-      activity_type: 'breakdown_resolved',
-      breakdown_id: breakdown_id,
-      fleet_no: breakdown.fleet_number || breakdown.fleet_no,
-      fleet_number: breakdown.fleet_number || breakdown.fleet_no,
-      resolved_by: resolvingUser,
-      supervisor_badge: supervisor_badge,
-      resolution_type: resolution_type,
-      resolution_notes: resolution_notes,
-      returned_to_service: returned_to_service,
-      timestamp: resolvedAt,
+    // Log activity to database using Activity Logger
+    const activityData = await activityLogger.logActivity({
+      activityType: ACTIVITY_TYPES.BREAKDOWN_RESOLVED,
+      action: `resolved ${resolution_type} - ${breakdown.fleet_number || breakdown.fleet_no}`,
+      actorType: 'supervisor',
+      actorId: supervisor_badge || 'SDC',
+      actorName: resolvingUser,
+      entityType: 'breakdown',
+      entityId: breakdown_id,
+      entityDetails: {
+        fleetNo: breakdown.fleet_number || breakdown.fleet_no,
+        location: breakdown.location,
+        issueCategory: breakdown.issue_category,
+        resolutionType: resolution_type,
+        returnedToService: returned_to_service
+      },
+      depot: breakdown.depot,
+      severity: returned_to_service ? SEVERITY_LEVELS.SUCCESS : SEVERITY_LEVELS.INFO,
+      source: 'sdc_operations',
+      metadata: {
+        resolutionNotes: resolution_notes,
+        elapsedTime: Math.floor((new Date(resolvedAt) - new Date(breakdown.created_at)) / 1000 / 60)
+      },
+      icon: returned_to_service ? '✅' : '📋',
       message: `Breakdown ${breakdown_id} resolved by ${resolvingUser} - ${resolution_type}${resolution_notes ? ': ' + resolution_notes : ''}`
-    };
+    });
 
-    activitiesData.activities.unshift(newActivity);
-    if (activitiesData.activities.length > 500) {
-      activitiesData.activities = activitiesData.activities.slice(0, 500);
-    }
-    saveJSONFile(ACTIVITIES_PATH, activitiesData);
+    console.log(`📝 Activity logged to database:`, activityData?.id || 'queued');
 
     // Log audit event
     logAuditEvent({
@@ -1494,7 +1500,7 @@ router.post('/resolve', validateBody(Joi.object({
       timestamp: resolvedAt
     };
 
-    // Broadcast to WebSocket clients
+    // Broadcast to WebSocket clients - breakdown resolved event
     webSocketHandler.broadcast('sdc-dashboard', {
       type: 'breakdown_resolved',
       breakdown_id: breakdown_id,
@@ -1506,6 +1512,22 @@ router.post('/resolve', validateBody(Joi.object({
       resolution_notes: resolution_notes,
       timestamp: resolvedAt
     });
+
+    // Broadcast activity created event for activity feed sync
+    if (activityData) {
+      webSocketHandler.broadcast('sdc-dashboard', {
+        type: 'activity_created',
+        activity: activityData,
+        timestamp: resolvedAt
+      });
+
+      // Also broadcast to general channel for other dashboards
+      webSocketHandler.broadcast('general', {
+        type: 'activity_created',
+        activity: activityData,
+        timestamp: resolvedAt
+      });
+    }
 
     console.log(`✅ SDC API: Breakdown ${breakdown_id} resolved - ${resolution_type}`);
 
