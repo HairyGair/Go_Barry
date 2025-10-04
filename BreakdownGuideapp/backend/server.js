@@ -182,7 +182,7 @@ app.use('/api/engineering', authenticateSupervisor, engineeringRoutes);
 app.use('/api/analytics', authenticateSupervisor, analyticsRoutes);
 app.use('/api/reports', authenticateSupervisor, analyticsRoutes); // Reports also use analytics routes
 app.use('/api/activity', authenticateSupervisor, activityRoutes);
-app.use('/api/supervisors', authenticateSupervisor, supervisorRoutes);
+app.use('/api/supervisors', supervisorRoutes); // Stats endpoint is read-only, no auth required
 
 // SDC Dashboard API routes (requires SDC operator authentication and rate limiting)
 app.use('/api/sdc', rateLimitSDC, authenticateSDC, breakdownsAPIRoutes);
