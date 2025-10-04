@@ -1,9 +1,10 @@
 # API Reference - Breakdown Management System
 
-**Version:** 2.0.0
+**Version:** 2.1.0
 **Base URL (Production):** `https://breakdown-guide.onrender.com`
-**Base URL (Local):** `http://localhost:3001`
-**Last Updated:** October 1, 2025
+**Base URL (Local):** `http://localhost:3002`
+**Frontend:** `https://breakdowns.gobarry.co.uk`
+**Last Updated:** October 4, 2025
 
 ---
 

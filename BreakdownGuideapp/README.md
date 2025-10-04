@@ -42,12 +42,12 @@ The **Breakdown Management System** is a production-ready full-stack web applica
 
 **Production URLs:**
 - Backend API: https://breakdown-guide.onrender.com
-- Frontend: https://breakdown-guide.onrender.com (or cPanel)
+- Frontend: https://breakdowns.gobarry.co.uk (cPanel hosted)
 - Database: Supabase Project `oieliubbvvdzhzvikzal`
 
 **Git Repository:**
-- Origin: https://github.com/HairyGair/Go_Barry (legacy)
-- Breakdown Remote: https://github.com/HairyGair/Breakdown_Guide (production)
+- Production: https://github.com/HairyGair/Breakdown_Guide
+- Origin (legacy): https://github.com/HairyGair/Go_Barry
 
 ---
 

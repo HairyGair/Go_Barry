@@ -17,7 +17,8 @@ The Breakdown Management System is a **fully functional, production-deployed app
 - **API Endpoints:** 50+ RESTful endpoints
 - **Database Tables:** 4 primary tables (supervisors, breakdowns, wizard_progress, fleet_vehicles)
 - **Active Features:** Breakdown reporting, diagnostic wizards, live dashboards, engineering dispatch, analytics
-- **Production URL:** https://breakdown-guide.onrender.com
+- **Backend API:** https://breakdown-guide.onrender.com
+- **Frontend:** https://breakdowns.gobarry.co.uk
 - **Database:** Supabase PostgreSQL (EU West Ireland)
 
 ---

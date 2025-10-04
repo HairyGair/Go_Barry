@@ -34,7 +34,7 @@ git push breakdown main
 | Component | Platform | URL |
 |-----------|----------|-----|
 | Backend API | Render.com | https://breakdown-guide.onrender.com |
-| Frontend | Render.com / cPanel | https://breakdown-guide.onrender.com |
+| Frontend | cPanel | https://breakdowns.gobarry.co.uk |
 | Database | Supabase | https://oieliubbvvdzhzvikzal.supabase.co |
 | Git Repository (Production) | GitHub | https://github.com/HairyGair/Breakdown_Guide |
 
