@@ -248,6 +248,17 @@ class SupervisorBreakdownLogger {
                     breakdownId: result.breakdown?.breakdown_id
                 });
 
+                // Clean up localStorage after successful backend submission
+                if (result.breakdown?.breakdown_id) {
+                    try {
+                        const breakdownKey = `breakdown_${result.breakdown.breakdown_id}`;
+                        localStorage.removeItem(breakdownKey);
+                        console.log(`🧹 Cleaned up localStorage: ${breakdownKey}`);
+                    } catch (error) {
+                        console.warn('⚠️ Failed to clean up localStorage:', error);
+                    }
+                }
+
                 // Reset state
                 this.breakdownId = result.breakdown?.breakdown_id;
                 this.currentBreakdown = null;
