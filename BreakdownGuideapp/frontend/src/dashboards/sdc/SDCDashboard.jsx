@@ -902,137 +902,18 @@ const SDCDashboard = () => {
         setRecentDecisions(decisions);
         
         } else {
-          // 🎯 FALLBACK: If no backend data, check localStorage for wizard-completed breakdowns
-          console.log('📱 No backend data found, checking localStorage for breakdown data...');
-          
-          const localBreakdowns = [];
-          for (let key in localStorage) {
-            if (key.startsWith('breakdown_')) {
-              try {
-                const breakdownData = JSON.parse(localStorage.getItem(key));
-                if (breakdownData && breakdownData.breakdown_id) {
-                  localBreakdowns.push(breakdownData);
-                }
-              } catch (error) {
-                console.warn(`⚠️ Failed to parse localStorage breakdown: ${key}`, error);
-              }
-            }
-          }
-          
-          if (localBreakdowns.length > 0) {
-            console.log(`📱 Found ${localBreakdowns.length} breakdown(s) in localStorage`);
-            console.log('📊 Raw localStorage breakdown data:', localBreakdowns);
-            
-            // Debug: Check for suspicious fleet number values
-            localBreakdowns.forEach(b => {
-              console.log(`🔍 Breakdown ${b.breakdown_id} fleet analysis:`, {
-                fleet_no: b.fleet_no,
-                fleet_number: b.fleet_number,
-                fleetNumber: b.fleetNumber,
-                coordinates: b.coordinates,
-                location_coords: b.location_coords,
-                vehicle: b.vehicle,
-                allFields: Object.keys(b).filter(key => 
-                  typeof b[key] === 'string' && b[key].includes('55018629')
-                )
-              });
-            });
-            
-            // Convert localStorage breakdown data to SDC Dashboard format with enhanced vehicle data
-            const processedLocalBreakdowns = localBreakdowns.map(b => ({
-              id: b.breakdown_id,
-              breakdown_id: b.breakdown_id,
-              daily_id: `LOCAL-${b.breakdown_id.split('-').pop()}`,
-              
-              // Enhanced fleet data - try multiple field names
-              fleet_number: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
-              fleet_no: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
-              fleetNumber: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
-              
-              // Vehicle details
-              vehicle_type: b.vehicle_type || b.vehicleType || b.vehicle?.vehicleType || null,
-              vehicleType: b.vehicle_type || b.vehicleType || b.vehicle?.vehicleType || null,
-              depot: b.depot || b.depot_id || b.vehicle?.depot || 'Unknown',
-              depot_id: b.depot || b.depot_id || b.vehicle?.depot || 'Unknown',
-              registration: b.registration || b.regNo || b.vehicle?.regNo || '',
-              regNo: b.registration || b.regNo || b.vehicle?.regNo || '',
-              
-              // Enhanced vehicle object
-              vehicle: {
-                fleetNumber: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
-                fleet_number: b.fleet_no || b.fleet_number || b.fleetNumber || 'Unknown',
-                vehicleType: b.vehicle_type || b.vehicleType || b.vehicle?.vehicleType || null,
-                type: b.vehicle_type || b.vehicleType || b.vehicle?.vehicleType || null,
-                depot: b.depot || b.depot_id || b.vehicle?.depot || 'Unknown',
-                registration: b.registration || b.regNo || b.vehicle?.regNo || '',
-                regNo: b.registration || b.regNo || b.vehicle?.regNo || '',
-                ...b.vehicle
-              },
-              
-              location: b.location || 'Location not specified',
-              issue_category: b.issue_type || b.wizard_type?.replace('Wizard', ''),
-              severity: b.severity || 'CONTINUE',
-              status: b.status || 'active',
-              created_at: b.created_at || new Date().toISOString(),
-              
-              // SDC-specific fields
-              isCritical: b.severity === 'STOP',
-              isPending: true, // Local breakdowns are always pending
-              isDispatched: false,
-              isPriorityRoute: PRIORITY_ROUTES.some(route => 
-                (b.route_id || '').includes(route) || (b.location || '').includes(route)
-              ),
-              
-              // Timeline for SDC stages
-              timeline: {
-                received: b.created_at || new Date().toISOString(),
-                acknowledged: null,
-                decision: null,
-                engineering: null
-              },
-              
-              // Supervisor info
-              supervisor_name: b.supervisor_name || 'Unknown',
-              supervisor_badge: b.supervisor_badge || 'Unknown',
-              
-              // Engineering assignment
-              engineer_assigned: false,
-              engineer_name: null,
-              
-              // Decision data
-              decision: b.severity,
-              decision_notes: b.assessment_notes || '',
-              
-              // Add source indicator
-              source: 'localStorage',
-              route_id: b.route_id,
-              route_name: b.route_name,
-              
-              // Activities
-              activities: []
-            }));
-            
-            setBreakdowns(processedLocalBreakdowns);
-            
-            // Calculate statistics for local data
-            const activeLocalBreakdowns = processedLocalBreakdowns.filter(b => b.status !== 'resolved');
-            const criticalCount = activeLocalBreakdowns.filter(b => b.isCritical).length;
-            const pendingCount = activeLocalBreakdowns.filter(b => b.isPending).length;
-            
-            setStats({
-              total: activeLocalBreakdowns.length,
-              critical: criticalCount,
-              pending: pendingCount,
-              dispatched: 0,
-              inAssessment: assessmentsInProgress.length
-            });
-            
-            console.log('✅ Loaded breakdown data from localStorage');
-          } else {
-            setBreakdowns([]);
-            setPriorityAlerts([]);
-            setRecentDecisions([]);
-          }
+          // No backend data - set empty state (API succeeded but returned no breakdowns)
+          console.log('📊 No active breakdowns found in database');
+          setBreakdowns([]);
+          setPriorityAlerts([]);
+          setRecentDecisions([]);
+          setStats({
+            total: 0,
+            critical: 0,
+            pending: 0,
+            dispatched: 0,
+            inAssessment: assessmentsInProgress.length
+          });
         }
     } catch (error) {
       console.error('Error fetching breakdowns:', error);
