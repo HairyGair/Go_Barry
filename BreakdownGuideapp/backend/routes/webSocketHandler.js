@@ -387,16 +387,6 @@ class WebSocketHandler {
 
   // Set up file watchers for real-time updates
   setupFileWatchers() {
-    // Watch activities file for new assessment data
-    if (existsSync(ACTIVITIES_PATH)) {
-      this.fileWatchers.set('activities', watchFile(ACTIVITIES_PATH, (curr, prev) => {
-        if (curr.mtime > prev.mtime) {
-          this.handleActivitiesUpdate();
-        }
-      }));
-      console.log('👁️ Watching activities file for changes');
-    }
-
     // Watch breakdown counter file for breakdown updates
     if (existsSync(BREAKDOWN_COUNTER_PATH)) {
       this.fileWatchers.set('breakdowns', watchFile(BREAKDOWN_COUNTER_PATH, (curr, prev) => {
@@ -408,41 +398,7 @@ class WebSocketHandler {
     }
   }
 
-  // Handle activities file update
-  handleActivitiesUpdate() {
-    try {
-      const activitiesData = JSON.parse(readFileSync(ACTIVITIES_PATH, 'utf8'));
-      const latestActivity = activitiesData.activities?.[0];
-
-      if (!latestActivity || latestActivity.timestamp === this.lastActivityTimestamp) {
-        return; // No new activity
-      }
-
-      this.lastActivityTimestamp = latestActivity.timestamp;
-      
-      console.log(`🔄 New activity detected: ${latestActivity.type} for ${latestActivity.breakdown_id || latestActivity.fleet_no}`);
-
-      // Determine event type and broadcast appropriate message
-      const eventType = this.mapActivityToEvent(latestActivity);
-      
-      if (eventType) {
-        const broadcastData = {
-          type: eventType,
-          data: latestActivity,
-          timestamp: new Date().toISOString(),
-          source: 'file_watcher'
-        };
-
-        // Broadcast to relevant channels
-        this.broadcast('breakdowns', broadcastData);
-        this.broadcast('sdc-dashboard', broadcastData);
-        this.broadcast('assessment-progress', broadcastData);
-      }
-
-    } catch (error) {
-      console.error('Error handling activities update:', error);
-    }
-  }
+  // NOTE: handleActivitiesUpdate() removed - activities now broadcast directly from resolve endpoint via Activity Logger
 
   // Handle breakdowns file update
   handleBreakdownsUpdate() {
