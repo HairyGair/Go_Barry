@@ -3,7 +3,7 @@
  * Provides reliable real-time updates with automatic failover
  */
 
-import { apiConfig } from '../breakdown-guide/components/common/constants';
+import { apiConfig, websocketConfig } from '../breakdown-guide/components/common/constants';
 import enhancedAuthService from './enhanced-auth-service';
 
 // Connection states
@@ -127,9 +127,9 @@ class ConnectionManager {
         wsUrl = `${protocol}//${window.location.host}${endpoint}`;
         this.log('Development mode: Using relative WebSocket URL', { wsUrl, endpoint });
       } else {
-        // In production, use absolute URL
-        wsUrl = `${apiConfig.baseUrl.replace('http://', 'ws://').replace('https://', 'wss://')}${endpoint}`;
-        this.log('Production mode: Using absolute WebSocket URL', { wsUrl });
+        // In production, use WebSocket-specific URL from config
+        wsUrl = `${websocketConfig.url}${endpoint}`;
+        this.log('Production mode: Using WebSocket URL from config', { wsUrl, websocketConfigUrl: websocketConfig.url });
       }
 
       // Add authentication token to URL if available
