@@ -1010,7 +1010,7 @@ const SDCBreakdownCardEnhanced = memo(({
 
         .info-label {
           font-size: 11px;
-          color: #94a3b8;
+          color: #6b7280;
           text-transform: uppercase;
           font-weight: 500;
           letter-spacing: 0.5px;
@@ -1018,7 +1018,7 @@ const SDCBreakdownCardEnhanced = memo(({
 
         .info-value {
           font-size: 14px;
-          color: #1e293b;
+          color: #111827;
           font-weight: 600;
           margin-top: 2px;
         }
