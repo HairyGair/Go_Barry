@@ -77,11 +77,11 @@ router.get('/live', async (req, res) => {
   try {
     console.log('📊 SDC API: Fetching live breakdowns');
     
-    // Query Supabase for active breakdowns
+    // Query Supabase for active breakdowns (exclude resolved and cleared)
     const { data: breakdowns, error: breakdownError } = await supabase
       .from('breakdowns')
       .select('*')
-      .neq('status', 'resolved')
+      .not('status', 'in', '(resolved,cleared)')
       .order('created_at', { ascending: false })
       .limit(100);
 
