@@ -112,6 +112,9 @@ class ConnectionManager {
 
   async connectWebSocket(endpoint) {
     try {
+      // Get authentication token for WebSocket
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('supervisor_token');
+
       // For development, use relative WebSocket URL to go through Vite proxy
       // For production, use absolute URL from apiConfig
       let wsUrl;
@@ -128,11 +131,20 @@ class ConnectionManager {
         this.log('Production mode: Using absolute WebSocket URL', { wsUrl });
       }
 
+      // Add authentication token to URL if available
+      if (token) {
+        const separator = wsUrl.includes('?') ? '&' : '?';
+        wsUrl = `${wsUrl}${separator}token=${encodeURIComponent(token)}`;
+        this.log('Added authentication token to WebSocket URL');
+      } else {
+        this.log('⚠️ No authentication token available for WebSocket connection');
+      }
+
       this.log('Attempting WebSocket connection', {
-        wsUrl,
+        wsUrl: wsUrl.replace(/token=[^&]+/, 'token=***'), // Hide token in logs
         baseUrl: apiConfig.baseUrl,
         endpoint,
-        fullUrl: wsUrl,
+        hasToken: !!token,
         isDevelopment
       });
 
