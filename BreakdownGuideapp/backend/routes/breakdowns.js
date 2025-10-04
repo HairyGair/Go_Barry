@@ -1073,7 +1073,7 @@ router.post('/resolve', async (req, res) => {
     }
 
     // Check if already resolved
-    if (currentBreakdown.status === 'cleared' || currentBreakdown.status === 'resolved') {
+    if (currentBreakdown.status === 'resolved') {
       return res.status(400).json({
         success: false,
         error: 'Breakdown already resolved',
@@ -1086,11 +1086,11 @@ router.post('/resolve', async (req, res) => {
     const resolvedAt = new Date().toISOString();
     const resolvingUser = resolved_by || supervisor_badge || req.supervisor?.name || 'System';
 
-    // Update breakdown status to cleared
+    // Update breakdown status to resolved
     const { data: breakdown, error: updateError } = await supabase
       .from('breakdowns')
       .update({
-        status: 'cleared',
+        status: 'resolved',
         resolved_at: resolvedAt,
         resolved_by: resolvingUser,
         resolution_notes: resolution_notes || null,

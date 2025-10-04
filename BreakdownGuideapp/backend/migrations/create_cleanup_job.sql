@@ -15,7 +15,7 @@ DECLARE
   rows_deleted INTEGER;
 BEGIN
   DELETE FROM breakdowns
-  WHERE status IN ('resolved', 'cleared')
+  WHERE status = 'resolved'
     AND resolved_at IS NOT NULL
     AND resolved_at < NOW() - INTERVAL '30 days';
 
