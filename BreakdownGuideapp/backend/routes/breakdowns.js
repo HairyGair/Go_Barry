@@ -67,10 +67,11 @@ router.get('/active', async (req, res) => {
 router.get('/live', async (req, res) => {
   try {
     // Query from breakdowns table only (joins will be added once foreign keys are set up)
+    // Use NOT IN to exclude only resolved/deleted, instead of whitelisting specific statuses
     const { data: breakdowns, error } = await supabase
       .from('breakdowns')
       .select('*')
-      .in('status', ['active', 'pending', 'in_progress', 'received', 'acknowledged', 'decision', 'dispatched', 'on_site', 'moving'])
+      .not('status', 'in', '("resolved","deleted","cancelled","completed")')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
