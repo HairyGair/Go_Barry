@@ -81,101 +81,100 @@ class WebSocketHandler {
           }));
           ws.close();
           return;
-        }
+      }
 
-        // Verify token with Supabase
-        try {
-          if (!supabase) {
-            console.error('❌ Supabase client not initialized');
-            ws.send(JSON.stringify({
-              type: 'error',
-              error: 'Authentication service unavailable',
-              code: 'WS_AUTH_SERVICE_ERROR',
-              timestamp: new Date().toISOString()
-            }));
-            ws.close();
-            return;
-          }
-
-          const { data: userData, error: authError } = await supabase.auth.getUser(token);
-
-          if (authError || !userData) {
-            console.warn(`❌ Invalid WebSocket authentication token for channel: ${channel}`);
-
-            // Log security event
-            const securityEvent = {
-              eventType: 'unauthorized_websocket_access',
-              timestamp: new Date().toISOString(),
-              channel: channel,
-              ip: request.socket.remoteAddress,
-              userAgent: request.headers['user-agent'],
-              error: authError?.message || 'Invalid token'
-            };
-            console.log('🔒 Security Alert:', JSON.stringify(securityEvent, null, 2));
-
-            ws.send(JSON.stringify({
-              type: 'error',
-              error: 'Invalid or expired authentication token',
-              code: 'WS_AUTH_INVALID',
-              timestamp: new Date().toISOString()
-            }));
-            ws.close();
-            return;
-          }
-
-          user = {
-            id: userData.user.id,
-            email: userData.user.email,
-            role: userData.user.user_metadata?.role || 'user'
-          };
-
-          // Check supervisor privileges for SDC dashboard
-          if (channel === 'sdc-dashboard') {
-            const { data: supervisorData, error: supervisorError } = await supabase
-              .from('supervisors')
-              .select('id, email, name, role, depot')
-              .eq('email', user.email.toLowerCase())
-              .single();
-
-            if (supervisorError || !supervisorData) {
-              console.warn(`❌ Unauthorized WebSocket access attempt to SDC dashboard by ${user.email}`);
-
-              // Log security event
-              const securityEvent = {
-                eventType: 'unauthorized_sdc_websocket_access',
-                timestamp: new Date().toISOString(),
-                email: user.email,
-                channel: channel,
-                ip: request.socket.remoteAddress,
-                userAgent: request.headers['user-agent']
-              };
-              console.log('🔒 Security Alert:', JSON.stringify(securityEvent, null, 2));
-
-              ws.send(JSON.stringify({
-                type: 'error',
-                error: 'SDC operator privileges required',
-                code: 'WS_SDC_AUTH_FORBIDDEN',
-                timestamp: new Date().toISOString()
-              }));
-              ws.close();
-              return;
-            }
-
-            supervisor = supervisorData;
-          }
-
-          console.log(`✅ WebSocket authenticated: ${user.email} on channel: ${channel}`);
-        } catch (error) {
-          console.error('❌ WebSocket authentication error:', error);
+      // Verify token with Supabase
+      try {
+        if (!supabase) {
+          console.error('❌ Supabase client not initialized');
           ws.send(JSON.stringify({
             type: 'error',
-            error: 'Authentication failed',
-            code: 'WS_AUTH_ERROR',
+            error: 'Authentication service unavailable',
+            code: 'WS_AUTH_SERVICE_ERROR',
             timestamp: new Date().toISOString()
           }));
           ws.close();
           return;
         }
+
+        const { data: userData, error: authError } = await supabase.auth.getUser(token);
+
+        if (authError || !userData) {
+          console.warn(`❌ Invalid WebSocket authentication token for channel: ${channel}`);
+
+          // Log security event
+          const securityEvent = {
+            eventType: 'unauthorized_websocket_access',
+            timestamp: new Date().toISOString(),
+            channel: channel,
+            ip: request.socket.remoteAddress,
+            userAgent: request.headers['user-agent'],
+            error: authError?.message || 'Invalid token'
+          };
+          console.log('🔒 Security Alert:', JSON.stringify(securityEvent, null, 2));
+
+          ws.send(JSON.stringify({
+            type: 'error',
+            error: 'Invalid or expired authentication token',
+            code: 'WS_AUTH_INVALID',
+            timestamp: new Date().toISOString()
+          }));
+          ws.close();
+          return;
+        }
+
+        user = {
+          id: userData.user.id,
+          email: userData.user.email,
+          role: userData.user.user_metadata?.role || 'user'
+        };
+
+        // Check supervisor privileges for SDC dashboard
+        if (channel === 'sdc-dashboard') {
+          const { data: supervisorData, error: supervisorError } = await supabase
+            .from('supervisors')
+            .select('id, email, name, role, depot')
+            .eq('email', user.email.toLowerCase())
+            .single();
+
+          if (supervisorError || !supervisorData) {
+            console.warn(`❌ Unauthorized WebSocket access attempt to SDC dashboard by ${user.email}`);
+
+            // Log security event
+            const securityEvent = {
+              eventType: 'unauthorized_sdc_websocket_access',
+              timestamp: new Date().toISOString(),
+              email: user.email,
+              channel: channel,
+              ip: request.socket.remoteAddress,
+              userAgent: request.headers['user-agent']
+            };
+            console.log('🔒 Security Alert:', JSON.stringify(securityEvent, null, 2));
+
+            ws.send(JSON.stringify({
+              type: 'error',
+              error: 'SDC operator privileges required',
+              code: 'WS_SDC_AUTH_FORBIDDEN',
+              timestamp: new Date().toISOString()
+            }));
+            ws.close();
+            return;
+          }
+
+          supervisor = supervisorData;
+        }
+
+        console.log(`✅ WebSocket authenticated: ${user.email} on channel: ${channel}`);
+      } catch (error) {
+        console.error('❌ WebSocket authentication error:', error);
+        ws.send(JSON.stringify({
+          type: 'error',
+          error: 'Authentication failed',
+          code: 'WS_AUTH_ERROR',
+          timestamp: new Date().toISOString()
+        }));
+        ws.close();
+        return;
       }
     }
 
