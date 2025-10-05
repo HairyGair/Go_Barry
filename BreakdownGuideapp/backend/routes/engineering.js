@@ -1,5 +1,6 @@
 import express from 'express';
 import { supabase } from '../server.js';
+import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
 
 const router = express.Router();
 
@@ -308,6 +309,22 @@ router.post('/assign', async (req, res) => {
       });
 
     if (eventError) console.error('Error creating event:', eventError);
+
+    // Log activity to unified feed
+    try {
+      await activityLogger.logEngineerAssigned({
+        engineerId: engineer_id,
+        engineerName: 'Engineer', // This would come from engineer lookup in production
+        breakdownId: breakdown.breakdown_id,
+        fleetNo: breakdown.fleet_no,
+        assignedBy: 'SDC',
+        estimatedArrival: `${estimated_arrival_minutes} minutes`,
+        depot: breakdown.depot || 'SDC'
+      });
+      console.log('✅ Engineer assignment activity logged');
+    } catch (activityError) {
+      console.error('⚠️ Failed to log engineer assignment activity:', activityError);
+    }
 
     // Return assignment details
     res.json({

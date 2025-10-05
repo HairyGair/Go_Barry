@@ -896,21 +896,28 @@ router.post('/from-wizard', async (req, res) => {
       });
 
     // Log activity to the unified activity feed with location
+    // Use wizard completion activity for wizard assessments
     try {
-      await activityLogger.logBreakdownReported({
+      await activityLogger.logWizardCompleted({
         supervisorId: supervisor_badge,
         supervisorName: supervisor_name,
         breakdownId: data.breakdown_id,
         fleetNo: fleet_number,
-        issueCategory: issue_category || wizard_type,
-        location: location || 'Location to be added later',
-        severity: determinedSeverity,
+        wizardType: wizard_type || 'Breakdown Guide',
+        decision: wizard_decision || determinedSeverity,
         depot: 'SDC', // Could be enhanced to get actual depot from supervisor data
-        source: 'wizard_assessment'
+        assessmentData: {
+          issueCategory: issue_category,
+          location: location || 'Location to be added later',
+          severity: determinedSeverity,
+          engineeringRequired: engineering_required,
+          replacementVehicleRequired: replacement_vehicle_required,
+          securedMileage: secured_mileage
+        }
       });
-      console.log('✅ Activity logged successfully for breakdown:', data.breakdown_id);
+      console.log('✅ Wizard activity logged successfully for breakdown:', data.breakdown_id);
     } catch (activityError) {
-      console.error('⚠️ Failed to log activity for breakdown:', data.breakdown_id, activityError);
+      console.error('⚠️ Failed to log wizard activity for breakdown:', data.breakdown_id, activityError);
       // Don't fail the main request if activity logging fails
     }
 
@@ -1168,7 +1175,7 @@ router.post('/resolve', async (req, res) => {
     // Log activity
     await activityLogger.logActivity({
       activityType: 'breakdown_resolved',
-      action: `resolved ${resolution_type} - ${breakdown.fleet_number || breakdown.fleet_no}`,
+      action: `resolved breakdown on ${breakdown.fleet_number || breakdown.fleet_no}`,
       actorType: 'supervisor',
       actorId: supervisor_badge || req.supervisor?.id || 'system',
       actorName: resolvingUser,
@@ -1186,9 +1193,9 @@ router.post('/resolve', async (req, res) => {
       source: 'sdc_operations',
       metadata: {
         resolutionNotes: resolution_notes,
+        resolutionType: resolution_type,
         elapsedTime: Math.floor((new Date(resolvedAt) - new Date(breakdown.created_at)) / 1000 / 60)
-      },
-      message: `Breakdown ${breakdown_id} resolved by ${resolvingUser} - ${resolution_type}${resolution_notes ? ': ' + resolution_notes : ''}`
+      }
     });
 
     // Broadcast to WebSocket clients
