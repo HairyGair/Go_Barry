@@ -4,8 +4,12 @@
  */
 
 import express from 'express';
+import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import { authenticateSupervisor } from '../middleware/authMiddleware.js';
+
+// Load environment variables
+dotenv.config();
 
 const router = express.Router();
 

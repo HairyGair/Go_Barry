@@ -3,12 +3,16 @@
  * Manages WebSocket connections and broadcasts real-time updates to SDC Dashboard
  */
 
+import dotenv from 'dotenv';
 import { WebSocketServer } from 'ws';
 import { readFileSync, existsSync, watchFile } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
 import { activityLogger } from '../services/activityLogger.js';
+
+// Load environment variables
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

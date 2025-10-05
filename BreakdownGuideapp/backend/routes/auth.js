@@ -1,6 +1,10 @@
 import express from 'express';
+import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import { authenticateAdmin } from '../middleware/authMiddleware.js';
+
+// Load environment variables
+dotenv.config();
 
 // Initialize Supabase client - fail fast if credentials missing
 const supabaseUrl = process.env.SUPABASE_URL;
