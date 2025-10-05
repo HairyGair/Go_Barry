@@ -987,23 +987,20 @@ router.post('/admin/reset-password', authenticateAdmin, async (req, res) => {
     }
 
     // Get service role key for admin operations
-    // Check both possible environment variable names
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_KEY;
 
     console.log('🔍 Service role key check:', {
-      hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
       hasServiceKey: !!process.env.SUPABASE_SERVICE_KEY,
       keyLength: serviceRoleKey ? serviceRoleKey.length : 0
     });
 
     if (!serviceRoleKey || serviceRoleKey === 'your-service-role-key-here') {
-      console.error('❌ SUPABASE_SERVICE_ROLE_KEY not configured');
+      console.error('❌ SUPABASE_SERVICE_KEY not configured');
       return res.status(500).json({
         success: false,
         error: 'Admin API not properly configured - service role key missing',
         code: 'SERVICE_KEY_MISSING',
         debug: {
-          hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
           hasServiceKey: !!process.env.SUPABASE_SERVICE_KEY
         }
       });
