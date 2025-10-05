@@ -160,6 +160,9 @@ router.get('/live', async (req, res) => {
         status_color: statusColor,
         requires_immediate_action: b.requires_immediate_action || (b.severity === 'STOP') || (priorityLevel <= 2),
 
+        // Operational flags
+        secured_mileage: b.secured_mileage || false,
+
         // Legacy compatibility fields
         driver_name: b.driver_name,
         driver_phone: b.driver_phone,
@@ -806,7 +809,8 @@ router.post('/from-wizard', async (req, res) => {
       // Additional context
       priority_level = 3,
       engineering_required = false,
-      replacement_vehicle_required = false
+      replacement_vehicle_required = false,
+      secured_mileage = false
     } = req.body;
 
     // Generate unique breakdown ID
@@ -815,8 +819,10 @@ router.post('/from-wizard', async (req, res) => {
     // Determine severity if not provided
     const determinedSeverity = severity || wizard_decision || 'AMBER';
 
-    // Determine priority based on severity and wizard decision
+    // Determine priority based on severity, wizard decision, and secured mileage
+    // Secured mileage is ALWAYS priority 1 (contractual obligation)
     const determinedPriority = priority_level || (
+      secured_mileage ? 1 :  // Secured mileage must be priority 1 to avoid fines
       determinedSeverity === 'STOP' ? 1 :
       determinedSeverity === 'AMBER' ? 2 : 3
     );
@@ -839,6 +845,7 @@ router.post('/from-wizard', async (req, res) => {
       priority_level: determinedPriority,
       engineering_required: engineering_required,
       replacement_vehicle_required: replacement_vehicle_required,
+      secured_mileage: secured_mileage,
       created_at: new Date().toISOString()
     };
 
