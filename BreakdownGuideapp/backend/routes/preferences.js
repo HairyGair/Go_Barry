@@ -15,14 +15,32 @@ const router = express.Router();
 
 // Initialize Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('❌ Missing Supabase configuration in preferences.js');
+  console.error('   SUPABASE_URL:', supabaseUrl ? '✅ Set' : '❌ Missing');
+  console.error('   SUPABASE_ANON_KEY:', supabaseAnonKey ? '✅ Set' : '❌ Missing');
+}
+
+const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
+
+// Middleware to check Supabase client availability
+const checkSupabase = (req, res, next) => {
+  if (!supabase) {
+    return res.status(503).json({
+      success: false,
+      error: 'Database service unavailable'
+    });
+  }
+  next();
+};
 
 /**
  * GET /api/preferences
  * Get current user's preferences
  */
-router.get('/', authenticateSupervisor, async (req, res) => {
+router.get('/', authenticateSupervisor, checkSupabase, async (req, res) => {
   try {
     const supervisorId = req.supervisor.id;
 
@@ -84,7 +102,7 @@ router.get('/', authenticateSupervisor, async (req, res) => {
  * PUT /api/preferences
  * Update user's preferences
  */
-router.put('/', authenticateSupervisor, async (req, res) => {
+router.put('/', authenticateSupervisor, checkSupabase, async (req, res) => {
   try {
     const supervisorId = req.supervisor.id;
     const updates = req.body;
@@ -262,7 +280,7 @@ router.delete('/', authenticateSupervisor, async (req, res) => {
  * POST /api/preferences/export
  * Export preferences as JSON backup
  */
-router.post('/export', authenticateSupervisor, async (req, res) => {
+router.post('/export', authenticateSupervisor, checkSupabase, async (req, res) => {
   try {
     const supervisorId = req.supervisor.id;
 
@@ -313,7 +331,7 @@ router.post('/export', authenticateSupervisor, async (req, res) => {
  * POST /api/preferences/import
  * Import preferences from backup JSON
  */
-router.post('/import', authenticateSupervisor, async (req, res) => {
+router.post('/import', authenticateSupervisor, checkSupabase, async (req, res) => {
   try {
     const supervisorId = req.supervisor.id;
     const { preferences } = req.body;
