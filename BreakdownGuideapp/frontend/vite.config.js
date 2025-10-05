@@ -5,7 +5,7 @@ import { fileURLToPath, URL } from 'node:url'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: './', // Use relative paths for assets - critical for cPanel deployment
+  base: '/', // Use absolute paths from root - fixes MIME type issues on deep routes
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
