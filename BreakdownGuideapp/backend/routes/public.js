@@ -1,5 +1,11 @@
 import express from 'express';
 import { supabase } from '../server.js';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const router = express.Router();
 
@@ -42,7 +48,9 @@ router.get('/breakdowns/live', async (req, res) => {
       }
 
       // Determine priority level and status color
+      // Secured mileage is ALWAYS priority 1 (contractual obligation)
       const priorityLevel = b.priority_level || (
+        b.secured_mileage ? 1 :  // Secured mileage must be priority 1 to avoid fines
         b.severity === 'STOP' ? 1 :
         b.severity === 'AMBER' ? 2 : 3
       );
@@ -86,8 +94,9 @@ router.get('/breakdowns/live', async (req, res) => {
 
         // Route and priority
         route_id: b.route || null,
-        is_priority: priorityLevel <= 2,
+        is_priority: priorityLevel <= 2 || b.secured_mileage,
         priority_level: priorityLevel,
+        secured_mileage: b.secured_mileage || false,
 
         // Supervisor information
         supervisor_badge: b.supervisor_badge,
@@ -96,7 +105,7 @@ router.get('/breakdowns/live', async (req, res) => {
         // Dashboard card information
         card_title: cardTitle,
         status_color: statusColor,
-        requires_immediate_action: b.requires_immediate_action || (b.severity === 'STOP') || (priorityLevel <= 2),
+        requires_immediate_action: b.requires_immediate_action || (b.severity === 'STOP') || (priorityLevel <= 2) || b.secured_mileage,
 
         // Legacy compatibility fields
         driver_name: b.driver_name,
@@ -124,6 +133,27 @@ router.get('/breakdowns/live', async (req, res) => {
       error: 'Failed to fetch live breakdowns',
       timestamp: new Date().toISOString(),
       breakdowns: [] // Return empty array for graceful degradation
+    });
+  }
+});
+
+// GET /api/public/fleet - Get fleet database
+router.get('/fleet', (req, res) => {
+  try {
+    const fleetDbPath = join(__dirname, '..', 'data', 'fleet-database.json');
+    const fleetData = JSON.parse(readFileSync(fleetDbPath, 'utf-8'));
+
+    res.json({
+      success: true,
+      fleet: fleetData,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error loading fleet database:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to load fleet database',
+      timestamp: new Date().toISOString()
     });
   }
 });
