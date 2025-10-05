@@ -28,6 +28,8 @@ import LoginPage from './components/LoginPage.jsx'
 
 // Import NotificationPanel
 import NotificationPanel from './components/NotificationPanel.jsx'
+// Import Settings Page
+import SettingsPage from './components/SettingsPage.jsx'
 // Import dashboard data fetcher
 import { fetchDashboardData } from './utils/fetchDashboardData.js'
 
@@ -363,7 +365,15 @@ const AppContent = () => {
             path="/profile"
             element={
               <ProtectedRoute>
-                <ComingSoon title="Profile Settings" />
+                <Navigate to="/settings" replace />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
               </ProtectedRoute>
             }
           />
