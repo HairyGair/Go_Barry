@@ -966,6 +966,8 @@ router.post('/admin/reset-password', authenticateAdmin, async (req, res) => {
   try {
     const { email, newPassword } = req.body;
 
+    console.log('🔐 Password reset request for:', email);
+
     // Validate required fields
     if (!email || !newPassword) {
       return res.status(400).json({
@@ -985,13 +987,25 @@ router.post('/admin/reset-password', authenticateAdmin, async (req, res) => {
     }
 
     // Get service role key for admin operations
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    // Check both possible environment variable names
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+
+    console.log('🔍 Service role key check:', {
+      hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      hasServiceKey: !!process.env.SUPABASE_SERVICE_KEY,
+      keyLength: serviceRoleKey ? serviceRoleKey.length : 0
+    });
+
     if (!serviceRoleKey || serviceRoleKey === 'your-service-role-key-here') {
       console.error('❌ SUPABASE_SERVICE_ROLE_KEY not configured');
       return res.status(500).json({
         success: false,
-        error: 'Admin API not properly configured',
-        code: 'SERVICE_KEY_MISSING'
+        error: 'Admin API not properly configured - service role key missing',
+        code: 'SERVICE_KEY_MISSING',
+        debug: {
+          hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+          hasServiceKey: !!process.env.SUPABASE_SERVICE_KEY
+        }
       });
     }
 
@@ -1049,11 +1063,13 @@ router.post('/admin/reset-password', authenticateAdmin, async (req, res) => {
 
   } catch (error) {
     console.error('❌ Admin password reset error:', error);
+    console.error('Stack:', error.stack);
     res.status(500).json({
       success: false,
       error: 'Failed to reset password',
       code: 'RESET_ERROR',
-      details: error.message
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
