@@ -40,8 +40,8 @@ const AppearanceSettings = ({ settings, updateSetting }) => {
         <div className="setting-control">
           <select
             className="settings-select"
-            value={settings.fontSize}
-            onChange={(e) => updateSetting('fontSize', e.target.value)}
+            value={settings.font_size}
+            onChange={(e) => updateSetting('font_size', e.target.value)}
           >
             <option value="small">Small</option>
             <option value="medium">Medium (Default)</option>
@@ -59,8 +59,8 @@ const AppearanceSettings = ({ settings, updateSetting }) => {
         <div className="setting-control">
           <select
             className="settings-select"
-            value={settings.viewDensity}
-            onChange={(e) => updateSetting('viewDensity', e.target.value)}
+            value={settings.view_density}
+            onChange={(e) => updateSetting('view_density', e.target.value)}
           >
             <option value="compact">Compact (More content)</option>
             <option value="comfortable">Comfortable (Default)</option>
@@ -88,13 +88,13 @@ const AppearanceSettings = ({ settings, updateSetting }) => {
           border: '2px solid var(--border-color)'
         }}>
           <h3 style={{
-            fontSize: settings.fontSize === 'small' ? '16px' : settings.fontSize === 'large' ? '20px' : '18px',
+            fontSize: settings.font_size === 'small' ? '16px' : settings.font_size === 'large' ? '20px' : '18px',
             marginBottom: '12px'
           }}>
             Sample Text
           </h3>
           <p style={{
-            fontSize: settings.fontSize === 'small' ? '13px' : settings.fontSize === 'large' ? '17px' : '15px',
+            fontSize: settings.font_size === 'small' ? '13px' : settings.font_size === 'large' ? '17px' : '15px',
             color: 'var(--text-secondary)',
             lineHeight: '1.6'
           }}>
@@ -110,7 +110,7 @@ const AppearanceSettings = ({ settings, updateSetting }) => {
           }}>
             <button
               style={{
-                padding: settings.viewDensity === 'compact' ? '8px 14px' : settings.viewDensity === 'spacious' ? '14px 24px' : '10px 18px',
+                padding: settings.view_density === 'compact' ? '8px 14px' : settings.view_density === 'spacious' ? '14px 24px' : '10px 18px',
                 background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
                 color: 'white',
                 border: 'none',
@@ -123,7 +123,7 @@ const AppearanceSettings = ({ settings, updateSetting }) => {
             </button>
             <button
               style={{
-                padding: settings.viewDensity === 'compact' ? '8px 14px' : settings.viewDensity === 'spacious' ? '14px 24px' : '10px 18px',
+                padding: settings.view_density === 'compact' ? '8px 14px' : settings.view_density === 'spacious' ? '14px 24px' : '10px 18px',
                 background: 'var(--bg-tertiary)',
                 color: 'var(--text-secondary)',
                 border: '1px solid var(--border-color)',
@@ -152,8 +152,8 @@ const AppearanceSettings = ({ settings, updateSetting }) => {
           </div>
           <div className="setting-control">
             <div
-              className={`toggle-switch ${settings.animations !== false ? 'active' : ''}`}
-              onClick={() => updateSetting('animations', !settings.animations)}
+              className={`toggle-switch ${settings.animations_enabled !== false ? 'active' : ''}`}
+              onClick={() => updateSetting('animations_enabled', !settings.animations_enabled)}
             />
           </div>
         </div>
@@ -165,8 +165,8 @@ const AppearanceSettings = ({ settings, updateSetting }) => {
           </div>
           <div className="setting-control">
             <div
-              className={`toggle-switch ${settings.highContrast === true ? 'active' : ''}`}
-              onClick={() => updateSetting('highContrast', !settings.highContrast)}
+              className={`toggle-switch ${settings.high_contrast === true ? 'active' : ''}`}
+              onClick={() => updateSetting('high_contrast', !settings.high_contrast)}
             />
           </div>
         </div>

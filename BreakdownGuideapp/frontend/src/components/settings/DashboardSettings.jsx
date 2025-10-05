@@ -22,8 +22,8 @@ const DashboardSettings = ({ settings, updateSetting }) => {
         <div className="setting-control">
           <select
             className="settings-select"
-            value={settings.defaultDashboard}
-            onChange={(e) => updateSetting('defaultDashboard', e.target.value)}
+            value={settings.default_dashboard}
+            onChange={(e) => updateSetting('default_dashboard', e.target.value)}
           >
             <option value="breakdown-guide">🔧 Breakdown Guide</option>
             <option value="sdc">📡 SDC Operations</option>
@@ -42,8 +42,8 @@ const DashboardSettings = ({ settings, updateSetting }) => {
         <div className="setting-control">
           <select
             className="settings-select"
-            value={settings.autoRefreshInterval}
-            onChange={(e) => updateSetting('autoRefreshInterval', parseInt(e.target.value))}
+            value={settings.auto_refresh_interval}
+            onChange={(e) => updateSetting('auto_refresh_interval', parseInt(e.target.value))}
           >
             <option value="15">Every 15 seconds</option>
             <option value="30">Every 30 seconds</option>
@@ -63,8 +63,8 @@ const DashboardSettings = ({ settings, updateSetting }) => {
         </div>
         <div className="setting-control">
           <div
-            className={`toggle-switch ${settings.showActivityFeed ? 'active' : ''}`}
-            onClick={() => updateSetting('showActivityFeed', !settings.showActivityFeed)}
+            className={`toggle-switch ${settings.show_activity_feed ? 'active' : ''}`}
+            onClick={() => updateSetting('show_activity_feed', !settings.show_activity_feed)}
           />
         </div>
       </div>
@@ -84,8 +84,8 @@ const DashboardSettings = ({ settings, updateSetting }) => {
           <div className="setting-control">
             <select
               className="settings-select"
-              value={settings.mapView}
-              onChange={(e) => updateSetting('mapView', e.target.value)}
+              value={settings.map_view}
+              onChange={(e) => updateSetting('map_view', e.target.value)}
             >
               <option value="roadmap">🗺️ Roadmap (Default)</option>
               <option value="satellite">🛰️ Satellite</option>
@@ -102,8 +102,8 @@ const DashboardSettings = ({ settings, updateSetting }) => {
           </div>
           <div className="setting-control">
             <div
-              className={`toggle-switch ${settings.showTrafficLayer !== false ? 'active' : ''}`}
-              onClick={() => updateSetting('showTrafficLayer', !settings.showTrafficLayer)}
+              className={`toggle-switch ${settings.show_traffic_layer !== false ? 'active' : ''}`}
+              onClick={() => updateSetting('show_traffic_layer', !settings.show_traffic_layer)}
             />
           </div>
         </div>
@@ -123,8 +123,8 @@ const DashboardSettings = ({ settings, updateSetting }) => {
           </div>
           <div className="setting-control">
             <div
-              className={`toggle-switch ${settings.filterMyDepot === true ? 'active' : ''}`}
-              onClick={() => updateSetting('filterMyDepot', !settings.filterMyDepot)}
+              className={`toggle-switch ${settings.filter_my_depot === true ? 'active' : ''}`}
+              onClick={() => updateSetting('filter_my_depot', !settings.filter_my_depot)}
             />
           </div>
         </div>
@@ -136,8 +136,8 @@ const DashboardSettings = ({ settings, updateSetting }) => {
           </div>
           <div className="setting-control">
             <div
-              className={`toggle-switch ${settings.hideResolved !== false ? 'active' : ''}`}
-              onClick={() => updateSetting('hideResolved', !settings.hideResolved)}
+              className={`toggle-switch ${settings.hide_resolved !== false ? 'active' : ''}`}
+              onClick={() => updateSetting('hide_resolved', !settings.hide_resolved)}
             />
           </div>
         </div>
@@ -149,8 +149,8 @@ const DashboardSettings = ({ settings, updateSetting }) => {
           </div>
           <div className="setting-control">
             <div
-              className={`toggle-switch ${settings.highlightPriority !== false ? 'active' : ''}`}
-              onClick={() => updateSetting('highlightPriority', !settings.highlightPriority)}
+              className={`toggle-switch ${settings.highlight_priority !== false ? 'active' : ''}`}
+              onClick={() => updateSetting('highlight_priority', !settings.highlight_priority)}
             />
           </div>
         </div>
@@ -170,8 +170,8 @@ const DashboardSettings = ({ settings, updateSetting }) => {
           </div>
           <div className="setting-control">
             <div
-              className={`toggle-switch ${settings.soundAlerts === true ? 'active' : ''}`}
-              onClick={() => updateSetting('soundAlerts', !settings.soundAlerts)}
+              className={`toggle-switch ${settings.sound_alerts === true ? 'active' : ''}`}
+              onClick={() => updateSetting('sound_alerts', !settings.sound_alerts)}
             />
           </div>
         </div>
@@ -183,12 +183,12 @@ const DashboardSettings = ({ settings, updateSetting }) => {
           </div>
           <div className="setting-control">
             <div
-              className={`toggle-switch ${settings.desktopNotifications === true ? 'active' : ''}`}
+              className={`toggle-switch ${settings.desktop_notifications === true ? 'active' : ''}`}
               onClick={() => {
-                if (!settings.desktopNotifications && 'Notification' in window) {
+                if (!settings.desktop_notifications && 'Notification' in window) {
                   Notification.requestPermission().then(permission => {
                     if (permission === 'granted') {
-                      updateSetting('desktopNotifications', true);
+                      updateSetting('desktop_notifications', true);
                       new Notification('🔔 Notifications Enabled', {
                         body: 'You will now receive desktop notifications for new breakdowns',
                         icon: '/logo.svg'
@@ -196,7 +196,7 @@ const DashboardSettings = ({ settings, updateSetting }) => {
                     }
                   });
                 } else {
-                  updateSetting('desktopNotifications', !settings.desktopNotifications);
+                  updateSetting('desktop_notifications', !settings.desktop_notifications);
                 }
               }}
             />

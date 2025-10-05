@@ -14,6 +14,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import preferencesAPI from '../services/preferencesAPI.js';
 import ProfileSettings from './settings/ProfileSettings.jsx';
 import AppearanceSettings from './settings/AppearanceSettings.jsx';
 import DashboardSettings from './settings/DashboardSettings.jsx';
@@ -26,85 +27,174 @@ const SettingsPage = () => {
 
   // Active tab state
   const [activeTab, setActiveTab] = useState('profile');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  // Settings state (loaded from localStorage for Phase 1)
+  // Settings state (loaded from database)
   const [settings, setSettings] = useState({
     // Appearance
-    theme: localStorage.getItem('theme') || 'dark',
-    fontSize: localStorage.getItem('fontSize') || 'medium',
-    viewDensity: localStorage.getItem('viewDensity') || 'comfortable',
+    theme: 'dark',
+    font_size: 'medium',
+    view_density: 'comfortable',
+    animations_enabled: true,
 
     // Dashboard
-    defaultDashboard: localStorage.getItem('defaultDashboard') || 'breakdown-guide',
-    autoRefreshInterval: parseInt(localStorage.getItem('autoRefreshInterval')) || 60,
-    showActivityFeed: localStorage.getItem('showActivityFeed') !== 'false',
-    mapView: localStorage.getItem('mapView') || 'roadmap',
+    default_dashboard: 'breakdown-guide',
+    auto_refresh_interval: 60,
+    show_activity_feed: true,
+    map_view: 'roadmap',
+    show_traffic_layer: true,
+    filter_my_depot: false,
+    hide_resolved: true,
+    highlight_priority: true,
 
-    // Advanced
-    keyboardShortcuts: localStorage.getItem('keyboardShortcuts') !== 'false',
-    betaFeatures: localStorage.getItem('betaFeatures') === 'true',
-    developerMode: localStorage.getItem('developerMode') === 'true',
+    // Notifications
+    notifications_enabled: true,
+    sound_alerts: false,
+    desktop_notifications: false,
   });
 
-  // Redirect if not authenticated
+  // Load preferences from database on mount
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (isAuthenticated) {
+      loadPreferences();
+    } else {
       navigate('/');
     }
   }, [isAuthenticated, navigate]);
 
-  // Update setting and persist to localStorage
-  const updateSetting = (key, value) => {
+  // Load preferences from API
+  const loadPreferences = async () => {
+    try {
+      setLoading(true);
+      const prefs = await preferencesAPI.getPreferences();
+
+      // Map database column names to frontend state
+      const mappedPrefs = {
+        theme: prefs.theme,
+        font_size: prefs.font_size,
+        view_density: prefs.view_density,
+        animations_enabled: prefs.animations_enabled,
+        default_dashboard: prefs.default_dashboard,
+        auto_refresh_interval: prefs.auto_refresh_interval,
+        show_activity_feed: prefs.show_activity_feed,
+        map_view: prefs.map_view,
+        show_traffic_layer: prefs.show_traffic_layer,
+        filter_my_depot: prefs.filter_my_depot,
+        hide_resolved: prefs.hide_resolved,
+        highlight_priority: prefs.highlight_priority,
+        notifications_enabled: prefs.notifications_enabled,
+        sound_alerts: prefs.sound_alerts,
+        desktop_notifications: prefs.desktop_notifications,
+      };
+
+      setSettings(mappedPrefs);
+
+      // Apply theme and font size
+      document.documentElement.setAttribute('data-theme', mappedPrefs.theme);
+      document.documentElement.setAttribute('data-font-size', mappedPrefs.font_size);
+
+    } catch (error) {
+      console.error('Failed to load preferences:', error);
+      // Fallback to localStorage if API fails
+      loadFromLocalStorage();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fallback to localStorage
+  const loadFromLocalStorage = () => {
+    setSettings({
+      theme: localStorage.getItem('theme') || 'dark',
+      font_size: localStorage.getItem('fontSize') || 'medium',
+      view_density: localStorage.getItem('viewDensity') || 'comfortable',
+      animations_enabled: localStorage.getItem('animationsEnabled') !== 'false',
+      default_dashboard: localStorage.getItem('defaultDashboard') || 'breakdown-guide',
+      auto_refresh_interval: parseInt(localStorage.getItem('autoRefreshInterval')) || 60,
+      show_activity_feed: localStorage.getItem('showActivityFeed') !== 'false',
+      map_view: localStorage.getItem('mapView') || 'roadmap',
+      show_traffic_layer: localStorage.getItem('showTrafficLayer') !== 'false',
+      filter_my_depot: localStorage.getItem('filterMyDepot') === 'true',
+      hide_resolved: localStorage.getItem('hideResolved') !== 'false',
+      highlight_priority: localStorage.getItem('highlightPriority') !== 'false',
+      notifications_enabled: localStorage.getItem('notificationsEnabled') !== 'false',
+      sound_alerts: localStorage.getItem('soundAlerts') === 'true',
+      desktop_notifications: localStorage.getItem('desktopNotifications') === 'true',
+    });
+  };
+
+  // Update setting and persist to database
+  const updateSetting = async (key, value) => {
+    // Update local state immediately for responsiveness
     setSettings(prev => ({
       ...prev,
       [key]: value
     }));
 
-    // Persist to localStorage
-    localStorage.setItem(key, value.toString());
-
-    // Apply theme immediately if changed
+    // Apply theme/font changes immediately
     if (key === 'theme') {
       document.documentElement.setAttribute('data-theme', value);
     }
-
-    // Apply font size immediately if changed
-    if (key === 'fontSize') {
+    if (key === 'font_size') {
       document.documentElement.setAttribute('data-font-size', value);
     }
 
-    console.log(`⚙️ Setting updated: ${key} = ${value}`);
+    // Save to database
+    try {
+      setSaving(true);
+      await preferencesAPI.updatePreference(key, value);
+      console.log(`✅ Setting saved: ${key} = ${value}`);
+    } catch (error) {
+      console.error(`❌ Failed to save setting ${key}:`, error);
+      // Fallback to localStorage
+      localStorage.setItem(key, value.toString());
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Reset all settings to default
-  const resetAllSettings = () => {
+  const resetAllSettings = async () => {
     if (window.confirm('Are you sure you want to reset all settings to default? This cannot be undone.')) {
-      const defaults = {
-        theme: 'dark',
-        fontSize: 'medium',
-        viewDensity: 'comfortable',
-        defaultDashboard: 'breakdown-guide',
-        autoRefreshInterval: 60,
-        showActivityFeed: true,
-        mapView: 'roadmap',
-        keyboardShortcuts: true,
-        betaFeatures: false,
-        developerMode: false,
-      };
+      try {
+        setSaving(true);
 
-      // Update state
-      setSettings(defaults);
+        // Reset in database
+        const defaultPrefs = await preferencesAPI.resetPreferences();
 
-      // Clear localStorage and set defaults
-      Object.keys(defaults).forEach(key => {
-        localStorage.setItem(key, defaults[key].toString());
-      });
+        // Update local state
+        const mappedPrefs = {
+          theme: defaultPrefs.theme,
+          font_size: defaultPrefs.font_size,
+          view_density: defaultPrefs.view_density,
+          animations_enabled: defaultPrefs.animations_enabled,
+          default_dashboard: defaultPrefs.default_dashboard,
+          auto_refresh_interval: defaultPrefs.auto_refresh_interval,
+          show_activity_feed: defaultPrefs.show_activity_feed,
+          map_view: defaultPrefs.map_view,
+          show_traffic_layer: defaultPrefs.show_traffic_layer,
+          filter_my_depot: defaultPrefs.filter_my_depot,
+          hide_resolved: defaultPrefs.hide_resolved,
+          highlight_priority: defaultPrefs.highlight_priority,
+          notifications_enabled: defaultPrefs.notifications_enabled,
+          sound_alerts: defaultPrefs.sound_alerts,
+          desktop_notifications: defaultPrefs.desktop_notifications,
+        };
 
-      // Apply theme
-      document.documentElement.setAttribute('data-theme', defaults.theme);
-      document.documentElement.setAttribute('data-font-size', defaults.fontSize);
+        setSettings(mappedPrefs);
 
-      alert('✅ All settings have been reset to default');
+        // Apply theme and font size
+        document.documentElement.setAttribute('data-theme', mappedPrefs.theme);
+        document.documentElement.setAttribute('data-font-size', mappedPrefs.font_size);
+
+        alert('✅ All settings have been reset to default');
+      } catch (error) {
+        console.error('Failed to reset settings:', error);
+        alert('❌ Failed to reset settings. Please try again.');
+      } finally {
+        setSaving(false);
+      }
     }
   };
 

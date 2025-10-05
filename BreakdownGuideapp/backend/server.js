@@ -165,6 +165,7 @@ import analyticsRoutes from './routes/analytics.js';
 import activityRoutes from './routes/activity.js';
 import supervisorRoutes from './routes/supervisors.js';
 import breakdownsAPIRoutes from './routes/breakdownsAPI.js';
+import preferencesRoutes from './routes/preferences.js';
 import webSocketHandler from './routes/webSocketHandler.js';
 
 // Public routes (no authentication required)
@@ -182,6 +183,7 @@ app.use('/api/engineering', authenticateSupervisor, engineeringRoutes);
 app.use('/api/analytics', authenticateSupervisor, analyticsRoutes);
 app.use('/api/reports', authenticateSupervisor, analyticsRoutes); // Reports also use analytics routes
 app.use('/api/activity', authenticateSupervisor, activityRoutes);
+app.use('/api/preferences', authenticateSupervisor, preferencesRoutes);
 app.use('/api/supervisors', supervisorRoutes); // Stats endpoint is read-only, no auth required
 
 // SDC Dashboard API routes (requires SDC operator authentication and rate limiting)
