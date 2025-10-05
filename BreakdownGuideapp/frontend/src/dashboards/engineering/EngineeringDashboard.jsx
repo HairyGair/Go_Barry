@@ -5,6 +5,7 @@ import FilterBar from '../components/FilterBar';
 import { apiClient } from '../../services/api-client';
 import EngineeringCardEnhanced from './EngineeringCardEnhanced';
 import DepotStats from './DepotStats';
+import { supabase } from '../../services/supabase-client';
 
 const REFRESH_INTERVAL = 10000; // 10 seconds
 const PRIORITY_ROUTES = ['X10', 'X21', '21', '56', '1'];
@@ -51,11 +52,20 @@ const EngineeringDashboard = () => {
     };
   }, []);
 
-  const connectWebSocket = () => {
-    const WS_URL = import.meta.env.VITE_WS_URL || 'wss://breakdown-guide.onrender.com';
-
+  const connectWebSocket = async () => {
     try {
-      ws = new WebSocket(WS_URL);
+      // Get authentication token from Supabase session
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        console.warn('⚠️ No authentication token available for WebSocket connection');
+        return;
+      }
+
+      const WS_URL = import.meta.env.VITE_WS_URL || 'wss://breakdown-guide.onrender.com';
+      const wsUrl = `${WS_URL}/ws?channel=engineering&token=${encodeURIComponent(token)}`;
+      ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
         console.log('✅ Engineering Dashboard WebSocket connected');

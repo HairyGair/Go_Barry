@@ -4,6 +4,7 @@
  */
 
 import { apiConfig } from '../breakdown-guide/components/common/constants';
+import { supabase } from './supabase-client.js';
 
 class AssessmentProgressService {
   constructor() {
@@ -69,9 +70,19 @@ class AssessmentProgressService {
   }
 
   // Connect to WebSocket for real-time updates
-  connectWebSocket() {
+  async connectWebSocket() {
     try {
-      const wsUrl = `${apiConfig.baseUrl.replace('http', 'ws')}/ws/assessment-progress`;
+      // Get authentication token from Supabase session
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        console.warn('⚠️ No authentication token available for WebSocket connection');
+        return;
+      }
+
+      const baseWsUrl = apiConfig.baseUrl.replace('http', 'ws');
+      const wsUrl = `${baseWsUrl}/ws?channel=assessment-progress&token=${encodeURIComponent(token)}`;
       this.ws = new WebSocket(wsUrl);
       
       this.ws.onopen = () => {

@@ -81,6 +81,35 @@ router.get('/pending-signups', authenticateAdmin, async (req, res) => {
 
 ---
 
+## ✅ Additional Fixes (October 4, 2025 - Evening)
+
+### 4. WebSocket Authentication Tokens Added
+**Severity:** HIGH
+**Issue:** Frontend WebSocket connections were not passing authentication tokens, causing 400 errors after security fixes
+
+**Files Fixed:**
+- `/frontend/src/services/assessmentProgressService.js` - Added Supabase token to WebSocket connection
+- `/frontend/src/services/assessmentBroadcaster.js` - Added Supabase token to WebSocket connection
+- `/frontend/src/dashboards/engineering/EngineeringDashboard.jsx` - Added Supabase token to WebSocket connection
+
+**Changes:**
+```javascript
+// BEFORE (would fail with 400 error):
+const wsUrl = `${apiConfig.baseUrl.replace('http', 'ws')}/ws/assessment-progress`;
+this.ws = new WebSocket(wsUrl);
+
+// AFTER (includes authentication):
+const { data: { session } } = await supabase.auth.getSession();
+const token = session?.access_token;
+const baseWsUrl = apiConfig.baseUrl.replace('http', 'ws');
+const wsUrl = `${baseWsUrl}/ws?channel=assessment-progress&token=${encodeURIComponent(token)}`;
+this.ws = new WebSocket(wsUrl);
+```
+
+**Benefit:** WebSocket connections now properly authenticate with backend, preventing 400 errors
+
+---
+
 ## ⚠️ REMAINING VULNERABILITIES TO FIX
 
 These issues were identified but NOT yet fixed. They require immediate attention:
@@ -236,10 +265,10 @@ app.use('/api/', limiter);
 | Category | Fixed | Remaining | Total |
 |----------|-------|-----------|-------|
 | CRITICAL | 4 | 2 | 6 |
-| HIGH | 0 | 3 | 3 |
+| HIGH | 1 | 2 | 3 |
 | MEDIUM | 0 | 6 | 6 |
 | LOW | 0 | 3 | 3 |
-| **TOTAL** | **4** | **14** | **18** |
+| **TOTAL** | **5** | **13** | **18** |
 
 ---
 

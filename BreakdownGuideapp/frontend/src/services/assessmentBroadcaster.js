@@ -1,10 +1,12 @@
 /**
  * Assessment Broadcaster Service
  * Broadcasts real-time assessment progress to SDC Dashboard
- * 
+ *
  * This service bridges the gap between the breakdown guide wizards
  * and the SDC Operations Dashboard, enabling live tracking of assessments
  */
+
+import { supabase } from './supabase-client.js';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://breakdown-guide.onrender.com';
 
@@ -163,10 +165,19 @@ class AssessmentBroadcaster {
     /**
      * Connect to WebSocket for real-time updates
      */
-    connectWebSocket() {
-        const wsUrl = BACKEND_URL.replace('http', 'ws') + '/ws/assessment-tracker';
-        
+    async connectWebSocket() {
         try {
+            // Get authentication token from Supabase session
+            const { data: { session } } = await supabase.auth.getSession();
+            const token = session?.access_token;
+
+            if (!token) {
+                console.warn('⚠️ No authentication token available for WebSocket connection');
+                return;
+            }
+
+            const baseWsUrl = BACKEND_URL.replace('http', 'ws');
+            const wsUrl = `${baseWsUrl}/ws?channel=assessment-tracker&token=${encodeURIComponent(token)}`;
             this.ws = new WebSocket(wsUrl);
             
             this.ws.onopen = () => {
