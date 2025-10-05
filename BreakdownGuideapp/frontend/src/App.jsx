@@ -124,12 +124,12 @@ const Navigation = ({ hide = false, activeBreakdowns = 0 }) => {
                 </li>
                 <li>
                   <Link
-                    to="/dashboards/breakdown"
+                    to="/dashboards/control-room"
                     className={isLinkActive('/dashboards') ? 'active' : ''}
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    <span className="nav-icon">📊</span>
-                    <span>Live Dashboard</span>
+                    <span className="nav-icon">📺</span>
+                    <span>Control Room</span>
                     {activeBreakdowns > 0 && (
                       <span className="nav-badge">{activeBreakdowns}</span>
                     )}

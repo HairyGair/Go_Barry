@@ -5,7 +5,6 @@ import './index.css'
 import './styles/global-theme.css'  // Global theme colors
 import './dashboards/dashboard-styles.css'
 import './dashboards/dashboard-animations.css'
-import './dashboards/breakdown/breakdown-styles.css'
 import './dashboards/engineering/engineering-override.css'  // Remove gradients
 import 'leaflet/dist/leaflet.css'
 import './styles/activity-feed-override.css'  // Override activity feed widget styles

@@ -40,9 +40,6 @@ import BreakdownInfoStep from './components/common/BreakdownInfoStep.jsx';
 import LocationDisplay from './components/common/LocationDisplay.jsx';
 import AssessmentSummary from './components/common/AssessmentSummary.jsx';
 
-// Import dashboard components
-import LiveDashboard from './components/dashboard/LiveDashboard.jsx';
-
 // Import all wizards
 import SteeringWizard from './components/wizards/SteeringWizard.jsx';
 import BrakesWizard from './components/wizards/BrakesWizard.jsx';
@@ -855,7 +852,6 @@ const App = () => {
     
     return (
         <Routes>
-            <Route path="/dashboard" element={<LiveDashboard />} />
             <Route path="/*" element={
                 <>
                     {showFleetModal && (
