@@ -1,8 +1,12 @@
 // Authentication middleware for validating Supabase JWT tokens
 // Ensures all protected routes require valid authentication and proper authorization
 
+import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import { createClient } from '@supabase/supabase-js';
+
+// Load environment variables
+dotenv.config();
 
 // Fail fast if required credentials are missing
 const supabaseUrl = process.env.SUPABASE_URL;
