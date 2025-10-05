@@ -55,7 +55,7 @@ const ModernAppHeader = ({
   // Quick actions for command palette
   const quickActions = [
     { id: 'new-breakdown', label: 'Report New Breakdown', icon: '🚨', shortcut: 'Ctrl+N', action: () => navigate('/breakdown-guide') },
-    { id: 'view-dashboard', label: 'Live Dashboard', icon: '📊', shortcut: 'Alt+D', action: () => navigate('/dashboards/breakdown'), comingSoon: true },
+    { id: 'view-dashboard', label: 'Control Room Display', icon: '📺', shortcut: 'Alt+D', action: () => navigate('/dashboards/control-room') },
     { id: 'fleet-status', label: 'Fleet Status', icon: '🚌', shortcut: 'Alt+F', action: () => navigate('/dashboards/engineering'), comingSoon: true },
     { id: 'recent-assessments', label: 'Recent Assessments', icon: '📋', shortcut: 'Alt+R', action: () => navigate('/breakdown-guide/history') },
     { id: 'sdc-operations', label: 'SDC Control Centre', icon: '🎛️', shortcut: 'Alt+S', action: () => navigate('/dashboards/sdc'), comingSoon: true },
@@ -81,20 +81,19 @@ const ModernAppHeader = ({
         { path: '/breakdown-guide/fleet', label: 'Fleet Status' }
       ]
     },
-    { 
-      path: '/dashboards/breakdown', 
-      label: 'Live',
-      fullLabel: 'Live Dashboard', 
-      icon: '📊',
+    {
+      path: '/dashboards/control-room',
+      label: 'Control Room',
+      fullLabel: 'Control Room Display',
+      icon: '📺',
       color: '#22c55e',
-      description: 'Real-time monitoring',
+      description: 'Large screen monitoring',
       priority: 2,
-      comingSoon: true, // Add coming soon flag
       stats: { label: 'Today', value: liveStats.today },
       quickLinks: [
-        { path: '/dashboards/breakdown', label: 'Overview' },
-        { path: '/dashboards/breakdown/sla', label: 'SLA Monitor' },
-        { path: '/dashboards/breakdown/map', label: 'Live Map' }
+        { path: '/dashboards/control-room', label: 'Control Room' },
+        { path: '/dashboards/sdc', label: 'SDC Operations' },
+        { path: '/dashboards/engineering', label: 'Engineering' }
       ]
     },
     { 
