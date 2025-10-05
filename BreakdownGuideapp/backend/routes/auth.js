@@ -961,4 +961,101 @@ router.get('/supervisors/:id/stats', async (req, res) => {
   }
 });
 
+// POST /api/auth/admin/reset-password - Admin-only password reset
+router.post('/admin/reset-password', authenticateAdmin, async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    // Validate required fields
+    if (!email || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and new password are required',
+        code: 'MISSING_FIELDS'
+      });
+    }
+
+    // Validate password strength
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password must be at least 8 characters long',
+        code: 'WEAK_PASSWORD'
+      });
+    }
+
+    // Get service role key for admin operations
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!serviceRoleKey || serviceRoleKey === 'your-service-role-key-here') {
+      console.error('❌ SUPABASE_SERVICE_ROLE_KEY not configured');
+      return res.status(500).json({
+        success: false,
+        error: 'Admin API not properly configured',
+        code: 'SERVICE_KEY_MISSING'
+      });
+    }
+
+    // Create admin client with service role key
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+
+    // Find user by email
+    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+
+    if (listError) {
+      console.error('❌ Error listing users:', listError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to find user',
+        code: 'USER_LOOKUP_ERROR'
+      });
+    }
+
+    const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found with that email',
+        code: 'USER_NOT_FOUND'
+      });
+    }
+
+    // Update password using admin API
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+      user.id,
+      { password: newPassword }
+    );
+
+    if (updateError) {
+      console.error('❌ Failed to update password:', updateError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to update password',
+        code: 'PASSWORD_UPDATE_ERROR',
+        details: updateError.message
+      });
+    }
+
+    console.log(`✅ Password reset by admin for: ${email}`);
+
+    res.json({
+      success: true,
+      message: 'Password updated successfully',
+      user: {
+        email: user.email,
+        id: user.id
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Admin password reset error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to reset password',
+      code: 'RESET_ERROR',
+      details: error.message
+    });
+  }
+});
+
 export default router;
