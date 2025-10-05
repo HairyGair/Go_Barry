@@ -94,6 +94,10 @@ router.get('/breakdowns/live', async (req, res) => {
 
         // Route and priority
         route_id: b.route || null,
+        route: b.route || null,
+        route_number: b.route || null,
+        route_name: b.route_name || null,
+        service: b.route || null,
         is_priority: priorityLevel <= 2 || b.secured_mileage,
         priority_level: priorityLevel,
         secured_mileage: b.secured_mileage || false,

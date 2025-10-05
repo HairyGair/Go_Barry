@@ -197,6 +197,11 @@ class SupervisorBreakdownLogger {
                             `${this.currentBreakdown.location.lat}, ${this.currentBreakdown.location.lng}` : null),
             w3w_location: this.currentBreakdown.location?.what3words,
 
+            // Route/Service information
+            route: this.currentBreakdown.route || null,
+            route_name: this.currentBreakdown.routeName || null,
+            service: this.currentBreakdown.route || null, // Alias for route
+
             // Supervisor information (with fallbacks)
             supervisor_badge: this.supervisor?.supervisorId || this.supervisor?.badge || 'TEST001',
             supervisor_name: this.supervisor?.name || 'Test Supervisor',

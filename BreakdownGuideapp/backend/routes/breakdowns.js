@@ -148,7 +148,11 @@ router.get('/live', async (req, res) => {
 
         // Route and priority
         route_id: b.route || null,
-        is_priority: priorityLevel <= 2,
+        route: b.route || null,
+        route_number: b.route || null,
+        route_name: b.route_name || null,
+        service: b.route || null,
+        is_priority: priorityLevel <= 2 || b.secured_mileage,
         priority_level: priorityLevel,
 
         // Supervisor information
@@ -158,7 +162,7 @@ router.get('/live', async (req, res) => {
         // Dashboard card information
         card_title: cardTitle,
         status_color: statusColor,
-        requires_immediate_action: b.requires_immediate_action || (b.severity === 'STOP') || (priorityLevel <= 2),
+        requires_immediate_action: b.requires_immediate_action || (b.severity === 'STOP') || (priorityLevel <= 2) || b.secured_mileage,
 
         // Operational flags
         secured_mileage: b.secured_mileage || false,
@@ -797,6 +801,11 @@ router.post('/from-wizard', async (req, res) => {
       location_coords,
       w3w_location,
 
+      // Route/Service information
+      route,
+      route_name,
+      service,
+
       // Supervisor information
       supervisor_badge,
       supervisor_name,
@@ -834,6 +843,8 @@ router.post('/from-wizard', async (req, res) => {
       supervisor_badge: supervisor_badge,
       supervisor_name: supervisor_name,
       location: location,
+      route: route || service || null,
+      route_name: route_name || null,
       issue_category: issue_category,
       description: issue_description || 'Wizard assessment completed',
       status: 'active',
