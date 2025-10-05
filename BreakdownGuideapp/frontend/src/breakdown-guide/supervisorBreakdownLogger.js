@@ -190,11 +190,12 @@ class SupervisorBreakdownLogger {
             location: this.currentBreakdown.location?.description ||
                      this.currentBreakdown.location?.address ||
                      this.currentBreakdown.location?.coordinates ||
-                     `${this.currentBreakdown.location?.lat}, ${this.currentBreakdown.location?.lng}` ||
+                     (this.currentBreakdown.location?.lat && this.currentBreakdown.location?.lng ?
+                      `${this.currentBreakdown.location.lat}, ${this.currentBreakdown.location.lng}` : null) ||
                      'Location not specified',
             location_coords: this.currentBreakdown.location?.coords ||
                            (this.currentBreakdown.location?.lat && this.currentBreakdown.location?.lng ?
-                            `${this.currentBreakdown.location.lat}, ${this.currentBreakdown.location.lng}` : null),
+                            { lat: this.currentBreakdown.location.lat, lng: this.currentBreakdown.location.lng } : null),
             w3w_location: this.currentBreakdown.location?.what3words,
 
             // Route/Service information

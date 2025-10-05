@@ -464,6 +464,7 @@ const SDCDashboard = () => {
     const getSupervisor = () => {
       try {
         const sources = [
+          localStorage.getItem('supervisor_session'), // Primary auth source
           localStorage.getItem('currentSupervisor'),
           localStorage.getItem('supervisorData'),
           sessionStorage.getItem('currentSupervisor')
@@ -473,8 +474,16 @@ const SDCDashboard = () => {
           if (source) {
             try {
               const supervisor = JSON.parse(source);
-              if (supervisor.badge || supervisor.supervisorBadge) {
-                setCurrentSupervisor(supervisor);
+              // Accept if has badge, supervisorBadge, or name (covers all session formats)
+              if (supervisor.badge || supervisor.supervisorBadge || supervisor.name) {
+                // Normalize the supervisor object to include both badge and name
+                const normalizedSupervisor = {
+                  name: supervisor.name || supervisor.supervisorName || 'Unknown',
+                  badge: supervisor.badge || supervisor.supervisorBadge || supervisor.supervisorId || supervisor.id,
+                  depot: supervisor.depot || 'SDC',
+                  ...supervisor // Keep all original fields
+                };
+                setCurrentSupervisor(normalizedSupervisor);
                 return;
               }
             } catch (e) {

@@ -15,10 +15,30 @@ class APIClient {
   }
 
   async request(endpoint, options = {}) {
-    const url = `${this.baseURL}${endpoint}`;
-
     // Get access token from enhanced auth service
     const token = await enhancedAuthService.getAccessToken();
+
+    // If no token and endpoint can use public fallback, convert to public endpoint
+    const publicFallbacks = {
+      '/api/breakdowns/stats': '/api/public/breakdowns/stats',
+      '/api/breakdowns/live': '/api/public/breakdowns/live',
+      '/api/activity/feed': '/api/public/activity/feed'
+    };
+
+    let actualEndpoint = endpoint;
+
+    if (!token) {
+      // Check if endpoint has a public fallback
+      for (const [protectedPath, publicPath] of Object.entries(publicFallbacks)) {
+        if (endpoint.startsWith(protectedPath)) {
+          actualEndpoint = endpoint.replace(protectedPath, publicPath);
+          console.log(`🔓 No auth token - using public endpoint: ${actualEndpoint}`);
+          break;
+        }
+      }
+    }
+
+    const url = `${this.baseURL}${actualEndpoint}`;
 
     const config = {
       headers: {
@@ -33,7 +53,7 @@ class APIClient {
       config.headers['Authorization'] = `Bearer ${token}`;
       console.log('🔒 Request includes auth token');
     } else {
-      console.log('⚠️ Request without auth token (backend will use auth bypass)');
+      console.log('⚠️ Request without auth token (using public endpoint if available)');
     }
 
     if (config.body && typeof config.body === 'object') {

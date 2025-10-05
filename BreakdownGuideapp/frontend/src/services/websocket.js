@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { websocketConfig, realtimeConfig } from '../breakdown-guide/components/common/constants';
+import enhancedAuthService from './enhanced-auth-service';
 
 class WebSocketService {
   constructor() {
@@ -90,14 +91,15 @@ class WebSocketService {
   /**
    * Connect to a WebSocket endpoint
    */
-  connect(endpoint, options = {}) {
+  async connect(endpoint, options = {}) {
     const {
       onMessage = () => {},
       onOpen = () => {},
       onClose = () => {},
       onError = () => {},
       autoReconnect = websocketConfig.features.autoReconnect,
-      heartbeat = websocketConfig.features.heartbeat
+      heartbeat = websocketConfig.features.heartbeat,
+      requireAuth = true // New option to require authentication
     } = options;
 
     if (this.connections.has(endpoint)) {
@@ -105,8 +107,34 @@ class WebSocketService {
       return this.connections.get(endpoint);
     }
 
-    const fullUrl = `${websocketConfig.url}${endpoint}`;
-    console.log(`🔌 Connecting to WebSocket: ${fullUrl}`);
+    // Build WebSocket URL with authentication token
+    let fullUrl = `${websocketConfig.url}${endpoint}`;
+
+    // Add authentication token if required
+    if (requireAuth) {
+      try {
+        const token = await enhancedAuthService.getAccessToken();
+        if (token) {
+          const separator = fullUrl.includes('?') ? '&' : '?';
+          fullUrl = `${fullUrl}${separator}token=${encodeURIComponent(token)}`;
+          console.log(`🔐 Added authentication token to WebSocket URL: ${endpoint}`);
+        } else {
+          console.warn(`⚠️ No authentication token available for WebSocket: ${endpoint}`);
+          // For protected endpoints, fail if no token
+          if (endpoint.includes('sdc-dashboard') || endpoint.includes('breakdowns') || endpoint.includes('assessments')) {
+            console.error(`❌ Authentication required for WebSocket endpoint: ${endpoint}`);
+            onError(new Error('Authentication required'));
+            return null;
+          }
+        }
+      } catch (error) {
+        console.error(`Error getting authentication token for WebSocket:`, error);
+        onError(error);
+        return null;
+      }
+    }
+
+    console.log(`🔌 Connecting to WebSocket: ${fullUrl.replace(/token=[^&]+/, 'token=***')}`);
 
     try {
       const ws = new WebSocket(fullUrl);

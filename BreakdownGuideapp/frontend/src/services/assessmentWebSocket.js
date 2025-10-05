@@ -6,6 +6,7 @@
 
 import websocketService from './websocket';
 import { websocketConfig } from '../breakdown-guide/components/common/constants';
+import enhancedAuthService from './enhanced-auth-service';
 
 class AssessmentWebSocketService {
   constructor() {
@@ -50,13 +51,16 @@ class AssessmentWebSocketService {
     try {
       console.log(`🔌 Connecting to Assessment WebSocket: ${this.fullUrl}`);
       console.log('🔐 Assessment WebSocket: Authentication required');
-      
-      // Get authentication token
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('supervisor_token');
+
+      // Get authentication token from enhanced auth service
+      const token = await enhancedAuthService.getAccessToken();
       if (!token) {
-        console.error('❌ Assessment WebSocket: No authentication token available');
+        console.error('❌ Assessment WebSocket: No Supabase authentication token available');
+        console.error('User must be logged in with Supabase to use WebSocket');
         return false;
       }
+
+      console.log('✅ Retrieved Supabase access token for WebSocket authentication');
       
       const connectionOptions = {
         onMessage: this.handleMessage.bind(this),
@@ -130,25 +134,26 @@ class AssessmentWebSocketService {
   /**
    * Send message to WebSocket
    */
-  send(message) {
+  async send(message) {
     if (!this.isConnected) {
       console.warn('⚠️ Assessment WebSocket not connected, queuing message');
       return false;
     }
-    
-    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('supervisor_token');
+
+    // Get fresh token for sending messages
+    const token = await enhancedAuthService.getAccessToken();
     if (!token) {
       console.error('❌ Assessment WebSocket: Cannot send message without authentication token');
       return false;
     }
-    
+
     const payload = {
       timestamp: new Date().toISOString(),
       source: 'sdc_dashboard',
       auth_token: token,
       ...message
     };
-    
+
     return websocketService.send(this.endpoint, payload);
   }
 
@@ -721,8 +726,8 @@ class AssessmentWebSocketService {
   /**
    * Check if authentication token is available
    */
-  hasAuthToken() {
-    const token = localStorage.getItem('auth_token') || sessionStorage.getItem('supervisor_token');
+  async hasAuthToken() {
+    const token = await enhancedAuthService.getAccessToken();
     return Boolean(token);
   }
 

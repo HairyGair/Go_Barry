@@ -25,6 +25,7 @@ const SDCDashboardHeader = ({
       try {
         // Try multiple sources for supervisor data
         const sources = [
+          localStorage.getItem('supervisor_session'), // Primary auth source
           localStorage.getItem('currentSupervisor'),
           localStorage.getItem('supervisorData'),
           sessionStorage.getItem('currentSupervisor'),

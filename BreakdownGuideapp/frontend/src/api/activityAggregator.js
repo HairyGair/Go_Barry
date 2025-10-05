@@ -1,6 +1,7 @@
 // Activity Aggregator - Collects activities from all sources
 // Now uses api-client.js which automatically handles authentication
 import { apiClient } from '../services/api-client.js';
+import { formatActivityMessage, getActivityIcon } from '../utils/activityMessageFormatter.js';
 
 // Activity types configuration
 const ACTIVITY_TYPES = {
@@ -80,42 +81,54 @@ export async function fetchAllActivities(limit = 50) {
       console.log('✅ Activities count:', data.activities?.length || 0);
 
         // Process activities for frontend compatibility
-        const processedActivities = (data.activities || []).map(activity => ({
-          // Core fields
-          id: activity.id,
-          type: activity.type || activity.activity_type || 'activity',
-          icon: activity.icon || '📋',
-          message: activity.message || 'Activity',
-          time: activity.time || formatTimeAgo(activity.timestamp || activity.created_at),
-          timestamp: activity.timestamp || activity.created_at,
-          
-          // Additional display fields
-          depot: activity.depot,
-          supervisor: activity.supervisor || activity.supervisor_name || activity.actor_name,
-          supervisor_badge: activity.supervisor_badge || activity.actor_id,
-          decision: activity.decision,
-          severity: activity.severity || 'normal',
-          priority: activity.priority || 5,
-          
-          // Breakdown specific fields
-          breakdown_id: activity.breakdown_id || activity.entity_id,
-          fleet_no: activity.fleet_no,
-          location: activity.location,
-          issue_type: activity.issue_type,
-          
-          // LiveActivityFeed expects these fields
-          supervisorName: activity.supervisor || activity.supervisor_name || activity.actor_name,
-          busNumber: activity.fleet_no,
-          issue: activity.issue_type,
-          route: activity.route,
-          route_number: activity.route_number,
-          passengersOnBoard: activity.passengers_on_board,
-          status: activity.decision || activity.status,
-          
-          // Metadata
-          source: activity.source || 'unified',
-          metadata: activity.metadata || {}
-        }));
+        const processedActivities = (data.activities || []).map(activity => {
+          // Generate human-readable message using formatter
+          const formattedMessage = formatActivityMessage(activity);
+          const formattedIcon = getActivityIcon(activity);
+
+          return {
+            // Core fields
+            id: activity.id,
+            type: activity.type || activity.activity_type || 'activity',
+            icon: formattedIcon,
+            message: formattedMessage,
+            time: activity.time || formatTimeAgo(activity.timestamp || activity.created_at),
+            timestamp: activity.timestamp || activity.created_at,
+
+            // Additional display fields
+            depot: activity.depot,
+            supervisor: activity.supervisor || activity.supervisor_name || activity.actor_name,
+            supervisor_badge: activity.supervisor_badge || activity.actor_id,
+            decision: activity.decision || activity.metadata?.decision,
+            severity: activity.severity || 'normal',
+            priority: activity.priority || 5,
+
+            // Breakdown specific fields
+            breakdown_id: activity.breakdown_id || activity.entity_id,
+            fleet_no: activity.fleet_no || activity.entity_details?.fleetNo,
+            location: activity.location || activity.entity_details?.location || activity.metadata?.location,
+            location_description: activity.location_description || activity.location || activity.entity_details?.location || activity.metadata?.location,
+            latitude: activity.latitude || activity.lat || activity.entity_details?.latitude || activity.metadata?.latitude,
+            longitude: activity.longitude || activity.lng || activity.entity_details?.longitude || activity.metadata?.longitude,
+            issue_type: activity.issue_type || activity.entity_details?.issueCategory,
+
+            // LiveActivityFeed expects these fields
+            supervisorName: activity.actor_name || activity.supervisor_name || activity.supervisor,
+            busNumber: activity.fleet_no || activity.entity_details?.fleetNo,
+            issue: activity.issue_type || activity.entity_details?.issueCategory,
+            route: activity.route || activity.route_number,
+            route_number: activity.route_number,
+            passengersOnBoard: activity.passengers_on_board,
+            status: activity.decision || activity.metadata?.decision || activity.status,
+
+            // Metadata
+            source: activity.source || 'unified',
+            metadata: activity.metadata || {},
+
+            // Original activity data for reference
+            _originalActivity: activity
+          };
+        });
 
       return {
         activities: processedActivities,
@@ -193,21 +206,40 @@ export async function fetchLegacyActivities(limit = 50) {
 
           console.log(`🔍 Processing breakdown ID ${breakdownId}: fleet=${fleetNumber}, isWizard=${isWizardAssessment}, decision=${breakdown.wizard_decision}, type=${breakdown.wizard_type}`);
 
+          // Prepare activity data object for formatter
+          const activityData = {
+            activity_type: isWizardAssessment ? 'WIZARD_COMPLETED' : 'BREAKDOWN_REPORTED',
+            actor_name: supervisorName,
+            entity_details: {
+              fleetNo: fleetNumber,
+              issueCategory: breakdown.issue_category,
+              location: breakdown.location || breakdown.location_description,
+              wizardType: breakdown.wizard_type
+            },
+            metadata: {
+              decision: breakdown.wizard_decision || breakdown.severity,
+              wizardType: breakdown.wizard_type
+            },
+            decision: breakdown.wizard_decision || breakdown.severity,
+            severity: breakdown.severity,
+            breakdown_id: breakdownId,
+            fleet_no: fleetNumber,
+            created_at: breakdown.created_at
+          };
+
+          // Generate formatted message and icon
+          const formattedMessage = formatActivityMessage(activityData);
+          const formattedIcon = getActivityIcon(activityData);
+
           if (isWizardAssessment) {
             // Create assessment activity
             const decision = breakdown.wizard_decision || breakdown.severity || 'CONTINUE';
-            const decisionIcon = decision === 'STOP' ? '🛑' :
-                                decision === 'AMBER' ? '⚡' : '✅';
-
-            // Get the assessment type from wizard_type, issue_type, or issue_category
-            const assessmentType = breakdown.wizard_type || breakdown.issue_type || breakdown.issue_category || 'General';
-            const formattedType = assessmentType.charAt(0).toUpperCase() + assessmentType.slice(1).replace(/-/g, ' ');
 
             activities.push({
               id: `assessment-${breakdownId}`,
               type: 'ASSESSMENT_COMPLETED',
-              icon: decisionIcon,
-              message: `${supervisorName} completed ${formattedType} assessment for ${fleetNumber} - Result: ${decision}`,
+              icon: formattedIcon,
+              message: formattedMessage,
               time: formatTimeAgo(breakdown.created_at),
               timestamp: breakdown.created_at,
               depot: breakdown.depot || 'SDC',
@@ -238,8 +270,8 @@ export async function fetchLegacyActivities(limit = 50) {
             activities.push({
               id: `breakdown-${breakdownId}`,
               type: 'BREAKDOWN_REPORTED',
-              icon: ACTIVITY_TYPES.BREAKDOWN_REPORTED.icon,
-              message: `${supervisorName} reported ${breakdown.issue_category || 'breakdown'} on ${fleetNumber}`,
+              icon: formattedIcon,
+              message: formattedMessage,
               time: formatTimeAgo(breakdown.created_at),
               timestamp: breakdown.created_at,
               depot: breakdown.depot || 'SDC',

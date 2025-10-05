@@ -277,10 +277,11 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
     }
 
     if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
-      // Open Google Maps in a new tab with the coordinates
+      // Open Google Maps in a new tab with the coordinates at street level zoom
       const busNumber = activity.busNumber || activity.fleet_no || activity.vehicle || activity.fleet_number || 'Vehicle';
       const label = encodeURIComponent(`${busNumber} - Breakdown Location`);
-      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}&query_place_id=${label}`;
+      // Using the @latitude,longitude,zoom format for better positioning
+      const mapsUrl = `https://www.google.com/maps/@${lat},${lng},17z`;
 
       window.open(mapsUrl, '_blank', 'noopener,noreferrer');
 
@@ -336,40 +337,44 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
   const formatActivityDisplay = useCallback((activity) => {
     const lines = [];
 
-    // Extract supervisor name and action
-    const supervisorName = activity.supervisorName || activity.reported_by || activity.supervisor || 'Supervisor';
-    const action = activity.action || 'reported issue';
-    const busNumber = activity.busNumber || activity.fleet_no || activity.vehicle || activity.fleet_number || 'Unknown';
-
-    // Line 1: Main action
-    lines.push(`${supervisorName} ${action} on ${busNumber}`);
+    // Line 1: Use the pre-formatted message from the activity aggregator
+    // The message is already formatted with supervisor name, action, and fleet number
+    const mainMessage = activity.message || `Activity for ${activity.busNumber || activity.fleet_no || 'vehicle'}`;
+    lines.push(mainMessage);
 
     // Line 2: Route and location with coordinate conversion
     const route = activity.route || activity.route_number || activity.routeNumber;
     const locationDisplay = getLocationDisplay(activity);
 
-    if (route && locationDisplay.displayText) {
-      lines.push(`Route ${route} • ${locationDisplay.displayText}`);
-    } else if (route) {
-      lines.push(`Route ${route}`);
-    } else if (locationDisplay.displayText) {
-      lines.push(`📍 ${locationDisplay.displayText}`);
+    const line2Parts = [];
+    if (route) {
+      line2Parts.push(`Route ${route}`);
+    }
+    if (locationDisplay.displayText) {
+      line2Parts.push(locationDisplay.displayText);
+    }
+    if (line2Parts.length > 0) {
+      lines.push(line2Parts.join(' • '));
     }
 
     // Line 3: Issue details and passenger info
     const issue = activity.issue || activity.issue_type || activity.issueType || activity.breakdownType;
+    const line3Parts = [];
+
     if (issue) {
-      let line3 = `${issue}`;
+      line3Parts.push(issue);
+    }
 
-      // Add passenger information
-      if (activity.passengersOnBoard || activity.passengers_on_board) {
-        const count = activity.passengerCount || activity.passenger_count || '';
-        line3 += ` • 👥 ${count ? count + ' ' : ''}passengers`;
-      } else if (activity.passengersOnBoard === false) {
-        line3 += ' • 🚌✓ No passengers';
-      }
+    // Add passenger information
+    if (activity.passengersOnBoard || activity.passengers_on_board) {
+      const count = activity.passengerCount || activity.passenger_count || '';
+      line3Parts.push(`👥 ${count ? count + ' ' : ''}passengers`);
+    } else if (activity.passengersOnBoard === false) {
+      line3Parts.push('🚌✓ No passengers');
+    }
 
-      lines.push(line3);
+    if (line3Parts.length > 0) {
+      lines.push(line3Parts.join(' • '));
     }
 
     return {
@@ -595,6 +600,32 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                               <p key={index} className={`activity-line line-${index + 1}`}>{line}</p>
                             );
                           })}
+
+                          {/* Vehicle Location button for breakdown activities */}
+                          {(primaryActivity.type === 'breakdown_reported' ||
+                            primaryActivity.type === 'BREAKDOWN_REPORTED' ||
+                            primaryActivity.type === 'wizard_completed' ||
+                            primaryActivity.type === 'WIZARD_COMPLETED' ||
+                            primaryActivity.type === 'ASSESSMENT_COMPLETED' ||
+                            primaryActivity.activity_type === 'breakdown_reported' ||
+                            primaryActivity.activity_type === 'wizard_completed' ||
+                            primaryActivity.activityType === 'breakdown_reported' ||
+                            primaryActivity.activityType === 'wizard_completed') &&
+                           (primaryActivity.location || primaryActivity.location_description ||
+                            primaryActivity.latitude || primaryActivity.lat) && (
+                            <div className="vehicle-location-container">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleLocationClick(primaryActivity);
+                                }}
+                                className="vehicle-location-button"
+                                title="View vehicle location on map"
+                              >
+                                📍 Vehicle Location
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         // Fallback for other activities

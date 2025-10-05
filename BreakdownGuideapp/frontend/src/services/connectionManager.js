@@ -116,6 +116,11 @@ class ConnectionManager {
       // Get authentication token for WebSocket from enhanced auth service
       const token = await enhancedAuthService.getAccessToken();
 
+      if (!token) {
+        this.log('❌ No authentication token available - cannot connect to WebSocket');
+        throw new Error('Authentication required for WebSocket connection');
+      }
+
       // For development, use relative WebSocket URL to go through Vite proxy
       // For production, use absolute URL from apiConfig
       let wsUrl;
@@ -132,14 +137,10 @@ class ConnectionManager {
         this.log('Production mode: Using WebSocket URL from config', { wsUrl, websocketConfigUrl: websocketConfig.url });
       }
 
-      // Add authentication token to URL if available
-      if (token) {
-        const separator = wsUrl.includes('?') ? '&' : '?';
-        wsUrl = `${wsUrl}${separator}token=${encodeURIComponent(token)}`;
-        this.log('Added authentication token to WebSocket URL');
-      } else {
-        this.log('⚠️ No authentication token available for WebSocket connection');
-      }
+      // Add authentication token to URL
+      const separator = wsUrl.includes('?') ? '&' : '?';
+      wsUrl = `${wsUrl}${separator}token=${encodeURIComponent(token)}`;
+      this.log('✅ Added Supabase authentication token to WebSocket URL');
 
       this.log('Attempting WebSocket connection', {
         wsUrl: wsUrl.replace(/token=[^&]+/, 'token=***'), // Hide token in logs

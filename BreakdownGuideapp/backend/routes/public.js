@@ -162,4 +162,80 @@ router.get('/fleet', (req, res) => {
   }
 });
 
+// GET /api/public/activity/feed - Get activity feed (no auth required)
+router.get('/activity/feed', async (req, res) => {
+  try {
+    const { limit = 25, offset = 0 } = req.query;
+
+    const { data, error } = await supabase
+      .from('activities')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      activities: data || [],
+      count: data?.length || 0,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching public activity feed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch activity feed',
+      activities: [],
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// GET /api/public/breakdowns/stats - Get breakdown statistics (no auth required)
+router.get('/breakdowns/stats', async (req, res) => {
+  try {
+    const { period = 'today' } = req.query;
+    let startDate;
+
+    switch (period) {
+      case 'today':
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+        break;
+      case 'week':
+        startDate = new Date();
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case 'month':
+        startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - 1);
+        break;
+      default:
+        startDate = new Date();
+        startDate.setHours(0, 0, 0, 0);
+    }
+
+    const { data, error } = await supabase
+      .from('breakdowns')
+      .select('status')
+      .gte('created_at', startDate.toISOString());
+
+    if (error) throw error;
+
+    const stats = {
+      total: data.length,
+      active: data.filter(b => b.status === 'active').length,
+      pending: data.filter(b => b.status === 'pending').length,
+      resolved: data.filter(b => b.status === 'resolved').length,
+      in_progress: data.filter(b => b.status === 'in_progress').length
+    };
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Error fetching breakdown stats:', error);
+    res.status(500).json({ error: 'Failed to fetch breakdown statistics' });
+  }
+});
+
 export default router;

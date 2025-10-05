@@ -563,22 +563,24 @@ const ControlRoomDisplay = () => {
         )}
       </div>
 
-      {/* Most Affected Routes */}
-      <div className="affected-routes-section">
-        <h3 className="section-title">🚌 MOST AFFECTED ROUTES</h3>
-        <div className="routes-grid">
-          {affectedRoutes.length > 0 ? (
-            affectedRoutes.map((route, idx) => (
-              <div key={idx} className="route-item">
-                <span className="route-number">{route.route}</span>
-                <span className="route-count">{route.count} breakdown{route.count !== 1 ? 's' : ''}</span>
-              </div>
-            ))
-          ) : (
-            <div className="no-routes">No affected routes</div>
-          )}
+      {/* Most Affected Routes - Only show when there are active breakdowns */}
+      {breakdowns.length > 0 && (
+        <div className="affected-routes-section">
+          <h3 className="section-title">🚌 MOST AFFECTED ROUTES</h3>
+          <div className="routes-grid">
+            {affectedRoutes.length > 0 ? (
+              affectedRoutes.map((route, idx) => (
+                <div key={idx} className="route-item">
+                  <span className="route-number">{route.route}</span>
+                  <span className="route-count">{route.count} breakdown{route.count !== 1 ? 's' : ''}</span>
+                </div>
+              ))
+            ) : (
+              <div className="no-routes">No affected routes</div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Footer */}
       <div className="control-room-footer">

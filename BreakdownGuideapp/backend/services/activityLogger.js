@@ -280,6 +280,10 @@ class ActivityLoggerService {
     wizardType,
     decision,
     depot,
+    location = null,
+    locationCoords = null,
+    latitude = null,
+    longitude = null,
     assessmentData = {}
   }) {
     return await this.logActivity({
@@ -290,12 +294,27 @@ class ActivityLoggerService {
       actorName: supervisorName,
       entityType: ENTITY_TYPES.BREAKDOWN,
       entityId: breakdownId,
-      entityDetails: { fleetNo, wizardType, decision },
+      entityDetails: {
+        fleetNo,
+        wizardType,
+        decision,
+        location: location || assessmentData?.location,
+        latitude: latitude || locationCoords?.lat,
+        longitude: longitude || locationCoords?.lng
+      },
       depot,
       severity: decision === 'STOP' ? SEVERITY_LEVELS.CRITICAL :
                decision === 'AMBER' ? SEVERITY_LEVELS.WARNING : SEVERITY_LEVELS.SUCCESS,
       source: 'breakdown_guide',
-      metadata: { wizardType, decision, assessmentData },
+      metadata: {
+        wizardType,
+        decision,
+        assessmentData,
+        location: location || assessmentData?.location,
+        locationCoords: locationCoords,
+        latitude: latitude || locationCoords?.lat,
+        longitude: longitude || locationCoords?.lng
+      },
       icon: decision === 'STOP' ? '📋🚨' :
             decision === 'AMBER' ? '📋⚡' : '📋✅'
     });
@@ -400,6 +419,7 @@ class ActivityLoggerService {
 
   /**
    * Generate default activity message
+   * Creates human-readable messages that match the frontend formatter expectations
    */
   generateMessage({
     action,
@@ -409,15 +429,27 @@ class ActivityLoggerService {
     entityDetails,
     severity
   }) {
-    const actor = actorName || 'Someone';
+    const actor = actorName || 'A supervisor';
+
+    // If action already contains the actor name or is a complete sentence, use it as is
+    if (action.includes(actor) || action.match(/^[A-Z].*[.!?]$/)) {
+      return action;
+    }
+
+    // Otherwise, construct the message
     let message = `${actor} ${action}`;
 
+    // Don't duplicate fleet number if it's already in the action
     if (entityType && entityId && entityDetails) {
-      if (entityType === ENTITY_TYPES.BREAKDOWN && entityDetails.fleetNo) {
-        message += ` on ${entityDetails.fleetNo}`;
+      if (entityType === ENTITY_TYPES.BREAKDOWN && entityDetails.fleetNo && !action.includes(entityDetails.fleetNo)) {
+        // Check if action already describes the vehicle
+        if (!action.includes('on') && !action.includes('for')) {
+          message += ` on ${entityDetails.fleetNo}`;
+        }
       }
 
-      if (entityDetails.location) {
+      // Add location only if not already in the message
+      if (entityDetails.location && !message.includes(entityDetails.location)) {
         message += ` at ${entityDetails.location}`;
       }
     }

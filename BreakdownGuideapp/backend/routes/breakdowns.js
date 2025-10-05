@@ -906,9 +906,14 @@ router.post('/from-wizard', async (req, res) => {
         wizardType: wizard_type || 'Breakdown Guide',
         decision: wizard_decision || determinedSeverity,
         depot: 'SDC', // Could be enhanced to get actual depot from supervisor data
+        location: location || 'Location to be added later',
+        locationCoords: location_coords,
+        latitude: location_coords?.lat || (typeof location_coords === 'string' ? parseFloat(location_coords.split(',')[0]) : null),
+        longitude: location_coords?.lng || (typeof location_coords === 'string' ? parseFloat(location_coords.split(',')[1]) : null),
         assessmentData: {
           issueCategory: issue_category,
           location: location || 'Location to be added later',
+          locationCoords: location_coords,
           severity: determinedSeverity,
           engineeringRequired: engineering_required,
           replacementVehicleRequired: replacement_vehicle_required,
