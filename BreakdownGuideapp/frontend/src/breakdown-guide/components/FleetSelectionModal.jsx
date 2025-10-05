@@ -195,7 +195,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
 
     // Search routes
     useEffect(() => {
-        if (routeSearch.length < 2) {
+        if (routeSearch.length < 1) {
             setRouteSearchResults([]);
             return;
         }
