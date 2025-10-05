@@ -127,9 +127,9 @@ const AppHeader = ({ variant = 'full' }) => {
             e.preventDefault();
             navigate('/dashboards/sdc'); 
             break;
-          case '3': 
+          case '3':
             e.preventDefault();
-            navigate('/dashboards/breakdown'); 
+            navigate('/dashboards/control-room');
             break;
           case '4': 
             e.preventDefault();
@@ -204,16 +204,16 @@ const AppHeader = ({ variant = 'full' }) => {
         { path: '/breakdown-guide/fleet', label: 'Fleet Status', icon: '🚌' }
       ]
     },
-    { 
-      path: '/dashboards/breakdown', 
-      label: 'Live Dashboard', 
-      shortLabel: 'Live', 
-      icon: '📊',
+    {
+      path: '/dashboards/control-room',
+      label: 'Control Room',
+      shortLabel: 'Control',
+      icon: '📺',
       badge: stats.active,
       submenu: [
-        { path: '/dashboards/breakdown', label: 'Active Breakdowns', icon: '🚨' },
-        { path: '/dashboards/breakdown/sla', label: 'SLA Monitor', icon: '⏰' },
-        { path: '/dashboards/breakdown/map', label: 'Live Map', icon: '🗺️' }
+        { path: '/dashboards/control-room', label: 'Control Room Display', icon: '📺' },
+        { path: '/dashboards/sdc', label: 'SDC Operations', icon: '🎯' },
+        { path: '/dashboards/engineering', label: 'Engineering', icon: '⚙️' }
       ]
     },
     { 
@@ -257,7 +257,7 @@ const AppHeader = ({ variant = 'full' }) => {
   const shortcuts = [
     { key: 'Alt+1', description: 'Go to Breakdown Guide' },
     { key: 'Alt+2', description: 'Go to SDC Operations' },
-    { key: 'Alt+3', description: 'Go to Live Dashboard' },
+    { key: 'Alt+3', description: 'Go to Control Room' },
     { key: 'Alt+4', description: 'Go to Fleet Intelligence' },
     { key: 'Alt+5', description: 'Go to Management' },
     { key: 'Alt+H', description: 'Go to Home' },

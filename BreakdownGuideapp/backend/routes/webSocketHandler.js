@@ -71,8 +71,9 @@ class WebSocketHandler {
     let user = null;
     let supervisor = null;
 
-    // ALL channels require authentication
+    // Protected channels require authentication (control-room is public for wall displays)
     const protectedChannels = ['sdc-dashboard', 'breakdowns', 'assessment-progress'];
+    const publicChannels = ['control-room'];
 
     if (protectedChannels.includes(channel)) {
       if (!token) {

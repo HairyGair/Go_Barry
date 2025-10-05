@@ -32,9 +32,9 @@ const ControlRoomDisplay = () => {
 
   const scrollIntervalRef = useRef(null);
 
-  // WebSocket connection for real-time updates
+  // WebSocket connection for real-time updates (using public channel, no auth required)
   const connectionManager = useConnectionManager({
-    endpoint: '/ws?channel=sdc-dashboard',
+    endpoint: '/ws?channel=control-room',
     autoConnect: true,
     primary: 'websocket',
     fallback: 'polling',
@@ -71,15 +71,18 @@ const ControlRoomDisplay = () => {
   // Fetch active breakdowns
   const fetchBreakdowns = useCallback(async () => {
     try {
-      const response = await apiClient.get('/breakdowns');
+      // Use public endpoint - no authentication required for Control Room Display
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://breakdown-guide.onrender.com'}/api/public/breakdowns/live`)
+        .then(res => res.json());
 
       if (response.success && Array.isArray(response.breakdowns)) {
         const activeBreakdowns = response.breakdowns
-          .filter(b => b.status !== 'resolved')
           .sort((a, b) => {
-            // Sort by priority: critical first, then by creation time
-            if (a.severity === 'critical' && b.severity !== 'critical') return -1;
-            if (b.severity === 'critical' && a.severity !== 'critical') return 1;
+            // Sort by priority: STOP first, then by creation time
+            if (a.severity === 'STOP' && b.severity !== 'STOP') return -1;
+            if (b.severity === 'STOP' && a.severity !== 'STOP') return 1;
+            if (a.is_priority && !b.is_priority) return -1;
+            if (b.is_priority && !a.is_priority) return 1;
             return new Date(b.created_at) - new Date(a.created_at);
           });
 
@@ -87,8 +90,8 @@ const ControlRoomDisplay = () => {
         setLastUpdated(new Date());
 
         // Calculate stats
-        const critical = activeBreakdowns.filter(b => b.severity === 'critical').length;
-        const engineersActive = activeBreakdowns.filter(b => b.engineer_assigned).length;
+        const critical = activeBreakdowns.filter(b => b.severity === 'STOP' || b.requires_immediate_action).length;
+        const engineersActive = activeBreakdowns.filter(b => b.dispatched_at).length;
 
         setStats({
           total: activeBreakdowns.length,
@@ -100,7 +103,7 @@ const ControlRoomDisplay = () => {
         // Calculate affected routes
         const routeCounts = {};
         activeBreakdowns.forEach(b => {
-          const route = b.route || b.service_number || 'Unknown';
+          const route = b.route_id || 'Unknown';
           routeCounts[route] = (routeCounts[route] || 0) + 1;
         });
 
@@ -113,7 +116,7 @@ const ControlRoomDisplay = () => {
 
         // Extract priority alerts
         const alerts = activeBreakdowns
-          .filter(b => b.severity === 'critical' || b.is_priority_route)
+          .filter(b => b.severity === 'STOP' || b.is_priority)
           .slice(0, 3);
 
         setPriorityAlerts(alerts);
@@ -175,12 +178,15 @@ const ControlRoomDisplay = () => {
   // Get severity badge styling
   const getSeverityBadge = (severity) => {
     const badges = {
+      'STOP': { label: 'STOP', class: 'severity-critical' },
+      'AMBER': { label: 'AMBER', class: 'severity-high' },
+      'CONTINUE': { label: 'CONTINUE', class: 'severity-low' },
       critical: { label: 'CRITICAL', class: 'severity-critical' },
       high: { label: 'HIGH', class: 'severity-high' },
       medium: { label: 'MEDIUM', class: 'severity-medium' },
       low: { label: 'LOW', class: 'severity-low' }
     };
-    return badges[severity?.toLowerCase()] || badges.medium;
+    return badges[severity] || badges[severity?.toLowerCase()] || badges.medium;
   };
 
   // Get status badge styling
@@ -245,7 +251,7 @@ const ControlRoomDisplay = () => {
             <span className="alert-label">PRIORITY ALERTS:</span>
             {priorityAlerts.map((alert, idx) => (
               <span key={idx} className="alert-item">
-                {alert.service_number || alert.route || 'Unknown'} - Fleet {alert.fleet_number}
+                {alert.route_id || 'Unknown'} - Fleet {alert.fleet_no || alert.fleet_number}
                 {idx < priorityAlerts.length - 1 && ' | '}
               </span>
             ))}
@@ -260,7 +266,7 @@ const ControlRoomDisplay = () => {
             {/* Card Header */}
             <div className="card-header">
               <div className="card-header-left">
-                <h2 className="fleet-number">FLEET {currentBreakdown.fleet_number}</h2>
+                <h2 className="fleet-number">FLEET {currentBreakdown.fleet_no || currentBreakdown.fleet_number}</h2>
                 <div className="card-badges">
                   <span className={`severity-badge ${getSeverityBadge(currentBreakdown.severity).class}`}>
                     {getSeverityBadge(currentBreakdown.severity).label}
@@ -272,7 +278,7 @@ const ControlRoomDisplay = () => {
               </div>
               <div className="card-header-right">
                 <div className="breakdown-time">
-                  {getTimeAgo(currentBreakdown.created_at)}
+                  {currentBreakdown.duration_text || getTimeAgo(currentBreakdown.created_at)}
                 </div>
               </div>
             </div>
@@ -282,7 +288,7 @@ const ControlRoomDisplay = () => {
               <div className="info-grid">
                 <div className="info-item">
                   <div className="info-label">SERVICE</div>
-                  <div className="info-value">{currentBreakdown.service_number || currentBreakdown.route || 'N/A'}</div>
+                  <div className="info-value">{currentBreakdown.route_id || 'N/A'}</div>
                 </div>
                 <div className="info-item">
                   <div className="info-label">LOCATION</div>
@@ -291,7 +297,7 @@ const ControlRoomDisplay = () => {
                 <div className="info-item">
                   <div className="info-label">ISSUE</div>
                   <div className="info-value">
-                    {currentBreakdown.issue_category || 'Unknown'} - {currentBreakdown.issue_description || 'N/A'}
+                    {currentBreakdown.issue_type || 'Unknown'} - {currentBreakdown.issue_description || 'Assessment Required'}
                   </div>
                 </div>
                 <div className="info-item">
@@ -300,16 +306,16 @@ const ControlRoomDisplay = () => {
                     {currentBreakdown.supervisor_name || 'Unknown'} ({currentBreakdown.supervisor_badge || 'N/A'})
                   </div>
                 </div>
-                {currentBreakdown.engineer_assigned && (
+                {currentBreakdown.dispatched_at && (
                   <>
                     <div className="info-item">
                       <div className="info-label">ENGINEER</div>
-                      <div className="info-value">{currentBreakdown.engineer_name || 'Assigned'}</div>
+                      <div className="info-value">{currentBreakdown.engineer_name || 'Dispatched'}</div>
                     </div>
-                    {currentBreakdown.engineer_eta && (
+                    {currentBreakdown.on_site_at && (
                       <div className="info-item">
-                        <div className="info-label">ETA</div>
-                        <div className="info-value">{currentBreakdown.engineer_eta} mins</div>
+                        <div className="info-label">STATUS</div>
+                        <div className="info-value">On Site</div>
                       </div>
                     )}
                   </>

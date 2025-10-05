@@ -898,7 +898,7 @@ router.post('/from-wizard', async (req, res) => {
 
     // Broadcast breakdown creation to all connected WebSocket clients
     try {
-      webSocketHandler.broadcast('sdc-dashboard', {
+      const broadcastData = {
         type: 'breakdown_created',
         breakdown_id: data.breakdown_id,
         breakdown: data,
@@ -909,7 +909,9 @@ router.post('/from-wizard', async (req, res) => {
         location: location,
         supervisor_name: supervisor_name,
         timestamp: new Date().toISOString()
-      });
+      };
+      webSocketHandler.broadcast('sdc-dashboard', broadcastData);
+      webSocketHandler.broadcast('control-room', broadcastData); // Also broadcast to Control Room Display
       console.log(`📡 Broadcasted breakdown ${data.breakdown_id} creation to WebSocket clients`);
     } catch (broadcastError) {
       console.error('⚠️ Failed to broadcast breakdown creation:', broadcastError);
@@ -1172,7 +1174,7 @@ router.post('/resolve', async (req, res) => {
     });
 
     // Broadcast to WebSocket clients
-    webSocketHandler.broadcast('sdc-dashboard', {
+    const resolveData = {
       type: 'breakdown_resolved',
       breakdown_id: breakdown_id,
       breakdown: breakdown,
@@ -1182,7 +1184,9 @@ router.post('/resolve', async (req, res) => {
       returned_to_service: returned_to_service,
       resolution_notes: resolution_notes,
       timestamp: resolvedAt
-    });
+    };
+    webSocketHandler.broadcast('sdc-dashboard', resolveData);
+    webSocketHandler.broadcast('control-room', resolveData); // Also broadcast to Control Room Display
 
     res.json({
       success: true,

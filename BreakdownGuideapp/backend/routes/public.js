@@ -1,0 +1,131 @@
+import express from 'express';
+import { supabase } from '../server.js';
+
+const router = express.Router();
+
+// GET /api/public/breakdowns/live - Get active breakdowns for public displays (Control Room)
+// This endpoint does NOT require authentication - it's for public wall displays
+router.get('/breakdowns/live', async (req, res) => {
+  try {
+    // Query from breakdowns table
+    const { data: allBreakdowns, error } = await supabase
+      .from('breakdowns')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    console.log(`📊 /public/breakdowns/live: Found ${allBreakdowns?.length || 0} total breakdowns in database`);
+    if (allBreakdowns && allBreakdowns.length > 0) {
+      console.log('📋 Breakdown statuses:', allBreakdowns.map(b => `${b.breakdown_id}: ${b.status}`));
+    }
+
+    // Filter out resolved/completed breakdowns
+    const breakdowns = allBreakdowns.filter(b =>
+      !['resolved', 'deleted', 'cancelled', 'completed'].includes(b.status)
+    );
+
+    console.log(`✅ /public/breakdowns/live: Returning ${breakdowns.length} active breakdowns after filtering`);
+
+    // Format breakdowns for dashboard display
+    const formattedBreakdowns = breakdowns.map(b => {
+      // Calculate elapsed time
+      const elapsedMinutes = Math.floor((new Date() - new Date(b.created_at)) / (1000 * 60));
+      const elapsedHours = Math.floor(elapsedMinutes / 60);
+      const remainingMinutes = Math.floor(elapsedMinutes % 60);
+
+      let durationText = '';
+      if (elapsedHours > 0) {
+        durationText = `${elapsedHours}h ${remainingMinutes}m`;
+      } else {
+        durationText = `${remainingMinutes}m`;
+      }
+
+      // Determine priority level and status color
+      const priorityLevel = b.priority_level || (
+        b.severity === 'STOP' ? 1 :
+        b.severity === 'AMBER' ? 2 : 3
+      );
+
+      const statusColor = b.status_color || (
+        b.severity === 'STOP' ? 'red' :
+        b.severity === 'AMBER' ? 'orange' :
+        b.severity === 'CONTINUE' ? 'green' : 'gray'
+      );
+
+      const cardTitle = b.card_title ||
+        `${b.fleet_no || 'Unknown'} - ${b.issue_category || 'Assessment Required'}`;
+
+      return {
+        // Core identifiers
+        breakdown_id: b.breakdown_id,
+        id: b.breakdown_id,
+
+        // Vehicle information
+        fleet_no: b.fleet_no,
+        fleet_number: b.fleet_no,
+        registration: b.registration,
+        depot_id: b.depot,
+
+        // Location and issue information
+        location: b.location_description || b.location || 'Location TBC',
+        issue_type: b.issue_category,
+        issue_description: b.description,
+
+        // Status and severity
+        status: b.status,
+        severity: b.severity,
+        wizard_decision: b.wizard_decision,
+        criticality: b.criticality || b.severity,
+
+        // Timing information
+        created_at: b.created_at,
+        updated_at: b.updated_at,
+        elapsed_minutes: elapsedMinutes,
+        duration_text: durationText,
+
+        // Route and priority
+        route_id: b.route || null,
+        is_priority: priorityLevel <= 2,
+        priority_level: priorityLevel,
+
+        // Supervisor information
+        supervisor_badge: b.supervisor_badge,
+        supervisor_name: b.supervisor_name,
+
+        // Dashboard card information
+        card_title: cardTitle,
+        status_color: statusColor,
+        requires_immediate_action: b.requires_immediate_action || (b.severity === 'STOP') || (priorityLevel <= 2),
+
+        // Legacy compatibility fields
+        driver_name: b.driver_name,
+        driver_phone: b.driver_phone,
+        passenger_count: b.passenger_count,
+        received_at: b.received_at || b.created_at,
+        acknowledged_at: b.acknowledged_at,
+        decision_at: b.decision_at,
+        dispatched_at: b.dispatched_at,
+        on_site_at: b.on_site_at,
+        cleared_at: b.cleared_at
+      };
+    });
+
+    res.json({
+      success: true,
+      breakdowns: formattedBreakdowns,
+      timestamp: new Date().toISOString(),
+      count: formattedBreakdowns.length
+    });
+  } catch (error) {
+    console.error('Error fetching live breakdowns (public):', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch live breakdowns',
+      timestamp: new Date().toISOString(),
+      breakdowns: [] // Return empty array for graceful degradation
+    });
+  }
+});
+
+export default router;

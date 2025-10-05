@@ -1,0 +1,3368 @@
+{
+  "lastUpdated": "2025-08-10T08:28:50.184Z",
+  "totalVehicles": 559,
+  "activeDepots": [
+    "Percy Main",
+    "Riverside",
+    "Hexham",
+    "Consett",
+    "Deptford",
+    "Washington"
+  ],
+  "fleet": [
+    {
+      "fleetNumber": "638",
+      "regNo": "NK12HCE",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9 5 (SCRT Emisssions Upgrade to Euro 6)",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "641",
+      "regNo": "NL63YBA",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "644",
+      "regNo": "NL63XZR",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "645",
+      "regNo": "NL63XZS",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "653",
+      "regNo": "NK15GDE",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "654",
+      "regNo": "NK15GDF",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "655",
+      "regNo": "NK15GDJ",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "656",
+      "regNo": "NK15GDO",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "657",
+      "regNo": "NK15GEY",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "658",
+      "regNo": "NK15GFA",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "659",
+      "regNo": "NK15GFE",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "660",
+      "regNo": "NK15GFG",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "661",
+      "regNo": "NK15GFJ",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "662",
+      "regNo": "NK15GFO",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "663",
+      "regNo": "NK15GFU",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "664",
+      "regNo": "NK15GFV",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "665",
+      "regNo": "NK15GFX",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "666",
+      "regNo": "NK15EMJ",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "667",
+      "regNo": "NK16BXH",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "668",
+      "regNo": "NK16BXJ",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "669",
+      "regNo": "NK16BXL",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "670",
+      "regNo": "NK16BXM",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "671",
+      "regNo": "NK16BXN",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "672",
+      "regNo": "NK16BXO",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "673",
+      "regNo": "NK16BXP",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "674",
+      "regNo": "NK16BXR",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "675",
+      "regNo": "NK16BXS",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "676",
+      "regNo": "NK16BXU",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "677",
+      "regNo": "NK16BXV",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "678",
+      "regNo": "NK16BXW",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "679",
+      "regNo": "NK16BXX",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "680",
+      "regNo": "NK16BXY",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "681",
+      "regNo": "NK66CWW",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "682",
+      "regNo": "NK66CWX",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "683",
+      "regNo": "NK66CWY",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "684",
+      "regNo": "NK66CWZ",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "685",
+      "regNo": "NK66CXA",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "686",
+      "regNo": "NK66CXB",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "687",
+      "regNo": "NK66CXC",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "688",
+      "regNo": "NK66CXD",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "689",
+      "regNo": "NK66CXE",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "690",
+      "regNo": "NK66CXF",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9.2 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "709",
+      "regNo": "WK58EAJ",
+      "vehicleType": "Optare Solo Solo OM904LA S2000 8.8 4",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "721",
+      "regNo": "KY63VTL",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "723",
+      "regNo": "YD63UZC",
+      "vehicleType": "Optare Solo SR Solo SR OM904LA S2100 9 5",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "726",
+      "regNo": "NK68BZW",
+      "vehicleType": "Optare Solo Solo OM934LA T2100 9.2 6",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "727",
+      "regNo": "NK68BZX",
+      "vehicleType": "Optare Solo Solo OM934LA T2100 9.2 6",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "728",
+      "regNo": "NK68BZY",
+      "vehicleType": "Optare Solo Solo OM934LA T2100 9.2 6",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "729",
+      "regNo": "NK69FAA",
+      "vehicleType": "Mercedes Sprinter Atlas 516 340 7.3 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "730",
+      "regNo": "NK69FAF",
+      "vehicleType": "Mercedes Sprinter Atlas 516 340 7.3 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "1001",
+      "regNo": "T488TTW",
+      "vehicleType": "Ancillary",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "1040",
+      "regNo": "GV65CWA",
+      "vehicleType": "Ancillary",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "1041",
+      "regNo": "GV65CXF",
+      "vehicleType": "Ancillary",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "1061",
+      "regNo": "EY67ZCT",
+      "vehicleType": "Ancillary",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "1063",
+      "regNo": "EY67WTW",
+      "vehicleType": "Ancillary",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "1064",
+      "regNo": "EY67WSX",
+      "vehicleType": "Ancillary",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "1065",
+      "regNo": "EY67WVR",
+      "vehicleType": "Ancillary",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "1066",
+      "regNo": "EY67ZCN",
+      "vehicleType": "Ancillary",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "1067",
+      "regNo": "EY67WUH",
+      "vehicleType": "Ancillary",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "1101",
+      "regNo": "EK61UDV",
+      "vehicleType": "Ancillary",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "1102",
+      "regNo": "EJ14NBF",
+      "vehicleType": "Ancillary",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "1103",
+      "regNo": "EA66AYU",
+      "vehicleType": "Ancillary",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "1104",
+      "regNo": "EA66AZJ",
+      "vehicleType": "Ancillary",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "1105",
+      "regNo": "EA66AZN",
+      "vehicleType": "Ancillary",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "1106",
+      "regNo": "EK66CVL",
+      "vehicleType": "Ancillary",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "1107",
+      "regNo": "EK66CWE",
+      "vehicleType": "Ancillary",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "1108",
+      "regNo": "EK66UGE",
+      "vehicleType": "Ancillary",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "1109",
+      "regNo": "EO66BUJ",
+      "vehicleType": "Ancillary",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "1110",
+      "regNo": "EO66YXS",
+      "vehicleType": "Ancillary",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "1111",
+      "regNo": "EO66YYB",
+      "vehicleType": "Ancillary",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "1112",
+      "regNo": "EX66PKE",
+      "vehicleType": "Ancillary",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "1114",
+      "regNo": "EX66PTO",
+      "vehicleType": "Ancillary",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "1115",
+      "regNo": "EX66PVU",
+      "vehicleType": "Ancillary",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "1117",
+      "regNo": "EX66YEB",
+      "vehicleType": "Ancillary",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "1118",
+      "regNo": "EX66YFT",
+      "vehicleType": "Ancillary",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "1119",
+      "regNo": "RE13CJZ",
+      "vehicleType": "Ancillary",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "1120",
+      "regNo": "EX66UYB",
+      "vehicleType": "Ancillary",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "3941",
+      "regNo": "NK05GZO",
+      "vehicleType": "Volvo B7TL Eclipse Gemini D7C 6HP500 10.7 3",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "3942",
+      "regNo": "NK05GZP",
+      "vehicleType": "Volvo B7TL Eclipse Gemini D7C 6HP500 10.7 3",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "3943",
+      "regNo": "NK05GZR",
+      "vehicleType": "Volvo B7TL Eclipse Gemini D7C 6HP500 10.7 3",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "3962",
+      "regNo": "NK06JXE",
+      "vehicleType": "Volvo B7TL Eclipse Gemini D7C 6HP500 10.7 3",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "3963",
+      "regNo": "NK06JXD",
+      "vehicleType": "Volvo B7TL Eclipse Gemini D7C 6HP500 10.7 3",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "3964",
+      "regNo": "NK06JXC",
+      "vehicleType": "Volvo B7TL Eclipse Gemini D7C 6HP500 10.7 3",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "3965",
+      "regNo": "NK06JXB",
+      "vehicleType": "Volvo B7TL Eclipse Gemini D7C 6HP500 10.7 3",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5210",
+      "regNo": "NK54NVE",
+      "vehicleType": "Scania L94UB Solar DC901 4HP502 12 3",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5243",
+      "regNo": "NK56KHM",
+      "vehicleType": "Scania CN230UB Omnicity DC916 5HP502 12 4",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5244",
+      "regNo": "NK56KHO",
+      "vehicleType": "Scania CN230UB Omnicity DC916 5HP502 12 4",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5245",
+      "regNo": "NK56KHP",
+      "vehicleType": "Scania CN230UB Omnicity DC916 5HP502 12 4",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5246",
+      "regNo": "NK56KHR",
+      "vehicleType": "Scania CN230UB Omnicity DC916 5HP502 12 4",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5254",
+      "regNo": "NK56KJA",
+      "vehicleType": "Scania CN230UB Omnicity DC916 5HP502 12 4",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5255",
+      "regNo": "NK56KJE",
+      "vehicleType": "Scania CN230UB Omnicity DC916 5HP502 12 4",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5358",
+      "regNo": "BX63BCK",
+      "vehicleType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5359",
+      "regNo": "BX63BCO",
+      "vehicleType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5360",
+      "regNo": "BX63BCU",
+      "vehicleType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5361",
+      "regNo": "BX63BCV",
+      "vehicleType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5362",
+      "regNo": "BX63BCY",
+      "vehicleType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5363",
+      "regNo": "BX63BCZ",
+      "vehicleType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5364",
+      "regNo": "BX63BDE",
+      "vehicleType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5365",
+      "regNo": "BX63BDF",
+      "vehicleType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5366",
+      "regNo": "BX63BDO",
+      "vehicleType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5367",
+      "regNo": "BX63BDU",
+      "vehicleType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5368",
+      "regNo": "BX63BDV",
+      "vehicleType": "Mercedes 0530N Citaro OM906hLA 6HP502 12 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5369",
+      "regNo": "NL63XAZ",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5370",
+      "regNo": "NL63XBA",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5371",
+      "regNo": "NL63XBB",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5372",
+      "regNo": "NL63XBC",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5373",
+      "regNo": "NL63XBD",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5374",
+      "regNo": "NL63XBE",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5375",
+      "regNo": "NL63XBF",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5376",
+      "regNo": "NL63XBG",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5377",
+      "regNo": "NL63YAA",
+      "vehicleType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "5378",
+      "regNo": "NL63YAD",
+      "vehicleType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "5379",
+      "regNo": "NL63YAE",
+      "vehicleType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "5380",
+      "regNo": "NL63YAF",
+      "vehicleType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "5381",
+      "regNo": "NL63YAG",
+      "vehicleType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5382",
+      "regNo": "NL63YAH",
+      "vehicleType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5383",
+      "regNo": "NL63YAJ",
+      "vehicleType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5384",
+      "regNo": "NL63YAK",
+      "vehicleType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5385",
+      "regNo": "NL63YAO",
+      "vehicleType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5386",
+      "regNo": "NL63YAU",
+      "vehicleType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5387",
+      "regNo": "NL63YAV",
+      "vehicleType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5388",
+      "regNo": "NL63YAW",
+      "vehicleType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5389",
+      "regNo": "NL63YAX",
+      "vehicleType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5390",
+      "regNo": "NL63YAY",
+      "vehicleType": "Optare Versa V1170 Versa ISBe6 S2100 11.7 5",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5391",
+      "regNo": "NK15EMV",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5392",
+      "regNo": "NK15EMX",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5393",
+      "regNo": "NK15ENC",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5394",
+      "regNo": "NK15ENE",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5395",
+      "regNo": "NK15ENF",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5396",
+      "regNo": "NK15ENH",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5397",
+      "regNo": "NK15ENJ",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5398",
+      "regNo": "NK15ENL",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5399",
+      "regNo": "NK15ENM",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5400",
+      "regNo": "NK15ENN",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5401",
+      "regNo": "NK15ENO",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5402",
+      "regNo": "NK15ENP",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5403",
+      "regNo": "NK15ENR",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5404",
+      "regNo": "NK15ENT",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5405",
+      "regNo": "NK15ENU",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5406",
+      "regNo": "NK15ENV",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5407",
+      "regNo": "NK15ENW",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5408",
+      "regNo": "NK15ENX",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5409",
+      "regNo": "NK15ENY",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5410",
+      "regNo": "NK15EOA",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5411",
+      "regNo": "NK15EOB",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5412",
+      "regNo": "NK15EOC",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5413",
+      "regNo": "NK15EOD",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5414",
+      "regNo": "NK15EOE",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5415",
+      "regNo": "NK15EOF",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5416",
+      "regNo": "NK15EOG",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5417",
+      "regNo": "NK15EOH",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5418",
+      "regNo": "NK15EOJ",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5419",
+      "regNo": "NK15EOL",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5420",
+      "regNo": "NK16BYA",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5421",
+      "regNo": "NK16BYB",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5422",
+      "regNo": "NK16BYC",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5423",
+      "regNo": "NK16BYD",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5424",
+      "regNo": "NK16BYF",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5425",
+      "regNo": "NK16BYG",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5426",
+      "regNo": "NK16BYH",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5427",
+      "regNo": "NK16BYJ",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5428",
+      "regNo": "NK16BYL",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5429",
+      "regNo": "NK16BYM",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5430",
+      "regNo": "NK16BYN",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5431",
+      "regNo": "NK16BYO",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5432",
+      "regNo": "NK16BYP",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5433",
+      "regNo": "NK16BYR",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5434",
+      "regNo": "NK16BYS",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5435",
+      "regNo": "NK16BYT",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5436",
+      "regNo": "NK16BXZ",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5437",
+      "regNo": "NK16BWY",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5438",
+      "regNo": "NK16BWZ",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5439",
+      "regNo": "NK16AZU",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5440",
+      "regNo": "NK16AZV",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5441",
+      "regNo": "NK16AZW",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5442",
+      "regNo": "NK66EVB",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5443",
+      "regNo": "NK66EVC",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5444",
+      "regNo": "NK66EVD",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5445",
+      "regNo": "NK66EVF",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5446",
+      "regNo": "NK66EVG",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5447",
+      "regNo": "NK66EVH",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5448",
+      "regNo": "NK66EVJ",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5449",
+      "regNo": "NK66EVL",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5450",
+      "regNo": "NK66EVM",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5451",
+      "regNo": "NK66EVN",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5452",
+      "regNo": "NK66EWA",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5453",
+      "regNo": "NK66EWB",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5454",
+      "regNo": "NK66EWC",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5455",
+      "regNo": "NK66EWD",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5456",
+      "regNo": "NK66EWE",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5457",
+      "regNo": "NK66EWF",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5458",
+      "regNo": "NK66EWH",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5459",
+      "regNo": "NK66EWJ",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5460",
+      "regNo": "NK66EWL",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5461",
+      "regNo": "NK66EWM",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5462",
+      "regNo": "NK66EWN",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5463",
+      "regNo": "NK17GHO",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5464",
+      "regNo": "NK17GHU",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5465",
+      "regNo": "NK17GHV",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5466",
+      "regNo": "NK17GHX",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5467",
+      "regNo": "NK17GHY",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5468",
+      "regNo": "NK17GHZ",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5469",
+      "regNo": "NK17GJE",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "5470",
+      "regNo": "NK17GJF",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5471",
+      "regNo": "NK17GJG",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5472",
+      "regNo": "NK17GJJ",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5473",
+      "regNo": "NK17GJO",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5474",
+      "regNo": "NK17GJU",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5475",
+      "regNo": "NK17GJV",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5476",
+      "regNo": "NK17GJX",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5477",
+      "regNo": "NK17GJY",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5478",
+      "regNo": "NK17GJZ",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5479",
+      "regNo": "NK17GKA",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5480",
+      "regNo": "NK17GKC",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "5488",
+      "regNo": "NK69FAU",
+      "vehicleType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5490",
+      "regNo": "NK69FBB",
+      "vehicleType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5491",
+      "regNo": "NK69FBC",
+      "vehicleType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5492",
+      "regNo": "NK69FBD",
+      "vehicleType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5493",
+      "regNo": "NK69FBE",
+      "vehicleType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5494",
+      "regNo": "NK69FBF",
+      "vehicleType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5495",
+      "regNo": "NK69FBG",
+      "vehicleType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5496",
+      "regNo": "NK69FBJ",
+      "vehicleType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5497",
+      "regNo": "NK69FBL",
+      "vehicleType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "5498",
+      "regNo": "NK69FBN",
+      "vehicleType": "ADL Enviro 200 Enviro 200 ISB4.5 D824.6 11.6 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5499",
+      "regNo": "YH66VMO",
+      "vehicleType": "Yutong CB12 E11 ISB6.7 Ecolife 12 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5500",
+      "regNo": "YD70CDZ",
+      "vehicleType": "Yutong CB12 E11 ISB6.7 Ecolife 12 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5511",
+      "regNo": "SM13NBA",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5512",
+      "regNo": "SM13NBB",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5513",
+      "regNo": "SM13NDK",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5514",
+      "regNo": "SM13NDL",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5515",
+      "regNo": "SM13NDN",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5516",
+      "regNo": "SM13NDO",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5517",
+      "regNo": "SM13NDU",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5518",
+      "regNo": "SM13NDV",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5519",
+      "regNo": "SM13NDX",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5520",
+      "regNo": "SM13NDY",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5521",
+      "regNo": "SM13NDZ",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5522",
+      "regNo": "SM13NEF",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5523",
+      "regNo": "SM13NEN",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5524",
+      "regNo": "SM13NEY",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5525",
+      "regNo": "SK63KHF",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5526",
+      "regNo": "SK63KHG",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite OM934 D624.6E 10.8 6",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5527",
+      "regNo": "SK63KHL",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite DF ISBe4 DIWA 11.6 5 (SCRT Emissions upgrade to Euro 6)",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5528",
+      "regNo": "NK16BYL",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5529",
+      "regNo": "NK16BYM",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5530",
+      "regNo": "NK16BYN",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5531",
+      "regNo": "NK16BYO",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5532",
+      "regNo": "NK16BYP",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5533",
+      "regNo": "NK16BYR",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5534",
+      "regNo": "NK16BYS",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5535",
+      "regNo": "NK16BYT",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5536",
+      "regNo": "NK16BXZ",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5537",
+      "regNo": "NK16BWY",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 11.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "5801",
+      "regNo": "NL72ETR",
+      "vehicleType": "Yutong E12 E12 12",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5802",
+      "regNo": "NL72ETT",
+      "vehicleType": "Yutong E12 E12 12",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5803",
+      "regNo": "NL72ETU",
+      "vehicleType": "Yutong E12 E12 12",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5804",
+      "regNo": "NL72ETV",
+      "vehicleType": "Yutong E12 E12 12",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5805",
+      "regNo": "NL72EUA",
+      "vehicleType": "Yutong E12 E12 12",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5806",
+      "regNo": "NL72EUB",
+      "vehicleType": "Yutong E12 E12 12",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5807",
+      "regNo": "NL72EUC",
+      "vehicleType": "Yutong E12 E12 12",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5808",
+      "regNo": "NL72EUD",
+      "vehicleType": "Yutong E12 E12 12",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "5809",
+      "regNo": "NL72EUE",
+      "vehicleType": "Yutong E12 E12 12",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6001",
+      "regNo": "NK11BGZ",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6002",
+      "regNo": "NK11BHA",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6003",
+      "regNo": "NK11BHD",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6004",
+      "regNo": "NK11BHE",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6005",
+      "regNo": "NK11BHF",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6006",
+      "regNo": "NK11BHJ",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6007",
+      "regNo": "NK11BHL",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6043",
+      "regNo": "NK12GCO",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6044",
+      "regNo": "NK12GCU",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6045",
+      "regNo": "NK12GCV",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6046",
+      "regNo": "NK12GCX",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6047",
+      "regNo": "NK12GCY",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6048",
+      "regNo": "NK12GCZ",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6049",
+      "regNo": "NK12GDA",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6050",
+      "regNo": "NK12GDE",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6051",
+      "regNo": "NK12GDF",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6052",
+      "regNo": "NK12GDJ",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6053",
+      "regNo": "NK12GDO",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6054",
+      "regNo": "NK62EKD",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6055",
+      "regNo": "NK62EJF",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6071",
+      "regNo": "NK62FAA",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6072",
+      "regNo": "NK62FBA",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "6073",
+      "regNo": "NK62FCC",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "6074",
+      "regNo": "NK62FDM",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "6075",
+      "regNo": "NK62FDN",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "6076",
+      "regNo": "NK62FEU",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6077",
+      "regNo": "NK62FGJ",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6078",
+      "regNo": "NK62FHE",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6079",
+      "regNo": "NK62FHY",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6080",
+      "regNo": "NK62FJE",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6081",
+      "regNo": "NK62FKG",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6082",
+      "regNo": "NK62FLF",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6083",
+      "regNo": "NK13EJO",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6084",
+      "regNo": "NL63XBS",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6085",
+      "regNo": "NL63YHN",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6086",
+      "regNo": "NL63YHO",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6087",
+      "regNo": "NL63YHP",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6088",
+      "regNo": "NL63YHR",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6089",
+      "regNo": "NL63YHS",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6090",
+      "regNo": "NL63YHT",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6091",
+      "regNo": "NL63YHU",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6092",
+      "regNo": "NL63YHV",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6093",
+      "regNo": "NL63YHW",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6094",
+      "regNo": "NL63YHX",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6095",
+      "regNo": "NL63YHY",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6096",
+      "regNo": "NL63YHZ",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6097",
+      "regNo": "NL63YJA",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6098",
+      "regNo": "NL63YJB",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6099",
+      "regNo": "NL63YJC",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6100",
+      "regNo": "NL63YJD",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6101",
+      "regNo": "NL63YJE",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6102",
+      "regNo": "NL63YJF",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6103",
+      "regNo": "NL63XBT",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6104",
+      "regNo": "NL63YJG",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6105",
+      "regNo": "NL63YJH",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6106",
+      "regNo": "NL63YCJ",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6107",
+      "regNo": "NL63YCK",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6108",
+      "regNo": "NL63YCM",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6109",
+      "regNo": "NL63YCN",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6110",
+      "regNo": "NL63YCO",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6111",
+      "regNo": "NL63XBV",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6112",
+      "regNo": "NL63XBW",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6113",
+      "regNo": "NL63XBX",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6114",
+      "regNo": "NL63XBY",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6115",
+      "regNo": "NL63XBZ",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6116",
+      "regNo": "NL63XCA",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6117",
+      "regNo": "NL63XCB",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6149",
+      "regNo": "LJ62KBY",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6150",
+      "regNo": "LJ62KCU",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6151",
+      "regNo": "LJ62KDV",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6152",
+      "regNo": "LJ62KDZ",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6153",
+      "regNo": "LJ62KLC",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6154",
+      "regNo": "LJ62KLS",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6155",
+      "regNo": "LJ62KOX",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6156",
+      "regNo": "LJ62KXX",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6157",
+      "regNo": "LJ62KXZ",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6158",
+      "regNo": "LJ62KYA",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Hexham"
+    },
+    {
+      "fleetNumber": "6159",
+      "regNo": "LJ62KYG",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6160",
+      "regNo": "LJ62KZD",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6161",
+      "regNo": "LJ62KZP",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6172",
+      "regNo": "YN57FYP",
+      "vehicleType": "Scania N270UD Omnidekka DC917 4HP592 10.8 4",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6173",
+      "regNo": "YN57FYF",
+      "vehicleType": "Scania N270UD Omnidekka DC917 4HP592 10.8 4",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6174",
+      "regNo": "YN57FYG",
+      "vehicleType": "Scania N270UD Omnidekka DC917 4HP592 10.8 4",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6175",
+      "regNo": "YN57FYH",
+      "vehicleType": "Scania N270UD Omnidekka DC917 4HP592 10.8 4",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6177",
+      "regNo": "SN57DFJ",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6179",
+      "regNo": "SN57DFU",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6180",
+      "regNo": "SN57DFV",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6181",
+      "regNo": "SN57DFX",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6182",
+      "regNo": "SN57DFY",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6183",
+      "regNo": "MX07BRF",
+      "vehicleType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6184",
+      "regNo": "MX07BRV",
+      "vehicleType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6185",
+      "regNo": "MX07BRZ",
+      "vehicleType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6186",
+      "regNo": "MX07BSO",
+      "vehicleType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6187",
+      "regNo": "MX07BSU",
+      "vehicleType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6188",
+      "regNo": "GX03SUY",
+      "vehicleType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6189",
+      "regNo": "MX07BUE",
+      "vehicleType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6190",
+      "regNo": "MX07BUU",
+      "vehicleType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6191",
+      "regNo": "MX07BUV",
+      "vehicleType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6192",
+      "regNo": "MX57HDZ",
+      "vehicleType": "Volvo B9TL Eclipse Gemini D9B Ecolife 10.4 4",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6193",
+      "regNo": "YX08FWE",
+      "vehicleType": "Volvo B9TL Eclipse Gemini D9B 6AP1200B 10.4 4",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6194",
+      "regNo": "YX08FWF",
+      "vehicleType": "Volvo B9TL Eclipse Gemini D9B 6AP1200B 10.4 4",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6195",
+      "regNo": "YX08FWG",
+      "vehicleType": "Volvo B9TL Eclipse Gemini D9B 6AP1200B 10.4 4",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6196",
+      "regNo": "YX08FWH",
+      "vehicleType": "Volvo B9TL Eclipse Gemini D9B 6AP1200B 10.4 4",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6197",
+      "regNo": "BG59FXB",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6198",
+      "regNo": "LK59FDM",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6199",
+      "regNo": "LK59FDO",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6200",
+      "regNo": "LX59CYA",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6201",
+      "regNo": "LX59CYC",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6202",
+      "regNo": "LX59CYE",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6203",
+      "regNo": "LX59CYF",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6204",
+      "regNo": "LX59CYP",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6205",
+      "regNo": "LX59CYS",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6206",
+      "regNo": "LX59CYT",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6207",
+      "regNo": "LX59CYU",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6208",
+      "regNo": "LX59CYV",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6209",
+      "regNo": "LX59CYW",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6210",
+      "regNo": "CU7661",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6211",
+      "regNo": "CU6860",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6212",
+      "regNo": "JCN822",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6213",
+      "regNo": "LX59CZB",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6214",
+      "regNo": "LX59CZC",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6215",
+      "regNo": "LX59CZD",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6216",
+      "regNo": "LX59CZF",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6217",
+      "regNo": "LX59CZG",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6218",
+      "regNo": "LX59CZH",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6219",
+      "regNo": "LX59CZJ",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6220",
+      "regNo": "LX59CZP",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6221",
+      "regNo": "LX59CZR",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6222",
+      "regNo": "LX59CZT",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6223",
+      "regNo": "LX59CZU",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6224",
+      "regNo": "LX59CZV",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6225",
+      "regNo": "LX59DDJ",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6226",
+      "regNo": "LX60DXM",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6227",
+      "regNo": "LX60DXO",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6228",
+      "regNo": "LX60DXP",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6229",
+      "regNo": "LX60DXR",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6230",
+      "regNo": "LX60DXS",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6231",
+      "regNo": "LX60DXT",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.4 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6232",
+      "regNo": "SN61BGF",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6233",
+      "regNo": "SN61BGK",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6234",
+      "regNo": "SN61BGO",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6235",
+      "regNo": "SN61BGU",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6236",
+      "regNo": "SN61BGV",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6237",
+      "regNo": "SN61BGX",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6238",
+      "regNo": "SN61BGY",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6239",
+      "regNo": "SN61BGZ",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6240",
+      "regNo": "SN61BHA",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6301",
+      "regNo": "NK16BXA",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6302",
+      "regNo": "NK16BXB",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6303",
+      "regNo": "NK16BXC",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6304",
+      "regNo": "NK16BXD",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6305",
+      "regNo": "NK16BXE",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6306",
+      "regNo": "NK16BXF",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6307",
+      "regNo": "NK16BXG",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6308",
+      "regNo": "NK67ECD",
+      "vehicleType": "Volvo B5TL Eclipse Gemini 2 D5K240 6AP1003B 10.4 6",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6309",
+      "regNo": "NK67ECE",
+      "vehicleType": "Volvo B5TL Eclipse Gemini 2 D5K240 6AP1003B 10.4 6",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6310",
+      "regNo": "NK67EBC",
+      "vehicleType": "Volvo B5TL Eclipse Gemini 2 D5K240 6AP1003B 10.4 6",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6311",
+      "regNo": "NK67EBD",
+      "vehicleType": "Volvo B5TL Eclipse Gemini 2 D5K240 6AP1003B 10.4 6",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6312",
+      "regNo": "NK67EBF",
+      "vehicleType": "Volvo B5TL Eclipse Gemini 2 D5K240 6AP1003B 10.4 6",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6313",
+      "regNo": "NK67EBG",
+      "vehicleType": "Volvo B5TL Eclipse Gemini 2 D5K240 6AP1003B 10.4 6",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6314",
+      "regNo": "NK67EBJ",
+      "vehicleType": "Volvo B5TL Eclipse Gemini 2 D5K240 6AP1003B 10.4 6",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "6315",
+      "regNo": "NK67GMG",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6316",
+      "regNo": "NK67GMO",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6317",
+      "regNo": "NK67GMU",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6318",
+      "regNo": "NK67GMV",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6319",
+      "regNo": "NK67GMX",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6320",
+      "regNo": "NK67GMY",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6321",
+      "regNo": "NK67GMZ",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6322",
+      "regNo": "NK67GNF",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6323",
+      "regNo": "NK67GNJ",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6324",
+      "regNo": "NK67GNN",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6325",
+      "regNo": "NK67GNO",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6326",
+      "regNo": "NK67GNP",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6327",
+      "regNo": "NK67GNU",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6328",
+      "regNo": "NK67GNV",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6329",
+      "regNo": "NK67GNX",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6330",
+      "regNo": "NK67GNY",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6331",
+      "regNo": "NK67GNZ",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6332",
+      "regNo": "NK67GOA",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6333",
+      "regNo": "NK67GOC",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6336",
+      "regNo": "YX64VOO",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISB4.5 6AP1200B 10.9 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6337",
+      "regNo": "YY64GWX",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISB4.5 6AP1200B 10.9 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6338",
+      "regNo": "YX69NPA",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6339",
+      "regNo": "YX69NPC",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6340",
+      "regNo": "YX69NPD",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6341",
+      "regNo": "YX20OKA",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6342",
+      "regNo": "YX20OKB",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6343",
+      "regNo": "YX70OKJ",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6344",
+      "regNo": "YX70OKK",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6345",
+      "regNo": "YX20OKE",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6346",
+      "regNo": "YX70OHW",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6347",
+      "regNo": "YX20OKG",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6348",
+      "regNo": "YX70OKL",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6349",
+      "regNo": "YX20OKJ",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6350",
+      "regNo": "YX20OKK",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6351",
+      "regNo": "YX70OHY",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6352",
+      "regNo": "YX70OKM",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6353",
+      "regNo": "YX70OKN",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6354",
+      "regNo": "YX70OKO",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6355",
+      "regNo": "YX70OKP",
+      "vehicleType": "ADL Enviro 400 MMC Enviro 400 MMC ISBe6.7 6AP1203B 10.9 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6356",
+      "regNo": "NK20ELV",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6357",
+      "regNo": "NK20ELW",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6358",
+      "regNo": "NK20EMF",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6359",
+      "regNo": "NK20EMJ",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6360",
+      "regNo": "NK20EMV",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6361",
+      "regNo": "NK70BYJ",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6362",
+      "regNo": "NK70BYL",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6363",
+      "regNo": "NK70BYN",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6364",
+      "regNo": "NK70BYA",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6365",
+      "regNo": "NK70BYB",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6366",
+      "regNo": "NK70BYC",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6367",
+      "regNo": "NK70BYD",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6368",
+      "regNo": "NK70BYF",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6369",
+      "regNo": "NK70BYG",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6370",
+      "regNo": "NK70BYH",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6371",
+      "regNo": "NK70BYM",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6372",
+      "regNo": "NK70BYO",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6373",
+      "regNo": "NK70BYP",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6374",
+      "regNo": "NK70BYR",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6375",
+      "regNo": "NK70BYT",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6376",
+      "regNo": "NK70BYU",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "6377",
+      "regNo": "NK70BYV",
+      "vehicleType": "Wrightbus Streetdeck Streetdeck OM934 D854.6 11 6",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6944",
+      "regNo": "LX57CHZ",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6945",
+      "regNo": "LX57CJE",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6946",
+      "regNo": "LX57CKF",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6947",
+      "regNo": "LX57CKG",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6948",
+      "regNo": "LX57CLY",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6949",
+      "regNo": "LX08EBU",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6950",
+      "regNo": "LX08EBV",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Consett"
+    },
+    {
+      "fleetNumber": "6951",
+      "regNo": "LX08EBZ",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6952",
+      "regNo": "LX08ECA",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6954",
+      "regNo": "LX09FAJ",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6955",
+      "regNo": "LX09FAK",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6956",
+      "regNo": "LX09FAM",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6957",
+      "regNo": "LX09FAO",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6958",
+      "regNo": "LX09FAU",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe4 5HP502 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6959",
+      "regNo": "SN60BZB",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6960",
+      "regNo": "SN60BZC",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6961",
+      "regNo": "SN60BZD",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6962",
+      "regNo": "SN60BZE",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6963",
+      "regNo": "SN60BZF",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6964",
+      "regNo": "SN60BZG",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6965",
+      "regNo": "SN60BZH",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6966",
+      "regNo": "SN60BZJ",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe6 6HP1203B 10.1 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6967",
+      "regNo": "LX06FKN",
+      "vehicleType": "ADL Enviro 400 Enviro 400 ISBe4 D854.5E 10.1 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6970",
+      "regNo": "LX58CXG",
+      "vehicleType": "ADL Enviro 400 Olympus ISBe4 5HP502 10.3 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6972",
+      "regNo": "LX58CXJ",
+      "vehicleType": "ADL Enviro 400 Olympus ISBe4 5HP502 10.3 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6973",
+      "regNo": "LX58CXK",
+      "vehicleType": "ADL Enviro 400 Olympus ISBe4 5HP502 10.3 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6974",
+      "regNo": "LX58CWP",
+      "vehicleType": "ADL Enviro 400 Olympus ISBe4 5HP502 10.3 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6975",
+      "regNo": "LX58CXN",
+      "vehicleType": "ADL Enviro 400 Olympus ISBe4 5HP502 10.3 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6976",
+      "regNo": "LX58CXP",
+      "vehicleType": "ADL Enviro 400 Olympus ISBe4 5HP502 10.3 4 (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "6993",
+      "regNo": "SNZ1104",
+      "vehicleType": "Scania N230UD Enviro 400 DC930 5HP504 10.9 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6994",
+      "regNo": "NLZ5111",
+      "vehicleType": "Scania N230UD Enviro 400 DC930 5HP504 10.9 5 EEV (SCRT Emissions Upgrade to Euro 6)",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6995",
+      "regNo": "MIG7113",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "6996",
+      "regNo": "LIG9116",
+      "vehicleType": "Volvo B9TL Eclipse Gemini 2 D9B 6AP1403B Ecolife 10.5 5 EEV",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "8313",
+      "regNo": "NK10GOC",
+      "vehicleType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "8314",
+      "regNo": "NK10GOE",
+      "vehicleType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "8315",
+      "regNo": "NK10GOH",
+      "vehicleType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "8316",
+      "regNo": "NK10GOJ",
+      "vehicleType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "8317",
+      "regNo": "NK10GOP",
+      "vehicleType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "8318",
+      "regNo": "NK10GOU",
+      "vehicleType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "8319",
+      "regNo": "NK11FXB",
+      "vehicleType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "8320",
+      "regNo": "NK11FXC",
+      "vehicleType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "8321",
+      "regNo": "NK11FXD",
+      "vehicleType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "8322",
+      "regNo": "NK11FXE",
+      "vehicleType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "8323",
+      "regNo": "NK11FXF",
+      "vehicleType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "8324",
+      "regNo": "NK11FXG",
+      "vehicleType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+      "depot": "Percy Main"
+    },
+    {
+      "fleetNumber": "8325",
+      "regNo": "NK11FXH",
+      "vehicleType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+      "depot": "Washington"
+    },
+    {
+      "fleetNumber": "8326",
+      "regNo": "NK11GWX",
+      "vehicleType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "8327",
+      "regNo": "NK11GWY",
+      "vehicleType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "8328",
+      "regNo": "NK11HBC",
+      "vehicleType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "8334",
+      "regNo": "NK11HJE",
+      "vehicleType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "8335",
+      "regNo": "NK11HJF",
+      "vehicleType": "Optare Versa V1110 Versa ISBe6 S2100 11.1 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "8339",
+      "regNo": "NL63XBH",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 10.8 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "8340",
+      "regNo": "NL63XBJ",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 10.8 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "8341",
+      "regNo": "NL63XBK",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 10.8 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "8342",
+      "regNo": "NL63XBM",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 10.8 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "8343",
+      "regNo": "NL63XBN",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 10.8 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "8344",
+      "regNo": "NL63XBO",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 10.8 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "8345",
+      "regNo": "NL63XBP",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 10.8 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "8346",
+      "regNo": "NL63XBR",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D854.5E 10.8 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "8348",
+      "regNo": "SK63GAA",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D823.3E 10.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "8349",
+      "regNo": "WX12GDO",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D823.3E 10.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "8350",
+      "regNo": "WX12GDU",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D823.3E 10.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "8351",
+      "regNo": "WX12GDV",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D823.3E 10.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "8352",
+      "regNo": "WX12GDY",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D823.3E 10.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "8353",
+      "regNo": "WX12GDZ",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D823.3E 10.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "8354",
+      "regNo": "WX12GEJ",
+      "vehicleType": "Wrightbus Streetlite DF Streetlite ISBe5 D823.3E 10.5 5",
+      "depot": "Deptford"
+    },
+    {
+      "fleetNumber": "8801",
+      "regNo": "ND70AFA",
+      "vehicleType": "Yutong E10 E10 10.9",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "8802",
+      "regNo": "ND70AET",
+      "vehicleType": "Yutong E10 E10 10.9",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "8803",
+      "regNo": "ND70AEU",
+      "vehicleType": "Yutong E10 E10 10.9",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "8804",
+      "regNo": "ND70AEV",
+      "vehicleType": "Yutong E10 E10 10.9",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "8805",
+      "regNo": "ND70AEW",
+      "vehicleType": "Yutong E10 E10 10.9",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "8806",
+      "regNo": "ND70AEX",
+      "vehicleType": "Yutong E10 E10 10.9",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "8807",
+      "regNo": "ND70AEY",
+      "vehicleType": "Yutong E10 E10 10.9",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "8808",
+      "regNo": "ND70AEZ",
+      "vehicleType": "Yutong E10 E10 10.9",
+      "depot": "Riverside"
+    },
+    {
+      "fleetNumber": "8809",
+      "regNo": "ND70AFK",
+      "vehicleType": "Yutong E10 E10 10.9",
+      "depot": "Riverside"
+    }
+  ]
+}

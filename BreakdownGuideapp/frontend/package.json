@@ -36,6 +36,7 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
+    "build:cpanel": "vite build && echo '\n✓ Build complete! Upload dist/ folder to cPanel.\n  See CPANEL_DEPLOYMENT.md for instructions.'",
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",

@@ -166,11 +166,13 @@ import activityRoutes from './routes/activity.js';
 import supervisorRoutes from './routes/supervisors.js';
 import breakdownsAPIRoutes from './routes/breakdownsAPI.js';
 import preferencesRoutes from './routes/preferences.js';
+import publicRoutes from './routes/public.js';
 import webSocketHandler from './routes/webSocketHandler.js';
 
 // Public routes (no authentication required)
 app.get('/health', healthCheck);
 app.get('/api/health', healthCheck);
+app.use('/api/public', publicRoutes); // Public endpoints for Control Room Display
 
 // Authentication routes (with rate limiting)
 app.use('/api/auth', rateLimitLogin, authRoutes);
