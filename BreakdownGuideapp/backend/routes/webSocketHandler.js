@@ -63,31 +63,15 @@ class WebSocketHandler {
 
     console.log(`🔗 New WebSocket connection attempt: ${clientId} on channel: ${channel}`);
 
-    // Authenticate WebSocket connection
+    // Authenticate WebSocket connection - ALWAYS required
     let user = null;
     let supervisor = null;
 
-    // DEVELOPMENT ONLY: Allow unauthenticated connections
-    if (process.env.NODE_ENV === 'development' && !token) {
-      console.log('🔧 Development mode: WebSocket auth bypass for', channel);
-      user = {
-        id: '1646c9a7-58fe-4ea6-bff2-8b5c3bbe54a0',
-        email: 'anthony.gair@gonortheast.co.uk',
-        role: 'admin'
-      };
-      supervisor = {
-        id: '1646c9a7-58fe-4ea6-bff2-8b5c3bbe54a0',
-        email: 'anthony.gair@gonortheast.co.uk',
-        name: 'Anthony Gair',
-        depot: 'SDC',
-        role: 'admin'
-      };
-    } else {
-      // PRODUCTION: Require authentication for protected channels
-      const protectedChannels = ['sdc-dashboard', 'breakdowns', 'assessment-progress'];
+    // ALL channels require authentication
+    const protectedChannels = ['sdc-dashboard', 'breakdowns', 'assessment-progress'];
 
-      if (protectedChannels.includes(channel)) {
-        if (!token) {
+    if (protectedChannels.includes(channel)) {
+      if (!token) {
           console.warn(`❌ WebSocket authentication required for channel: ${channel}`);
           ws.send(JSON.stringify({
             type: 'error',

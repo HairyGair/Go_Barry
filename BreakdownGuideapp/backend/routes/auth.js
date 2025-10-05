@@ -1,9 +1,16 @@
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
+import { authenticateAdmin } from '../middleware/authMiddleware.js';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL || 'https://oieliubbvvdzhzvikzal.supabase.co';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9pZWxpdWJidnZkemh6dmlremFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1NTA5OTUsImV4cCI6MjA3MTEyNjk5NX0.L0qUXBFOnzxoXt-ChhMAW8zqgprUXFdvqR2dxJ1GTU8';
+// Initialize Supabase client - fail fast if credentials missing
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('❌ FATAL: Missing Supabase credentials in auth.js');
+    process.exit(1);
+}
+
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const router = express.Router();
@@ -610,7 +617,7 @@ router.get('/recent-sessions', async (req, res) => {
 });
 
 // GET /api/auth/pending-signups - Get all pending supervisor signups (Admin only)
-router.get('/pending-signups', async (req, res) => {
+router.get('/pending-signups', authenticateAdmin, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('supervisors')
@@ -635,7 +642,7 @@ router.get('/pending-signups', async (req, res) => {
 });
 
 // POST /api/auth/approve-signup - Approve a pending supervisor signup (Admin only)
-router.post('/approve-signup', async (req, res) => {
+router.post('/approve-signup', authenticateAdmin, async (req, res) => {
   try {
     const { supervisorId, approved = true } = req.body;
 
@@ -753,7 +760,7 @@ router.post('/approve-signup', async (req, res) => {
 });
 
 // PUT /api/auth/supervisor/:id - Update supervisor details (Admin only)
-router.put('/supervisor/:id', async (req, res) => {
+router.put('/supervisor/:id', authenticateAdmin, async (req, res) => {
   try {
     const supervisorId = req.params.id;
     const { name, email, depot, role, is_active } = req.body;

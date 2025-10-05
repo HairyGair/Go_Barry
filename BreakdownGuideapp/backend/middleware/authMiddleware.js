@@ -4,8 +4,16 @@
 import jwt from 'jsonwebtoken';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL || 'https://oieliubbvvdzhzvikzal.supabase.co';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9pZWxpdWJidnZkemh6dmlremFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1NTA5OTUsImV4cCI6MjA3MTEyNjk5NX0.L0qUXBFOnzxoXt-ChhMAW8zqgprUXFdvqR2dxJ1GTU8';
+// Fail fast if required credentials are missing
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+    console.error('❌ FATAL: Missing required Supabase credentials');
+    console.error('   Set SUPABASE_URL and SUPABASE_ANON_KEY environment variables');
+    process.exit(1);
+}
+
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Rate limiting storage (in-memory for now)
@@ -166,22 +174,7 @@ export const verifyToken = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
 
-        // DEVELOPMENT ONLY: Allow bypass for testing (REMOVED FROM PRODUCTION)
-        if (process.env.NODE_ENV === 'development' &&
-            (!authHeader || authHeader === 'Bearer undefined' || authHeader === 'Bearer null')) {
-            console.log('🔧 Development mode: Auth bypass for', req.path);
-            req.user = {
-                id: '1646c9a7-58fe-4ea6-bff2-8b5c3bbe54a0',
-                email: 'anthony.gair@gonortheast.co.uk',
-                role: 'admin',
-                aud: 'authenticated',
-                exp: Math.floor(Date.now() / 1000) + 3600,
-                iat: Math.floor(Date.now() / 1000)
-            };
-            return next();
-        }
-
-        // PRODUCTION: Require authentication
+        // ALWAYS require authentication - no bypasses
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({
                 error: 'Authentication required',
@@ -366,25 +359,7 @@ export const authenticateSDC = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
 
-        // DEVELOPMENT ONLY: Allow bypass
-        if (process.env.NODE_ENV === 'development' && (!authHeader || authHeader === 'Bearer undefined')) {
-            console.log('🔧 Development mode: SDC auth bypass for', req.path);
-            req.user = {
-                id: '1646c9a7-58fe-4ea6-bff2-8b5c3bbe54a0',
-                email: 'anthony.gair@gonortheast.co.uk',
-                role: 'admin'
-            };
-            req.supervisor = {
-                id: '1646c9a7-58fe-4ea6-bff2-8b5c3bbe54a0',
-                email: 'anthony.gair@gonortheast.co.uk',
-                name: 'Anthony Gair',
-                depot: 'SDC',
-                role: 'admin'
-            };
-            return next();
-        }
-
-        // PRODUCTION: Require authentication
+        // ALWAYS require authentication - no bypasses
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({
                 success: false,
