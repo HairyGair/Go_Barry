@@ -5,7 +5,7 @@
 
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
-import { authenticateSupervisor } from '../middleware/auth.js';
+import { authenticateSupervisor } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
