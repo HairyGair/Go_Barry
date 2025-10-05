@@ -1,7 +1,13 @@
 import express from 'express';
-import { supabase } from '../server.js';
+import { createClient } from '@supabase/supabase-js';
 
 const router = express.Router();
+
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
 // GET /api/supervisors/:id/stats - Get supervisor statistics
 router.get('/:id/stats', async (req, res) => {
