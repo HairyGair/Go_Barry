@@ -198,16 +198,18 @@ const App = () => {
     
     // Handle fleet selection
     const handleFleetSelection = async (vehicleWithLocation) => {
-        // Extract location and route from the vehicle object if present
+        // Extract location, route, and secured mileage from the vehicle object if present
         const vehicle = { ...vehicleWithLocation };
         const location = vehicle.location || null;
         const route = vehicle.route || '';
         const routeDisplayName = vehicle.routeName || route;
+        const securedMileage = vehicle.securedMileage || false;
 
-        // Clean vehicle object - remove location and route data
+        // Clean vehicle object - remove location, route data, and secured mileage
         delete vehicle.location;
         delete vehicle.route;
         delete vehicle.routeName;
+        delete vehicle.securedMileage;
 
         console.log('🚗 handleFleetSelection - vehicle:', vehicle);
         console.log('🚗 Fleet number from selection:', vehicle.fleetNumber);
@@ -215,6 +217,7 @@ const App = () => {
         console.log('🚗 Vehicle type from selection:', vehicle.vehicleType);
         console.log('🚗 Location:', location);
         console.log('🚗 Route:', route);
+        console.log('🚗 Secured Mileage:', securedMileage);
 
         // Update state with vehicle, location, and route data
         setSelectedVehicle(vehicle);
@@ -222,9 +225,9 @@ const App = () => {
         setSelectedRoute(route);
         setRouteName(routeDisplayName);
         setShowFleetModal(false);
-        
+
         if (pendingWizardType) {
-            // Start the breakdown with location and route data
+            // Start the breakdown with location, route, and secured mileage data
             const breakdownId = await supervisorBreakdownLogger.startBreakdown({
                 vehicle,
                 issueCategory: pendingWizardType,
@@ -232,7 +235,8 @@ const App = () => {
                 driverPhone: '',
                 location: location,
                 route: route,
-                routeName: routeDisplayName
+                routeName: routeDisplayName,
+                securedMileage: securedMileage
             });
             
             // Get wizard config for total steps

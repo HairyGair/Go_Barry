@@ -43,9 +43,11 @@ body {
   max-width: 1600px;
   margin: 0 auto;
   padding: 20px;
+  padding-bottom: 100px; /* Extra padding at bottom for long wizards */
   display: flex;
   flex-direction: column;
   gap: 30px;
+  min-height: auto; /* Allow natural height */
 }
 
 /* Header styles removed - using shared AppHeader component */

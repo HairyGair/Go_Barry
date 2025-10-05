@@ -26,6 +26,9 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
     const [showRouteSearch, setShowRouteSearch] = useState(false);
     const [routeSearchResults, setRouteSearchResults] = useState([]);
 
+    // Secured mileage state
+    const [securedMileage, setSecuredMileage] = useState(false);
+
     // Storage hooks
     const { topRoutes, updateRoute } = useFrequentRoutes();
     const { recentFleetNumbers, saveFleetNumber } = useRecentFleetNumbers();
@@ -111,6 +114,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                 setSearchQuery(draft.fleetNumber || '');
                 setSelectedRoute(draft.route || '');
                 setRouteName(draft.routeName || '');
+                setSecuredMileage(draft.securedMileage || false);
 
                 // If draft has fleet data, set it
                 if (draft.fleetData) {
@@ -127,6 +131,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                 setSelectedRoute('');
                 setRouteName('');
                 setRouteSearch('');
+                setSecuredMileage(false);
             }
             // Only clear ticketerCoords when modal is first opened, not on every state change
             if (!isOpen) {
@@ -147,6 +152,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                 fleetData: selectedVehicle,
                 route: selectedRoute,
                 routeName,
+                securedMileage,
                 timestamp: new Date().toISOString(),
                 step: currentStep
             };
@@ -158,7 +164,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
 
             return () => clearTimeout(saveTimer);
         }
-    }, [searchQuery, selectedVehicle, routeName]); // Removed frequent dependencies to reduce triggers
+    }, [searchQuery, selectedVehicle, routeName, securedMileage]); // Added securedMileage to dependencies
     
     // Search fleet
     useEffect(() => {
@@ -266,11 +272,11 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
     
     const handleTicketerSubmit = async () => {
         let lat, lng;
-        
+
         // First try to match the format: LAT:XX LONG:YY
         const formatRegex = /LAT[:\s]*([-\d.]+)[,\s]+LONG[:\s]*([-\d.]+)/i;
         const formatMatch = ticketerCoords.match(formatRegex);
-        
+
         if (formatMatch) {
             lat = parseFloat(formatMatch[1]);
             lng = parseFloat(formatMatch[2]);
@@ -278,13 +284,13 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
             // Try to match simple comma-separated format: lat, lng
             const simpleRegex = /^\s*([-\d.]+)\s*,\s*([-\d.]+)\s*$/;
             const simpleMatch = ticketerCoords.match(simpleRegex);
-            
+
             if (simpleMatch) {
                 lat = parseFloat(simpleMatch[1]);
                 lng = parseFloat(simpleMatch[2]);
             }
         }
-        
+
         if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
             setSelectedLocation({
                 type: 'ticketer',
@@ -292,12 +298,13 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                 lng,
                 description: `Ticketer Location (${lat.toFixed(6)}, ${lng.toFixed(6)})`
             });
-            
-            // Complete the selection with route data
+
+            // Complete the selection with route data and secured mileage
             const completeVehicleData = {
                 ...selectedVehicle,
                 route: selectedRoute,
                 routeName: routeName,
+                securedMileage: securedMileage,
                 location: {
                     type: 'ticketer',
                     lat,
@@ -306,10 +313,10 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                     description: `Ticketer Location (${lat.toFixed(6)}, ${lng.toFixed(6)})`
                 }
             };
-            
+
             // Store the complete vehicle data with location and route
             storeSelectedVehicle(completeVehicleData);
-            
+
             onSelectVehicle(completeVehicleData);
 
             // Clear draft on successful completion
@@ -324,17 +331,18 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
     
     const handleDepotSelect = (depotName) => {
         const depot = depotLocations[depotName];
-        
+
         setSelectedLocation({
             type: 'depot',
             name: depotName,
             ...depot
         });
-        
+
         const completeVehicleData = {
             ...selectedVehicle,
             route: selectedRoute,
             routeName: routeName,
+            securedMileage: securedMileage,
             location: {
                 type: 'depot',
                 name: depotName,
@@ -342,10 +350,10 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                 ...depot
             }
         };
-        
+
         // Store the complete vehicle data with location and route
         storeSelectedVehicle(completeVehicleData);
-        
+
         onSelectVehicle(completeVehicleData);
 
         // Clear draft on successful completion
@@ -359,15 +367,16 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
             ...selectedVehicle,
             route: selectedRoute,
             routeName: routeName,
+            securedMileage: securedMileage,
             location: {
                 type: 'skip',
                 description: 'Location to be added later'
             }
         };
-        
+
         // Store the complete vehicle data with location and route
         storeSelectedVehicle(completeVehicleData);
-        
+
         onSelectVehicle(completeVehicleData);
 
         // Clear draft on successful completion
@@ -506,6 +515,39 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                 </div>
 
                                 <h3 className="text-lg font-semibold text-white">Which route was the vehicle operating?</h3>
+
+                                {/* Secured Mileage Checkbox */}
+                                <div
+                                    className={`p-4 rounded-lg border-2 transition-all ${
+                                        securedMileage
+                                            ? 'bg-orange-500/20 border-orange-500/50'
+                                            : 'bg-gray-800 border-gray-600 hover:border-gray-500'
+                                    }`}
+                                >
+                                    <label className="flex items-start gap-3 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={securedMileage}
+                                            onChange={(e) => setSecuredMileage(e.target.checked)}
+                                            className="w-5 h-5 mt-0.5 rounded border-gray-500 text-orange-500 focus:ring-orange-500 focus:ring-offset-gray-800 cursor-pointer"
+                                        />
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <span className={`font-semibold ${securedMileage ? 'text-orange-400' : 'text-white'}`}>
+                                                    Secured Mileage
+                                                </span>
+                                                {securedMileage && (
+                                                    <span className="px-2 py-0.5 bg-orange-500 text-white text-xs font-bold rounded">
+                                                        CRITICAL
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-sm text-gray-400 mt-1">
+                                                This vehicle is operating contracted work. Failure to fulfill secured mileage may result in fines.
+                                            </p>
+                                        </div>
+                                    </label>
+                                </div>
 
                                 {/* Show error if any */}
                                 {error && (

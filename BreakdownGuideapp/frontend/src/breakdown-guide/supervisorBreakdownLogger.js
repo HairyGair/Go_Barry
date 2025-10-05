@@ -209,7 +209,8 @@ class SupervisorBreakdownLogger {
             // Additional context
             priority_level: data.decision === 'STOP' ? 1 : data.decision === 'AMBER' ? 2 : 3,
             engineering_required: data.decision === 'STOP',
-            replacement_vehicle_required: data.decision === 'STOP'
+            replacement_vehicle_required: data.decision === 'STOP',
+            secured_mileage: this.currentBreakdown.securedMileage || false
         };
 
         console.log('🚀 Sending wizard completion data to dashboard:', wizardData);

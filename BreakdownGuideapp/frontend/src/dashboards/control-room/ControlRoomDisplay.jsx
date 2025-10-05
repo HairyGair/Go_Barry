@@ -29,8 +29,31 @@ const ControlRoomDisplay = () => {
   const [priorityAlerts, setPriorityAlerts] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [fleetDatabase, setFleetDatabase] = useState({});
+  const [currentWeatherIndex, setCurrentWeatherIndex] = useState(0);
+  const [weatherData, setWeatherData] = useState(null);
 
   const scrollIntervalRef = useRef(null);
+
+  // Weather locations to rotate through
+  const weatherLocations = [
+    'Durham,UK',
+    'Consett,UK',
+    'Washington,UK',
+    'Hexham,UK',
+    'Newcastle,UK',
+    'Gateshead,UK',
+    'Sunderland,UK',
+    'Percy Main,UK',
+    'North Shields,UK',
+    'Tynemouth,UK',
+    'Blyth,UK',
+    'Cramlington,UK',
+    'Killingworth,UK',
+    'Middlesbrough,UK',
+    'Bishop Auckland,UK',
+    'Peterlee,UK'
+  ];
 
   // WebSocket connection for real-time updates (using public channel, no auth required)
   const connectionManager = useConnectionManager({
@@ -48,6 +71,81 @@ const ControlRoomDisplay = () => {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Fetch fleet database on mount
+  useEffect(() => {
+    const fetchFleetDatabase = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://breakdown-guide.onrender.com'}/api/public/fleet`)
+          .then(res => res.json());
+        if (response.success && response.fleet) {
+          setFleetDatabase(response.fleet);
+        }
+      } catch (error) {
+        console.error('Error fetching fleet database:', error);
+      }
+    };
+    fetchFleetDatabase();
+  }, []);
+
+  // Fetch weather data
+  const fetchWeather = useCallback(async () => {
+    try {
+      const location = weatherLocations[currentWeatherIndex];
+      const apiKey = import.meta.env.VITE_WEATHER_API_KEY;
+
+      // Skip if no API key is configured
+      if (!apiKey) {
+        console.warn('Weather API key not configured. Set VITE_WEATHER_API_KEY in .env file');
+        setWeatherData({
+          location: location.split(',')[0],
+          temp: '--',
+          icon: '01d',
+          description: 'API key required'
+        });
+        return;
+      }
+
+      // Using a free weather API - OpenWeatherMap
+      const response = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?q=${location}&units=metric&appid=${apiKey}`
+      ).then(res => res.json());
+
+      if (response.main && response.weather) {
+        setWeatherData({
+          location: location.split(',')[0],
+          temp: Math.round(response.main.temp),
+          icon: response.weather[0].icon,
+          description: response.weather[0].description
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching weather:', error);
+      // Set fallback data if API fails
+      setWeatherData({
+        location: weatherLocations[currentWeatherIndex].split(',')[0],
+        temp: '--',
+        icon: '01d',
+        description: 'Weather unavailable'
+      });
+    }
+  }, [currentWeatherIndex]);
+
+  // Rotate weather location every 20 seconds
+  useEffect(() => {
+    fetchWeather();
+    const weatherTimer = setInterval(() => {
+      setCurrentWeatherIndex((prev) => (prev + 1) % weatherLocations.length);
+    }, 20000); // 20 seconds
+    return () => clearInterval(weatherTimer);
+  }, [currentWeatherIndex, fetchWeather]);
+
+  // Get bus type from fleet database
+  const getBusType = (fleetNumber) => {
+    if (!fleetNumber || !fleetDatabase) return null;
+    const vehicle = fleetDatabase[fleetNumber.toString()];
+    return vehicle?.busType || null;
+  };
 
   // Format time for display
   const formatTime = (date) => {
@@ -91,20 +189,30 @@ const ControlRoomDisplay = () => {
 
         // Calculate stats
         const critical = activeBreakdowns.filter(b => b.severity === 'STOP' || b.requires_immediate_action).length;
-        const engineersActive = activeBreakdowns.filter(b => b.dispatched_at).length;
+
+        // Calculate today's total breakdowns (all breakdowns from today, not just active)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayBreakdowns = response.breakdowns.filter(b =>
+          new Date(b.created_at) >= today
+        ).length;
 
         setStats({
           total: activeBreakdowns.length,
           critical,
-          activeEngineers: engineersActive,
-          totalEngineers: engineersActive // Can be enhanced with total engineer count
+          today: todayBreakdowns
         });
 
-        // Calculate affected routes
+        // Calculate affected routes - properly handle route display
         const routeCounts = {};
         activeBreakdowns.forEach(b => {
-          const route = b.route_id || 'Unknown';
-          routeCounts[route] = (routeCounts[route] || 0) + 1;
+          // Try multiple fields for route information
+          const route = b.route_id || b.service || b.route_number || b.route ||
+                       (b.route_data && b.route_data.route_id) || 'Unknown';
+          // Clean up the route display
+          const displayRoute = route === 'Unknown' ? 'Unknown' :
+                             route.toString().replace(/^route_/, '').toUpperCase();
+          routeCounts[displayRoute] = (routeCounts[displayRoute] || 0) + 1;
         });
 
         const sortedRoutes = Object.entries(routeCounts)
@@ -202,72 +310,57 @@ const ControlRoomDisplay = () => {
 
   return (
     <div className="control-room-display">
-      {/* Header */}
-      <div className="control-room-header">
-        <div className="header-left">
-          <h1 className="control-room-title">
-            <span className="title-icon">🚌</span>
-            CONTROL ROOM - ACTIVE BREAKDOWNS
-          </h1>
-          <div className="header-time">
-            <span className="current-time">{formatTime(currentTime)}</span>
-            <span className="separator">|</span>
-            <span className="last-updated">Updated: {getTimeAgo(lastUpdated)}</span>
-          </div>
-        </div>
-        <div className="header-right">
-          <div className={`live-indicator ${connectionManager.isConnected ? 'connected' : 'disconnected'}`}>
-            <span className="live-dot"></span>
-            {connectionManager.isConnected ? 'LIVE' : 'OFFLINE'}
-          </div>
-        </div>
-      </div>
+      {/* Incognito Home Button */}
+      <a href="/" className="home-button" title="Return to App">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+          <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>
+      </a>
 
       {/* Stats Bar */}
       <div className="stats-bar">
         <div className="stat-item">
-          <span className="stat-label">ACTIVE</span>
+          <span className="stat-label">🔴 ACTIVE NOW</span>
           <span className="stat-value">{stats.total}</span>
         </div>
-        <div className="stat-item critical">
-          <span className="stat-label">CRITICAL</span>
-          <span className="stat-value">{stats.critical}</span>
-        </div>
         <div className="stat-item">
-          <span className="stat-label">ENGINEERS</span>
-          <span className="stat-value">{stats.activeEngineers}/{stats.totalEngineers}</span>
+          <span className="stat-label">📅 TODAY'S TOTAL</span>
+          <span className="stat-value">{stats.today}</span>
         </div>
-        <div className="stat-item">
-          <span className="stat-label">VIEWING</span>
-          <span className="stat-value">{currentIndex + 1} / {breakdowns.length}</span>
+        <div className="stat-item status-icon">
+          <span className="stat-label">📅 {currentTime.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+          <span className="stat-value">{formatTime(currentTime)}</span>
         </div>
-      </div>
-
-      {/* Priority Alerts Banner */}
-      {priorityAlerts.length > 0 && (
-        <div className="priority-alerts-banner">
-          <div className="alert-icon">⚠️</div>
-          <div className="alert-content">
-            <span className="alert-label">PRIORITY ALERTS:</span>
-            {priorityAlerts.map((alert, idx) => (
-              <span key={idx} className="alert-item">
-                {alert.route_id || 'Unknown'} - Fleet {alert.fleet_no || alert.fleet_number}
-                {idx < priorityAlerts.length - 1 && ' | '}
-              </span>
-            ))}
+        {weatherData && (
+          <div className="stat-item weather-icon">
+            <span className="stat-label">🌤️ {weatherData.location}</span>
+            <span className="stat-value">{weatherData.temp}°C</span>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Main Content Area */}
       <div className="control-room-content">
         {currentBreakdown ? (
-          <div className="breakdown-card-large">
+          <>
+          <div className={`breakdown-card-large ${currentBreakdown.secured_mileage ? 'secured-mileage-card' : ''}`}>
             {/* Card Header */}
             <div className="card-header">
               <div className="card-header-left">
-                <h2 className="fleet-number">FLEET {currentBreakdown.fleet_no || currentBreakdown.fleet_number}</h2>
+                <h2 className="fleet-number">
+                  {currentBreakdown.fleet_no || currentBreakdown.fleet_number}
+                  {(() => {
+                    const busType = getBusType(currentBreakdown.fleet_no || currentBreakdown.fleet_number);
+                    return busType ? ` (${busType})` : '';
+                  })()}
+                </h2>
                 <div className="card-badges">
+                  {currentBreakdown.secured_mileage && (
+                    <span className="secured-mileage-badge">
+                      🚨 SECURED MILEAGE
+                    </span>
+                  )}
                   <span className={`severity-badge ${getSeverityBadge(currentBreakdown.severity).class}`}>
                     {getSeverityBadge(currentBreakdown.severity).label}
                   </span>
@@ -280,59 +373,187 @@ const ControlRoomDisplay = () => {
                 <div className="breakdown-time">
                   {currentBreakdown.duration_text || getTimeAgo(currentBreakdown.created_at)}
                 </div>
+                <div className="meta-service">
+                  <span className="meta-label">🚌 SERVICE</span>
+                  <span className="meta-value">
+                    {(() => {
+                      const route = currentBreakdown.route_id || currentBreakdown.service ||
+                                   currentBreakdown.route_number || currentBreakdown.route ||
+                                   (currentBreakdown.route_data && currentBreakdown.route_data.route_id);
+                      if (!route || route === 'Unknown') return 'TBC';
+                      const displayRoute = route.toString().replace(/^route_/, '').toUpperCase();
+                      return displayRoute;
+                    })()}
+                  </span>
+                </div>
+                <div className="meta-location">
+                  <span className="meta-label">📍 LOCATION</span>
+                  <span className="meta-value">
+                    {(() => {
+                      // API already handles fallback logic, just use the location field
+                      const loc = currentBreakdown.location || 'Unknown Location';
+
+                      // Clean up Ticketer coordinate strings
+                      if (loc.toLowerCase().includes('ticketer') || /\d+\.\d+/.test(loc)) {
+                        if (currentBreakdown.w3w_location) {
+                          return currentBreakdown.w3w_location;
+                        }
+                        const parts = loc.split(/\(/);
+                        if (parts.length > 1) {
+                          return parts[0].trim() || 'Location coordinates available';
+                        }
+                        return 'Location coordinates available';
+                      }
+                      return loc.replace(/\s+/g, ' ').trim();
+                    })()}
+                  </span>
+                </div>
               </div>
             </div>
 
             {/* Card Body */}
             <div className="card-body">
-              <div className="info-grid">
-                <div className="info-item">
-                  <div className="info-label">SERVICE</div>
-                  <div className="info-value">{currentBreakdown.route_id || 'N/A'}</div>
-                </div>
-                <div className="info-item">
-                  <div className="info-label">LOCATION</div>
-                  <div className="info-value">{currentBreakdown.location || 'Unknown'}</div>
-                </div>
+              <div className="info-grid-top">
                 <div className="info-item">
                   <div className="info-label">ISSUE</div>
                   <div className="info-value">
-                    {currentBreakdown.issue_type || 'Unknown'} - {currentBreakdown.issue_description || 'Assessment Required'}
+                    {(() => {
+                      const issueType = currentBreakdown.issue_type || currentBreakdown.issue_category || 'Unknown';
+                      const issueDesc = currentBreakdown.issue_description || currentBreakdown.description || '';
+
+                      // Capitalize first letter of each word
+                      const capitalize = (str) => {
+                        return str.split(' ').map(word =>
+                          word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+                        ).join(' ');
+                      };
+
+                      // Don't show "wizard assessment completed" or generic descriptions
+                      if (issueDesc && !issueDesc.toLowerCase().includes('wizard') && !issueDesc.toLowerCase().includes('assessment completed')) {
+                        return `${capitalize(issueType)} - ${capitalize(issueDesc)}`;
+                      }
+                      return capitalize(issueType);
+                    })()}
                   </div>
                 </div>
                 <div className="info-item">
                   <div className="info-label">SUPERVISOR</div>
                   <div className="info-value">
-                    {currentBreakdown.supervisor_name || 'Unknown'} ({currentBreakdown.supervisor_badge || 'N/A'})
+                    {currentBreakdown.supervisor_name || 'Unknown'}
                   </div>
                 </div>
+              </div>
+              <div className="info-grid-bottom">
                 {currentBreakdown.dispatched_at && (
-                  <>
-                    <div className="info-item">
-                      <div className="info-label">ENGINEER</div>
-                      <div className="info-value">{currentBreakdown.engineer_name || 'Dispatched'}</div>
-                    </div>
-                    {currentBreakdown.on_site_at && (
-                      <div className="info-item">
-                        <div className="info-label">STATUS</div>
-                        <div className="info-value">On Site</div>
-                      </div>
-                    )}
-                  </>
+                  <div className="info-item">
+                    <div className="info-label">ENGINEER</div>
+                    <div className="info-value">{currentBreakdown.engineer_name || 'Dispatched'}</div>
+                  </div>
+                )}
+                {currentBreakdown.on_site_at && (
+                  <div className="info-item">
+                    <div className="info-label">STATUS</div>
+                    <div className="info-value">On Site</div>
+                  </div>
                 )}
               </div>
 
-              {/* Progress Indicator */}
-              <div className="progress-dots">
-                {breakdowns.map((_, idx) => (
-                  <div
-                    key={idx}
-                    className={`progress-dot ${idx === currentIndex ? 'active' : ''}`}
-                  />
-                ))}
-              </div>
+              {/* Progress Indicator with Counter */}
+              {breakdowns.length > 1 && (
+                <div className="progress-section">
+                  <div className="progress-counter">
+                    Breakdown {currentIndex + 1} of {breakdowns.length}
+                  </div>
+                  <div className="progress-dots">
+                    {breakdowns.map((_, idx) => (
+                      <div
+                        key={idx}
+                        className={`progress-dot ${idx === currentIndex ? 'active' : ''}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
+
+          {/* Location Map */}
+          <div className="breakdown-map">
+            <div className="map-container">
+              {(() => {
+                // Extract coordinates from breakdown location - check all possible fields
+                let lat = currentBreakdown.location_lat ||
+                         currentBreakdown.latitude ||
+                         currentBreakdown.lat || null;
+
+                let lng = currentBreakdown.location_lng ||
+                         currentBreakdown.longitude ||
+                         currentBreakdown.lng ||
+                         currentBreakdown.lon || null;
+
+                // Parse location_coordinates JSON if available
+                if (!lat && !lng && currentBreakdown.location_coordinates) {
+                  try {
+                    const coords = typeof currentBreakdown.location_coordinates === 'string'
+                      ? JSON.parse(currentBreakdown.location_coordinates)
+                      : currentBreakdown.location_coordinates;
+                    lat = coords.lat || coords.latitude;
+                    lng = coords.lng || coords.lon || coords.longitude;
+                  } catch (e) {
+                    console.warn('Failed to parse location_coordinates:', e);
+                  }
+                }
+
+                // Validate coordinates are valid numbers and within reasonable bounds
+                const isValidLat = lat !== null && !isNaN(parseFloat(lat)) &&
+                                  parseFloat(lat) >= -90 && parseFloat(lat) <= 90;
+                const isValidLng = lng !== null && !isNaN(parseFloat(lng)) &&
+                                  parseFloat(lng) >= -180 && parseFloat(lng) <= 180;
+
+                // Only show map if we have valid coordinates
+                if (!isValidLat || !isValidLng) {
+                  return (
+                    <div className="map-error">
+                      <div className="map-error-icon">📍</div>
+                      <div className="map-error-text">Location Unavailable</div>
+                    </div>
+                  );
+                }
+
+                const apiKey = import.meta.env.VITE_GOOGLE_MAPS_KEY;
+
+                // Ensure we have API key
+                if (!apiKey) {
+                  return (
+                    <div className="map-error">
+                      <div className="map-error-icon">🗺️</div>
+                      <div className="map-error-text">Map API Key Missing</div>
+                    </div>
+                  );
+                }
+
+                // Google Maps Static API URL with dark theme
+                const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=14&size=400x600&markers=color:red%7Clabel:B%7C${lat},${lng}&key=${apiKey}&style=feature:all%7Celement:geometry%7Ccolor:0x1a2332&style=feature:all%7Celement:labels.text.fill%7Ccolor:0xffffff&style=feature:all%7Celement:labels.text.stroke%7Ccolor:0x0a0f1b&style=feature:road%7Celement:geometry%7Ccolor:0x2d3748&style=feature:water%7Celement:geometry%7Ccolor:0x0f172a`;
+
+                return (
+                  <img
+                    src={mapUrl}
+                    alt="Breakdown Location"
+                    className="map-image"
+                    onError={(e) => {
+                      // Fallback if map fails to load
+                      e.target.style.display = 'none';
+                      const errorDiv = document.createElement('div');
+                      errorDiv.className = 'map-error';
+                      errorDiv.innerHTML = '<div class="map-error-icon">📍</div><div class="map-error-text">Map Load Failed</div>';
+                      e.target.parentElement.appendChild(errorDiv);
+                    }}
+                  />
+                );
+              })()}
+            </div>
+          </div>
+          </>
         ) : (
           <div className="no-breakdowns">
             <div className="no-breakdowns-icon">✅</div>
@@ -362,7 +583,7 @@ const ControlRoomDisplay = () => {
       {/* Footer */}
       <div className="control-room-footer">
         <div className="footer-info">
-          Go North East - Breakdown Management System
+          Breakdown Management System
         </div>
         <div className="footer-refresh">
           Auto-refresh: 30s | Card rotation: 20s
