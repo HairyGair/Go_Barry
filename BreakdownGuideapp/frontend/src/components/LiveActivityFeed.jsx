@@ -258,16 +258,9 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
     }
   }, []);
 
-  // Handle location button clicks
+  // Handle location button clicks - Opens Google Maps
   const handleLocationClick = useCallback(async (activity) => {
     const activityKey = activity.id || activity.timestamp;
-
-    // Check if already converted and cached
-    if (locationCache.has(activityKey)) {
-      const cachedLocation = locationCache.get(activityKey);
-      alert(`Location: ${cachedLocation}`);
-      return;
-    }
 
     let location = activity.location || activity.location_description || activity.currentLocation?.name;
     let lat, lng;
@@ -284,28 +277,30 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
     }
 
     if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
-      try {
-        // Show loading state
-        const loadingMessage = 'Loading location...';
+      // Open Google Maps in a new tab with the coordinates
+      const busNumber = activity.busNumber || activity.fleet_no || activity.vehicle || activity.fleet_number || 'Vehicle';
+      const label = encodeURIComponent(`${busNumber} - Breakdown Location`);
+      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}&query_place_id=${label}`;
 
-        // Try Google's reverse geocoding first for real addresses
-        const locationName = await googleLocationService.getLocation(lat, lng);
+      window.open(mapsUrl, '_blank', 'noopener,noreferrer');
 
-        // Cache the result
-        const newLocationCache = new Map(locationCache);
-        newLocationCache.set(activityKey, locationName);
-        setLocationCache(newLocationCache);
-
-        // Show a more detailed popup with coordinates for reference
-        alert(`📍 Location Details:\n\n${locationName}\n\nCoordinates: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
-      } catch (error) {
-        console.warn('Failed to convert coordinates:', error);
-        alert('Location: Unable to determine location\n\nThere may be an issue with the location service.');
+      // Also try to get the address name in the background for caching
+      if (!locationCache.has(activityKey)) {
+        try {
+          const locationName = await googleLocationService.getLocation(lat, lng);
+          const newLocationCache = new Map(locationCache);
+          newLocationCache.set(activityKey, locationName);
+          setLocationCache(newLocationCache);
+        } catch (error) {
+          console.warn('Failed to reverse geocode coordinates:', error);
+        }
       }
     } else if (location) {
-      alert(`Location: ${location}`);
+      // If we have a text location, try to search for it on Google Maps
+      const searchUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`;
+      window.open(searchUrl, '_blank', 'noopener,noreferrer');
     } else {
-      alert('Location: No location data available');
+      alert('📍 Location: No location data available for this activity');
     }
   }, [locationCache]);
 

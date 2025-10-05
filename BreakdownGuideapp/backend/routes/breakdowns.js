@@ -896,6 +896,26 @@ router.post('/from-wizard', async (req, res) => {
       // Don't fail the main request if activity logging fails
     }
 
+    // Broadcast breakdown creation to all connected WebSocket clients
+    try {
+      webSocketHandler.broadcast('sdc-dashboard', {
+        type: 'breakdown_created',
+        breakdown_id: data.breakdown_id,
+        breakdown: data,
+        wizard_type: wizard_type,
+        wizard_decision: wizard_decision,
+        severity: determinedSeverity,
+        fleet_number: fleet_number,
+        location: location,
+        supervisor_name: supervisor_name,
+        timestamp: new Date().toISOString()
+      });
+      console.log(`📡 Broadcasted breakdown ${data.breakdown_id} creation to WebSocket clients`);
+    } catch (broadcastError) {
+      console.error('⚠️ Failed to broadcast breakdown creation:', broadcastError);
+      // Don't fail the main request if broadcast fails
+    }
+
     res.status(201).json({
       success: true,
       breakdown_id: data.breakdown_id,
