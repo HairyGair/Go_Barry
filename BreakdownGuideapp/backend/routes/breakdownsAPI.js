@@ -162,10 +162,14 @@ router.get('/live', async (req, res) => {
         // Vehicle information
         vehicleFleet: breakdown.fleet_number,
         fleet_number: breakdown.fleet_number,
-        route: breakdown.route || extractRouteFromLocation(breakdown.location),
-        
+        route: breakdown.wizard_assessment_data?.route ||
+               breakdown.wizard_assessment_data?.routeName ||
+               breakdown.route_id ||
+               breakdown.route ||
+               extractRouteFromLocation(breakdown.location_description),
+
         // Location and context
-        location: breakdown.location || 'Location not specified',
+        location: breakdown.location_description || breakdown.location || 'Location not specified',
         coordinates: breakdown.coordinates || null,
         
         // Assessment details
