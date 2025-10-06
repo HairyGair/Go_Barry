@@ -32,8 +32,61 @@ const ControlRoomDisplay = () => {
   const [fleetDatabase, setFleetDatabase] = useState({});
   const [currentWeatherIndex, setCurrentWeatherIndex] = useState(0);
   const [weatherData, setWeatherData] = useState(null);
+  const [geocodedLocations, setGeocodedLocations] = useState({});
 
   const scrollIntervalRef = useRef(null);
+
+  // Google Maps API key
+  const GOOGLE_MAPS_API_KEY = 'AIzaSyBhBN_kVOnIRTKXYhzrDwpr8kvb0Uy0IY8';
+
+  // Reverse geocode coordinates to place name
+  const reverseGeocode = async (lat, lng) => {
+    const cacheKey = `${lat},${lng}`;
+
+    // Check if already geocoded
+    if (geocodedLocations[cacheKey]) {
+      return geocodedLocations[cacheKey];
+    }
+
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`
+      );
+      const data = await response.json();
+
+      if (data.status === 'OK' && data.results && data.results.length > 0) {
+        // Try to find a good address component
+        const result = data.results[0];
+
+        // Look for locality (town/village), or use formatted address
+        let locationName = null;
+
+        // Try to get town/village name
+        const locality = result.address_components.find(
+          comp => comp.types.includes('locality') || comp.types.includes('postal_town')
+        );
+
+        if (locality) {
+          locationName = locality.long_name;
+        } else {
+          // Use first part of formatted address
+          locationName = result.formatted_address.split(',')[0];
+        }
+
+        // Cache the result
+        setGeocodedLocations(prev => ({
+          ...prev,
+          [cacheKey]: locationName
+        }));
+
+        return locationName;
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+    }
+
+    return null;
+  };
 
   // Weather locations to rotate through (using OpenWeather-recognized names)
   const weatherLocations = [
@@ -347,31 +400,20 @@ const ControlRoomDisplay = () => {
         {currentBreakdown ? (
           <>
           <div className={`breakdown-card-large ${currentBreakdown.secured_mileage ? 'secured-mileage-card' : ''}`}>
-            {/* Service Number - Centered at Top */}
-            <div className="card-service-header">
-              <span className="service-label">🚌 SERVICE</span>
-              <span className="service-number">
-                {(() => {
-                  const route = currentBreakdown.route_id || currentBreakdown.service ||
-                               currentBreakdown.route_number || currentBreakdown.route ||
-                               (currentBreakdown.route_data && currentBreakdown.route_data.route_id);
-                  if (!route || route === 'Unknown') return 'TBC';
-                  const displayRoute = route.toString().replace(/^route_/, '').toUpperCase();
-                  return displayRoute;
-                })()}
-              </span>
-            </div>
-
             {/* Card Header */}
             <div className="card-header">
               <div className="card-header-left">
-                <h2 className="fleet-number">
-                  {currentBreakdown.fleet_no || currentBreakdown.fleet_number}
-                  {(() => {
-                    const busType = getBusType(currentBreakdown.fleet_no || currentBreakdown.fleet_number);
-                    return busType ? ` (${busType})` : '';
-                  })()}
-                </h2>
+                <div className="service-header">
+                  <span className="service-number-inline">
+                    {(() => {
+                      const route = currentBreakdown.route_id || currentBreakdown.service ||
+                                   currentBreakdown.route_number || currentBreakdown.route ||
+                                   (currentBreakdown.route_data && currentBreakdown.route_data.route_id);
+                      const displayRoute = (!route || route === 'Unknown') ? 'TBC' : route.toString().replace(/^route_/, '').toUpperCase();
+                      return displayRoute;
+                    })()}
+                  </span>
+                </div>
                 <div className="card-badges">
                   {currentBreakdown.secured_mileage && (
                     <span className="secured-mileage-badge">
@@ -386,6 +428,18 @@ const ControlRoomDisplay = () => {
                   </span>
                 </div>
               </div>
+
+              {/* Centered Fleet Number */}
+              <div className="card-header-center">
+                <h1 className="fleet-number-large">
+                  {currentBreakdown.fleet_no || currentBreakdown.fleet_number}
+                </h1>
+                {(() => {
+                  const busType = getBusType(currentBreakdown.fleet_no || currentBreakdown.fleet_number);
+                  return busType ? <span className="bus-type-center">{busType}</span> : '';
+                })()}
+              </div>
+
               <div className="card-header-right">
                 <div className="breakdown-time">
                   {currentBreakdown.duration_text || getTimeAgo(currentBreakdown.created_at)}
@@ -397,7 +451,7 @@ const ControlRoomDisplay = () => {
                       // API already handles fallback logic, just use the location field
                       const loc = currentBreakdown.location || 'Unknown Location';
 
-                      // Try to extract coordinates for display
+                      // Try to extract coordinates
                       let coords = null;
 
                       // Check wizard_assessment_data first
@@ -412,15 +466,24 @@ const ControlRoomDisplay = () => {
                         }
                       }
 
-                      // If we have coordinates, show them nicely formatted
+                      // If we have coordinates, show geocoded place name
                       if (coords && coords.lat && coords.lng) {
-                        // For Ticketer format, show just coordinates
-                        if (loc.toLowerCase().includes('ticketer')) {
-                          return `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`;
+                        const cacheKey = `${coords.lat},${coords.lng}`;
+                        const placeName = geocodedLocations[cacheKey];
+
+                        if (placeName) {
+                          return placeName;
                         }
-                        // For other locations, append coordinates
+
+                        // Geocode in background
+                        reverseGeocode(coords.lat, coords.lng);
+
+                        // While geocoding, show a cleaner fallback
+                        if (loc.toLowerCase().includes('ticketer')) {
+                          return 'Locating...';
+                        }
                         const cleanLoc = loc.split(/\(/)[0].trim();
-                        return `${cleanLoc} (${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)})`;
+                        return cleanLoc || 'Locating...';
                       }
 
                       // No coordinates, show location text as-is
