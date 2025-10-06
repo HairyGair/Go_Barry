@@ -35,33 +35,32 @@ const ControlRoomDisplay = () => {
 
   const scrollIntervalRef = useRef(null);
 
-  // Weather locations to rotate through
+  // Weather locations to rotate through (using OpenWeather-recognized names)
   const weatherLocations = [
-    'Durham,UK',
-    'Consett,UK',
-    'Washington,UK',
-    'Hexham,UK',
-    'Newcastle,UK',
-    'Gateshead,UK',
-    'Sunderland,UK',
-    'Percy Main,UK',
-    'North Shields,UK',
-    'Tynemouth,UK',
-    'Blyth,UK',
-    'Cramlington,UK',
-    'Killingworth,UK',
-    'Middlesbrough,UK',
-    'Bishop Auckland,UK',
-    'Peterlee,UK'
+    'Durham,GB',
+    'Consett,GB',
+    'Washington,GB',
+    'Hexham,GB',
+    'Newcastle upon Tyne,GB',  // More specific name
+    'Gateshead,GB',
+    'Sunderland,GB',
+    'North Shields,GB',  // Skip Percy Main (too small for API)
+    'Tynemouth,GB',
+    'Blyth,GB',
+    'Cramlington,GB',
+    'Middlesbrough,GB',  // Skip Killingworth (too small for API)
+    'Bishop Auckland,GB',
+    'Peterlee,GB'
   ];
 
   // WebSocket connection for real-time updates (using public channel, no auth required)
+  // No polling fallback since this is a public display without authentication
   const connectionManager = useConnectionManager({
     endpoint: '/ws?channel=control-room',
     autoConnect: true,
     primary: 'websocket',
-    fallback: 'polling',
-    pollingInterval: 30000
+    fallback: null, // Disable polling fallback for public display
+    autoFailover: false // No fallback to polling
   });
 
   // Update current time every second
