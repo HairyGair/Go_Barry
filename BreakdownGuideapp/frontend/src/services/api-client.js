@@ -19,22 +19,24 @@ class APIClient {
     const token = await enhancedAuthService.getAccessToken();
 
     // If no token and endpoint can use public fallback, convert to public endpoint
-    const publicFallbacks = {
-      '/api/breakdowns/stats': '/api/public/breakdowns/stats',
-      '/api/breakdowns/live': '/api/public/breakdowns/live',
-      '/api/activity/feed': '/api/public/activity/feed'
-    };
-
     let actualEndpoint = endpoint;
 
     if (!token) {
-      // Check if endpoint has a public fallback
-      for (const [protectedPath, publicPath] of Object.entries(publicFallbacks)) {
-        if (endpoint.startsWith(protectedPath)) {
-          actualEndpoint = endpoint.replace(protectedPath, publicPath);
-          console.log(`🔓 No auth token - using public endpoint: ${actualEndpoint}`);
-          break;
-        }
+      // Parse endpoint to handle query parameters
+      const [path, queryString] = endpoint.split('?');
+
+      // Check if path has a public fallback
+      const publicFallbacks = {
+        '/api/breakdowns/stats': '/api/public/breakdowns/stats',
+        '/api/breakdowns/live': '/api/public/breakdowns/live',
+        '/api/activity/feed': '/api/public/activity/feed'
+      };
+
+      if (publicFallbacks[path]) {
+        actualEndpoint = queryString ? `${publicFallbacks[path]}?${queryString}` : publicFallbacks[path];
+        console.log(`🔓 No auth token - using public endpoint: ${actualEndpoint}`);
+      } else {
+        console.log(`⚠️ No public fallback for: ${path}`);
       }
     }
 
