@@ -396,17 +396,33 @@ const ControlRoomDisplay = () => {
                       // API already handles fallback logic, just use the location field
                       const loc = currentBreakdown.location || 'Unknown Location';
 
-                      // Clean up Ticketer coordinate strings
-                      if (loc.toLowerCase().includes('ticketer') || /\d+\.\d+/.test(loc)) {
-                        if (currentBreakdown.w3w_location) {
-                          return currentBreakdown.w3w_location;
-                        }
-                        const parts = loc.split(/\(/);
-                        if (parts.length > 1) {
-                          return parts[0].trim() || 'Location coordinates available';
-                        }
-                        return 'Location coordinates available';
+                      // Try to extract coordinates for display
+                      let coords = null;
+
+                      // Check wizard_assessment_data first
+                      if (currentBreakdown.wizard_assessment_data?.location_coords) {
+                        coords = currentBreakdown.wizard_assessment_data.location_coords;
                       }
+                      // Parse from location string (Ticketer format)
+                      else if (loc) {
+                        const coordMatch = loc.match(/\(?\s*(-?\d+\.?\d+)\s*,\s*(-?\d+\.?\d+)\s*\)?/);
+                        if (coordMatch) {
+                          coords = { lat: parseFloat(coordMatch[1]), lng: parseFloat(coordMatch[2]) };
+                        }
+                      }
+
+                      // If we have coordinates, show them nicely formatted
+                      if (coords && coords.lat && coords.lng) {
+                        // For Ticketer format, show just coordinates
+                        if (loc.toLowerCase().includes('ticketer')) {
+                          return `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`;
+                        }
+                        // For other locations, append coordinates
+                        const cleanLoc = loc.split(/\(/)[0].trim();
+                        return `${cleanLoc} (${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)})`;
+                      }
+
+                      // No coordinates, show location text as-is
                       return loc.replace(/\s+/g, ' ').trim();
                     })()}
                   </span>
@@ -504,6 +520,22 @@ const ControlRoomDisplay = () => {
                     lng = coords.lng || coords.lon || coords.longitude;
                   } catch (e) {
                     console.warn('Failed to parse location_coordinates:', e);
+                  }
+                }
+
+                // Extract from wizard_assessment_data.location_coords (wizard completions)
+                if (!lat && !lng && currentBreakdown.wizard_assessment_data?.location_coords) {
+                  const wizardCoords = currentBreakdown.wizard_assessment_data.location_coords;
+                  lat = wizardCoords.lat;
+                  lng = wizardCoords.lng;
+                }
+
+                // Parse from location string (Ticketer format: "Ticketer Location (55.011578, -1.621315)")
+                if (!lat && !lng && currentBreakdown.location) {
+                  const coordMatch = currentBreakdown.location.match(/\(?\s*(-?\d+\.?\d+)\s*,\s*(-?\d+\.?\d+)\s*\)?/);
+                  if (coordMatch) {
+                    lat = parseFloat(coordMatch[1]);
+                    lng = parseFloat(coordMatch[2]);
                   }
                 }
 
