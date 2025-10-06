@@ -502,7 +502,7 @@ function GearSelectionWizard({ currentStep, responses, updateResponse, onNext, o
           <div className="space-y-6">
             <div className="text-center">
               <div className={`mx-auto w-16 h-16 ${responses.brakeOperation === 'resolved' ? 'bg-green-500/20' : 'bg-red-500/20'} rounded-full flex items-center justify-center mb-4`}>
-                {responses.brakeOperation === 'resolved' ? Icons.checkCircle : Icons.wrench}
+                {responses.brakeOperation === 'resolved' ? <CheckCircle className="w-12 h-12" /> : <Wrench className="w-12 h-12" />}
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">
                 {responses.brakeOperation === 'resolved' ? 'Problem Resolved' : 'Engineering Assistance Required'}

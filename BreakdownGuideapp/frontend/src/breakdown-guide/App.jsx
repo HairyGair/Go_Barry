@@ -368,7 +368,7 @@ const App = () => {
                                     supervisor_name: supervisorSession?.name || 'Unknown Supervisor',
                                     supervisor_badge: supervisorSession?.supervisorId || supervisorSession?.badge || 'Unknown',
                                     supervisor_email: supervisorSession?.email || '',
-                                    depot: supervisorSession?.depot || 'SDC',
+                                    supervisor_depot: supervisorSession?.depot || 'SDC',
                                     
                                     // Assessment data
                                     wizard_type: wizards[currentWizard]?.title || currentWizard,
