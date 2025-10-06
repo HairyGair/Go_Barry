@@ -84,10 +84,12 @@ class SupervisorBreakdownLogger {
             return `ASSESS-${timestamp}`;
         };
 
-        // Store current breakdown data INCLUDING location
+        // Store current breakdown data INCLUDING location and route
         this.currentBreakdown = {
             ...data,
             location: data.location || null,
+            route: data.route || null,
+            routeName: data.routeName || null,
             supervisor: this.supervisor,
             startTime: new Date()
         };
@@ -103,6 +105,8 @@ class SupervisorBreakdownLogger {
             assessmentId: this.assessmentId,
             vehicle: data.vehicle?.fleetNumber,
             location: this.currentBreakdown.location,
+            route: this.currentBreakdown.route,
+            routeName: this.currentBreakdown.routeName,
             supervisor: this.supervisor?.name
         });
 
