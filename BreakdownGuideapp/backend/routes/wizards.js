@@ -91,7 +91,7 @@ router.post('/complete', async (req, res) => {
         assessment_decision: decision,
         assessment_notes: notes,
         assessment_completed_at: new Date().toISOString(),
-        status: decision === 'STOP' ? 'critical' : decision === 'AMBER' ? 'amber' : 'resolved',
+        status: 'active',  // Keep breakdown active for SDC to manage - don't auto-resolve
         updated_at: new Date().toISOString()
       })
       .eq('breakdown_id', breakdown_id)
