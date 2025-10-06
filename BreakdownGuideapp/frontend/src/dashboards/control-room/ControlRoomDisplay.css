@@ -713,60 +713,32 @@
 .card-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 16px;
-  padding-bottom: 14px;
-  border-bottom: 3px solid rgba(255, 255, 255, 0.15);
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border-radius: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
   position: relative;
   flex-shrink: 0;
+  box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.3);
 }
 
-/* Animated underline effect */
-.card-header::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--primary-cyan), transparent);
-  background-size: 200% 100%;
-  animation: underlineMove 4s linear infinite;
-}
-
-@keyframes underlineMove {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
 
 .card-header-left {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
 .fleet-number {
-  font-size: 64px;
-  font-weight: 900;
+  font-size: 56px;
+  font-weight: 800;
   margin: 0;
-  background: linear-gradient(135deg, #ffffff 0%, #ffffff 30%, var(--primary-cyan) 70%, var(--primary-blue) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  filter: drop-shadow(0 8px 30px var(--glow-cyan)) drop-shadow(0 0 50px rgba(6, 182, 212, 0.4));
-  letter-spacing: -2px;
-  animation: fleetGlow 3s ease-in-out infinite;
-  text-shadow: 0 0 60px rgba(255, 255, 255, 0.3);
-  line-height: 1;
-}
-
-@keyframes fleetGlow {
-  0%, 100% {
-    filter: drop-shadow(0 8px 30px var(--glow-cyan)) drop-shadow(0 0 50px rgba(6, 182, 212, 0.4));
-  }
-  50% {
-    filter: drop-shadow(0 10px 40px var(--glow-cyan)) drop-shadow(0 0 70px rgba(6, 182, 212, 0.6));
-  }
+  color: #ffffff;
+  letter-spacing: 1px;
+  line-height: 1.2;
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
 /* Card Meta Info - Service and Location */
@@ -825,10 +797,10 @@
 
 /* Meta labels and values styled like stat-items */
 .meta-label {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 800;
   color: rgba(255, 255, 255, 0.7);
-  letter-spacing: 1.5px;
+  letter-spacing: 2px;
   text-transform: uppercase;
   opacity: 1;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
@@ -839,29 +811,28 @@
   font-size: 22px;
   font-weight: 700;
   color: #ffffff;
-  line-height: 1.2;
-  text-align: center;
+  line-height: 1.3;
+  text-align: right;
   text-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
   z-index: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-word;
   max-width: 100%;
 }
 
 .card-badges {
   display: flex;
-  gap: 12px;
+  gap: 14px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .severity-badge,
 .status-badge {
-  padding: 8px 24px;
-  border-radius: 14px;
+  padding: 12px 28px;
+  border-radius: 16px;
   font-weight: 900;
-  font-size: 16px;
-  letter-spacing: 1.5px;
+  font-size: 20px;
+  letter-spacing: 2px;
   text-transform: uppercase;
   position: relative;
   overflow: hidden;
@@ -955,11 +926,11 @@
 
 /* Secured Mileage Badge - CRITICAL PRIORITY */
 .secured-mileage-badge {
-  padding: 8px 24px;
-  border-radius: 14px;
+  padding: 12px 28px;
+  border-radius: 16px;
   font-weight: 900;
-  font-size: 16px;
-  letter-spacing: 1.5px;
+  font-size: 20px;
+  letter-spacing: 2px;
   text-transform: uppercase;
   position: relative;
   overflow: hidden;
@@ -1001,81 +972,56 @@
 .card-header-right {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
   align-items: flex-end;
 }
 
 .meta-location {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  gap: 4px;
-  padding: 10px 20px;
-  min-width: 200px;
+  gap: 6px;
+  padding: 12px 24px;
+  min-width: 250px;
   background:
-    radial-gradient(ellipse at top, rgba(59, 130, 246, 0.15) 0%, transparent 70%),
+    radial-gradient(ellipse at top, rgba(99, 102, 241, 0.15) 0%, transparent 70%),
     linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
   border-radius: 16px;
-  border: 2px solid rgba(59, 130, 246, 0.4);
+  border: 3px solid rgba(99, 102, 241, 0.5);
   position: relative;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   box-shadow:
-    0 6px 24px -4px rgba(59, 130, 246, 0.2),
+    0 6px 24px -4px rgba(99, 102, 241, 0.3),
     inset 0 2px 0 rgba(255, 255, 255, 0.08);
 }
 
-.meta-location::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle, var(--glow-blue) 0%, transparent 70%);
-  transform: translate(-50%, -50%) scale(0);
-  opacity: 0;
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.meta-location:hover::before {
-  transform: translate(-50%, -50%) scale(2);
-  opacity: 0.1;
-}
-
-.meta-location:hover {
-  transform: translateY(-2px);
-  border-color: var(--primary-blue);
-  box-shadow: 0 8px 30px -8px var(--glow-blue);
-}
-
-.meta-location {
-  border-color: rgba(99, 102, 241, 0.4);
-}
-
-.meta-location::before {
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.5) 0%, transparent 70%);
-}
-
-.meta-location:hover {
-  border-color: var(--primary-indigo);
-  box-shadow: 0 8px 30px -8px rgba(99, 102, 241, 0.4);
-}
-
 .breakdown-time {
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 32px;
+  font-weight: 800;
   color: #ffffff;
   font-family: 'JetBrains Mono', monospace;
-  padding: 10px 20px;
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.25);
-  box-shadow: 0 5px 20px -4px rgba(0, 0, 0, 0.4);
+  padding: 16px 28px;
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(249, 115, 22, 0.2) 100%);
+  border-radius: 16px;
+  border: 3px solid rgba(239, 68, 68, 0.5);
+  box-shadow: 0 6px 25px -4px rgba(239, 68, 68, 0.4);
   text-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
   white-space: nowrap;
+  animation: timeAlert 3s ease-in-out infinite;
+}
+
+@keyframes timeAlert {
+  0%, 100% {
+    border-color: rgba(239, 68, 68, 0.5);
+    box-shadow: 0 6px 25px -4px rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    border-color: rgba(249, 115, 22, 0.6);
+    box-shadow: 0 8px 35px -4px rgba(249, 115, 22, 0.5);
+  }
 }
 
 /* Card Body - Enhanced Information Display - 55" Optimized */
@@ -1090,29 +1036,28 @@
 
 .info-grid-top {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
-  align-items: start;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: stretch;
 }
 
 .info-grid-bottom {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
-  flex: 1;
-  align-items: start;
-  margin-top: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  align-items: stretch;
+  margin-top: 16px;
 }
 
 .info-item {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 18px 24px;
+  gap: 10px;
+  padding: 20px 28px;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
   border-radius: 18px;
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: 3px solid rgba(255, 255, 255, 0.25);
   position: relative;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
@@ -1147,10 +1092,10 @@
 }
 
 .info-label {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
-  color: rgba(255, 255, 255, 0.65);
-  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 2.5px;
   text-transform: uppercase;
   opacity: 1;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -1158,10 +1103,10 @@
 }
 
 .info-value {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 700;
   color: #ffffff;
-  line-height: 1.3;
+  line-height: 1.4;
   word-break: break-word;
   text-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
   overflow-wrap: break-word;
@@ -1271,7 +1216,7 @@
 
 /* Breakdown Location Map */
 .breakdown-map {
-  width: 340px;
+  width: 400px;
   flex-shrink: 0;
   height: 100%;
 }
@@ -1281,8 +1226,8 @@
   height: 100%;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
-  border-radius: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-radius: 28px;
+  border: 3px solid rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(20px) saturate(150%);
   overflow: hidden;
   position: relative;
@@ -1582,7 +1527,11 @@
   }
 
   .fleet-number {
-    font-size: 96px;
+    font-size: 72px;
+  }
+
+  .card-service-header .service-number {
+    font-size: 120px;
   }
 
   .severity-badge,
@@ -1592,15 +1541,15 @@
   }
 
   .breakdown-time {
-    font-size: 42px;
+    font-size: 48px;
   }
 
   .info-label {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .info-value {
-    font-size: 44px;
+    font-size: 36px;
   }
 
   .stat-value {
@@ -1737,30 +1686,67 @@
   }
 }
 
-/* Centered Service Header at Top of Card */
+/* Centered Service Header at Top of Card - REDESIGNED */
 .card-service-header {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  padding: 1rem 1.5rem;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1));
-  border-bottom: 2px solid rgba(59, 130, 246, 0.3);
-  gap: 0.5rem;
+  padding: 24px 32px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(99, 102, 241, 0.12));
+  border-bottom: 3px solid rgba(59, 130, 246, 0.4);
+  gap: 20px;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* Subtle animated background */
+.card-service-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+  animation: headerShine 4s linear infinite;
+}
+
+@keyframes headerShine {
+  0% { left: -100%; }
+  100% { left: 100%; }
 }
 
 .card-service-header .service-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: 18px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.7);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 2.5px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  z-index: 1;
 }
 
 .card-service-header .service-number {
-  font-size: 2.5rem;
-  font-weight: 800;
-  color: #3b82f6;
-  text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
-  letter-spacing: 0.05em;
+  font-size: 96px;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ffffff 0%, var(--primary-cyan) 50%, var(--primary-blue) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 8px 30px var(--glow-cyan));
+  letter-spacing: -2px;
+  line-height: 1;
+  z-index: 1;
+  animation: serviceGlow 3s ease-in-out infinite;
+}
+
+@keyframes serviceGlow {
+  0%, 100% {
+    filter: drop-shadow(0 8px 30px var(--glow-cyan));
+  }
+  50% {
+    filter: drop-shadow(0 10px 40px rgba(6, 182, 212, 0.8));
+  }
 }
