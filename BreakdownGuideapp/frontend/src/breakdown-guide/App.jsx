@@ -587,7 +587,8 @@ const App = () => {
                             console.log('🎯 Current showSummary state:', showSummary);
 
                             // Store decision and notes for summary
-                            const finalDecision = (decision || responses.decision || 'CONTINUE').toUpperCase();
+                            // Convert to string to handle edge cases where decision might not be a string
+                            const finalDecision = String(decision || responses.decision || 'CONTINUE').toUpperCase();
                             const finalNotes = notes || responses.notes || '';
 
                             console.log('🎯 Final decision:', finalDecision);

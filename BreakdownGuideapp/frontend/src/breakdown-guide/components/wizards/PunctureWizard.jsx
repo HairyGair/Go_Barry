@@ -466,7 +466,12 @@ const PunctureWizardStep4 = ({ responses, updateResponse, onPrevious, onComplete
                     Previous Step
                 </button>
                 <button
-                    onClick={onComplete}
+                    onClick={() => {
+                        // Punctures always result in STOP decision per SDC Guide Page 32
+                        const positionInfo = getPositionDescription();
+                        const notes = `Puncture identified at ${positionInfo}. Engineering contacted and vehicle stopped as per SDC requirements.`;
+                        onComplete('STOP', notes);
+                    }}
                     disabled={responses.engineering_contacted !== 'yes'}
                     className="flex items-center px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all text-lg font-semibold"
                 >
