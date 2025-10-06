@@ -797,6 +797,9 @@ router.post('/from-wizard', async (req, res) => {
 
       // Vehicle and location
       fleet_number,
+      depot,
+      vehicle_type,
+      registration,
       location,
       location_coords,
       w3w_location,
@@ -840,6 +843,9 @@ router.post('/from-wizard', async (req, res) => {
     const breakdownData = {
       breakdown_id: idResult.id,
       fleet_no: fleet_number,
+      depot: depot || 'Unknown',
+      vehicle_type: vehicle_type || null,
+      registration: registration || null,
       supervisor_badge: supervisor_badge,
       supervisor_name: supervisor_name,
       location: location,
