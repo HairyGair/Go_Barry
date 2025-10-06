@@ -98,9 +98,15 @@ router.post('/complete', async (req, res) => {
       .select()
       .single();
 
-    if (breakdownError) {
+    if (breakdownError || !breakdown) {
       console.error('Error updating breakdown:', breakdownError);
-      // Don't fail the request, just log the error
+      // Return success for wizard progress but note breakdown update failed
+      return res.status(201).json({
+        progress: data,
+        breakdown: null,
+        warning: 'Assessment completed but breakdown update failed',
+        message: 'Assessment logged successfully'
+      });
     }
 
     // Broadcast breakdown update to WebSocket clients
@@ -117,18 +123,20 @@ router.post('/complete', async (req, res) => {
         vehicle: {
           fleetNumber: vehicle_fleet_number
         },
-        supervisor_name: supervisor_id,
+        // Use breakdown's supervisor_name if available, otherwise supervisor_id
+        supervisor_name: breakdown?.supervisor_name || breakdown?.supervisor_badge || supervisor_id,
         wizardType: wizard_type
       };
 
       // Broadcast to both dashboards
-      webSocketHandler.broadcast('sdc-dashboard', broadcastData);
-      webSocketHandler.broadcast('control-room', broadcastData);
+      const sdcCount = webSocketHandler.broadcast('sdc-dashboard', broadcastData);
+      const controlCount = webSocketHandler.broadcast('control-room', broadcastData);
 
       console.log(`📡 Broadcasted wizard_completed event for breakdown ${breakdown_id}:`, {
         type: broadcastData.type,
         decision: decision,
-        channels: ['sdc-dashboard', 'control-room']
+        channels: ['sdc-dashboard', 'control-room'],
+        recipients: { sdc: sdcCount, controlRoom: controlCount }
       });
     } catch (broadcastError) {
       console.error('⚠️ Failed to broadcast wizard completion:', broadcastError);
