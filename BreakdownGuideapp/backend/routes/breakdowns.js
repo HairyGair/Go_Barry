@@ -899,6 +899,7 @@ router.post('/from-wizard', async (req, res) => {
       severity: determinedSeverity,
       wizard_decision: wizard_decision,
       wizard_type: wizard_type,
+      secured_mileage: secured_mileage || false,  // Store in database column for Control Room Display
       wizard_assessment_data: {
         ...wizard_assessment_data,
         // Store additional fields in JSONB since columns don't exist yet
@@ -910,7 +911,6 @@ router.post('/from-wizard', async (req, res) => {
         priority_level: determinedPriority,
         engineering_required,
         replacement_vehicle_required,
-        secured_mileage,
         location_coords
       },
       breakdown_source: 'wizard',
