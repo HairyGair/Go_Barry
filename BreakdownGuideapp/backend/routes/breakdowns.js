@@ -6,6 +6,29 @@ import webSocketHandler from './webSocketHandler.js';
 
 const router = express.Router();
 
+// Helper function to transform breakdown data for frontend compatibility
+// Maps database field names to expected frontend field names
+const transformBreakdownForFrontend = (breakdown) => {
+  if (!breakdown) return breakdown;
+
+  return {
+    ...breakdown,
+    // Map location_description to location for frontend compatibility
+    location: breakdown.location_description || breakdown.location,
+    // Extract route from wizard_assessment_data if available
+    route_id: breakdown.wizard_assessment_data?.route ||
+              breakdown.route_id ||
+              breakdown.route ||
+              null
+  };
+};
+
+// Transform an array of breakdowns
+const transformBreakdownsArray = (breakdowns) => {
+  if (!Array.isArray(breakdowns)) return breakdowns;
+  return breakdowns.map(transformBreakdownForFrontend);
+};
+
 // GET /api/breakdowns - Get all breakdowns with pagination
 router.get('/', async (req, res) => {
   try {
@@ -30,8 +53,11 @@ router.get('/', async (req, res) => {
 
     if (error) throw error;
 
+    // Transform breakdowns for frontend compatibility
+    const transformedData = transformBreakdownsArray(data);
+
     res.json({
-      data,
+      data: transformedData,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -56,7 +82,10 @@ router.get('/active', async (req, res) => {
 
     if (error) throw error;
 
-    res.json(data);
+    // Transform breakdowns for frontend compatibility
+    const transformedData = transformBreakdownsArray(data);
+
+    res.json(transformedData);
   } catch (error) {
     console.error('Error fetching active breakdowns:', error);
     res.status(500).json({ error: 'Failed to fetch active breakdowns' });
@@ -146,12 +175,12 @@ router.get('/live', async (req, res) => {
         elapsed_minutes: elapsedMinutes,
         duration_text: durationText,
 
-        // Route and priority
-        route_id: b.route || null,
-        route: b.route || null,
-        route_number: b.route || null,
-        route_name: b.route_name || null,
-        service: b.route || null,
+        // Route and priority - extract from wizard_assessment_data if available
+        route_id: b.wizard_assessment_data?.route || b.route_id || b.route || null,
+        route: b.wizard_assessment_data?.route || b.route || null,
+        route_number: b.wizard_assessment_data?.route || b.route || null,
+        route_name: b.wizard_assessment_data?.route_name || b.route_name || null,
+        service: b.wizard_assessment_data?.route || b.route || null,
         is_priority: priorityLevel <= 2 || b.secured_mileage,
         priority_level: priorityLevel,
 
@@ -258,7 +287,10 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Breakdown not found' });
     }
 
-    res.json(data);
+    // Transform breakdown for frontend compatibility
+    const transformedData = transformBreakdownForFrontend(data);
+
+    res.json(transformedData);
   } catch (error) {
     console.error('Error fetching breakdown:', error);
     res.status(500).json({ error: 'Failed to fetch breakdown' });
@@ -305,8 +337,11 @@ router.post('/', async (req, res) => {
       // Don't fail the main request if activity logging fails
     }
 
+    // Transform breakdown for frontend compatibility
+    const transformedData = transformBreakdownForFrontend(data);
+
     res.status(201).json({
-      ...data,
+      ...transformedData,
       breakdown_id: idResult.id
     });
   } catch (error) {
@@ -337,7 +372,10 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Breakdown not found' });
     }
 
-    res.json(data);
+    // Transform breakdown for frontend compatibility
+    const transformedData = transformBreakdownForFrontend(data);
+
+    res.json(transformedData);
   } catch (error) {
     console.error('Error updating breakdown:', error);
     res.status(500).json({ error: 'Failed to update breakdown' });
@@ -348,10 +386,10 @@ router.put('/:id', async (req, res) => {
 router.patch('/:id/status', async (req, res) => {
   try {
     const { status } = req.body;
-    
+
     const { data, error } = await supabase
       .from('breakdowns')
-      .update({ 
+      .update({
         status,
         updated_at: new Date().toISOString()
       })
@@ -365,7 +403,10 @@ router.patch('/:id/status', async (req, res) => {
       return res.status(404).json({ error: 'Breakdown not found' });
     }
 
-    res.json(data);
+    // Transform breakdown for frontend compatibility
+    const transformedData = transformBreakdownForFrontend(data);
+
+    res.json(transformedData);
   } catch (error) {
     console.error('Error updating breakdown status:', error);
     res.status(500).json({ error: 'Failed to update breakdown status' });
@@ -540,9 +581,12 @@ router.put('/:id/resolve', async (req, res) => {
 
     if (eventError) console.error('Error creating event:', eventError);
 
+    // Transform breakdown for frontend compatibility
+    const transformedData = transformBreakdownForFrontend(data);
+
     res.json({
       success: true,
-      breakdown: data,
+      breakdown: transformedData,
       message: 'Breakdown resolved successfully'
     });
   } catch (error) {
@@ -609,10 +653,13 @@ router.post('/:id/dispatch', async (req, res) => {
     const eta = new Date();
     eta.setMinutes(eta.getMinutes() + (estimated_arrival_minutes || 30));
 
+    // Transform breakdown for frontend compatibility
+    const transformedBreakdown = transformBreakdownForFrontend(breakdown);
+
     res.json({
       success: true,
       breakdown: {
-        ...breakdown,
+        ...transformedBreakdown,
         engineer_assigned: {
           id: engineer_id,
           name: engineer_name,
@@ -936,12 +983,15 @@ router.post('/from-wizard', async (req, res) => {
       // Don't fail the main request if activity logging fails
     }
 
+    // Transform breakdown for frontend compatibility
+    const transformedData = transformBreakdownForFrontend(data);
+
     // Broadcast breakdown creation to all connected WebSocket clients
     try {
       const broadcastData = {
         type: 'breakdown_created',
-        breakdown_id: data.breakdown_id,
-        breakdown: data,
+        breakdown_id: transformedData.breakdown_id,
+        breakdown: transformedData,
         wizard_type: wizard_type,
         wizard_decision: wizard_decision,
         severity: determinedSeverity,
@@ -952,7 +1002,7 @@ router.post('/from-wizard', async (req, res) => {
       };
       webSocketHandler.broadcast('sdc-dashboard', broadcastData);
       webSocketHandler.broadcast('control-room', broadcastData); // Also broadcast to Control Room Display
-      console.log(`📡 Broadcasted breakdown ${data.breakdown_id} creation to WebSocket clients`);
+      console.log(`📡 Broadcasted breakdown ${transformedData.breakdown_id} creation to WebSocket clients`);
     } catch (broadcastError) {
       console.error('⚠️ Failed to broadcast breakdown creation:', broadcastError);
       // Don't fail the main request if broadcast fails
@@ -960,8 +1010,8 @@ router.post('/from-wizard', async (req, res) => {
 
     res.status(201).json({
       success: true,
-      breakdown_id: data.breakdown_id,
-      breakdown: data,
+      breakdown_id: transformedData.breakdown_id,
+      breakdown: transformedData,
       message: 'Breakdown created from wizard assessment'
     });
 
@@ -1213,11 +1263,14 @@ router.post('/resolve', async (req, res) => {
       }
     });
 
+    // Transform breakdown for frontend compatibility
+    const transformedBreakdown = transformBreakdownForFrontend(breakdown);
+
     // Broadcast to WebSocket clients
     const resolveData = {
       type: 'breakdown_resolved',
       breakdown_id: breakdown_id,
-      breakdown: breakdown,
+      breakdown: transformedBreakdown,
       resolution_type: resolution_type,
       resolved_at: resolvedAt,
       resolved_by: resolvingUser,
@@ -1236,7 +1289,7 @@ router.post('/resolve', async (req, res) => {
       resolved_at: resolvedAt,
       resolved_by: resolvingUser,
       returned_to_service: returned_to_service,
-      breakdown: breakdown,
+      breakdown: transformedBreakdown,
       timestamp: resolvedAt
     });
 
