@@ -169,6 +169,222 @@ import preferencesRoutes from './routes/preferences.js';
 import publicRoutes from './routes/public.js';
 import webSocketHandler from './routes/webSocketHandler.js';
 
+// Root API documentation endpoint
+app.get('/', (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  res.send(`
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Go North East - Breakdown Guide API</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #333; line-height: 1.6; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
+    .header { background: white; border-radius: 16px; padding: 40px; margin-bottom: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+    .header h1 { color: #667eea; font-size: 36px; margin-bottom: 10px; }
+    .header p { color: #666; font-size: 18px; }
+    .status { display: inline-block; background: #10b981; color: white; padding: 8px 16px; border-radius: 20px; font-weight: 600; font-size: 14px; margin-top: 15px; }
+    .section { background: white; border-radius: 16px; padding: 30px; margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+    .section h2 { color: #667eea; font-size: 24px; margin-bottom: 20px; border-bottom: 2px solid #f3f4f6; padding-bottom: 10px; }
+    .endpoint { background: #f9fafb; border-left: 4px solid #667eea; padding: 15px 20px; margin-bottom: 15px; border-radius: 8px; }
+    .endpoint .method { display: inline-block; padding: 4px 12px; border-radius: 6px; font-weight: 700; font-size: 12px; margin-right: 10px; }
+    .method.get { background: #10b981; color: white; }
+    .method.post { background: #3b82f6; color: white; }
+    .method.put { background: #f59e0b; color: white; }
+    .method.delete { background: #ef4444; color: white; }
+    .endpoint .path { font-family: 'Courier New', monospace; color: #374151; font-size: 14px; }
+    .endpoint .desc { color: #6b7280; font-size: 13px; margin-top: 5px; }
+    .badge { display: inline-block; background: #e0e7ff; color: #6366f1; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-left: 8px; }
+    .footer { text-align: center; color: white; margin-top: 40px; font-size: 14px; }
+    a { color: #667eea; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚍 Go North East - Breakdown Guide API</h1>
+      <p>Real-time breakdown management and fleet monitoring system</p>
+      <span class="status">✅ API Online</span>
+    </div>
+
+    <div class="section">
+      <h2>📊 System Health</h2>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path"><a href="${baseUrl}/health">/health</a></span>
+        <div class="desc">API health check with Supabase connection status</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path"><a href="${baseUrl}/api/health">/api/health</a></span>
+        <div class="desc">Alternative health check endpoint</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>🔓 Public Endpoints</h2>
+      <p style="color: #6b7280; margin-bottom: 15px; font-size: 14px;">These endpoints do not require authentication - designed for Control Room displays</p>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/public/breakdowns/live</span>
+        <div class="desc">Get active breakdowns for public displays (Control Room)</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/public/breakdowns/stats</span>
+        <div class="desc">Get breakdown statistics (query: ?period=today|week|month)</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/public/activity/feed</span>
+        <div class="desc">Get activity feed (query: ?limit=25&offset=0)</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/public/fleet</span>
+        <div class="desc">Get fleet database (all vehicles)</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>🔐 Authenticated Endpoints</h2>
+      <p style="color: #6b7280; margin-bottom: 15px; font-size: 14px;">These endpoints require Supabase JWT authentication token in Authorization header</p>
+
+      <h3 style="color: #374151; font-size: 18px; margin: 20px 0 15px 0;">🚨 Breakdowns</h3>
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/breakdowns</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Create new breakdown report</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/breakdowns/live</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Get live breakdowns for SDC Dashboard</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/breakdowns/in-progress</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Get breakdowns currently being assessed</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/breakdowns/:id</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Get specific breakdown by ID</div>
+      </div>
+      <div class="endpoint">
+        <span class="method put">PUT</span>
+        <span class="path">/api/breakdowns/:id</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Update breakdown details</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/breakdowns/stats</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Get breakdown statistics</div>
+      </div>
+
+      <h3 style="color: #374151; font-size: 18px; margin: 20px 0 15px 0;">🚍 Fleet Management</h3>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/fleet/vehicles</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Search fleet vehicles</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/fleet/vehicle/:fleetNumber</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Get specific vehicle details</div>
+      </div>
+
+      <h3 style="color: #374151; font-size: 18px; margin: 20px 0 15px 0;">👤 Authentication</h3>
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/auth/login</span>
+        <div class="desc">Supervisor login (badge-based)</div>
+      </div>
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/auth/verify</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Verify current session</div>
+      </div>
+
+      <h3 style="color: #374151; font-size: 18px; margin: 20px 0 15px 0;">🔧 Engineering</h3>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/engineering/depot-stats</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Get depot statistics</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/engineering/engineers</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Get all engineers</div>
+      </div>
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/engineering/assign</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Assign engineer to breakdown</div>
+      </div>
+
+      <h3 style="color: #374151; font-size: 18px; margin: 20px 0 15px 0;">📈 Analytics</h3>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/analytics/kpis</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Key performance indicators</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/analytics/trends</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Performance trends over time</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/analytics/depot-comparison</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Compare depot performance</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>📡 WebSocket Endpoints</h2>
+      <div class="endpoint">
+        <span class="method get" style="background: #8b5cf6;">WS</span>
+        <span class="path">ws://${req.get('host')}/ws/sdc-dashboard</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Real-time SDC Dashboard updates (requires token in URL: ?token=...)</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get" style="background: #8b5cf6;">WS</span>
+        <span class="path">ws://${req.get('host')}/ws/control-room</span>
+        <div class="desc">Real-time Control Room display updates (public)</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p><strong>Go North East</strong> • Breakdown Management System</p>
+      <p style="margin-top: 10px; opacity: 0.8;">Production API • Powered by Supabase</p>
+    </div>
+  </div>
+</body>
+</html>
+  `);
+});
+
 // Public routes (no authentication required)
 app.get('/health', healthCheck);
 app.get('/api/health', healthCheck);
