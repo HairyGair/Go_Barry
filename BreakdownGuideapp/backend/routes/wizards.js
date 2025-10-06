@@ -1,5 +1,6 @@
 import express from 'express';
 import { supabase } from '../server.js';
+import webSocketHandler from './webSocketHandler.js';
 
 const router = express.Router();
 
@@ -100,6 +101,25 @@ router.post('/complete', async (req, res) => {
     if (breakdownError) {
       console.error('Error updating breakdown:', breakdownError);
       // Don't fail the request, just log the error
+    }
+
+    // Broadcast breakdown update to WebSocket clients
+    try {
+      const broadcastData = {
+        type: 'breakdown_updated',
+        action: 'wizard_completed',
+        breakdown: breakdown,
+        breakdown_id: breakdown_id,
+        decision: decision,
+        timestamp: new Date().toISOString()
+      };
+
+      webSocketHandler.broadcast('sdc-dashboard', broadcastData);
+      webSocketHandler.broadcast('control-room', broadcastData);
+      console.log(`📡 Broadcasted wizard completion for breakdown ${breakdown_id} to WebSocket clients`);
+    } catch (broadcastError) {
+      console.error('⚠️ Failed to broadcast wizard completion:', broadcastError);
+      // Don't fail the main request if broadcast fails
     }
 
     res.status(201).json({
