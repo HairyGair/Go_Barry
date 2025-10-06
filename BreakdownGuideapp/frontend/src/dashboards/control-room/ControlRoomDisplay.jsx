@@ -347,6 +347,21 @@ const ControlRoomDisplay = () => {
         {currentBreakdown ? (
           <>
           <div className={`breakdown-card-large ${currentBreakdown.secured_mileage ? 'secured-mileage-card' : ''}`}>
+            {/* Service Number - Centered at Top */}
+            <div className="card-service-header">
+              <span className="service-label">🚌 SERVICE</span>
+              <span className="service-number">
+                {(() => {
+                  const route = currentBreakdown.route_id || currentBreakdown.service ||
+                               currentBreakdown.route_number || currentBreakdown.route ||
+                               (currentBreakdown.route_data && currentBreakdown.route_data.route_id);
+                  if (!route || route === 'Unknown') return 'TBC';
+                  const displayRoute = route.toString().replace(/^route_/, '').toUpperCase();
+                  return displayRoute;
+                })()}
+              </span>
+            </div>
+
             {/* Card Header */}
             <div className="card-header">
               <div className="card-header-left">
@@ -374,19 +389,6 @@ const ControlRoomDisplay = () => {
               <div className="card-header-right">
                 <div className="breakdown-time">
                   {currentBreakdown.duration_text || getTimeAgo(currentBreakdown.created_at)}
-                </div>
-                <div className="meta-service">
-                  <span className="meta-label">🚌 SERVICE</span>
-                  <span className="meta-value">
-                    {(() => {
-                      const route = currentBreakdown.route_id || currentBreakdown.service ||
-                                   currentBreakdown.route_number || currentBreakdown.route ||
-                                   (currentBreakdown.route_data && currentBreakdown.route_data.route_id);
-                      if (!route || route === 'Unknown') return 'TBC';
-                      const displayRoute = route.toString().replace(/^route_/, '').toUpperCase();
-                      return displayRoute;
-                    })()}
-                  </span>
                 </div>
                 <div className="meta-location">
                   <span className="meta-label">📍 LOCATION</span>
@@ -566,8 +568,8 @@ const ControlRoomDisplay = () => {
                   );
                 }
 
-                // Google Maps Static API URL with dark theme
-                const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=14&size=400x600&markers=color:red%7Clabel:B%7C${lat},${lng}&key=${apiKey}&style=feature:all%7Celement:geometry%7Ccolor:0x1a2332&style=feature:all%7Celement:labels.text.fill%7Ccolor:0xffffff&style=feature:all%7Celement:labels.text.stroke%7Ccolor:0x0a0f1b&style=feature:road%7Celement:geometry%7Ccolor:0x2d3748&style=feature:water%7Celement:geometry%7Ccolor:0x0f172a`;
+                // Google Maps Static API URL with dark theme (zoom 16 for closer view)
+                const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=16&size=400x600&markers=color:red%7Clabel:B%7C${lat},${lng}&key=${apiKey}&style=feature:all%7Celement:geometry%7Ccolor:0x1a2332&style=feature:all%7Celement:labels.text.fill%7Ccolor:0xffffff&style=feature:all%7Celement:labels.text.stroke%7Ccolor:0x0a0f1b&style=feature:road%7Celement:geometry%7Ccolor:0x2d3748&style=feature:water%7Celement:geometry%7Ccolor:0x0f172a`;
 
                 return (
                   <img
@@ -575,12 +577,20 @@ const ControlRoomDisplay = () => {
                     alt="Breakdown Location"
                     className="map-image"
                     onError={(e) => {
+                      // Log the error for debugging
+                      console.error('Google Maps Static API error. URL:', mapUrl);
+                      console.error('Check that Static Maps API is enabled in Google Cloud Console');
+                      console.error('API Key:', apiKey.substring(0, 10) + '...');
+
                       // Fallback if map fails to load
                       e.target.style.display = 'none';
                       const errorDiv = document.createElement('div');
                       errorDiv.className = 'map-error';
-                      errorDiv.innerHTML = '<div class="map-error-icon">📍</div><div class="map-error-text">Map Load Failed</div>';
+                      errorDiv.innerHTML = '<div class="map-error-icon">🗺️</div><div class="map-error-text">Map Load Failed<br/><small>Check API key & Static Maps API</small></div>';
                       e.target.parentElement.appendChild(errorDiv);
+                    }}
+                    onLoad={() => {
+                      console.log('✅ Map loaded successfully for coordinates:', lat, lng);
                     }}
                   />
                 );
