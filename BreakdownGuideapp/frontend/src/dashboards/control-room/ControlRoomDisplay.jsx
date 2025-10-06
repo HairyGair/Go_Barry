@@ -249,7 +249,10 @@ const ControlRoomDisplay = () => {
 
         if (data.type === 'breakdown_created' ||
             data.type === 'breakdown_updated' ||
-            data.type === 'breakdowns_updated') {
+            data.type === 'breakdowns_updated' ||
+            data.type === 'wizard_completed' ||
+            data.type === 'assessment_completed') {
+          console.log('📡 Control Room received breakdown update:', data.type);
           fetchBreakdowns();
         }
       } catch (error) {

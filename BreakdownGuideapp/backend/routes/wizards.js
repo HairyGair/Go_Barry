@@ -105,18 +105,31 @@ router.post('/complete', async (req, res) => {
 
     // Broadcast breakdown update to WebSocket clients
     try {
+      // Use 'wizard_completed' event type that SDC Dashboard listens for
       const broadcastData = {
-        type: 'breakdown_updated',
+        type: 'wizard_completed',
         action: 'wizard_completed',
         breakdown: breakdown,
         breakdown_id: breakdown_id,
         decision: decision,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        // Add additional data for dashboard compatibility
+        vehicle: {
+          fleetNumber: vehicle_fleet_number
+        },
+        supervisor_name: supervisor_id,
+        wizardType: wizard_type
       };
 
+      // Broadcast to both dashboards
       webSocketHandler.broadcast('sdc-dashboard', broadcastData);
       webSocketHandler.broadcast('control-room', broadcastData);
-      console.log(`📡 Broadcasted wizard completion for breakdown ${breakdown_id} to WebSocket clients`);
+
+      console.log(`📡 Broadcasted wizard_completed event for breakdown ${breakdown_id}:`, {
+        type: broadcastData.type,
+        decision: decision,
+        channels: ['sdc-dashboard', 'control-room']
+      });
     } catch (broadcastError) {
       console.error('⚠️ Failed to broadcast wizard completion:', broadcastError);
       // Don't fail the main request if broadcast fails

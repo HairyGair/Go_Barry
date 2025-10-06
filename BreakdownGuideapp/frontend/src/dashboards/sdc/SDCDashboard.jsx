@@ -559,15 +559,22 @@ const SDCDashboard = () => {
       case 'wizard_completed':
       case 'assessment_completed':
         const breakdownId = data.breakdown_id || data.breakdownId;
-        
+
+        console.log(`✅ SDC Dashboard received wizard_completed event for breakdown ${breakdownId}:`, {
+          decision: data.decision,
+          supervisor: data.supervisor_name,
+          fleet: data.vehicle?.fleetNumber,
+          timestamp: data.timestamp
+        });
+
         // Remove from active assessments and highlight in main list
-        setActiveAssessments(prev => 
-          prev.filter(a => 
+        setActiveAssessments(prev =>
+          prev.filter(a =>
             a.breakdown_id !== breakdownId &&
             a.assessmentId !== data.assessmentId
           )
         );
-        
+
         // Add to completed assessments with timestamp
         const completedAssessment = {
           id: breakdownId,
@@ -579,13 +586,13 @@ const SDCDashboard = () => {
           wizardType: data.wizardType || data.issue_type,
           duration: data.duration || data.elapsedTime
         };
-        
+
         setCompletedAssessments(prev => [completedAssessment, ...prev.slice(0, 9)]);
-        
+
         // Highlight the breakdown for 12 seconds with completion flash
         setHighlightedBreakdown(breakdownId);
         setTimeout(() => setHighlightedBreakdown(null), 12000);
-        
+
         // Start engineering response timer for STOP and AMBER decisions
         if (data.decision === 'STOP' || data.decision === 'AMBER') {
           setEngineeringTimers(prev => {
@@ -599,7 +606,7 @@ const SDCDashboard = () => {
             return newTimers;
           });
         }
-        
+
         // Add to recent decisions
         if (data.decision) {
           setRecentDecisions(prev => [
@@ -615,7 +622,8 @@ const SDCDashboard = () => {
             ...prev.slice(0, 4)
           ]);
         }
-        
+
+        console.log(`🔄 Refreshing breakdown list after wizard completion for ${breakdownId}`);
         fetchBreakdowns(); // Refresh breakdown data
         break;
         
@@ -630,9 +638,16 @@ const SDCDashboard = () => {
         break;
         
       case 'breakdown_created':
+        console.log('📡 SDC Dashboard: New breakdown created, refreshing list');
         fetchBreakdowns(); // Refresh breakdown data
         break;
-        
+
+      case 'breakdown_updated':
+      case 'breakdowns_updated':
+        console.log('📡 SDC Dashboard: Breakdown updated, refreshing list');
+        fetchBreakdowns(); // Refresh breakdown data
+        break;
+
       case 'engineer_assigned':
       case 'engineering_dispatched':
         // Clear engineering timer when engineer is assigned
