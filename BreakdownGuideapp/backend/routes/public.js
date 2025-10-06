@@ -92,12 +92,12 @@ router.get('/breakdowns/live', async (req, res) => {
         elapsed_minutes: elapsedMinutes,
         duration_text: durationText,
 
-        // Route and priority
-        route_id: b.route || null,
-        route: b.route || null,
-        route_number: b.route || null,
-        route_name: b.route_name || null,
-        service: b.route || null,
+        // Route and priority - extract from wizard_assessment_data if available
+        route_id: b.wizard_assessment_data?.route || b.route_id || b.route || null,
+        route: b.wizard_assessment_data?.route || b.route || null,
+        route_number: b.wizard_assessment_data?.route || b.route || null,
+        route_name: b.wizard_assessment_data?.route_name || b.route_name || null,
+        service: b.wizard_assessment_data?.route || b.route || null,
         is_priority: priorityLevel <= 2 || b.secured_mileage,
         priority_level: priorityLevel,
         secured_mileage: b.secured_mileage || false,
