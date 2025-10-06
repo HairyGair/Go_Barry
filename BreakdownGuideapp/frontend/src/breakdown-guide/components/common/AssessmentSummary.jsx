@@ -29,7 +29,7 @@ const AssessmentSummary = ({
     
     // Get decision color and icon
     const getDecisionStyle = (decision) => {
-        const upperDecision = decision?.toUpperCase();
+        const upperDecision = String(decision || '').toUpperCase();
         switch (upperDecision) {
             case 'STOP':
                 return {
@@ -105,10 +105,10 @@ Coordinates: ${assessmentData?.location?.lat || 'N/A'}, ${assessmentData?.locati
 
 ASSESSMENT OUTCOME
 ------------------
-Decision: ${decision?.toUpperCase() || 'N/A'}
-${decision?.toUpperCase() === 'STOP' ? 'VEHICLE MUST NOT CONTINUE - Engineering attendance required immediately' : ''}
-${decision?.toUpperCase() === 'AMBER' ? 'Vehicle may continue to safe changeover point - Arrange replacement ASAP' : ''}
-${decision?.toUpperCase() === 'CONTINUE' ? 'Vehicle may remain in service - Monitor and log defect' : ''}
+Decision: ${String(decision || '').toUpperCase() || 'N/A'}
+${String(decision || '').toUpperCase() === 'STOP' ? 'VEHICLE MUST NOT CONTINUE - Engineering attendance required immediately' : ''}
+${String(decision || '').toUpperCase() === 'AMBER' ? 'Vehicle may continue to safe changeover point - Arrange replacement ASAP' : ''}
+${String(decision || '').toUpperCase() === 'CONTINUE' ? 'Vehicle may remain in service - Monitor and log defect' : ''}
 
 KEY FINDINGS
 ------------
@@ -131,7 +131,7 @@ ${wizardType?.toLowerCase().includes('road-traffic') || wizardType?.toLowerCase(
 - Attach any photos taken during assessment
 - Record all defects identified
 - Note any safety concerns
-${decision?.toUpperCase() === 'STOP' ? '- Mark as SAFETY CRITICAL in Tracerit' : ''}` : ''}
+${String(decision || '').toUpperCase() === 'STOP' ? '- Mark as SAFETY CRITICAL in Tracerit' : ''}` : ''}
 
 ADDITIONAL NOTES
 ----------------
@@ -164,7 +164,7 @@ ${new Date().toISOString()}
     // Generate actions list based on decision
     const generateActionsList = () => {
         const actions = [];
-        const upperDecision = decision?.toUpperCase();
+        const upperDecision = String(decision || '').toUpperCase();
         
         switch (upperDecision) {
             case 'STOP':
@@ -215,12 +215,12 @@ ${new Date().toISOString()}
                 <div className="text-center">
                     <div className="text-6xl mb-4">{decisionStyle.icon}</div>
                     <h3 className={`text-2xl font-bold mb-2 ${decisionStyle.textColor}`}>
-                        {decision?.toUpperCase() || 'N/A'} DECISION
+                        {String(decision || '').toUpperCase() || 'N/A'} DECISION
                     </h3>
                     <p className={`${decisionStyle.textColor} text-sm`}>
-                        {decision?.toUpperCase() === 'STOP' && 'Vehicle must not continue - Immediate engineering required'}
-                        {decision?.toUpperCase() === 'AMBER' && 'Continue to safe changeover point - Arrange replacement'}
-                        {decision?.toUpperCase() === 'CONTINUE' && 'Vehicle may remain in service - Monitor defect'}
+                        {String(decision || '').toUpperCase() === 'STOP' && 'Vehicle must not continue - Immediate engineering required'}
+                        {String(decision || '').toUpperCase() === 'AMBER' && 'Continue to safe changeover point - Arrange replacement'}
+                        {String(decision || '').toUpperCase() === 'CONTINUE' && 'Vehicle may remain in service - Monitor defect'}
                     </p>
                 </div>
             </div>
@@ -325,7 +325,7 @@ ${new Date().toISOString()}
                                 <li>Attach any photos taken during assessment</li>
                                 <li>Record all defects identified above</li>
                                 <li>Include location details and time of assessment</li>
-                                {decision?.toUpperCase() === 'STOP' && <li className="text-red-300">Mark as SAFETY CRITICAL in Tracerit</li>}
+                                {String(decision || '').toUpperCase() === 'STOP' && <li className="text-red-300">Mark as SAFETY CRITICAL in Tracerit</li>}
                             </ul>
                         </div>
                     </div>

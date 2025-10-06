@@ -280,7 +280,7 @@ const AppContent = () => {
     )
   }
 
-  const hideNav = location.pathname === '/breakdown-guide'
+  const hideNav = location.pathname === '/breakdown-guide' || location.pathname === '/dashboards/control-room'
 
   // Flag to toggle between classic and modern header
   const useModernHeader = true // Set to false to use classic header

@@ -19,6 +19,7 @@ import ProfileSettings from './settings/ProfileSettings.jsx';
 import AppearanceSettings from './settings/AppearanceSettings.jsx';
 import DashboardSettings from './settings/DashboardSettings.jsx';
 import DataManagement from './settings/DataManagement.jsx';
+import AdminSettings from './settings/AdminSettings.jsx';
 import './SettingsPage.css';
 
 const SettingsPage = () => {
@@ -198,11 +199,14 @@ const SettingsPage = () => {
     }
   };
 
+  // Build tabs array - conditionally include Admin tab for admin users
   const tabs = [
     { id: 'profile', label: 'Profile & Account', icon: '👤' },
     { id: 'appearance', label: 'Appearance', icon: '🎨' },
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'data', label: 'Data & Storage', icon: '💾' },
+    // Admin tab - only show for admin users
+    ...(currentUser?.role === 'admin' ? [{ id: 'admin', label: 'Admin', icon: '🔐' }] : []),
     // Phase 2:
     // { id: 'notifications', label: 'Notifications', icon: '🔔' },
     // { id: 'security', label: 'Security', icon: '🔒' },
@@ -280,6 +284,10 @@ const SettingsPage = () => {
               user={currentUser}
               settings={settings}
             />
+          )}
+
+          {activeTab === 'admin' && (
+            <AdminSettings />
           )}
         </div>
       </div>

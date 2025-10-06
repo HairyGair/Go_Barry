@@ -12,7 +12,7 @@ class WizardTrackerIntegration {
   // Map wizard decisions to tracker severity levels
   mapDecisionToSeverity(decision, wizardType) {
     // Handle various decision formats from different wizards
-    const decisionUpper = (decision || '').toUpperCase();
+    const decisionUpper = String(decision || '').toUpperCase();
     
     // Direct mappings
     if (decisionUpper === 'STOP' || decisionUpper.includes('STOP')) {

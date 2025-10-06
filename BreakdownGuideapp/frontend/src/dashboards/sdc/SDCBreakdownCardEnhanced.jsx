@@ -1,6 +1,7 @@
 import React, { useState, memo, useEffect } from 'react';
 import { getWizardInfo } from './utils/wizardTypeMapping';
 import SimpleLocationMap from './SimpleLocationMap';
+import './SDCBreakdownCard-Carousel.css';
 
 // SDC Guide category mappings with icons and sections
 const SDC_GUIDE_CATEGORIES = {
@@ -116,7 +117,9 @@ const SDCBreakdownCardEnhanced = memo(({
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [showNotes, setShowNotes] = useState(false);
   const [note, setNote] = useState('');
-  const [showMap, setShowMap] = useState(true); // Show map by default
+  const [showMap, setShowMap] = useState(true);
+  const [activeCardIndex, setActiveCardIndex] = useState(0); // Track which card is active
+  const [isExpanded, setIsExpanded] = useState(false); // Track if details are expanded
 
   // Validate fleet number - should be 3-5 digits typically
   const isValidFleetNumber = (value) => {
@@ -186,8 +189,17 @@ const SDCBreakdownCardEnhanced = memo(({
 
   const simplifiedVehicleType = getSimplifiedVehicleType(vehicleType);
 
+  // Helper function to capitalize each word
+  const capitalizeWords = (str) => {
+    if (!str) return '';
+    return str.split(' ').map(word =>
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+  };
+
   // Get SDC Guide info based on issue type
-  const issueType = breakdown.issue_type || breakdown.wizard_type?.replace('Wizard', '') || 'General';
+  const rawIssueType = breakdown.issue_type || breakdown.wizard_type?.replace('Wizard', '') || 'General';
+  const issueType = capitalizeWords(rawIssueType);
   const sdcGuideInfo = SDC_GUIDE_CATEGORIES[issueType] || { icon: '❔', section: 'N/A', critical: false };
   
   // Get map data - try multiple sources
@@ -309,886 +321,385 @@ const SDCBreakdownCardEnhanced = memo(({
   const currentStageIndex = stages.indexOf(breakdown.currentStage || 'received');
   const stageProgress = ((currentStageIndex + 1) / stages.length) * 100;
 
+  // Define card sections for carousel
+  const cardSections = [
+    { id: 'overview', title: 'Overview', icon: '📊' },
+    { id: 'location', title: 'Location', icon: '📍' },
+    { id: 'assessment', title: 'Assessment', icon: '🔍' },
+    { id: 'details', title: 'Details', icon: '📋' },
+    { id: 'timeline', title: 'Timeline', icon: '⏱️' }
+  ];
+
+  const handlePrevCard = () => {
+    setActiveCardIndex((prev) => (prev > 0 ? prev - 1 : cardSections.length - 1));
+  };
+
+  const handleNextCard = () => {
+    setActiveCardIndex((prev) => (prev < cardSections.length - 1 ? prev + 1 : 0));
+  };
+
+  const toggleExpanded = () => {
+    setIsExpanded(!isExpanded);
+    if (!isExpanded) {
+      setActiveCardIndex(0); // Reset to first card when expanding
+    }
+  };
+
   return (
-    <div 
-      className={`sdc-card-enhanced ${decisionInfo.class} ${slaStatus} ${isHighlighted ? 'highlighted' : ''}`}
+    <div
+      className={`sdc-card-enhanced ${decisionInfo.class} ${slaStatus} ${isHighlighted ? 'highlighted' : ''} ${isExpanded ? 'expanded' : 'collapsed'}`}
       style={{ animationDelay: `${animationDelay}s` }}
     >
-      {/* Header Section */}
-      <div className="card-header">
+      {/* Compact Header - Always Visible */}
+      <div className="card-header-compact" onClick={toggleExpanded}>
         <div className="header-left">
-          <div className="fleet-section">
-            <div className="fleet-label">FLEET</div>
-            <div className="fleet-number">
-              {fleetNumber}
-              {simplifiedVehicleType && (
-                <span 
-                  className="vehicle-type"
-                  style={{
-                    fontSize: '0.85em',
-                    opacity: 0.8,
-                    fontWeight: 'normal',
-                    color: '#94a3b8'
-                  }}
-                > • {simplifiedVehicleType}</span>
-              )}
-            </div>
+          <div className="fleet-number-compact">
+            {fleetNumber}
+            {simplifiedVehicleType && (
+              <span className="vehicle-type-compact"> • {simplifiedVehicleType}</span>
+            )}
           </div>
           {breakdown.route_id && (
-            <div className="route-badge">
-              <span className="route-label">Route</span>
-              <span className="route-number">{breakdown.route_id}</span>
+            <div className="route-badge-compact">
+              Route {breakdown.route_id}
             </div>
-          )}
-          {breakdown.isPriority && (
-            <span className="priority-indicator">PRIORITY</span>
           )}
         </div>
-        
+
         <div className="header-right">
-          <div className="sla-timer">
-            <div className={`timer-display ${slaStatus}`}>
-              <span className="timer-value">{formatTime(timeElapsed)}</span>
-              <span className="timer-label">
-                {slaStatus === 'breached' ? 'OVERDUE' : 
-                 slaStatus === 'warning' ? 'SLA WARNING' : 
-                 'ELAPSED'}
-              </span>
+          <div className={`timer-compact ${slaStatus}`}>
+            {formatTime(timeElapsed)} ELAPSED
+          </div>
+          <button className="expand-toggle" onClick={(e) => { e.stopPropagation(); toggleExpanded(); }}>
+            {isExpanded ? '▼' : '▶'}
+          </button>
+        </div>
+      </div>
+
+      {/* Expanded Card Carousel - Only visible when expanded */}
+      {isExpanded && (
+        <div className="card-carousel">
+          {/* Card Navigation */}
+          <div className="carousel-navigation">
+            <button className="nav-btn prev" onClick={handlePrevCard} aria-label="Previous card">
+              ‹
+            </button>
+            <div className="carousel-dots">
+              {cardSections.map((section, index) => (
+                <button
+                  key={section.id}
+                  className={`dot ${index === activeCardIndex ? 'active' : ''}`}
+                  onClick={() => setActiveCardIndex(index)}
+                  aria-label={`Go to ${section.title}`}
+                >
+                  <span className="dot-icon">{section.icon}</span>
+                  <span className="dot-label">{section.title}</span>
+                </button>
+              ))}
             </div>
-            {sdcGuideInfo.critical && (
-              <div className="sla-bar">
-                <div 
-                  className="sla-progress"
-                  style={{ width: `${Math.min(100, (timeElapsed / 45) * 100)}%` }}
-                />
+            <button className="nav-btn next" onClick={handleNextCard} aria-label="Next card">
+              ›
+            </button>
+          </div>
+
+          {/* Card Content Container */}
+          <div className="carousel-content">
+            {/* Card 1: Overview */}
+            {activeCardIndex === 0 && (
+              <div className="info-card overview-card">
+                <h3 className="card-title">
+                  <span className="card-icon">📊</span>
+                  Breakdown Overview
+                </h3>
+                <div className="overview-grid">
+                  <div className="overview-item fleet-display">
+                    <div className="overview-label">Fleet Number</div>
+                    <div className="overview-value fleet-large">{fleetNumber}</div>
+                    {simplifiedVehicleType && (
+                      <div className="overview-subvalue">{simplifiedVehicleType}</div>
+                    )}
+                  </div>
+                  <div className="overview-item">
+                    <div className="overview-label">Time Elapsed</div>
+                    <div className={`overview-value timer-large ${slaStatus}`}>
+                      {formatTime(timeElapsed)}
+                    </div>
+                    <div className="overview-subvalue">
+                      {slaStatus === 'breached' ? 'SLA Breached' :
+                       slaStatus === 'warning' ? 'SLA Warning' :
+                       'Within SLA'}
+                    </div>
+                  </div>
+                  <div className="overview-item">
+                    <div className="overview-label">Status</div>
+                    <div className="overview-value">{breakdown.currentStage || 'Received'}</div>
+                  </div>
+                  <div className="overview-item">
+                    <div className="overview-label">Breakdown ID</div>
+                    <div className="overview-value breakdown-id">{breakdown.breakdown_id || 'N/A'}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Card 2: Location */}
+            {activeCardIndex === 1 && (
+              <div className="info-card location-card">
+                <h3 className="card-title">
+                  <span className="card-icon">📍</span>
+                  Location Details
+                </h3>
+                <div className="location-info-detailed">
+                  <div className="location-text-large">
+                    <div className="location-primary-large">{locationDetails.primary}</div>
+                    {locationDetails.secondary && (
+                      <div className="location-secondary-large">{locationDetails.secondary}</div>
+                    )}
+                  </div>
+                  <div className="location-meta">
+                    <div className="meta-item">
+                      <span className="meta-label">Depot:</span>
+                      <span className="meta-value">{depot}</span>
+                    </div>
+                  </div>
+                </div>
+                {mapData && mapData.type === 'iframe' ? (
+                  <div className="map-container-large">
+                    <iframe
+                      width="100%"
+                      height="300"
+                      frameBorder="0"
+                      scrolling="no"
+                      marginHeight="0"
+                      marginWidth="0"
+                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${mapData.lng-0.01},${mapData.lat-0.01},${mapData.lng+0.01},${mapData.lat+0.01}&layer=mapnik&marker=${mapData.lat},${mapData.lng}`}
+                      style={{ borderRadius: '8px' }}
+                      title="Breakdown Location Map"
+                    />
+                    <div className="map-coordinates">
+                      📍 {mapData.lat.toFixed(6)}, {mapData.lng.toFixed(6)}
+                    </div>
+                    <a
+                      href={`https://www.openstreetmap.org/?mlat=${mapData.lat}&mlon=${mapData.lng}#map=16/${mapData.lat}/${mapData.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="map-link"
+                    >
+                      Open in full map →
+                    </a>
+                  </div>
+                ) : (
+                  <SimpleLocationMap
+                    location={breakdown.location || 'Unknown'}
+                    fleetNumber={fleetNumber}
+                    depot={depot}
+                  />
+                )}
+              </div>
+            )}
+
+            {/* Card 3: Assessment */}
+            {activeCardIndex === 2 && (
+              <div className="info-card assessment-card">
+                <h3 className="card-title">
+                  <span className="card-icon">🔍</span>
+                  Assessment & Decision
+                </h3>
+                <div className="issue-display-large">
+                  <div className="issue-icon-large">{sdcGuideInfo.icon}</div>
+                  <div className="issue-info-large">
+                    <h2 className="issue-type-large">{issueType}</h2>
+                    <div className="sdc-reference-large">
+                      <span className="sdc-label">SDC Guide Reference:</span>
+                      <button
+                        className="sdc-link-large"
+                        onClick={() => onViewGuide && onViewGuide(sdcGuideInfo.section, sdcGuideInfo.page)}
+                      >
+                        {sdcGuideInfo.section} - Page {sdcGuideInfo.page}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div className={`decision-display-large ${decisionInfo.class}`}>
+                  <div className="decision-icon-large">{decisionInfo.icon}</div>
+                  <div className="decision-content-large">
+                    <span className="decision-text-large">{decisionInfo.text}</span>
+                    <span className="decision-description-large">{decisionInfo.description}</span>
+                  </div>
+                </div>
+                {decisionInfo.text !== 'PENDING' && (
+                  <div className="recommended-actions">
+                    <h4>Recommended Actions:</h4>
+                    <div className="actions-list-large">
+                      {decisionInfo.actions.map((action, index) => (
+                        <div key={index} className="action-item">
+                          <span className="action-number">{index + 1}</span>
+                          <span className="action-text">{action}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Card 4: Details */}
+            {activeCardIndex === 3 && (
+              <div className="info-card details-card">
+                <h3 className="card-title">
+                  <span className="card-icon">📋</span>
+                  Breakdown Details
+                </h3>
+                <div className="details-list">
+                  <div className="detail-row">
+                    <span className="detail-label">Fleet Number</span>
+                    <span className="detail-value">{fleetNumber}</span>
+                  </div>
+                  {simplifiedVehicleType && (
+                    <div className="detail-row">
+                      <span className="detail-label">Vehicle Type</span>
+                      <span className="detail-value">{simplifiedVehicleType}</span>
+                    </div>
+                  )}
+                  <div className="detail-row">
+                    <span className="detail-label">Depot</span>
+                    <span className="detail-value">{depot}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="detail-label">Supervisor</span>
+                    <span className="detail-value">{breakdown.supervisor_name || 'Unassigned'}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="detail-label">Issue Type</span>
+                    <span className="detail-value">{issueType}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="detail-label">Decision</span>
+                    <span className={`detail-value decision-badge ${decisionInfo.class}`}>
+                      {decisionInfo.text}
+                    </span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="detail-label">Current Status</span>
+                    <span className="detail-value">{breakdown.currentStage || 'Received'}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="detail-label">Breakdown ID</span>
+                    <span className="detail-value breakdown-id-mono">{breakdown.breakdown_id || 'N/A'}</span>
+                  </div>
+                  {breakdown.route_id && (
+                    <div className="detail-row">
+                      <span className="detail-label">Route</span>
+                      <span className="detail-value">{breakdown.route_id}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Card 5: Timeline */}
+            {activeCardIndex === 4 && (
+              <div className="info-card timeline-card">
+                <h3 className="card-title">
+                  <span className="card-icon">⏱️</span>
+                  Progress Timeline
+                </h3>
+                <div className="timeline-display">
+                  <div className="timeline-bar-vertical">
+                    {stages.map((stage, index) => (
+                      <div
+                        key={stage}
+                        className={`timeline-step-vertical ${index <= currentStageIndex ? 'completed' : ''} ${stage === breakdown.currentStage ? 'current' : ''}`}
+                      >
+                        <div className="step-connector" />
+                        <div className="step-content">
+                          <div className="step-dot-large">
+                            {index <= currentStageIndex ? '✓' : index + 1}
+                          </div>
+                          <div className="step-info">
+                            <div className="step-label-large">
+                              {stage.charAt(0).toUpperCase() + stage.slice(1)}
+                            </div>
+                            <div className="step-status">
+                              {index < currentStageIndex ? 'Completed' :
+                               index === currentStageIndex ? 'In Progress' :
+                               'Pending'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="timeline-progress-bar">
+                    <div
+                      className="timeline-progress-fill"
+                      style={{ height: `${stageProgress}%` }}
+                    />
+                  </div>
+                </div>
               </div>
             )}
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Location Section with Map */}
-      <div className="location-section">
-        <div className="location-info">
-          <div className="location-header">
-            <span className="location-icon">📍</span>
-            <div className="location-text">
-              <div className="location-primary">{locationDetails.primary}</div>
-              {locationDetails.secondary && (
-                <div className="location-secondary">{locationDetails.secondary}</div>
-              )}
-            </div>
-          </div>
-          {hasCoordinates && (
-            <button 
-              className="map-toggle"
-              onClick={() => setShowMap(!showMap)}
-            >
-              {showMap ? '🗺️ Hide Map' : '🗺️ Show Map'}
+      {/* Action Buttons - Always visible at bottom */}
+      {isExpanded && (
+        <div className="action-buttons-container">
+          <div className="action-buttons">
+            {breakdown.currentStage === 'received' && (
+              <button className="btn btn-acknowledge" onClick={() => onAcknowledge(breakdown.breakdown_id)}>
+                <span>✓</span> Acknowledge
+              </button>
+            )}
+            {breakdown.currentStage === 'acknowledged' && (
+              <button className="btn btn-decision" onClick={() => onMakeDecision(breakdown.breakdown_id)}>
+                <span>📋</span> Make Decision
+              </button>
+            )}
+            {breakdown.currentStage === 'decision' && (
+              <button className="btn btn-engineering" onClick={() => onRequestEngineering(breakdown.breakdown_id)}>
+                <span>🔧</span> Request Engineering
+              </button>
+            )}
+            <button className="btn btn-notes" onClick={() => setShowNotes(!showNotes)}>
+              <span>📝</span> Notes
             </button>
+            {breakdown.wizard_decision && onEditAssessment && (
+              <button className="btn btn-edit" onClick={() => onEditAssessment(breakdown.breakdown_id)}>
+                <span>✏️</span> Edit
+              </button>
+            )}
+            {onResolve && (
+              <button className="btn btn-resolve" onClick={onResolve}>
+                <span>✅</span> Resolve
+              </button>
+            )}
+          </div>
+
+          {/* Notes Section */}
+          {showNotes && (
+            <div className="notes-section">
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Add notes about this breakdown..."
+                className="notes-input"
+              />
+              <button
+                className="btn-save-note"
+                onClick={() => {
+                  onAddNote && onAddNote(breakdown.breakdown_id, note);
+                  setNote('');
+                  setShowNotes(false);
+                }}
+              >
+                Save Note
+              </button>
+            </div>
           )}
         </div>
-        
-        {showMap && (mapData && mapData.type === 'iframe' ? (
-          <div className="map-container">
-            <iframe
-              width="100%"
-              height="200"
-              frameBorder="0"
-              scrolling="no"
-              marginHeight="0"
-              marginWidth="0"
-              src={`https://www.openstreetmap.org/export/embed.html?bbox=${mapData.lng-0.01},${mapData.lat-0.01},${mapData.lng+0.01},${mapData.lat+0.01}&layer=mapnik&marker=${mapData.lat},${mapData.lng}`}
-              style={{ borderRadius: '8px' }}
-              title="Breakdown Location Map"
-            />
-            <div className="map-coordinates">
-              📍 {mapData.lat.toFixed(6)}, {mapData.lng.toFixed(6)}
-            </div>
-            <a 
-              href={`https://www.openstreetmap.org/?mlat=${mapData.lat}&mlon=${mapData.lng}#map=16/${mapData.lat}/${mapData.lng}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="map-link"
-            >
-              Open in full map →
-            </a>
-          </div>
-        ) : (
-          // Fallback to simple map when no coordinates found
-          <SimpleLocationMap 
-            location={breakdown.location || 'Unknown'}
-            fleetNumber={fleetNumber}
-            depot={depot}
-          />
-        ))}
-      </div>
-
-      {/* Issue Type Section */}
-      <div className="issue-section">
-        <div className="issue-header">
-          <div className="issue-icon">{sdcGuideInfo.icon}</div>
-          <div className="issue-info">
-            <h3 className="issue-type">{issueType}</h3>
-            <div className="sdc-reference">
-              <span className="sdc-label">SDC Guide:</span>
-              <button 
-                className="sdc-link"
-                onClick={() => onViewGuide && onViewGuide(sdcGuideInfo.section, sdcGuideInfo.page)}
-              >
-                {sdcGuideInfo.section} (Page {sdcGuideInfo.page})
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        {/* Decision Display */}
-        <div className={`decision-display ${decisionInfo.class}`}>
-          <div className="decision-icon">{decisionInfo.icon}</div>
-          <div className="decision-content">
-            <span className="decision-text">{decisionInfo.text}</span>
-            <span className="decision-description">{decisionInfo.description}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Enhanced Timeline */}
-      <div className="timeline-section">
-        <div className="timeline-bar">
-          <div className="timeline-progress" style={{ width: `${stageProgress}%` }} />
-          {stages.map((stage, index) => (
-            <div 
-              key={stage}
-              className={`timeline-step ${index <= currentStageIndex ? 'completed' : ''} ${stage === breakdown.currentStage ? 'current' : ''}`}
-            >
-              <div className="step-dot">
-                {index <= currentStageIndex ? '✓' : index + 1}
-              </div>
-              <span className="step-label">{stage.charAt(0).toUpperCase() + stage.slice(1)}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Key Information Grid */}
-      <div className="info-grid">
-        <div className="info-item">
-          <span className="info-label">Depot</span>
-          <span className="info-value">{depot}</span>
-        </div>
-        <div className="info-item">
-          <span className="info-label">Supervisor</span>
-          <span className="info-value">{breakdown.supervisor_name || 'Unassigned'}</span>
-        </div>
-        <div className="info-item">
-          <span className="info-label">Status</span>
-          <span className="info-value status">{breakdown.currentStage || 'Received'}</span>
-        </div>
-        <div className="info-item">
-          <span className="info-label">Breakdown ID</span>
-          <span className="info-value">{breakdown.breakdown_id || 'N/A'}</span>
-        </div>
-      </div>
-
-      {/* Quick Actions Based on Decision */}
-      {decisionInfo.text !== 'PENDING' && (
-        <div className="quick-actions">
-          <h4>Recommended Actions</h4>
-          <div className="actions-list">
-            {decisionInfo.actions.map((action, index) => (
-              <button key={index} className="quick-action-btn">
-                {action}
-              </button>
-            ))}
-          </div>
-        </div>
       )}
-
-      {/* Action Buttons */}
-      <div className="action-buttons">
-        {breakdown.currentStage === 'received' && (
-          <button className="btn btn-acknowledge" onClick={() => onAcknowledge(breakdown.breakdown_id)}>
-            <span>✓</span> Acknowledge
-          </button>
-        )}
-        {breakdown.currentStage === 'acknowledged' && (
-          <button className="btn btn-decision" onClick={() => onMakeDecision(breakdown.breakdown_id)}>
-            <span>📋</span> Make Decision
-          </button>
-        )}
-        {breakdown.currentStage === 'decision' && (
-          <button className="btn btn-engineering" onClick={() => onRequestEngineering(breakdown.breakdown_id)}>
-            <span>🔧</span> Request Engineering
-          </button>
-        )}
-        <button className="btn btn-notes" onClick={() => setShowNotes(!showNotes)}>
-          <span>📝</span> Notes
-        </button>
-        {breakdown.wizard_decision && onEditAssessment && (
-          <button className="btn btn-edit" onClick={() => onEditAssessment(breakdown.breakdown_id)}>
-            <span>✏️</span> Edit
-          </button>
-        )}
-        {onResolve && (
-          <button className="btn btn-resolve" onClick={onResolve}>
-            <span>✅</span> Mark as Resolved
-          </button>
-        )}
-      </div>
-
-      {/* Notes Section */}
-      {showNotes && (
-        <div className="notes-section">
-          <textarea 
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Add notes about this breakdown..."
-            className="notes-input"
-          />
-          <button 
-            className="btn-save-note"
-            onClick={() => {
-              onAddNote && onAddNote(breakdown.breakdown_id, note);
-              setNote('');
-              setShowNotes(false);
-            }}
-          >
-            Save Note
-          </button>
-        </div>
-      )}
-
-      <style jsx>{`
-        .sdc-card-enhanced {
-          background: #ffffff;
-          border-radius: 12px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-          padding: 16px;
-          margin-bottom: 12px;
-          transition: box-shadow 0.2s ease;
-          border-left: 3px solid #e5e7eb;
-        }
-
-        /* Decision color coding - simplified */
-        .sdc-card-enhanced.decision-stop {
-          border-left-color: #dc2626;
-        }
-
-        .sdc-card-enhanced.decision-amber {
-          border-left-color: #f59e0b;
-        }
-
-        .sdc-card-enhanced.decision-continue {
-          border-left-color: #10b981;
-        }
-
-        /* SLA Status - removed animations */
-        .sdc-card-enhanced.breached {
-          border-left-color: #dc2626;
-        }
-
-        .sdc-card-enhanced.warning {
-          border-left-color: #f59e0b;
-        }
-
-        /* Header Section */
-        .card-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 16px;
-          padding-bottom: 12px;
-          border-bottom: 1px solid #e5e7eb;
-        }
-
-        .header-left {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .fleet-section {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          background: #f9fafb;
-          padding: 6px 12px;
-          border-radius: 8px;
-          border: 1px solid #d1d5db;
-        }
-
-        .fleet-label {
-          font-size: 11px;
-          font-weight: 500;
-          color: #6b7280;
-          text-transform: uppercase;
-        }
-
-        .fleet-number {
-          font-size: 20px;
-          font-weight: 600;
-          color: #111827;
-          line-height: 1;
-          font-family: system-ui, -apple-system, sans-serif;
-        }
-
-        .route-badge {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          padding: 6px 12px;
-          background: #dbeafe;
-          border-radius: 8px;
-        }
-
-        .route-label {
-          font-size: 10px;
-          color: #64748b;
-          text-transform: uppercase;
-        }
-
-        .route-number {
-          font-size: 18px;
-          font-weight: 700;
-          color: #3b82f6;
-        }
-
-        .priority-indicator {
-          background: #fef2f2;
-          color: #b91c1c;
-          padding: 2px 8px;
-          border-radius: 4px;
-          font-size: 11px;
-          font-weight: 500;
-          text-transform: uppercase;
-          border: 1px solid #fca5a5;
-        }
-
-        /* Location Section */
-        .location-section {
-          background: #fafafa;
-          border-radius: 8px;
-          padding: 12px;
-          margin-bottom: 12px;
-          border: 1px solid #e5e7eb;
-        }
-
-        .location-info {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 8px;
-        }
-
-        .location-header {
-          display: flex;
-          align-items: flex-start;
-          gap: 8px;
-        }
-
-        .location-icon {
-          font-size: 18px;
-          margin-top: 2px;
-        }
-
-        .location-text {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .location-primary {
-          font-size: 14px;
-          font-weight: 500;
-          color: #374151;
-        }
-
-        .location-secondary {
-          font-size: 12px;
-          color: #6b7280;
-          margin-top: 2px;
-        }
-
-        .map-toggle {
-          background: #3b82f6;
-          color: white;
-          border: none;
-          padding: 6px 12px;
-          border-radius: 6px;
-          font-size: 12px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-
-        .map-toggle:hover {
-          background: #2563eb;
-        }
-
-        .map-container {
-          margin-top: 12px;
-          border-radius: 8px;
-          overflow: hidden;
-          border: 1px solid #e5e7eb;
-        }
-
-        .map-coordinates {
-          background: rgba(0, 0, 0, 0.7);
-          color: white;
-          padding: 4px 8px;
-          font-size: 11px;
-          font-family: monospace;
-          text-align: center;
-        }
-
-        .map-link {
-          display: block;
-          text-align: center;
-          padding: 6px;
-          background: #3b82f6;
-          color: white;
-          text-decoration: none;
-          font-size: 12px;
-          font-weight: 600;
-          transition: background 0.2s;
-        }
-
-        .map-link:hover {
-          background: #2563eb;
-        }
-
-        /* SLA Timer */
-        .sla-timer {
-          text-align: right;
-        }
-
-        .timer-display {
-          display: inline-flex;
-          flex-direction: column;
-          align-items: flex-end;
-        }
-
-        .timer-value {
-          font-size: 16px;
-          font-weight: 500;
-          color: #374151;
-        }
-
-        .timer-display.warning .timer-value {
-          color: #d97706;
-        }
-
-        .timer-display.breached .timer-value {
-          color: #dc2626;
-        }
-
-        .timer-label {
-          font-size: 12px;
-          font-weight: 400;
-          text-transform: none;
-          color: #6b7280;
-        }
-
-        /* Issue Section */
-        .issue-section {
-          background: #f8fafc;
-          border-radius: 12px;
-          padding: 16px;
-          margin-bottom: 20px;
-        }
-
-        .issue-header {
-          display: flex;
-          align-items: flex-start;
-          gap: 12px;
-          margin-bottom: 16px;
-        }
-
-        .issue-icon {
-          font-size: 32px;
-          line-height: 1;
-        }
-
-        .issue-info {
-          flex: 1;
-        }
-
-        .issue-type {
-          font-size: 18px;
-          font-weight: 600;
-          color: #1e293b;
-          margin: 0 0 4px 0;
-        }
-
-        .sdc-reference {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .sdc-label {
-          font-size: 12px;
-          color: #64748b;
-        }
-
-        .sdc-link {
-          font-size: 12px;
-          color: #3b82f6;
-          text-decoration: underline;
-          background: none;
-          border: none;
-          padding: 0;
-          cursor: pointer;
-          font-weight: 500;
-        }
-
-        .sdc-link:hover {
-          color: #2563eb;
-        }
-
-        /* Decision Display */
-        .decision-display {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 12px;
-          border-radius: 6px;
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
-        }
-
-        .decision-display.decision-stop {
-          background: #fef2f2;
-          border-color: #fca5a5;
-        }
-
-        .decision-display.decision-amber {
-          background: #fffbeb;
-          border-color: #fcd34d;
-        }
-
-        .decision-display.decision-continue {
-          background: #f0fdf4;
-          border-color: #86efac;
-        }
-
-        .decision-display.decision-pending {
-          background: #f8fafc;
-          border-color: #cbd5e1;
-        }
-
-        .decision-icon {
-          font-size: 18px;
-        }
-
-        .decision-content {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .decision-text {
-          font-size: 14px;
-          font-weight: 600;
-          text-transform: none;
-        }
-
-        .decision-display.decision-stop .decision-text {
-          color: #b91c1c;
-        }
-
-        .decision-display.decision-amber .decision-text {
-          color: #b45309;
-        }
-
-        .decision-display.decision-continue .decision-text {
-          color: #047857;
-        }
-
-        .decision-display.decision-pending .decision-text {
-          color: #475569;
-        }
-
-        .decision-description {
-          font-size: 12px;
-          color: #6b7280;
-          margin-top: 2px;
-        }
-
-        /* Timeline Section */
-        .timeline-section {
-          margin: 16px 0;
-        }
-
-        .timeline-bar {
-          position: relative;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 12px 0;
-        }
-
-        .timeline-bar::before {
-          content: '';
-          position: absolute;
-          top: 50%;
-          left: 0;
-          right: 0;
-          height: 2px;
-          background: #e5e7eb;
-          transform: translateY(-50%);
-        }
-
-        .timeline-progress {
-          position: absolute;
-          top: 50%;
-          left: 0;
-          height: 2px;
-          background: #3b82f6;
-          transform: translateY(-50%);
-          transition: width 0.3s ease;
-        }
-
-        .timeline-step {
-          position: relative;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 6px;
-          z-index: 1;
-        }
-
-        .step-dot {
-          width: 24px;
-          height: 24px;
-          border-radius: 50%;
-          background: #f3f4f6;
-          border: 2px solid #d1d5db;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 10px;
-          font-weight: 500;
-          color: #6b7280;
-        }
-
-        .timeline-step.completed .step-dot {
-          background: #10b981;
-          border-color: #10b981;
-          color: white;
-        }
-
-        .timeline-step.current .step-dot {
-          background: #3b82f6;
-          border-color: #3b82f6;
-          color: white;
-        }
-
-        .step-label {
-          font-size: 10px;
-          color: #6b7280;
-          font-weight: 400;
-        }
-
-        .timeline-step.completed .step-label,
-        .timeline-step.current .step-label {
-          color: #374151;
-          font-weight: 500;
-        }
-
-        /* Info Grid */
-        .info-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 12px;
-          margin: 20px 0;
-        }
-
-        .info-item {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .info-label {
-          font-size: 11px;
-          color: #9ca3af;
-          text-transform: uppercase;
-          font-weight: 500;
-          letter-spacing: 0.5px;
-        }
-
-        .info-value {
-          font-size: 14px;
-          color: #e5e7eb;
-          font-weight: 600;
-          margin-top: 2px;
-        }
-
-        .info-value.status {
-          text-transform: capitalize;
-        }
-
-        /* Quick Actions */
-        .quick-actions {
-          background: #f8fafc;
-          border-radius: 8px;
-          padding: 12px;
-          margin: 16px 0;
-        }
-
-        .quick-actions h4 {
-          font-size: 12px;
-          font-weight: 600;
-          color: #64748b;
-          text-transform: uppercase;
-          margin: 0 0 8px 0;
-        }
-
-        .actions-list {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-        }
-
-        .quick-action-btn {
-          background: white;
-          border: 1px solid #e5e7eb;
-          border-radius: 6px;
-          padding: 6px 12px;
-          font-size: 12px;
-          color: #475569;
-          cursor: pointer;
-          transition: all 0.2s ease;
-        }
-
-        .quick-action-btn:hover {
-          background: #3b82f6;
-          color: white;
-          border-color: #3b82f6;
-          transform: translateY(-1px);
-        }
-
-        /* Action Buttons */
-        .action-buttons {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-        }
-
-        .btn {
-          flex: 1;
-          min-width: 100px;
-          padding: 10px 16px;
-          border: none;
-          border-radius: 8px;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s ease;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-        }
-
-        .btn span {
-          font-size: 14px;
-        }
-
-        .btn-acknowledge {
-          background: linear-gradient(135deg, #3b82f6, #2563eb);
-          color: white;
-        }
-
-        .btn-decision {
-          background: linear-gradient(135deg, #f59e0b, #d97706);
-          color: white;
-        }
-
-        .btn-engineering {
-          background: linear-gradient(135deg, #10b981, #059669);
-          color: white;
-        }
-
-        .btn-notes {
-          background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-          color: white;
-        }
-
-        .btn-edit {
-          background: linear-gradient(135deg, #64748b, #475569);
-          color: white;
-        }
-
-        .btn-resolve {
-          background: linear-gradient(135deg, #10b981, #059669);
-          color: white;
-          box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
-        }
-
-        .btn-resolve:hover {
-          background: linear-gradient(135deg, #059669, #047857);
-          box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4);
-        }
-
-        .btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        /* Notes Section */
-        .notes-section {
-          margin-top: 16px;
-          padding: 12px;
-          background: #f8fafc;
-          border-radius: 8px;
-        }
-
-        .notes-input {
-          width: 100%;
-          min-height: 80px;
-          padding: 8px;
-          border: 1px solid #e5e7eb;
-          border-radius: 6px;
-          font-size: 13px;
-          resize: vertical;
-        }
-
-        .btn-save-note {
-          margin-top: 8px;
-          padding: 8px 16px;
-          background: #3b82f6;
-          color: white;
-          border: none;
-          border-radius: 6px;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-        }
-
-        .btn-save-note:hover {
-          background: #2563eb;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-          .info-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .action-buttons {
-            flex-direction: column;
-          }
-
-          .btn {
-            width: 100%;
-          }
-
-          .card-header {
-            flex-direction: column;
-            gap: 12px;
-          }
-        }
-      `}</style>
     </div>
   );
 });
