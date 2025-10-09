@@ -390,18 +390,19 @@ body {
 .header-select {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
+  color: #ffffff !important;
   padding: 8px 12px;
   border-radius: 8px;
   font-size: 0.9rem;
   min-width: 180px;
   cursor: pointer;
   transition: all 0.3s ease;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
 .header-select option {
   background: #1e293b;
-  color: white;
+  color: #ffffff !important;
 }
 
 .header-select:hover,
@@ -409,21 +410,25 @@ body {
   background: rgba(255, 255, 255, 0.15);
   border-color: rgba(255, 255, 255, 0.3);
   outline: none;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
 .header-password {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  color: white;
+  color: #ffffff !important;
   padding: 8px 12px;
   border-radius: 8px;
   font-size: 0.9rem;
   width: 140px;
   transition: all 0.3s ease;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
 .header-password::placeholder {
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.5) !important;
+  opacity: 0.7;
 }
 
 .header-password:hover,
@@ -431,6 +436,8 @@ body {
   background: rgba(255, 255, 255, 0.15);
   border-color: rgba(255, 255, 255, 0.3);
   outline: none;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
 .header-login-btn {
@@ -1443,7 +1450,7 @@ body {
   border: 1px solid #4b5563;
   border-radius: 6px;
   background: #374151;
-  color: white;
+  color: #ffffff !important;
   font-size: 14px;
   outline: none;
   transition: all 0.3s ease;
@@ -1457,16 +1464,19 @@ body {
   background-position: right 12px center;
   background-size: 20px;
   padding-right: 40px;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
 .header-select option {
   background: #1f2937;
-  color: white;
+  color: #ffffff !important;
 }
 
 .header-select:focus {
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
 .header-password {
@@ -1475,21 +1485,25 @@ body {
   border: 1px solid #4b5563;
   border-radius: 6px;
   background: #374151;
-  color: white;
+  color: #ffffff !important;
   font-size: 14px;
   outline: none;
   transition: all 0.3s ease;
   min-width: 120px;
   height: 40px;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
 .header-password::placeholder {
-  color: #9ca3af;
+  color: #9ca3af !important;
+  opacity: 0.8;
 }
 
 .header-password:focus {
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
 
 .header-login-btn {
