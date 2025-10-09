@@ -58,19 +58,29 @@ const ControlRoomDisplay = () => {
         // Try to find a good address component
         const result = data.results[0];
 
-        // Look for locality (town/village), or use formatted address
+        // Look for street name (route), or use formatted address
         let locationName = null;
 
-        // Try to get town/village name
-        const locality = result.address_components.find(
-          comp => comp.types.includes('locality') || comp.types.includes('postal_town')
+        // Try to get street name first
+        const route = result.address_components.find(
+          comp => comp.types.includes('route')
         );
 
-        if (locality) {
-          locationName = locality.long_name;
+        if (route) {
+          // Found street name - use it
+          locationName = route.long_name;
         } else {
-          // Use first part of formatted address
-          locationName = result.formatted_address.split(',')[0];
+          // Fallback to locality (town/village) if no street name
+          const locality = result.address_components.find(
+            comp => comp.types.includes('locality') || comp.types.includes('postal_town')
+          );
+
+          if (locality) {
+            locationName = locality.long_name;
+          } else {
+            // Use first part of formatted address
+            locationName = result.formatted_address.split(',')[0];
+          }
         }
 
         // Cache the result
@@ -448,8 +458,19 @@ const ControlRoomDisplay = () => {
                   <span className="meta-label">📍 LOCATION</span>
                   <span className="meta-value">
                     {(() => {
-                      // API already handles fallback logic, just use the location field
-                      const loc = currentBreakdown.location || 'Unknown Location';
+                      // Get location from various possible fields
+                      const loc = currentBreakdown.location ||
+                                 currentBreakdown.location_description ||
+                                 currentBreakdown.breakdown_location ||
+                                 '';
+
+                      // Check for common "unavailable" indicators
+                      const isUnavailable = !loc ||
+                                          loc.toLowerCase().includes('unavailable') ||
+                                          loc.toLowerCase().includes('unknown') ||
+                                          loc.toLowerCase().includes('tbc') ||
+                                          loc.toLowerCase().includes('to be added') ||
+                                          loc.trim() === '';
 
                       // Try to extract coordinates
                       let coords = null;
@@ -457,6 +478,13 @@ const ControlRoomDisplay = () => {
                       // Check wizard_assessment_data first
                       if (currentBreakdown.wizard_assessment_data?.location_coords) {
                         coords = currentBreakdown.wizard_assessment_data.location_coords;
+                      }
+                      // Check lat/lng fields directly
+                      else if (currentBreakdown.location_lat && currentBreakdown.location_lng) {
+                        coords = {
+                          lat: parseFloat(currentBreakdown.location_lat),
+                          lng: parseFloat(currentBreakdown.location_lng)
+                        };
                       }
                       // Parse from location string (Ticketer format)
                       else if (loc) {
@@ -478,16 +506,27 @@ const ControlRoomDisplay = () => {
                         // Geocode in background
                         reverseGeocode(coords.lat, coords.lng);
 
-                        // While geocoding, show a cleaner fallback
-                        if (loc.toLowerCase().includes('ticketer')) {
-                          return 'Locating...';
+                        // While geocoding, show depot as fallback
+                        const depot = currentBreakdown.depot || currentBreakdown.supervisor_depot;
+                        if (depot && !isUnavailable) {
+                          return `${depot} Area`;
                         }
-                        const cleanLoc = loc.split(/\(/)[0].trim();
-                        return cleanLoc || 'Locating...';
+
+                        return 'Locating...';
                       }
 
-                      // No coordinates, show location text as-is
-                      return loc.replace(/\s+/g, ' ').trim();
+                      // If location is unavailable but we have depot info
+                      if (isUnavailable) {
+                        const depot = currentBreakdown.depot || currentBreakdown.supervisor_depot;
+                        if (depot) {
+                          return `${depot} Depot`;
+                        }
+                        return 'Location Not Recorded';
+                      }
+
+                      // Clean up location text
+                      const cleanLoc = loc.split(/\(/)[0].trim().replace(/\s+/g, ' ');
+                      return cleanLoc || 'Location Not Recorded';
                     })()}
                   </span>
                 </div>
@@ -631,8 +670,8 @@ const ControlRoomDisplay = () => {
                   );
                 }
 
-                // Google Maps Static API URL with dark theme (zoom 16 for closer view)
-                const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=16&size=400x600&markers=color:red%7Clabel:B%7C${lat},${lng}&key=${apiKey}&style=feature:all%7Celement:geometry%7Ccolor:0x1a2332&style=feature:all%7Celement:labels.text.fill%7Ccolor:0xffffff&style=feature:all%7Celement:labels.text.stroke%7Ccolor:0x0a0f1b&style=feature:road%7Celement:geometry%7Ccolor:0x2d3748&style=feature:water%7Celement:geometry%7Ccolor:0x0f172a`;
+                // Google Maps Static API URL with dark theme (zoom 18 for street-level detail)
+                const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=18&size=400x600&markers=color:red%7Clabel:B%7C${lat},${lng}&key=${apiKey}&style=feature:all%7Celement:geometry%7Ccolor:0x1a2332&style=feature:all%7Celement:labels.text.fill%7Ccolor:0xffffff&style=feature:all%7Celement:labels.text.stroke%7Ccolor:0x0a0f1b&style=feature:road%7Celement:geometry%7Ccolor:0x2d3748&style=feature:water%7Celement:geometry%7Ccolor:0x0f172a`;
 
                 return (
                   <img
