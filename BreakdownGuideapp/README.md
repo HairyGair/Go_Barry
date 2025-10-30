@@ -5,10 +5,21 @@
 [![Production](https://img.shields.io/badge/status-production-brightgreen)](https://breakdowns.gobarry.co.uk)
 [![Version](https://img.shields.io/badge/version-3.0.0-blue)]()
 [![Database](https://img.shields.io/badge/database-MySQL-orange)]()
+[![Documentation](https://img.shields.io/badge/docs-clean%20%26%20organized-success)]()
+
+**Last Updated:** October 30, 2025 (Post-Cleanup)
 
 **Production URLs:**
 - **Frontend:** https://breakdowns.gobarry.co.uk
 - **Backend API:** https://api.breakdowns.gobarry.co.uk
+
+**📚 Documentation:**
+- **[CLAUDE.md](./CLAUDE.md)** - Complete guide for AI assistants
+- **[DOCUMENTATION_STANDARDS.md](./DOCUMENTATION_STANDARDS.md)** - Documentation rules (READ THIS FIRST for AIs)
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Deployment procedures
+- **[DEVELOPMENT.md](./DEVELOPMENT.md)** - Development guide
+
+⚠️ **For AI Assistants:** Read [DOCUMENTATION_STANDARDS.md](./DOCUMENTATION_STANDARDS.md) before creating ANY new files.
 
 ---
 

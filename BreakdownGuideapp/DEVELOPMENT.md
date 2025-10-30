@@ -1,22 +1,104 @@
 # Development Guide - Go BARRY Breakdown Management System
 
-**Document Version:** 1.0
-**Last Updated:** October 30, 2025
+**Document Version:** 2.0
+**Last Updated:** October 30, 2025 (Post-Cleanup)
 **Target Audience:** Developers, AI Assistants, Future Maintainers
+
+---
+
+## ⚠️ CRITICAL: Documentation Rules
+
+**For AI Assistants:** Before making ANY changes, read **[DOCUMENTATION_STANDARDS.md](./DOCUMENTATION_STANDARDS.md)**
+
+**Key Rules:**
+1. 🚫 **DO NOT create new .md files** without explicit user approval
+2. ✅ **DO update existing documentation** when making significant changes
+3. ✅ **DO add inline comments** for complex code logic
+4. ✅ **DO ask first** if you think new documentation is needed
+
+**October 30, 2025 Cleanup:**
+- Removed 115+ legacy documentation files
+- Cleaned local repository (38% reduction)
+- Cleaned production cPanel (86% reduction)
+- All systems verified operational
+
+See **[CLAUDE.md](./CLAUDE.md)** for complete cleanup details.
 
 ---
 
 ## 📋 Table of Contents
 
-1. [Development Environment Setup](#development-environment-setup)
-2. [Project Structure](#project-structure)
-3. [Code Standards](#code-standards)
-4. [Development Workflow](#development-workflow)
-5. [Testing Guidelines](#testing-guidelines)
-6. [Deployment Process](#deployment-process)
-7. [Common Tasks](#common-tasks)
-8. [Troubleshooting](#troubleshooting)
-9. [Best Practices](#best-practices)
+1. [Documentation Guidelines](#documentation-guidelines)
+2. [Development Environment Setup](#development-environment-setup)
+3. [Project Structure](#project-structure)
+4. [Code Standards](#code-standards)
+5. [Development Workflow](#development-workflow)
+6. [Testing Guidelines](#testing-guidelines)
+7. [Deployment Process](#deployment-process)
+8. [Common Tasks](#common-tasks)
+9. [Troubleshooting](#troubleshooting)
+10. [Best Practices](#best-practices)
+
+---
+
+## 📚 Documentation Guidelines
+
+### When to Update Documentation
+
+**Always update documentation when:**
+- Adding new features or major functionality
+- Changing architecture or tech stack
+- Modifying API endpoints
+- Updating database schema
+- Changing deployment process
+- Fixing critical bugs with workarounds
+
+**Which files to update:**
+- **CLAUDE.md** - Add to "Recent System Changes" for significant features
+- **README.md** - Update if setup process changes
+- **DEPLOYMENT.md** - Update if deployment process changes
+- **DEVELOPMENT.md** (this file) - Update if development workflow changes
+
+### How to Update Documentation
+
+**Step 1:** Read the existing file first
+```bash
+# Use Read tool or cat command
+cat CLAUDE.md
+```
+
+**Step 2:** Find the relevant section
+- Look for existing section that covers this topic
+- Don't create duplicate sections
+
+**Step 3:** Update inline using Edit tool
+- Make precise edits to existing content
+- Don't delete and rewrite entire sections
+
+**Step 4:** Update "Last Updated" date
+- Change date at top of file
+- Add note in parentheses if significant (e.g., "Post-Cleanup")
+
+**Step 5:** Commit documentation separately
+```bash
+git add CLAUDE.md
+git commit -m "docs: Update CLAUDE.md with feature X details"
+```
+
+### What NOT to Do
+
+**🚫 Never:**
+- Create new .md files without explicit user request
+- Create temporary status files (*_STATUS.md, *_SUMMARY.md)
+- Create versioned duplicates (*_V1.md, *_V2.md)
+- Create dated files (*_20251030.md)
+- Create "URGENT" or "NOW" files
+
+**✅ Instead:**
+- Update existing relevant documentation
+- Add inline code comments
+- Use detailed git commit messages
+- Ask user if genuinely need new file
 
 ---
 

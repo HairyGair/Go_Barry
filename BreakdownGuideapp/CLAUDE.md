@@ -2,9 +2,49 @@
 
 This file provides guidance to Claude Code and other AI assistants when working with the Go BARRY Breakdown Management System.
 
-**Last Updated:** October 30, 2025
+**Last Updated:** October 30, 2025 (Post-Cleanup)
 **System Status:** Production-Ready ✅
 **Current Version:** 3.0.0 (MySQL + cPanel Deployment)
+**Documentation Status:** ✅ Cleaned and Organized (115+ legacy files removed)
+
+---
+
+## ⚠️ CRITICAL: Documentation Rules for AI Assistants
+
+### 🚫 DO NOT Create New .md Files
+
+**IMPORTANT:** This project has been extensively cleaned. You are **strictly prohibited** from creating new .md files unless explicitly requested by the user.
+
+**Why?**
+- October 30, 2025: Major cleanup removed 115+ legacy documentation files
+- Root directory reduced from 83 to 50 .md files
+- Backend reduced from 120 files to 17 essential files
+- All documentation is now organized and maintained
+
+**Instead of creating new .md files:**
+1. ✅ **Update existing documentation** - Edit relevant sections in existing files
+2. ✅ **Add comments in code** - Document complex logic inline
+3. ✅ **Update CLAUDE.md** - Add important context to this file
+4. ✅ **Ask first** - If you think new documentation is needed, ask the user
+
+**Exception:** Only create new .md files if the user **explicitly requests** a new document.
+
+### ✅ DO Update Existing Documentation
+
+**When making significant changes, update these key files:**
+- **CLAUDE.md** (this file) - Add important context for future AI sessions
+- **README.md** - Update if architecture or setup changes
+- **DEPLOYMENT.md** - Update if deployment process changes
+- **DEVELOPMENT.md** - Update if development workflow changes
+
+**How to update:**
+1. Read the existing file first
+2. Find the relevant section
+3. Update inline (don't duplicate content)
+4. Keep it concise and accurate
+5. Update the "Last Updated" date at top
+
+---
 
 ---
 
@@ -723,6 +763,47 @@ return res.status(500).json({
 
 ---
 
-**Last Updated:** October 30, 2025
-**Document Version:** 3.0.0
+## 📋 Recent System Changes
+
+### October 30, 2025 - Major Cleanup Completed
+
+**Local Repository Cleanup:**
+- Reduced root .md files from 83 to 50 (38% reduction)
+- Reduced backend root files from 100+ to 28 (72% reduction)
+- Archived 87 legacy files in `docs/archive/` (preserved, not deleted)
+- Organized archive: 2025-migration/, deployment-old/, fixes/, backend-old/
+
+**Production cPanel Cleanup:**
+- Reduced ~/api/ from 120+ files to 17 essential files (86% reduction)
+- Removed 115+ legacy files (backups, old docs, scripts, temp files)
+- Cleaned all subdirectories (routes/, services/, middleware/, migrations/)
+- Backend verified healthy after cleanup
+
+**What Was Removed:**
+- ✅ 20+ backup files (*.backup, *.supabase.backup)
+- ✅ 60+ legacy documentation files (migration guides, deployment docs)
+- ✅ 17 legacy scripts (cpanel-*.sh, deploy-*.sh, upload-*.sh)
+- ✅ 4 old SQL files (superseded by individual migrations)
+- ✅ Temporary files (nohup.out, stderr.log, etc.)
+- ✅ Old archives (gobarry-backend.zip)
+
+**Files Kept (All Essential):**
+- ✅ server.js, package.json, .env
+- ✅ 13 active route files in routes/
+- ✅ 3 active service files in services/
+- ✅ 2 active middleware files in middleware/
+- ✅ 16 MySQL migration files in migrations/
+- ✅ All configuration, data, and utility files
+
+**Backup:**
+- Local: `documentation_backup_20251030_103809.tar.gz` (1.0MB)
+- cPanel: `~/cpanel_backup.tar.gz` (684KB)
+
+**Status:** ✅ All systems operational, backend verified healthy
+
+---
+
+**Last Updated:** October 30, 2025 (Post-Cleanup)
+**Document Version:** 3.1.0
 **System Status:** Production-Ready ✅
+**Documentation:** Clean and Organized
